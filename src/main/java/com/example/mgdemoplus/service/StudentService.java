@@ -6,9 +6,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import java.util.List;
 
 public interface StudentService {
-    public List<Student> getStudent();
-    public  int insertStudent(Student student);
-    public int updateStudent( Student student);
-    public int deleteStudent(int id);
-    public Student selectStudentById(int id);
+    List<Student> getStudent();
+    int insertStudent(Student student);
+    int updateStudent(Student student);
+    int deleteStudent(int id);
+    Student selectStudentById(int id);
 }

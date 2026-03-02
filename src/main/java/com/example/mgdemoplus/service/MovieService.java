@@ -5,5 +5,5 @@ import com.example.mgdemoplus.entity.Movie;
 import java.util.List;
 
 public interface MovieService {
-    public List<Movie> getMovie();
+    List<Movie> getMovie();
 }
