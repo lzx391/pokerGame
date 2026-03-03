@@ -13,6 +13,10 @@ public class DpPlayer {
     private boolean isDealer = false;
     private int blind = 0;         // 0无 1小盲 2大盲
     private long lastHeartBeat = System.currentTimeMillis();
+    private boolean acted = false;  // 本轮是否已行动
+
+    public boolean isActed() { return acted; }
+    public void setActed(boolean acted) { this.acted = acted; }
 
     // getter & setter
     public String getNickname() { return nickname; }

@@ -151,6 +151,7 @@ public class DpRoomServiceImpl {
             p.setFold(false);
             p.setBet(0);
             p.setBlind(0);
+            p.setActed(false);  // ← 加这一行
             p.setHoleCards(Arrays.asList(r.getDeck().remove(0), r.getDeck().remove(0)));
         }
         // 庄家轮动
@@ -197,6 +198,7 @@ public class DpRoomServiceImpl {
         // 执行扣款和增注
         p.setChips(p.getChips() - amount);
         p.setBet(totalBet);
+        p.setActed(true);   // ← 加这一行
         r.setPot(r.getPot() + amount);
 
         // 如果是加注，更新全局最高注额
@@ -217,15 +219,14 @@ public class DpRoomServiceImpl {
             int nextIdx = (startIdx + i) % size;
             DpPlayer nextP = r.getPlayers().get(nextIdx);
 
-            // 如果下一个人没弃牌，且筹码还没跟齐，则轮到他
-            if (!nextP.isFold() && nextP.getBet() < r.getCurrentBetToCall()) {
+            // 没弃牌 且 (还没行动过 或 下注不够)
+            if (!nextP.isFold() && (!nextP.isActed() || nextP.getBet() < r.getCurrentBetToCall())) {
                 r.setCurrentActorIndex(nextIdx);
                 r.setLastActionTime(System.currentTimeMillis());
                 return;
             }
         }
 
-        // 如果所有人都跟齐了筹码，将当前行动者设为 -1，此时前端的“下一轮”按钮就会亮起
         r.setCurrentActorIndex(-1);
     }
 
@@ -246,7 +247,11 @@ public class DpRoomServiceImpl {
         if (r == null || !r.isPlaying() || r.getCurrentActorIndex() >= 0) return false;
 
         // 清理本轮投注数据
-        for (DpPlayer p : r.getPlayers()) p.setBet(0);
+        for (DpPlayer p : r.getPlayers()) {
+            p.setBet(0);
+            p.setActed(false);  // ← 加这一行
+        }
+
         r.setCurrentBetToCall(0);
 
         List<String> deck = r.getDeck();
