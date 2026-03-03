@@ -17,7 +17,8 @@ public class DpPlayer {
 
     public boolean isActed() { return acted; }
     public void setActed(boolean acted) { this.acted = acted; }
-
+    private int totalBet = 0;  // 本手牌累计下注（跨阶段不清零，newHand时才清零）
+    private boolean allIn = false;  // 是否已全下
     // getter & setter
     public String getNickname() { return nickname; }
     public void setNickname(String nickname) { this.nickname = nickname; }
@@ -37,4 +38,8 @@ public class DpPlayer {
     public void setBlind(int blind) { this.blind = blind; }
     public long getLastHeartBeat() { return lastHeartBeat; }
     public void setLastHeartBeat(long lastHeartBeat) { this.lastHeartBeat = lastHeartBeat; }
+    public int getTotalBet() { return totalBet; }
+    public void setTotalBet(int totalBet) { this.totalBet = totalBet; }
+    public boolean isAllIn() { return allIn; }
+    public void setAllIn(boolean allIn) { this.allIn = allIn; }
 }

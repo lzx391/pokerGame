@@ -22,7 +22,7 @@ public class DpRoom {
     private int currentActorIndex = -1;
     private long lastActionTime = 0;
     private static final int ACTION_TIMEOUT = 30000; // 30秒
-
+    private List<DpPot> pots = new ArrayList<>();
     // getter & setter
     public String getRoomId() { return roomId; }
     public void setRoomId(String roomId) { this.roomId = roomId; }
@@ -47,4 +47,6 @@ public class DpRoom {
     public long getLastActionTime() { return lastActionTime; }
     public void setLastActionTime(long lastActionTime) { this.lastActionTime = lastActionTime; }
     public static int getActionTimeout() { return ACTION_TIMEOUT; }
+    public List<DpPot> getPots() { return pots; }
+    public void setPots(List<DpPot> pots) { this.pots = pots; }
 }

@@ -5,6 +5,7 @@ import com.example.mgdemoplus.service.studentImpl.DpRoomServiceImpl;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 
 @CrossOrigin(origins = "*", allowCredentials = "false")
@@ -14,6 +15,8 @@ public class DpRoomController {
 
     @Autowired
     private DpRoomServiceImpl dpRoomService;
+
+    // 注意：不要在 Controller 里再建 roomMap，所有数据操作都走 Service
 
     @PostMapping("/createRoom")
     public DpRoom createRoom(@RequestParam String nickname) {
@@ -65,9 +68,10 @@ public class DpRoomController {
         return dpRoomService.nextStage(roomId) ? "ok" : "fail";
     }
 
+    // 按池结算：参数格式 "0:Alice;1:Bob,Charlie"
     @PostMapping("/judgeWin")
-    public String judgeWin(@RequestParam String roomId, @RequestParam String winnerNickname) {
-        return dpRoomService.judgeWin(roomId, winnerNickname) ? "ok" : "fail";
+    public String judgeWin(@RequestParam String roomId, @RequestParam String potWinners) {
+        return dpRoomService.judgeWin(roomId, potWinners) ? "ok" : "fail";
     }
 
     @PostMapping("/heartbeat")
