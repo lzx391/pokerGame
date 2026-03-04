@@ -36,6 +36,7 @@ public class DpRoomServiceImpl {
                             DpPlayer p = room.getPlayers().get(room.getCurrentActorIndex());
                             p.setFold(true);
                             moveToNextValidActor(room);  // 统一用新方法
+                            autoAdvanceIfRoundFinished(room); // 如有需要自动推进下一阶段
                         }
                     }
                 }
@@ -154,6 +155,32 @@ public class DpRoomServiceImpl {
         return "ok";
     }
 
+    /**
+     * 观战期间，标记“下一局加入”
+     * 当前局没有作为玩家参与的人，可以通过该接口在下一局开局时被加入 players
+     */
+    public boolean readyNextHand(String roomId, String nickname) {
+        DpRoom r = roomMap.get(roomId);
+        if (r == null) return false;
+
+        // 已经在桌上的玩家，不需要再标记下一局，直接视为成功
+        for (DpPlayer p : r.getPlayers()) {
+            if (p.getNickname().equals(nickname)) {
+                return true;
+            }
+        }
+
+        List<String> waiters = r.getWaitNextHand();
+        if (waiters == null) {
+            waiters = new ArrayList<>();
+            r.setWaitNextHand(waiters);
+        }
+        if (!waiters.contains(nickname)) {
+            waiters.add(nickname);
+        }
+        return true;
+    }
+
     public boolean toggleReady(String roomId, String nickname) {
         DpRoom r = roomMap.get(roomId);
         if (r == null || r.isPlaying()) return false;
@@ -205,6 +232,28 @@ public class DpRoomServiceImpl {
     public boolean newHand(String roomId) {
         DpRoom r = roomMap.get(roomId);
         if (r == null || !r.isPlaying()) return false;
+
+        // 把上一局观战并标记“下一局加入”的玩家，加入到本局的玩家列表中
+        List<String> waiters = r.getWaitNextHand();
+        if (waiters != null && !waiters.isEmpty()) {
+            for (String name : waiters) {
+                boolean exists = false;
+                for (DpPlayer existing : r.getPlayers()) {
+                    if (existing.getNickname().equals(name)) {
+                        exists = true;
+                        break;
+                    }
+                }
+                if (!exists) {
+                    DpPlayer np = new DpPlayer();
+                    np.setNickname(name);
+                    // 新加入的玩家带着默认筹码参与新一局
+                    np.setChips(500);
+                    r.getPlayers().add(np);
+                }
+            }
+            waiters.clear();
+        }
 
         r.setDeck(newDeck());
         r.setCommunityCards(new ArrayList<>());
@@ -284,6 +333,7 @@ public class DpRoomServiceImpl {
         r.setPot(r.getPot() + amount);
 
         moveToNextValidActor(r);
+        autoAdvanceIfRoundFinished(r);
         return true;
     }
 
@@ -296,14 +346,26 @@ public class DpRoomServiceImpl {
 
         p.setFold(true);
         moveToNextValidActor(r);  // 统一用新方法，不再用旧的 nextActor
+        autoAdvanceIfRoundFinished(r);
         return true;
     }
 
     // ========== 阶段推进 ==========
 
+    /**
+     * 外部调用：房主手动点击“下一阶段”
+     */
     public boolean nextStage(String roomId) {
         DpRoom r = roomMap.get(roomId);
         if (r == null || !r.isPlaying() || r.getCurrentActorIndex() >= 0) return false;
+        return advanceStage(r);
+    }
+
+    /**
+     * 内部通用：在一轮下注结束后推进阶段（翻牌/转牌/河牌/摊牌）
+     */
+    private boolean advanceStage(DpRoom r) {
+        if (r == null || !r.isPlaying()) return false;
 
         // 清理本轮投注数据（不清 totalBet 和 allIn）
         for (DpPlayer p : r.getPlayers()) {
@@ -351,6 +413,25 @@ public class DpRoomServiceImpl {
         // 所有人都 all-in 或弃牌了，没人能行动，直接标记本轮结束
         r.setCurrentActorIndex(-1);
         return true;
+    }
+
+    /**
+     * 自动推进阶段：当本轮所有可行动玩家都行动完毕 (currentActorIndex == -1) 时，
+     * 自动从 preflop/flop/turn/river 往后走，直到出现新的行动者或进入 showdown。
+     */
+    private void autoAdvanceIfRoundFinished(DpRoom r) {
+        if (r == null || !r.isPlaying()) return;
+        // 只有当当前轮已经没有行动者时才考虑推进
+        if (r.getCurrentActorIndex() >= 0) return;
+
+        // 连续推进，处理“所有人都 all-in”的情况
+        while (true) {
+            if (!advanceStage(r)) break;
+            // 到了摊牌就停止
+            if ("showdown".equals(r.getCurrentStage())) break;
+            // 如果出现了新的行动者（还有人可以下注），也停止，等待玩家操作
+            if (r.getCurrentActorIndex() >= 0) break;
+        }
     }
 
     // ========== 结算（按池分配） ==========

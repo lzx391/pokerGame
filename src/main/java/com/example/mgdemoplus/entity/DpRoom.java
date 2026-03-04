@@ -23,6 +23,8 @@ public class DpRoom {
     private long lastActionTime = 0;
     private static final int ACTION_TIMEOUT = 30000; // 30秒
     private List<DpPot> pots = new ArrayList<>();
+    // 等待在下一局加入的玩家昵称列表（当前局仅旁观）
+    private List<String> waitNextHand = new ArrayList<>();
     // getter & setter
     public String getRoomId() { return roomId; }
     public void setRoomId(String roomId) { this.roomId = roomId; }
@@ -49,4 +51,6 @@ public class DpRoom {
     public static int getActionTimeout() { return ACTION_TIMEOUT; }
     public List<DpPot> getPots() { return pots; }
     public void setPots(List<DpPot> pots) { this.pots = pots; }
+    public List<String> getWaitNextHand() { return waitNextHand; }
+    public void setWaitNextHand(List<String> waitNextHand) { this.waitNextHand = waitNextHand; }
 }

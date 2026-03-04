@@ -39,6 +39,20 @@
     <!-- ========== 游戏进行中 ========== -->
     <template v-else>
 
+      <!-- 观战提示 + 下一局加入按钮：当前不在 players 中的用户视为观众 -->
+      <div v-if="!myPlayer" style="background:#fff; padding:10px 15px; border-radius:8px; margin-bottom:15px; text-align:center; font-size:13px;">
+        <div style="margin-bottom:8px;">
+          你当前正在<span style="color:#1890ff;">旁观本局</span>，不会参与下注和结算。
+        </div>
+        <button
+          @click="readyNextHand"
+          :disabled="nextHandReady"
+          style="padding:6px 14px; border:none; border-radius:4px; cursor:pointer; background:#52c41a; color:#fff; font-size:13px;"
+        >
+          {{ nextHandReady ? '已报名下一局，等待房主重新发牌' : '准备在下一局加入对局' }}
+        </button>
+      </div>
+
       <!-- 公共牌 -->
       <div style="display:flex; gap:8px; justify-content:center; margin:20px 0;">
         <div v-for="c in communityCards" :key="c" :class="getCardClass(c)">
@@ -227,6 +241,7 @@ export default {
       raiseAmount: 0,
       selectedWinners: [],   // 旧的简单模式备用
       potWinners: {},        // 按池选赢家 { 0: ['Alice'], 1: ['Bob','Charlie'] }
+      nextHandReady: false,  // 是否已报名下一局加入
       loading: false,
 
       // 定时器
@@ -549,6 +564,24 @@ export default {
       clearInterval(this.pollTimer)
       clearInterval(this.heartbeatTimer)
       this.$router.push('/home')
+    },
+
+    // ---- 观众：报名在下一局加入 ----
+    async readyNextHand() {
+      if (!this.user) return
+      try {
+        var res = await this.$http.post('/dpRoom/readyNextHand', null, {
+          params: { roomId: this.roomId, nickname: this.user.nickname }
+        })
+        if (res.data === 'ok') {
+          this.nextHandReady = true
+          alert('已报名下一局，将在下一局开局时自动加入对局')
+        } else {
+          alert('报名失败：' + res.data)
+        }
+      } catch (err) {
+        alert('网络错误: ' + err.message)
+      }
     },
 
     // ---- 工具方法 ----

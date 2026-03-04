@@ -42,10 +42,11 @@ export default {
             nickname: this.user.nickname
           }
         });
+        // 无论房间是否已经开始游戏，都允许进入房间页面：
+        // - 未开始：如果加入成功，则作为玩家等待开始
+        // - 已开始：后端会返回“游戏已开始”，前端仍然可以进入房间进行旁观
         alert(res.data);
-        if (res.data === "加入成功") {
-          this.$router.push(`/room/${roomId}`);
-        }
+        this.$router.push(`/room/${roomId}`);
       } catch (e) {
         console.error("加入房间失败", e);
         alert("加入房间失败");

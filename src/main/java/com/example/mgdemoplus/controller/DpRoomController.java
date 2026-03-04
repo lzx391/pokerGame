@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@CrossOrigin(origins = "*", allowCredentials = "false")
+
 @RestController
 @RequestMapping("/dpRoom")
 public class DpRoomController {
@@ -77,5 +77,13 @@ public class DpRoomController {
     @PostMapping("/heartbeat")
     public void heartbeat(@RequestParam String roomId, @RequestParam String nickname) {
         dpRoomService.heartbeat(roomId, nickname);
+    }
+
+    /**
+     * 观战玩家：标记在下一局加入对局
+     */
+    @PostMapping("/readyNextHand")
+    public String readyNextHand(@RequestParam String roomId, @RequestParam String nickname) {
+        return dpRoomService.readyNextHand(roomId, nickname) ? "ok" : "fail";
     }
 }
