@@ -1,10 +1,21 @@
-const { defineConfig } = require('@vue/cli-service')
+const {defineConfig} = require('@vue/cli-service')
 module.exports = defineConfig({
-  transpileDependencies: true,
+    transpileDependencies: true,
     devServer: {
-    client: {
-      // 让 WebSocket URL 自动跟随页面协议和主机变化
-      webSocketURL: 'auto://0.0.0.0:0/ws'
+        // 保持你原有的 client 配置
+        client: {
+            webSocketURL: 'auto://0.0.0.0:0/ws'
+        },
+        // 添加下面的代理配置
+        proxy: {
+            // 这里的 '/dev-api' 要和你在 main.js 中设置的 axios.defaults.baseURL 一致
+            '/dev-api': {
+                target: 'http://192.168.144.240:8088', // 你的后端真实 IP
+                changeOrigin: true,              // 允许跨域
+                pathRewrite: {                   // 路径重写
+                    '^/dev-api': ''                // 转发时去掉 /dev-api 前缀
+                }
+            }
+        }
     }
-  }
 })
