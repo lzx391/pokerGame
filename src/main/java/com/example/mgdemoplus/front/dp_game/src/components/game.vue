@@ -1,8 +1,10 @@
 <template>
-  <div class="game" style="padding:10px; max-width:800px; margin:0 auto; font-family:sans-serif; background:#f0f2f5; min-height:100vh;">
+  <div class="game"
+       style="padding:10px; max-width:800px; margin:0 auto; font-family:sans-serif; background:#f0f2f5; min-height:100vh;">
 
     <!-- 顶部信息栏 -->
-    <div style="background:#fff; padding:15px; border-radius:10px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 5px rgba(0,0,0,0.1); margin-bottom:15px;">
+    <div
+        style="background:#fff; padding:15px; border-radius:10px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 5px rgba(0,0,0,0.1); margin-bottom:15px;">
       <div>
         <div style="font-size:18px; font-weight:bold;">
           房间: {{ roomId }} | 阶段: <span style="color:#1890ff;">{{ stageCN }}</span>
@@ -12,25 +14,30 @@
           | 当前跟注额: <span style="font-weight:bold;">{{ currentBetToCall }}</span>
         </div>
       </div>
-      <button @click="exitGame" style="background:#ff4d4f; color:#fff; border:none; padding:8px 15px; border-radius:5px; cursor:pointer;">
+      <button @click="exitGame"
+              style="background:#ff4d4f; color:#fff; border:none; padding:8px 15px; border-radius:5px; cursor:pointer;">
         退出对局
       </button>
-      
+
     </div>
 
     <!-- ========== 未开始：准备/开始 ========== -->
     <div v-if="!playing" style="background:#fff; padding:20px; border-radius:10px; text-align:center;">
       <h2 style="margin:0 0 15px;">等待开始</h2>
-      <div v-for="p in players" :key="p.nickname" style="padding:8px 0; display:flex; justify-content:center; align-items:center; gap:10px;">
+      <div v-for="p in players" :key="p.nickname"
+           style="padding:8px 0; display:flex; justify-content:center; align-items:center; gap:10px;">
         <span style="font-weight:bold;">{{ p.nickname }}</span>
         <span :style="{ color: p.ready ? '#52c41a' : '#ff4d4f' }">{{ p.ready ? '已准备' : '未准备' }}</span>
-        <span v-if="p.nickname === owner" style="background:#faad14; color:#fff; padding:1px 6px; border-radius:3px; font-size:12px;">房主</span>
+        <span v-if="p.nickname === owner"
+              style="background:#faad14; color:#fff; padding:1px 6px; border-radius:3px; font-size:12px;">房主</span>
       </div>
       <div style="margin-top:20px; display:flex; justify-content:center; gap:10px;">
-        <button @click="toggleReady" style="padding:8px 20px; border:none; border-radius:5px; cursor:pointer; background:#1890ff; color:#fff;">
+        <button @click="toggleReady"
+                style="padding:8px 20px; border:none; border-radius:5px; cursor:pointer; background:#1890ff; color:#fff;">
           {{ myReady ? '取消准备' : '准备' }}
         </button>
-        <button v-if="isOwner" @click="startGame" style="padding:8px 20px; border:none; border-radius:5px; cursor:pointer; background:#52c41a; color:#fff;">
+        <button v-if="isOwner" @click="startGame"
+                style="padding:8px 20px; border:none; border-radius:5px; cursor:pointer; background:#52c41a; color:#fff;">
           开始游戏
         </button>
       </div>
@@ -40,14 +47,15 @@
     <template v-else>
 
       <!-- 观战提示 + 下一局加入按钮：当前不在 players 中的用户视为观众 -->
-      <div v-if="!myPlayer" style="background:#fff; padding:10px 15px; border-radius:8px; margin-bottom:15px; text-align:center; font-size:13px;">
+      <div v-if="!myPlayer"
+           style="background:#fff; padding:10px 15px; border-radius:8px; margin-bottom:15px; text-align:center; font-size:13px;">
         <div style="margin-bottom:8px;">
           你当前正在<span style="color:#1890ff;">旁观本局</span>，不会参与下注和结算。
         </div>
         <button
-          @click="readyNextHand"
-          :disabled="nextHandReady"
-          style="padding:6px 14px; border:none; border-radius:4px; cursor:pointer; background:#52c41a; color:#fff; font-size:13px;"
+            @click="readyNextHand"
+            :disabled="nextHandReady"
+            style="padding:6px 14px; border:none; border-radius:4px; cursor:pointer; background:#52c41a; color:#fff; font-size:13px;"
         >
           {{ nextHandReady ? '已报名下一局，等待房主重新发牌' : '准备在下一局加入对局' }}
         </button>
@@ -64,16 +72,19 @@
       <!-- 玩家列表 -->
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
         <div
-          v-for="(p, i) in players"
-          :key="p.nickname"
-          :style="getPlayerBoxStyle(p, i)"
-          @click="handleJudgeClick(p.nickname)"
+            v-for="(p, i) in players"
+            :key="p.nickname"
+            :style="getPlayerBoxStyle(p, i)"
+            @click="handleJudgeClick(p.nickname)"
         >
           <!-- 标记 -->
           <div style="display:flex; gap:5px; margin-bottom:5px;">
-            <span v-if="p.dealer" style="background:#faad14; color:#fff; padding:1px 5px; border-radius:3px; font-size:12px;">D</span>
-            <span v-if="p.blind === 1" style="background:#722ed1; color:#fff; padding:1px 5px; border-radius:3px; font-size:12px;">SB</span>
-            <span v-if="p.blind === 2" style="background:#52c41a; color:#fff; padding:1px 5px; border-radius:3px; font-size:12px;">BB</span>
+            <span v-if="p.dealer"
+                  style="background:#faad14; color:#fff; padding:1px 5px; border-radius:3px; font-size:12px;">D</span>
+            <span v-if="p.blind === 1"
+                  style="background:#722ed1; color:#fff; padding:1px 5px; border-radius:3px; font-size:12px;">SB</span>
+            <span v-if="p.blind === 2"
+                  style="background:#52c41a; color:#fff; padding:1px 5px; border-radius:3px; font-size:12px;">BB</span>
           </div>
           <!-- 名字 -->
           <div style="font-weight:bold;">
@@ -81,20 +92,42 @@
             <span v-if="isMe(p.nickname)" style="color:#1890ff;">(我)</span>
           </div>
           <!-- 筹码 -->
-          <div style="font-size:13px; color:#666;">筹码: {{ p.chips }} | 本轮注: {{ p.bet }}</div>
+          <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 4px;">
+            <div
+                style="font-size: 13px; color: #555; display: flex; align-items: center; justify-content: center; background: #f8f9fa; border-radius: 4px; padding: 2px 0;">
+              <span style="color: #8c8c8c; margin-right: 4px;">剩余积分:</span>
+              <span style="font-weight: 800; font-family: monospace; color: #2f3542;">{{ p.chips }}</span>
+            </div>
+
+            <div
+                style="background: #fff2f0; border: 1px solid #ffccc7; border-radius: 6px; padding: 4px 0; text-align: center;">
+              <div
+                  style="font-size: 11px; color: #ff4d4f; text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px;">
+                本轮积分
+              </div>
+              <div style="font-size: 16px; color: #cf1322; font-weight: 900; font-family: 'Arial Black', sans-serif;">
+                {{ p.bet }}
+              </div>
+            </div>
+          </div>
+          <!--          <div style="font-size:13px; color:#666;">筹码: {{ p.chips }} | 本轮注: {{ p.bet }}</div>-->
           <!-- 手牌：自己始终能看；摊牌时只有未弃牌的人亮牌，弃牌的人依然盖牌 -->
           <div style="display:flex; gap:5px; margin:8px 0; justify-content:center;">
             <template v-if="isMe(p.nickname) || (stage === 'showdown' && !p.fold)">
-              <div v-for="(c, ci) in p.holeCards" :key="'h' + ci" :class="getCardClass(c)" style="width:36px; height:52px; font-size:13px;">
+              <div v-for="(c, ci) in p.holeCards" :key="'h' + ci" :class="getCardClass(c)"
+                   style="width:36px; height:52px; font-size:13px;">
                 {{ getCardDisplay(c) }}
               </div>
             </template>
             <template v-else-if="p.holeCards && p.holeCards.length > 0">
-              <div v-for="ci in p.holeCards.length" :key="'hb' + ci" class="card-base bg-gray" style="width:36px; height:52px; font-size:13px;">?</div>
+              <div v-for="ci in p.holeCards.length" :key="'hb' + ci" class="card-base bg-gray"
+                   style="width:36px; height:52px; font-size:13px;">?
+              </div>
             </template>
           </div>
           <!-- 状态 -->
-          <div style="font-weight:bold; font-size:12px;" :style="{ color: p.fold ? '#ff4d4f' : (actIndex === i ? '#faad14' : '#52c41a') }">
+          <div style="font-weight:bold; font-size:12px;"
+               :style="{ color: p.fold ? '#ff4d4f' : (actIndex === i ? '#faad14' : '#52c41a') }">
             {{ p.fold ? '已弃牌' : (actIndex === i ? '思考中...' : '进行中') }}
           </div>
           <!-- 摊牌选赢家提示：弃牌的人也能被选（盖牌结算） -->
@@ -105,7 +138,8 @@
       </div>
 
       <!-- ===== 我的行动区 ===== -->
-      <div v-if="isMyTurn" style="margin-top:20px; background:#fff; padding:15px; border-radius:10px; box-shadow:0 -2px 10px rgba(0,0,0,0.05);">
+      <div v-if="isMyTurn"
+           style="margin-top:20px; background:#fff; padding:15px; border-radius:10px; box-shadow:0 -2px 10px rgba(0,0,0,0.05);">
         <div style="text-align:center; color:#faad14; font-weight:bold; margin-bottom:10px;">
           轮到你行动了（30秒超时自动弃牌）
         </div>
@@ -114,22 +148,38 @@
         </div>
         <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center;">
           <!-- 跟注/过牌 -->
-          <button @click="doCall" style="padding:10px 18px; background:#1890ff; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">
+          <button @click="doCall"
+                  style="padding:10px 18px; background:#1890ff; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">
             {{ callAmount > 0 ? '跟注 ' + callAmount : '过牌' }}
           </button>
           <!-- 加注 -->
           <div style="display:flex; align-items:center; gap:5px;">
-            <input type="number" v-model.number="raiseAmount" :min="minRaise" :max="myChips" style="width:70px; padding:6px; border:1px solid #d9d9d9; border-radius:4px; text-align:center;" />
-            <button @click="doRaise" :disabled="raiseAmount < minRaise" style="padding:10px 14px; background:#f57f17; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">
-              加注
+            <button @click="raiseAmount += 5"
+                    style="padding:4px 8px; background:#fff; border:1px solid #f57f17; color:#f57f17; border-radius:4px; cursor:pointer; font-weight:bold;">
+              +5
             </button>
+            <button @click="raiseAmount += 10"
+                    style="padding:4px 8px; background:#fff; border:1px solid #f57f17; color:#f57f17; border-radius:4px; cursor:pointer; font-weight:bold;">
+              +10
+            </button>
+            <input type="number" v-model.number="raiseAmount" :min="minRaise" :max="myChips"
+                   style="width:70px; padding:6px; border:1px solid #d9d9d9; border-radius:4px; text-align:center;"/>
+            <button @click="raiseAmount -= 10" style="padding:4px 8px; background:#fff; border:1px solid #f57f17; color:#f57f17; border-radius:4px; cursor:pointer; font-weight:bold;">-10</button>
+            <button @click="raiseAmount -= 5" style="padding:4px 8px; background:#fff; border:1px solid #f57f17; color:#f57f17; border-radius:4px; cursor:pointer; font-weight:bold;">-5</button>
+
           </div>
+          <button @click="doRaise" :disabled="raiseAmount < minRaise"
+                  style="padding:10px 14px; background:#f57f17; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">
+            加注
+          </button>
           <!-- All-In -->
-          <button @click="doAllIn" style="padding:10px 14px; background:#c62828; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">
+          <button @click="doAllIn"
+                  style="padding:10px 14px; background:#c62828; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">
             All-In ({{ myChips }})
           </button>
           <!-- 弃牌 -->
-          <button @click="doFold" style="padding:10px 18px; background:#ff4d4f; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">
+          <button @click="doFold"
+                  style="padding:10px 18px; background:#ff4d4f; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">
             弃牌
           </button>
         </div>
@@ -140,7 +190,7 @@
         <div style="font-size:14px; font-weight:bold; color:#333; margin-bottom:10px; text-align:center;">房主操作</div>
 
         <!-- 下一阶段：当 actIndex === -1（所有人跟齐）且不在 showdown -->
-     
+
 
         <!-- showdown 结算：按池分配 -->
         <div v-if="stage === 'showdown'" style="text-align:center; margin-bottom:10px;">
@@ -151,7 +201,7 @@
           <!-- 有边池数据时：按池分别选赢家 -->
           <template v-if="pots.length > 0">
             <div v-for="(potItem, pi) in pots" :key="'pot' + pi"
-              style="background:#fafafa; border:1px solid #e8e8e8; border-radius:8px; padding:10px; margin-bottom:10px; text-align:left;">
+                 style="background:#fafafa; border:1px solid #e8e8e8; border-radius:8px; padding:10px; margin-bottom:10px; text-align:left;">
               <div style="font-weight:bold; margin-bottom:6px; color:#333;">
                 {{ pi === 0 ? '主池' : '边池 ' + pi }} - 金额: <span style="color:#f5222d;">{{ potItem.amount }}</span>
               </div>
@@ -160,10 +210,10 @@
               </div>
               <div style="display:flex; flex-wrap:wrap; gap:6px;">
                 <button
-                  v-for="name in potItem.eligiblePlayers"
-                  :key="'pw' + pi + name"
-                  @click="togglePotWinner(pi, name)"
-                  :style="{
+                    v-for="name in potItem.eligiblePlayers"
+                    :key="'pw' + pi + name"
+                    @click="togglePotWinner(pi, name)"
+                    :style="{
                     padding: '5px 12px',
                     borderRadius: '4px',
                     cursor: 'pointer',
@@ -178,10 +228,10 @@
               </div>
             </div>
             <button
-              @click="confirmPotJudge"
-              :disabled="!allPotsHaveWinners"
-              style="width:100%; padding:12px; background:#52c41a; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;"
-              :style="{ opacity: allPotsHaveWinners ? 1 : 0.4 }"
+                @click="confirmPotJudge"
+                :disabled="!allPotsHaveWinners"
+                style="width:100%; padding:12px; background:#52c41a; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;"
+                :style="{ opacity: allPotsHaveWinners ? 1 : 0.4 }"
             >
               确认按池结算
             </button>
@@ -196,10 +246,10 @@
               已选: {{ selectedWinners.join(', ') }}
             </div>
             <button
-              @click="confirmJudgeWin"
-              :disabled="selectedWinners.length === 0"
-              style="width:100%; padding:12px; background:#52c41a; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;"
-              :style="{ opacity: selectedWinners.length === 0 ? 0.4 : 1 }"
+                @click="confirmJudgeWin"
+                :disabled="selectedWinners.length === 0"
+                style="width:100%; padding:12px; background:#52c41a; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;"
+                :style="{ opacity: selectedWinners.length === 0 ? 0.4 : 1 }"
             >
               确认结算（底池 {{ pot }} 分给 {{ selectedWinners.length }} 人）
             </button>
@@ -208,8 +258,8 @@
 
         <!-- 重新发牌 -->
         <button
-          @click="doNewHand"
-          style="width:100%; padding:10px; background:#616161; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;"
+            @click="doNewHand"
+            style="width:100%; padding:10px; background:#616161; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;"
         >
           重新发牌
         </button>
@@ -252,7 +302,7 @@ export default {
 
   computed: {
     stageCN() {
-      var m = { preflop: '翻牌前', flop: '翻牌圈', turn: '转牌圈', river: '河牌圈', showdown: '摊牌结算' }
+      var m = {preflop: '翻牌前', flop: '翻牌圈', turn: '转牌圈', river: '河牌圈', showdown: '摊牌结算'}
       return m[this.stage] || this.stage
     },
     isOwner() {
@@ -264,7 +314,9 @@ export default {
     },
     myPlayer() {
       if (!this.user) return null
-      return this.players.find(function(p) { return p.nickname === this.user.nickname }.bind(this)) || null
+      return this.players.find(function (p) {
+        return p.nickname === this.user.nickname
+      }.bind(this)) || null
     },
     myReady() {
       return this.myPlayer ? this.myPlayer.ready : false
@@ -291,7 +343,7 @@ export default {
   },
 
   watch: {
-    isMyTurn: function(v) {
+    isMyTurn: function (v) {
       if (v) this.raiseAmount = this.minRaise
     }
   },
@@ -310,14 +362,14 @@ export default {
     // 立即加载一次
     this.loadGame()
 
-    // 2.5秒轮询游戏状态
-    this.pollTimer = setInterval(function() {
+    // 1秒轮询游戏状态
+    this.pollTimer = setInterval(function () {
       if (!this.loading) this.loadGame()
     }.bind(this), 1000)
 
     // 5秒独立心跳（和 loadGame 解耦，loadGame 失败不影响心跳）
     this.sendHeartbeat()
-    this.heartbeatTimer = setInterval(function() {
+    this.heartbeatTimer = setInterval(function () {
       this.sendHeartbeat()
     }.bind(this), 5000)
   },
@@ -332,8 +384,10 @@ export default {
     sendHeartbeat() {
       if (!this.user) return
       this.$http.post('/dpRoom/heartbeat', null, {
-        params: { roomId: this.roomId, nickname: this.user.nickname }
-      }).catch(function(e) { console.error('心跳失败', e) })
+        params: {roomId: this.roomId, nickname: this.user.nickname}
+      }).catch(function (e) {
+        console.error('心跳失败', e)
+      })
     },
 
     // ---- 拉取房间状态 ----
@@ -342,7 +396,9 @@ export default {
       try {
         var res = await this.$http.get('/dpRoom/getAllRooms')
         var rooms = res.data
-        var room = rooms.find(function(r) { return r.roomId === this.roomId }.bind(this))
+        var room = rooms.find(function (r) {
+          return r.roomId === this.roomId
+        }.bind(this))
 
         if (!room) {
           alert('房间已解散或你已被移出')
@@ -372,18 +428,24 @@ export default {
     async toggleReady() {
       try {
         var res = await this.$http.post('/dpRoom/toggleReady', null, {
-          params: { roomId: this.roomId, nickname: this.user.nickname }
+          params: {roomId: this.roomId, nickname: this.user.nickname}
         })
         if (res.data !== 'ok') alert('操作失败')
         await this.loadGame()
-      } catch (err) { alert('网络错误: ' + err.message) }
+      } catch (err) {
+        alert('网络错误: ' + err.message)
+      }
     },
 
     // ---- 房主开始游戏 ----
     async startGame() {
-      var notReady = this.players.filter(function(p) { return !p.ready })
+      var notReady = this.players.filter(function (p) {
+        return !p.ready
+      })
       if (notReady.length > 0) {
-        alert('还有玩家未准备: ' + notReady.map(function(p) { return p.nickname }).join(', '))
+        alert('还有玩家未准备: ' + notReady.map(function (p) {
+          return p.nickname
+        }).join(', '))
         return
       }
       if (this.players.length < 2) {
@@ -392,11 +454,13 @@ export default {
       }
       try {
         var res = await this.$http.post('/dpRoom/startGame', null, {
-          params: { roomId: this.roomId, ownerNickname: this.user.nickname }
+          params: {roomId: this.roomId, ownerNickname: this.user.nickname}
         })
         if (res.data !== 'ok') alert('开始失败')
         await this.loadGame()
-      } catch (err) { alert('网络错误: ' + err.message) }
+      } catch (err) {
+        alert('网络错误: ' + err.message)
+      }
     },
 
     // ---- 跟注/过牌 ----
@@ -426,34 +490,40 @@ export default {
     async submitBet(amount) {
       try {
         var res = await this.$http.post('/dpRoom/bet', null, {
-          params: { roomId: this.roomId, nickname: this.user.nickname, bet: amount }
+          params: {roomId: this.roomId, nickname: this.user.nickname, bet: amount}
         })
         if (res.data !== 'ok') alert('下注失败，请检查金额')
         this.raiseAmount = 0
         await this.loadGame()
-      } catch (err) { alert('网络错误: ' + err.message) }
+      } catch (err) {
+        alert('网络错误: ' + err.message)
+      }
     },
 
     // ---- 弃牌 ----
     async doFold() {
       try {
         var res = await this.$http.post('/dpRoom/fold', null, {
-          params: { roomId: this.roomId, nickname: this.user.nickname }
+          params: {roomId: this.roomId, nickname: this.user.nickname}
         })
         if (res.data !== 'ok') alert('弃牌失败')
         await this.loadGame()
-      } catch (err) { alert('网络错误: ' + err.message) }
+      } catch (err) {
+        alert('网络错误: ' + err.message)
+      }
     },
 
     // ---- 房主：下一阶段 ----
     async doNextStage() {
       try {
         var res = await this.$http.post('/dpRoom/nextStage', null, {
-          params: { roomId: this.roomId, ownerNickname: this.user.nickname }
+          params: {roomId: this.roomId, ownerNickname: this.user.nickname}
         })
         if (res.data !== 'ok') alert('推进失败（可能还有玩家未跟齐）')
         await this.loadGame()
-      } catch (err) { alert('网络错误: ' + err.message) }
+      } catch (err) {
+        alert('网络错误: ' + err.message)
+      }
     },
 
     // ---- 摊牌阶段：点击玩家卡片选/取消赢家（简单模式备用） ----
@@ -511,13 +581,15 @@ export default {
 
       try {
         var res = await this.$http.post('/dpRoom/judgeWin', null, {
-          params: { roomId: this.roomId, potWinners: potWinnersStr }
+          params: {roomId: this.roomId, potWinners: potWinnersStr}
         })
         if (res.data !== 'ok') alert('结算失败')
         this.potWinners = {}
         this.selectedWinners = []
         await this.loadGame()
-      } catch (err) { alert('网络错误: ' + err.message) }
+      } catch (err) {
+        alert('网络错误: ' + err.message)
+      }
     },
 
     // ---- 房主：确认结算 ----
@@ -531,12 +603,14 @@ export default {
 
       try {
         var res = await this.$http.post('/dpRoom/judgeWin', null, {
-          params: { roomId: this.roomId, winnerNickname: this.selectedWinners.join(',') }
+          params: {roomId: this.roomId, winnerNickname: this.selectedWinners.join(',')}
         })
         if (res.data !== 'ok') alert('结算失败')
         this.selectedWinners = []
         await this.loadGame()
-      } catch (err) { alert('网络错误: ' + err.message) }
+      } catch (err) {
+        alert('网络错误: ' + err.message)
+      }
     },
 
     // ---- 房主：重新发牌 ----
@@ -544,13 +618,15 @@ export default {
       if (!confirm('确定要重新发牌吗？当前底池将清零')) return
       try {
         var res = await this.$http.post('/dpRoom/newHand', null, {
-          params: { roomId: this.roomId, ownerNickname: this.user.nickname }
+          params: {roomId: this.roomId, ownerNickname: this.user.nickname}
         })
         if (res.data !== 'ok') alert('发牌失败')
         this.selectedWinners = []
         this.potWinners = {}
         await this.loadGame()
-      } catch (err) { alert('网络错误: ' + err.message) }
+      } catch (err) {
+        alert('网络错误: ' + err.message)
+      }
     },
 
     // ---- 退出 ----
@@ -558,9 +634,11 @@ export default {
       if (!confirm('确定退出对局？')) return
       try {
         await this.$http.post('/dpRoom/exitRoom', null, {
-          params: { roomId: this.roomId, nickname: this.user.nickname }
+          params: {roomId: this.roomId, nickname: this.user.nickname}
         })
-      } catch (err) { console.error('退出失败', err) }
+      } catch (err) {
+        console.error('退出失败', err)
+      }
       clearInterval(this.pollTimer)
       clearInterval(this.heartbeatTimer)
       this.$router.push('/home')
@@ -571,7 +649,7 @@ export default {
       if (!this.user) return
       try {
         var res = await this.$http.post('/dpRoom/readyNextHand', null, {
-          params: { roomId: this.roomId, nickname: this.user.nickname }
+          params: {roomId: this.roomId, nickname: this.user.nickname}
         })
         if (res.data === 'ok') {
           this.nextHandReady = true
@@ -662,9 +740,24 @@ export default {
   font-size: 15px;
   box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2);
 }
-.bg-red { background: #f5222d; }
-.bg-blue { background: #1890ff; }
-.bg-green { background: #52c41a; }
-.bg-black { background: #2f3542; }
-.bg-gray { background: #8c8c8c; }
+
+.bg-red {
+  background: #f5222d;
+}
+
+.bg-blue {
+  background: #1890ff;
+}
+
+.bg-green {
+  background: #52c41a;
+}
+
+.bg-black {
+  background: #2f3542;
+}
+
+.bg-gray {
+  background: #8c8c8c;
+}
 </style>
