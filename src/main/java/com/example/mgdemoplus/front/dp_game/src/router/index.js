@@ -36,7 +36,6 @@ import Home from '@/components/home.vue'
 import Login from '@/components/login.vue'
 import Register from '@/components/register.vue'
 import Room from '@/components/room.vue'
-import RoomList from '@/components/roomList.vue'
 import Vue from 'vue'
 import Router from 'vue-router'
 import Game from '../components/game.vue'
@@ -50,7 +49,6 @@ export default new Router({
     { path: '/login', component: Login },
     { path: '/register', component: Register },
     { path: '/home', component: Home },
-    { path: '/roomList', component: RoomList },
     { path: '/room/:roomId', component: Room },   // 动态路由，不是嵌套
     { path: '/game/:roomId', component: Game }   // 动态路由，不是嵌套
   ]

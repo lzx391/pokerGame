@@ -25,8 +25,17 @@ export default {
   },
   created() {
     this.user = JSON.parse(localStorage.getItem('userInfo'))
-    this.getRooms()
-    setInterval(this.getRooms, 2000)
+    // 2. 使用箭头函数确保 this 指向，并保存定时器引用
+    this.timer = setInterval(() => {
+      this.getRooms();
+    }, 2000);
+  },
+  beforeDestroy() {
+    if (this.timer) {
+      console.log("正在销毁定时器")
+      clearInterval(this.timer);
+      this.timer = null;
+    }
   },
   methods: {
     async getRooms() {
