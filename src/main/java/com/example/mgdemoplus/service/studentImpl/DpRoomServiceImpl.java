@@ -22,7 +22,7 @@ public class DpRoomServiceImpl {
                     Iterator<DpPlayer> it = room.getPlayers().iterator();
                     while (it.hasNext()) {
                         DpPlayer p = it.next();
-                        if (System.currentTimeMillis() - p.getLastHeartBeat() > 10000) {
+                        if (System.currentTimeMillis() - p.getLastHeartBeat() > DpRoom.getHeartTimeout()) {
                             it.remove();
                         }
                     }
@@ -32,7 +32,7 @@ public class DpRoomServiceImpl {
                     }
                     // 30秒超时弃牌，距离上一个最后一个人行动后超过30秒不动弹则设置为弃牌
                     if (room.isPlaying() && room.getCurrentActorIndex() >= 0) {
-                        if (System.currentTimeMillis() - room.getLastActionTime() > 30000) {
+                        if (System.currentTimeMillis() - room.getLastActionTime() > DpRoom.getActionTimeout()) {
                             DpPlayer p = room.getPlayers().get(room.getCurrentActorIndex());
                             p.setFold(true);
                             moveToNextValidActor(room);  // 统一用新方法
@@ -215,7 +215,7 @@ public class DpRoomServiceImpl {
         r.setPots(new ArrayList<>());
         r.setCurrentBetToCall(0);
         for (DpPlayer p : r.getPlayers()) {
-            p.setChips(500);
+            p.setChips(DpRoom.getChips());
             p.setFold(false);
             p.setBet(0);
             p.setTotalBet(0);
@@ -248,7 +248,7 @@ public class DpRoomServiceImpl {
                     DpPlayer np = new DpPlayer();
                     np.setNickname(name);
                     // 新加入的玩家带着默认筹码参与新一局
-                    np.setChips(500);
+                    np.setChips(DpRoom.getChips());
                     r.getPlayers().add(np);
                 }
             }
@@ -511,6 +511,7 @@ public class DpRoomServiceImpl {
         for (DpPlayer p : r.getPlayers()) {
             if (p.getNickname().equals(nickname)) {
                 p.setLastHeartBeat(System.currentTimeMillis());
+                System.out.println(p.getNickname()+"依旧在线");
             }
         }
     }

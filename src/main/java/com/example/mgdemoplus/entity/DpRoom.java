@@ -17,11 +17,12 @@ public class DpRoom {
     private List<String> deck = new ArrayList<>();
     private int pot = 0;
     private int currentBetToCall = 0;
-
+    private static final int CHIPS =1000;//全局筹码设置
     // 行动顺序
     private int currentActorIndex = -1;
     private long lastActionTime = 0;
     private static final int ACTION_TIMEOUT = 30000; // 30秒
+    private static final int HEART_TIMEOUT = 20000; // 30秒
     private List<DpPot> pots = new ArrayList<>();
     // 等待在下一局加入的玩家昵称列表（当前局仅旁观）
     private List<String> waitNextHand = new ArrayList<>();
@@ -53,4 +54,6 @@ public class DpRoom {
     public void setPots(List<DpPot> pots) { this.pots = pots; }
     public List<String> getWaitNextHand() { return waitNextHand; }
     public void setWaitNextHand(List<String> waitNextHand) { this.waitNextHand = waitNextHand; }
+    public static int getHeartTimeout() { return HEART_TIMEOUT; }
+    public static int getChips() { return CHIPS; }
 }
