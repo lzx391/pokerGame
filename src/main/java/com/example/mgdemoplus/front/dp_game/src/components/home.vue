@@ -25,6 +25,7 @@ export default {
   },
   created() {
     this.user = JSON.parse(localStorage.getItem('userInfo'))
+    this.getRooms();
     // 2. 使用箭头函数确保 this 指向，并保存定时器引用
     this.timer = setInterval(() => {
       this.getRooms();

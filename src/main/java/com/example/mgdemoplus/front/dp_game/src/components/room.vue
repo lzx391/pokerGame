@@ -48,7 +48,7 @@ export default {
                     nickname: this.user.nickname
                 }
             });
-        }, 2000);
+        }, 5000);
     },
     beforeDestroy() {
         clearInterval(this.timer);
