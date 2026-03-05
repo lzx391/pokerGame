@@ -49,7 +49,7 @@ public class DpRoomServiceImpl {
     private List<String> newDeck() {
         List<String> deck = new ArrayList<>();
         String[] suits = {"hearts", "diamonds", "clubs", "spades"};
-        String[] ranks = {"2","3","4","5","6","7","8","9","10","J","Q","K","A"};
+        String[] ranks = {"2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"};
         for (String s : suits) {
             for (String r : ranks) {
                 deck.add(s + "_" + r);
@@ -126,7 +126,7 @@ public class DpRoomServiceImpl {
     // ========== 房间管理 ==========
 
     public DpRoom createRoom(String ownerNickname) {
-        String id = UUID.randomUUID().toString().substring(0, 8);
+        String id = UUID.randomUUID().toString().substring(0, 8);//随机生成的id?
         DpRoom r = new DpRoom();
         r.setRoomId(id);
         r.setOwner(ownerNickname);
@@ -196,10 +196,28 @@ public class DpRoomServiceImpl {
     public boolean exitRoom(String roomId, String nickname) {
         DpRoom r = roomMap.get(roomId);
         if (r == null) return false;
-        if (r.getOwner().equals(nickname)) {
-            roomMap.remove(roomId);
-            return true;
+        // 1. 先检查原房主是否还在 players 列表里
+//        boolean ownerStillIn = false;
+//        for (DpPlayer p : r.getPlayers()) {
+//            if (p.getNickname().equals(r.getOwner())) {
+//                ownerStillIn = true;//先默认房主不在了，然后如果检测到了房主再跳出
+//                break;
+//            }
+//        }
+// 2. 如果房主不在了（被踢了或主动走了），顺位继承
+        if(r.getOwner().equals(nickname)){//说明退出的人是房主,进行移交操作
+            if (!r.getPlayers().isEmpty()) {
+                // 拿到剩下的第一个人
+                String newOwner = r.getPlayers().get(1).getNickname();
+                r.setOwner(newOwner);
+                System.out.println("房间 " + r.getRoomId() + " 房主易位给: " + newOwner);
+            } else {
+                // 没人了，准备销毁房间
+                roomMap.remove(r.getRoomId());
+                return true;
+            }
         }
+
         return r.getPlayers().removeIf(p -> p.getNickname().equals(nickname));
     }
 
@@ -438,6 +456,7 @@ public class DpRoomServiceImpl {
 
     /**
      * 按池结算
+     *
      * @param potWinners 格式 "0:Alice;1:Bob,Charlie"  表示第0个池给Alice，第1个池平分给Bob和Charlie
      */
     public boolean judgeWin(String roomId, String potWinners) {
@@ -511,7 +530,7 @@ public class DpRoomServiceImpl {
         for (DpPlayer p : r.getPlayers()) {
             if (p.getNickname().equals(nickname)) {
                 p.setLastHeartBeat(System.currentTimeMillis());
-                System.out.println(p.getNickname()+"依旧在线");
+                System.out.println(p.getNickname() + "依旧在线");
             }
         }
     }

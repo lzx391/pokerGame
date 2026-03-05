@@ -380,6 +380,35 @@ export default {
   },
 
   methods: {
+  //   showToast(message) {
+  //     // 1. 创建 div
+  //     const toast = document.createElement('div');
+  //     toast.innerText = message;
+  //
+  //     // 2. 设置样式 (黑底白字，圆角，居中)
+  //     Object.assign(toast.style, {
+  //       position: 'fixed',
+  //       top: '50%',
+  //       left: '50%',
+  //       transform: 'translate(-50%, -50%)',
+  //       backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  //       color: '#fff',
+  //       padding: '10px 20px',
+  //       borderRadius: '5px',
+  //       zIndex: '9999',
+  //       fontSize: '14px',
+  //       transition: 'opacity 0.5s'
+  //     });
+  //
+  //     // 3. 挂载到页面
+  //     document.body.appendChild(toast);
+  //
+  //     // 4. 2秒后消失并移除
+  //     setTimeout(() => {
+  //       toast.style.opacity = '0';
+  //       setTimeout(() => document.body.removeChild(toast), 500);
+  //     }, 2000);
+  //   },
     // ---- 心跳（独立，不依赖 loadGame） ----
     sendHeartbeat() {
       if (!this.user) return
