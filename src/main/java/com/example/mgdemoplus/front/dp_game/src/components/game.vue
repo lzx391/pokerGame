@@ -148,10 +148,22 @@
         </div>
         <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center;">
           <!-- 跟注/过牌 -->
-          <button @click="doCall"
-                  style="padding:10px 18px; background:#1890ff; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">
-            {{ callAmount > 0 ? '跟注 ' + callAmount : '过牌' }}
-          </button>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center; align-items:center;">
+
+            <div v-if="players[actIndex]?.nickname === user.nickname"
+                 style="display:flex; align-items:center; justify-content:center;
+              width:60px; height:40px; background:#fff2f0; border:2px solid #ff4d4f;
+              border-radius:8px; color:#ff4d4f; font-family: 'Courier New', monospace;">
+              <span style="font-size:18px; font-weight:900;">{{ timeLeft }}</span>
+              <span style="font-size:10px; margin-left:2px;">s</span>
+            </div>
+
+            <button @click="doCall"
+                    style="padding:10px 18px; background:#1890ff; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">
+              {{ callAmount > 0 ? '跟注 ' + callAmount : '过牌' }}
+            </button>
+
+          </div>
           <!-- 加注 -->
           <div style="display:flex; align-items:center; gap:5px;">
             <button @click="raiseAmount += 5"
@@ -296,7 +308,10 @@ export default {
 
       // 定时器
       pollTimer: null,
-      heartbeatTimer: null
+      heartbeatTimer: null,
+      //游戏计时器
+      actionTimer: null,
+      timeLeft: 30
     }
   },
 
@@ -345,6 +360,18 @@ export default {
   watch: {
     isMyTurn: function (v) {
       if (v) this.raiseAmount = this.minRaise
+    },
+// 监听当前行动者的索引变化
+    actIndex(newVal) {
+      // 获取当前轮到的那个人
+      const currentPlayer = this.players[newVal];
+
+      // 如果这个人存在，且名字是我自己
+      if (currentPlayer && currentPlayer.nickname === this.user.nickname) {
+        this.startCountdown();
+      } else {
+        this.stopCountdown();
+      }
     }
   },
 
@@ -377,6 +404,7 @@ export default {
   beforeDestroy() {
     if (this.pollTimer) clearInterval(this.pollTimer)
     if (this.heartbeatTimer) clearInterval(this.heartbeatTimer)
+    if (this.actionTimer) clearInterval(this.actionTimer)
   },
 
   methods: {
@@ -751,7 +779,25 @@ export default {
       }
 
       return s
+    },
+  startCountdown() {
+    this.stopCountdown(); // 先清除旧的
+    this.timeLeft = 30;
+    this.actionTimer = setInterval(() => {
+      if (this.timeLeft > 0) {
+        this.timeLeft--;
+      } else {
+        this.stopCountdown();
+        // 这里可以加个逻辑，比如时间到了自动弃牌：this.doFold();
+      }
+    }, 1000);
+  },
+  stopCountdown() {
+    if (this.actionTimer) {
+      clearInterval(this.actionTimer);
+      this.actionTimer = null;
     }
+  }
   }
 }
 </script>
