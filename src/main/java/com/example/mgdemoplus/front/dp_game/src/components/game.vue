@@ -799,17 +799,76 @@ export default {
 </script>
 
 <style scoped>
+/* 扑克牌基础美化 */
+/* 扑克牌基础美化 - 沉稳色调版 */
 .card-base {
   width: 44px;
   height: 62px;
-  border-radius: 5px;
+  border-radius: 5px; /* 稍微方一点更硬朗 */
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
-  font-weight: bold;
-  font-size: 15px;
-  box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2);
+  color: #e0e0e0; /* 文字不再用纯白，用浅灰更有质感 */
+  font-weight: 800;
+  font-size: 18px;
+  font-family: 'Garamond', 'Georgia', serif; /* 换个带衬线的字体，更有赌场风 */
+
+  /* 镶边效果：深色细边框 + 低调阴影 */
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.4), inset 0 0 12px rgba(0, 0, 0, 0.2);
+
+  position: relative;
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+/* 内部装饰线：增加“高级感”的关键 */
+.card-base::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  right: 2px;
+  bottom: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+/* --- 暗色调花色背景 --- */
+
+/* 暗红 (红桃) */
+.bg-red {
+  background: linear-gradient(135deg, #8b0000 0%, #5d0000 100%);
+}
+
+/* 暗蓝 (方块) */
+.bg-blue {
+  background: linear-gradient(135deg, #1e3a5f 0%, #102a43 100%);
+}
+
+/* 暗绿 (梅花) */
+.bg-green {
+  background: linear-gradient(135deg, #1b4332 0%, #081c15 100%);
+}
+
+/* 墨黑 (黑桃) */
+.bg-black {
+  background: linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%);
+}
+
+/* 盖牌/未知 */
+.bg-gray {
+  background: linear-gradient(135deg, #434343 0%, #232323 100%);
+  color: #666;
+  border: 1px dashed #555;
+}
+
+/* 悬停效果：轻微发光 */
+.card-base:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
+  filter: brightness(1.1);
 }
 
 .bg-red {
