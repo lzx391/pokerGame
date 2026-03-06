@@ -138,64 +138,60 @@
       </div>
 
       <!-- ===== 我的行动区 ===== -->
-      <div v-if="isMyTurn"
-           style="margin-top:20px; background:#fff; padding:15px; border-radius:10px; box-shadow:0 -2px 10px rgba(0,0,0,0.05);">
-        <div style="text-align:center; color:#faad14; font-weight:bold; margin-bottom:10px;">
-          轮到你行动了（30秒超时自动弃牌）
-        </div>
-        <div style="font-size:13px; color:#666; text-align:center; margin-bottom:10px;">
-          当前跟注额: {{ currentBetToCall }} | 你已下注: {{ myBet }} | 还需跟: {{ callAmount }}
-        </div>
-        <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center;">
-          <!-- 跟注/过牌 -->
-          <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center; align-items:center;">
-
-            <div v-if="players[actIndex]?.nickname === user.nickname"
-                 style="display:flex; align-items:center; justify-content:center;
-              width:60px; height:40px; background:#fff2f0; border:2px solid #ff4d4f;
-              border-radius:8px; color:#ff4d4f; font-family: 'Courier New', monospace;">
-              <span style="font-size:18px; font-weight:900;">{{ timeLeft }}</span>
-              <span style="font-size:10px; margin-left:2px;">s</span>
-            </div>
-
-            <button @click="doCall"
-                    style="padding:10px 18px; background:#1890ff; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">
-              {{ callAmount > 0 ? '跟注 ' + callAmount : '过牌' }}
-            </button>
-
-          </div>
-          <!-- 加注 -->
-          <div style="display:flex; align-items:center; gap:5px;">
-            <button @click="raiseAmount += 5"
-                    style="padding:4px 8px; background:#fff; border:1px solid #f57f17; color:#f57f17; border-radius:4px; cursor:pointer; font-weight:bold;">
-              +5
-            </button>
-            <button @click="raiseAmount += 10"
-                    style="padding:4px 8px; background:#fff; border:1px solid #f57f17; color:#f57f17; border-radius:4px; cursor:pointer; font-weight:bold;">
-              +10
-            </button>
-            <input type="number" v-model.number="raiseAmount" :min="minRaise" :max="myChips"
-                   style="width:70px; padding:6px; border:1px solid #d9d9d9; border-radius:4px; text-align:center;"/>
-            <button @click="raiseAmount -= 10" style="padding:4px 8px; background:#fff; border:1px solid #f57f17; color:#f57f17; border-radius:4px; cursor:pointer; font-weight:bold;">-10</button>
-            <button @click="raiseAmount -= 5" style="padding:4px 8px; background:#fff; border:1px solid #f57f17; color:#f57f17; border-radius:4px; cursor:pointer; font-weight:bold;">-5</button>
-
-          </div>
-          <button @click="doRaise" :disabled="raiseAmount < minRaise"
-                  style="padding:10px 14px; background:#f57f17; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">
-            加注
-          </button>
-          <!-- All-In -->
-          <button @click="doAllIn"
-                  style="padding:10px 14px; background:#c62828; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">
-            All-In ({{ myChips }})
-          </button>
-          <!-- 弃牌 -->
-          <button @click="doFold"
-                  style="padding:10px 18px; background:#ff4d4f; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">
-            弃牌
-          </button>
-        </div>
+    <div v-if="isMyTurn"
+         style="margin-top:20px; background:#fff; padding:15px; border-radius:10px; box-shadow:0 -2px 10px rgba(0,0,0,0.05);">
+      <div style="text-align:center; color:#faad14; font-weight:bold; margin-bottom:10px;">
+        轮到你行动了（30秒超时自动弃牌）
       </div>
+      <div style="font-size:13px; color:#666; text-align:center; margin-bottom:10px;">
+        当前跟注额: {{ currentBetToCall }} | 你已下注: {{ myBet }} | 还需跟: {{ callAmount }}
+      </div>
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center; align-items:center;">
+
+        <div v-if="players[actIndex]?.nickname === user.nickname"
+             style="display: flex; align-items: center; justify-content: center;
+                width: 40px; height: 40px;
+                background: #ffffff;
+                border: 2px solid #000000;
+                border-radius: 50%;
+                flex-shrink: 0;
+                box-sizing: border-box;">
+      <span style="color: #ff4d4f; font-size: 18px; font-weight: 900; font-family: 'Arial Black', sans-serif; line-height: 1;">
+        {{ timeLeft }}
+      </span>
+        </div>
+
+        <button @click="doCall"
+                style="height: 40px; padding: 0 18px; background: #1890ff; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; display: flex; align-items: center;">
+          {{ callAmount > 0 ? '跟注 ' + callAmount : '过牌' }}
+        </button>
+
+        <div style="display:flex; align-items:center; gap:5px; height: 40px;">
+          <button @click="raiseAmount += 5" style="height: 32px; width: 32px; padding: 0; background: #fff; border: 1px solid #f57f17; color: #f57f17; border-radius: 4px; cursor: pointer; font-weight: bold;">+5</button>
+          <button @click="raiseAmount += 10" style="height: 32px; width: 32px; padding: 0; background: #fff; border: 1px solid #f57f17; color: #f57f17; border-radius: 4px; cursor: pointer; font-weight: bold;">+10</button>
+          <input type="number" v-model.number="raiseAmount" :min="minRaise" :max="myChips"
+                 style="width: 60px; height: 32px; padding: 0; border: 1px solid #d9d9d9; border-radius: 4px; text-align: center;"/>
+          <button @click="raiseAmount -= 10" style="height: 32px; width: 32px; padding: 0; background: #fff; border: 1px solid #f57f17; color: #f57f17; border-radius: 4px; cursor: pointer; font-weight: bold;">-10</button>
+          <button @click="raiseAmount -= 5" style="height: 32px; width: 32px; padding: 0; background: #fff; border: 1px solid #f57f17; color: #f57f17; border-radius: 4px; cursor: pointer; font-weight: bold;">-5</button>
+        </div>
+
+        <button @click="doRaise" :disabled="raiseAmount < minRaise"
+                style="height: 40px; padding: 0 14px; background: #f57f17; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+          加注
+        </button>
+
+        <button @click="doAllIn"
+                style="height: 40px; padding: 0 14px; background: #c62828; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+          All-In ({{ myChips }})
+        </button>
+
+        <button @click="doFold"
+                style="height: 40px; padding: 0 18px; background: #ff4d4f; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+          弃牌
+        </button>
+      </div>
+    </div>
 
       <!-- ===== 房主控制区 ===== -->
       <div v-if="isOwner" style="margin-top:20px; background:#fff; padding:15px; border-radius:10px;">
