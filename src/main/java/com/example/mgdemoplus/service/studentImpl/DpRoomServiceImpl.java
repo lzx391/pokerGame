@@ -206,12 +206,13 @@ public class DpRoomServiceImpl {
 //        }
 // 2. 如果房主不在了（被踢了或主动走了），顺位继承
         if(r.getOwner().equals(nickname)){//说明退出的人是房主,进行移交操作
-            if (!r.getPlayers().isEmpty()) {
+            if (r.getPlayers().size()>1) {
                 // 拿到剩下的第一个人
                 String newOwner = r.getPlayers().get(1).getNickname();
                 r.setOwner(newOwner);
                 System.out.println("房间 " + r.getRoomId() + " 房主易位给: " + newOwner);
-            } else {
+            }
+             else {
                 // 没人了，准备销毁房间
                 roomMap.remove(r.getRoomId());
                 return true;
