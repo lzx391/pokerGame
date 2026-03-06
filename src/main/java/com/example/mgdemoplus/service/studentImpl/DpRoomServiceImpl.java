@@ -23,6 +23,7 @@ public class DpRoomServiceImpl {
                     while (it.hasNext()) {
                         DpPlayer p = it.next();
                         if (System.currentTimeMillis() - p.getLastHeartBeat() > DpRoom.getHeartTimeout()) {
+                            System.out.println("未收到"+p.getNickname()+"的心跳,已移除房间");
                             it.remove();
                         }
                     }
@@ -196,14 +197,6 @@ public class DpRoomServiceImpl {
     public boolean exitRoom(String roomId, String nickname) {
         DpRoom r = roomMap.get(roomId);
         if (r == null) return false;
-        // 1. 先检查原房主是否还在 players 列表里
-//        boolean ownerStillIn = false;
-//        for (DpPlayer p : r.getPlayers()) {
-//            if (p.getNickname().equals(r.getOwner())) {
-//                ownerStillIn = true;//先默认房主不在了，然后如果检测到了房主再跳出
-//                break;
-//            }
-//        }
 // 2. 如果房主不在了（被踢了或主动走了），顺位继承
         if(r.getOwner().equals(nickname)){//说明退出的人是房主,进行移交操作
             if (r.getPlayers().size()>1) {
@@ -531,7 +524,6 @@ public class DpRoomServiceImpl {
         for (DpPlayer p : r.getPlayers()) {
             if (p.getNickname().equals(nickname)) {
                 p.setLastHeartBeat(System.currentTimeMillis());
-                System.out.println(p.getNickname() + "依旧在线");
             }
         }
     }

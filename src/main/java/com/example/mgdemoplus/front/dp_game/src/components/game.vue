@@ -22,29 +22,29 @@
     </div>
 
     <!-- ========== 未开始：准备/开始 ========== -->
-    <div v-if="!playing" style="background:#fff; padding:20px; border-radius:10px; text-align:center;">
-      <h2 style="margin:0 0 15px;">等待开始</h2>
-      <div v-for="p in players" :key="p.nickname"
-           style="padding:8px 0; display:flex; justify-content:center; align-items:center; gap:10px;">
-        <span style="font-weight:bold;">{{ p.nickname }}</span>
-        <span :style="{ color: p.ready ? '#52c41a' : '#ff4d4f' }">{{ p.ready ? '已准备' : '未准备' }}</span>
-        <span v-if="p.nickname === owner"
-              style="background:#faad14; color:#fff; padding:1px 6px; border-radius:3px; font-size:12px;">房主</span>
-      </div>
-      <div style="margin-top:20px; display:flex; justify-content:center; gap:10px;">
-        <button @click="toggleReady"
-                style="padding:8px 20px; border:none; border-radius:5px; cursor:pointer; background:#1890ff; color:#fff;">
-          {{ myReady ? '取消准备' : '准备' }}
-        </button>
-        <button v-if="isOwner" @click="startGame"
-                style="padding:8px 20px; border:none; border-radius:5px; cursor:pointer; background:#52c41a; color:#fff;">
-          开始游戏
-        </button>
-      </div>
-    </div>
+<!--    <div v-if="!playing" style="background:#fff; padding:20px; border-radius:10px; text-align:center;">-->
+<!--      <h2 style="margin:0 0 15px;">等待开始</h2>-->
+<!--      <div v-for="p in players" :key="p.nickname"-->
+<!--           style="padding:8px 0; display:flex; justify-content:center; align-items:center; gap:10px;">-->
+<!--        <span style="font-weight:bold;">{{ p.nickname }}</span>-->
+<!--        <span :style="{ color: p.ready ? '#52c41a' : '#ff4d4f' }">{{ p.ready ? '已准备' : '未准备' }}</span>-->
+<!--        <span v-if="p.nickname === owner"-->
+<!--              style="background:#faad14; color:#fff; padding:1px 6px; border-radius:3px; font-size:12px;">房主</span>-->
+<!--      </div>-->
+<!--      <div style="margin-top:20px; display:flex; justify-content:center; gap:10px;">-->
+<!--        <button @click="toggleReady"-->
+<!--                style="padding:8px 20px; border:none; border-radius:5px; cursor:pointer; background:#1890ff; color:#fff;">-->
+<!--          {{ myReady ? '取消准备' : '准备' }}-->
+<!--        </button>-->
+<!--        <button v-if="isOwner" @click="startGame"-->
+<!--                style="padding:8px 20px; border:none; border-radius:5px; cursor:pointer; background:#52c41a; color:#fff;">-->
+<!--          开始游戏-->
+<!--        </button>-->
+<!--      </div>-->
+<!--    </div>-->
 
     <!-- ========== 游戏进行中 ========== -->
-    <template v-else>
+
 
       <!-- 观战提示 + 下一局加入按钮：当前不在 players 中的用户视为观众 -->
       <div v-if="!myPlayer"
@@ -131,9 +131,9 @@
             {{ p.fold ? '已弃牌' : (actIndex === i ? '思考中...' : '进行中') }}
           </div>
           <!-- 摊牌选赢家提示：弃牌的人也能被选（盖牌结算） -->
-          <div v-if="stage === 'showdown' && isOwner" style="color:#1890ff; font-size:11px; margin-top:4px;">
-            {{ selectedWinners.includes(p.nickname) ? '已选中' : '[点我选为赢家]' }}
-          </div>
+<!--          <div v-if="stage === 'showdown' && isOwner" style="color:#1890ff; font-size:11px; margin-top:4px;">-->
+<!--            {{ selectedWinners.includes(p.nickname) ? '已选中' : '[点我选为赢家]' }}-->
+<!--          </div>-->
         </div>
       </div>
 
@@ -265,7 +265,7 @@
         </button>
       </div>
 
-    </template>
+
   </div>
 </template>
 
