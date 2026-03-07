@@ -1,5 +1,6 @@
 package com.example.mgdemoplus.service.studentImpl;
 
+import com.example.mgdemoplus.dto.DpRoomDTO;
 import com.example.mgdemoplus.entity.DpPlayer;
 import com.example.mgdemoplus.entity.DpPot;
 import com.example.mgdemoplus.entity.DpRoom;
@@ -139,8 +140,8 @@ public class DpRoomServiceImpl {
         return r;
     }
 
-    public List<DpRoom> getAllRooms() {
-        return new ArrayList<>(roomMap.values());
+    public DpRoom getAllRooms(String roomId) {
+        return roomMap.get(roomId);
     }
 
     public String joinRoom(String roomId, String nickname) {
@@ -559,5 +560,16 @@ public class DpRoomServiceImpl {
 
         // 全部人都弃牌或 all-in 时，没有人需要行动
         return -1;
+    }
+    public List<DpRoomDTO> getAllRooms2() {
+        return roomMap.values().stream()
+                .map(room -> {
+                    DpRoomDTO dto = new DpRoomDTO();
+                    dto.setRoomId(room.getRoomId());
+                    dto.setOwner(room.getOwner());
+                    dto.setPlayerSize(room.getPlayers().size());
+                    return dto;
+                })
+                .collect(Collectors.toList());
     }
 }

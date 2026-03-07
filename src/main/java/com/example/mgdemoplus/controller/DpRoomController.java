@@ -1,5 +1,6 @@
 package com.example.mgdemoplus.controller;
 
+import com.example.mgdemoplus.dto.DpRoomDTO;
 import com.example.mgdemoplus.entity.DpRoom;
 import com.example.mgdemoplus.service.studentImpl.DpRoomServiceImpl;
 
@@ -24,8 +25,8 @@ public class DpRoomController {
     }
 
     @GetMapping("/getAllRooms")
-    public List<DpRoom> getAllRooms() {
-        return dpRoomService.getAllRooms();
+    public DpRoom getAllRooms(@RequestParam String roomId) {
+        return dpRoomService.getAllRooms(roomId);
     }
 
     @PostMapping("/joinRoom")
@@ -85,5 +86,9 @@ public class DpRoomController {
     @PostMapping("/readyNextHand")
     public String readyNextHand(@RequestParam String roomId, @RequestParam String nickname) {
         return dpRoomService.readyNextHand(roomId, nickname) ? "ok" : "fail";
+    }
+    @GetMapping("/getAllRooms2")
+    public List<DpRoomDTO> getAllRooms2() {
+        return dpRoomService.getAllRooms2();
     }
 }

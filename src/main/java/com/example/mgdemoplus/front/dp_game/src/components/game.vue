@@ -447,12 +447,10 @@ export default {
     async loadGame() {
       this.loading = true
       try {
-        var res = await this.$http.get('/dpRoom/getAllRooms')
-        var rooms = res.data
-        var room = rooms.find(function (r) {
-          return r.roomId === this.roomId
-        }.bind(this))
-
+        var res = await this.$http.get('/dpRoom/getAllRooms',{
+          params: { roomId: this.roomId }
+        })
+        var room = res.data
         if (!room) {
           alert('房间已解散或你已被移出')
           clearInterval(this.pollTimer)

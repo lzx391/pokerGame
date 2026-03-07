@@ -97,9 +97,10 @@ export default {
 
         async fetchRoomInfo() {
             try {
-                const res = await this.$http.get("/dpRoom/getAllRooms");
-                const room = res.data.find(r => r.roomId === this.roomId);
-
+              const res = await this.$http.get('/dpRoom/getAllRooms',{
+                params: { roomId: this.roomId }
+              })
+              const room = res.data
                 if (!room) {
                     this.$router.push("/home");
                     return;

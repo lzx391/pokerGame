@@ -7,9 +7,9 @@
 
     <div class="room-list">
       <h3>房间列表</h3>
-      <div class="room-item" v-for="room in rooms" :key="room.roomId">
-        <span>房间 {{ room.roomId }} ({{ room.players.length }}人)</span>
-        <button @click="joinRoom(room.roomId)">加入</button>
+      <div class="room-item" v-for="roomDto in roomDtos" :key="roomDto.roomId">
+        <span>房间 {{ roomDto.roomId }} ({{ roomDto.playerSize }}人)</span>
+        <button @click="joinRoom(roomDto.roomId)">加入</button>
       </div>
     </div>
   </div>
@@ -20,7 +20,8 @@ export default {
   data() {
     return {
       user: {},
-      rooms: []
+      roomDtos: []
+
     }
   },
   created() {
@@ -40,8 +41,8 @@ export default {
   },
   methods: {
     async getRooms() {
-      const res = await this.$http.get('/dpRoom/getAllRooms')
-      this.rooms = res.data
+      const res = await this.$http.get('/dpRoom/getAllRooms2')
+      this.roomDtos = res.data
     },
     async createRoom() {
       const res = await this.$http.post('/dpRoom/createRoom', null, {
