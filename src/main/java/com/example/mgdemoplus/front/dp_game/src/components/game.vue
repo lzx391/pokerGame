@@ -21,123 +21,114 @@
 
     </div>
 
-    <!-- ========== 未开始：准备/开始 ========== -->
-<!--    <div v-if="!playing" style="background:#fff; padding:20px; border-radius:10px; text-align:center;">-->
-<!--      <h2 style="margin:0 0 15px;">等待开始</h2>-->
-<!--      <div v-for="p in players" :key="p.nickname"-->
-<!--           style="padding:8px 0; display:flex; justify-content:center; align-items:center; gap:10px;">-->
-<!--        <span style="font-weight:bold;">{{ p.nickname }}</span>-->
-<!--        <span :style="{ color: p.ready ? '#52c41a' : '#ff4d4f' }">{{ p.ready ? '已准备' : '未准备' }}</span>-->
-<!--        <span v-if="p.nickname === owner"-->
-<!--              style="background:#faad14; color:#fff; padding:1px 6px; border-radius:3px; font-size:12px;">房主</span>-->
-<!--      </div>-->
-<!--      <div style="margin-top:20px; display:flex; justify-content:center; gap:10px;">-->
-<!--        <button @click="toggleReady"-->
-<!--                style="padding:8px 20px; border:none; border-radius:5px; cursor:pointer; background:#1890ff; color:#fff;">-->
-<!--          {{ myReady ? '取消准备' : '准备' }}-->
-<!--        </button>-->
-<!--        <button v-if="isOwner" @click="startGame"-->
-<!--                style="padding:8px 20px; border:none; border-radius:5px; cursor:pointer; background:#52c41a; color:#fff;">-->
-<!--          开始游戏-->
-<!--        </button>-->
-<!--      </div>-->
-<!--    </div>-->
-
     <!-- ========== 游戏进行中 ========== -->
 
-
-      <!-- 观战提示 + 下一局加入按钮：当前不在 players 中的用户视为观众 -->
-      <div v-if="!myPlayer"
-           style="background:#fff; padding:10px 15px; border-radius:8px; margin-bottom:15px; text-align:center; font-size:13px;">
-        <div style="margin-bottom:8px;">
-          你当前正在<span style="color:#1890ff;">旁观本局</span>，不会参与下注和结算。
-        </div>
-        <button
-            @click="readyNextHand"
-            :disabled="nextHandReady"
-            style="padding:6px 14px; border:none; border-radius:4px; cursor:pointer; background:#52c41a; color:#fff; font-size:13px;"
-        >
-          {{ nextHandReady ? '已报名下一局，等待房主重新发牌' : '准备在下一局加入对局' }}
-        </button>
+    <!-- 观战提示 + 下一局加入按钮：当前不在 players 中的用户视为观众 -->
+    <div v-if="!myPlayer"
+         style="background:#fff; padding:10px 15px; border-radius:8px; margin-bottom:15px; text-align:center; font-size:13px;">
+      <div style="margin-bottom:8px;">
+        你当前正在<span style="color:#1890ff;">旁观本局</span>，不会参与下注和结算。
       </div>
+      <button
+          @click="readyNextHand"
+          :disabled="nextHandReady"
+          style="padding:6px 14px; border:none; border-radius:4px; cursor:pointer; background:#52c41a; color:#fff; font-size:13px;"
+      >
+        {{ nextHandReady ? '已报名下一局，等待房主重新发牌' : '准备在下一局加入对局' }}
+      </button>
+    </div>
 
-      <!-- 公共牌 -->
-      <div style="display:flex; gap:8px; justify-content:center; margin:20px 0;">
-        <div v-for="c in communityCards" :key="c" :class="getCardClass(c)">
-          {{ getCardDisplay(c) }}
-        </div>
-        <div v-for="i in (5 - communityCards.length)" :key="'e' + i" class="card-base bg-gray">?</div>
+    <!-- 公共牌 -->
+    <div style="display:flex; gap:8px; justify-content:center; margin:20px 0;">
+      <div v-for="c in communityCards" :key="c" :class="getCardClass(c)">
+        {{ getCardDisplay(c) }}
       </div>
+      <div v-for="i in (5 - communityCards.length)" :key="'e' + i" class="card-base bg-gray">?</div>
+    </div>
 
-      <!-- 玩家列表 -->
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
-        <div
-            v-for="(p, i) in players"
-            :key="p.nickname"
-            :style="getPlayerBoxStyle(p, i)"
-            @click="handleJudgeClick(p.nickname)"
-        >
-          <!-- 标记 -->
-          <div style="display:flex; gap:5px; margin-bottom:5px;">
+    <!-- 玩家列表 -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+      <div
+          v-for="(p, i) in players"
+          :key="p.nickname"
+          :style="getPlayerBoxStyle(p, i)"
+          @click="handleJudgeClick(p.nickname)"
+      >
+        <!-- 标记 -->
+        <div style="display:flex; gap:5px; margin-bottom:5px;">
             <span v-if="p.dealer"
                   style="background:#faad14; color:#fff; padding:1px 5px; border-radius:3px; font-size:12px;">D</span>
-            <span v-if="p.blind === 1"
-                  style="background:#722ed1; color:#fff; padding:1px 5px; border-radius:3px; font-size:12px;">SB</span>
-            <span v-if="p.blind === 2"
-                  style="background:#52c41a; color:#fff; padding:1px 5px; border-radius:3px; font-size:12px;">BB</span>
+          <span v-if="p.blind === 1"
+                style="background:#722ed1; color:#fff; padding:1px 5px; border-radius:3px; font-size:12px;">SB</span>
+          <span v-if="p.blind === 2"
+                style="background:#52c41a; color:#fff; padding:1px 5px; border-radius:3px; font-size:12px;">BB</span>
+        </div>
+        <!-- 名字 -->
+        <div style="font-weight:bold;">
+          {{ p.nickname }}
+          <span v-if="isMe(p.nickname)" style="color:#1890ff;">(我)</span>
+        </div>
+        <!-- 筹码 -->
+        <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 4px;">
+          <div
+              style="font-size: 13px; color: #555; display: flex; align-items: center; justify-content: center; background: #f8f9fa; border-radius: 4px; padding: 2px 0;">
+            <span style="color: #8c8c8c; margin-right: 4px;">剩余积分:</span>
+            <span style="font-weight: 800; font-family: monospace; color: #2f3542;">{{ p.chips }}</span>
           </div>
-          <!-- 名字 -->
-          <div style="font-weight:bold;">
-            {{ p.nickname }}
-            <span v-if="isMe(p.nickname)" style="color:#1890ff;">(我)</span>
-          </div>
-          <!-- 筹码 -->
-          <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 4px;">
-            <div
-                style="font-size: 13px; color: #555; display: flex; align-items: center; justify-content: center; background: #f8f9fa; border-radius: 4px; padding: 2px 0;">
-              <span style="color: #8c8c8c; margin-right: 4px;">剩余积分:</span>
-              <span style="font-weight: 800; font-family: monospace; color: #2f3542;">{{ p.chips }}</span>
-            </div>
 
+          <div
+              style="background: #fff2f0; border: 1px solid #ffccc7; border-radius: 6px; padding: 4px 0; text-align: center;">
             <div
-                style="background: #fff2f0; border: 1px solid #ffccc7; border-radius: 6px; padding: 4px 0; text-align: center;">
-              <div
-                  style="font-size: 11px; color: #ff4d4f; text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px;">
-                本轮积分
-              </div>
-              <div style="font-size: 16px; color: #cf1322; font-weight: 900; font-family: 'Arial Black', sans-serif;">
-                {{ p.bet }}
-              </div>
+                style="font-size: 11px; color: #ff4d4f; text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px;">
+              本轮积分
+            </div>
+            <div style="font-size: 16px; color: #cf1322; font-weight: 900; font-family: 'Arial Black', sans-serif;">
+              {{ p.bet }}
             </div>
           </div>
-          <!--          <div style="font-size:13px; color:#666;">筹码: {{ p.chips }} | 本轮注: {{ p.bet }}</div>-->
-          <!-- 手牌：自己始终能看；摊牌时只有未弃牌的人亮牌，弃牌的人依然盖牌 -->
-          <div style="display:flex; gap:5px; margin:8px 0; justify-content:center;">
-            <template v-if="isMe(p.nickname) || (stage === 'showdown' && !p.fold)">
-              <div v-for="(c, ci) in p.holeCards" :key="'h' + ci" :class="getCardClass(c)"
-                   style="width:36px; height:52px; font-size:13px;">
-                {{ getCardDisplay(c) }}
-              </div>
-            </template>
-            <template v-else-if="p.holeCards && p.holeCards.length > 0">
-              <div v-for="ci in p.holeCards.length" :key="'hb' + ci" class="card-base bg-gray"
-                   style="width:36px; height:52px; font-size:13px;">?
-              </div>
-            </template>
-          </div>
-          <!-- 状态 -->
-          <div style="font-weight:bold; font-size:12px;"
-               :style="{ color: p.fold ? '#ff4d4f' : (actIndex === i ? '#faad14' : '#52c41a') }">
-            {{ p.fold ? '已弃牌' : (actIndex === i ? '思考中...' : '进行中') }}
-          </div>
-          <!-- 摊牌选赢家提示：弃牌的人也能被选（盖牌结算） -->
-<!--          <div v-if="stage === 'showdown' && isOwner" style="color:#1890ff; font-size:11px; margin-top:4px;">-->
-<!--            {{ selectedWinners.includes(p.nickname) ? '已选中' : '[点我选为赢家]' }}-->
-<!--          </div>-->
+        </div>
+        <!-- 手牌：自己始终能看；摊牌时只有未弃牌的人亮牌，弃牌的人依然盖牌 -->
+        <div style="display:flex; gap:5px; margin:8px 0; justify-content:center;">
+          <template v-if="isMe(p.nickname) || (stage === 'showdown' && !p.fold)">
+            <div v-for="(c, ci) in p.holeCards" :key="'h' + ci" :class="getCardClass(c)"
+                 style="width:36px; height:52px; font-size:13px;">
+              {{ getCardDisplay(c) }}
+            </div>
+          </template>
+          <template v-else-if="p.holeCards && p.holeCards.length > 0">
+            <div v-for="ci in p.holeCards.length" :key="'hb' + ci" class="card-base bg-gray"
+                 style="width:36px; height:52px; font-size:13px;">?
+            </div>
+          </template>
+        </div>
+
+        <!-- 新增：摊牌阶段显示牌型 -->
+        <div v-if="stage === 'showdown' && communityCards.length === 5"
+             style="margin-top:4px; text-align:center;">
+          <!-- 自己的牌型：弃牌也能看（只有自己能看到自己弃牌后的牌型） -->
+          <template v-if="isMe(p.nickname)">
+              <span style="background:#e6f7ff; color:#1890ff; padding:3px 10px; border-radius:4px; font-weight:bold; font-size:12px; display:inline-block;">
+                {{ getHandRank(p.holeCards, communityCards) }}
+              </span>
+          </template>
+          <!-- 别人的牌型：只有没弃牌的显示 -->
+          <template v-else-if="!p.fold">
+              <span style="background:#f6ffed; color:#52c41a; padding:3px 10px; border-radius:4px; font-weight:bold; font-size:12px; display:inline-block;">
+                {{ getHandRank(p.holeCards, communityCards) }}
+              </span>
+          </template>
+          <!-- 弃牌的别人：不显示牌型 -->
+        </div>
+
+        <!-- 状态 -->
+        <div style="font-weight:bold; font-size:12px; margin-top:4px;"
+             :style="{ color: p.fold ? '#ff4d4f' : (actIndex === i ? '#faad14' : '#52c41a') }">
+          {{ p.fold ? '已弃牌' : (actIndex === i ? '思考中...' : '进行中') }}
         </div>
       </div>
+    </div>
 
-      <!-- ===== 我的行动区 ===== -->
+    <!-- ===== 我的行动区 ===== -->
     <div v-if="isMyTurn"
          style="margin-top:20px; background:#fff; padding:15px; border-radius:10px; box-shadow:0 -2px 10px rgba(0,0,0,0.05);">
       <div style="text-align:center; color:#faad14; font-weight:bold; margin-bottom:10px;">
@@ -193,35 +184,32 @@
       </div>
     </div>
 
-      <!-- ===== 房主控制区 ===== -->
-      <div v-if="isOwner" style="margin-top:20px; background:#fff; padding:15px; border-radius:10px;">
-        <div style="font-size:14px; font-weight:bold; color:#333; margin-bottom:10px; text-align:center;">房主操作</div>
+    <!-- ===== 房主控制区 ===== -->
+    <div v-if="isOwner" style="margin-top:20px; background:#fff; padding:15px; border-radius:10px;">
+      <div style="font-size:14px; font-weight:bold; color:#333; margin-bottom:10px; text-align:center;">房主操作</div>
 
-        <!-- 下一阶段：当 actIndex === -1（所有人跟齐）且不在 showdown -->
+      <!-- showdown 结算：按池分配 -->
+      <div v-if="stage === 'showdown'" style="text-align:center; margin-bottom:10px;">
+        <div style="color:#f5222d; font-weight:bold; margin-bottom:8px;">
+          摊牌阶段 - 请为每个池选择赢家
+        </div>
 
-
-        <!-- showdown 结算：按池分配 -->
-        <div v-if="stage === 'showdown'" style="text-align:center; margin-bottom:10px;">
-          <div style="color:#f5222d; font-weight:bold; margin-bottom:8px;">
-            摊牌阶段 - 请为每个池选择赢家
-          </div>
-
-          <!-- 有边池数据时：按池分别选赢家 -->
-          <template v-if="pots.length > 0">
-            <div v-for="(potItem, pi) in pots" :key="'pot' + pi"
-                 style="background:#fafafa; border:1px solid #e8e8e8; border-radius:8px; padding:10px; margin-bottom:10px; text-align:left;">
-              <div style="font-weight:bold; margin-bottom:6px; color:#333;">
-                {{ pi === 0 ? '主池' : '边池 ' + pi }} - 金额: <span style="color:#f5222d;">{{ potItem.amount }}</span>
-              </div>
-              <div style="font-size:12px; color:#999; margin-bottom:6px;">
-                有资格的玩家: {{ potItem.eligiblePlayers.join(', ') }}
-              </div>
-              <div style="display:flex; flex-wrap:wrap; gap:6px;">
-                <button
-                    v-for="name in potItem.eligiblePlayers"
-                    :key="'pw' + pi + name"
-                    @click="togglePotWinner(pi, name)"
-                    :style="{
+        <!-- 有边池数据时：按池分别选赢家 -->
+        <template v-if="pots.length > 0">
+          <div v-for="(potItem, pi) in pots" :key="'pot' + pi"
+               style="background:#fafafa; border:1px solid #e8e8e8; border-radius:8px; padding:10px; margin-bottom:10px; text-align:left;">
+            <div style="font-weight:bold; margin-bottom:6px; color:#333;">
+              {{ pi === 0 ? '主池' : '边池 ' + pi }} - 金额: <span style="color:#f5222d;">{{ potItem.amount }}</span>
+            </div>
+            <div style="font-size:12px; color:#999; margin-bottom:6px;">
+              有资格的玩家: {{ potItem.eligiblePlayers.join(', ') }}
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:6px;">
+              <button
+                  v-for="name in potItem.eligiblePlayers"
+                  :key="'pw' + pi + name"
+                  @click="togglePotWinner(pi, name)"
+                  :style="{
                     padding: '5px 12px',
                     borderRadius: '4px',
                     cursor: 'pointer',
@@ -230,39 +218,39 @@
                     color: isPotWinner(pi, name) ? '#52c41a' : '#333',
                     fontWeight: isPotWinner(pi, name) ? 'bold' : 'normal'
                   }"
-                >
-                  {{ name }} {{ isPotWinner(pi, name) ? '(已选)' : '' }}
-                </button>
-              </div>
+              >
+                {{ name }} {{ isPotWinner(pi, name) ? '(已选)' : '' }}
+              </button>
             </div>
-            <button
-                @click="confirmPotJudge"
-                :disabled="!allPotsHaveWinners"
-                style="width:100%; padding:12px; background:#52c41a; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;"
-                :style="{ opacity: allPotsHaveWinners ? 1 : 0.4 }"
-            >
-              确认按池结算
-            </button>
-          </template>
+          </div>
+          <button
+              @click="confirmPotJudge"
+              :disabled="!allPotsHaveWinners"
+              style="width:100%; padding:12px; background:#52c41a; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;"
+              :style="{ opacity: allPotsHaveWinners ? 1 : 0.4 }"
+          >
+            确认按池结算
+          </button>
+        </template>
 
-          <!-- 没有边池数据（后端未更新）：退回旧的简单模式 -->
-          <template v-else>
-            <div style="font-size:13px; color:#666; margin-bottom:8px;">
-              点击上方玩家卡片选择赢家（可多选平分）
-            </div>
-            <div v-if="selectedWinners.length > 0" style="font-size:13px; color:#333; margin-bottom:8px;">
-              已选: {{ selectedWinners.join(', ') }}
-            </div>
-            <button
-                @click="confirmJudgeWin"
-                :disabled="selectedWinners.length === 0"
-                style="width:100%; padding:12px; background:#52c41a; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;"
-                :style="{ opacity: selectedWinners.length === 0 ? 0.4 : 1 }"
-            >
-              确认结算（底池 {{ pot }} 分给 {{ selectedWinners.length }} 人）
-            </button>
-          </template>
-        </div>
+        <!-- 没有边池数据（后端未更新）：退回旧的简单模式 -->
+        <template v-else>
+          <div style="font-size:13px; color:#666; margin-bottom:8px;">
+            点击上方玩家卡片选择赢家（可多选平分）
+          </div>
+          <div v-if="selectedWinners.length > 0" style="font-size:13px; color:#333; margin-bottom:8px;">
+            已选: {{ selectedWinners.join(', ') }}
+          </div>
+          <button
+              @click="confirmJudgeWin"
+              :disabled="selectedWinners.length === 0"
+              style="width:100%; padding:12px; background:#52c41a; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;"
+              :style="{ opacity: selectedWinners.length === 0 ? 0.4 : 1 }"
+          >
+            确认结算（底池 {{ pot }} 分给 {{ selectedWinners.length }} 人）
+          </button>
+        </template>
+      </div>
 
         <!-- 重新发牌 -->
         <button
@@ -404,35 +392,6 @@ export default {
   },
 
   methods: {
-  //   showToast(message) {
-  //     // 1. 创建 div
-  //     const toast = document.createElement('div');
-  //     toast.innerText = message;
-  //
-  //     // 2. 设置样式 (黑底白字，圆角，居中)
-  //     Object.assign(toast.style, {
-  //       position: 'fixed',
-  //       top: '50%',
-  //       left: '50%',
-  //       transform: 'translate(-50%, -50%)',
-  //       backgroundColor: 'rgba(0, 0, 0, 0.7)',
-  //       color: '#fff',
-  //       padding: '10px 20px',
-  //       borderRadius: '5px',
-  //       zIndex: '9999',
-  //       fontSize: '14px',
-  //       transition: 'opacity 0.5s'
-  //     });
-  //
-  //     // 3. 挂载到页面
-  //     document.body.appendChild(toast);
-  //
-  //     // 4. 2秒后消失并移除
-  //     setTimeout(() => {
-  //       toast.style.opacity = '0';
-  //       setTimeout(() => document.body.removeChild(toast), 500);
-  //     }, 2000);
-  //   },
     // ---- 心跳（独立，不依赖 loadGame） ----
     sendHeartbeat() {
       if (!this.user) return
@@ -563,19 +522,6 @@ export default {
         alert('网络错误: ' + err.message)
       }
     },
-
-    // ---- 房主：下一阶段 ----
-    // async doNextStage() {
-    //   try {
-    //     var res = await this.$http.post('/dpRoom/nextStage', null, {
-    //       params: {roomId: this.roomId, ownerNickname: this.user.nickname}
-    //     })
-    //     if (res.data !== 'ok') alert('推进失败（可能还有玩家未跟齐）')
-    //     await this.loadGame()
-    //   } catch (err) {
-    //     alert('网络错误: ' + err.message)
-    //   }
-    // },
 
     // ---- 摊牌阶段：点击玩家卡片选/取消赢家（简单模式备用） ----
     handleJudgeClick(nickname) {
@@ -774,24 +720,191 @@ export default {
 
       return s
     },
-  startCountdown() {
-    this.stopCountdown(); // 先清除旧的
-    this.timeLeft = 30;
-    this.actionTimer = setInterval(() => {
-      if (this.timeLeft > 0) {
-        this.timeLeft--;
-      } else {
-        this.stopCountdown();
-        // 这里可以加个逻辑，比如时间到了自动弃牌：this.doFold();
+
+    startCountdown() {
+      this.stopCountdown(); // 先清除旧的
+      this.timeLeft = 30;
+      this.actionTimer = setInterval(() => {
+        if (this.timeLeft > 0) {
+          this.timeLeft--;
+        } else {
+          this.stopCountdown();
+          // 这里可以加个逻辑，比如时间到了自动弃牌：this.doFold();
+        }
+      }, 1000);
+    },
+
+    stopCountdown() {
+      if (this.actionTimer) {
+        clearInterval(this.actionTimer);
+        this.actionTimer = null;
       }
-    }, 1000);
-  },
-  stopCountdown() {
-    if (this.actionTimer) {
-      clearInterval(this.actionTimer);
-      this.actionTimer = null;
+    },
+
+    // ========== 新增：牌型计算方法 ==========
+
+    /**
+     * 计算最大牌型
+     * @param holeCards - 玩家手牌，如 ["hearts_A", "spades_K"]
+     * @param communityCards - 公共牌，如 ["hearts_10", "hearts_J", "hearts_Q", "clubs_2", "diamonds_5"]
+     * @returns 牌型名称，如 "皇家同花顺"、"同花顺"、"四条" 等
+     */
+    getHandRank(holeCards, communityCards) {
+      if (!holeCards || holeCards.length < 2 || !communityCards || communityCards.length < 3) {
+        return '牌不足'
+      }
+
+      // 合并所有牌
+      var allCards = holeCards.concat(communityCards)
+
+      // 解析牌：将 "hearts_A" 转成 { suit: 'hearts', rank: 14 }
+      var rankMap = { '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14 }
+      var parsed = []
+      for (var i = 0; i < allCards.length; i++) {
+        var c = allCards[i]
+        var parts = c.split('_')
+        parsed.push({ suit: parts[0], rank: rankMap[parts[1]] || 0 })
+      }
+
+      // 生成所有5张牌的组合 (C(7,5) = 21种)
+      var combos = this.getCombinations(parsed, 5)
+
+      // 对每种组合评分，取最高分
+      var bestScore = 0
+      var bestName = ''
+
+      for (var j = 0; j < combos.length; j++) {
+        var result = this.evaluateHand(combos[j])
+        if (result.score > bestScore) {
+          bestScore = result.score
+          bestName = result.name
+        }
+      }
+
+      return bestName
+    },
+
+    // 生成组合的辅助函数
+    getCombinations(arr, k) {
+      var result = []
+      var combo = []
+
+      function backtrack(start) {
+        if (combo.length === k) {
+          result.push(combo.slice())
+          return
+        }
+        for (var i = start; i < arr.length; i++) {
+          combo.push(arr[i])
+          backtrack(i + 1)
+          combo.pop()
+        }
+      }
+
+      backtrack(0)
+      return result
+    },
+
+    // 评估5张牌的牌型
+    evaluateHand(cards) {
+      // 复制数组避免修改原数据
+      var cardsCopy = cards.slice()
+      // 按点数排序（降序）
+      cardsCopy.sort(function(a, b) { return b.rank - a.rank })
+
+      var ranks = []
+      var suits = []
+      for (var i = 0; i < cardsCopy.length; i++) {
+        ranks.push(cardsCopy[i].rank)
+        suits.push(cardsCopy[i].suit)
+      }
+
+      // 判断同花
+      var isFlush = true
+      for (var f = 1; f < suits.length; f++) {
+        if (suits[f] !== suits[0]) {
+          isFlush = false
+          break
+        }
+      }
+
+      // 判断顺子
+      var isStraight = false
+      // 普通顺子
+      var uniqueRanks = []
+      for (var u = 0; u < ranks.length; u++) {
+        if (uniqueRanks.indexOf(ranks[u]) === -1) uniqueRanks.push(ranks[u])
+      }
+      if (ranks[0] - ranks[4] === 4 && uniqueRanks.length === 5) {
+        isStraight = true
+      }
+      // A-2-3-4-5 小顺子
+      if (ranks[0] === 14 && ranks[1] === 5 && ranks[2] === 4 && ranks[3] === 3 && ranks[4] === 2) {
+        isStraight = true
+      }
+
+      // 统计点数出现次数
+      var rankCount = {}
+      for (var r = 0; r < ranks.length; r++) {
+        rankCount[ranks[r]] = (rankCount[ranks[r]] || 0) + 1
+      }
+      var counts = []
+      for (var key in rankCount) {
+        counts.push(rankCount[key])
+      }
+      counts.sort(function(a, b) { return b - a })
+
+      // 判断牌型并返回分数
+      // 分数越高越大，方便比较
+
+      // 皇家同花顺
+      if (isFlush && isStraight && ranks[0] === 14 && ranks[1] === 13) {
+        return { score: 10, name: '皇家同花顺' }
+      }
+
+      // 同花顺
+      if (isFlush && isStraight) {
+        return { score: 9, name: '同花顺' }
+      }
+
+      // 四条
+      if (counts[0] === 4) {
+        return { score: 8, name: '四条' }
+      }
+
+      // 葫芦（满堂红）
+      if (counts[0] === 3 && counts[1] === 2) {
+        return { score: 7, name: '葫芦' }
+      }
+
+      // 同花
+      if (isFlush) {
+        return { score: 6, name: '同花' }
+      }
+
+      // 顺子
+      if (isStraight) {
+        return { score: 5, name: '顺子' }
+      }
+
+      // 三条
+      if (counts[0] === 3) {
+        return { score: 4, name: '三条' }
+      }
+
+      // 两对
+      if (counts[0] === 2 && counts[1] === 2) {
+        return { score: 3, name: '两对' }
+      }
+
+      // 一对
+      if (counts[0] === 2) {
+        return { score: 2, name: '一对' }
+      }
+
+      // 高牌
+      return { score: 1, name: '高牌' }
     }
-  }
   }
 }
 </script>
@@ -820,7 +933,7 @@ export default {
   overflow: hidden;
 }
 
-/* 内部装饰线：增加“高级感”的关键 */
+/* 内部装饰线：增加"高级感"的关键 */
 .card-base::before {
   content: '';
   position: absolute;
