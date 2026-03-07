@@ -107,24 +107,23 @@
           </template>
         </div>
 
-        <!-- 新增：摊牌阶段显示牌型 -->
-        <div v-if="stage === 'showdown' && communityCards.length === 5"
+        <!-- 牌型显示：每个阶段公共牌全部翻完后，才显示当前阶段的牌型（all-in 跑马时等五张翻完再出结果） -->
+        <div v-if="communityCards.length >= 3 && communityCardsFlipComplete && (isMe(p.nickname) || (stage === 'showdown' && !p.fold))"
              style="margin-top:4px; text-align:center;">
-          <!-- 自己的牌型：弃牌也能看（只有自己能看到自己弃牌后的牌型） -->
+          <!-- 自己的牌型：翻牌圈起可见，仅自己可见 -->
           <template v-if="isMe(p.nickname)">
               <span
                   style="background:#e6f7ff; color:#1890ff; padding:3px 10px; border-radius:4px; font-weight:bold; font-size:12px; display:inline-block;">
                 {{ getHandRank(p.holeCards, communityCards) }}
               </span>
           </template>
-          <!-- 别人的牌型：只有没弃牌的显示 -->
-          <template v-else-if="!p.fold">
+          <!-- 别人的牌型：仅摊牌阶段、未弃牌、且公共牌翻完后显示 -->
+          <template v-else-if="stage === 'showdown' && !p.fold">
               <span
                   style="background:#f6ffed; color:#52c41a; padding:3px 10px; border-radius:4px; font-weight:bold; font-size:12px; display:inline-block;">
                 {{ getHandRank(p.holeCards, communityCards) }}
               </span>
           </template>
-          <!-- 弃牌的别人：不显示牌型 -->
         </div>
 
         <!-- 状态 -->
@@ -321,6 +320,9 @@ export default {
 
       // 公共牌翻转动画：每个下标 true=已翻开，false=未翻开
       communityCardsFlipState: [],
+      // 公共牌全部翻完后再显示牌型，增强沉浸感
+      communityCardsFlipComplete: false,
+      communityCardsFlipCompleteTimer: null,
 
       // 定时器
       pollTimer: null,
@@ -421,6 +423,7 @@ export default {
     if (this.pollTimer) clearInterval(this.pollTimer)
     if (this.heartbeatTimer) clearInterval(this.heartbeatTimer)
     if (this.actionTimer) clearInterval(this.actionTimer)
+    if (this.communityCardsFlipCompleteTimer) clearTimeout(this.communityCardsFlipCompleteTimer)
   },
 
   methods: {
@@ -693,13 +696,22 @@ export default {
     },
 
     /**
-     * 同步公共牌翻转状态：新牌先背面，再依次翻转
+     * 同步公共牌翻转状态：新牌先背面，再依次翻转；翻完后再允许显示牌型
      */
     syncCommunityCardsFlipState(newCards) {
+      if (this.communityCardsFlipCompleteTimer) {
+        clearTimeout(this.communityCardsFlipCompleteTimer)
+        this.communityCardsFlipCompleteTimer = null
+      }
       var prevLen = this.communityCardsFlipState.length
       if (newCards.length < prevLen) {
         this.communityCardsFlipState = []
+        this.communityCardsFlipComplete = false
         prevLen = 0
+      }
+      var numNew = newCards.length - prevLen
+      if (numNew > 0) {
+        this.communityCardsFlipComplete = false
       }
       for (var i = this.communityCardsFlipState.length; i < newCards.length; i++) {
         this.communityCardsFlipState.push(false)
@@ -713,6 +725,19 @@ export default {
             }
           }, capturedDelay)
         })(j, 350 * (j - prevLen))
+      }
+      if (numNew > 0) {
+        var flipDuration = 600
+        var lastFlipStart = 350 * (numNew - 1)
+        var self = this
+        this.communityCardsFlipCompleteTimer = setTimeout(function () {
+          self.communityCardsFlipComplete = true
+          self.communityCardsFlipCompleteTimer = null
+        }, lastFlipStart + flipDuration)
+      } else if (newCards.length > 0 && this.communityCardsFlipState.every(function (x) {
+        return x
+      })) {
+        this.communityCardsFlipComplete = true
       }
     },
 
