@@ -276,9 +276,9 @@
       <!--        </button>-->
       <div class="actions" style="margin-top: 20px; text-align: center;">
 
-        <button v-if="stage === 'settled' "
+        <button v-if="stage === 'settled' || stage === 'showdown' "
                 @click="doNewHand"
-                style="background: #52c41a; color: white; padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer; font-weight: bold;">
+                style="background: #f5222d; color: white; padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer; font-weight: bold;">
           重新发牌
         </button>
 
@@ -636,7 +636,7 @@ export default {
 
     // ---- 房主：重新发牌 ----
     async doNewHand() {
-      if (!confirm('确定要重新发牌吗？当前底池将清零')) return
+      if (!confirm('确定要重新发牌吗？请先结算完毕')) return
       try {
         var res = await this.$http.post('/dpRoom/newHand', null, {
           params: {roomId: this.roomId, ownerNickname: this.user.nickname}
