@@ -107,13 +107,15 @@
              style="margin-top:4px; text-align:center;">
           <!-- 自己的牌型：弃牌也能看（只有自己能看到自己弃牌后的牌型） -->
           <template v-if="isMe(p.nickname)">
-              <span style="background:#e6f7ff; color:#1890ff; padding:3px 10px; border-radius:4px; font-weight:bold; font-size:12px; display:inline-block;">
+              <span
+                  style="background:#e6f7ff; color:#1890ff; padding:3px 10px; border-radius:4px; font-weight:bold; font-size:12px; display:inline-block;">
                 {{ getHandRank(p.holeCards, communityCards) }}
               </span>
           </template>
           <!-- 别人的牌型：只有没弃牌的显示 -->
           <template v-else-if="!p.fold">
-              <span style="background:#f6ffed; color:#52c41a; padding:3px 10px; border-radius:4px; font-weight:bold; font-size:12px; display:inline-block;">
+              <span
+                  style="background:#f6ffed; color:#52c41a; padding:3px 10px; border-radius:4px; font-weight:bold; font-size:12px; display:inline-block;">
                 {{ getHandRank(p.holeCards, communityCards) }}
               </span>
           </template>
@@ -148,7 +150,8 @@
                 border-radius: 50%;
                 flex-shrink: 0;
                 box-sizing: border-box;">
-      <span style="color: #ff4d4f; font-size: 18px; font-weight: 900; font-family: 'Arial Black', sans-serif; line-height: 1;">
+      <span
+          style="color: #ff4d4f; font-size: 18px; font-weight: 900; font-family: 'Arial Black', sans-serif; line-height: 1;">
         {{ timeLeft }}
       </span>
         </div>
@@ -159,12 +162,24 @@
         </button>
 
         <div style="display:flex; align-items:center; gap:5px; height: 40px;">
-          <button @click="raiseAmount += 5" style="height: 32px; width: 32px; padding: 0; background: #fff; border: 1px solid #f57f17; color: #f57f17; border-radius: 4px; cursor: pointer; font-weight: bold;">+5</button>
-          <button @click="raiseAmount += 10" style="height: 32px; width: 32px; padding: 0; background: #fff; border: 1px solid #f57f17; color: #f57f17; border-radius: 4px; cursor: pointer; font-weight: bold;">+10</button>
+          <button @click="raiseAmount += 5"
+                  style="height: 32px; width: 32px; padding: 0; background: #fff; border: 1px solid #f57f17; color: #f57f17; border-radius: 4px; cursor: pointer; font-weight: bold;">
+            +5
+          </button>
+          <button @click="raiseAmount += 10"
+                  style="height: 32px; width: 32px; padding: 0; background: #fff; border: 1px solid #f57f17; color: #f57f17; border-radius: 4px; cursor: pointer; font-weight: bold;">
+            +10
+          </button>
           <input type="number" v-model.number="raiseAmount" :min="minRaise" :max="myChips"
                  style="width: 60px; height: 32px; padding: 0; border: 1px solid #d9d9d9; border-radius: 4px; text-align: center;"/>
-          <button @click="raiseAmount -= 10" style="height: 32px; width: 32px; padding: 0; background: #fff; border: 1px solid #f57f17; color: #f57f17; border-radius: 4px; cursor: pointer; font-weight: bold;">-10</button>
-          <button @click="raiseAmount -= 5" style="height: 32px; width: 32px; padding: 0; background: #fff; border: 1px solid #f57f17; color: #f57f17; border-radius: 4px; cursor: pointer; font-weight: bold;">-5</button>
+          <button @click="raiseAmount -= 10"
+                  style="height: 32px; width: 32px; padding: 0; background: #fff; border: 1px solid #f57f17; color: #f57f17; border-radius: 4px; cursor: pointer; font-weight: bold;">
+            -10
+          </button>
+          <button @click="raiseAmount -= 5"
+                  style="height: 32px; width: 32px; padding: 0; background: #fff; border: 1px solid #f57f17; color: #f57f17; border-radius: 4px; cursor: pointer; font-weight: bold;">
+            -5
+          </button>
         </div>
 
         <button @click="doRaise" :disabled="raiseAmount < minRaise"
@@ -252,14 +267,23 @@
         </template>
       </div>
 
-        <!-- 重新发牌 -->
-        <button
-            @click="doNewHand"
-            style="width:100%; padding:10px; background:#616161; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;"
-        >
+      <!-- 重新发牌 -->
+      <!--        <button-->
+      <!--            @click="doNewHand"-->
+      <!--            style="width:100%; padding:10px; background:#616161; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;"-->
+      <!--        >-->
+      <!--          重新发牌-->
+      <!--        </button>-->
+      <div class="actions" style="margin-top: 20px; text-align: center;">
+
+        <button v-if="stage === 'settled' "
+                @click="doNewHand"
+                style="background: #52c41a; color: white; padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer; font-weight: bold;">
           重新发牌
         </button>
+
       </div>
+    </div>
 
 
   </div>
@@ -301,8 +325,8 @@ export default {
 
   computed: {
     stageCN() {
-      var m = {preflop: '翻牌前', flop: '翻牌圈', turn: '转牌圈', river: '河牌圈', showdown: '摊牌结算'}
-      return m[this.stage] || this.stage
+      var m = {preflop: '翻牌前', flop: '翻牌圈', turn: '转牌圈', river: '河牌圈', showdown: '摊牌结算', settled: '准备下一局'}
+      return m[this.stage] || this.stagea
     },
     isOwner() {
       return this.user && this.owner === this.user.nickname
@@ -406,8 +430,8 @@ export default {
     async loadGame() {
       this.loading = true
       try {
-        var res = await this.$http.get('/dpRoom/getAllRooms',{
-          params: { roomId: this.roomId }
+        var res = await this.$http.get('/dpRoom/getAllRooms', {
+          params: {roomId: this.roomId}
         })
         var room = res.data
         if (!room) {
@@ -758,12 +782,26 @@ export default {
       var allCards = holeCards.concat(communityCards)
 
       // 解析牌：将 "hearts_A" 转成 { suit: 'hearts', rank: 14 }
-      var rankMap = { '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14 }
+      var rankMap = {
+        '2': 2,
+        '3': 3,
+        '4': 4,
+        '5': 5,
+        '6': 6,
+        '7': 7,
+        '8': 8,
+        '9': 9,
+        '10': 10,
+        'J': 11,
+        'Q': 12,
+        'K': 13,
+        'A': 14
+      }
       var parsed = []
       for (var i = 0; i < allCards.length; i++) {
         var c = allCards[i]
         var parts = c.split('_')
-        parsed.push({ suit: parts[0], rank: rankMap[parts[1]] || 0 })
+        parsed.push({suit: parts[0], rank: rankMap[parts[1]] || 0})
       }
 
       // 生成所有5张牌的组合 (C(7,5) = 21种)
@@ -810,7 +848,9 @@ export default {
       // 复制数组避免修改原数据
       var cardsCopy = cards.slice()
       // 按点数排序（降序）
-      cardsCopy.sort(function(a, b) { return b.rank - a.rank })
+      cardsCopy.sort(function (a, b) {
+        return b.rank - a.rank
+      })
 
       var ranks = []
       var suits = []
@@ -852,58 +892,60 @@ export default {
       for (var key in rankCount) {
         counts.push(rankCount[key])
       }
-      counts.sort(function(a, b) { return b - a })
+      counts.sort(function (a, b) {
+        return b - a
+      })
 
       // 判断牌型并返回分数
       // 分数越高越大，方便比较
 
       // 皇家同花顺
       if (isFlush && isStraight && ranks[0] === 14 && ranks[1] === 13) {
-        return { score: 10, name: '皇家同花顺' }
+        return {score: 10, name: '皇家同花顺'}
       }
 
       // 同花顺
       if (isFlush && isStraight) {
-        return { score: 9, name: '同花顺' }
+        return {score: 9, name: '同花顺'}
       }
 
       // 四条
       if (counts[0] === 4) {
-        return { score: 8, name: '四条' }
+        return {score: 8, name: '四条'}
       }
 
       // 葫芦（满堂红）
       if (counts[0] === 3 && counts[1] === 2) {
-        return { score: 7, name: '葫芦' }
+        return {score: 7, name: '葫芦'}
       }
 
       // 同花
       if (isFlush) {
-        return { score: 6, name: '同花' }
+        return {score: 6, name: '同花'}
       }
 
       // 顺子
       if (isStraight) {
-        return { score: 5, name: '顺子' }
+        return {score: 5, name: '顺子'}
       }
 
       // 三条
       if (counts[0] === 3) {
-        return { score: 4, name: '三条' }
+        return {score: 4, name: '三条'}
       }
 
       // 两对
       if (counts[0] === 2 && counts[1] === 2) {
-        return { score: 3, name: '两对' }
+        return {score: 3, name: '两对'}
       }
 
       // 一对
       if (counts[0] === 2) {
-        return { score: 2, name: '一对' }
+        return {score: 2, name: '一对'}
       }
 
       // 高牌
-      return { score: 1, name: '高牌' }
+      return {score: 1, name: '高牌'}
     }
   }
 }
