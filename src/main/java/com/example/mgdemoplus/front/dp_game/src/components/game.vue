@@ -38,10 +38,15 @@
       </button>
     </div>
 
-    <!-- 公共牌 -->
+    <!-- 公共牌（带翻转动画） -->
     <div style="display:flex; gap:8px; justify-content:center; margin:20px 0;">
-      <div v-for="c in communityCards" :key="c" :class="getCardClass(c)">
-        {{ getCardDisplay(c) }}
+      <div v-for="(c, cIdx) in communityCards" :key="c + cIdx" class="card-flip-wrapper">
+        <div class="card-flip-inner" :class="{ flipped: communityCardsFlipState[cIdx] }">
+          <div class="card-face card-back card-base bg-gray">?</div>
+          <div class="card-face card-front" :class="getCardClass(c)">
+            {{ getCardDisplay(c) }}
+          </div>
+        </div>
       </div>
       <div v-for="i in (5 - communityCards.length)" :key="'e' + i" class="card-base bg-gray">?</div>
     </div>
@@ -314,6 +319,9 @@ export default {
       nextHandReady: false,  // 是否已报名下一局加入
       loading: false,
 
+      // 公共牌翻转动画：每个下标 true=已翻开，false=未翻开
+      communityCardsFlipState: [],
+
       // 定时器
       pollTimer: null,
       heartbeatTimer: null,
@@ -447,6 +455,7 @@ export default {
         this.playing = room.playing
         this.stage = room.currentStage
         this.communityCards = room.communityCards || []
+        this.syncCommunityCardsFlipState(room.communityCards || [])
         this.pot = room.pot
         this.pots = room.pots || []
         this.currentBetToCall = room.currentBetToCall
@@ -680,6 +689,30 @@ export default {
         }
       } catch (err) {
         alert('网络错误: ' + err.message)
+      }
+    },
+
+    /**
+     * 同步公共牌翻转状态：新牌先背面，再依次翻转
+     */
+    syncCommunityCardsFlipState(newCards) {
+      var prevLen = this.communityCardsFlipState.length
+      if (newCards.length < prevLen) {
+        this.communityCardsFlipState = []
+        prevLen = 0
+      }
+      for (var i = this.communityCardsFlipState.length; i < newCards.length; i++) {
+        this.communityCardsFlipState.push(false)
+      }
+      for (var j = prevLen; j < newCards.length; j++) {
+        var self = this
+        ;(function (capturedIdx, capturedDelay) {
+          setTimeout(function () {
+            if (self.communityCardsFlipState.length > capturedIdx) {
+              self.$set(self.communityCardsFlipState, capturedIdx, true)
+            }
+          }, capturedDelay)
+        })(j, 350 * (j - prevLen))
       }
     },
 
@@ -952,6 +985,44 @@ export default {
 </script>
 
 <style scoped>
+/* 公共牌翻转动画 */
+.card-flip-wrapper {
+  perspective: 600px;
+  width: 44px;
+  height: 62px;
+}
+.card-flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.6s ease-in-out;
+  transform-style: preserve-3d;
+}
+.card-flip-inner.flipped {
+  transform: rotateY(180deg);
+}
+.card-flip-inner .card-face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+}
+.card-flip-inner .card-back {
+  background: linear-gradient(135deg, #8c8c8c 0%, #6b6b6b 100%);
+  color: #d9d9d9;
+  border: 1px dashed #999;
+  z-index: 2;
+}
+.card-flip-inner .card-front {
+  transform: rotateY(180deg);
+  z-index: 1;
+}
+
 /* 扑克牌基础美化 */
 /* 扑克牌基础美化 - 沉稳色调版 */
 .card-base {
