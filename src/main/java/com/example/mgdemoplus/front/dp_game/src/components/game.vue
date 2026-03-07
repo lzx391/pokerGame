@@ -567,17 +567,17 @@ export default {
     },
 
     // ---- 房主：下一阶段 ----
-    async doNextStage() {
-      try {
-        var res = await this.$http.post('/dpRoom/nextStage', null, {
-          params: {roomId: this.roomId, ownerNickname: this.user.nickname}
-        })
-        if (res.data !== 'ok') alert('推进失败（可能还有玩家未跟齐）')
-        await this.loadGame()
-      } catch (err) {
-        alert('网络错误: ' + err.message)
-      }
-    },
+    // async doNextStage() {
+    //   try {
+    //     var res = await this.$http.post('/dpRoom/nextStage', null, {
+    //       params: {roomId: this.roomId, ownerNickname: this.user.nickname}
+    //     })
+    //     if (res.data !== 'ok') alert('推进失败（可能还有玩家未跟齐）')
+    //     await this.loadGame()
+    //   } catch (err) {
+    //     alert('网络错误: ' + err.message)
+    //   }
+    // },
 
     // ---- 摊牌阶段：点击玩家卡片选/取消赢家（简单模式备用） ----
     handleJudgeClick(nickname) {

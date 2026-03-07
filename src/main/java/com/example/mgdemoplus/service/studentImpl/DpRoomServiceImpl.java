@@ -412,17 +412,14 @@ public class DpRoomServiceImpl {
         }
 
         // 非 showdown 阶段，找第一个可行动的人（跳过弃牌和 all-in）
-        List<DpPlayer> ps = r.getPlayers();
-        for (int i = 0; i < ps.size(); i++) {
-            DpPlayer p = ps.get(i);
-            if (!p.isFold() && !p.isAllIn()) {
-                r.setCurrentActorIndex(i);
-                r.setLastActionTime(System.currentTimeMillis());
-                return true;
-            }
+        int newIndex = findFirstActorAfterDealer(r);
+        if (newIndex >= 0) {
+            r.setCurrentActorIndex(newIndex);
+            r.setLastActionTime(System.currentTimeMillis());
+            return true;
         }
 
-        // 所有人都 all-in 或弃牌了，没人能行动，直接标记本轮结束
+// 所有人都 all-in 或弃牌了，没人能行动，直接标记本轮结束
         r.setCurrentActorIndex(-1);
         return true;
     }
@@ -526,5 +523,41 @@ public class DpRoomServiceImpl {
                 p.setLastHeartBeat(System.currentTimeMillis());
             }
         }
+    }
+    /**
+     * 找到翻后每圈的第一个行动者：
+     * 从庄家位 D 左边第一个玩家开始，跳过已弃牌 / 已 all-in 的玩家。
+     * 若没有庄家标记或没人能行动，则返回 -1。
+     */
+    private int findFirstActorAfterDealer(DpRoom r) {
+        List<DpPlayer> ps = r.getPlayers();
+        if (ps == null || ps.isEmpty()) {
+            return -1;
+        }
+
+        // 找到当前庄家下标
+        int dealerIdx = -1;
+        for (int i = 0; i < ps.size(); i++) {
+            if (ps.get(i).isDealer()) {
+                dealerIdx = i;
+                break;
+            }
+        }
+        if (dealerIdx < 0) {
+            // 理论上不该发生：没有 D，就让调用方自己处理
+            return -1;
+        }
+
+        // 从 D 的下家开始循环一圈，寻找第一个可行动玩家
+        for (int step = 1; step <= ps.size(); step++) {
+            int idx = (dealerIdx + step) % ps.size();
+            DpPlayer p = ps.get(idx);
+            if (!p.isFold() && !p.isAllIn()) {
+                return idx;
+            }
+        }
+
+        // 全部人都弃牌或 all-in 时，没有人需要行动
+        return -1;
     }
 }
