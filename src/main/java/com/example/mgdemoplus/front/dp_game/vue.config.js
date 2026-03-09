@@ -10,7 +10,7 @@ module.exports = defineConfig({
         proxy: {
             // 这里的 '/dev-api' 要和你在 main.js 中设置的 axios.defaults.baseURL 一致
             '/dev-api': {
-                target: 'http://192.168.54.240:8088', // 你的后端真实 IP
+                target: 'http://localhost:8088', // 你的后端真实 IP
                 changeOrigin: true,              // 允许跨域
                 pathRewrite: {                   // 路径重写
                     '^/dev-api': ''                // 转发时去掉 /dev-api 前缀
