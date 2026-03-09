@@ -5,6 +5,7 @@
       <div class="nav-bar">
         <router-link to="/login" class="nav-link">登录</router-link>
         <router-link to="/register" class="nav-link">注册</router-link>
+        <router-link to="/image_upload" class="nav-link">头像上传功能实验</router-link>
       </div>
       <div class="content-box">
         <router-view></router-view>
