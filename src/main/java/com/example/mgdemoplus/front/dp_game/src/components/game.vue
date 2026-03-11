@@ -19,6 +19,12 @@
                 style="background:#1890ff; color:#fff; border:none; padding:8px 15px; border-radius:5px; cursor:pointer; font-size:13px;">
           牌型说明
         </button>
+        <button
+            v-if="spectators && spectators.length > 0"
+            @click="showSpectatorModal = true"
+            style="background:#13c2c2; color:#fff; border:none; padding:8px 10px; border-radius:5px; cursor:pointer; font-size:12px;">
+          观众席（{{ spectators.length }}）
+        </button>
         <button @click="exitGame"
                 style="background:#ff4d4f; color:#fff; border:none; padding:8px 15px; border-radius:5px; cursor:pointer;">
           退出对局
@@ -45,6 +51,26 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- 观众席弹窗 -->
+    <div v-if="showSpectatorModal" class="hand-rank-modal-mask" @click="showSpectatorModal = false">
+      <div class="hand-rank-modal" @click.stop>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+          <span style="font-size:18px; font-weight:bold;">观众席名单</span>
+          <button @click="showSpectatorModal = false"
+                  style="background:#d9d9d9; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; font-size:16px; line-height:1;">×</button>
+        </div>
+        <div v-if="!spectators || spectators.length === 0" style="font-size:13px; color:#999;">
+          当前没有观众。
+        </div>
+        <ul v-else style="list-style:none; padding:0; margin:0;">
+          <li v-for="name in spectators" :key="name"
+              style="padding:6px 0; border-bottom:1px solid #f0f0f0; font-size:14px; color:#333;">
+            {{ name }}
+          </li>
+        </ul>
       </div>
     </div>
 
@@ -119,9 +145,9 @@
             </div>
           </div>
         </div>
-        <!-- 手牌：自己始终能看；摊牌时只有未弃牌的人亮牌，弃牌的人依然盖牌 -->
+        <!-- 手牌：自己始终能看；摊牌/结算等待阶段只有未弃牌的人亮牌，弃牌的人依然盖牌 -->
         <div style="display:flex; gap:5px; margin:8px 0; justify-content:center;">
-          <template v-if="isMe(p.nickname) || (stage === 'showdown' && !p.fold)">
+          <template v-if="isMe(p.nickname) || ((stage === 'showdown' || stage === 'settled') && !p.fold)">
             <div v-for="(c, ci) in p.holeCards" :key="'h' + ci" :class="getCardClass(c)"
                  style="width:36px; height:52px; font-size:13px;">
               {{ getCardDisplay(c) }}
@@ -135,7 +161,7 @@
         </div>
 
         <!-- 牌型显示：每个阶段公共牌全部翻完后，才显示当前阶段的牌型（all-in 跑马时等五张翻完再出结果） -->
-        <div v-if="communityCards.length >= 3 && communityCardsFlipComplete && (isMe(p.nickname) || (stage === 'showdown' && !p.fold))"
+        <div v-if="communityCards.length >= 3 && communityCardsFlipComplete && (isMe(p.nickname) || ((stage === 'showdown' || stage === 'settled') && !p.fold))"
              style="margin-top:4px; text-align:center;">
           <!-- 自己的牌型：翻牌圈起可见，仅自己可见 -->
           <template v-if="isMe(p.nickname)">
@@ -145,7 +171,7 @@
               </span>
           </template>
           <!-- 别人的牌型：仅摊牌阶段、未弃牌、且公共牌翻完后显示 -->
-          <template v-else-if="stage === 'showdown' && !p.fold">
+          <template v-else-if="(stage === 'showdown' || stage === 'settled') && !p.fold">
               <span
                   style="background:#f6ffed; color:#52c41a; padding:3px 10px; border-radius:4px; font-weight:bold; font-size:12px; display:inline-block;">
                 {{ getHandRank(p.holeCards, communityCards) }}
@@ -158,6 +184,33 @@
              :style="{ color: p.fold ? '#ff4d4f' : (actIndex === i ? '#faad14' : '#52c41a') }">
           {{ p.fold ? '已弃牌' : (actIndex === i ? '思考中...' : '进行中') }}
         </div>
+      </div>
+    </div>
+
+    <!-- 结算后准备 & 补码区域 -->
+    <div v-if="inSettledStage"
+         style="margin-top:15px; background:#fff; padding:12px; border-radius:8px; box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+      <div style="font-size:14px; font-weight:bold; text-align:center; margin-bottom:8px; color:#333;">
+        本局已结算，请准备下一局（约30秒后未准备的玩家将被移到观众席）
+      </div>
+      <div style="text-align:center; font-size:13px; color:#666; margin-bottom:8px;">
+        当前积分：<span style="font-weight:bold; color:#1890ff;">{{ myChips }}</span>
+      </div>
+      <div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
+        <button
+            @click="toggleReady"
+            :disabled="myChips <= 0"
+            style="padding:8px 16px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;
+                   background: #52c41a; color:#fff;">
+          {{ myReady ? '取消准备' : (myChips > 0 ? '准备下一局' : '筹码为0，无法准备') }}
+        </button>
+        <button
+            v-if="myChips <= 0"
+            @click="rebuy"
+            style="padding:8px 16px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;
+                   background:#fa8c16; color:#fff;">
+          补码到初始积分
+        </button>
       </div>
     </div>
 
@@ -298,21 +351,8 @@
         </template>
       </div>
 
-      <!-- 重新发牌 -->
-      <!--        <button-->
-      <!--            @click="doNewHand"-->
-      <!--            style="width:100%; padding:10px; background:#616161; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;"-->
-      <!--        >-->
-      <!--          重新发牌-->
-      <!--        </button>-->
-      <div class="actions" style="margin-top: 20px; text-align: center;">
-
-        <button v-if="stage === 'settled' || stage === 'showdown' "
-                @click="doNewHand"
-                style="background: #f5222d; color: white; padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer; font-weight: bold;">
-          重新发牌
-        </button>
-
+      <div class="actions" style="margin-top: 20px; text-align: center; font-size:12px; color:#999;">
+        摊牌后系统会自动结算并在准备阶段结束后开启下一局，无需手动点击“重新发牌”
       </div>
     </div>
 
@@ -337,6 +377,8 @@ export default {
       pots: [],             // 主池+边池列表 [{amount, eligiblePlayers}]
       currentBetToCall: 0,
       actIndex: -1,
+      // 观众席名单（由后端 DpRoom.spectators 提供）
+      spectators: [],
 
       // UI
       raiseAmount: 0,
@@ -360,6 +402,7 @@ export default {
 
       // 牌型说明弹窗
       showHandRankModal: false,
+      showSpectatorModal: false,
       handRankReference: [
         { name: '皇家同花顺', cards: ['hearts_A', 'hearts_K', 'hearts_Q', 'hearts_J', 'hearts_10'] },
         { name: '同花顺', cards: ['hearts_9', 'hearts_8', 'hearts_7', 'hearts_6', 'hearts_5'] },
@@ -414,6 +457,10 @@ export default {
         if (!this.potWinners[i] || this.potWinners[i].length === 0) return false
       }
       return true
+    },
+    // 当前是否处于“结算完成，等待准备下一局”阶段
+    inSettledStage() {
+      return this.stage === 'settled' && !!this.myPlayer
     }
   },
 
@@ -505,6 +552,7 @@ export default {
         this.pots = room.pots || []
         this.currentBetToCall = room.currentBetToCall
         this.actIndex = room.currentActorIndex
+        this.spectators = room.spectators || []
       } catch (err) {
         console.error('拉取状态失败', err)
       } finally {
@@ -519,6 +567,22 @@ export default {
           params: {roomId: this.roomId, nickname: this.user.nickname}
         })
         if (res.data !== 'ok') alert('操作失败')
+        await this.loadGame()
+      } catch (err) {
+        alert('网络错误: ' + err.message)
+      }
+    },
+    // 结算后筹码归零时补码
+    async rebuy() {
+      try {
+        var res = await this.$http.post('/dpRoom/rebuy', null, {
+          params: {roomId: this.roomId, nickname: this.user.nickname}
+        })
+        if (res.data !== 'ok') {
+          alert('补码失败：' + res.data)
+        } else {
+          alert('补码成功，可以准备下一局了')
+        }
         await this.loadGame()
       } catch (err) {
         alert('网络错误: ' + err.message)

@@ -87,6 +87,14 @@ public class DpRoomController {
     public String readyNextHand(@RequestParam String roomId, @RequestParam String nickname) {
         return dpRoomService.readyNextHand(roomId, nickname) ? "ok" : "fail";
     }
+
+    /**
+     * 结算后筹码为 0 的玩家补码到初始筹码。
+     */
+    @PostMapping("/rebuy")
+    public String rebuy(@RequestParam String roomId, @RequestParam String nickname) {
+        return dpRoomService.rebuy(roomId, nickname) ? "ok" : "fail";
+    }
     @GetMapping("/getAllRooms2")
     public List<DpRoomDTO> getAllRooms2() {
         return dpRoomService.getAllRooms2();
