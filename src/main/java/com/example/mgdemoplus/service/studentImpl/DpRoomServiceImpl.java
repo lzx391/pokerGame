@@ -1084,4 +1084,29 @@ public class DpRoomServiceImpl {
                 })
                 .collect(Collectors.toList());
     }
+
+    /**
+     * 房主主动移交房主给房间内另一位玩家
+     */
+    public boolean transferOwner(String roomId, String fromNickname, String toNickname) {
+        DpRoom r = roomMap.get(roomId);
+        if (r == null) return false;
+        // 只有当前房主可以发起移交
+        if (!fromNickname.equals(r.getOwner())) return false;
+        if (fromNickname.equals(toNickname)) return false;
+
+        // 目标玩家必须在当前房间、且不是本手已离开的僵尸位
+        boolean found = false;
+        for (DpPlayer p : r.getPlayers()) {
+            if (p.getNickname().equals(toNickname) && !p.isLeftThisHand()) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) return false;
+
+        r.setOwner(toNickname);
+        System.out.println("房间 " + r.getRoomId() + " 房主由 " + fromNickname + " 移交给: " + toNickname);
+        return true;
+    }
 }

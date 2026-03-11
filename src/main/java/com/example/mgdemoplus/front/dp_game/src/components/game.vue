@@ -110,7 +110,7 @@
           v-for="(p, i) in players"
           :key="p.nickname"
           :style="getPlayerBoxStyle(p, i)"
-          @click="handleJudgeClick(p.nickname)"
+          @click="onPlayerCardClick(p.nickname)"
       >
         <!-- 标记 -->
         <div style="display:flex; gap:5px; margin-bottom:5px;">
@@ -305,6 +305,15 @@
     <div v-if="isOwner" style="margin-top:20px; background:#fff; padding:15px; border-radius:10px;">
       <div style="font-size:14px; font-weight:bold; color:#333; margin-bottom:10px; text-align:center;">房主操作</div>
 
+      <div style="display:flex; justify-content:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
+        <button
+            @click="transferOwnerMode = !transferOwnerMode"
+            style="padding:6px 12px; border:none; border-radius:5px; cursor:pointer; font-size:12px; font-weight:bold;
+                   background: #722ed1; color:#fff;">
+          {{ transferOwnerMode ? '取消移交房主' : '移交房主（点上方玩家卡片）' }}
+        </button>
+      </div>
+
       <!-- showdown 结算：按池分配 -->
       <div v-if="stage === 'showdown'" style="text-align:center; margin-bottom:10px;">
         <div style="color:#f5222d; font-weight:bold; margin-bottom:8px;">
@@ -403,6 +412,7 @@ export default {
       selectedWinners: [],   // 旧的简单模式备用
       potWinners: {},        // 按池选赢家 { 0: ['Alice'], 1: ['Bob','Charlie'] }
       nextHandReady: false,  // 是否已报名下一局加入
+      transferOwnerMode: false, // 是否处于选择新房主模式
       loading: false,
 
       // 公共牌翻转动画：每个下标 true=已翻开，false=未翻开
@@ -709,6 +719,17 @@ export default {
       }
     },
 
+    // 统一的玩家卡片点击入口：优先处理房主移交，其次才是摊牌选赢家
+    onPlayerCardClick(nickname) {
+      // 房主移交模式优先级最高
+      if (this.transferOwnerMode && this.isOwner) {
+        this.doTransferOwner(nickname)
+        return
+      }
+      // 其他情况沿用原有的摊牌点击逻辑
+      this.handleJudgeClick(nickname)
+    },
+
     // ---- 按池选赢家 ----
     togglePotWinner(potIndex, nickname) {
       var winners = this.potWinners[potIndex] || []
@@ -795,6 +816,39 @@ export default {
         await this.loadGame()
       } catch (err) {
         alert('网络错误: ' + err.message)
+      }
+    },
+
+    // ---- 房主：移交房主 ----
+    async doTransferOwner(nickname) {
+      // 自己不能移交给自己
+      if (nickname === this.user.nickname) {
+        this.transferOwnerMode = false
+        return
+      }
+      var ok = confirm('确定将房主移交给 [' + nickname + '] 吗？')
+      if (!ok) {
+        this.transferOwnerMode = false
+        return
+      }
+      try {
+        var res = await this.$http.post('/dpRoom/transferOwner', null, {
+          params: {
+            roomId: this.roomId,
+            fromNickname: this.user.nickname,
+            toNickname: nickname
+          }
+        })
+        if (res.data !== 'ok') {
+          alert('移交失败：' + res.data)
+        } else {
+          alert('已将房主移交给 ' + nickname)
+        }
+        await this.loadGame()
+      } catch (err) {
+        alert('网络错误: ' + err.message)
+      } finally {
+        this.transferOwnerMode = false
       }
     },
 
