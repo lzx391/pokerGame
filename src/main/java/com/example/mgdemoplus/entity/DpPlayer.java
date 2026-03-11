@@ -15,11 +15,17 @@ public class DpPlayer {
     private long lastHeartBeat = System.currentTimeMillis();
     private boolean acted = false;  // 本轮是否已行动
 
-    public boolean isActed() { return acted; }
-    public void setActed(boolean acted) { this.acted = acted; }
     private int totalBet = 0;  // 本手牌累计下注（跨阶段不清零，newHand时才清零）
     private boolean allIn = false;  // 是否已全下
+    /**
+     * 是否在本手牌中已主动离开（exitRoom），
+     * 在本手结束前仍保留座位但视为已弃牌，开新一手时才真正清理出玩家列表。
+     */
+    private boolean leftThisHand = false;
+
     // getter & setter
+    public boolean isActed() { return acted; }
+    public void setActed(boolean acted) { this.acted = acted; }
     public String getNickname() { return nickname; }
     public void setNickname(String nickname) { this.nickname = nickname; }
     public boolean isReady() { return ready; }
@@ -42,4 +48,6 @@ public class DpPlayer {
     public void setTotalBet(int totalBet) { this.totalBet = totalBet; }
     public boolean isAllIn() { return allIn; }
     public void setAllIn(boolean allIn) { this.allIn = allIn; }
+    public boolean isLeftThisHand() { return leftThisHand; }
+    public void setLeftThisHand(boolean leftThisHand) { this.leftThisHand = leftThisHand; }
 }
