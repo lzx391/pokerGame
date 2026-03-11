@@ -196,6 +196,21 @@
       <div style="font-size:14px; font-weight:bold; text-align:center; margin-bottom:8px; color:#333;">
         本局已结算，请准备下一局（约30秒后未准备的玩家将被移到观众席）
       </div>
+      <div style="display:flex; justify-content:center; align-items:center; gap:10px; margin-bottom:8px;">
+        <div
+            style="display:flex; align-items:center; justify-content:center;
+                   width:32px; height:32px;
+                   background:#ffffff;
+                   border:2px solid #000000;
+                   border-radius:50%;
+                   flex-shrink:0; box-sizing:border-box;">
+          <span
+              style="color:#ff4d4f; font-size:14px; font-weight:900; font-family:'Arial Black', sans-serif; line-height:1;">
+            {{ readyTimeLeft }}
+          </span>
+        </div>
+        <span style="font-size:12px; color:#999;">准备倒计时</span>
+      </div>
       <div style="text-align:center; font-size:13px; color:#666; margin-bottom:8px;">
         当前积分：<span style="font-weight:bold; color:#1890ff;">{{ myChips }}</span>
       </div>
@@ -402,6 +417,9 @@ export default {
       //游戏计时器
       actionTimer: null,
       timeLeft: 30,
+      // 结算后准备阶段倒计时
+      readyTimer: null,
+      readyTimeLeft: 30,
 
       // 牌型说明弹窗
       showHandRankModal: false,
@@ -482,6 +500,14 @@ export default {
       } else {
         this.stopCountdown();
       }
+    },
+    // 监听阶段变化，用于控制结算后准备阶段的倒计时
+    stage(newVal) {
+      if (newVal === 'settled') {
+        this.startReadyCountdown()
+      } else {
+        this.stopReadyCountdown()
+      }
     }
   },
 
@@ -515,6 +541,7 @@ export default {
     if (this.pollTimer) clearInterval(this.pollTimer)
     if (this.heartbeatTimer) clearInterval(this.heartbeatTimer)
     if (this.actionTimer) clearInterval(this.actionTimer)
+    if (this.readyTimer) clearInterval(this.readyTimer)
     if (this.communityCardsFlipCompleteTimer) clearTimeout(this.communityCardsFlipCompleteTimer)
   },
 
@@ -929,6 +956,26 @@ export default {
       if (this.actionTimer) {
         clearInterval(this.actionTimer);
         this.actionTimer = null;
+      }
+    },
+
+    // 结算后准备阶段倒计时（与行动计时风格一致）
+    startReadyCountdown() {
+      this.stopReadyCountdown()
+      this.readyTimeLeft = 30
+      this.readyTimer = setInterval(() => {
+        if (this.readyTimeLeft > 0) {
+          this.readyTimeLeft--
+        } else {
+          this.stopReadyCountdown()
+        }
+      }, 1000)
+    },
+
+    stopReadyCountdown() {
+      if (this.readyTimer) {
+        clearInterval(this.readyTimer)
+        this.readyTimer = null
       }
     },
 
