@@ -95,6 +95,16 @@ public class DpRoomController {
     public String rebuy(@RequestParam String roomId, @RequestParam String nickname) {
         return dpRoomService.rebuy(roomId, nickname) ? "ok" : "fail";
     }
+
+    /**
+     * 房主主动移交房主给房间内的另一位玩家
+     */
+    @PostMapping("/transferOwner")
+    public String transferOwner(@RequestParam String roomId,
+                                @RequestParam String fromNickname,
+                                @RequestParam String toNickname) {
+        return dpRoomService.transferOwner(roomId, fromNickname, toNickname) ? "ok" : "fail";
+    }
     @GetMapping("/getAllRooms2")
     public List<DpRoomDTO> getAllRooms2() {
         return dpRoomService.getAllRooms2();
