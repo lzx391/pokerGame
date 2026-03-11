@@ -168,7 +168,9 @@ public class DpRoomServiceImpl {
             return "游戏已开始";
         }
         for (DpPlayer p : r.getPlayers()) {
-            if (p.getNickname().equals(nickname)) return "你已在房间中";
+            // 已经在房间中的活跃玩家不允许重复加入；
+            // 如果是上一手已经标记离开的玩家(leftThisHand)，视为不在房间内，可以重新加入
+            if (p.getNickname().equals(nickname) && !p.isLeftThisHand()) return "你已在房间中";
         }
         DpPlayer p = new DpPlayer();
         p.setNickname(nickname);
@@ -186,7 +188,9 @@ public class DpRoomServiceImpl {
 
         // 已经在桌上的玩家，不需要再标记下一局，直接视为成功
         for (DpPlayer p : r.getPlayers()) {
-            if (p.getNickname().equals(nickname)) {
+            // 已经在当前手牌里的活跃玩家（未标记离开）不需要再报名下一局；
+            // 对于本手已离开的“僵尸位”（leftThisHand = true），依然允许作为观众报名下一局
+            if (p.getNickname().equals(nickname) && !p.isLeftThisHand()) {
                 return true;
             }
         }
@@ -198,11 +202,6 @@ public class DpRoomServiceImpl {
         }
         if (!waiters.contains(nickname)) {
             waiters.add(nickname);
-        }
-        // 报名下一局时，如果此人之前在观众席中，先从观众席移除，避免重复显示
-        List<String> spectators = r.getSpectators();
-        if (spectators != null) {
-            spectators.remove(nickname);
         }
         return true;
     }
@@ -251,73 +250,77 @@ public class DpRoomServiceImpl {
     public boolean exitRoom(String roomId, String nickname) {
         DpRoom r = roomMap.get(roomId);
         if (r == null) return false;
-        // 2. 如果房主不在了（被踢了或主动走了），顺位继承
-        if(r.getOwner().equals(nickname)){//说明退出的人是房主,进行移交操作
-            if (r.getPlayers().size()>1) {
-                // 先找一个还在 players 里的候选人作为新房主（排除即将被移除的人）
-                for (DpPlayer candidate : r.getPlayers()) {
-                    if (!candidate.getNickname().equals(nickname)) {
-                        r.setOwner(candidate.getNickname());
-                        System.out.println("房间 " + r.getRoomId() + " 房主易位给: " + candidate.getNickname());
-                        break;
+        // 先从观众席中移除这个人（无论是否在牌桌上）
+        List<String> spectators = r.getSpectators();
+        if (spectators != null) {
+            spectators.remove(nickname);
+        }
+
+        // 如果当前不在对局中（还没开始或本手已结束），直接从玩家列表移除
+        if (!r.isPlaying()) {
+            // 如果房主不在了（被踢了或主动走了），顺位继承
+            if (r.getOwner().equals(nickname)) {
+                if (r.getPlayers().size() > 1) {
+                    for (DpPlayer candidate : r.getPlayers()) {
+                        if (!candidate.getNickname().equals(nickname)) {
+                            r.setOwner(candidate.getNickname());
+                            System.out.println("房间 " + r.getRoomId() + " 房主易位给: " + candidate.getNickname());
+                            break;
+                        }
                     }
+                } else {
+                    // 没人了，准备销毁房间
+                    roomMap.remove(r.getRoomId());
+                    return true;
                 }
-            } else {
-                // 没人了，准备销毁房间
-                roomMap.remove(r.getRoomId());
-                return true;
+            }
+            return r.getPlayers().removeIf(p -> p.getNickname().equals(nickname));
+        }
+
+        // ===== 正在对局中：本手牌内不直接删人，而是视为弃牌 + 标记本手结束后清理 =====
+
+        // 房主离开时，移交给仍在桌上的其他任意一名玩家
+        if (r.getOwner().equals(nickname)) {
+            for (DpPlayer candidate : r.getPlayers()) {
+                if (!candidate.getNickname().equals(nickname)) {
+                    r.setOwner(candidate.getNickname());
+                    System.out.println("房间 " + r.getRoomId() + " 房主易位给: " + candidate.getNickname());
+                    break;
+                }
             }
         }
 
-        // 记录被移除玩家在列表中的位置，方便后续调整行动顺序
-        int oldActorIndex = r.getCurrentActorIndex();
-        int removedIndex = -1;
-        for (int i = 0; i < r.getPlayers().size(); i++) {
-            if (r.getPlayers().get(i).getNickname().equals(nickname)) {
-                removedIndex = i;
+        DpPlayer target = null;
+        int idx = -1;
+        List<DpPlayer> ps = r.getPlayers();
+        for (int i = 0; i < ps.size(); i++) {
+            DpPlayer p = ps.get(i);
+            if (p.getNickname().equals(nickname)) {
+                target = p;
+                idx = i;
                 break;
             }
         }
+        if (target == null) {
+            // 不在牌桌上，仅作为观众离开
+            return true;
+        }
 
-        boolean removed = r.getPlayers().removeIf(p -> p.getNickname().equals(nickname));
+        // 标记为本手已离开：这一手后续不再参与，但座位保留到本手结束
+        target.setLeftThisHand(true);
 
-        // 如果当前正在对局中，需要根据移除结果调整游戏状态
-        if (removed && r.isPlaying()) {
-            // 玩家不足 2 个时，本局无法继续，直接结束对局
-            if (r.getPlayers().size() < 2) {
-                r.setPlaying(false);
-                r.setCurrentStage("preflop");
-                r.setCommunityCards(new ArrayList<>());
-                r.setDeck(new ArrayList<>());
-                r.setPot(0);
-                r.setPots(new ArrayList<>());
-                r.setCurrentBetToCall(0);
-                r.setCurrentActorIndex(-1);
-                r.setReadyDeadline(0L);
-                return true;
-            }
-
-            // 如果被移除的人正好是当前行动玩家，继续让桌子往后走
-            if (removedIndex >= 0 && removedIndex == oldActorIndex) {
-                // 先把行动指针放到被移除玩家的前一位，然后调用 moveToNextValidActor 找下一个可行动的人
-                int size = r.getPlayers().size();
-                if (size > 0) {
-                    int startIdx = (removedIndex - 1 + size) % size;
-                    r.setCurrentActorIndex(startIdx);
-                    moveToNextValidActor(r);
-                    // 如果这一轮已经没有人可以行动了，就自动推进到下一阶段/摊牌
-                    autoAdvanceIfRoundFinished(r);
-                } else {
-                    r.setCurrentActorIndex(-1);
-                }
-            } else if (r.getCurrentActorIndex() >= r.getPlayers().size()) {
-                // 防止索引越界的兜底处理
-                r.setCurrentActorIndex(-1);
-                autoAdvanceIfRoundFinished(r);
+        // 如果当前正轮到他行动，等价于自动弃牌，再推进后续流程
+        if (r.getCurrentActorIndex() == idx) {
+            // fold 会将该玩家标记为弃牌并轮到下一个人
+            fold(roomId, nickname);
+        } else {
+            // 非当前行动玩家，直接视为弃牌
+            if (!target.isFold()) {
+                target.setFold(true);
             }
         }
 
-        return removed;
+        return true;
     }
 
     // ========== 游戏流程 ==========
@@ -394,6 +397,7 @@ public class DpRoomServiceImpl {
             p.setActed(false);
             p.setTotalBet(0);
             p.setAllIn(false);
+            p.setLeftThisHand(false);
             p.setHoleCards(Arrays.asList(r.getDeck().remove(0), r.getDeck().remove(0)));
         }
 
@@ -878,6 +882,12 @@ public class DpRoomServiceImpl {
         r.setPot(0);
         r.setPots(new ArrayList<>());
 
+        // 结算完成后，先清理本手中已离开的“僵尸位”玩家
+        List<DpPlayer> currentPlayers = r.getPlayers();
+        if (currentPlayers != null && !currentPlayers.isEmpty()) {
+            currentPlayers.removeIf(DpPlayer::isLeftThisHand);
+        }
+
         // 进入“结算完成，等待准备下一局”阶段，并开始 30 秒准备倒计时
         r.setCurrentStage("settled");
         r.setReadyDeadline(System.currentTimeMillis() + 30_000L);
@@ -954,15 +964,22 @@ public class DpRoomServiceImpl {
         if (!"settled".equals(r.getCurrentStage())) return;
 
         List<DpPlayer> ps = r.getPlayers();
-        if (ps == null || ps.size() < 2) return;
+        if (ps == null || ps.isEmpty()) return;
 
+        boolean hasParticipatingPlayer = false;
         for (DpPlayer p : ps) {
-            if (!p.isReady()) {
-                return;
+            // 筹码大于 0 的玩家视为“在场要参与的人”，必须准备；
+            // 筹码为 0 的玩家默认视为本手不参与（可以选择补码或观战），不阻塞开局。
+            if (p.getChips() > 0) {
+                hasParticipatingPlayer = true;
+                if (!p.isReady()) {
+                    return;
+                }
             }
         }
+        if (!hasParticipatingPlayer) return;
 
-        // 所有人都已准备，立即开下一局
+        // 所有在场参与玩家都已准备，立即开下一局
         r.setReadyDeadline(0L);
         newHand(r.getRoomId());
     }
@@ -1050,7 +1067,11 @@ public class DpRoomServiceImpl {
                     DpRoomDTO dto = new DpRoomDTO();
                     dto.setRoomId(room.getRoomId());
                     dto.setOwner(room.getOwner());
-                    dto.setPlayerSize(room.getPlayers().size());
+                    // 房间展示人数只统计“非僵尸位”的真实玩家，避免 leftThisHand 的假人占位
+                    int aliveSize = (int) room.getPlayers().stream()
+                            .filter(p -> !p.isLeftThisHand())
+                            .count();
+                    dto.setPlayerSize(aliveSize);
                     return dto;
                 })
                 .collect(Collectors.toList());

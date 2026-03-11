@@ -148,8 +148,11 @@
         <!-- 手牌：自己始终能看；摊牌/结算等待阶段只有未弃牌的人亮牌，弃牌的人依然盖牌 -->
         <div style="display:flex; gap:5px; margin:8px 0; justify-content:center;">
           <template v-if="isMe(p.nickname) || ((stage === 'showdown' || stage === 'settled') && !p.fold)">
-            <div v-for="(c, ci) in p.holeCards" :key="'h' + ci" :class="getCardClass(c)"
-                 style="width:36px; height:52px; font-size:13px;">
+            <div
+                v-for="(c, ci) in p.holeCards"
+                :key="'h' + ci"
+                :class="[getCardClass(c), 'hole-card-flip']"
+                style="width:36px; height:52px; font-size:13px;">
               {{ getCardDisplay(c) }}
             </div>
           </template>
@@ -1306,6 +1309,21 @@ export default {
 
 .bg-gray {
   background: #8c8c8c;
+}
+
+/* 玩家手牌翻转动画：在摊牌/结算阶段亮牌时增加翻牌效果 */
+.hole-card-flip {
+  transform-origin: center;
+  animation: hole-card-flip-anim 0.45s ease-out;
+}
+
+@keyframes hole-card-flip-anim {
+  0% {
+    transform: rotateY(90deg);
+  }
+  100% {
+    transform: rotateY(0deg);
+  }
 }
 
 /* 牌型说明弹窗内的小牌 */
