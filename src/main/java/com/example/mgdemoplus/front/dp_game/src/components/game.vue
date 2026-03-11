@@ -202,13 +202,13 @@
       <div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
         <button
             @click="toggleReady"
-            :disabled="myChips <= 0"
+            :disabled="myChips < 10"
             style="padding:8px 16px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;
                    background: #52c41a; color:#fff;">
-          {{ myReady ? '取消准备' : (myChips > 0 ? '准备下一局' : '筹码为0，无法准备') }}
+          {{ myReady ? '取消准备' : (myChips >= 10 ? '准备下一局' : '积分不足大盲(10)，无法准备') }}
         </button>
         <button
-            v-if="myChips <= 0"
+            v-if="myChips < 10"
             @click="rebuy"
             style="padding:8px 16px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;
                    background:#fa8c16; color:#fff;">

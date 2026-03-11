@@ -225,8 +225,8 @@ public class DpRoomServiceImpl {
         if (r.isPlaying() && "settled".equals(r.getCurrentStage())) {
             for (DpPlayer p : r.getPlayers()) {
                 if (p.getNickname().equals(nickname)) {
-                    // 没筹码的不能准备，需先补码
-                    if (p.getChips() <= 0) {
+                    // 筹码不足以支付一手牌的大盲（10）时不能准备，需先补码
+                    if (p.getChips() < 10) {
                         return false;
                     }
                     p.setReady(!p.isReady());
@@ -935,8 +935,15 @@ public class DpRoomServiceImpl {
         r.setPlayers(remain);
         r.setReadyDeadline(0L);
 
-        // 如果留下来的玩家不足 2 个，就结束对局，回到未开始状态
-        if (remain.size() < 2) {
+        // 计算下一手理论上的人数：当前已准备的玩家 + 报名下一手的观众(waitNextHand)
+        int nextCount = remain.size();
+        List<String> waiters = r.getWaitNextHand();
+        if (waiters != null) {
+            nextCount += waiters.size();
+        }
+
+        // 如果下一手总人数仍不足 2 个，就结束对局，回到未开始状态
+        if (nextCount < 2) {
             r.setPlaying(false);
             r.setCurrentStage("preflop");
             r.setCommunityCards(new ArrayList<>());
@@ -948,7 +955,7 @@ public class DpRoomServiceImpl {
             return;
         }
 
-        // 还有足够玩家，自动开下一局
+        // 下一手有足够玩家（当前准备好的 + 报名的观众），自动开新一局
         newHand(r.getRoomId());
     }
 
@@ -1008,7 +1015,7 @@ public class DpRoomServiceImpl {
     }
 
     /**
-     * 结算后筹码归零的玩家补码到初始筹码。
+     * 结算后筹码不足大盲（10）的玩家补码到初始筹码。
      */
     public boolean rebuy(String roomId, String nickname) {
         DpRoom r = roomMap.get(roomId);
@@ -1016,7 +1023,8 @@ public class DpRoomServiceImpl {
         if (!"settled".equals(r.getCurrentStage())) return false;
         for (DpPlayer p : r.getPlayers()) {
             if (p.getNickname().equals(nickname)) {
-                if (p.getChips() > 0) {
+                // 筹码充足（>=10）则不允许补码
+                if (p.getChips() >= 10) {
                     return false;
                 }
                 p.setChips(DpRoom.getChips());
