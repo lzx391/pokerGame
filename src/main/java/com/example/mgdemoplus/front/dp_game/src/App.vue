@@ -1,24 +1,33 @@
 <template>
   <div id="app">
-    <div v-if="!$route.path.startsWith('/game')" class="app-container">
+    <!-- 登录 / 注册 页面：带有导航和盒子布局 -->
+    <div v-if="isAuthPage" class="app-container">
       <h1 class="app-title">DP GAME</h1>
       <div class="nav-bar">
         <router-link to="/login" class="nav-link">登录</router-link>
         <router-link to="/register" class="nav-link">注册</router-link>
-        <router-link to="/image_upload" class="nav-link">头像上传功能实验</router-link>
       </div>
       <div class="content-box">
         <router-view></router-view>
       </div>
     </div>
 
-    <router-view v-else></router-view>
+    <!-- 其他路由：全屏展示，不显示登录 / 注册按钮 -->
+    <div v-else class="full-page">
+      <router-view></router-view>
+    </div>
   </div>
 </template>
 
 <script>
 export default {
-  name: 'App'
+  name: 'App',
+  computed: {
+    isAuthPage() {
+      const path = this.$route.path
+      return path === '/login' || path === '/register' || path === '/'
+    }
+  }
 }
 </script>
 
@@ -92,5 +101,12 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* 非登录/注册页：全屏铺满窗口 */
+.full-page {
+  min-height: 100vh;
+  padding: 0;
+  margin: 0;
 }
 </style>
