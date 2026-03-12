@@ -898,6 +898,7 @@ public class DpRoomServiceImpl {
 
     /**
      * 结算后准备阶段到时间：未准备的玩家被踢到观众席，准备好的玩家自动开下一局。
+     * 先让积分不足大盲(10)的人去观众厅，再按准备状态分人，避免输光的被强行带入下一把。
      */
     private void handleReadyTimeout(DpRoom r) {
         if (r == null || !r.isPlaying()) return;
@@ -905,6 +906,28 @@ public class DpRoomServiceImpl {
 
         List<DpPlayer> players = r.getPlayers();
         if (players == null || players.isEmpty()) {
+            r.setPlaying(false);
+            r.setReadyDeadline(0L);
+            return;
+        }
+
+        // 先让积分 < 10 的人去观众厅（没补码的不能参与下一局）
+        List<String> spectators = r.getSpectators();
+        if (spectators == null) {
+            spectators = new ArrayList<>();
+            r.setSpectators(spectators);
+        }
+        List<DpPlayer> afterChips = new ArrayList<>();
+        for (DpPlayer p : players) {
+            if (p.getChips() < 10) {
+                if (!spectators.contains(p.getNickname())) spectators.add(p.getNickname());
+            } else {
+                afterChips.add(p);
+            }
+        }
+        r.setPlayers(afterChips);
+        players = afterChips;
+        if (players.isEmpty()) {
             r.setPlaying(false);
             r.setReadyDeadline(0L);
             return;
@@ -921,7 +944,7 @@ public class DpRoomServiceImpl {
         }
 
         // 把未准备的人移到观众席
-        List<String> spectators = r.getSpectators();
+        spectators = r.getSpectators();
         if (spectators == null) {
             spectators = new ArrayList<>();
             r.setSpectators(spectators);
@@ -962,9 +985,8 @@ public class DpRoomServiceImpl {
     /**
      * 在 settled 阶段，每次有人切换准备状态后检查：
      * - 如果还在玩牌
-     * - 且玩家数 >= 2
-     * - 且所有还在牌桌上的玩家都已 ready
-     * 则立刻开下一局，不用等 30 秒超时。
+     * - 先让积分 < 10 的人去观众厅（兼顾输光的人：不强行带入下一把）
+     * - 剩余桌上人数 + 观众里报名下一局的(waitNextHand) >= 2，且桌上的人全都 ready，则立刻开下一局
      */
     private void checkAndStartNextHandAfterSettle(DpRoom r) {
         if (r == null || !r.isPlaying()) return;
@@ -973,20 +995,33 @@ public class DpRoomServiceImpl {
         List<DpPlayer> ps = r.getPlayers();
         if (ps == null || ps.isEmpty()) return;
 
-        boolean hasParticipatingPlayer = false;
+        // 先让积分不足大盲(10)的人去观众厅，他们可以之后补码再点“准备在下一局加入对局”
+        List<String> spectators = r.getSpectators();
+        if (spectators == null) {
+            spectators = new ArrayList<>();
+            r.setSpectators(spectators);
+        }
+        List<DpPlayer> canPlay = new ArrayList<>();
         for (DpPlayer p : ps) {
-            // 筹码大于 0 的玩家视为“在场要参与的人”，必须准备；
-            // 筹码为 0 的玩家默认视为本手不参与（可以选择补码或观战），不阻塞开局。
-            if (p.getChips() > 0) {
-                hasParticipatingPlayer = true;
-                if (!p.isReady()) {
-                    return;
-                }
+            if (p.getChips() < 10) {
+                if (!spectators.contains(p.getNickname())) spectators.add(p.getNickname());
+            } else {
+                canPlay.add(p);
             }
         }
-        if (!hasParticipatingPlayer) return;
+        r.setPlayers(canPlay);
+        ps = canPlay;
 
-        // 所有在场参与玩家都已准备，立即开下一局
+        int nextCount = ps.size();
+        List<String> waiters = r.getWaitNextHand();
+        if (waiters != null) nextCount += waiters.size();
+        if (nextCount < 2) return;
+
+        // 桌上剩余的人（积分>=10）必须都准备
+        for (DpPlayer p : ps) {
+            if (!p.isReady()) return;
+        }
+
         r.setReadyDeadline(0L);
         newHand(r.getRoomId());
     }
