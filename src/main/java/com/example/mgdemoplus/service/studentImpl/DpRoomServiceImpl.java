@@ -23,6 +23,8 @@ public class DpRoomServiceImpl {
                     Iterator<DpPlayer> it = room.getPlayers().iterator();
                     while (it.hasNext()) {
                         DpPlayer p = it.next();
+                        // 本手已离线的“占位”玩家不因心跳踢出，留到结算时再移除，以保持行动顺序
+                        if (p.isLeftThisHand()) continue;
                         if (System.currentTimeMillis() - p.getLastHeartBeat() > DpRoom.getHeartTimeout()) {
                             System.out.println("未收到"+p.getNickname()+"的心跳,已移除房间");
                             it.remove();
@@ -32,13 +34,16 @@ public class DpRoomServiceImpl {
                         roomMap.remove(room.getRoomId());//房间空了就清人
                         continue;
                     }
-                    // 30秒超时弃牌，距离上一个最后一个人行动后超过30秒不动弹则设置为弃牌
+                    // 30秒超时弃牌；若当前行动位是已离线占位，直接跳过不等待
                     if (room.isPlaying() && room.getCurrentActorIndex() >= 0) {
-                        if (System.currentTimeMillis() - room.getLastActionTime() > DpRoom.getActionTimeout()) {
-                            DpPlayer p = room.getPlayers().get(room.getCurrentActorIndex());
+                        DpPlayer p = room.getPlayers().get(room.getCurrentActorIndex());
+                        if (p.isLeftThisHand()) {
+                            moveToNextValidActor(room);
+                            autoAdvanceIfRoundFinished(room);
+                        } else if (System.currentTimeMillis() - room.getLastActionTime() > DpRoom.getActionTimeout()) {
                             p.setFold(true);
-                            moveToNextValidActor(room);  // 统一用新方法
-                            autoAdvanceIfRoundFinished(room); // 如有需要自动推进下一阶段
+                            moveToNextValidActor(room);
+                            autoAdvanceIfRoundFinished(room);
                         }
                     }
 
@@ -81,7 +86,8 @@ public class DpRoomServiceImpl {
             int nextIdx = (startIdx + i) % size;
             DpPlayer nextP = r.getPlayers().get(nextIdx);
 
-            // 没弃牌、没全下、且（还没行动 或 下注不够）
+            // 跳过已离线位；没弃牌、没全下、且（还没行动 或 下注不够）
+            if (nextP.isLeftThisHand()) continue;
             if (!nextP.isFold() && !nextP.isAllIn()
                     && (!nextP.isActed() || nextP.getBet() < r.getCurrentBetToCall())) {
                 r.setCurrentActorIndex(nextIdx);
@@ -306,8 +312,9 @@ public class DpRoomServiceImpl {
             return true;
         }
 
-        // 标记为本手已离开：这一手后续不再参与，但座位保留到本手结束
+        // 标记为本手已离开：保留座位以维持庄家/行动顺序，但不再保留任何信息，仅作“该玩家已离线”占位
         target.setLeftThisHand(true);
+        target.setHoleCards(new ArrayList<>());  // 不保留手牌信息
 
         // 如果当前正轮到他行动，等价于自动弃牌，再推进后续流程
         if (r.getCurrentActorIndex() == idx) {
@@ -1092,10 +1099,11 @@ public class DpRoomServiceImpl {
             return -1;
         }
 
-        // 从 D 的下家开始循环一圈，寻找第一个可行动玩家
+        // 从 D 的下家开始循环一圈，寻找第一个可行动玩家（跳过已离线位）
         for (int step = 1; step <= ps.size(); step++) {
             int idx = (dealerIdx + step) % ps.size();
             DpPlayer p = ps.get(idx);
+            if (p.isLeftThisHand()) continue;
             if (!p.isFold() && !p.isAllIn()) {
                 return idx;
             }
