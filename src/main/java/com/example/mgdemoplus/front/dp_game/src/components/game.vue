@@ -104,15 +104,15 @@
       <div v-for="i in (5 - communityCards.length)" :key="'e' + i" class="card-base bg-gray">?</div>
     </div>
 
-    <!-- 玩家列表 -->
+    <!-- 玩家列表：离线位只保留座位与 D/SB/BB 顺序，仅显示「该玩家已离线」 -->
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
       <div
           v-for="(p, i) in players"
-          :key="p.nickname"
+          :key="(p.leftThisHand ? 'offline-' + i : p.nickname)"
           :style="getPlayerBoxStyle(p, i)"
-          @click="onPlayerCardClick(p.nickname)"
+          @click="!p.leftThisHand && onPlayerCardClick(p.nickname)"
       >
-        <!-- 标记 -->
+        <!-- 标记（庄家/盲注顺序保留，便于看行动顺序） -->
         <div style="display:flex; gap:5px; margin-bottom:5px;">
             <span v-if="p.dealer"
                   style="background:#faad14; color:#fff; padding:1px 5px; border-radius:3px; font-size:12px;">D</span>
@@ -121,72 +121,84 @@
           <span v-if="p.blind === 2"
                 style="background:#52c41a; color:#fff; padding:1px 5px; border-radius:3px; font-size:12px;">BB</span>
         </div>
-        <!-- 名字 -->
-        <div style="font-weight:bold;">
-          {{ p.nickname }}
-          <span v-if="isMe(p.nickname)" style="color:#1890ff;">(我)</span>
-        </div>
-        <!-- 筹码 -->
-        <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 4px;">
-          <div
-              style="font-size: 13px; color: #555; display: flex; align-items: center; justify-content: center; background: #f8f9fa; border-radius: 4px; padding: 2px 0;">
-            <span style="color: #8c8c8c; margin-right: 4px;">剩余积分:</span>
-            <span style="font-weight: 800; font-family: monospace; color: #2f3542;">{{ p.chips }}</span>
+
+        <!-- 离线位：不显示任何个人信息，仅显示「该玩家已离线」 -->
+        <template v-if="p.leftThisHand">
+          <div style="font-weight:bold; color:#8c8c8c; font-size:14px;">
+            该玩家已离线
+          </div>
+          <div style="margin-top:8px; font-size:12px; color:#bfbfbf;">
+            座位保留至本局结束，行动顺序不变
+          </div>
+        </template>
+
+        <!-- 正常玩家：名字、筹码、手牌、状态 -->
+        <template v-else>
+          <!-- 名字 -->
+          <div style="font-weight:bold;">
+            {{ p.nickname }}
+            <span v-if="isMe(p.nickname)" style="color:#1890ff;">(我)</span>
+          </div>
+          <!-- 筹码 -->
+          <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 4px;">
+            <div
+                style="font-size: 13px; color: #555; display: flex; align-items: center; justify-content: center; background: #f8f9fa; border-radius: 4px; padding: 2px 0;">
+              <span style="color: #8c8c8c; margin-right: 4px;">剩余积分:</span>
+              <span style="font-weight: 800; font-family: monospace; color: #2f3542;">{{ p.chips }}</span>
+            </div>
+
+            <div
+                style="background: #fff2f0; border: 1px solid #ffccc7; border-radius: 6px; padding: 4px 0; text-align: center;">
+              <div
+                  style="font-size: 11px; color: #ff4d4f; text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px;">
+                本轮积分
+              </div>
+              <div style="font-size: 16px; color: #cf1322; font-weight: 900; font-family: 'Arial Black', sans-serif;">
+                {{ p.bet }}
+              </div>
+            </div>
+          </div>
+          <!-- 手牌：自己始终能看；摊牌/结算等待阶段只有未弃牌的人亮牌，弃牌的人依然盖牌 -->
+          <div style="display:flex; gap:5px; margin:8px 0; justify-content:center;">
+            <template v-if="isMe(p.nickname) || ((stage === 'showdown' || stage === 'settled') && !p.fold)">
+              <div
+                  v-for="(c, ci) in p.holeCards"
+                  :key="'h' + ci"
+                  :class="[getCardClass(c), 'hole-card-flip']"
+                  style="width:36px; height:52px; font-size:13px;">
+                {{ getCardDisplay(c) }}
+              </div>
+            </template>
+            <template v-else-if="p.holeCards && p.holeCards.length > 0">
+              <div v-for="ci in p.holeCards.length" :key="'hb' + ci" class="card-base bg-gray"
+                   style="width:36px; height:52px; font-size:13px;">?
+              </div>
+            </template>
           </div>
 
-          <div
-              style="background: #fff2f0; border: 1px solid #ffccc7; border-radius: 6px; padding: 4px 0; text-align: center;">
-            <div
-                style="font-size: 11px; color: #ff4d4f; text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px;">
-              本轮积分
-            </div>
-            <div style="font-size: 16px; color: #cf1322; font-weight: 900; font-family: 'Arial Black', sans-serif;">
-              {{ p.bet }}
-            </div>
+          <!-- 牌型显示 -->
+          <div v-if="communityCards.length >= 3 && communityCardsFlipComplete && (isMe(p.nickname) || ((stage === 'showdown' || stage === 'settled') && !p.fold))"
+               style="margin-top:4px; text-align:center;">
+            <template v-if="isMe(p.nickname)">
+                <span
+                    style="background:#e6f7ff; color:#1890ff; padding:3px 10px; border-radius:4px; font-weight:bold; font-size:12px; display:inline-block;">
+                  {{ getHandRank(p.holeCards, communityCards) }}
+                </span>
+            </template>
+            <template v-else-if="(stage === 'showdown' || stage === 'settled') && !p.fold">
+                <span
+                    style="background:#f6ffed; color:#52c41a; padding:3px 10px; border-radius:4px; font-weight:bold; font-size:12px; display:inline-block;">
+                  {{ getHandRank(p.holeCards, communityCards) }}
+                </span>
+            </template>
           </div>
-        </div>
-        <!-- 手牌：自己始终能看；摊牌/结算等待阶段只有未弃牌的人亮牌，弃牌的人依然盖牌 -->
-        <div style="display:flex; gap:5px; margin:8px 0; justify-content:center;">
-          <template v-if="isMe(p.nickname) || ((stage === 'showdown' || stage === 'settled') && !p.fold)">
-            <div
-                v-for="(c, ci) in p.holeCards"
-                :key="'h' + ci"
-                :class="[getCardClass(c), 'hole-card-flip']"
-                style="width:36px; height:52px; font-size:13px;">
-              {{ getCardDisplay(c) }}
-            </div>
-          </template>
-          <template v-else-if="p.holeCards && p.holeCards.length > 0">
-            <div v-for="ci in p.holeCards.length" :key="'hb' + ci" class="card-base bg-gray"
-                 style="width:36px; height:52px; font-size:13px;">?
-            </div>
-          </template>
-        </div>
 
-        <!-- 牌型显示：每个阶段公共牌全部翻完后，才显示当前阶段的牌型（all-in 跑马时等五张翻完再出结果） -->
-        <div v-if="communityCards.length >= 3 && communityCardsFlipComplete && (isMe(p.nickname) || ((stage === 'showdown' || stage === 'settled') && !p.fold))"
-             style="margin-top:4px; text-align:center;">
-          <!-- 自己的牌型：翻牌圈起可见，仅自己可见 -->
-          <template v-if="isMe(p.nickname)">
-              <span
-                  style="background:#e6f7ff; color:#1890ff; padding:3px 10px; border-radius:4px; font-weight:bold; font-size:12px; display:inline-block;">
-                {{ getHandRank(p.holeCards, communityCards) }}
-              </span>
-          </template>
-          <!-- 别人的牌型：仅摊牌阶段、未弃牌、且公共牌翻完后显示 -->
-          <template v-else-if="(stage === 'showdown' || stage === 'settled') && !p.fold">
-              <span
-                  style="background:#f6ffed; color:#52c41a; padding:3px 10px; border-radius:4px; font-weight:bold; font-size:12px; display:inline-block;">
-                {{ getHandRank(p.holeCards, communityCards) }}
-              </span>
-          </template>
-        </div>
-
-        <!-- 状态 -->
-        <div style="font-weight:bold; font-size:12px; margin-top:4px;"
-             :style="{ color: p.fold ? '#ff4d4f' : (actIndex === i ? '#faad14' : '#52c41a') }">
-          {{ p.fold ? '已弃牌' : (actIndex === i ? '思考中...' : '进行中') }}
-        </div>
+          <!-- 状态 -->
+          <div style="font-weight:bold; font-size:12px; margin-top:4px;"
+               :style="{ color: p.fold ? '#ff4d4f' : (actIndex === i ? '#faad14' : '#52c41a') }">
+            {{ p.fold ? '已弃牌' : (actIndex === i ? '思考中...' : '进行中') }}
+          </div>
+        </template>
       </div>
     </div>
 
@@ -452,7 +464,7 @@ export default {
   computed: {
     stageCN() {
       var m = {preflop: '翻牌前', flop: '翻牌圈', turn: '转牌圈', river: '河牌圈', showdown: '摊牌结算', settled: '准备下一局'}
-      return m[this.stage] || this.stagea
+      return m[this.stage] || this.stage
     },
     isOwner() {
       return this.user && this.owner === this.user.nickname
@@ -509,8 +521,8 @@ export default {
       // 获取当前轮到的那个人
       const currentPlayer = this.players[newVal];
 
-      // 如果这个人存在，且名字是我自己
-      if (currentPlayer && currentPlayer.nickname === this.user.nickname) {
+      // 如果这个人存在，且名字是我自己（守卫 user 未加载）
+      if (this.user && currentPlayer && currentPlayer.nickname === this.user.nickname) {
         this.startCountdown();
       } else {
         this.stopCountdown();
@@ -968,6 +980,14 @@ export default {
         borderRadius: '10px',
         border: '2px solid transparent',
         transition: 'all 0.2s'
+      }
+
+      // 离线位：灰显，不参与行动高亮
+      if (p.leftThisHand) {
+        s.background = '#f5f5f5'
+        s.borderColor = '#d9d9d9'
+        s.opacity = '0.85'
+        return s
       }
 
       // 当前行动者金色边框
