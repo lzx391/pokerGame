@@ -76,8 +76,8 @@
 
     <!-- ========== 游戏进行中 ========== -->
 
-    <!-- 观战提示 + 下一局加入按钮：当前不在 players 中的用户视为观众 -->
-    <div v-if="!myPlayer"
+    <!-- 观战提示 + 下一局加入按钮：观众 或 本手已退出的僵尸位 都显示（退了又进来的人也能立刻准备下一局） -->
+    <div v-if="showSpectatorPrepareBlock"
          style="background:#fff; padding:10px 15px; border-radius:8px; margin-bottom:15px; text-align:center; font-size:13px;">
       <div style="margin-bottom:8px;">
         你当前正在<span style="color:#1890ff;">旁观本局</span>，不会参与下注和结算。
@@ -467,6 +467,11 @@ export default {
         return p.nickname === this.user.nickname
       }.bind(this)) || null
     },
+    // 是否显示“准备在下一局加入对局”：纯观众 或 本手已退出的僵尸位（退了又进来）都显示，便于立刻报名下一局
+    showSpectatorPrepareBlock() {
+      if (!this.myPlayer) return true
+      return !!this.myPlayer.leftThisHand
+    },
     myReady() {
       return this.myPlayer ? this.myPlayer.ready : false
     },
@@ -489,9 +494,9 @@ export default {
       }
       return true
     },
-    // 当前是否处于“结算完成，等待准备下一局”阶段
+    // 当前是否处于“结算完成，等待准备下一局”阶段（僵尸位不算，他们走观众区的“准备在下一局加入对局”）
     inSettledStage() {
-      return this.stage === 'settled' && !!this.myPlayer
+      return this.stage === 'settled' && !!this.myPlayer && !this.myPlayer.leftThisHand
     }
   },
 
@@ -593,6 +598,9 @@ export default {
         this.currentBetToCall = room.currentBetToCall
         this.actIndex = room.currentActorIndex
         this.spectators = room.spectators || []
+        // 报名下一局状态以服务端为准（被清到观众席后不在 waitNextHand，避免界面“已报名”但实际未报名导致流程卡死）
+        var list = room.waitNextHand || []
+        this.nextHandReady = !!(this.user && list.indexOf(this.user.nickname) !== -1)
       } catch (err) {
         console.error('拉取状态失败', err)
       } finally {

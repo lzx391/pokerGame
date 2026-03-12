@@ -21,7 +21,7 @@ public class DpRoom {
     private List<String> deck = new ArrayList<>();
     private int pot = 0;
     private int currentBetToCall = 0;
-    private static final int CHIPS =1000;//全局筹码设置
+    private static final int CHIPS =500;//全局筹码设置
     // 行动顺序
     private int currentActorIndex = -1;
     private long lastActionTime = 0;
