@@ -163,6 +163,11 @@ public class DpRoomServiceImpl {
         if (r == null) return "房间不存在";
         if (r.isPlaying()) {
             // 游戏中途进来：作为观众进入，记录到观众席名单
+            // 为了保证“每次重新进入都是干净状态”，这里先确保不再保留上一轮的下一局预约状态
+            List<String> waiters = r.getWaitNextHand();
+            if (waiters != null) {
+                waiters.remove(nickname);
+            }
             List<String> spectators = r.getSpectators();
             if (spectators == null) {
                 spectators = new ArrayList<>();
@@ -258,8 +263,13 @@ public class DpRoomServiceImpl {
         if (r == null) return false;
         // 先从观众席中移除这个人（无论是否在牌桌上）
         List<String> spectators = r.getSpectators();
+        // 同时清理该玩家在“下一局预约列表”中的记录，避免下次进来时仍然是预约状态
+        List<String> waiters = r.getWaitNextHand();
         if (spectators != null) {
             spectators.remove(nickname);
+        }
+        if (waiters != null) {
+            waiters.remove(nickname);
         }
 
         // 如果当前不在对局中（还没开始或本手已结束），直接从玩家列表移除
@@ -1022,7 +1032,7 @@ public class DpRoomServiceImpl {
         int nextCount = ps.size();
         List<String> waiters = r.getWaitNextHand();
         if (waiters != null) nextCount += waiters.size();
-        if (nextCount < 2) return;
+        if (nextCount < 1) return;
 
         // 桌上剩余的人（积分>=10）必须都准备
         for (DpPlayer p : ps) {
