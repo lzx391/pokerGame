@@ -982,8 +982,17 @@ public class DpRoomServiceImpl {
             nextCount += waiters.size();
         }
 
-        // 如果下一手总人数仍不足 2 个，就结束对局，回到未开始状态
+        // 如果下一手总人数仍不足 2 个：
         if (nextCount < 2) {
+            // 1）如果还有至少 1 个玩家（典型场景：只剩一个人准备），允许“单人娱乐局”
+            if (remain.size() >= 1) {
+                // 清掉准备倒计时，直接开新一局（仍然按正常德扑流程发牌/算牌力）
+                r.setReadyDeadline(0L);
+                newHand(r.getRoomId());
+                return;
+            }
+
+            // 2）没有任何玩家时，结束对局并清空状态
             r.setPlaying(false);
             r.setCurrentStage("preflop");
             r.setCommunityCards(new ArrayList<>());
