@@ -26,6 +26,9 @@ public class DpRoomServiceImpl {
                         // 本手已离线的“占位”玩家不因心跳踢出，留到结算时再移除，以保持行动顺序
                         if (p.isLeftThisHand()) continue;
                         if (System.currentTimeMillis() - p.getLastHeartBeat() > DpRoom.getHeartTimeout()) {
+                            if(p.getNickname().equals(room.getOwner())){
+                                giveOwner(room.getRoomId(), p.getNickname());
+                            }
                             System.out.println("未收到"+p.getNickname()+"的心跳,已移除房间");
                             it.remove();
                         }
