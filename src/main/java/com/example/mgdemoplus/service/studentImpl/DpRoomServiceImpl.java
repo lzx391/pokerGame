@@ -164,15 +164,18 @@ public class DpRoomServiceImpl {
         if (r.isPlaying()) {
             // 游戏中途进来：作为观众进入，记录到观众席名单
             // 为了保证“每次重新进入都是干净状态”，这里先确保不再保留上一轮的下一局预约状态
-            List<String> waiters = r.getWaitNextHand();//游戏已开局则获取等待者列表
+            //游戏已开局则获取等待者列表，如果有自己就抹除掉，这是防御进来之后准备，然后退出去再进的时候直接被拉入下一把，因为准备列表还有自己
+            List<String> waiters = r.getWaitNextHand();
             if (waiters != null) {
                 waiters.remove(nickname);
             }
+            //没啥意义
             List<String> spectators = r.getSpectators();
             if (spectators == null) {
                 spectators = new ArrayList<>();
                 r.setSpectators(spectators);
             }
+            //如果观众里没自己就给自己加进来
             if (!spectators.contains(nickname)) {
                 spectators.add(nickname);
             }
@@ -354,17 +357,17 @@ public class DpRoomServiceImpl {
         r.setPots(new ArrayList<>());
         r.setCurrentBetToCall(0);
         r.setReadyDeadline(0L);
-        for (DpPlayer p : r.getPlayers()) {
-            p.setChips(DpRoom.getChips());
-            p.setFold(false);
-            p.setBet(0);
-            p.setTotalBet(0);
-            p.setAllIn(false);
-            p.setActed(false);
-            p.setHoleCards(new ArrayList<>());
-            p.setDealer(false);
-            p.setBlind(0);
-        }
+//        for (DpPlayer p : r.getPlayers()) {
+//            p.setChips(DpRoom.getChips());
+//            p.setFold(false);
+//            p.setBet(0);
+//            p.setTotalBet(0);
+//            p.setAllIn(false);
+//            p.setActed(false);
+//            p.setHoleCards(new ArrayList<>());
+//            p.setDealer(false);
+//            p.setBlind(0);
+//        }
         r.getPlayers().get(0).setDealer(true);
         return newHand(roomId);
     }
@@ -377,6 +380,7 @@ public class DpRoomServiceImpl {
         List<String> waiters = r.getWaitNextHand();
         if (waiters != null && !waiters.isEmpty()) {
             List<String> spectators = r.getSpectators();
+           //这段意思说场上准备的人和观众席准备的人都会被加入waiters，如果场上在的就是exists不管，场上不在的就拉下来当新玩家，把观众厅的名字移除掉，最后清理掉等待者为下一把做准备
             for (String name : waiters) {
                 boolean exists = false;
                 for (DpPlayer existing : r.getPlayers()) {
@@ -385,15 +389,17 @@ public class DpRoomServiceImpl {
                         break;
                     }
                 }
+
                 if (!exists) {
                     DpPlayer np = new DpPlayer();
                     np.setNickname(name);
                     // 新加入的玩家带着默认筹码参与新一局
                     np.setChips(DpRoom.getChips());
-                    r.getPlayers().add(np);
+                    np.setReady(true);
+                    r.getPlayers().add(np);//新人就加入
                 }
                 // 这些人已经回到牌桌，不再属于观众席
-                if (spectators != null) {
+                if (spectators != null) {//从观众席里拉下来了
                     spectators.remove(name);
                 }
             }
@@ -410,13 +416,13 @@ public class DpRoomServiceImpl {
 
         List<DpPlayer> ps = r.getPlayers();
         for (DpPlayer p : ps) {
-            p.setFold(false);
-            p.setBet(0);
-            p.setBlind(0);
-            p.setActed(false);
-            p.setTotalBet(0);
-            p.setAllIn(false);
-            p.setLeftThisHand(false);
+//            p.setFold(false);
+//            p.setBet(0);
+//            p.setBlind(0);
+//            p.setActed(false);
+//            p.setTotalBet(0);
+//            p.setAllIn(false);
+//            p.setLeftThisHand(false);
             p.setHoleCards(Arrays.asList(r.getDeck().remove(0), r.getDeck().remove(0)));
         }
 
@@ -427,7 +433,7 @@ public class DpRoomServiceImpl {
         did = (did + 1) % ps.size();
         ps.get(did).setDealer(true);
 
-        // 大小盲
+        // 大小盲，如果人数大于2才有大小盲位
         if (ps.size() >= 2) {
             int sb = (did + 1) % ps.size();
             int bb = (did + 2) % ps.size();
@@ -446,8 +452,8 @@ public class DpRoomServiceImpl {
             r.setPot(15);                    // 大小盲计入底池
         }
 
-        r.setCurrentActorIndex((did + 3) % ps.size());
-        r.setLastActionTime(System.currentTimeMillis());
+        r.setCurrentActorIndex((did + 3) % ps.size());//翻前从大盲的下一个开始行动
+        r.setLastActionTime(System.currentTimeMillis());//方便计时间用
         return true;
     }
 
@@ -1034,7 +1040,7 @@ public class DpRoomServiceImpl {
             if (p.getChips() < 10) {
                 if (!spectators.contains(p.getNickname())) spectators.add(p.getNickname());
             } else {
-                canPlay.add(p);
+                canPlay.add(p);//把可以玩的再设置一遍
             }
         }
         r.setPlayers(canPlay);
