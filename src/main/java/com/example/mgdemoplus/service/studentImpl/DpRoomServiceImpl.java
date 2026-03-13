@@ -182,11 +182,11 @@ public class DpRoomServiceImpl {
             return "游戏已开始";
         }
         //存疑
-        for (DpPlayer p : r.getPlayers()) {
-            // 已经在房间中的活跃玩家不允许重复加入；
-            // 如果是上一手已经标记离开的玩家(leftThisHand)，视为不在房间内，可以重新加入
-            if (p.getNickname().equals(nickname) && !p.isLeftThisHand()) return "你已在房间中";
-        }
+//        for (DpPlayer p : r.getPlayers()) {
+//            // 已经在房间中的活跃玩家不允许重复加入；
+//            // 如果是上一手已经标记离开的玩家(leftThisHand)，视为不在房间内，可以重新加入
+//            if (p.getNickname().equals(nickname) && !p.isLeftThisHand()) return "你已在房间中";
+//        }
         //添加新的玩家
         DpPlayer p = new DpPlayer();
         p.setNickname(nickname);
@@ -203,13 +203,13 @@ public class DpRoomServiceImpl {
         if (r == null) return false;
 
         // 已经在桌上的玩家，不需要再标记下一局，直接视为成功
-        for (DpPlayer p : r.getPlayers()) {
-            // 已经在当前手牌里的活跃玩家（未标记离开）不需要再报名下一局；
-            // 对于本手已离开的“僵尸位”（leftThisHand = true），依然允许作为观众报名下一局
-            if (p.getNickname().equals(nickname) && !p.isLeftThisHand()) {
-                return true;
-            }
-        }
+//        for (DpPlayer p : r.getPlayers()) {
+//            // 已经在当前手牌里的活跃玩家（未标记离开）不需要再报名下一局；
+//            // 对于本手已离开的“僵尸位”（leftThisHand = true），依然允许作为观众报名下一局
+//            if (p.getNickname().equals(nickname) && !p.isLeftThisHand()) {
+//                return true;
+//            }
+//        }
 
         List<String> waiters = r.getWaitNextHand();
         if (waiters == null) {
@@ -382,22 +382,22 @@ public class DpRoomServiceImpl {
             List<String> spectators = r.getSpectators();
            //这段意思说场上准备的人和观众席准备的人都会被加入waiters，如果场上在的就是exists不管，场上不在的就拉下来当新玩家，把观众厅的名字移除掉，最后清理掉等待者为下一把做准备
             for (String name : waiters) {
-                boolean exists = false;
-                for (DpPlayer existing : r.getPlayers()) {
-                    if (existing.getNickname().equals(name)) {
-                        exists = true;
-                        break;
-                    }
-                }
+//                boolean exists = false;
+//                for (DpPlayer existing : r.getPlayers()) {
+//                    if (existing.getNickname().equals(name)) {
+//                        exists = true;
+//                        break;
+//                    }
+//                }
 
-                if (!exists) {
+//                if (!exists) {
                     DpPlayer np = new DpPlayer();
                     np.setNickname(name);
                     // 新加入的玩家带着默认筹码参与新一局
                     np.setChips(DpRoom.getChips());
                     np.setReady(true);
                     r.getPlayers().add(np);//新人就加入
-                }
+//                }
                 // 这些人已经回到牌桌，不再属于观众席
                 if (spectators != null) {//从观众席里拉下来了
                     spectators.remove(name);
@@ -425,11 +425,11 @@ public class DpRoomServiceImpl {
 //            p.setLeftThisHand(false);
             p.setHoleCards(Arrays.asList(r.getDeck().remove(0), r.getDeck().remove(0)));
         }
-
+//找当前玩家里是庄家的，如果没有默认从0号位开始
         // 庄家轮动
         Optional<DpPlayer> dealer = ps.stream().filter(DpPlayer::isDealer).findFirst();
         int did = dealer.map(ps::indexOf).orElse(0);
-        for (DpPlayer p : ps) p.setDealer(false);
+        for (DpPlayer p : ps) p.setDealer(false);//更新一轮
         did = (did + 1) % ps.size();
         ps.get(did).setDealer(true);
 
