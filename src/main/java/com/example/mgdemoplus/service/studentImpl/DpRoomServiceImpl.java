@@ -30,7 +30,14 @@ public class DpRoomServiceImpl {
                             it.remove();
                         }
                     }
-                    if (room.getPlayers().isEmpty()) {
+                    int size=0;//检测活人逻辑
+                    for(DpPlayer kickPlayer: room.getPlayers()){
+                        if(!kickPlayer.isLeftThisHand()){
+                            size+=1;
+                        }
+                    }
+                    if (size==0) {
+                        System.out.println("房间："+room.getRoomId()+"没活人了");
                         roomMap.remove(room.getRoomId());//房间空了就清人
                         continue;
                     }
@@ -281,19 +288,8 @@ public class DpRoomServiceImpl {
         if (!r.isPlaying()) {
             // 如果房主不在了（被踢了或主动走了），顺位继承
             if (r.getOwner().equals(nickname)) {
-                if (r.getPlayers().size() > 1) {
-                    for (DpPlayer candidate : r.getPlayers()) {
-                        if (!candidate.getNickname().equals(nickname)) {
-                            r.setOwner(candidate.getNickname());
-                            System.out.println("房间 " + r.getRoomId() + " 房主易位给: " + candidate.getNickname());
-                            break;
-                        }
-                    }
-                } else {
-                    // 没人了，准备销毁房间
-                    roomMap.remove(r.getRoomId());
-                    return true;
-                }
+
+                giveOwner(roomId,nickname);
             }
             return r.getPlayers().removeIf(p -> p.getNickname().equals(nickname));
         }
@@ -302,13 +298,14 @@ public class DpRoomServiceImpl {
 
         // 房主离开时，移交给仍在桌上的其他任意一名玩家
         if (r.getOwner().equals(nickname)) {
-            for (DpPlayer candidate : r.getPlayers()) {
-                if (!candidate.getNickname().equals(nickname)) {
-                    r.setOwner(candidate.getNickname());
-                    System.out.println("房间 " + r.getRoomId() + " 房主易位给: " + candidate.getNickname());
-                    break;
-                }
-            }
+//            for (DpPlayer candidate : r.getPlayers()) {
+//                if (!candidate.getNickname().equals(nickname)) {
+//                    r.setOwner(candidate.getNickname());
+//                    System.out.println("房间 " + r.getRoomId() + " 房主易位给: " + candidate.getNickname());
+//                    break;
+//                }
+//            }
+            giveOwner(roomId,nickname);
         }
 
         DpPlayer target = null;
@@ -329,8 +326,7 @@ public class DpRoomServiceImpl {
 
         // 标记为本手已离开：保留座位以维持庄家/行动顺序，但不再保留任何信息，仅作“该玩家已离线”占位
         target.setLeftThisHand(true);
-        target.setHoleCards(new ArrayList<>());  // 不保留手牌信息
-
+        target.setHoleCards(new ArrayList<>());  // 不保留手牌信息改
         // 如果当前正轮到他行动，等价于自动弃牌，再推进后续流程
         if (r.getCurrentActorIndex() == idx) {
             // fold 会将该玩家标记为弃牌并轮到下一个人
@@ -344,7 +340,28 @@ public class DpRoomServiceImpl {
 
         return true;
     }
-
+    // ========== 移交房主操作 =========
+    public void giveOwner(String roomId,String ownerNickname){
+        DpRoom room=roomMap.get(roomId);
+        int size = 0;
+        for (DpPlayer getActivePlayer: room.getPlayers()){
+            if(!getActivePlayer.isLeftThisHand()){
+                size+=1;//如果有活人就加一个
+            }
+        }
+        if(size==0){
+            System.out.println("没有活人了");
+            roomMap.remove(roomId);
+        }else {
+            for (DpPlayer candidate : room.getPlayers()) {//非本人也非僵尸
+                if (!candidate.getNickname().equals(ownerNickname) && !candidate.isLeftThisHand()) {
+                    room.setOwner(candidate.getNickname());
+                    System.out.println("房间 " + room.getRoomId() + " 房主易位给: " + candidate.getNickname());
+                    break;
+                }
+            }
+        }
+    }
     // ========== 游戏流程 ==========
 
     public boolean startGame(String roomId, String ownerNickname) {
