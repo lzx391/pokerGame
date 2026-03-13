@@ -97,7 +97,7 @@ export default {
 
         async fetchRoomInfo() {
             try {
-              const res = await this.$http.get('/dpRoom/getAllRooms',{
+              const res = await this.$http.get('/dpRoom/getNowRoom',{
                 params: { roomId: this.roomId }
               })
               const room = res.data

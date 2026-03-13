@@ -5,7 +5,7 @@ import java.util.List;
 
 public class DpPlayer {
     private String nickname;
-    private boolean ready;
+    private boolean ready = false;
     private int chips = 500;       // 初始500积分 = 50BB
     private List<String> holeCards = new ArrayList<>();
     private boolean fold = false;

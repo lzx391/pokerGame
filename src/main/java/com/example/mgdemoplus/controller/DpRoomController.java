@@ -24,7 +24,7 @@ public class DpRoomController {
         return dpRoomService.createRoom(nickname);
     }
 
-    @GetMapping("/getAllRooms")
+    @GetMapping("/getNowRoom")
     public DpRoom getAllRooms(@RequestParam String roomId) {
         return dpRoomService.getAllRooms(roomId);
     }
@@ -33,7 +33,9 @@ public class DpRoomController {
     public String joinRoom(@RequestParam String roomId, @RequestParam String nickname) {
         return dpRoomService.joinRoom(roomId, nickname);
     }
-
+/**
+ * 该房间内玩家是否能准备成功的接口
+ * */
     @PostMapping("/toggleReady")
     public String toggleReady(@RequestParam String roomId, @RequestParam String nickname) {
         return dpRoomService.toggleReady(roomId, nickname) ? "ok" : "fail";
