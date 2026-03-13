@@ -13,7 +13,7 @@ public class DpPlayer {
     private boolean isDealer = false;
     private int blind = 0;         // 0无 1小盲 2大盲
     private long lastHeartBeat = System.currentTimeMillis();
-    private boolean acted = false;  // 本轮是否已行动
+    private boolean acted = false;  // 本轮是否已行动，用来解决翻前跳过BB位的bug
 
     private int totalBet = 0;  // 本手牌累计下注（跨阶段不清零，newHand时才清零）
     private boolean allIn = false;  // 是否已全下
