@@ -587,7 +587,7 @@ export default {
     async loadGame() {
       this.loading = true
       try {
-        var res = await this.$http.get('/dpRoom/getAllRooms', {
+        var res = await this.$http.get('/dpRoom/getNowRoom', {
           params: {roomId: this.roomId}
         })
         var room = res.data

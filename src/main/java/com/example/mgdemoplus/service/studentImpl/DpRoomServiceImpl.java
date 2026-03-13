@@ -164,7 +164,7 @@ public class DpRoomServiceImpl {
         if (r.isPlaying()) {
             // 游戏中途进来：作为观众进入，记录到观众席名单
             // 为了保证“每次重新进入都是干净状态”，这里先确保不再保留上一轮的下一局预约状态
-            List<String> waiters = r.getWaitNextHand();
+            List<String> waiters = r.getWaitNextHand();//游戏已开局则获取等待者列表
             if (waiters != null) {
                 waiters.remove(nickname);
             }
@@ -178,11 +178,13 @@ public class DpRoomServiceImpl {
             }
             return "游戏已开始";
         }
+        //存疑
         for (DpPlayer p : r.getPlayers()) {
             // 已经在房间中的活跃玩家不允许重复加入；
             // 如果是上一手已经标记离开的玩家(leftThisHand)，视为不在房间内，可以重新加入
             if (p.getNickname().equals(nickname) && !p.isLeftThisHand()) return "你已在房间中";
         }
+        //添加新的玩家
         DpPlayer p = new DpPlayer();
         p.setNickname(nickname);
         r.getPlayers().add(p);
