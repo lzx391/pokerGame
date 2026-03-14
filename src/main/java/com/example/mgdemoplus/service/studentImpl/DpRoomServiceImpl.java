@@ -37,11 +37,11 @@ public class DpRoomServiceImpl {
                     for (DpPlayer kickPlayer : room.getPlayers()) {
                         if (!kickPlayer.isLeftThisHand()) {
                             size += 1;
-//                            System.out.println(kickPlayer.getNickname()+"是活人");
+                            System.out.println("定时器检测："+kickPlayer.getNickname()+"是活人");
                         }
                     }
                     if (size == 0) {
-                        System.out.println("房间：" + room.getRoomId() + "没活人了");
+                        System.out.println("定时器检测：房间：" + room.getRoomId() + "没活人了");
                         roomMap.remove(room.getRoomId());//房间空了就清人
                         continue;
                     }
@@ -365,16 +365,17 @@ public class DpRoomServiceImpl {
         for (DpPlayer getActivePlayer : room.getPlayers()) {
             if (!getActivePlayer.isLeftThisHand()) {
                 size += 1;//如果有活人就加一个
+                System.out.println("退出按钮检测："+getActivePlayer.getNickname()+"是活人");
             }
         }
         if (size == 0) {
-            System.out.println("没有活人了");
+            System.out.println("giveOwner：没有活人了");
             roomMap.remove(roomId);
         } else {
             for (DpPlayer candidate : room.getPlayers()) {//非本人也非僵尸
                 if (!candidate.getNickname().equals(ownerNickname) && !candidate.isLeftThisHand()) {
                     room.setOwner(candidate.getNickname());
-                    System.out.println("房间 " + room.getRoomId() + " 房主易位给: " + candidate.getNickname());
+                    System.out.println("giveOwner：房间 " + room.getRoomId() + " 房主易位给: " + candidate.getNickname());
                     break;
                 }
             }
@@ -622,15 +623,34 @@ public class DpRoomServiceImpl {
 
         // 非 showdown 阶段，找第一个可行动的人（跳过弃牌和 all-in）
         int newIndex = findFirstActorAfterDealer(r);
+        // 若场上只剩一人未弃牌，和“全员 all-in”一样：不设行动者，连推到摊牌并结算
+        int stillInCount = countPlayersStillInHand(r);
+        if (newIndex >= 0 && stillInCount <= 1) {
+            r.setCurrentActorIndex(-1);
+            return true;
+        }
         if (newIndex >= 0) {
             r.setCurrentActorIndex(newIndex);
             r.setLastActionTime(System.currentTimeMillis());
             return true;
         }
 
-// 所有人都 all-in 或弃牌了，没人能行动，直接标记本轮结束
+        // 所有人都 all-in 或弃牌了，没人能行动，直接标记本轮结束
         r.setCurrentActorIndex(-1);
         return true;
+    }
+
+    /**
+     * 统计本手牌中仍未弃牌且在局的玩家数量（未离开本手）。
+     * 用于判断“只剩一人”时是否连推到摊牌。
+     */
+    private int countPlayersStillInHand(DpRoom r) {
+        if (r == null || r.getPlayers() == null) return 0;
+        int count = 0;
+        for (DpPlayer p : r.getPlayers()) {
+            if (!p.isLeftThisHand() && !p.isFold()) count++;
+        }
+        return count;
     }
 
     /**
