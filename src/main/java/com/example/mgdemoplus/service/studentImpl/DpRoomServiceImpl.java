@@ -866,7 +866,76 @@ public class DpRoomServiceImpl {
             }
         }
 
-        return bestCards == null ? Collections.emptyList() : new ArrayList<>(bestCards);
+        if (bestCards == null || best == null) {
+            return Collections.emptyList();
+        }
+        return sortCardsForDisplay(new ArrayList<>(bestCards), best);
+    }
+
+    private static final Map<String, Integer> CARD_RANK_MAP = buildCardRankMap();
+
+    private static Map<String, Integer> buildCardRankMap() {
+        Map<String, Integer> m = new HashMap<>();
+        m.put("2", 2);
+        m.put("3", 3);
+        m.put("4", 4);
+        m.put("5", 5);
+        m.put("6", 6);
+        m.put("7", 7);
+        m.put("8", 8);
+        m.put("9", 9);
+        m.put("10", 10);
+        m.put("J", 11);
+        m.put("Q", 12);
+        m.put("K", 13);
+        m.put("A", 14);
+        return m;
+    }
+
+    /** 从牌字符串 "suit_rank" 解析出点数（2~14，A=14）。 */
+    private static int getRankFromCard(String card) {
+        if (card == null || !card.contains("_")) return 0;
+        String rankStr = card.split("_", 2)[1];
+        return CARD_RANK_MAP.getOrDefault(rankStr, 0);
+    }
+
+    /**
+     * 按牌型将 5 张牌排成「易读顺序」：三条为 J J J A 2，两对为 A A K K 2，一对为 J J A K 2 等。
+     */
+    private List<String> sortCardsForDisplay(List<String> cards, HandStrength strength) {
+        if (cards == null || cards.size() != 5 || strength == null) return cards;
+        int cat = strength.rankCategory;
+        List<Integer> ranks = strength.ranks;
+
+        // 高牌、顺子、同花、同花顺、皇家：按点数从大到小
+        if (cat == 1 || cat == 5 || cat == 6 || cat == 9 || cat == 10) {
+            boolean wheel = (cat == 5 || cat == 9) && ranks.size() >= 5 && ranks.get(0) == 5;
+            cards.sort((a, b) -> {
+                int ra = getRankFromCard(a);
+                int rb = getRankFromCard(b);
+                if (wheel) {
+                    int ia = (ra == 14) ? ranks.indexOf(1) : ranks.indexOf(ra);
+                    int ib = (rb == 14) ? ranks.indexOf(1) : ranks.indexOf(rb);
+                    return Integer.compare(ia, ib);
+                }
+                return Integer.compare(rb, ra);
+            });
+            return cards;
+        }
+
+        // 一对、两对、三条、葫芦、四条：按 ranks 中的组顺序排
+        cards.sort((a, b) -> {
+            int ra = getRankFromCard(a);
+            int rb = getRankFromCard(b);
+            int ia = ranks.indexOf(ra);
+            int ib = ranks.indexOf(rb);
+            if (ia < 0) ia = 999;
+            if (ib < 0) ib = 999;
+            int c = Integer.compare(ia, ib);
+            if (c != 0) return c;
+            return Integer.compare(rb, ra);
+        });
+        return cards;
     }
 
     /**
