@@ -22,6 +22,10 @@ public class DpRoom {
     private int pot = 0;
     private int currentBetToCall = 0;
     private static final int CHIPS =500;//全局筹码设置
+    private static final int SB_CHIPS =5;//小盲筹码设置
+    private static final int BB_CHIPS =10;//大盲筹码设置
+
+
     // 行动顺序
     private int currentActorIndex = -1;
     private long lastActionTime = 0;
@@ -69,4 +73,7 @@ public class DpRoom {
     public void setReadyDeadline(long readyDeadline) { this.readyDeadline = readyDeadline; }
     public static int getHeartTimeout() { return HEART_TIMEOUT; }
     public static int getChips() { return CHIPS; }
+    public static int getSBChips() { return SB_CHIPS; }
+    public static int getBBChips() { return BB_CHIPS; }
+
 }

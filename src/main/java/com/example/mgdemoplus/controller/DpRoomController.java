@@ -66,10 +66,10 @@ public class DpRoomController {
         return dpRoomService.fold(roomId, nickname) ? "ok" : "fail";
     }
 
-    @PostMapping("/nextStage")
-    public String nextStage(@RequestParam String roomId, @RequestParam String ownerNickname) {
-        return dpRoomService.nextStage(roomId) ? "ok" : "fail";
-    }
+//    @PostMapping("/nextStage")
+//    public String nextStage(@RequestParam String roomId, @RequestParam String ownerNickname) {
+//        return dpRoomService.nextStage(roomId) ? "ok" : "fail";
+//    }
 
     // 按池结算：参数格式 "0:Alice;1:Bob,Charlie"
     @PostMapping("/judgeWin")

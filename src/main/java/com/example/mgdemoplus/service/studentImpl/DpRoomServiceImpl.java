@@ -310,7 +310,7 @@ public class DpRoomServiceImpl {
 //            }
             giveOwner(roomId,nickname);
         }
-
+//这一步看他在不在桌上，不在直接退，在的话要设置为弃牌，甚至如果该他行动了，也要继续推进进程
         DpPlayer target = null;
         int idx = -1;
         List<DpPlayer> ps = r.getPlayers();
@@ -328,7 +328,7 @@ public class DpRoomServiceImpl {
         }
 
         // 标记为本手已离开：保留座位以维持庄家/行动顺序，但不再保留任何信息，仅作“该玩家已离线”占位
-        target.setLeftThisHand(true);
+        target.setLeftThisHand(true);//神之一手，变成僵尸了
         target.setHoleCards(new ArrayList<>());  // 不保留手牌信息改
         // 如果当前正轮到他行动，等价于自动弃牌，再推进后续流程
         if (r.getCurrentActorIndex() == idx) {
@@ -435,41 +435,45 @@ public class DpRoomServiceImpl {
         r.setReadyDeadline(0L);
 
         List<DpPlayer> ps = r.getPlayers();
-        for (DpPlayer p : ps) {
-//            p.setFold(false);
-//            p.setBet(0);
-//            p.setBlind(0);
-//            p.setActed(false);
-//            p.setTotalBet(0);
-//            p.setAllIn(false);
-//            p.setLeftThisHand(false);
+        for (DpPlayer p : ps) {//这里需要及时重置状态
+            p.setFold(false);
+            p.setBet(0);
+            p.setBlind(0);
+            p.setActed(false);
+            p.setTotalBet(0);
+            p.setAllIn(false);
+            p.setLeftThisHand(false);
             p.setHoleCards(Arrays.asList(r.getDeck().remove(0), r.getDeck().remove(0)));
         }
+        //留着上一把遗留下来的按钮以便确认下一把的按钮
 //找当前玩家里是庄家的，如果没有默认从0号位开始
         // 庄家轮动
         Optional<DpPlayer> dealer = ps.stream().filter(DpPlayer::isDealer).findFirst();
         int did = dealer.map(ps::indexOf).orElse(0);
+        System.out.println("上局庄位索引"+did);
+        System.out.println("玩家是:"+r.getPlayers().get(did).getNickname());
         for (DpPlayer p : ps) p.setDealer(false);//更新一轮
         did = (did + 1) % ps.size();
         ps.get(did).setDealer(true);
-
+        System.out.println("本局庄位"+did);
+        System.out.println("玩家是:"+r.getPlayers().get(did).getNickname());
         // 大小盲，如果人数大于2才有大小盲位
         if (ps.size() >= 2) {
             int sb = (did + 1) % ps.size();
             int bb = (did + 2) % ps.size();
 
             ps.get(sb).setBlind(1);
-            ps.get(sb).setChips(ps.get(sb).getChips() - 5);
-            ps.get(sb).setBet(5);
-            ps.get(sb).setTotalBet(5);      // 记入累计下注
+            ps.get(sb).setChips(ps.get(sb).getChips() - DpRoom.getSBChips());
+            ps.get(sb).setBet(DpRoom.getSBChips());
+            ps.get(sb).setTotalBet(DpRoom.getSBChips());      // 记入累计下注
 
             ps.get(bb).setBlind(2);
-            ps.get(bb).setChips(ps.get(bb).getChips() - 10);
-            ps.get(bb).setBet(10);
-            ps.get(bb).setTotalBet(10);     // 记入累计下注
+            ps.get(bb).setChips(ps.get(bb).getChips() - DpRoom.getBBChips());
+            ps.get(bb).setBet(DpRoom.getBBChips());
+            ps.get(bb).setTotalBet(DpRoom.getBBChips());     // 记入累计下注
 
-            r.setCurrentBetToCall(10);
-            r.setPot(15);                    // 大小盲计入底池
+            r.setCurrentBetToCall(DpRoom.getBBChips());
+            r.setPot(DpRoom.getBBChips()+DpRoom.getSBChips());                    // 大小盲计入底池
         }
 
         r.setCurrentActorIndex((did + 3) % ps.size());//翻前从大盲的下一个开始行动
@@ -528,11 +532,11 @@ public class DpRoomServiceImpl {
     /**
      * 外部调用：房主手动点击“下一阶段”
      */
-    public boolean nextStage(String roomId) {
-        DpRoom r = roomMap.get(roomId);
-        if (r == null || !r.isPlaying() || r.getCurrentActorIndex() >= 0) return false;
-        return advanceStage(r);
-    }
+//    public boolean nextStage(String roomId) {
+//        DpRoom r = roomMap.get(roomId);
+//        if (r == null || !r.isPlaying() || r.getCurrentActorIndex() >= 0) return false;
+//        return advanceStage(r);
+//    }
 
     /**
      * 内部通用：在一轮下注结束后推进阶段（翻牌/转牌/河牌/摊牌）
