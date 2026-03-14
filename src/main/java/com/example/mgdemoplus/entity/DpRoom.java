@@ -27,6 +27,7 @@ public class DpRoom {
 
 
     // 行动顺序
+    private int lastDealerIndex =0;
     private int currentActorIndex = -1;
     private long lastActionTime = 0;
     private static final int ACTION_TIMEOUT = 30000; // 30秒
@@ -76,4 +77,11 @@ public class DpRoom {
     public static int getSBChips() { return SB_CHIPS; }
     public static int getBBChips() { return BB_CHIPS; }
 
+    public int getLastDealerIndex() {
+        return lastDealerIndex;
+    }
+
+    public void setLastDealerIndex(int lastDealerIndex) {
+        this.lastDealerIndex = lastDealerIndex;
+    }
 }
