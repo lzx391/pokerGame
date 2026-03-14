@@ -30,6 +30,25 @@ export default {
       password: ""
     };
   },
+  created() {
+    const raw = localStorage.getItem("userInfo");
+    if (!raw) {
+      return;
+    }
+    try {
+      const user = JSON.parse(raw);
+      if (user && user.nickname && user.password) {
+        this.nickname = user.nickname;
+        this.password = user.password;
+        // 本地已有登录信息，直接免登录进入主页
+        this.$router.push("/home");
+      }
+    } catch (e) {
+      console.error("读取本地用户信息失败", e);
+      // 解析失败时清理异常数据，避免下次继续报错
+      localStorage.removeItem("userInfo");
+    }
+  },
   methods: {
     // 登录请求方法
     login() {

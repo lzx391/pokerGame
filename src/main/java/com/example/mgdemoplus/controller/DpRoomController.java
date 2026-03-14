@@ -24,7 +24,7 @@ public class DpRoomController {
         return dpRoomService.createRoom(nickname);
     }
 
-    @GetMapping("/getAllRooms")
+    @GetMapping("/getNowRoom")
     public DpRoom getAllRooms(@RequestParam String roomId) {
         return dpRoomService.getAllRooms(roomId);
     }
@@ -33,7 +33,9 @@ public class DpRoomController {
     public String joinRoom(@RequestParam String roomId, @RequestParam String nickname) {
         return dpRoomService.joinRoom(roomId, nickname);
     }
-
+/**
+ * 该房间内玩家是否能准备成功的接口
+ * */
     @PostMapping("/toggleReady")
     public String toggleReady(@RequestParam String roomId, @RequestParam String nickname) {
         return dpRoomService.toggleReady(roomId, nickname) ? "ok" : "fail";
@@ -64,10 +66,10 @@ public class DpRoomController {
         return dpRoomService.fold(roomId, nickname) ? "ok" : "fail";
     }
 
-    @PostMapping("/nextStage")
-    public String nextStage(@RequestParam String roomId, @RequestParam String ownerNickname) {
-        return dpRoomService.nextStage(roomId) ? "ok" : "fail";
-    }
+//    @PostMapping("/nextStage")
+//    public String nextStage(@RequestParam String roomId, @RequestParam String ownerNickname) {
+//        return dpRoomService.nextStage(roomId) ? "ok" : "fail";
+//    }
 
     // 按池结算：参数格式 "0:Alice;1:Bob,Charlie"
     @PostMapping("/judgeWin")
@@ -86,6 +88,24 @@ public class DpRoomController {
     @PostMapping("/readyNextHand")
     public String readyNextHand(@RequestParam String roomId, @RequestParam String nickname) {
         return dpRoomService.readyNextHand(roomId, nickname) ? "ok" : "fail";
+    }
+
+    /**
+     * 结算后筹码为 0 的玩家补码到初始筹码。
+     */
+    @PostMapping("/rebuy")
+    public String rebuy(@RequestParam String roomId, @RequestParam String nickname) {
+        return dpRoomService.rebuy(roomId, nickname) ? "ok" : "fail";
+    }
+
+    /**
+     * 房主主动移交房主给房间内的另一位玩家
+     */
+    @PostMapping("/transferOwner")
+    public String transferOwner(@RequestParam String roomId,
+                                @RequestParam String fromNickname,
+                                @RequestParam String toNickname) {
+        return dpRoomService.transferOwner(roomId, fromNickname, toNickname) ? "ok" : "fail";
     }
     @GetMapping("/getAllRooms2")
     public List<DpRoomDTO> getAllRooms2() {
