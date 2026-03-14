@@ -345,7 +345,7 @@ public class DpRoomServiceImpl {
         return true;
     }
 
-    // ========== 移交房主操作 =========
+    // ========== 顺位移交房主操作 =========
     public void giveOwner(String roomId, String ownerNickname) {
         DpRoom room = roomMap.get(roomId);
         int size = 0;
@@ -368,7 +368,7 @@ public class DpRoomServiceImpl {
         }
     }
 
-    //======== 设置空观众席 =========
+    //======== 获取观众席防null版本 =========
     public List<String> getNewSpectators(DpRoom r) {
         List<String> spectators = r.getSpectators();
         if (spectators == null) {
@@ -377,7 +377,45 @@ public class DpRoomServiceImpl {
         }
         return spectators;
     }
+// =========== 检查所有可参与游戏的人 =========
+    public List<DpPlayer> getAllCanPlayer(DpRoom r){
+        //防null
+        List<String> spectators =getNewSpectators(r);
+        r.setSpectators(spectators);
+        //防筹码不足
+        List<DpPlayer> canPlay = new ArrayList<>();
+        for (DpPlayer p : r.getPlayers()) {
+            if (p.getChips() < DpRoom.getBBChips()) {
+                if (!spectators.contains(p.getNickname())) {
+                    spectators.add(p.getNickname());
+                }
+            } else {
+                canPlay.add(p);
+            }
+        }
+        //拉取准备下一把的
+        List<String> waiters = r.getWaitNextHand();
+        if (waiters != null && !waiters.isEmpty()) {
+            //这段意思说场上准备的人和观众席准备的人都会被加入waiters，如果场上在的就是exists不管，场上不在的就拉下来当新玩家，把观众厅的名字移除掉，最后清理掉等待者为下一把做准备
+            for (String name : waiters) {
+//
+                DpPlayer np = new DpPlayer();
+                np.setNickname(name);
+                // 新加入的玩家带着默认筹码参与新一局
+                np.setChips(DpRoom.getChips());
+                np.setReady(true);
+                canPlay.add(np);//准备下一把的新人加入
 
+                // 这些人已经回到牌桌，不再属于观众席
+                if (spectators != null) {//从观众席里拉下来了
+                    spectators.remove(name);
+                }
+            }
+            waiters.clear();//及时清理掉等待者列表
+        }
+        return canPlay;
+
+    }
     // ========== 游戏流程 ==========
 
     public boolean startGame(String roomId, String ownerNickname) {
@@ -410,48 +448,8 @@ public class DpRoomServiceImpl {
         if (r == null || !r.isPlaying()) return false;
 
         // 把上一局观战并标记“下一局加入”的玩家，加入到本局的玩家列表中，并更新观众列表
-        List<String> waiters = r.getWaitNextHand();
-        if (waiters != null && !waiters.isEmpty()) {
-            List<String> spectators = r.getSpectators();
-            //这段意思说场上准备的人和观众席准备的人都会被加入waiters，如果场上在的就是exists不管，场上不在的就拉下来当新玩家，把观众厅的名字移除掉，最后清理掉等待者为下一把做准备
-            for (String name : waiters) {
-//                boolean exists = false;
-//                for (DpPlayer existing : r.getPlayers()) {
-//                    if (existing.getNickname().equals(name)) {
-//                        exists = true;
-//                        break;
-//                    }
-//                }
-
-//                if (!exists) {
-                DpPlayer np = new DpPlayer();
-                np.setNickname(name);
-                // 新加入的玩家带着默认筹码参与新一局
-                np.setChips(DpRoom.getChips());
-                np.setReady(true);
-                r.getPlayers().add(np);//新人就加入
-//                }
-                // 这些人已经回到牌桌，不再属于观众席
-                if (spectators != null) {//从观众席里拉下来了
-                    spectators.remove(name);
-                }
-            }
-            waiters.clear();
-        }
-// 检测是否有积分不足的玩家，清理到观众厅（不能边遍历边 remove，会抛 ConcurrentModificationException）
-        List<String> spectators =getNewSpectators(r);
-        r.setSpectators(spectators);
-        List<DpPlayer> canPlay = new ArrayList<>();
-        for (DpPlayer p : r.getPlayers()) {
-            if (p.getChips() < 10) {
-                if (!spectators.contains(p.getNickname())) {
-                    spectators.add(p.getNickname());
-                }
-            } else {
-                canPlay.add(p);
-            }
-        }
-        r.setPlayers(canPlay);
+// 检测是否有积分不足的玩家，清理到观众厅，都在getAllCanPlayer方法里
+        r.setPlayers(getAllCanPlayer(r));
 
         r.setDeck(newDeck());
         r.setCommunityCards(new ArrayList<>());
@@ -876,6 +874,7 @@ public class DpRoomServiceImpl {
             r.setCurrentStage("settled");
             r.setReadyDeadline(System.currentTimeMillis() + 30_000L);
             for (DpPlayer p : r.getPlayers()) {
+                //settle阶段会自动把大家的准备状态设置为false
                 p.setReady(false);
             }
             return;
