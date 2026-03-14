@@ -37,7 +37,7 @@ public class DpRoomServiceImpl {
                     for (DpPlayer kickPlayer : room.getPlayers()) {
                         if (!kickPlayer.isLeftThisHand()) {
                             size += 1;
-                            System.out.println("定时器检测："+kickPlayer.getNickname()+"是活人");
+//                            System.out.println("定时器检测："+kickPlayer.getNickname()+"是活人");
                         }
                     }
                     if (size == 0) {
@@ -492,7 +492,7 @@ public class DpRoomServiceImpl {
             did = r.getLastDealerIndex();
         }
         System.out.println("上局庄位索引" + did);
-        System.out.println("玩家是:" + r.getPlayers().get(did).getNickname());
+//        System.out.println("玩家是:" + r.getPlayers().get(did).getNickname());
         for (DpPlayer p : ps) p.setDealer(false);//更新一轮
         did = (did + 1) % ps.size();
 
