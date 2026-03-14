@@ -176,7 +176,7 @@
             </template>
           </div>
 
-          <!-- 牌型显示 -->
+          <!-- 牌型显示：文字 + 最大牌型的 5 张牌 -->
           <div v-if="communityCards.length >= 3 && communityCardsFlipComplete && (isMe(p.nickname) || ((stage === 'showdown' || stage === 'settled') && !p.fold))"
                style="margin-top:4px; text-align:center;">
             <template v-if="isMe(p.nickname)">
@@ -184,12 +184,28 @@
                     style="background:#e6f7ff; color:#1890ff; padding:3px 10px; border-radius:4px; font-weight:bold; font-size:12px; display:inline-block;">
                   {{ getHandRank(p.holeCards, communityCards) }}
                 </span>
+                <div v-if="p.bestHandCards && p.bestHandCards.length === 5" class="best-hand-cards"
+                     style="display:flex; gap:4px; justify-content:center; margin-top:6px; flex-wrap:wrap;">
+                  <div v-for="(c, ci) in p.bestHandCards" :key="'best'+ci"
+                       :class="[getCardClass(c), 'best-hand-card']"
+                       style="width:32px; height:46px; font-size:11px; display:inline-flex; align-items:center; justify-content:center; border-radius:4px;">
+                    {{ getCardDisplay(c) }}
+                  </div>
+                </div>
             </template>
             <template v-else-if="(stage === 'showdown' || stage === 'settled') && !p.fold">
                 <span
                     style="background:#f6ffed; color:#52c41a; padding:3px 10px; border-radius:4px; font-weight:bold; font-size:12px; display:inline-block;">
                   {{ getHandRank(p.holeCards, communityCards) }}
                 </span>
+                <div v-if="p.bestHandCards && p.bestHandCards.length === 5" class="best-hand-cards"
+                     style="display:flex; gap:4px; justify-content:center; margin-top:6px; flex-wrap:wrap;">
+                  <div v-for="(c, ci) in p.bestHandCards" :key="'best'+ci"
+                       :class="[getCardClass(c), 'best-hand-card']"
+                       style="width:32px; height:46px; font-size:11px; display:inline-flex; align-items:center; justify-content:center; border-radius:4px;">
+                    {{ getCardDisplay(c) }}
+                  </div>
+                </div>
             </template>
           </div>
 
@@ -1462,6 +1478,16 @@ export default {
   font-size: 12px;
 }
 .hand-rank-cards .hand-rank-card:hover {
+  transform: none;
+  filter: none;
+}
+
+/* 最大牌型 5 张牌：小尺寸，不做大 hover */
+.best-hand-cards .best-hand-card {
+  min-width: 32px;
+  min-height: 46px;
+}
+.best-hand-cards .best-hand-card:hover {
   transform: none;
   filter: none;
 }

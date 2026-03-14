@@ -23,6 +23,12 @@ public class DpPlayer {
      */
     private boolean leftThisHand = false;
 
+    /**
+     * 当前阶段下，该玩家用 2 张手牌 + 公共牌组成的最佳 5 张牌（用于前端展示“最大牌型”的牌面）。
+     * 由服务端在返回房间状态时按当前公共牌计算并填充，不持久化。
+     */
+    private List<String> bestHandCards = new ArrayList<>();
+
     // getter & setter
     public boolean isActed() { return acted; }
     public void setActed(boolean acted) { this.acted = acted; }
@@ -50,4 +56,6 @@ public class DpPlayer {
     public void setAllIn(boolean allIn) { this.allIn = allIn; }
     public boolean isLeftThisHand() { return leftThisHand; }
     public void setLeftThisHand(boolean leftThisHand) { this.leftThisHand = leftThisHand; }
+    public List<String> getBestHandCards() { return bestHandCards; }
+    public void setBestHandCards(List<String> bestHandCards) { this.bestHandCards = bestHandCards != null ? bestHandCards : new ArrayList<>(); }
 }

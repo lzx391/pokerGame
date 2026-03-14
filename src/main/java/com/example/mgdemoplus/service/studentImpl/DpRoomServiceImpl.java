@@ -179,7 +179,26 @@ public class DpRoomServiceImpl {
     }
 
     public DpRoom getAllRooms(String roomId) {
-        return roomMap.get(roomId);
+        DpRoom r = roomMap.get(roomId);
+        if (r == null) return null;
+        // 当公共牌不少于 3 张时，为每位有手牌的玩家计算并填充「最大牌型的 5 张牌」，供前端展示
+        List<String> community = r.getCommunityCards();
+        if (community != null && community.size() >= 3) {
+            for (DpPlayer p : r.getPlayers()) {
+                if (p.getHoleCards() != null && p.getHoleCards().size() >= 2) {
+                    List<String> all = new ArrayList<>(p.getHoleCards());
+                    all.addAll(community);
+                    p.setBestHandCards(getBestHandCards(all));
+                } else {
+                    p.setBestHandCards(Collections.emptyList());
+                }
+            }
+        } else {
+            for (DpPlayer p : r.getPlayers()) {
+                p.setBestHandCards(Collections.emptyList());
+            }
+        }
+        return r;
     }
 
     public String joinRoom(String roomId, String nickname) {
@@ -777,6 +796,77 @@ public class DpRoomServiceImpl {
         }
 
         return best == null ? new HandStrength(1, Collections.singletonList(0)) : best;
+    }
+
+    /**
+     * 从 7 张牌中选出构成最大牌型的那 5 张，返回其原始字符串列表（用于前端展示「最大牌型」的牌面）。
+     */
+    private List<String> getBestHandCards(List<String> cards) {
+        List<int[]> parsed = new ArrayList<>();
+        Map<String, Integer> rankMap = new HashMap<>();
+        rankMap.put("2", 2);
+        rankMap.put("3", 3);
+        rankMap.put("4", 4);
+        rankMap.put("5", 5);
+        rankMap.put("6", 6);
+        rankMap.put("7", 7);
+        rankMap.put("8", 8);
+        rankMap.put("9", 9);
+        rankMap.put("10", 10);
+        rankMap.put("J", 11);
+        rankMap.put("Q", 12);
+        rankMap.put("K", 13);
+        rankMap.put("A", 14);
+
+        for (String c : cards) {
+            if (c == null) continue;
+            String[] parts = c.split("_");
+            if (parts.length != 2) continue;
+            String suit = parts[0];
+            String rankStr = parts[1];
+            Integer rank = rankMap.get(rankStr);
+            if (rank == null) continue;
+            int suitCode;
+            switch (suit) {
+                case "hearts": suitCode = 0; break;
+                case "diamonds": suitCode = 1; break;
+                case "clubs": suitCode = 2; break;
+                case "spades": suitCode = 3; break;
+                default: suitCode = 4;
+            }
+            parsed.add(new int[]{rank, suitCode});
+        }
+
+        if (parsed.size() < 5) {
+            return Collections.emptyList();
+        }
+
+        int n = parsed.size();
+        HandStrength best = null;
+        List<String> bestCards = null;
+
+        for (int i = 0; i < n; i++) {
+            for (int j = i + 1; j < n; j++) {
+                for (int k = j + 1; k < n; k++) {
+                    for (int a = k + 1; a < n; a++) {
+                        for (int b = a + 1; b < n; b++) {
+                            List<int[]> hand = Arrays.asList(
+                                    parsed.get(i), parsed.get(j), parsed.get(k), parsed.get(a), parsed.get(b)
+                            );
+                            HandStrength hs = evaluateFiveCardHand(hand);
+                            if (best == null || hs.compareTo(best) > 0) {
+                                best = hs;
+                                bestCards = Arrays.asList(
+                                        cards.get(i), cards.get(j), cards.get(k), cards.get(a), cards.get(b)
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return bestCards == null ? Collections.emptyList() : new ArrayList<>(bestCards);
     }
 
     /**

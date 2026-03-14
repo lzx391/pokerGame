@@ -118,6 +118,7 @@ bet和fold可能会引起进程推进
 | nickname | 昵称 |
 | chips | 当前筹码 |
 | holeCards | 手牌 |
+| bestHandCards | 当前阶段由服务端计算的本玩家「最大牌型」对应的 5 张牌（仅用于前端展示，翻牌圈及以后且公共牌≥3 时才有值） |
 | bet / totalBet | 本轮下注、本手牌累计下注 |
 | fold / allIn | 是否弃牌 / 是否 All-in |
 | dealer / blind | 是否庄家 / 盲注类型（如 SB、BB） |
