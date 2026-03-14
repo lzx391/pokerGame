@@ -26,21 +26,22 @@ public class DpRoomServiceImpl {
                         // 本手已离线的“占位”玩家不因心跳踢出，留到结算时再移除，以保持行动顺序
                         if (p.isLeftThisHand()) continue;
                         if (System.currentTimeMillis() - p.getLastHeartBeat() > DpRoom.getHeartTimeout()) {
-                            if(p.getNickname().equals(room.getOwner())){
+                            if (p.getNickname().equals(room.getOwner())) {
                                 giveOwner(room.getRoomId(), p.getNickname());
                             }
-                            System.out.println("未收到"+p.getNickname()+"的心跳,已移除房间");
+                            System.out.println("未收到" + p.getNickname() + "的心跳,已移除房间");
                             it.remove();
                         }
                     }
-                    int size=0;//检测活人逻辑
-                    for(DpPlayer kickPlayer: room.getPlayers()){
-                        if(!kickPlayer.isLeftThisHand()){
-                            size+=1;
+                    int size = 0;//检测活人逻辑
+                    for (DpPlayer kickPlayer : room.getPlayers()) {
+                        if (!kickPlayer.isLeftThisHand()) {
+                            size += 1;
+//                            System.out.println(kickPlayer.getNickname()+"是活人");
                         }
                     }
-                    if (size==0) {
-                        System.out.println("房间："+room.getRoomId()+"没活人了");
+                    if (size == 0) {
+                        System.out.println("房间：" + room.getRoomId() + "没活人了");
                         roomMap.remove(room.getRoomId());//房间空了就清人
                         continue;
                     }
@@ -292,7 +293,7 @@ public class DpRoomServiceImpl {
             // 如果房主不在了（被踢了或主动走了），顺位继承
             if (r.getOwner().equals(nickname)) {
 
-                giveOwner(roomId,nickname);
+                giveOwner(roomId, nickname);
             }
             return r.getPlayers().removeIf(p -> p.getNickname().equals(nickname));
         }
@@ -308,7 +309,7 @@ public class DpRoomServiceImpl {
 //                    break;
 //                }
 //            }
-            giveOwner(roomId,nickname);
+            giveOwner(roomId, nickname);
         }
 //这一步看他在不在桌上，不在直接退，在的话要设置为弃牌，甚至如果该他行动了，也要继续推进进程
         DpPlayer target = null;
@@ -343,19 +344,20 @@ public class DpRoomServiceImpl {
 
         return true;
     }
+
     // ========== 移交房主操作 =========
-    public void giveOwner(String roomId,String ownerNickname){
-        DpRoom room=roomMap.get(roomId);
+    public void giveOwner(String roomId, String ownerNickname) {
+        DpRoom room = roomMap.get(roomId);
         int size = 0;
-        for (DpPlayer getActivePlayer: room.getPlayers()){
-            if(!getActivePlayer.isLeftThisHand()){
-                size+=1;//如果有活人就加一个
+        for (DpPlayer getActivePlayer : room.getPlayers()) {
+            if (!getActivePlayer.isLeftThisHand()) {
+                size += 1;//如果有活人就加一个
             }
         }
-        if(size==0){
+        if (size == 0) {
             System.out.println("没有活人了");
             roomMap.remove(roomId);
-        }else {
+        } else {
             for (DpPlayer candidate : room.getPlayers()) {//非本人也非僵尸
                 if (!candidate.getNickname().equals(ownerNickname) && !candidate.isLeftThisHand()) {
                     room.setOwner(candidate.getNickname());
@@ -365,6 +367,17 @@ public class DpRoomServiceImpl {
             }
         }
     }
+
+    //======== 设置空观众席 =========
+    public List<String> getNewSpectators(DpRoom r) {
+        List<String> spectators = r.getSpectators();
+        if (spectators == null) {
+            spectators = new ArrayList<>();
+           return spectators;
+        }
+        return spectators;
+    }
+
     // ========== 游戏流程 ==========
 
     public boolean startGame(String roomId, String ownerNickname) {
@@ -396,11 +409,11 @@ public class DpRoomServiceImpl {
         DpRoom r = roomMap.get(roomId);
         if (r == null || !r.isPlaying()) return false;
 
-        // 把上一局观战并标记“下一局加入”的玩家，加入到本局的玩家列表中
+        // 把上一局观战并标记“下一局加入”的玩家，加入到本局的玩家列表中，并更新观众列表
         List<String> waiters = r.getWaitNextHand();
         if (waiters != null && !waiters.isEmpty()) {
             List<String> spectators = r.getSpectators();
-           //这段意思说场上准备的人和观众席准备的人都会被加入waiters，如果场上在的就是exists不管，场上不在的就拉下来当新玩家，把观众厅的名字移除掉，最后清理掉等待者为下一把做准备
+            //这段意思说场上准备的人和观众席准备的人都会被加入waiters，如果场上在的就是exists不管，场上不在的就拉下来当新玩家，把观众厅的名字移除掉，最后清理掉等待者为下一把做准备
             for (String name : waiters) {
 //                boolean exists = false;
 //                for (DpPlayer existing : r.getPlayers()) {
@@ -411,12 +424,12 @@ public class DpRoomServiceImpl {
 //                }
 
 //                if (!exists) {
-                    DpPlayer np = new DpPlayer();
-                    np.setNickname(name);
-                    // 新加入的玩家带着默认筹码参与新一局
-                    np.setChips(DpRoom.getChips());
-                    np.setReady(true);
-                    r.getPlayers().add(np);//新人就加入
+                DpPlayer np = new DpPlayer();
+                np.setNickname(name);
+                // 新加入的玩家带着默认筹码参与新一局
+                np.setChips(DpRoom.getChips());
+                np.setReady(true);
+                r.getPlayers().add(np);//新人就加入
 //                }
                 // 这些人已经回到牌桌，不再属于观众席
                 if (spectators != null) {//从观众席里拉下来了
@@ -425,6 +438,20 @@ public class DpRoomServiceImpl {
             }
             waiters.clear();
         }
+// 检测是否有积分不足的玩家，清理到观众厅（不能边遍历边 remove，会抛 ConcurrentModificationException）
+        List<String> spectators =getNewSpectators(r);
+        r.setSpectators(spectators);
+        List<DpPlayer> canPlay = new ArrayList<>();
+        for (DpPlayer p : r.getPlayers()) {
+            if (p.getChips() < 10) {
+                if (!spectators.contains(p.getNickname())) {
+                    spectators.add(p.getNickname());
+                }
+            } else {
+                canPlay.add(p);
+            }
+        }
+        r.setPlayers(canPlay);
 
         r.setDeck(newDeck());
         r.setCommunityCards(new ArrayList<>());
@@ -450,13 +477,13 @@ public class DpRoomServiceImpl {
         // 庄家轮动
         Optional<DpPlayer> dealer = ps.stream().filter(DpPlayer::isDealer).findFirst();
         int did = dealer.map(ps::indexOf).orElse(0);
-        System.out.println("上局庄位索引"+did);
-        System.out.println("玩家是:"+r.getPlayers().get(did).getNickname());
+        System.out.println("上局庄位索引" + did);
+        System.out.println("玩家是:" + r.getPlayers().get(did).getNickname());
         for (DpPlayer p : ps) p.setDealer(false);//更新一轮
         did = (did + 1) % ps.size();
         ps.get(did).setDealer(true);
-        System.out.println("本局庄位"+did);
-        System.out.println("玩家是:"+r.getPlayers().get(did).getNickname());
+        System.out.println("本局庄位" + did);
+        System.out.println("玩家是:" + r.getPlayers().get(did).getNickname());
         // 大小盲，如果人数大于2才有大小盲位
         if (ps.size() >= 2) {
             int sb = (did + 1) % ps.size();
@@ -473,7 +500,7 @@ public class DpRoomServiceImpl {
             ps.get(bb).setTotalBet(DpRoom.getBBChips());     // 记入累计下注
 
             r.setCurrentBetToCall(DpRoom.getBBChips());
-            r.setPot(DpRoom.getBBChips()+DpRoom.getSBChips());                    // 大小盲计入底池
+            r.setPot(DpRoom.getBBChips() + DpRoom.getSBChips());                    // 大小盲计入底池
         }
 
         r.setCurrentActorIndex((did + 3) % ps.size());//翻前从大盲的下一个开始行动
@@ -1046,12 +1073,13 @@ public class DpRoomServiceImpl {
      * - 先让积分 < 10 的人去观众厅（兼顾输光的人：不强行带入下一把）
      * - 剩余桌上人数 + 观众里报名下一局的(waitNextHand) >= 2，且桌上的人全都 ready，则立刻开下一局
      */
-    private void checkAndStartNextHandAfterSettle(DpRoom r) {
+    private void checkAndStartNextHandAfterSettleOrigin(DpRoom r) {
         if (r == null || !r.isPlaying()) return;
         if (!"settled".equals(r.getCurrentStage())) return;
 
         List<DpPlayer> ps = r.getPlayers();
         if (ps == null || ps.isEmpty()) return;
+//这里判断一下如果场上有能力准备的人都准备了，就开
 
         // 先让积分不足大盲(10)的人去观众厅，他们可以之后补码再点“准备在下一局加入对局”
         List<String> spectators = r.getSpectators();
@@ -1082,6 +1110,27 @@ public class DpRoomServiceImpl {
 
         r.setReadyDeadline(0L);
         newHand(r.getRoomId());
+    }
+
+    private void checkAndStartNextHandAfterSettle(DpRoom r) {
+        int size = 0;
+        int size1 = 0;
+        //算所有场上有能力准备下一场的人数
+        for (DpPlayer player : r.getPlayers()) {
+            if (player.getChips() >= 10) {
+                size += 1;
+            }
+        }
+        //算已经准备的人数
+        for (DpPlayer player : r.getPlayers()) {
+            if (player.isReady()) {
+                size1 += 1;
+            }
+        }
+        //如果有能力的人齐了就可以开始newHand了，拉人踢人开场
+        if (size == size1) {
+            newHand(r.getRoomId());
+        }
     }
 
     /**
@@ -1126,6 +1175,7 @@ public class DpRoomServiceImpl {
         }
         return false;
     }
+
     /**
      * 找到翻后每圈的第一个行动者：
      * 从庄家位 D 左边第一个玩家开始，跳过已弃牌 / 已 all-in 的玩家。
@@ -1163,6 +1213,7 @@ public class DpRoomServiceImpl {
         // 全部人都弃牌或 all-in 时，没有人需要行动
         return -1;
     }
+
     public List<DpRoomDTO> getAllRooms2() {
         return roomMap.values().stream()
                 .map(room -> {
