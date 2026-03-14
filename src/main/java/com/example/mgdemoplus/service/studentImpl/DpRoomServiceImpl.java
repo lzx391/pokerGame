@@ -111,6 +111,19 @@ public class DpRoomServiceImpl {
     }
 
     /**
+     * 统计仍在局内、未弃牌的玩家数（排除已离线的占位）。
+     * 用于判断是否「只剩一人」，若为 1 则直接推进到摊牌并结算。
+     */
+    private int countActiveNotFolded(DpRoom r) {
+        if (r == null || r.getPlayers() == null) return 0;
+        int count = 0;
+        for (DpPlayer p : r.getPlayers()) {
+            if (!p.isLeftThisHand() && !p.isFold()) count++;
+        }
+        return count;
+    }
+
+    /**
      * 计算主池和边池
      * 在进入 showdown 时调用
      */
@@ -373,14 +386,15 @@ public class DpRoomServiceImpl {
         List<String> spectators = r.getSpectators();
         if (spectators == null) {
             spectators = new ArrayList<>();
-           return spectators;
+            return spectators;
         }
         return spectators;
     }
-// =========== 检查所有可参与游戏的人 =========
-    public List<DpPlayer> getAllCanPlayer(DpRoom r){
+
+    // =========== 检查所有可参与游戏的人 =========
+    public List<DpPlayer> getAllCanPlayer(DpRoom r) {
         //防null
-        List<String> spectators =getNewSpectators(r);
+        List<String> spectators = getNewSpectators(r);
         r.setSpectators(spectators);
         //防筹码不足
         List<DpPlayer> canPlay = new ArrayList<>();
@@ -458,7 +472,7 @@ public class DpRoomServiceImpl {
         r.setPots(new ArrayList<>());
         r.setCurrentBetToCall(0);
         r.setReadyDeadline(0L);
-
+        int did =0;//庄家索引
         List<DpPlayer> ps = r.getPlayers();
         for (DpPlayer p : ps) {//这里需要及时重置状态
             p.setFold(false);
@@ -473,13 +487,16 @@ public class DpRoomServiceImpl {
         //留着上一把遗留下来的按钮以便确认下一把的按钮
 //找当前玩家里是庄家的，如果没有默认从0号位开始
         // 庄家轮动
-        Optional<DpPlayer> dealer = ps.stream().filter(DpPlayer::isDealer).findFirst();
-        int did = dealer.map(ps::indexOf).orElse(0);
+        if(r.getLastDealerIndex()!=0){//如果上局不是0，那就把did更新，如果是0，那按上把是0算
+            did = r.getLastDealerIndex();
+        }
         System.out.println("上局庄位索引" + did);
         System.out.println("玩家是:" + r.getPlayers().get(did).getNickname());
         for (DpPlayer p : ps) p.setDealer(false);//更新一轮
         did = (did + 1) % ps.size();
+
         ps.get(did).setDealer(true);
+        r.setLastDealerIndex(did);//把这局的庄家索引记录下来
         System.out.println("本局庄位" + did);
         System.out.println("玩家是:" + r.getPlayers().get(did).getNickname());
         // 大小盲，如果人数大于2才有大小盲位
