@@ -179,6 +179,7 @@ public class DpRoomServiceImpl {
     }
 
     public DpRoom getAllRooms(String roomId) {
+
         DpRoom r = roomMap.get(roomId);
         if (r == null) return null;
         // 当公共牌不少于 3 张时，为每位有手牌的玩家计算并填充「最大牌型的 5 张牌」，供前端展示
