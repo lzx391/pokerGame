@@ -184,3 +184,265 @@ bet和fold可能会引起进程推进
 ## 阶段自动推进
 
 当本街无人需要行动时（所有人都跟齐、都 All-in，或只剩一人未弃牌），后端会**自动推进**到下一街，直至摊牌；一般无需房主手动点「下一阶段」。摊牌后由房主通过 `judgeWin` 指定赢家并结算。
+
+---
+
+## 实时展示“自己最大手牌”功能说明
+
+这一块可以理解为：**后端算出“哪 5 张牌是你当前能组成的最大牌型”，前端轮询房间状态时一并拿到，并在界面上实时展示**。实现分为三层：
+
+- **后端服务层：计算并填充每个玩家当前最佳 5 张牌（`bestHandCards`）**
+- **接口层：`/dpRoom/getNowRoom` 周期性返回包含 `bestHandCards` 在内的房间快照**
+- **前端页面：`game.vue` 将 `bestHandCards` 和本地计算的牌型文字 `getHandRank` 一起展示出来**
+
+### 一、后端：`DpRoomServiceImpl` 中的核心逻辑
+
+#### 1. 房间查询入口 `getAllRooms(String roomId)`
+
+```181:201:src/main/java/com/example/mgdemoplus/service/studentImpl/DpRoomServiceImpl.java
+    public DpRoom getAllRooms(String roomId) {
+        DpRoom r = roomMap.get(roomId);
+        if (r == null) return null;
+        // 当公共牌不少于 3 张时，为每位有手牌的玩家计算并填充「最大牌型的 5 张牌」，供前端展示
+        List<String> community = r.getCommunityCards();
+        if (community != null && community.size() >= 3) {
+            for (DpPlayer p : r.getPlayers()) {
+                if (p.getHoleCards() != null && p.getHoleCards().size() >= 2) {
+                    List<String> all = new ArrayList<>(p.getHoleCards());
+                    all.addAll(community);
+                    p.setBestHandCards(getBestHandCards(all));
+                } else {
+                    p.setBestHandCards(Collections.emptyList());
+                }
+            }
+        } else {
+            for (DpPlayer p : r.getPlayers()) {
+                p.setBestHandCards(Collections.emptyList());
+            }
+        }
+        return r;
+    }
+```
+
+- **调用时机**：前端轮询接口 `GET /dpRoom/getNowRoom?roomId=` 时，Controller 会调用这个方法，把当前房间 `DpRoom` 返回给前端。
+- **逻辑要点**：
+  - 只有当 **公共牌数量 ≥ 3**（翻牌圈及以后），才开始计算“最大手牌”，避免在只有手牌时做无意义运算。
+  - 对每个玩家 `DpPlayer`：
+    - 若手牌存在且有 2 张，合并「2 张手牌 + 公共牌」得到最多 7 张牌列表 `all`。
+    - 调用 `getBestHandCards(all)` 得到当前能组成的**最佳 5 张牌**，赋值给 `p.bestHandCards`。
+    - 否则（比如还没发手牌），`bestHandCards` 设为空列表。
+  - 如果公共牌不足 3 张，则所有玩家的 `bestHandCards` 都清空，前端自然不展示。
+
+#### 2. 选出“最佳 5 张牌”的算法 `getBestHandCards`
+
+```804:873:src/main/java/com/example/mgdemoplus/service/studentImpl/DpRoomServiceImpl.java
+    private List<String> getBestHandCards(List<String> cards) {
+        List<int[]> parsed = new ArrayList<>();
+        Map<String, Integer> rankMap = new HashMap<>();
+        // rankMap: "2"~"A" -> 2~14
+        ...
+        for (String c : cards) {
+            if (c == null) continue;
+            String[] parts = c.split("_");
+            ...
+            parsed.add(new int[]{rank, suitCode});
+        }
+        if (parsed.size() < 5) {
+            return Collections.emptyList();
+        }
+        int n = parsed.size();
+        HandStrength best = null;
+        List<String> bestCards = null;
+        // 生成所有 C(n,5) 组合，逐一评价
+        for (int i = 0; i < n; i++) {
+            for (int j = i + 1; j < n; j++) {
+                for (int k = j + 1; k < n; k++) {
+                    for (int a = k + 1; a < n; a++) {
+                        for (int b = a + 1; b < n; b++) {
+                            List<int[]> hand = Arrays.asList(
+                                    parsed.get(i), parsed.get(j), parsed.get(k), parsed.get(a), parsed.get(b)
+                            );
+                            HandStrength hs = evaluateFiveCardHand(hand);
+                            if (best == null || hs.compareTo(best) > 0) {
+                                best = hs;
+                                bestCards = Arrays.asList(
+                                        cards.get(i), cards.get(j), cards.get(k), cards.get(a), cards.get(b)
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (bestCards == null || best == null) {
+            return Collections.emptyList();
+        }
+        return sortCardsForDisplay(new ArrayList<>(bestCards), best);
+    }
+```
+
+- **输入**：长度 5~7 的牌字符串列表（格式 `"hearts_A"` 这种）。
+- **处理步骤**：
+  1. 先把字符串解析成 `rank`（2~14，对应 2~A）和 `suitCode`（红桃/方片/梅花/黑桃）。
+  2. 枚举所有 `C(n, 5)` 个 5 张牌组合（德扑标准：7 选 5）。
+  3. 对每个 5 张组合调用 `evaluateFiveCardHand(hand)` 计算牌型强度，得到一个 `HandStrength`：
+     - `rankCategory`：牌型大类（如 10=皇家同花顺，9=同花顺，8=四条，…，1=高牌）。
+     - `ranks`：用来打平的点数列表（比如四条 AAAA2 的 [A,2]）。
+  4. 按 `HandStrength.compareTo` 挑出**牌力最大**的那一组 5 张牌，对应的原始字符串保存到 `bestCards`。
+  5. 最后调用 `sortCardsForDisplay(bestCards, best)` 做一个「更好看」的顺序整理，比如：
+     - 三条显示为 `J J J A 2`
+     - 两对显示为 `A A K K 2`
+- **输出**：已经排好顺序、长度固定为 5 的字符串列表，直接给前端渲染。
+
+> 总结：服务端负责“从 7 张里挑 5 张 + 牌力评估 + 排序”，最终以 `DpPlayer.bestHandCards` 字段的形式挂在玩家对象上，随着房间状态一起返回前端。
+
+### 二、接口层：前端如何拿到 `bestHandCards`
+
+前端 `game.vue` 里有一个**每秒轮询**房间状态的方法 `loadGame`：
+
+```603:637:src/main/java/com/example/mgdemoplus/front/dp_game/src/components/game.vue
+    async loadGame() {
+      this.loading = true
+      try {
+        var res = await this.$http.get('/dpRoom/getNowRoom', {
+          params: {roomId: this.roomId}
+        })
+        var room = res.data
+        if (!room) {
+          ...
+        }
+        this.owner = room.owner
+        this.players = room.players || []
+        this.playing = room.playing
+        this.stage = room.currentStage
+        this.communityCards = room.communityCards || []
+        this.syncCommunityCardsFlipState(room.communityCards || [])
+        this.pot = room.pot
+        this.pots = room.pots || []
+        this.currentBetToCall = room.currentBetToCall
+        this.actIndex = room.currentActorIndex
+        this.spectators = room.spectators || []
+        // 报名下一局状态以服务端为准
+        var list = room.waitNextHand || []
+        this.nextHandReady = !!(this.user && list.indexOf(this.user.nickname) !== -1)
+      } finally {
+        this.loading = false
+      }
+    },
+```
+
+- 这里的 `room.players` 实际上就是刚才 `getAllRooms` 返回的 `DpPlayer` 列表，**已经包含了 `bestHandCards` 字段**。
+- 因为前端用的是 `this.players = room.players || []` 直接整包替换，所以每一次轮询，`players[i].bestHandCards` 都会被最新值覆盖，实现了“实时更新”。
+
+> 调用关系（从前端往后看）：
+>
+> - `game.vue` 每秒调一次 `GET /dpRoom/getNowRoom`
+> - Controller 内部调用 `DpRoomServiceImpl.getAllRooms(roomId)`
+> - `getAllRooms` 根据当前公共牌和手牌计算每个玩家的 `bestHandCards`
+> - 前端拿到新的 `room.players`，界面随之刷新。
+
+### 三、前端展示：`game.vue` 中的显示逻辑
+
+#### 1. 模板中展示文字牌型 + 5 张最佳牌
+
+```179:210:src/main/java/com/example/mgdemoplus/front/dp_game/src/components/game.vue
+          <!-- 牌型显示：文字 + 最大牌型的 5 张牌 -->
+          <div v-if="communityCards.length >= 3 && communityCardsFlipComplete && (isMe(p.nickname) || ((stage === 'showdown' || stage === 'settled') && !p.fold))"
+               style="margin-top:4px; text-align:center;">
+            <template v-if="isMe(p.nickname)">
+                <span
+                    style="background:#e6f7ff; color:#1890ff; padding:3px 10px; border-radius:4px; font-weight:bold; font-size:12px; display:inline-block;">
+                  {{ getHandRank(p.holeCards, communityCards) }}
+                </span>
+                <div v-if="p.bestHandCards && p.bestHandCards.length === 5" class="best-hand-cards"
+                     style="display:flex; gap:4px; justify-content:center; margin-top:6px; flex-wrap:wrap;">
+                  <div v-for="(c, ci) in p.bestHandCards" :key="'best'+ci"
+                       :class="[getCardClass(c), 'best-hand-card']"
+                       style="width:32px; height:46px; font-size:11px; display:inline-flex; align-items:center; justify-content:center; border-radius:4px;">
+                    {{ getCardDisplay(c) }}
+                  </div>
+                </div>
+            </template>
+            <template v-else-if="(stage === 'showdown' || stage === 'settled') && !p.fold">
+                <span
+                    style="background:#f6ffed; color:#52c41a; padding:3px 10px; border-radius:4px; font-weight:bold; font-size:12px; display:inline-block;">
+                  {{ getHandRank(p.holeCards, communityCards) }}
+                </span>
+                <div v-if="p.bestHandCards && p.bestHandCards.length === 5" class="best-hand-cards"
+                     style="display:flex; gap:4px; justify-content:center; margin-top:6px; flex-wrap:wrap;">
+                  <div v-for="(c, ci) in p.bestHandCards" :key="'best'+ci"
+                       :class="[getCardClass(c), 'best-hand-card']"
+                       style="width:32px; height:46px; font-size:11px; display:inline-flex; align-items:center; justify-content:center; border-radius:4px;">
+                    {{ getCardDisplay(c) }}
+                  </div>
+                </div>
+            </template>
+          </div>
+```
+
+这里做了几件事：
+
+- **显示条件**（最外层 `v-if`）：
+  - 公共牌数量 ≥ 3 且公共牌翻牌动画已完成（`communityCardsFlipComplete` 为 true）。
+  - 且满足以下其一：
+    - 这是「我自己」的玩家卡片（`isMe(p.nickname)`），无论是否到摊牌都能看到；
+    - 或者已经到了 `showdown/settled` 阶段且该玩家未弃牌（只在摊牌亮出未弃牌玩家的牌）。
+- **展示内容**：
+  - `getHandRank(p.holeCards, communityCards)`：在前端本地再次根据“2+5”算出一个**中文牌型名字**（如“同花顺”、“两对”），只用来显示文字。
+  - `p.bestHandCards`：直接用后端算好的那 5 张牌原始字符串，配合 `getCardClass` / `getCardDisplay` 渲染为小牌方块。
+
+> 设计上的安全性：
+>
+> - **对自己**：从翻牌圈开始，只要有 ≥3 张公共牌，就能看到“自己当前最强 5 张牌”和牌型名称，方便判断走势。
+> - **对别人**：在真正摊牌前，别人的手牌依然盖着，`bestHandCards` 也不会被显示出来，避免剧透。
+
+#### 2. 前端的牌型评估（文字版）`getHandRank`
+
+```1088:1135:src/main/java/com/example/mgdemoplus/front/dp_game/src/components/game.vue
+    getHandRank(holeCards, communityCards) {
+      if (!holeCards || holeCards.length < 2 || !communityCards || communityCards.length < 3) {
+        return '牌不足'
+      }
+      // 合并所有牌
+      var allCards = holeCards.concat(communityCards)
+      // 解析 + 生成所有 5 张组合 + evaluateHand，返回最高分对应的 name
+      ...
+      return bestName
+    },
+```
+
+```1158:1260:src/main/java/com/example/mgdemoplus/front/dp_game/src/components/game.vue
+    evaluateHand(cards) {
+      ...
+      // 皇家同花顺
+      if (isFlush && isStraight && ranks[0] === 14 && ranks[1] === 13) {
+        return {score: 10, name: '皇家同花顺'}
+      }
+      // 同花顺
+      ...
+      // 高牌
+      return {score: 1, name: '高牌'}
+    }
+```
+
+- 这部分逻辑和后端的 `evaluateBestHand/evaluateFiveCardHand` 思路基本一致，但**只返回一个简单的 `{score, name}`**，用于展示。
+- 文案是中文的：皇家同花顺 / 同花顺 / 四条 / 葫芦 / 同花 / 顺子 / 三条 / 两对 / 一对 / 高牌。
+
+> 注意：**真正的底池结算完全依赖后端** 的 `HandStrength` 比较结果，前端这套纯展示，不影响输赢。
+
+### 四、整体调用关系小结（给未来的你看）
+
+1. **抽象目标**：让玩家在翻牌后随时看到“自己当前能拼出的最大 5 张牌是什么、牌型叫什么”，但又不暴露别人还没亮的底牌。
+2. **数据流**：
+   - 后端 `getAllRooms(roomId)` 在公共牌 ≥3 张时为每位玩家计算 `bestHandCards`（7 选 5 + 牌力评估）。
+   - Controller 把带有 `players[*].bestHandCards` 的房间对象序列化成 JSON，返回给前端。
+   - 前端 `game.vue` 每秒轮询 `/dpRoom/getNowRoom`，刷新 `this.players`。
+3. **展示层控制**：
+   - 只有自己，或者已到摊牌/结算阶段的未弃牌玩家，才展示对应的最大手牌和牌型名字。
+   - 展示时用后端给的 `bestHandCards` + 前端自算的 `getHandRank` 组合起来。
+
+如果后续要改这块逻辑（例如：想隐藏“实时最大牌型”，只在摊牌才显示），可以从这三个点入手：
+
+- 在 `getAllRooms` 里改 `bestHandCards` 的填充时机；
+- 或者在前端模板里放宽/收紧 `v-if` 条件；
+- 或者干脆只保留后端结算逻辑，把前端 `getHandRank` 用作“牌型说明弹窗”的示例，而不显示在每个玩家卡片上。
