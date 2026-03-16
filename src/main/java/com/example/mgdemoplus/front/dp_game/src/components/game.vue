@@ -74,6 +74,121 @@
       </div>
     </div>
 
+    <!-- 房主神器弹窗 -->
+    <div v-if="showOwnerToolModal" class="hand-rank-modal-mask" @click="closeOwnerToolPanel">
+      <div class="hand-rank-modal" @click.stop>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+          <span style="font-size:18px; font-weight:bold;">房主神器</span>
+          <button @click="closeOwnerToolPanel"
+                  style="background:#d9d9d9; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; font-size:16px; line-height:1;">×
+          </button>
+        </div>
+
+        <div style="margin-bottom:12px; font-size:13px; color:#666;">
+          仅显示当前在本局中的玩家（不含房主与僵尸位）。
+        </div>
+
+        <!-- 操作类型选择 -->
+        <div style="display:flex; gap:8px; margin-bottom:12px;">
+          <button
+              @click="ownerToolType = 'transfer'"
+              :style="{
+                padding: '6px 10px',
+                borderRadius: '4px',
+                border: '1px solid ' + (ownerToolType === 'transfer' ? '#722ed1' : '#d9d9d9'),
+                background: ownerToolType === 'transfer' ? '#f9f0ff' : '#fff',
+                color: ownerToolType === 'transfer' ? '#722ed1' : '#333',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: 'bold',
+              }"
+          >
+            移交房主
+          </button>
+          <button
+              @click="ownerToolType = 'kick'"
+              :style="{
+                padding: '6px 10px',
+                borderRadius: '4px',
+                border: '1px solid ' + (ownerToolType === 'kick' ? '#ff4d4f' : '#d9d9d9'),
+                background: ownerToolType === 'kick' ? '#fff1f0' : '#fff',
+                color: ownerToolType === 'kick' ? '#ff4d4f' : '#333',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: 'bold',
+              }"
+          >
+            踢出至观众席
+          </button>
+        </div>
+
+        <!-- 当前操作说明 -->
+        <div style="margin-bottom:10px; font-size:13px; color:#333;">
+          <span v-if="ownerToolType === 'transfer'">选择一名玩家成为新的房主：</span>
+          <span v-else>选择一名玩家踢出本局并移至观众席：</span>
+        </div>
+
+        <!-- 玩家选择 -->
+        <div v-if="ownerActionPlayers.length === 0" style="font-size:13px; color:#999;">
+          当前没有可操作的玩家。
+        </div>
+        <div v-else style="margin-bottom:12px;">
+          <select v-model="ownerActionTarget"
+                  style="width:100%; padding:6px 8px; border-radius:4px; border:1px solid #d9d9d9; font-size:13px;">
+            <option disabled value="">请选择玩家</option>
+            <option v-for="p in ownerActionPlayers"
+                    :key="'owner-tool-' + p.nickname"
+                    :value="p.nickname">
+              {{ p.nickname }}
+            </option>
+          </select>
+        </div>
+
+        <!-- 底部操作按钮 -->
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:4px;">
+          <button
+              @click="closeOwnerToolPanel"
+              style="padding:6px 12px; border-radius:4px; border:1px solid #d9d9d9; background:#fff; cursor:pointer; font-size:12px;">
+            取消
+          </button>
+          <button
+              v-if="ownerToolType === 'transfer'"
+              @click="doTransferOwner"
+              :disabled="!ownerActionTarget"
+              :style="{
+                padding: '6px 12px',
+                borderRadius: '4px',
+                border: 'none',
+                cursor: ownerActionTarget ? 'pointer' : 'not-allowed',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                background: ownerActionTarget ? '#722ed1' : '#d9d9d9',
+                color: '#fff'
+              }"
+          >
+            确认移交
+          </button>
+          <button
+              v-else
+              @click="doKickPlayer"
+              :disabled="!ownerActionTarget"
+              :style="{
+                padding: '6px 12px',
+                borderRadius: '4px',
+                border: 'none',
+                cursor: ownerActionTarget ? 'pointer' : 'not-allowed',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                background: ownerActionTarget ? '#ff4d4f' : '#d9d9d9',
+                color: '#fff'
+              }"
+          >
+            确认踢出
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- ========== 游戏进行中 ========== -->
 
     <!-- 观战提示 + 下一局加入按钮：观众 或 本手已退出的僵尸位 都显示（退了又进来的人也能立刻准备下一局） -->
@@ -331,36 +446,14 @@
 
     <!-- ===== 房主控制区 ===== -->
     <div v-if="isOwner" style="margin-top:20px; background:#fff; padding:15px; border-radius:10px;">
-      <div style="font-size:14px; font-weight:bold; color:#333; margin-bottom:10px; text-align:center;">房主操作</div>
+      <div style="font-size:14px; font-weight:bold; color:#333; margin-bottom:10px; text-align:center;">房主有神器</div>
 
       <div style="display:flex; justify-content:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
         <button
-            @click="transferOwnerMode = !transferOwnerMode"
-            style="padding:6px 12px; border:none; border-radius:5px; cursor:pointer; font-size:12px; font-weight:bold;
-                   background: #722ed1; color:#fff;">
-          {{ transferOwnerMode ? '取消移交房主' : '移交房主（点上方玩家卡片）' }}
-        </button>
-      </div>
-
-      <!-- 房主踢人到观众席 -->
-      <div style="display:flex; justify-content:center; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap; font-size:12px;">
-        <span style="color:#666;">踢出玩家至观众席：</span>
-        <select v-model="kickTargetNickname"
-                style="min-width:120px; padding:4px 6px; border-radius:4px; border:1px solid #d9d9d9;">
-          <option disabled value="">请选择要踢出的玩家</option>
-          <option v-for="p in kickablePlayers"
-                  :key="'kick-' + p.nickname"
-                  :value="p.nickname">
-            {{ p.nickname }}
-          </option>
-        </select>
-        <button
-            @click="kickPlayer"
-            :disabled="!kickTargetNickname"
-            style="padding:6px 12px; border:none; border-radius:5px; cursor:pointer; font-size:12px; font-weight:bold;
-                   background:#ff4d4f; color:#fff;"
-            :style="{ opacity: kickTargetNickname ? 1 : 0.4 }">
-          踢出至观众席
+            @click="openOwnerToolPanel"
+            style="padding:8px 16px; border:none; border-radius:6px; cursor:pointer; font-size:13px; font-weight:bold;
+                   background: #722ed1; color:#fff; box-shadow:0 2px 6px rgba(114,46,209,0.35);">
+          打开房主神器
         </button>
       </div>
 
@@ -462,7 +555,6 @@ export default {
       selectedWinners: [],   // 旧的简单模式备用
       potWinners: {},        // 按池选赢家 { 0: ['Alice'], 1: ['Bob','Charlie'] }
       nextHandReady: false,  // 是否已报名下一局加入
-      transferOwnerMode: false, // 是否处于选择新房主模式
       loading: false,
 
       // 公共牌翻转动画：每个下标 true=已翻开，false=未翻开
@@ -496,8 +588,10 @@ export default {
         { name: '一对', cards: ['hearts_A', 'spades_A', 'hearts_K', 'diamonds_Q', 'clubs_2'] },
         { name: '高牌', cards: ['hearts_A', 'spades_K', 'diamonds_Q', 'clubs_J', 'hearts_9'] }
       ],
-      // 房主踢人选择的目标昵称
-      kickTargetNickname: ''
+      // 房主踢人/移交房主弹窗
+      showOwnerToolModal: false,
+      ownerToolType: 'transfer',  // 'transfer' | 'kick'
+      ownerActionTarget: ''       // 当前选择的目标玩家昵称
     }
   },
 
@@ -550,8 +644,8 @@ export default {
     inSettledStage() {
       return this.stage === 'settled' && !!this.myPlayer && !this.myPlayer.leftThisHand
     },
-    // 可被踢出的玩家列表：排除房主自己和已经离线（leftThisHand）的座位
-    kickablePlayers() {
+    // 房主神器中可操作的玩家列表：排除房主自己和僵尸位
+    ownerActionPlayers() {
       return this.players.filter(function (p) {
         return !p.leftThisHand && p.nickname !== this.owner
       }.bind(this))
@@ -759,14 +853,8 @@ export default {
       }
     },
 
-    // 统一的玩家卡片点击入口：优先处理房主移交，其次才是摊牌选赢家
+    // 统一的玩家卡片点击入口：仅用于摊牌选赢家（房主神器不再通过点卡片）
     onPlayerCardClick(nickname) {
-      // 房主移交模式优先级最高
-      if (this.transferOwnerMode && this.isOwner) {
-        this.doTransferOwner(nickname)
-        return
-      }
-      // 其他情况沿用原有的摊牌点击逻辑
       this.handleJudgeClick(nickname)
     },
 
@@ -843,16 +931,30 @@ export default {
       }
     },
 
-    // ---- 房主：移交房主 ----
-    async doTransferOwner(nickname) {
-      // 自己不能移交给自己
-      if (nickname === this.user.nickname) {
-        this.transferOwnerMode = false
+    // ---- 房主神器：打开/关闭 ----
+    openOwnerToolPanel() {
+      this.ownerToolType = 'transfer'
+      this.ownerActionTarget = ''
+      this.showOwnerToolModal = true
+    },
+
+    closeOwnerToolPanel() {
+      this.showOwnerToolModal = false
+      this.ownerActionTarget = ''
+    },
+
+    // ---- 房主：移交房主（通过弹窗选择玩家） ----
+    async doTransferOwner() {
+      if (!this.ownerActionTarget) {
+        alert('请先选择要移交房主的玩家')
         return
       }
-      var ok = confirm('确定将房主移交给 [' + nickname + '] 吗？')
+      if (this.ownerActionTarget === this.user.nickname) {
+        alert('不能把房主移交给自己')
+        return
+      }
+      var ok = confirm('确定将房主移交给 [' + this.ownerActionTarget + '] 吗？')
       if (!ok) {
-        this.transferOwnerMode = false
         return
       }
       try {
@@ -860,39 +962,41 @@ export default {
           params: {
             roomId: this.roomId,
             fromNickname: this.user.nickname,
-            toNickname: nickname
+            toNickname: this.ownerActionTarget
           }
         })
         if (res.data !== 'ok') {
           alert('移交失败：' + res.data)
         } else {
-          alert('已将房主移交给 ' + nickname)
+          alert('已将房主移交给 ' + this.ownerActionTarget)
         }
         await this.loadGame()
+        this.closeOwnerToolPanel()
       } catch (err) {
         alert('网络错误: ' + err.message)
-      } finally {
-        this.transferOwnerMode = false
       }
     },
 
-    // ---- 房主：踢人到观众席 ----
-    async kickPlayer() {
-      if (!this.kickTargetNickname) return
-      if (!confirm('确定将 [' + this.kickTargetNickname + '] 踢出本局并移至观众席吗？')) {
+    // ---- 房主：踢人到观众席（通过弹窗选择玩家） ----
+    async doKickPlayer() {
+      if (!this.ownerActionTarget) {
+        alert('请先选择要踢出的玩家')
+        return
+      }
+      if (!confirm('确定将 [' + this.ownerActionTarget + '] 踢出本局并移至观众席吗？')) {
         return
       }
       try {
         var res = await this.$http.post('/dpRoom/kickPlayer', null, {
-          params: {roomId: this.roomId, nickname: this.kickTargetNickname}
+          params: {roomId: this.roomId, nickname: this.ownerActionTarget}
         })
         if (res.data !== 'ok') {
           alert('踢人失败：' + res.data)
         } else {
-          alert('已将 [' + this.kickTargetNickname + '] 踢至观众席')
+          alert('已将 [' + this.ownerActionTarget + '] 踢至观众席')
         }
-        this.kickTargetNickname = ''
         await this.loadGame()
+        this.closeOwnerToolPanel()
       } catch (err) {
         alert('网络错误: ' + err.message)
       }
