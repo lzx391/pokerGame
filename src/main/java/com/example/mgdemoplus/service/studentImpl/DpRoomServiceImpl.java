@@ -14,6 +14,12 @@ import java.util.stream.Collectors;
 public class DpRoomServiceImpl {
     private final Map<String, DpRoom> roomMap = new ConcurrentHashMap<>();
 
+    /**
+     * 简单演示用的单个 NPC 昵称。
+     * 后续如果要扩展多种类型的机器人，可以在此基础上扩展为配置或枚举。
+     */
+    private static final String DEMO_BOT_NICKNAME = "BOT_Demo";
+
     public DpRoomServiceImpl() {
         // 心跳清理 + 超时行动
         new Timer().scheduleAtFixedRate(new TimerTask() {
@@ -23,6 +29,11 @@ public class DpRoomServiceImpl {
                     Iterator<DpPlayer> it = room.getPlayers().iterator();
                     while (it.hasNext()) {
                         DpPlayer p = it.next();
+                        // 演示用机器人不依赖前端心跳，直接视为始终在线
+                        if (isBotPlayer(p)) {
+                            p.setLastHeartBeat(System.currentTimeMillis());
+                            continue;
+                        }
                         // 本手已离线的“占位”玩家不因心跳踢出，留到结算时再移除，以保持行动顺序
                         if (p.isLeftThisHand()) continue;
                         if (System.currentTimeMillis() - p.getLastHeartBeat() > DpRoom.getHeartTimeout()) {
@@ -48,13 +59,39 @@ public class DpRoomServiceImpl {
                     // 30秒超时弃牌；若当前行动位是已离线占位，直接跳过不等待
                     if (room.isPlaying() && room.getCurrentActorIndex() >= 0) {
                         DpPlayer p = room.getPlayers().get(room.getCurrentActorIndex());
-                        if (p.isLeftThisHand()) {
-                            moveToNextValidActor(room);
-                            autoAdvanceIfRoundFinished(room);
-                        } else if (System.currentTimeMillis() - room.getLastActionTime() > DpRoom.getActionTimeout()) {
-                            p.setFold(true);
-                            moveToNextValidActor(room);
-                            autoAdvanceIfRoundFinished(room);
+                        // 如果当前行动者是 NPC，则直接由后端自动决策行动，不等待前端操作
+                        if (isBotPlayer(p)) {
+                            autoActForBot(room, p);
+                        } else {
+                            if (p.isLeftThisHand()) {
+                                moveToNextValidActor(room);
+                                autoAdvanceIfRoundFinished(room);
+                            } else if (System.currentTimeMillis() - room.getLastActionTime() > DpRoom.getActionTimeout()) {
+                                p.setFold(true);
+                                moveToNextValidActor(room);
+                                autoAdvanceIfRoundFinished(room);
+                            }
+                        }
+                    }
+
+                    // 结算后准备阶段：机器人自动补码并自动准备
+                    if (room.isPlaying() && "settled".equals(room.getCurrentStage())) {
+                        boolean botTouched = false;
+                        for (DpPlayer p : room.getPlayers()) {
+                            if (!isBotPlayer(p)) continue;
+                            // 若筹码不足大盲，自动补码（内部已有阶段与筹码校验）
+                            if (p.getChips() < DpRoom.getBBChips()) {
+                                rebuy(room.getRoomId(), p.getNickname());
+                            }
+                            // 筹码充足时自动准备
+                            if (p.getChips() >= DpRoom.getBBChips() && !p.isReady()) {
+                                p.setReady(true);
+                                botTouched = true;
+                            }
+                        }
+                        // 只要有机器人准备状态被更新，就检查是否可以直接开下一局
+                        if (botTouched) {
+                            checkAndStartNextHandAfterSettle(room);
                         }
                     }
 
@@ -369,6 +406,14 @@ public class DpRoomServiceImpl {
             waiters.add(nickname);
         }
         return true;
+    }
+
+    /**
+     * 将演示用 NPC 加入指定房间的下一局等待列表。
+     * 对外作为一个简单的演示入口，后续可以替换为更通用的「添加机器人」接口。
+     */
+    public boolean addDemoBotToNextHand(String roomId) {
+        return readyNextHand(roomId, DEMO_BOT_NICKNAME);
     }
 
     public boolean toggleReady(String roomId, String nickname) {
@@ -1416,5 +1461,81 @@ public class DpRoomServiceImpl {
         }
     }
 
+    // ========== 简单 NPC 逻辑：单个演示机器人 ==========
 
+    /**
+     * 判断一个玩家是否为演示用机器人。
+     */
+    private boolean isBotPlayer(DpPlayer p) {
+        return p != null && DEMO_BOT_NICKNAME.equals(p.getNickname());
+    }
+
+    /**
+     * 在定时任务中调用：如果轮到机器人行动，则由后端自动帮它做一个简单决策。
+     * 这里的策略非常朴素：
+     * - 如果需要跟注的筹码超过自己筹码的 50%，就弃牌；
+     * - 否则多数情况跟注，少量随机情况在翻后小额加注，用于演示效果。
+     */
+    private void autoActForBot(DpRoom room, DpPlayer bot) {
+        if (room == null || bot == null || !room.isPlaying()) {
+            return;
+        }
+        int actorIndex = room.getCurrentActorIndex();
+        if (actorIndex < 0 || actorIndex >= room.getPlayers().size()) {
+            return;
+        }
+        // 防御：当前行动位必须就是这个 bot，且未弃牌/未 all-in
+        DpPlayer current = room.getPlayers().get(actorIndex);
+        if (current != bot) {
+            return;
+        }
+        if (bot.isFold() || bot.isAllIn() || bot.isLeftThisHand()) {
+            return;
+        }
+
+        String roomId = room.getRoomId();
+        int callAmount = Math.max(0, room.getCurrentBetToCall() - bot.getBet());
+        int chips = bot.getChips();
+
+        // 没筹码了就只能弃牌，理论上不会出现这种情况，但这里做防御
+        if (chips <= 0) {
+            fold(roomId, bot.getNickname());
+            return;
+        }
+
+        // 需要跟注的筹码如果超过自身筹码的一半，直接弃牌（比较怂的演示风格）
+        if (callAmount > 0 && callAmount * 2 > chips) {
+            fold(roomId, bot.getNickname());
+            return;
+        }
+
+        // 简单随机：大部分情况选择跟注或过牌，小概率尝试小额加注
+        Random random = new Random();
+        double r = random.nextDouble();
+
+        // 过牌/跟注逻辑
+        if (r < 0.8) {
+            // 80% 概率：如果有需要跟注的筹码，就跟注；否则过牌（bet 0）
+            int amount = callAmount;
+            if (amount < 0) {
+                amount = 0;
+            }
+            bet(roomId, bot.getNickname(), amount);
+            return;
+        }
+
+        // 20% 概率：在翻牌之后尝试小额加注（仅作为演示，后续可以升级为更智能策略）
+        String stage = room.getCurrentStage();
+        if (!"preflop".equals(stage) && chips > callAmount) {
+            // 小额加注：在需要跟注的基础上再加一个盲注大小
+            int raiseBase = callAmount;
+            int minExtra = DpRoom.getBBChips();
+            int raiseAmount = Math.min(chips, raiseBase + minExtra);
+            bet(roomId, bot.getNickname(), raiseAmount);
+        } else {
+            // 其它情况退回到简单过牌/跟注
+            int amount = Math.max(0, callAmount);
+            bet(roomId, bot.getNickname(), amount);
+        }
+    }
 }

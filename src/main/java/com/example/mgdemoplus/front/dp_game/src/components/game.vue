@@ -88,6 +88,27 @@
           仅显示当前在本局中的玩家（不含房主与僵尸位）。
         </div>
 
+        <!-- 简单演示：添加一个机器人玩家 BOT_Demo 到下一局 -->
+        <div style="margin-bottom:12px; padding:8px; border-radius:6px; background:#fff7e6; border:1px dashed #ffa940;">
+          <div style="font-size:13px; font-weight:bold; color:#d46b08; margin-bottom:4px;">
+            实验功能：加入演示 NPC
+          </div>
+          <div style="font-size:12px; color:#8c8c8c; margin-bottom:6px;">
+            点击后，将在下一局自动加入一个演示用机器人玩家 <span style="font-weight:bold;">BOT_Demo</span>，用于验证 NPC 流程。
+          </div>
+          <button
+              @click="addDemoBot"
+              :disabled="demoBotAdding"
+              style="padding:6px 10px; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;
+                     background:#faad14; color:#fff;">
+            {{ demoBotAdding ? '正在添加 NPC...' : '添加演示 NPC 到下一局' }}
+          </button>
+          <div v-if="demoBotAddedTip"
+               style="margin-top:4px; font-size:12px; color:#595959;">
+            {{ demoBotAddedTip }}
+          </div>
+        </div>
+
         <!-- 操作类型选择 -->
         <div style="display:flex; gap:8px; margin-bottom:12px;">
           <button
@@ -591,7 +612,10 @@ export default {
       // 房主踢人/移交房主弹窗
       showOwnerToolModal: false,
       ownerToolType: 'transfer',  // 'transfer' | 'kick'
-      ownerActionTarget: ''       // 当前选择的目标玩家昵称
+      ownerActionTarget: '',      // 当前选择的目标玩家昵称
+      // 演示用 NPC 状态（仅前端提示用）
+      demoBotAdding: false,
+      demoBotAddedTip: ''
     }
   },
 
@@ -936,6 +960,7 @@ export default {
       this.ownerToolType = 'transfer'
       this.ownerActionTarget = ''
       this.showOwnerToolModal = true
+      this.demoBotAddedTip = ''
     },
 
     closeOwnerToolPanel() {
@@ -999,6 +1024,30 @@ export default {
         this.closeOwnerToolPanel()
       } catch (err) {
         alert('网络错误: ' + err.message)
+      }
+    },
+
+    /**
+     * 将演示用 NPC（BOT_Demo）加入下一局等待列表。
+     * 当前仅用于验证机器人整体流程是否正常。
+     */
+    async addDemoBot() {
+      if (!this.roomId) return
+      this.demoBotAdding = true
+      this.demoBotAddedTip = ''
+      try {
+        var res = await this.$http.post('/dpRoom/addDemoBot', null, {
+          params: {roomId: this.roomId}
+        })
+        if (res.data === 'ok') {
+          this.demoBotAddedTip = '已请求在下一局加入 BOT_Demo，请等待本局结束后自动入座。'
+        } else {
+          this.demoBotAddedTip = '添加 NPC 失败：' + res.data
+        }
+      } catch (e) {
+        this.demoBotAddedTip = '网络错误：' + (e && e.message ? e.message : e)
+      } finally {
+        this.demoBotAdding = false
       }
     },
 

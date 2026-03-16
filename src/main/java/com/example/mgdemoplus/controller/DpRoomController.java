@@ -102,6 +102,15 @@ public class DpRoomController {
     }
 
     /**
+     * 将演示用 NPC（BOT_Demo）加入到指定房间的「下一局加入」列表中。
+     * 主要用于当前阶段验证机器人流程是否正常工作，后续可扩展为通用添加机器人接口。
+     */
+    @PostMapping("/addDemoBot")
+    public String addDemoBot(@RequestParam String roomId) {
+        return dpRoomService.addDemoBotToNextHand(roomId) ? "ok" : "fail";
+    }
+
+    /**
      * 房主主动移交房主给房间内的另一位玩家
      */
     @PostMapping("/transferOwner")
