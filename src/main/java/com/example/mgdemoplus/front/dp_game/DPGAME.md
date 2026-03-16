@@ -187,6 +187,372 @@ bet和fold可能会引起进程推进
 
 ---
 
+## AI / NPC 模块说明（德扑机器人）
+
+### 一、当前实现概览（单个演示 NPC）
+
+当前版本只实现了**一个演示用 NPC 玩家**，主要用于验证整条“机器人坐下→行动→结算→继续下一局”的流程是否稳定，方便后续扩展为多种性格的 AI。
+
+- **机器人昵称**：`BOT_Demo`  
+- **识别方式**：在后端 `DpRoomServiceImpl` 中，通过 `isBotPlayer(DpPlayer p)` 判断：
+
+```154:160:src/main/java/com/example/mgdemoplus/service/studentImpl/DpRoomServiceImpl.java
+    private static final String DEMO_BOT_NICKNAME = "BOT_Demo";
+
+    private boolean isBotPlayer(DpPlayer p) {
+        return p != null && DEMO_BOT_NICKNAME.equals(p.getNickname());
+    }
+```
+
+- **整体思路**：
+  - 前端房主在房主神器里点击按钮，请求在“下一局”加入一个 `BOT_Demo`；
+  - 后端将该昵称加入 `DpRoom.waitNextHand`；
+  - 下一局 `newHand` 时，`getAllCanPlayer` 会将 `BOT_Demo` 当作正常玩家加入牌桌（发筹码、发牌）；
+  - 每次轮到他行动时，由后端 `autoActForBot` 自动帮他调用 `bet` / `fold`，无需前端按钮；
+  - 结算后，在 `settled` 阶段自动补码、自动准备，避免被准备倒计时踢回观众席；
+  - 房主可以随时通过“踢人到观众席”把机器人送走，下局不再自动回来，除非房主再次添加。
+
+### 二、接口与调用链路
+
+#### 1. 房主添加演示 NPC 到下一局
+
+- **前端入口**：`game.vue` 中“房主神器”弹窗里的实验区块：
+
+```77:115:src/main/java/com/example/mgdemoplus/front/dp_game/src/components/game.vue
+    <!-- 房主神器弹窗 -->
+    <div v-if="showOwnerToolModal" class="hand-rank-modal-mask" @click="closeOwnerToolPanel">
+      <div class="hand-rank-modal" @click.stop>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+          <span style="font-size:18px; font-weight:bold;">房主神器</span>
+          <button @click="closeOwnerToolPanel"
+                  style="background:#d9d9d9; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; font-size:16px; line-height:1;">×
+          </button>
+        </div>
+
+        <div style="margin-bottom:12px; font-size:13px; color:#666;">
+          仅显示当前在本局中的玩家（不含房主与僵尸位）。
+        </div>
+
+        <!-- 简单演示：添加一个机器人玩家 BOT_Demo 到下一局 -->
+        <div style="margin-bottom:12px; padding:8px; border-radius:6px; background:#fff7e6; border:1px dashed #ffa940;">
+          <div style="font-size:13px; font-weight:bold; color:#d46b08; margin-bottom:4px;">
+            实验功能：加入演示 NPC
+          </div>
+          <div style="font-size:12px; color:#8c8c8c; margin-bottom:6px;">
+            点击后，将在下一局自动加入一个演示用机器人玩家 <span style="font-weight:bold;">BOT_Demo</span>，用于验证 NPC 流程。
+          </div>
+          <button
+              @click="addDemoBot"
+              :disabled="demoBotAdding"
+              style="padding:6px 10px; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;
+                     background:#faad14; color:#fff;">
+            {{ demoBotAdding ? '正在添加 NPC...' : '添加演示 NPC 到下一局' }}
+          </button>
+          <div v-if="demoBotAddedTip"
+               style="margin-top:4px; font-size:12px; color:#595959;">
+            {{ demoBotAddedTip }}
+          </div>
+        </div>
+```
+
+- **前端调用的方法**：
+
+```715:746:src/main/java/com/example/mgdemoplus/front/dp_game/src/components/game.vue
+    async addDemoBot() {
+      if (!this.roomId) return
+      this.demoBotAdding = true
+      this.demoBotAddedTip = ''
+      try {
+        var res = await this.$http.post('/dpRoom/addDemoBot', null, {
+          params: {roomId: this.roomId}
+        })
+        if (res.data === 'ok') {
+          this.demoBotAddedTip = '已请求在下一局加入 BOT_Demo，请等待本局结束后自动入座。'
+        } else {
+          this.demoBotAddedTip = '添加 NPC 失败：' + res.data
+        }
+      } catch (e) {
+        this.demoBotAddedTip = '网络错误：' + (e && e.message ? e.message : e)
+      } finally {
+        this.demoBotAdding = false
+      }
+    },
+```
+
+- **控制器接口**：
+
+```104:112:src/main/java/com/example/mgdemoplus/controller/DpRoomController.java
+    @PostMapping("/addDemoBot")
+    public String addDemoBot(@RequestParam String roomId) {
+        return dpRoomService.addDemoBotToNextHand(roomId) ? "ok" : "fail";
+    }
+```
+
+- **服务层实现：把 BOT_Demo 丢进下一局等待列表**：
+
+```374:383:src/main/java/com/example/mgdemoplus/service/studentImpl/DpRoomServiceImpl.java
+    public boolean addDemoBotToNextHand(String roomId) {
+        return readyNextHand(roomId, DEMO_BOT_NICKNAME);
+    }
+```
+
+> 总结：房主点击“添加演示 NPC”，本质就是帮昵称为 `BOT_Demo` 的“虚拟观众”调用了一次 `readyNextHand`，让它进入下一局候场列表。
+
+#### 2. 开局时将 NPC 加入玩家列表
+
+这一块完全复用原有“观众报名下一局加入”的逻辑，不区分真人 / 机器人：
+
+```601:637:src/main/java/com/example/mgdemoplus/service/studentImpl/DpRoomServiceImpl.java
+    public List<DpPlayer> getAllCanPlayer(DpRoom r) {
+        // 防 null
+        List<String> spectators = getNewSpectators(r);
+        r.setSpectators(spectators);
+        // 防筹码不足
+        List<DpPlayer> canPlay = new ArrayList<>();
+        for (DpPlayer p : r.getPlayers()) {
+            if (p.getChips() < DpRoom.getBBChips()) {
+                if (!spectators.contains(p.getNickname())) {
+                    spectators.add(p.getNickname());
+                }
+            } else {
+                canPlay.add(p);
+            }
+        }
+        // 拉取准备下一把的
+        List<String> waiters = r.getWaitNextHand();
+        if (waiters != null && !waiters.isEmpty()) {
+            for (String name : waiters) {
+                DpPlayer np = new DpPlayer();
+                np.setNickname(name);
+                // 新加入的玩家带着默认筹码参与新一局
+                np.setChips(DpRoom.getChips());
+                np.setReady(true);
+                canPlay.add(np);
+                // 这些人已经回到牌桌，不再属于观众席
+                if (spectators != null) {
+                    spectators.remove(name);
+                }
+            }
+            waiters.clear();
+        }
+        return canPlay;
+    }
+```
+
+> 对 `BOT_Demo` 来说，只要它的昵称在 `waitNextHand` 里，就会被当作一个普通玩家创建 `DpPlayer`，发筹码、发两张手牌，加入本局。
+
+#### 3. 行动阶段：自动下注 / 弃牌
+
+定时器中，除了处理心跳、超时弃牌，还会检查当前行动位是不是机器人，是的话直接自动行动：
+
+```17:59:src/main/java/com/example/mgdemoplus/service/studentImpl/DpRoomServiceImpl.java
+        new Timer().scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                for (DpRoom room : roomMap.values()) {
+                    Iterator<DpPlayer> it = room.getPlayers().iterator();
+                    while (it.hasNext()) {
+                        DpPlayer p = it.next();
+                        // 演示用机器人不依赖前端心跳，直接视为始终在线
+                        if (isBotPlayer(p)) {
+                            p.setLastHeartBeat(System.currentTimeMillis());
+                            continue;
+                        }
+                        // 本手已离线的“占位”玩家不因心跳踢出...
+                        if (p.isLeftThisHand()) continue;
+                        if (System.currentTimeMillis() - p.getLastHeartBeat() > DpRoom.getHeartTimeout()) {
+                            ...
+                            it.remove();
+                        }
+                    }
+                    // 30秒超时弃牌；若当前行动位是已离线占位，直接跳过不等待
+                    if (room.isPlaying() && room.getCurrentActorIndex() >= 0) {
+                        DpPlayer p = room.getPlayers().get(room.getCurrentActorIndex());
+                        // 如果当前行动者是 NPC，则直接由后端自动决策行动，不等待前端操作
+                        if (isBotPlayer(p)) {
+                            autoActForBot(room, p);
+                        } else {
+                            ...
+                        }
+                    }
+                    ...
+                }
+            }
+        }, 0, 2000);
+```
+
+机器人决策的核心入口是 `autoActForBot`，当前版本是一个**非常朴素的“普通玩家”策略**，后续可以按「紧凶 / 松弱 / 疯子」等类型拆分：
+
+```1409:1474:src/main/java/com/example/mgdemoplus/service/studentImpl/DpRoomServiceImpl.java
+    private void autoActForBot(DpRoom room, DpPlayer bot) {
+        if (room == null || bot == null || !room.isPlaying()) {
+            return;
+        }
+        int actorIndex = room.getCurrentActorIndex();
+        if (actorIndex < 0 || actorIndex >= room.getPlayers().size()) {
+            return;
+        }
+        // 防御：当前行动位必须就是这个 bot，且未弃牌/未 all-in
+        DpPlayer current = room.getPlayers().get(actorIndex);
+        if (current != bot) {
+            return;
+        }
+        if (bot.isFold() || bot.isAllIn() || bot.isLeftThisHand()) {
+            return;
+        }
+
+        String roomId = room.getRoomId();
+        int callAmount = Math.max(0, room.getCurrentBetToCall() - bot.getBet());
+        int chips = bot.getChips();
+
+        // 没筹码了就只能弃牌，理论上不会出现这种情况，但这里做防御
+        if (chips <= 0) {
+            fold(roomId, bot.getNickname());
+            return;
+        }
+
+        // 需要跟注的筹码如果超过自身筹码的一半，直接弃牌（比较怂的演示风格）
+        if (callAmount > 0 && callAmount * 2 > chips) {
+            fold(roomId, bot.getNickname());
+            return;
+        }
+
+        // 简单随机：大部分情况选择跟注或过牌，小概率尝试小额加注
+        Random random = new Random();
+        double r = random.nextDouble();
+
+        // 过牌/跟注逻辑
+        if (r < 0.8) {
+            // 80% 概率：如果有需要跟注的筹码，就跟注；否则过牌（bet 0）
+            int amount = callAmount;
+            if (amount < 0) {
+                amount = 0;
+            }
+            bet(roomId, bot.getNickname(), amount);
+            return;
+        }
+
+        // 20% 概率：在翻牌之后尝试小额加注（仅作为演示，后续可以升级为更智能策略）
+        String stage = room.getCurrentStage();
+        if (!"preflop".equals(stage) && chips > callAmount) {
+            // 小额加注：在需要跟注的基础上再加一个盲注大小
+            int raiseBase = callAmount;
+            int minExtra = DpRoom.getBBChips();
+            int raiseAmount = Math.min(chips, raiseBase + minExtra);
+            bet(roomId, bot.getNickname(), raiseAmount);
+        } else {
+            // 其它情况退回到简单过牌/跟注
+            int amount = Math.max(0, callAmount);
+            bet(roomId, bot.getNickname(), amount);
+        }
+    }
+```
+
+> 这里已经是一个独立的“机器人决策函数”。未来要扩展多种 AI 类型，可以在这里根据不同性格参数（紧/松、凶/弱等）走不同的分支。
+
+#### 4. 结算后：机器人自动补码 & 自动准备
+
+为避免机器人在结算阶段因为“没补码 / 没准备”被倒计时逻辑踢到观众席，这里对 `settled` 阶段的机器人做了自动处理：
+
+```1292:1368:src/main/java/com/example/mgdemoplus/service/studentImpl/DpRoomServiceImpl.java
+                    // 结算后准备阶段：机器人自动补码并自动准备
+                    if (room.isPlaying() && "settled".equals(room.getCurrentStage())) {
+                        boolean botTouched = false;
+                        for (DpPlayer p : room.getPlayers()) {
+                            if (!isBotPlayer(p)) continue;
+                            // 若筹码不足大盲，自动补码（内部已有阶段与筹码校验）
+                            if (p.getChips() < DpRoom.getBBChips()) {
+                                rebuy(room.getRoomId(), p.getNickname());
+                            }
+                            // 筹码充足时自动准备
+                            if (p.getChips() >= DpRoom.getBBChips() && !p.isReady()) {
+                                p.setReady(true);
+                                botTouched = true;
+                            }
+                        }
+                        // 只要有机器人准备状态被更新，就检查是否可以直接开下一局
+                        if (botTouched) {
+                            checkAndStartNextHandAfterSettle(room);
+                        }
+                    }
+```
+
+> 这样，机器人输光后会在结算阶段自动补码一次，并立刻进入 ready 状态。  
+> 如果场上所有“有能力继续玩的人”（筹码 ≥ 大盲）都准备好了，`checkAndStartNextHandAfterSettle` 会直接开新一局。
+
+#### 5. 踢人逻辑与机器人
+
+`kickPlayer` 的实现对昵称没有特别区分，机器人和真人一视同仁：
+
+```141:171:src/main/java/com/example/mgdemoplus/service/studentImpl/DpRoomServiceImpl.java
+    public boolean kickPlayer(String roomId, String nickname) {
+        DpRoom r = roomMap.get(roomId);
+        int idx = -1;
+        List<DpPlayer> ps = r.getPlayers();
+        for (int i = 0; i < ps.size(); i++) {
+            DpPlayer p = ps.get(i);
+            if (p.getNickname().equals(nickname)) {
+                idx = i;
+                break;
+            }
+        }
+        if (idx != -1) {
+            if (r.getCurrentActorIndex() == idx) {
+                // fold 会将该玩家标记为弃牌并轮到下一个人
+                fold(roomId, nickname);
+            } else {
+                // 非当前行动玩家，直接视为弃牌
+                if (!ps.get(idx).isFold()) {
+                    ps.get(idx).setFold(true);
+                }
+            }
+            ps.get(idx).setReady(false);
+            ps.get(idx).setLeftThisHand(true);
+            List<String> spectators = getNewSpectators(r);
+            if(!spectators.contains(nickname)){
+                spectators.add(nickname);
+            }
+            return true;
+        } else {
+            return false;
+        }
+    }
+```
+
+> 这意味着：  
+> - 房主可以像踢普通玩家一样踢出 `BOT_Demo`；  
+> - 被踢后它会进入观众席，且不会自动重新上桌，必须房主再次通过房主神器添加 NPC。
+
+### 三、AI 调参与未来扩展（紧凶 / 松弱 / 石头人 / 疯子）
+
+当前版本只有一个 `BOT_Demo`，策略也故意写得很“肉眼可理解”，方便后续基于此扩展更多类型的 AI。可以参考如下方向规划：
+
+- **AI 性格维度**（可以用枚举或配置表示）：
+  - **紧/松（Tight / Loose）**：参与底池的频率（起手范围宽不宽）。
+  - **凶/弱（Aggressive / Passive）**：倾向于加注还是只跟注。
+  - **石头人（Rock）**：极紧极被动，只打超级好牌，其他几乎都弃牌。
+  - **疯子（Maniac）**：极松极激进，经常在牌力一般甚至很差时疯狂加注 / all-in。
+
+- **建议的参数设计（伪概念）**：
+  - `participationRate`：参与底池概率（松 > 紧）。
+  - `raiseRate`：在可跟注时选择加注的概率（凶 > 弱）。
+  - `bluffRate`：在牌力较差时仍然选择下注/加注的概率（疯子 > 普通 > 石头人）。
+  - `callThreshold`：面对相对筹码占比较大的下注时，仍然愿意跟注的最大比例。
+
+> 未来如果要落地“紧凶、紧弱、松凶、松弱、石头人、疯子”六种类型，可以在 `autoActForBot` 外再加一层：
+>
+> - 用昵称或配置映射出 `BotType`（比如 `BOT_TightAggro` → 紧凶）。  
+> - 拆出 `decideAction(room, bot, botType)`，内部根据 `botType` 与牌力评估（可复用现有牌型算法）决定下注策略。  
+> - 当前的 `autoActForBot` 可以作为“松弱 / 普通人”基线，在此基础上增加或降低跟注、加注、诈唬的概率。
+
+在实际扩展时，建议：
+
+- 继续把**所有机器人决策逻辑集中在服务层一个区域**（类似目前的 `autoActForBot` + 若干辅助方法），避免散落到各个接口；  
+- 所有可调参数（参与率、加注倍率、诈唬率等）统一放在一个静态配置或枚举上，方便以后微调“AI 难度”；  
+- 保持对真人玩家流程零侵入：即使关掉机器人相关代码，真人照常能玩完整局。
+
+---
+
 ## 实时展示“自己最大手牌”功能说明
 
 这一块可以理解为：**后端算出“哪 5 张牌是你当前能组成的最大牌型”，前端轮询房间状态时一并拿到，并在界面上实时展示**。实现分为三层：

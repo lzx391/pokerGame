@@ -15,10 +15,11 @@ public class DpRoomServiceImpl {
     private final Map<String, DpRoom> roomMap = new ConcurrentHashMap<>();
 
     /**
-     * 简单演示用的单个 NPC 昵称。
+     * 简单演示用的 NPC 昵称。
      * 后续如果要扩展多种类型的机器人，可以在此基础上扩展为配置或枚举。
      */
     private static final String DEMO_BOT_NICKNAME = "BOT_Demo";
+    private static final String MANIAC_BOT_NICKNAME = "BOT_Maniac";
 
     public DpRoomServiceImpl() {
         // 心跳清理 + 超时行动
@@ -46,7 +47,7 @@ public class DpRoomServiceImpl {
                     }
                     int size = 0;//检测活人逻辑
                     for (DpPlayer kickPlayer : room.getPlayers()) {
-                        if (!kickPlayer.isLeftThisHand()) {
+                        if (!kickPlayer.isLeftThisHand() && !isBotPlayer(kickPlayer)) {
                             size += 1;
 //                            System.out.println("定时器检测："+kickPlayer.getNickname()+"是活人");
                         }
@@ -57,7 +58,9 @@ public class DpRoomServiceImpl {
                         continue;
                     }
                     // 30秒超时弃牌；若当前行动位是已离线占位，直接跳过不等待
-                    if (room.isPlaying() && room.getCurrentActorIndex() >= 0) {
+                    if (room.isPlaying()
+                            && room.getCurrentActorIndex() >= 0
+                            && room.getCurrentActorIndex() < room.getPlayers().size()) {
                         DpPlayer p = room.getPlayers().get(room.getCurrentActorIndex());
                         // 如果当前行动者是 NPC，则直接由后端自动决策行动，不等待前端操作
                         if (isBotPlayer(p)) {
@@ -152,7 +155,7 @@ public class DpRoomServiceImpl {
         DpRoom room = roomMap.get(roomId);
         int size = 0;
         for (DpPlayer getActivePlayer : room.getPlayers()) {
-            if (!getActivePlayer.isLeftThisHand()) {
+            if (!getActivePlayer.isLeftThisHand() && !isBotPlayer(getActivePlayer)) {
                 size += 1;//如果有活人就加一个
                 System.out.println("退出按钮检测：" + getActivePlayer.getNickname() + "是活人");
             }
@@ -162,7 +165,7 @@ public class DpRoomServiceImpl {
             roomMap.remove(roomId);
         } else {
             for (DpPlayer candidate : room.getPlayers()) {//非本人也非僵尸
-                if (!candidate.getNickname().equals(ownerNickname) && !candidate.isLeftThisHand()) {
+                if (!candidate.getNickname().equals(ownerNickname) && !candidate.isLeftThisHand() && !isBotPlayer(candidate)) {
                     room.setOwner(candidate.getNickname());
                     System.out.println("giveOwner：房间 " + room.getRoomId() + " 房主易位给: " + candidate.getNickname());
                     break;
@@ -414,6 +417,13 @@ public class DpRoomServiceImpl {
      */
     public boolean addDemoBotToNextHand(String roomId) {
         return readyNextHand(roomId, DEMO_BOT_NICKNAME);
+    }
+
+    /**
+     * 将疯子风格 NPC 加入指定房间的下一局等待列表。
+     */
+    public boolean addManiacBotToNextHand(String roomId) {
+        return readyNextHand(roomId, MANIAC_BOT_NICKNAME);
     }
 
     public boolean toggleReady(String roomId, String nickname) {
@@ -1461,20 +1471,78 @@ public class DpRoomServiceImpl {
         }
     }
 
-    // ========== 简单 NPC 逻辑：单个演示机器人 ==========
+    // ========== 简单 NPC 逻辑：统一收敛的决策入口 ==========
 
     /**
-     * 判断一个玩家是否为演示用机器人。
+     * 机器人类型（后续可扩展：紧凶、紧弱、松凶、松弱、石头人、疯子等）。
+     * 当前实现：
+     * - DEMO：普通风格；
+     * - MANIAC：疯子风格，喜欢乱加注、偶尔 all-in。
      */
-    private boolean isBotPlayer(DpPlayer p) {
-        return p != null && DEMO_BOT_NICKNAME.equals(p.getNickname());
+    private enum BotType {
+        DEMO,
+        MANIAC
     }
 
     /**
-     * 在定时任务中调用：如果轮到机器人行动，则由后端自动帮它做一个简单决策。
-     * 这里的策略非常朴素：
-     * - 如果需要跟注的筹码超过自己筹码的 50%，就弃牌；
-     * - 否则多数情况跟注，少量随机情况在翻后小额加注，用于演示效果。
+     * 机器人动作类型：弃牌 / 过牌或跟注 / 加注 / 全下。
+     */
+    private enum BotActionType {
+        FOLD, CALL_OR_CHECK, RAISE, ALL_IN
+    }
+
+    /**
+     * 机器人决策结果（动作 + 金额）。
+     * 对于 FOLD 不关心 amount；CALL_OR_CHECK 表示“跟到当前跟注额或 0”；RAISE / ALL_IN 使用给定金额。
+     */
+    private static class BotAction {
+        private final BotActionType type;
+        private final int amount;
+
+        BotAction(BotActionType type, int amount) {
+            this.type = type;
+            this.amount = amount;
+        }
+
+        public BotActionType getType() {
+            return type;
+        }
+
+        public int getAmount() {
+            return amount;
+        }
+    }
+
+    /**
+     * 判断一个玩家是否为机器人。当前版本识别：
+     * - BOT_Demo
+     * - BOT_Maniac
+     */
+    private boolean isBotPlayer(DpPlayer p) {
+        if (p == null) return false;
+        String name = p.getNickname();
+        return DEMO_BOT_NICKNAME.equals(name) || MANIAC_BOT_NICKNAME.equals(name);
+    }
+
+    /**
+     * 根据昵称映射机器人类型，方便未来扩展多种性格机器人。
+     * 目前：
+     * - BOT_Demo   → DEMO
+     * - BOT_Maniac → MANIAC
+     */
+    private BotType getBotTypeByNickname(String nickname) {
+        if (DEMO_BOT_NICKNAME.equals(nickname)) {
+            return BotType.DEMO;
+        }
+        if (MANIAC_BOT_NICKNAME.equals(nickname)) {
+            return BotType.MANIAC;
+        }
+        return null;
+    }
+
+    /**
+     * 在定时任务中调用：如果轮到机器人行动，则由后端统一通过决策函数 decideBotAction
+     * 计算动作，并最终调用现有的 bet / fold 接口。
      */
     private void autoActForBot(DpRoom room, DpPlayer bot) {
         if (room == null || bot == null || !room.isPlaying()) {
@@ -1493,49 +1561,140 @@ public class DpRoomServiceImpl {
             return;
         }
 
+        BotType type = getBotTypeByNickname(bot.getNickname());
+        if (type == null) {
+            return;
+        }
+
+        BotAction action = decideBotAction(room, bot, type);
+        if (action == null) {
+            return;
+        }
+
         String roomId = room.getRoomId();
-        int callAmount = Math.max(0, room.getCurrentBetToCall() - bot.getBet());
-        int chips = bot.getChips();
 
-        // 没筹码了就只能弃牌，理论上不会出现这种情况，但这里做防御
-        if (chips <= 0) {
-            fold(roomId, bot.getNickname());
-            return;
-        }
-
-        // 需要跟注的筹码如果超过自身筹码的一半，直接弃牌（比较怂的演示风格）
-        if (callAmount > 0 && callAmount * 2 > chips) {
-            fold(roomId, bot.getNickname());
-            return;
-        }
-
-        // 简单随机：大部分情况选择跟注或过牌，小概率尝试小额加注
-        Random random = new Random();
-        double r = random.nextDouble();
-
-        // 过牌/跟注逻辑
-        if (r < 0.8) {
-            // 80% 概率：如果有需要跟注的筹码，就跟注；否则过牌（bet 0）
-            int amount = callAmount;
-            if (amount < 0) {
-                amount = 0;
+        switch (action.getType()) {
+            case FOLD:
+                fold(roomId, bot.getNickname());
+                break;
+            case CALL_OR_CHECK: {
+                int callAmount = Math.max(0, room.getCurrentBetToCall() - bot.getBet());
+                bet(roomId, bot.getNickname(), callAmount);
+                break;
             }
-            bet(roomId, bot.getNickname(), amount);
-            return;
+            case RAISE:
+            case ALL_IN: {
+                int amount = Math.max(0, action.getAmount());
+                bet(roomId, bot.getNickname(), amount);
+                break;
+            }
+            default:
+                break;
+        }
+    }
+
+    /**
+     * 统一的机器人决策函数。
+     * 未来新增类型（紧凶 / 紧弱 / 松凶 / 松弱 / 石头人 / 疯子）时，只需要在这里增加分支。
+     *
+     * 当前 DEMO 策略：
+     * - 若需要跟注筹码超过自身筹码的一半，直接弃牌；
+     * - 否则 80% 概率选择过牌/跟注，20% 概率在翻牌后尝试小额加注。
+     */
+    private BotAction decideBotAction(DpRoom room, DpPlayer bot, BotType type) {
+        // 若已无筹码，直接弃牌
+        int chips = bot.getChips();
+        if (chips <= 0) {
+            return new BotAction(BotActionType.FOLD, 0);
         }
 
-        // 20% 概率：在翻牌之后尝试小额加注（仅作为演示，后续可以升级为更智能策略）
-        String stage = room.getCurrentStage();
-        if (!"preflop".equals(stage) && chips > callAmount) {
-            // 小额加注：在需要跟注的基础上再加一个盲注大小
-            int raiseBase = callAmount;
-            int minExtra = DpRoom.getBBChips();
-            int raiseAmount = Math.min(chips, raiseBase + minExtra);
-            bet(roomId, bot.getNickname(), raiseAmount);
-        } else {
-            // 其它情况退回到简单过牌/跟注
-            int amount = Math.max(0, callAmount);
-            bet(roomId, bot.getNickname(), amount);
+        int callAmount = Math.max(0, room.getCurrentBetToCall() - bot.getBet());
+        Random random = new Random();
+
+        switch (type) {
+            case DEMO: {
+                // 如果需要跟注的筹码超过自身筹码的一半，直接弃牌
+                if (callAmount > 0 && callAmount * 2 > chips) {
+                    return new BotAction(BotActionType.FOLD, 0);
+                }
+
+                double r = random.nextDouble();
+
+                // 80% 概率：过牌/跟注
+                if (r < 0.8) {
+                    return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+                }
+
+                // 20% 概率：在翻牌之后尝试小额加注
+                String stage = room.getCurrentStage();
+                if (!"preflop".equals(stage) && chips > callAmount) {
+                    int raiseBase = callAmount;
+                    int minExtra = DpRoom.getBBChips();
+                    int raiseAmount = Math.min(chips, raiseBase + minExtra);
+                    return new BotAction(BotActionType.RAISE, raiseAmount);
+                }
+
+                // 其他情况回退到过牌/跟注
+                return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+            }
+            case MANIAC: {
+                // 疯子风格：整体更激进，更少弃牌，更常见加注和 all-in
+                String stage = room.getCurrentStage();
+
+                // 如果必须顶着对方 all-in，少部分时候会怂
+                if (callAmount >= chips) {
+                    double r = random.nextDouble();
+                    if (r < 0.2) {
+                        // 20% 直接弃牌
+                        return new BotAction(BotActionType.FOLD, 0);
+                    } else {
+                        // 80% 直接 all-in 跟上去
+                        return new BotAction(BotActionType.ALL_IN, chips);
+                    }
+                }
+
+                double r = random.nextDouble();
+
+                // 没有需要跟注的筹码（可以 free check 的场景）
+                if (callAmount == 0) {
+                    if (r < 0.4) {
+                        // 40% 直接加注 1~3 个大盲
+                        int multiplier = 1 + random.nextInt(3); // 1~3
+                        int raiseAmount = Math.min(chips, DpRoom.getBBChips() * multiplier);
+                        if (raiseAmount <= 0) {
+                            return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+                        }
+                        return new BotAction(BotActionType.RAISE, raiseAmount);
+                    }
+                    // 60% 先装一下，check 看牌
+                    return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+                }
+
+                // 有需要跟注的筹码
+                if (r < 0.1) {
+                    // 10% 还是会怂一下
+                    return new BotAction(BotActionType.FOLD, 0);
+                }
+                if (r < 0.5) {
+                    // 40% 选择跟注
+                    return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+                }
+                if (r < 0.9) {
+                    // 40% 选择加注：在需要跟注的基础上再加 1~3 个大盲
+                    int multiplier = 1 + random.nextInt(3); // 1~3
+                    int extra = DpRoom.getBBChips() * multiplier;
+                    int target = callAmount + extra;
+                    int raiseAmount = Math.min(chips, target);
+                    if (raiseAmount <= 0) {
+                        return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+                    }
+                    return new BotAction(BotActionType.RAISE, raiseAmount);
+                }
+                // 剩下 10%：直接 all-in，体现疯子风格
+                return new BotAction(BotActionType.ALL_IN, chips);
+            }
+            default:
+                return new BotAction(BotActionType.CALL_OR_CHECK, 0);
         }
     }
 }
