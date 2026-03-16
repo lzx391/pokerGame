@@ -96,7 +96,8 @@
           <div style="font-size:12px; color:#8c8c8c; margin-bottom:6px;">
             你可以在下一局加入不同风格的机器人玩家，当前支持：
             <span style="font-weight:bold;">BOT_Demo</span>（普通风格）、
-            <span style="font-weight:bold;">BOT_Maniac</span>（疯子风格，喜欢乱加注）。
+            <span style="font-weight:bold;">BOT_Maniac</span>（疯子风格，喜欢乱加注）、
+            <span style="font-weight:bold;">BOT_Shark</span>（会简单“读对手”的聪明型）。
           </div>
           <div style="display:flex; flex-direction:column; gap:6px;">
             <div>
@@ -121,6 +122,18 @@
               </button>
               <span v-if="maniacBotAddedTip" style="font-size:12px; color:#595959;">
                 {{ maniacBotAddedTip }}
+              </span>
+            </div>
+            <div>
+              <button
+                  @click="addSharkBot"
+                  :disabled="sharkBotAdding"
+                  style="padding:6px 10px; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;
+                         background:#722ed1; color:#fff; margin-right:8px;">
+                {{ sharkBotAdding ? '正在添加 BOT_Shark...' : '添加聪明 BOT_Shark 到下一局' }}
+              </button>
+              <span v-if="sharkBotAddedTip" style="font-size:12px; color:#595959;">
+                {{ sharkBotAddedTip }}
               </span>
             </div>
           </div>
@@ -635,7 +648,10 @@ export default {
       demoBotAddedTip: '',
       // 疯子型 NPC 状态
       maniacBotAdding: false,
-      maniacBotAddedTip: ''
+      maniacBotAddedTip: '',
+      // 聪明型 NPC 状态
+      sharkBotAdding: false,
+      sharkBotAddedTip: ''
     }
   },
 
@@ -982,6 +998,7 @@ export default {
       this.showOwnerToolModal = true
       this.demoBotAddedTip = ''
       this.maniacBotAddedTip = ''
+      this.sharkBotAddedTip = ''
     },
 
     closeOwnerToolPanel() {
@@ -1092,6 +1109,30 @@ export default {
         this.maniacBotAddedTip = '网络错误：' + (e && e.message ? e.message : e)
       } finally {
         this.maniacBotAdding = false
+      }
+    },
+
+    /**
+     * 将聪明型 NPC（BOT_Shark）加入下一局等待列表。
+     * 该机器人会根据对手最近几手的行为粗略判断其风格，调整自己的弃牌/跟注/加注倾向。
+     */
+    async addSharkBot() {
+      if (!this.roomId) return
+      this.sharkBotAdding = true
+      this.sharkBotAddedTip = ''
+      try {
+        var res = await this.$http.post('/dpRoom/addSharkBot', null, {
+          params: {roomId: this.roomId}
+        })
+        if (res.data === 'ok') {
+          this.sharkBotAddedTip = '已请求在下一局加入 BOT_Shark，请等待本局结束后自动入座。'
+        } else {
+          this.sharkBotAddedTip = '添加聪明 NPC 失败：' + res.data
+        }
+      } catch (e) {
+        this.sharkBotAddedTip = '网络错误：' + (e && e.message ? e.message : e)
+      } finally {
+        this.sharkBotAdding = false
       }
     },
 

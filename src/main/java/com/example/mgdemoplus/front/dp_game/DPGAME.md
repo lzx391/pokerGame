@@ -189,18 +189,55 @@ bet和fold可能会引起进程推进
 
 ## AI / NPC 模块说明（德扑机器人）
 
-### 一、当前实现概览（单个演示 NPC）
+### 一、当前实现概览（多风格 NPC 基础版）
 
-当前版本只实现了**一个演示用 NPC 玩家**，主要用于验证整条“机器人坐下→行动→结算→继续下一局”的流程是否稳定，方便后续扩展为多种性格的 AI。
+当前版本实现了**统一 NPC 决策框架 + 两种示例风格**，在保持流程简单的前提下，让机器人行为更贴近真实玩家：
 
-- **机器人昵称**：`BOT_Demo`  
-- **识别方式**：在后端 `DpRoomServiceImpl` 中，通过 `isBotPlayer(DpPlayer p)` 判断：
+- **已支持的风格**：
+  - `BOT_Demo`：普通玩家风格（中庸，偏稳）；  
+  - `BOT_Maniac`：疯子风格（明显更激进，经常加注甚至 all-in）。  
+- **识别方式**：在后端 `DpRoomServiceImpl` 中，通过 `isBotPlayer(DpPlayer p)` + 昵称映射：
 
-```154:160:src/main/java/com/example/mgdemoplus/service/studentImpl/DpRoomServiceImpl.java
+```1535:1605:src/main/java/com/example/mgdemoplus/service/studentImpl/DpRoomServiceImpl.java
     private static final String DEMO_BOT_NICKNAME = "BOT_Demo";
+    private static final String MANIAC_BOT_NICKNAME = "BOT_Maniac";
 
+    /**
+     * 机器人类型（后续可扩展：紧凶、紧弱、松凶、松弱、石头人、疯子等）。
+     * 当前实现：
+     * - DEMO：普通风格；
+     * - MANIAC：疯子风格，喜欢乱加注、偶尔 all-in。
+     */
+    private enum BotType {
+        DEMO,
+        MANIAC
+    }
+
+    /**
+     * 判断一个玩家是否为机器人。当前版本识别：
+     * - BOT_Demo
+     * - BOT_Maniac
+     */
     private boolean isBotPlayer(DpPlayer p) {
-        return p != null && DEMO_BOT_NICKNAME.equals(p.getNickname());
+        if (p == null) return false;
+        String name = p.getNickname();
+        return DEMO_BOT_NICKNAME.equals(name) || MANIAC_BOT_NICKNAME.equals(name);
+    }
+
+    /**
+     * 根据昵称映射机器人类型，方便未来扩展多种性格机器人。
+     * 目前：
+     * - BOT_Demo   → DEMO
+     * - BOT_Maniac → MANIAC
+     */
+    private BotType getBotTypeByNickname(String nickname) {
+        if (DEMO_BOT_NICKNAME.equals(nickname)) {
+            return BotType.DEMO;
+        }
+        if (MANIAC_BOT_NICKNAME.equals(nickname)) {
+            return BotType.MANIAC;
+        }
+        return null;
     }
 ```
 
@@ -381,9 +418,9 @@ bet和fold可能会引起进程推进
         }, 0, 2000);
 ```
 
-机器人决策的核心入口是 `autoActForBot`，当前版本是一个**非常朴素的“普通玩家”策略**，后续可以按「紧凶 / 松弱 / 疯子」等类型拆分：
+机器人决策的核心入口仍然是 `autoActForBot`，但已经抽象为“根据类型分派 + 通用决策函数”的结构：
 
-```1409:1474:src/main/java/com/example/mgdemoplus/service/studentImpl/DpRoomServiceImpl.java
+```1731:1751:src/main/java/com/example/mgdemoplus/service/studentImpl/DpRoomServiceImpl.java
     private void autoActForBot(DpRoom room, DpPlayer bot) {
         if (room == null || bot == null || !room.isPlaying()) {
             return;
@@ -400,57 +437,154 @@ bet和fold可能会引起进程推进
         if (bot.isFold() || bot.isAllIn() || bot.isLeftThisHand()) {
             return;
         }
+        // 通过昵称决定机器人类型
+        BotType type = getBotTypeByNickname(bot.getNickname());
+        if (type == null) {
+            return;
+        }
+
+        BotAction action = decideBotAction(room, bot, type);
+        if (action == null) {
+            return;
+        }
 
         String roomId = room.getRoomId();
-        int callAmount = Math.max(0, room.getCurrentBetToCall() - bot.getBet());
-        int chips = bot.getChips();
 
-        // 没筹码了就只能弃牌，理论上不会出现这种情况，但这里做防御
-        if (chips <= 0) {
-            fold(roomId, bot.getNickname());
-            return;
-        }
-
-        // 需要跟注的筹码如果超过自身筹码的一半，直接弃牌（比较怂的演示风格）
-        if (callAmount > 0 && callAmount * 2 > chips) {
-            fold(roomId, bot.getNickname());
-            return;
-        }
-
-        // 简单随机：大部分情况选择跟注或过牌，小概率尝试小额加注
-        Random random = new Random();
-        double r = random.nextDouble();
-
-        // 过牌/跟注逻辑
-        if (r < 0.8) {
-            // 80% 概率：如果有需要跟注的筹码，就跟注；否则过牌（bet 0）
-            int amount = callAmount;
-            if (amount < 0) {
-                amount = 0;
+        switch (action.getType()) {
+            case FOLD:
+                fold(roomId, bot.getNickname());
+                break;
+            case CALL_OR_CHECK: {
+                int callAmount = Math.max(0, room.getCurrentBetToCall() - bot.getBet());
+                bet(roomId, bot.getNickname(), callAmount);
+                break;
             }
-            bet(roomId, bot.getNickname(), amount);
-            return;
-        }
-
-        // 20% 概率：在翻牌之后尝试小额加注（仅作为演示，后续可以升级为更智能策略）
-        String stage = room.getCurrentStage();
-        if (!"preflop".equals(stage) && chips > callAmount) {
-            // 小额加注：在需要跟注的基础上再加一个盲注大小
-            int raiseBase = callAmount;
-            int minExtra = DpRoom.getBBChips();
-            int raiseAmount = Math.min(chips, raiseBase + minExtra);
-            bet(roomId, bot.getNickname(), raiseAmount);
-        } else {
-            // 其它情况退回到简单过牌/跟注
-            int amount = Math.max(0, callAmount);
-            bet(roomId, bot.getNickname(), amount);
+            case RAISE:
+            case ALL_IN: {
+                int amount = Math.max(0, action.getAmount());
+                bet(roomId, bot.getNickname(), amount);
+                break;
+            }
+            default:
+                break;
         }
     }
 ```
 
-> 这里已经是一个独立的“机器人决策函数”。未来要扩展多种 AI 类型，可以在这里根据不同性格参数（紧/松、凶/弱等）走不同的分支。
+> 总结：所有机器人行动最终都汇总到一个 `decideBotAction(room, bot, type)`，不同风格只是在这个函数内部走不同分支，方便后续继续扩展更多性格。
 
-#### 4. 结算后：机器人自动补码 & 自动准备
+#### 4. 决策要素：牌力、牌面危险度与情绪（mood）
+
+当前版本的机器人下注决策，不再是“只看筹码比例 + 随机数”，而是考虑了三个纵向因素：
+
+- **粗粒度牌力判断 `SimpleStrength`**：  
+  - 通过已有的牌型评估函数，将 2+公共牌的 7 张牌压缩为 `WEAK / MEDIUM / STRONG`；  
+  - preflop 阶段用简单规则（口袋对、高张连牌）估计强弱；  
+  - 翻牌后直接按牌型档位粗分（高牌/一对/两对/三条/顺子/同花/葫芦+）。
+
+```1540:1670:src/main/java/com/example/mgdemoplus/service/studentImpl/DpRoomServiceImpl.java
+    private enum SimpleStrength {
+        WEAK,
+        MEDIUM,
+        STRONG
+    }
+
+    private SimpleStrength estimateCurrentStrength(DpRoom room, DpPlayer bot) {
+        List<String> hole = bot.getHoleCards();
+        List<String> community = room.getCommunityCards();
+        if (hole == null || hole.size() < 2) {
+            return SimpleStrength.WEAK;
+        }
+        List<String> all = new ArrayList<>(hole);
+        if (community != null) {
+            all.addAll(community);
+        }
+        if (all.size() < 5) {
+            // 公共牌不足 3 张时，用简单 preflop 规则
+            return toSimpleStrength(null, room.getCurrentStage(), hole, community);
+        }
+        HandStrength hs = evaluateBestHand(all);
+        return toSimpleStrength(hs, room.getCurrentStage(), hole, community);
+    }
+```
+
+- **公共牌危险度 `BoardDanger`**：  
+  - 检查公共牌是否存在“同花可能”（某花色 ≥ 3 张）或“顺子结构”（至少 3 张连续点数）；  
+  - 将牌面标记为 `DRY`（干燥，不太容易听牌）或 `WET`（湿，听牌很多），影响弱牌时的弃牌/跟注选择。
+
+```1672:1725:src/main/java/com/example/mgdemoplus/service/studentImpl/DpRoomServiceImpl.java
+    private enum BoardDanger {
+        DRY,
+        WET
+    }
+
+    private BoardDanger evaluateBoardDanger(List<String> communityCards) {
+        if (communityCards == null || communityCards.size() < 3) {
+            return BoardDanger.DRY;
+        }
+        Set<Integer> ranks = new HashSet<>();
+        Map<String, Integer> suitCount = new HashMap<>();
+        for (String c : communityCards) {
+            ...
+        }
+        // 同花或顺子结构存在时视为 WET
+        ...
+    }
+```
+
+- **情绪值 `mood`（存在 `DpPlayer` 上，仅 NPC 使用）**：  
+  - 机器人有一个 `double mood` 字段（范围约在 [-1, 1]），用于模拟“连赢更敢冲、连输更保守”；  
+  - 每次自动结算 `autoSettle` 后，根据结算后筹码 vs 初始筹码的差值，轻微调节情绪：
+    - 赢了钱 → `mood += 0.2`；  
+    - 输了钱 → `mood -= 0.2`；  
+    - 并做上/下限裁剪。
+
+```1:60:src/main/java/com/example/mgdemoplus/entity/DpPlayer.java
+public class DpPlayer {
+    ...
+    private List<String> bestHandCards = new ArrayList<>();
+
+    /**
+     * 机器人情绪值：范围建议在 [-1.0, 1.0] 内，
+     * 用于简单模拟“连赢变得更放松，连输变得更保守”的状态。
+     * 对真人玩家逻辑没有影响，只有在 NPC 决策时才会读取。
+     */
+    private double mood = 0.0;
+
+    public double getMood() { return mood; }
+    public void setMood(double mood) { this.mood = mood; }
+}
+```
+
+```968:983:src/main/java/com/example/mgdemoplus/service/studentImpl/DpRoomServiceImpl.java
+        r.setPot(0);
+        r.setPots(new ArrayList<>());
+
+        // 根据赢/输调整机器人情绪：赢到筹码的机器人情绪略微变高，输掉筹码的略微变低
+        for (DpPlayer p : r.getPlayers()) {
+            if (!isBotPlayer(p)) {
+                continue;
+            }
+            int initialChips = DpRoom.getChips();
+            int diff = p.getChips() - initialChips;
+            double moodDelta;
+            if (diff > 0) {
+                moodDelta = 0.2;
+            } else if (diff < 0) {
+                moodDelta = -0.2;
+            } else {
+                continue;
+            }
+            double newMood = p.getMood() + moodDelta;
+            if (newMood > 1.0) newMood = 1.0;
+            if (newMood < -1.0) newMood = -1.0;
+            p.setMood(newMood);
+        }
+```
+
+这三个要素会在统一的 `decideBotAction` 内被综合使用，不同风格通过不同概率/倍数体现不同性格。
+
+#### 5. 结算后：机器人自动补码 & 自动准备
 
 为避免机器人在结算阶段因为“没补码 / 没准备”被倒计时逻辑踢到观众席，这里对 `settled` 阶段的机器人做了自动处理：
 
@@ -550,6 +684,60 @@ bet和fold可能会引起进程推进
 - 继续把**所有机器人决策逻辑集中在服务层一个区域**（类似目前的 `autoActForBot` + 若干辅助方法），避免散落到各个接口；  
 - 所有可调参数（参与率、加注倍率、诈唬率等）统一放在一个静态配置或枚举上，方便以后微调“AI 难度”；  
 - 保持对真人玩家流程零侵入：即使关掉机器人相关代码，真人照常能玩完整局。
+
+### 四、机器人“思考时间”与节奏感（强牌长考、弱牌秒出）
+
+为让机器人更像真人玩家，在 `DpRoomServiceImpl` 中对所有 NPC 新增了简单的“思考时间”机制：
+
+- **字段**：在 `DpPlayer` 上增加 `nextBotActionTime`（仅 NPC 使用），表示“下一次允许自动行动的时间戳（毫秒）”。
+- **入口**：定时任务中轮到机器人行动时，`autoActForBot(room, bot)` 会先检查：
+  - 若 `nextBotActionTime` 尚未设置，则根据当前牌力 `estimateCurrentStrength`、需要跟注筹码比例、机器人类型与情绪，调用 `calculateBotThinkDelay` 生成一个延迟（毫秒），保存为 `bot.nextBotActionTime`，**本轮先不真正行动**；
+  - 之后每 2 秒定时器再次触发时，只有当 `System.currentTimeMillis() >= nextBotActionTime` 时，才真正调用 `decideBotAction` + `bet/fold` 完成这次行动，并把 `nextBotActionTime` 清零。
+
+#### 4.1 分开配置（按机器人类型独立调参）
+
+现在思考时间**不是统一一套**，而是按 `BotType` **分开配置**（你想怎么调都行，不用动决策逻辑）：
+
+- **配置位置**：`DpRoomServiceImpl` 的“机器人思考时间配置”区域里，三个配置对象：
+  - `THINK_DEMO`：普通机器人
+  - `THINK_MANIAC`：疯子（更快、更爱秒出手）
+  - `THINK_SHARK`：聪明型（更爱“故作思考”，但也保留秒 call 的随机性）
+- **你能配置什么**（单位都是毫秒）：
+  - `weakMinMs/weakMaxMs`、`mediumMinMs/mediumMaxMs`、`strongMinMs/strongMaxMs`：三档牌力的思考时间区间
+  - `cheapMinMs/cheapMaxMs` + `cheapSnapProb`：当 `callAmount == 0` 或 `callRatio <= 0.2` 时，走“秒 call / 秒过牌”区间的概率
+  - `globalSnapProb`：无论是否 cheap、无论牌力，直接“秒出手”的概率（用来制造“突然秒 call/秒 raise”的真人感）
+  - `maxCapMs`：单次思考的上限（防止拖慢节奏）
+
+这样你就可以做到：
+
+- `BOT_Maniac`：raise/call 很多时候直接秒出或 1 秒内出手
+- `BOT_Shark`：强牌更可能长考，但也会偶尔秒 call 迷惑对手
+
+#### 4.2 行为规则（只影响机器人，不影响真人超时逻辑）
+
+整体规则：
+
+- **强牌（`SimpleStrength.STRONG`）**：
+  - 走 `strongMinMs~strongMaxMs`；
+  - 效果：拿到葫芦、顺子、同花以上的牌时，经常会出现“明显多想一会再动”的感觉。
+- **中等牌（`MEDIUM`）**：
+  - 走 `mediumMinMs~mediumMaxMs`；
+  - 效果：一对、两对、三条时节奏适中，看起来像在权衡要不要跟/加注。
+- **弱牌（`WEAK`）**：
+  - 常规走 `weakMinMs~weakMaxMs`；
+  - 若当前需要跟注筹码极小（`callRatio <= 0.2`）或可以 free check（`callAmount == 0`），会按 `cheapSnapProb` 以较高概率走 `cheapMinMs~cheapMaxMs` 的“秒 call / 秒过牌”区间；
+  - 整体感觉是：垃圾牌要么很快弃牌，要么在便宜的跟注/过牌场景瞬间做决定。
+- **不同风格差异**：
+  - 通过不同 `THINK_*` 配置直接体现；
+  - 情绪值 `mood` 会微调思考时间：连赢变得更爽快出手，连输则犹豫更久。
+
+限制与安全性：
+
+- 机器人单次行动的思考时间有上限：**不超过约 12 秒**，远小于 30 秒超时自动弃牌的窗口，不会影响整局进程；
+- 所有逻辑都包裹在 `autoActForBot` 里，对真人玩家和接口协议完全无侵入；
+- 前端依旧通过 `room.currentActorIndex` 高亮“思考中...”的玩家，因此你会看到：
+  - 有时机器人一到自己就立刻 call / all-in；
+  - 有时则会在圈内“闪黄圈 + 思考中...”停留几秒，再突然做出一个明显是强牌的慢打或可疑的诈唬动作。
 
 ---
 

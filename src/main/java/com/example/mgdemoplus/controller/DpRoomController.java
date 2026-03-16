@@ -119,6 +119,14 @@ public class DpRoomController {
     }
 
     /**
+     * 将聪明型 NPC（BOT_Shark）加入到指定房间的「下一局加入」列表中。
+     */
+    @PostMapping("/addSharkBot")
+    public String addSharkBot(@RequestParam String roomId) {
+        return dpRoomService.addSharkBotToNextHand(roomId) ? "ok" : "fail";
+    }
+
+    /**
      * 房主主动移交房主给房间内的另一位玩家
      */
     @PostMapping("/transferOwner")

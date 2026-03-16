@@ -36,6 +36,13 @@ public class DpPlayer {
      */
     private double mood = 0.0;
 
+    /**
+     * 机器人下一次允许自动行动的时间戳（毫秒）。
+     * 仅 NPC 使用，用于模拟“思考时间”：强牌更爱“长考”、弱牌/诈唬更容易秒出手。
+     * 对真人玩家逻辑没有影响。
+     */
+    private long nextBotActionTime = 0L;
+
     // getter & setter
     public boolean isActed() { return acted; }
     public void setActed(boolean acted) { this.acted = acted; }
@@ -67,4 +74,6 @@ public class DpPlayer {
     public void setBestHandCards(List<String> bestHandCards) { this.bestHandCards = bestHandCards != null ? bestHandCards : new ArrayList<>(); }
     public double getMood() { return mood; }
     public void setMood(double mood) { this.mood = mood; }
+    public long getNextBotActionTime() { return nextBotActionTime; }
+    public void setNextBotActionTime(long nextBotActionTime) { this.nextBotActionTime = nextBotActionTime; }
 }

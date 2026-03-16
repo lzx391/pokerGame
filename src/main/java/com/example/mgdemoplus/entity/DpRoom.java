@@ -3,7 +3,9 @@ package com.example.mgdemoplus.entity;
 import com.example.mgdemoplus.entity.DpPlayer;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class DpRoom {
     private String roomId;
@@ -40,6 +42,13 @@ public class DpRoom {
      * 结算后准备阶段的截止时间戳（毫秒）。为 0 表示当前没有准备倒计时。
      */
     private long readyDeadline = 0L;
+
+    /**
+     * 玩家行为统计：用于高级机器人（如 BOT_Shark）根据最近几手的表现
+     * 粗略揣测每个玩家是紧/松、凶/弱，从而调整自己的跟注/加注策略。
+     * key 为玩家昵称，value 为该玩家的统计信息。
+     */
+    private Map<String, PlayerStats> playerStatsMap = new HashMap<>();
     // getter & setter
     public String getRoomId() { return roomId; }
     public void setRoomId(String roomId) { this.roomId = roomId; }
@@ -83,5 +92,13 @@ public class DpRoom {
 
     public void setLastDealerIndex(int lastDealerIndex) {
         this.lastDealerIndex = lastDealerIndex;
+    }
+
+    public Map<String, PlayerStats> getPlayerStatsMap() {
+        return playerStatsMap;
+    }
+
+    public void setPlayerStatsMap(Map<String, PlayerStats> playerStatsMap) {
+        this.playerStatsMap = playerStatsMap;
     }
 }

@@ -4,6 +4,7 @@ import com.example.mgdemoplus.dto.DpRoomDTO;
 import com.example.mgdemoplus.entity.DpPlayer;
 import com.example.mgdemoplus.entity.DpPot;
 import com.example.mgdemoplus.entity.DpRoom;
+import com.example.mgdemoplus.entity.PlayerStats;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -108,7 +109,7 @@ public class DpRoomServiceImpl {
                     }
                 }
             }
-        }, 0, 2000);
+        }, 0, 1000);
     }
 
     // ========== 工具方法 ==========
@@ -429,6 +430,14 @@ public class DpRoomServiceImpl {
         return readyNextHand(roomId, MANIAC_BOT_NICKNAME);
     }
 
+    /**
+     * 将聪明型 NPC（BOT_Shark）加入指定房间的下一局等待列表。
+     * 该机器人会基于最近几手对手的行为做简单“读对手”决策。
+     */
+    public boolean addSharkBotToNextHand(String roomId) {
+        return readyNextHand(roomId, "BOT_Shark");
+    }
+
     public boolean toggleReady(String roomId, String nickname) {
         DpRoom r = roomMap.get(roomId);
         if (r == null) return false;
@@ -475,15 +484,20 @@ public class DpRoomServiceImpl {
         int size1 = 0;
         //算所有场上有能力准备下一场的人数
         for (DpPlayer player : r.getPlayers()) {
-            if (player.getChips() >= 10) {
+            if (player.getChips() >= 10 && !isBotPlayer(player)) {
                 size += 1;
             }
         }
         //算已经准备的人数
         for (DpPlayer player : r.getPlayers()) {
-            if (player.isReady()) {
+            if (player.isReady() && !isBotPlayer(player)) {
                 size1 += 1;
             }
+        }
+        // 如果当前没有任何有能力继续玩的真人玩家（size==0），
+        // 不在这里自动开新局，改由结算阶段的超时逻辑 handleReadyTimeout 统一处理
+        if (size == 0) {
+            return;
         }
         //如果有能力的人齐了就可以开始newHand了，拉人踢人开场
         if (size == size1) {
@@ -996,6 +1010,27 @@ public class DpRoomServiceImpl {
 
         r.setPot(0);
         r.setPots(new ArrayList<>());
+
+        // ==== 更新玩家行为统计：用于高级机器人（如 BOT_Shark）判断对手风格 ====
+        if (r.getPlayerStatsMap() != null) {
+            Map<String, PlayerStats> statsMap = r.getPlayerStatsMap();
+            for (DpPlayer p : r.getPlayers()) {
+                String name = p.getNickname();
+                PlayerStats stats = statsMap.get(name);
+                if (stats == null) {
+                    stats = new PlayerStats();
+                    statsMap.put(name, stats);
+                }
+                PlayerStats.SingleHandStats hand = new PlayerStats.SingleHandStats();
+                // 参与：本手有过下注（totalBet>0）且未在翻前直接弃牌
+                hand.setParticipated(p.getTotalBet() > 0 && !p.isFold());
+                // 加注：简单视为本手中有过超过大盲的下注
+                hand.setRaised(p.getTotalBet() > DpRoom.getBBChips());
+                // 摊牌：到 showdown 阶段且未弃牌
+                hand.setWentToShowdown("showdown".equals(r.getCurrentStage()) && !p.isFold());
+                stats.addHand(hand, 10);
+            }
+        }
 
         // 根据赢/输调整机器人情绪：赢到筹码的机器人情绪略微变高，输掉筹码的略微变低
         for (DpPlayer p : r.getPlayers()) {
@@ -1534,7 +1569,8 @@ public class DpRoomServiceImpl {
      */
     private enum BotType {
         DEMO,
-        MANIAC
+        MANIAC,
+        SHARK
     }
 
     /**
@@ -1586,7 +1622,9 @@ public class DpRoomServiceImpl {
     private boolean isBotPlayer(DpPlayer p) {
         if (p == null) return false;
         String name = p.getNickname();
-        return DEMO_BOT_NICKNAME.equals(name) || MANIAC_BOT_NICKNAME.equals(name);
+        return DEMO_BOT_NICKNAME.equals(name)
+                || MANIAC_BOT_NICKNAME.equals(name)
+                || "BOT_Shark".equals(name);
     }
 
     /**
@@ -1602,6 +1640,9 @@ public class DpRoomServiceImpl {
         if (MANIAC_BOT_NICKNAME.equals(nickname)) {
             return BotType.MANIAC;
         }
+        if ("BOT_Shark".equals(nickname)) {
+            return BotType.SHARK;
+        }
         return null;
     }
 
@@ -1614,16 +1655,22 @@ public class DpRoomServiceImpl {
         }
         int cat = hs.rankCategory;
 
-        // 翻牌后：直接按牌型粗分
+        // 翻牌后：更细地按牌型粗分
         if ("flop".equals(stage) || "turn".equals(stage) || "river".equals(stage)) {
+            // 10 皇家同花顺, 9 同花顺, 8 四条, 7 葫芦, 6 同花, 5 顺子, 4 三条, 3 两对, 2 一对, 1 高牌
             if (cat >= 7) {
-                // 葫芦、四条、同花顺、皇家同花顺
+                // 葫芦、四条、同花顺、皇家同花顺：绝对强牌
                 return SimpleStrength.STRONG;
             }
-            if (cat >= 4) {
-                // 三条、顺子、同花
+            if (cat == 6 || cat == 5) {
+                // 单纯同花或顺子：偏强，接近强牌
+                return SimpleStrength.STRONG;
+            }
+            if (cat == 4 || cat == 3) {
+                // 三条或两对：中强牌，视为中档偏上
                 return SimpleStrength.MEDIUM;
             }
+            // 一对 / 高牌
             return SimpleStrength.WEAK;
         }
 
@@ -1744,7 +1791,24 @@ public class DpRoomServiceImpl {
         if (bot.isFold() || bot.isAllIn() || bot.isLeftThisHand()) {
             return;
         }
-//通过名字决定类型
+
+        // 先根据当前局面为机器人设置一次“思考时间”，到点前不真正出手，
+        // 用于营造强牌长考、弱牌秒出的节奏感。
+        long now = System.currentTimeMillis();
+        long nextTime = bot.getNextBotActionTime();
+        if (nextTime <= 0L) {
+            long delayMs = calculateBotThinkDelay(room, bot);
+            bot.setNextBotActionTime(now + delayMs);
+            return;
+        }
+        if (now < nextTime) {
+            // 还在思考时间窗口内，暂不行动
+            return;
+        }
+        // 本轮行动完成后清零，下次成为行动者时重新计算
+        bot.setNextBotActionTime(0L);
+
+        // 通过名字决定类型
         BotType type = getBotTypeByNickname(bot.getNickname());
         if (type == null) {
             return;
@@ -1775,6 +1839,174 @@ public class DpRoomServiceImpl {
             default:
                 break;
         }
+    }
+
+    // ========== 机器人“思考时间”配置 ==========
+
+    /**
+     * 思考时间配置（毫秒）。
+     * 你可以把这里当成“调参区”：不同机器人类型可以完全分开设置。
+     */
+    private static class BotThinkProfile {
+        final long weakMinMs;
+        final long weakMaxMs;
+        final long mediumMinMs;
+        final long mediumMaxMs;
+        final long strongMinMs;
+        final long strongMaxMs;
+
+        // 便宜跟注/免费过牌时的“秒出手”区间
+        final long cheapMinMs;
+        final long cheapMaxMs;
+
+        // 满足 cheap 条件时，直接走 cheap 区间的概率（否则仍按牌力区间抽）
+        final double cheapSnapProb;
+
+        // 无论牌力/cheap 与否，都可能“秒出手”的概率（用来做出真人式的秒 call / 秒 raise）
+        final double globalSnapProb;
+
+        // 最高思考时间上限（防止拖慢节奏）
+        final long maxCapMs;
+
+        BotThinkProfile(long weakMinMs, long weakMaxMs,
+                        long mediumMinMs, long mediumMaxMs,
+                        long strongMinMs, long strongMaxMs,
+                        long cheapMinMs, long cheapMaxMs,
+                        double cheapSnapProb,
+                        double globalSnapProb,
+                        long maxCapMs) {
+            this.weakMinMs = weakMinMs;
+            this.weakMaxMs = weakMaxMs;
+            this.mediumMinMs = mediumMinMs;
+            this.mediumMaxMs = mediumMaxMs;
+            this.strongMinMs = strongMinMs;
+            this.strongMaxMs = strongMaxMs;
+            this.cheapMinMs = cheapMinMs;
+            this.cheapMaxMs = cheapMaxMs;
+            this.cheapSnapProb = cheapSnapProb;
+            this.globalSnapProb = globalSnapProb;
+            this.maxCapMs = maxCapMs;
+        }
+    }
+
+    // 你想“分开设置”就改这里（单位：毫秒）
+    private static final BotThinkProfile THINK_DEMO = new BotThinkProfile(
+            250, 1700,   // WEAK
+            1200, 4200,  // MEDIUM
+            2800, 7500,  // STRONG
+            0, 450,      // cheap snap range
+            0.85,        // cheapSnapProb
+            0.03,        // globalSnapProb（偶尔秒出）
+            12000        // max cap
+    );
+
+    private static final BotThinkProfile THINK_MANIAC = new BotThinkProfile(
+            0, 500,      // WEAK：基本秒出
+            200, 900,    // MEDIUM：也很快
+            500, 1800,   // STRONG：强牌也不会长考太久（更像“手快疯子”）
+            0, 250,      // cheap snap range
+            0.95,        // cheapSnapProb
+            0.18,        // globalSnapProb（明显更爱秒 call/秒 raise）
+            6000         // max cap（疯子不拖节奏）
+    );
+
+    private static final BotThinkProfile THINK_SHARK = new BotThinkProfile(
+            200, 1600,   // WEAK
+            1400, 5200,  // MEDIUM：更爱思考
+            3200, 9000,  // STRONG：更可能“故作长考慢打”
+            0, 500,      // cheap snap range
+            0.70,        // cheapSnapProb（便宜时也会经常秒 call）
+            0.08,        // globalSnapProb（偶尔秒出，制造对手读牌困难）
+            12000        // max cap
+    );
+
+    private BotThinkProfile getThinkProfile(BotType type) {
+        if (type == null) return THINK_DEMO;
+        switch (type) {
+            case MANIAC:
+                return THINK_MANIAC;
+            case SHARK:
+                return THINK_SHARK;
+            case DEMO:
+            default:
+                return THINK_DEMO;
+        }
+    }
+
+    private long randomBetween(long minInclusive, long maxInclusive, Random random) {
+        long min = Math.max(0L, minInclusive);
+        long max = Math.max(0L, maxInclusive);
+        if (max <= min) return min;
+        long span = max - min + 1;
+        long v = Math.floorMod(random.nextLong(), span);
+        return min + v;
+    }
+
+    /**
+     * 为机器人当前这一手行动计算一个“思考时间”延迟。
+     * 大致规则：
+     * - 强牌：倾向 3~8 秒的长考；
+     * - 中等牌：1.5~5 秒；
+     * - 弱牌：0.2~1.5 秒；
+     * - 若弱牌且需要跟注筹码极小（或可 free check），会出现 0~0.4 秒的“秒 call / 秒过牌”效果；
+     * - 疯子型/情绪高的机器人整体会更快，石头/情绪差的略慢。
+     */
+    private long calculateBotThinkDelay(DpRoom room, DpPlayer bot) {
+        int chips = bot.getChips();
+        int callAmount = Math.max(0, room.getCurrentBetToCall() - bot.getBet());
+        double callRatio = chips == 0 ? 1.0 : (callAmount * 1.0 / Math.max(1, chips));
+
+        SimpleStrength strength = estimateCurrentStrength(room, bot);
+        BotType type = getBotTypeByNickname(bot.getNickname());
+        double mood = bot.getMood();
+        Random random = new Random();
+
+        BotThinkProfile profile = getThinkProfile(type);
+
+        // 全局“秒出手”
+        if (profile.globalSnapProb > 0 && random.nextDouble() < profile.globalSnapProb) {
+            return randomBetween(0, Math.max(0L, profile.cheapMaxMs), random);
+        }
+
+        // cheap snap：free check 或者跟注很便宜
+        boolean isCheap = (callAmount == 0) || (callRatio <= 0.2);
+        if (isCheap && profile.cheapSnapProb > 0 && random.nextDouble() < profile.cheapSnapProb) {
+            return randomBetween(profile.cheapMinMs, profile.cheapMaxMs, random);
+        }
+
+        // 基础区间（毫秒）
+        long minMs;
+        long maxMs;
+        switch (strength) {
+            case STRONG:
+                minMs = profile.strongMinMs;
+                maxMs = profile.strongMaxMs;
+                break;
+            case MEDIUM:
+                minMs = profile.mediumMinMs;
+                maxMs = profile.mediumMaxMs;
+                break;
+            default:
+                minMs = profile.weakMinMs;
+                maxMs = profile.weakMaxMs;
+                break;
+        }
+
+        // 情绪：高兴时更快，低落时更慢
+        // mood ∈ [-1,1]，映射到 [0.8, 1.2] 左右的速度因子
+        double moodFactor = 1.0 - mood * 0.2;
+        if (moodFactor < 0.8) moodFactor = 0.8;
+        if (moodFactor > 1.2) moodFactor = 1.2;
+
+        long base = randomBetween(minMs, maxMs, random);
+        long result = (long) (base * moodFactor);
+
+        // 安全下限/上限保护：避免过短或超过超时踢人的 30 秒窗口
+        if (result < 0L) result = 0L;
+        long cap = profile.maxCapMs > 0 ? profile.maxCapMs : 12000L;
+        if (cap > 20000L) cap = 20000L; // 兜底：永远不要太离谱
+        if (result > cap) result = cap;
+        return result;
     }
 
     /**
@@ -1844,17 +2076,17 @@ public class DpRoomServiceImpl {
                 return new BotAction(BotActionType.CALL_OR_CHECK, 0);
             }
             case MANIAC: {
-                // 疯子风格：整体更激进，更少弃牌，更常见加注和 all-in
+                // 疯子风格：明显更激进，极少弃牌，经常加注甚至乱 all-in
                 String stage = room.getCurrentStage();
 
-                // 如果必须顶着对方 all-in，少部分时候会怂
+                // 如果必须顶着对方 all-in：大部分时间跟着冲，极少数情况下才会弃牌
                 if (callAmount >= chips) {
-                    double r = random.nextDouble();
-                    if (r < 0.2) {
-                        // 20% 直接弃牌
+                    double rAllIn = random.nextDouble();
+                    if (rAllIn < 0.08) {
+                        // 8% 直接弃牌（偶尔“理智”一下）
                         return new BotAction(BotActionType.FOLD, 0);
                     } else {
-                        // 80% 直接 all-in 跟上去
+                        // 92% 直接 all-in 跟上去
                         return new BotAction(BotActionType.ALL_IN, chips);
                     }
                 }
@@ -1863,43 +2095,72 @@ public class DpRoomServiceImpl {
 
                 // 没有需要跟注的筹码（可以 free check 的场景）
                 if (callAmount == 0) {
-                    // 情绪越高，越喜欢主动下注
-                    double raiseProb = 0.5 + mood * 0.2;
-                    if (r < Math.min(0.9, Math.max(0.1, raiseProb))) {
-                        // 直接加注 1~3 个大盲，强牌更倾向大注
-                        int maxMulti = (strength == SimpleStrength.STRONG) ? 3 : 2;
-                        int multiplier = 1 + random.nextInt(maxMulti); // 1~maxMulti
+                    // 情绪越高，越喜欢主动下注，基础就已经很爱开火
+                    double raiseProb = 0.75 + mood * 0.15; // 60%~90% 左右
+                    raiseProb = Math.max(0.6, Math.min(0.95, raiseProb));
+
+                    if (r < raiseProb) {
+                        // 直接加注 2~4 个大盲，强牌更倾向更大，弱牌也经常乱开火
+                        int maxMulti;
+                        int minMulti;
+                        if (strength == SimpleStrength.STRONG) {
+                            minMulti = 3;
+                            maxMulti = 5;
+                        } else if (strength == SimpleStrength.MEDIUM) {
+                            minMulti = 2;
+                            maxMulti = 4;
+                        } else {
+                            minMulti = 1;
+                            maxMulti = 3;
+                        }
+                        int range = Math.max(1, maxMulti - minMulti + 1);
+                        int multiplier = minMulti + random.nextInt(range);
                         int raiseAmount = Math.min(chips, DpRoom.getBBChips() * multiplier);
                         if (raiseAmount <= 0) {
                             return new BotAction(BotActionType.CALL_OR_CHECK, 0);
                         }
                         return new BotAction(BotActionType.RAISE, raiseAmount);
                     }
-                    // 50% 先装一下，check 看牌
+                    // 少数情况先装一装，check 看牌
                     return new BotAction(BotActionType.CALL_OR_CHECK, 0);
                 }
 
-                // 有需要跟注的筹码
-                double maniFoldBase = 0.1;
-                if (strength == SimpleStrength.WEAK && callRatio > 0.7 && boardDanger == BoardDanger.WET) {
-                    // 弱牌遇到巨大压力且牌面危险，更可能怂
-                    maniFoldBase = 0.4;
+                // 有需要跟注的筹码：整体很不爱弃牌
+                double maniFoldBase = 0.03; // 基础弃牌意愿极低
+                if (strength == SimpleStrength.WEAK && callRatio > 0.85 && boardDanger == BoardDanger.WET) {
+                    // 弱牌遇到巨大压力且牌面危险时，才明显增加弃牌倾向
+                    maniFoldBase = 0.2;
                 }
-                // 情绪高时更不爱弃牌
-                double maniFoldProb = Math.min(0.8, Math.max(0.0, maniFoldBase - mood * 0.3));
+                // 情绪高时更不爱弃牌（甚至负数，下面 clamp）
+                double maniFoldProb = maniFoldBase - mood * 0.2;
+                if (maniFoldProb < 0.0) maniFoldProb = 0.0;
+                if (maniFoldProb > 0.5) maniFoldProb = 0.5;
                 if (random.nextDouble() < maniFoldProb) {
                     return new BotAction(BotActionType.FOLD, 0);
                 }
 
-                if (r < 0.4 + mood * 0.1) {
-                    // 40% 左右选择跟注，情绪高时略微少跟多加注
+                // 在“还没 all-in”的情况下，分配：少量跟注 + 大量加注 + 一定比例无脑 all-in
+                if (r < 0.25 + mood * 0.05) {
+                    // 大约 20%~30% 选择跟注，情绪越高越少只是跟注
                     return new BotAction(BotActionType.CALL_OR_CHECK, 0);
                 }
-                if (r < 0.9 + mood * 0.05) {
-                    // 大部分选择加注：在需要跟注的基础上再加 1~3（或4）个大盲
-                    int maxMulti = (strength == SimpleStrength.STRONG) ? 4 : 3;
-                    int multiplier = 1 + random.nextInt(maxMulti); // 1~maxMulti
-                    int extra = DpRoom.getBBChips() * multiplier;
+                if (r < 0.85 + mood * 0.05) {
+                    // 大约 55%~65% 选择加注：在需要跟注的基础上再加 2~5 个大盲
+                    int minMulti;
+                    int maxMulti;
+                    if (strength == SimpleStrength.STRONG) {
+                        minMulti = 3;
+                        maxMulti = 6;
+                    } else if (strength == SimpleStrength.MEDIUM) {
+                        minMulti = 2;
+                        maxMulti = 5;
+                    } else {
+                        minMulti = 1;
+                        maxMulti = 4;
+                    }
+                    int range2 = Math.max(1, maxMulti - minMulti + 1);
+                    int multiplier2 = minMulti + random.nextInt(range2);
+                    int extra = DpRoom.getBBChips() * multiplier2;
                     int target = callAmount + extra;
                     int raiseAmount = Math.min(chips, target);
                     if (raiseAmount <= 0) {
@@ -1907,8 +2168,111 @@ public class DpRoomServiceImpl {
                     }
                     return new BotAction(BotActionType.RAISE, raiseAmount);
                 }
-                // 剩下 10%：直接 all-in，体现疯子风格
+                // 剩下约 10%~20%：直接 all-in，体现疯子风格
                 return new BotAction(BotActionType.ALL_IN, chips);
+            }
+            case SHARK: {
+                // 聪明型：在 DEMO 基础上，根据对手风格适当调整弃牌/跟注/加注概率
+                BoardDanger bd = boardDanger;
+                SimpleStrength st = strength;
+
+                double baseFold = 0.0;
+                if (st == SimpleStrength.WEAK && callAmount > 0 && callRatio > 0.4) {
+                    baseFold = (bd == BoardDanger.WET) ? 0.7 : 0.5;
+                }
+
+                // 如果当前有明显的加注者，尝试根据其近期风格调整
+                PlayerStats.SingleHandStats lastAggressorStats = null;
+                PlayerStats aggressorStats = null;
+                Map<String, PlayerStats> statsMap = room.getPlayerStatsMap();
+                if (statsMap != null) {
+                    // 简单选择上一轮最大下注的玩家作为主要对手
+                    DpPlayer aggressor = null;
+                    int maxBet = 0;
+                    for (DpPlayer p : room.getPlayers()) {
+                        if (p.isFold() || p.isLeftThisHand()) continue;
+                        if (p.getBet() > maxBet) {
+                            maxBet = p.getBet();
+                            aggressor = p;
+                        }
+                    }
+                    if (aggressor != null && !aggressor.getNickname().equals(bot.getNickname())) {
+                        aggressorStats = statsMap.get(aggressor.getNickname());
+                        if (aggressorStats != null && !aggressorStats.getRecentHands().isEmpty()) {
+                            lastAggressorStats = aggressorStats.getRecentHands().peekLast();
+                        }
+                    }
+                }
+
+                if (aggressorStats != null) {
+                    double overallPart = aggressorStats.getOverallParticipationRate();
+                    double overallRaise = aggressorStats.getOverallRaiseRate();
+
+                    // 粗暴规则：
+                    // - 长期参与率 & 加注率都比较高 → 松凶
+                    // - 长期参与率很低 & 加注率也低 → 紧弱/石头
+                    boolean looseAggressiveLong = overallPart > 0.5 && overallRaise > 0.3;
+                    boolean tightPassiveLong = overallPart < 0.25 && overallRaise < 0.15;
+
+                    boolean looseAggressiveRecent = lastAggressorStats != null
+                            && lastAggressorStats.isParticipated() && lastAggressorStats.isRaised();
+                    boolean tightPassiveRecent = lastAggressorStats != null
+                            && !lastAggressorStats.isParticipated() && !lastAggressorStats.isRaised();
+
+                    if (looseAggressiveLong || looseAggressiveRecent) {
+                        // 对疯狗型：明显减少弃牌概率
+                        baseFold *= 0.4;
+                    } else if (tightPassiveLong || tightPassiveRecent) {
+                        // 对石头人：明显增加弃牌概率
+                        baseFold = Math.min(1.0, baseFold + 0.35);
+                    }
+                }
+
+                double foldProbShark = Math.min(1.0, Math.max(0.0, baseFold + (-mood) * 0.1));
+                if (foldProbShark > 0 && random.nextDouble() < foldProbShark) {
+                    return new BotAction(BotActionType.FOLD, 0);
+                }
+
+                double r = random.nextDouble();
+
+                String stage = room.getCurrentStage();
+
+                // 超强牌时增加“慢打”可能：前两街小跟/小加，河牌再猛烈出手
+                boolean isLateStreet = "river".equals(stage);
+
+                // 大部分时间跟注/过牌，强牌和好情绪时提升加注几率
+                double callProb = 0.6 + mood * 0.05;
+                if (st == SimpleStrength.STRONG) {
+                    // 强牌整体更偏向进攻：减少只跟概率
+                    callProb -= 0.25;
+                    if (!isLateStreet) {
+                        // 前面街保留一部分慢打空间
+                        callProb += 0.15;
+                    }
+                } else if (st == SimpleStrength.MEDIUM) {
+                    callProb += 0.05;
+                }
+
+                if (r < Math.max(0.1, Math.min(0.9, callProb))) {
+                    return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+                }
+
+                if (!"preflop".equals(stage) && chips > callAmount) {
+                    int raiseBase = callAmount;
+                    int extraBB;
+                    if (st == SimpleStrength.STRONG) {
+                        // 强牌：河牌阶段更愿意打大一点
+                        extraBB = isLateStreet ? 4 : 2;
+                    } else if (st == SimpleStrength.MEDIUM) {
+                        extraBB = 2;
+                    } else {
+                        extraBB = 1;
+                    }
+                    int minExtra = DpRoom.getBBChips() * extraBB;
+                    int raiseAmount = Math.min(chips, raiseBase + minExtra);
+                    return new BotAction(BotActionType.RAISE, raiseAmount);
+                }
+                return new BotAction(BotActionType.CALL_OR_CHECK, 0);
             }
             default:
                 return new BotAction(BotActionType.CALL_OR_CHECK, 0);
