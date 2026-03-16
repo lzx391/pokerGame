@@ -446,3 +446,16 @@ bet和fold可能会引起进程推进
 - 在 `getAllRooms` 里改 `bestHandCards` 的填充时机；
 - 或者在前端模板里放宽/收紧 `v-if` 条件；
 - 或者干脆只保留后端结算逻辑，把前端 `getHandRank` 用作“牌型说明弹窗”的示例，而不显示在每个玩家卡片上。
+
+---
+
+## 代码瘦身记录（当前版本）
+
+- **删除未使用后端方法**  
+  - 移除 `DpRoomServiceImpl` 中旧的 `checkAndStartNextHandAfterSettleOrigin` 和未被调用的统计方法 `countActiveNotFolded`，实际流程统一使用新的 `checkAndStartNextHandAfterSettle` 与 `countPlayersStillInHand`。
+- **删除未使用前端方法**  
+  - 删除 `game.vue` 里未挂在任何按钮/逻辑上的 `startGame` 和 `doNewHand`，真正的开局逻辑集中在 `room.vue` 调用 `/dpRoom/startGame`，新一局发牌逻辑在服务端自动根据结算结果触发。
+- **小范围封装与复用**  
+  - `DpRoomServiceImpl` 中 `getBestHandCards` 现在复用统一的牌点数映射常量 `CARD_RANK_MAP`，不再在方法内部重复写一份 `"2"~"A"` 对应数值，行为不变、只是减少重复代码。
+
+> 以上瘦身只清理了“完全不用的代码”或简单复用常量，没有改动任何接口地址、请求参数、游戏规则或结算逻辑，保证老版本前端和已有房间流程都能照常运行。

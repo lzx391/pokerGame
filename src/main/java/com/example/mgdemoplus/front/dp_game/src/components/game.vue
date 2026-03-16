@@ -665,32 +665,6 @@ export default {
       }
     },
 
-    // ---- 房主开始游戏 ----
-    async startGame() {
-      var notReady = this.players.filter(function (p) {
-        return !p.ready
-      })
-      if (notReady.length > 0) {
-        alert('还有玩家未准备: ' + notReady.map(function (p) {
-          return p.nickname
-        }).join(', '))
-        return
-      }
-      if (this.players.length < 2) {
-        alert('至少需要2名玩家')
-        return
-      }
-      try {
-        var res = await this.$http.post('/dpRoom/startGame', null, {
-          params: {roomId: this.roomId, ownerNickname: this.user.nickname}
-        })
-        if (res.data !== 'ok') alert('开始失败')
-        await this.loadGame()
-      } catch (err) {
-        alert('网络错误: ' + err.message)
-      }
-    },
-
     // ---- 跟注/过牌 ----
     async doCall() {
       await this.submitBet(this.callAmount)
@@ -833,22 +807,6 @@ export default {
         })
         if (res.data !== 'ok') alert('结算失败')
         this.selectedWinners = []
-        await this.loadGame()
-      } catch (err) {
-        alert('网络错误: ' + err.message)
-      }
-    },
-
-    // ---- 房主：重新发牌 ----
-    async doNewHand() {
-      if (!confirm('确定要重新发牌吗？请先结算完毕')) return
-      try {
-        var res = await this.$http.post('/dpRoom/newHand', null, {
-          params: {roomId: this.roomId, ownerNickname: this.user.nickname}
-        })
-        if (res.data !== 'ok') alert('发牌失败')
-        this.selectedWinners = []
-        this.potWinners = {}
         await this.loadGame()
       } catch (err) {
         alert('网络错误: ' + err.message)

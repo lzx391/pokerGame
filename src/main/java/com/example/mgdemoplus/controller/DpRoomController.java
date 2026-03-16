@@ -72,10 +72,10 @@ public class DpRoomController {
 //    }
 
     // 按池结算：参数格式 "0:Alice;1:Bob,Charlie"
-    @PostMapping("/judgeWin")
-    public String judgeWin(@RequestParam String roomId, @RequestParam String potWinners) {
-        return dpRoomService.judgeWin(roomId, potWinners) ? "ok" : "fail";
-    }
+//    @PostMapping("/judgeWin")
+//    public String judgeWin(@RequestParam String roomId, @RequestParam String potWinners) {
+//        return dpRoomService.judgeWin(roomId, potWinners) ? "ok" : "fail";
+//    }
 
     @PostMapping("/heartbeat")
     public void heartbeat(@RequestParam String roomId, @RequestParam String nickname) {
