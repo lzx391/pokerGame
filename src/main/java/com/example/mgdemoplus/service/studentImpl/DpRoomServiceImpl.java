@@ -63,7 +63,7 @@ public class DpRoomServiceImpl {
                             && room.getCurrentActorIndex() < room.getPlayers().size()) {
                         DpPlayer p = room.getPlayers().get(room.getCurrentActorIndex());
                         // 如果当前行动者是 NPC，则直接由后端自动决策行动，不等待前端操作
-                        if (isBotPlayer(p)) {
+                        if (isBotPlayer(p)) {//决策入口
                             autoActForBot(room, p);
                         } else {
                             if (p.isLeftThisHand()) {
@@ -80,6 +80,7 @@ public class DpRoomServiceImpl {
                     // 结算后准备阶段：机器人自动补码并自动准备
                     if (room.isPlaying() && "settled".equals(room.getCurrentStage())) {
                         boolean botTouched = false;
+                        //只有场上的NPC才能自动准备，踢走的不准备
                         for (DpPlayer p : room.getPlayers()) {
                             if (!isBotPlayer(p)) continue;
                             // 若筹码不足大盲，自动补码（内部已有阶段与筹码校验）
@@ -201,9 +202,11 @@ public class DpRoomServiceImpl {
             }
             ps.get(idx).setReady(false);
             ps.get(idx).setLeftThisHand(true);
-            List<String> spectators = getNewSpectators(r);
-            if(!spectators.contains(nickname)){
-                spectators.add(nickname);
+            if(!isBotPlayer(ps.get(idx))){//如果是机器人直接删掉，如果不是就踢到观众席
+                List<String> spectators = getNewSpectators(r);
+                if(!spectators.contains(nickname)){
+                    spectators.add(nickname);
+                }
             }
             return true;
         } else {
@@ -837,11 +840,18 @@ public class DpRoomServiceImpl {
                 return false;
         }
 
-        // 非 showdown 阶段，找第一个可行动的人（跳过弃牌和 all-in）
+        // 非 showdown 阶段，优先判断后续是否还可能有新的下注
+        if (noFurtherBettingPossible(r)) {
+            // 已经不可能再出现新的下注：不设置行动者，让外层循环自动连推到摊牌
+            r.setCurrentActorIndex(-1);
+            return true;
+        }
+
+        // 否则按正常逻辑找下一位行动者
         int newIndex = findFirstActorAfterDealer(r);
-        // 若场上只剩一人未弃牌，和“全员 all-in”一样：不设行动者，连推到摊牌并结算
         int stillInCount = countPlayersStillInHand(r);
         if (newIndex >= 0 && stillInCount <= 1) {
+            // 只剩一人未弃牌，等价于直接收池
             r.setCurrentActorIndex(-1);
             return true;
         }
@@ -867,6 +877,28 @@ public class DpRoomServiceImpl {
             if (!p.isLeftThisHand() && !p.isFold()) count++;
         }
         return count;
+    }
+
+    /**
+     * 判断后续街是否已经不可能再出现新的下注：
+     * - 仍在本手牌中的玩家中，非 all-in 的人数 <= 1。
+     *   （要么全部 all-in，要么只有一个人还有筹码，但其它人都 all-in 了）
+     * 这种情况下，无论有无边池，系统都可以直接连推到摊牌。
+     */
+    private boolean noFurtherBettingPossible(DpRoom r) {
+        if (r == null || r.getPlayers() == null) return false;
+        int notAllIn = 0;
+        for (DpPlayer p : r.getPlayers()) {
+            if (p.isLeftThisHand() || p.isFold()) continue;
+            if (!p.isAllIn()) {
+                notAllIn++;
+                if (notAllIn > 1) {
+                    return false;
+                }
+            }
+        }
+        // 所有人 all-in（notAllIn == 0）或仅剩一个人没 all-in，且其余都 all-in
+        return notAllIn <= 1;
     }
 
     // ========== 游戏尾声：结算与下一局准备 ==========
@@ -964,6 +996,27 @@ public class DpRoomServiceImpl {
 
         r.setPot(0);
         r.setPots(new ArrayList<>());
+
+        // 根据赢/输调整机器人情绪：赢到筹码的机器人情绪略微变高，输掉筹码的略微变低
+        for (DpPlayer p : r.getPlayers()) {
+            if (!isBotPlayer(p)) {
+                continue;
+            }
+            int initialChips = DpRoom.getChips();
+            int diff = p.getChips() - initialChips;
+            double moodDelta;
+            if (diff > 0) {
+                moodDelta = 0.2;
+            } else if (diff < 0) {
+                moodDelta = -0.2;
+            } else {
+                continue;
+            }
+            double newMood = p.getMood() + moodDelta;
+            if (newMood > 1.0) newMood = 1.0;
+            if (newMood < -1.0) newMood = -1.0;
+            p.setMood(newMood);
+        }
 
         // 结算完成后，先清理本手中已离开的“僵尸位”玩家
         List<DpPlayer> currentPlayers = r.getPlayers();
@@ -1485,6 +1538,18 @@ public class DpRoomServiceImpl {
     }
 
     /**
+     * 机器人对当前牌力的粗粒度感知，用于决策逻辑：
+     * - WEAK：垃圾牌 / 纯高牌等；
+     * - MEDIUM：一对、两对、三条、一般顺子/同花；
+     * - STRONG：葫芦及以上或非常强的成牌。
+     */
+    private enum SimpleStrength {
+        WEAK,
+        MEDIUM,
+        STRONG
+    }
+
+    /**
      * 机器人动作类型：弃牌 / 过牌或跟注 / 加注 / 全下。
      */
     private enum BotActionType {
@@ -1541,6 +1606,125 @@ public class DpRoomServiceImpl {
     }
 
     /**
+     * 将 HandStrength（详细牌力）压缩成机器人决策用的粗粒度档位。
+     */
+    private SimpleStrength toSimpleStrength(HandStrength hs, String stage, List<String> holeCards, List<String> community) {
+        if (hs == null) {
+            return SimpleStrength.WEAK;
+        }
+        int cat = hs.rankCategory;
+
+        // 翻牌后：直接按牌型粗分
+        if ("flop".equals(stage) || "turn".equals(stage) || "river".equals(stage)) {
+            if (cat >= 7) {
+                // 葫芦、四条、同花顺、皇家同花顺
+                return SimpleStrength.STRONG;
+            }
+            if (cat >= 4) {
+                // 三条、顺子、同花
+                return SimpleStrength.MEDIUM;
+            }
+            return SimpleStrength.WEAK;
+        }
+
+        // preflop：简单看起手牌质量
+        if (holeCards == null || holeCards.size() < 2) {
+            return SimpleStrength.WEAK;
+        }
+        int r1 = getRankFromCard(holeCards.get(0));
+        int r2 = getRankFromCard(holeCards.get(1));
+        boolean pair = (r1 == r2);
+        int high = Math.max(r1, r2);
+        int low = Math.min(r1, r2);
+
+        if (pair && high >= 10) {
+            // TT+ 口袋对
+            return SimpleStrength.STRONG;
+        }
+        if (pair || (high >= 11 && low >= 9)) {
+            // 其它对子 / 高张连牌
+            return SimpleStrength.MEDIUM;
+        }
+        return SimpleStrength.WEAK;
+    }
+
+    /**
+     * 粗略评估机器人当前这手牌的强度，用于行为决策，而不是用于精确比牌。
+     */
+    private SimpleStrength estimateCurrentStrength(DpRoom room, DpPlayer bot) {
+        List<String> hole = bot.getHoleCards();
+        List<String> community = room.getCommunityCards();
+        if (hole == null || hole.size() < 2) {
+            return SimpleStrength.WEAK;
+        }
+        List<String> all = new ArrayList<>(hole);
+        if (community != null) {
+            all.addAll(community);
+        }
+        if (all.size() < 5) {
+            // 公共牌不足 3 张时，用简单 preflop 规则
+            return toSimpleStrength(null, room.getCurrentStage(), hole, community);
+        }
+        HandStrength hs = evaluateBestHand(all);
+        return toSimpleStrength(hs, room.getCurrentStage(), hole, community);
+    }
+
+    /**
+     * 简单评估公共牌危险度：
+     * - DRY：无明显顺子/同花结构；
+     * - WET：存在大量连张或同花牌，容易被听顺/听同花。
+     */
+    private enum BoardDanger {
+        DRY,
+        WET
+    }
+
+    private BoardDanger evaluateBoardDanger(List<String> communityCards) {
+        if (communityCards == null || communityCards.size() < 3) {
+            return BoardDanger.DRY;
+        }
+        Set<Integer> ranks = new HashSet<>();
+        Map<String, Integer> suitCount = new HashMap<>();
+        for (String c : communityCards) {
+            if (c == null || !c.contains("_")) continue;
+            String[] parts = c.split("_", 2);
+            if (parts.length != 2) continue;
+            String suit = parts[0];
+            String rankStr = parts[1];
+            int r = CARD_RANK_MAP.getOrDefault(rankStr, 0);
+            if (r > 0) {
+                ranks.add(r);
+            }
+            suitCount.put(suit, suitCount.getOrDefault(suit, 0) + 1);
+        }
+        // 同花危险：某一花色数量 >= 3
+        for (Integer cnt : suitCount.values()) {
+            if (cnt >= 3) {
+                return BoardDanger.WET;
+            }
+        }
+        // 顺子危险：有 3 张以上接近的连张结构
+        if (ranks.size() >= 3) {
+            List<Integer> list = new ArrayList<>(ranks);
+            Collections.sort(list);
+            int maxRun = 1;
+            int currentRun = 1;
+            for (int i = 1; i < list.size(); i++) {
+                if (list.get(i) == list.get(i - 1) + 1) {
+                    currentRun++;
+                    maxRun = Math.max(maxRun, currentRun);
+                } else if (list.get(i) > list.get(i - 1) + 1) {
+                    currentRun = 1;
+                }
+            }
+            if (maxRun >= 3) {
+                return BoardDanger.WET;
+            }
+        }
+        return BoardDanger.DRY;
+    }
+
+    /**
      * 在定时任务中调用：如果轮到机器人行动，则由后端统一通过决策函数 decideBotAction
      * 计算动作，并最终调用现有的 bet / fold 接口。
      */
@@ -1560,7 +1744,7 @@ public class DpRoomServiceImpl {
         if (bot.isFold() || bot.isAllIn() || bot.isLeftThisHand()) {
             return;
         }
-
+//通过名字决定类型
         BotType type = getBotTypeByNickname(bot.getNickname());
         if (type == null) {
             return;
@@ -1609,27 +1793,49 @@ public class DpRoomServiceImpl {
         }
 
         int callAmount = Math.max(0, room.getCurrentBetToCall() - bot.getBet());
+        SimpleStrength strength = estimateCurrentStrength(room, bot);
+        double callRatio = chips == 0 ? 1.0 : (callAmount * 1.0 / chips);
+        BoardDanger boardDanger = evaluateBoardDanger(room.getCommunityCards());
+        double mood = bot.getMood();
         Random random = new Random();
 
         switch (type) {
             case DEMO: {
-                // 如果需要跟注的筹码超过自身筹码的一半，直接弃牌
-                if (callAmount > 0 && callAmount * 2 > chips) {
+                // 基础弃牌倾向：弱牌 + 跟注代价偏大 + 牌面危险，偏向弃牌
+                double foldBase = 0.0;
+                if (strength == SimpleStrength.WEAK && callAmount > 0 && callRatio > 0.5) {
+                    foldBase = 0.6;
+                    if (boardDanger == BoardDanger.WET) {
+                        foldBase += 0.2;
+                    }
+                }
+                // 情绪修正：情绪负时更容易弃牌，正时稍微硬一点
+                double foldProb = Math.min(1.0, Math.max(0.0, foldBase + (-mood) * 0.2));
+                if (foldProb > 0 && random.nextDouble() < foldProb) {
                     return new BotAction(BotActionType.FOLD, 0);
                 }
 
                 double r = random.nextDouble();
 
-                // 80% 概率：过牌/跟注
-                if (r < 0.8) {
+                // 大部分时间选择过牌/跟注；情绪高时略微提高主动进攻意愿
+                double callOrCheckProb = 0.75 - mood * 0.1;
+                if (r < callOrCheckProb) {
                     return new BotAction(BotActionType.CALL_OR_CHECK, 0);
                 }
 
-                // 20% 概率：在翻牌之后尝试小额加注
+                // 小概率：在翻牌之后尝试小额加注，强牌更倾向大一点
                 String stage = room.getCurrentStage();
                 if (!"preflop".equals(stage) && chips > callAmount) {
                     int raiseBase = callAmount;
-                    int minExtra = DpRoom.getBBChips();
+                    int extraBB;
+                    if (strength == SimpleStrength.STRONG) {
+                        extraBB = 2;
+                    } else if (strength == SimpleStrength.MEDIUM) {
+                        extraBB = 1;
+                    } else {
+                        extraBB = 1;
+                    }
+                    int minExtra = DpRoom.getBBChips() * extraBB;
                     int raiseAmount = Math.min(chips, raiseBase + minExtra);
                     return new BotAction(BotActionType.RAISE, raiseAmount);
                 }
@@ -1657,31 +1863,42 @@ public class DpRoomServiceImpl {
 
                 // 没有需要跟注的筹码（可以 free check 的场景）
                 if (callAmount == 0) {
-                    if (r < 0.4) {
-                        // 40% 直接加注 1~3 个大盲
-                        int multiplier = 1 + random.nextInt(3); // 1~3
+                    // 情绪越高，越喜欢主动下注
+                    double raiseProb = 0.5 + mood * 0.2;
+                    if (r < Math.min(0.9, Math.max(0.1, raiseProb))) {
+                        // 直接加注 1~3 个大盲，强牌更倾向大注
+                        int maxMulti = (strength == SimpleStrength.STRONG) ? 3 : 2;
+                        int multiplier = 1 + random.nextInt(maxMulti); // 1~maxMulti
                         int raiseAmount = Math.min(chips, DpRoom.getBBChips() * multiplier);
                         if (raiseAmount <= 0) {
                             return new BotAction(BotActionType.CALL_OR_CHECK, 0);
                         }
                         return new BotAction(BotActionType.RAISE, raiseAmount);
                     }
-                    // 60% 先装一下，check 看牌
+                    // 50% 先装一下，check 看牌
                     return new BotAction(BotActionType.CALL_OR_CHECK, 0);
                 }
 
                 // 有需要跟注的筹码
-                if (r < 0.1) {
-                    // 10% 还是会怂一下
+                double maniFoldBase = 0.1;
+                if (strength == SimpleStrength.WEAK && callRatio > 0.7 && boardDanger == BoardDanger.WET) {
+                    // 弱牌遇到巨大压力且牌面危险，更可能怂
+                    maniFoldBase = 0.4;
+                }
+                // 情绪高时更不爱弃牌
+                double maniFoldProb = Math.min(0.8, Math.max(0.0, maniFoldBase - mood * 0.3));
+                if (random.nextDouble() < maniFoldProb) {
                     return new BotAction(BotActionType.FOLD, 0);
                 }
-                if (r < 0.5) {
-                    // 40% 选择跟注
+
+                if (r < 0.4 + mood * 0.1) {
+                    // 40% 左右选择跟注，情绪高时略微少跟多加注
                     return new BotAction(BotActionType.CALL_OR_CHECK, 0);
                 }
-                if (r < 0.9) {
-                    // 40% 选择加注：在需要跟注的基础上再加 1~3 个大盲
-                    int multiplier = 1 + random.nextInt(3); // 1~3
+                if (r < 0.9 + mood * 0.05) {
+                    // 大部分选择加注：在需要跟注的基础上再加 1~3（或4）个大盲
+                    int maxMulti = (strength == SimpleStrength.STRONG) ? 4 : 3;
+                    int multiplier = 1 + random.nextInt(maxMulti); // 1~maxMulti
                     int extra = DpRoom.getBBChips() * multiplier;
                     int target = callAmount + extra;
                     int raiseAmount = Math.min(chips, target);

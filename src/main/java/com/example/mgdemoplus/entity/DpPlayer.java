@@ -29,6 +29,13 @@ public class DpPlayer {
      */
     private List<String> bestHandCards = new ArrayList<>();
 
+    /**
+     * 机器人情绪值：范围建议在 [-1.0, 1.0] 内，
+     * 用于简单模拟“连赢变得更放松，连输变得更保守”的状态。
+     * 对真人玩家逻辑没有影响，只有在 NPC 决策时才会读取。
+     */
+    private double mood = 0.0;
+
     // getter & setter
     public boolean isActed() { return acted; }
     public void setActed(boolean acted) { this.acted = acted; }
@@ -58,4 +65,6 @@ public class DpPlayer {
     public void setLeftThisHand(boolean leftThisHand) { this.leftThisHand = leftThisHand; }
     public List<String> getBestHandCards() { return bestHandCards; }
     public void setBestHandCards(List<String> bestHandCards) { this.bestHandCards = bestHandCards != null ? bestHandCards : new ArrayList<>(); }
+    public double getMood() { return mood; }
+    public void setMood(double mood) { this.mood = mood; }
 }
