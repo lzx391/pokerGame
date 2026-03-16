@@ -76,7 +76,10 @@ public class DpRoomController {
 //    public String judgeWin(@RequestParam String roomId, @RequestParam String potWinners) {
 //        return dpRoomService.judgeWin(roomId, potWinners) ? "ok" : "fail";
 //    }
-
+    @PostMapping("/kickPlayer")
+    public String kickPlayer(@RequestParam String roomId,@RequestParam String nickname){
+       return dpRoomService.kickPlayer(roomId,nickname) ? "ok":"fail";
+    }
     @PostMapping("/heartbeat")
     public void heartbeat(@RequestParam String roomId, @RequestParam String nickname) {
         dpRoomService.heartbeat(roomId, nickname);

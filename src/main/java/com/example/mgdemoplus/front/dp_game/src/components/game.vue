@@ -342,6 +342,28 @@
         </button>
       </div>
 
+      <!-- 房主踢人到观众席 -->
+      <div style="display:flex; justify-content:center; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap; font-size:12px;">
+        <span style="color:#666;">踢出玩家至观众席：</span>
+        <select v-model="kickTargetNickname"
+                style="min-width:120px; padding:4px 6px; border-radius:4px; border:1px solid #d9d9d9;">
+          <option disabled value="">请选择要踢出的玩家</option>
+          <option v-for="p in kickablePlayers"
+                  :key="'kick-' + p.nickname"
+                  :value="p.nickname">
+            {{ p.nickname }}
+          </option>
+        </select>
+        <button
+            @click="kickPlayer"
+            :disabled="!kickTargetNickname"
+            style="padding:6px 12px; border:none; border-radius:5px; cursor:pointer; font-size:12px; font-weight:bold;
+                   background:#ff4d4f; color:#fff;"
+            :style="{ opacity: kickTargetNickname ? 1 : 0.4 }">
+          踢出至观众席
+        </button>
+      </div>
+
       <!-- showdown 结算：按池分配 -->
       <div v-if="stage === 'showdown'" style="text-align:center; margin-bottom:10px;">
         <div style="color:#f5222d; font-weight:bold; margin-bottom:8px;">
@@ -473,7 +495,9 @@ export default {
         { name: '两对', cards: ['hearts_A', 'spades_A', 'hearts_K', 'diamonds_K', 'clubs_2'] },
         { name: '一对', cards: ['hearts_A', 'spades_A', 'hearts_K', 'diamonds_Q', 'clubs_2'] },
         { name: '高牌', cards: ['hearts_A', 'spades_K', 'diamonds_Q', 'clubs_J', 'hearts_9'] }
-      ]
+      ],
+      // 房主踢人选择的目标昵称
+      kickTargetNickname: ''
     }
   },
 
@@ -525,6 +549,12 @@ export default {
     // 当前是否处于“结算完成，等待准备下一局”阶段（僵尸位不算，他们走观众区的“准备在下一局加入对局”）
     inSettledStage() {
       return this.stage === 'settled' && !!this.myPlayer && !this.myPlayer.leftThisHand
+    },
+    // 可被踢出的玩家列表：排除房主自己和已经离线（leftThisHand）的座位
+    kickablePlayers() {
+      return this.players.filter(function (p) {
+        return !p.leftThisHand && p.nickname !== this.owner
+      }.bind(this))
     }
   },
 
@@ -843,6 +873,28 @@ export default {
         alert('网络错误: ' + err.message)
       } finally {
         this.transferOwnerMode = false
+      }
+    },
+
+    // ---- 房主：踢人到观众席 ----
+    async kickPlayer() {
+      if (!this.kickTargetNickname) return
+      if (!confirm('确定将 [' + this.kickTargetNickname + '] 踢出本局并移至观众席吗？')) {
+        return
+      }
+      try {
+        var res = await this.$http.post('/dpRoom/kickPlayer', null, {
+          params: {roomId: this.roomId, nickname: this.kickTargetNickname}
+        })
+        if (res.data !== 'ok') {
+          alert('踢人失败：' + res.data)
+        } else {
+          alert('已将 [' + this.kickTargetNickname + '] 踢至观众席')
+        }
+        this.kickTargetNickname = ''
+        await this.loadGame()
+      } catch (err) {
+        alert('网络错误: ' + err.message)
       }
     },
 

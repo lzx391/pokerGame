@@ -109,6 +109,7 @@ public class DpRoomServiceImpl {
         System.out.println("房间 " + r.getRoomId() + " 房主由 " + fromNickname + " 移交给: " + toNickname);
         return true;
     }
+
     // ========== 顺位移交房主操作 =========
     public void giveOwner(String roomId, String ownerNickname) {
         DpRoom room = roomMap.get(roomId);
@@ -131,6 +132,45 @@ public class DpRoomServiceImpl {
                 }
             }
         }
+    }
+
+    /**
+     * 房主踢人至观众席
+     *
+     */
+    public boolean kickPlayer(String roomId, String nickname) {
+        DpRoom r = roomMap.get(roomId);
+        int idx = -1;
+        List<DpPlayer> ps = r.getPlayers();
+        for (int i = 0; i < ps.size(); i++) {//找到这个人的下标返回
+            DpPlayer p = ps.get(i);
+            if (p.getNickname().equals(nickname)) {
+                idx = i;
+                break;
+            }
+        }
+        if (idx != -1) {
+            if (r.getCurrentActorIndex() == idx) {
+                // fold 会将该玩家标记为弃牌并轮到下一个人
+                fold(roomId, nickname);
+            } else {
+                // 非当前行动玩家，直接视为弃牌
+                if (!ps.get(idx).isFold()) {
+                    ps.get(idx).setFold(true);
+                }
+            }
+            ps.get(idx).setReady(false);
+            ps.get(idx).setLeftThisHand(true);
+            List<String> spectators = getNewSpectators(r);
+            if(!spectators.contains(nickname)){
+                spectators.add(nickname);
+            }
+            return true;
+        } else {
+            return false;
+        }
+
+
     }
 
     //======== 获取观众席防null版本 =========
@@ -557,6 +597,7 @@ public class DpRoomServiceImpl {
         r.setLastActionTime(System.currentTimeMillis());//方便计时间用
         return true;
     }
+
     // =========== 检查所有可参与游戏的人 =========
     public List<DpPlayer> getAllCanPlayer(DpRoom r) {
         //防null
@@ -597,6 +638,7 @@ public class DpRoomServiceImpl {
 
     }
     // ========== 游戏进行中：下注 / 弃牌 ==========
+
     /**
      * 找到翻后每圈的第一个行动者：
      * 从庄家位 D 左边第一个玩家开始，跳过已弃牌 / 已 all-in 的玩家。
@@ -634,6 +676,7 @@ public class DpRoomServiceImpl {
         // 全部人都弃牌或 all-in 时，没有人需要行动
         return -1;
     }
+
     public boolean bet(String roomId, String nickname, int amount) {
         DpRoom r = roomMap.get(roomId);
         if (r == null || !r.isPlaying()) return false;
@@ -679,6 +722,7 @@ public class DpRoomServiceImpl {
     }
 
     // ========== 游戏进行中：阶段推进 ==========
+
     /**
      * 自动推进阶段：当本轮所有可行动玩家都行动完毕 (currentActorIndex == -1) 时，
      * 自动从 preflop/flop/turn/river 往后走，直到出现新的行动者或进入 showdown。
@@ -697,6 +741,7 @@ public class DpRoomServiceImpl {
             if (r.getCurrentActorIndex() >= 0) break;
         }
     }
+
     /**
      * 内部通用：在一轮下注结束后推进阶段（翻牌/转牌/河牌/摊牌）
      */
@@ -770,6 +815,7 @@ public class DpRoomServiceImpl {
     }
 
     // ========== 游戏尾声：结算与下一局准备 ==========
+
     /**
      * 自动结算当前房间：为每个池按牌力选出赢家并分配筹码，然后进入结算完成/准备下一局阶段。
      */
@@ -877,6 +923,7 @@ public class DpRoomServiceImpl {
             p.setReady(false);
         }
     }
+
     /**
      * 从 7 张牌中选出最佳 5 张组合并评估强度。
      */
@@ -955,6 +1002,7 @@ public class DpRoomServiceImpl {
 
         return best == null ? new HandStrength(1, Collections.singletonList(0)) : best;
     }
+
     /**
      * 手牌强度，用于比较大小：先比牌型，再比 5 张牌的从大到小点数。
      */
@@ -980,6 +1028,7 @@ public class DpRoomServiceImpl {
             return 0;
         }
     }
+
     /**
      * 从 7 张牌中选出构成最大牌型的那 5 张，返回其原始字符串列表（用于前端展示「最大牌型」的牌面）。
      */
@@ -1366,7 +1415,6 @@ public class DpRoomServiceImpl {
             }
         }
     }
-
 
 
 }
