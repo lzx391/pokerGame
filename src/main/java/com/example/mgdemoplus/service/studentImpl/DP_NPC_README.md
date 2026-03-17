@@ -1,0 +1,307 @@
+# DP 游戏 - NPC / AI 模块说明（后端实现视角）
+
+> 本文件专门记录德州扑克机器人（NPC）相关的后端实现，方便以后调参和维护。  
+> 游戏整体流程、接口说明仍然以 `DPGAME.md` 为主，这里只关注 AI 细节。
+
+---
+
+## 1. 文件与结构总览
+
+- **核心文件**
+  - `DpNpcEngine`：NPC 行为引擎（决策、牌面评估、思考时间等全在这里）。
+  - `DpHandEvaluator`：通用牌型评估工具（7 选 5、HandStrength 等）。
+  - `DpRoomServiceImpl`：房间与对局总控，只做“调用 NPC 引擎”和“执行 bet/fold”，不再直接写 NPC 算法。
+
+- **与房间服务的关系**
+  - `DpRoomServiceImpl` 内部判断当前行动玩家是否为机器人：
+    - 使用 `DpNpcEngine.isBotPlayer(DpPlayer)`；
+  - 如果是机器人：
+    - 调 `DpNpcEngine.decideActionIfReady(DpRoom room, DpPlayer bot)` 拿到一个 `BotAction`；
+    - 再根据 `BotAction` 调用自身的 `bet(roomId, nickname, amount)` 或 `fold(roomId, nickname)`。
+
+---
+
+## 2. 机器人识别与类型
+
+### 2.1 昵称约定
+
+`DpNpcEngine` 中定义了三个机器人昵称常量：
+
+- `BOT_Demo` → 演示/普通风格机器人；
+- `BOT_Maniac` → 疯子风格机器人；
+- `BOT_Shark` → 聪明型机器人。
+
+```java
+public static final String DEMO_BOT_NICKNAME = "BOT_Demo";
+public static final String MANIAC_BOT_NICKNAME = "BOT_Maniac";
+public static final String SHARK_BOT_NICKNAME = "BOT_Shark";
+```
+
+判断是否为机器人：
+
+```java
+public static boolean isBotPlayer(DpPlayer p) {
+    if (p == null) return false;
+    String name = p.getNickname();
+    return DEMO_BOT_NICKNAME.equals(name)
+            || MANIAC_BOT_NICKNAME.equals(name)
+            || SHARK_BOT_NICKNAME.equals(name);
+}
+```
+
+类型枚举：
+
+```java
+private enum BotType {
+    DEMO,
+    MANIAC,
+    SHARK
+}
+```
+
+昵称 → 类型映射：
+
+```java
+public static BotType getBotTypeByNickname(String nickname) {
+    if (DEMO_BOT_NICKNAME.equals(nickname)) {
+        return BotType.DEMO;
+    }
+    if (MANIAC_BOT_NICKNAME.equals(nickname)) {
+        return BotType.MANIAC;
+    }
+    if (SHARK_BOT_NICKNAME.equals(nickname)) {
+        return BotType.SHARK;
+    }
+    return null;
+}
+```
+
+---
+
+## 3. 房间服务如何调用 NPC
+
+### 3.1 定时器中的调用链
+
+在 `DpRoomServiceImpl` 的定时任务中，当轮到某个玩家行动时：
+
+1. 如果当前玩家是 NPC（`DpNpcEngine.isBotPlayer(p)` 返回 true）：
+2. 调用 `DpNpcEngine.decideActionIfReady(room, p)`：
+   - 如果还在“思考时间窗口内”，返回 `null`，本次 tick 不动；
+   - 如果已经到预定出手时间，则返回一个 `BotAction`（类型 + 金额）。
+3. 服务类根据 `BotAction` 的类型调用自身已有接口：
+   - `FOLD` → `fold(roomId, nickname)`；
+   - `CALL_OR_CHECK` → 计算需要跟注金额 `callAmount`，调用 `bet(roomId, nickname, callAmount)`；
+   - `RAISE/ALL_IN` → `bet(roomId, nickname, action.getAmount())`。
+
+简化示意（伪代码）：
+
+```java
+if (DpNpcEngine.isBotPlayer(p)) {
+    DpNpcEngine.BotAction action = DpNpcEngine.decideActionIfReady(room, p);
+    if (action != null) {
+        switch (action.getType()) {
+            case FOLD: ...
+            case CALL_OR_CHECK: ...
+            case RAISE:
+            case ALL_IN: ...
+        }
+    }
+}
+```
+
+### 3.2 结算后情绪更新
+
+结算 (`autoSettle`) 后，`DpRoomServiceImpl` 会根据机器人本手盈亏调整 `DpPlayer.mood`：
+
+- 赢了钱 → `mood += 0.2`；
+- 输了钱 → `mood -= 0.2`；
+- 范围被裁剪在 `[-1.0, 1.0]`。
+
+`DpNpcEngine` 在决定行动和思考时间时会参考此情绪值：
+
+- 情绪高（正数） → 更凶、更快出手；
+- 情绪低（负数） → 更保守、思考时间偏长。
+
+---
+
+## 4. 决策要素与牌力评估
+
+### 4.1 粗粒度牌力 `SimpleStrength`
+
+`DpHandEvaluator` 负责从若干张牌中评估出一个 `HandStrength`，然后 `DpNpcEngine` 将其压缩成四档：
+
+- `WEAK`：高牌、很弱的一对等；
+- `MEDIUM`：普通一对、两对、三条；
+- `STRONG`：顺子、同花；
+- `MONSTER`：葫芦、四条、同花顺以上。
+
+preflop 阶段，如果公共牌不足 3 张，就直接根据手牌做一个简单判定（大对、高连牌等）。
+
+### 4.2 公共牌危险度 `BoardDanger`
+
+根据公共牌判断当前牌面是：
+
+- `DRY`（干燥）：不会很容易凑出顺子/同花；
+- `WET`（湿润）：存在明显的听同花/听顺子结构。
+
+逻辑大致是：
+
+- 某花色数量 ≥ 3 → 视为同花危险；
+- 连续点数结构长度 ≥ 3 → 视为顺子危险。
+
+### 4.3 位置 `TablePosition`
+
+根据当前机器人在 `players` 列表中的位置、庄家位置、盲注位置，粗略分类为：
+
+- `EARLY`：早位；
+- `MIDDLE`：中位；
+- `LATE`：庄家及其右手（后位）；
+- `BLINDS`：小盲/大盲位。
+
+---
+
+## 5. 风格与难度参数
+
+### 5.1 风格 `NpcStyle` → `StyleProfile`
+
+内部枚举：
+
+- `TIGHT_AGGRO`：紧凶；
+- `LOOSE_AGGRO`：松凶；
+- `TIGHT_PASSIVE`：紧弱；
+- `LOOSE_FUN`：松散娱乐型。
+
+每种风格有一组参数（简化理解即可）：
+
+- `preflopTightness`：翻前范围紧/松；
+- `aggression`：下注/加注意愿；
+- `bluffFrequency`：诈唬频率；
+- `callStation`：爱不爱跟到底；
+- `stealBlindFrequency`：偷盲频率；
+- `checkRaiseFear`：怕不怕被 check-raise。
+
+目前这组参数主要用于未来扩展，当前 DEMO/MANIAC/SHARK 逻辑是显式在代码里区分，但可以继续往“参数驱动”方向演进。
+
+### 5.2 难度 `NpcDifficulty` → `DifficultyProfile`
+
+难度枚举：
+
+- `EASY`、`MEDIUM`、`HARD`。
+
+参数控制：
+
+- `strengthNoise`：牌力评估时的“看错概率”；
+- `potOddsNoise`：赔率计算误差；
+- `ignorePositionProb`：忽视位置的概率；
+- `ignorePotOddsProb`：忽视赔率的概率；
+- `missBluffCatchProb`：错过抓诈唬机会的概率；
+- `randomSpewProb`：偶尔完全乱来一次的概率。
+
+当前约定：
+
+- `BOT_Demo` / `BOT_Maniac` 大致属于 MEDIUM；
+- `BOT_Shark` 使用 HARD 设置，决策更稳定、更少低级错误。
+
+---
+
+## 6. 机器人“思考时间”与节奏
+
+为了让机器人看起来更像真人，`DpPlayer` 中增加了字段：
+
+- `nextBotActionTime`：下一次允许自动行动的时间戳（毫秒）。
+
+流程：
+
+1. 轮到机器人行动时，`decideActionIfReady` 首先检查 `nextBotActionTime`：
+   - 如果为 0：根据当前牌力、类型、情绪计算一个延迟（例如弱牌 0.2~1.5 秒、强牌 3~8 秒等），写入 `nextBotActionTime`，本次不真正行动；
+   - 如果当前时间尚未到达 `nextBotActionTime`：直接返回 `null`，表示“还在想”；
+   - 如果当前时间超过 `nextBotActionTime`：清零并真正计算一次动作。
+
+2. 思考时间配置通过 `BotThinkProfile` 针对不同类型单独设置：
+   - `THINK_DEMO`、`THINK_MANIAC`、`THINK_SHARK` 三套参数；
+   - 不同类型可以调成：
+     - 疯子基本秒出；
+     - Shark 强牌更爱长考。
+
+3. 情绪会略微放大/缩短思考时间：
+   - 连赢 → 平均思考更快；
+   - 连输 → 稍微拖长。
+
+---
+
+## 7. 各机器人类型的总体性格
+
+### 7.1 BOT_Demo（普通玩家）
+
+- 翻前 / 翻后逻辑较简单：
+  - 弱牌 + 高跟注成本 + 危险牌面 → 偏向弃牌；
+  - 大多数时间选择跟注/过牌；
+  - 小概率加注，强牌加注力度略大。
+- 难度：中等，适合作为“基础机器人”用于流程演示和初学者对战。
+
+### 7.2 BOT_Maniac（疯子）
+
+- 非常不爱弃牌：
+  - 只有在弱牌+巨大压力+危险牌面时，有一定概率弃牌；
+  - 其余情况大量选择加注或 all-in。
+- 没有跟注成本时（可以 free check）：
+  - 占多数情况主动下注（2~4 个大盲），利用位置和 fold equity；
+  - 少量情况选择 check 装弱。
+- 有跟注成本时：
+  - 少量只是跟注；
+  - 大部分加注（在需要跟注基础上额外加多个大盲）；
+  - 一定比例直接 all-in（体现疯子风格）。
+
+### 7.3 BOT_Shark（聪明型）
+
+- 综合考虑：
+  - 自己的粗粒度牌力 `SimpleStrength`；
+  - 牌面危险度 `BoardDanger`；
+  - 对手近期 / 长期统计 `PlayerStats`（VPIP、PFR 等）；
+  - 当前对手是否偏石头 / 疯狗；
+  - 当前自己情绪。
+- 决策上：
+  - 遇到石头型对手加注 → 更相信对方是强牌，弃牌概率提升；
+  - 遇到疯狗型对手 → 减少弃牌概率，更愿意跟注或轻量反击；
+  - 超强牌在早期街会留一些慢打空间，河牌阶段再打大一点。
+- 控制台会输出简单的决策日志（方便调参）：
+  - `[BOT_Shark] 决策=FOLD / CALL_OR_CHECK / RAISE / CALL_OR_CHECK(默认)`，附带房间号、阶段、牌力档、筹码、跟注额、情绪等。
+
+---
+
+## 8. 以后如果要扩展 / 修改
+
+### 8.1 新增一个机器人类型
+
+例如你想要 `BOT_Rock`（石头人）：
+
+1. 在 `DpNpcEngine` 中新增昵称常量 + BotType 枚举值；
+2. 在 `getBotTypeByNickname` 中增加对应分支；
+3. 在 `decideBotAction` 的 switch 里增加一个 `case ROCK:`，写一套适合石头人的逻辑（几乎只玩超好牌，其他大多弃牌或跟注）。
+
+前端只要在房主工具里提供一个“添加 BOT_Rock” 的按钮，通过 `readyNextHand(roomId, "BOT_Rock")` 把它报名到下一局即可。
+
+### 8.2 调整难度 / 风格
+
+如果某个机器人太强或太弱：
+
+- 调整对应 `NpcDifficulty` 的参数（看错牌、忽视赔率、随机乱来的概率等）；
+- 或者在 `decideBotAction` 中直接微调概率：
+  - 比如给 DEMO 增加一点诈唬；
+  - 给 Maniac 降低 all-in 的频率；
+  - 给 Shark 增加一些“装疯卖傻”的随机行为。
+
+### 8.3 调整日志输出
+
+目前只对 `BOT_Shark` 打印了相对详细的控制台日志。  
+如果需要，可以类似地给 DEMO / MANIAC 在 `decideBotAction` 内部加 `System.out.println`，打印你关心的字段即可。
+
+---
+
+## 9. 安全边界与注意事项
+
+- NPC 只通过已有的 `bet` / `fold` 接口操作游戏状态，不会直接改底层字段；
+- 思考时间上限有限（默认不超过 12 秒，兜底 20 秒），不会妨碍原有的 30 秒超时弃牌规则；
+- 所有 NPC 逻辑都封装在服务层，不影响 Controller 接口与前端协议；
+- 随时可以通过关闭“添加机器人”的入口来回到纯真人对局模式。
+

@@ -189,57 +189,27 @@ bet和fold可能会引起进程推进
 
 ## AI / NPC 模块说明（德扑机器人）
 
+> 详细设计文档已迁移到专门文件：  
+> **`src/main/java/com/example/mgdemoplus/service/studentImpl/DP_NPC_README.md`**  
+> 本节只保留整体思路，方便快速了解；深入调参与算法说明请看该 README。
+
 ### 一、当前实现概览（多风格 NPC 基础版）
 
-当前版本实现了**统一 NPC 决策框架 + 两种示例风格**，在保持流程简单的前提下，让机器人行为更贴近真实玩家：
+当前版本实现了**统一 NPC 决策框架 + 多种示例风格**，在保持流程简单的前提下，让机器人行为更贴近真实玩家：
 
-- **已支持的风格**：
+- **已支持的风格 / 类型（通过昵称识别）**：
   - `BOT_Demo`：普通玩家风格（中庸，偏稳）；  
-  - `BOT_Maniac`：疯子风格（明显更激进，经常加注甚至 all-in）。  
-- **识别方式**：在后端 `DpRoomServiceImpl` 中，通过 `isBotPlayer(DpPlayer p)` + 昵称映射：
+  - `BOT_Maniac`：疯子风格（明显更激进，经常加注甚至 all-in）；  
+  - `BOT_Shark`：聪明型，会结合最近几手牌的行为和牌面做更“读牌”式的决策。
+- **识别与决策入口现在集中在 `DpNpcEngine` 中**：
+  - 判断是否为机器人：`DpNpcEngine.isBotPlayer(DpPlayer p)`  
+  - 轮到机器人行动时，由 `DpNpcEngine.decideActionIfReady(DpRoom room, DpPlayer bot)` 计算动作，服务类再调用原有的 `bet` / `fold`。
 
-```1535:1605:src/main/java/com/example/mgdemoplus/service/studentImpl/DpRoomServiceImpl.java
-    private static final String DEMO_BOT_NICKNAME = "BOT_Demo";
-    private static final String MANIAC_BOT_NICKNAME = "BOT_Maniac";
+房间服务 `DpRoomServiceImpl` 只负责：
 
-    /**
-     * 机器人类型（后续可扩展：紧凶、紧弱、松凶、松弱、石头人、疯子等）。
-     * 当前实现：
-     * - DEMO：普通风格；
-     * - MANIAC：疯子风格，喜欢乱加注、偶尔 all-in。
-     */
-    private enum BotType {
-        DEMO,
-        MANIAC
-    }
-
-    /**
-     * 判断一个玩家是否为机器人。当前版本识别：
-     * - BOT_Demo
-     * - BOT_Maniac
-     */
-    private boolean isBotPlayer(DpPlayer p) {
-        if (p == null) return false;
-        String name = p.getNickname();
-        return DEMO_BOT_NICKNAME.equals(name) || MANIAC_BOT_NICKNAME.equals(name);
-    }
-
-    /**
-     * 根据昵称映射机器人类型，方便未来扩展多种性格机器人。
-     * 目前：
-     * - BOT_Demo   → DEMO
-     * - BOT_Maniac → MANIAC
-     */
-    private BotType getBotTypeByNickname(String nickname) {
-        if (DEMO_BOT_NICKNAME.equals(nickname)) {
-            return BotType.DEMO;
-        }
-        if (MANIAC_BOT_NICKNAME.equals(nickname)) {
-            return BotType.MANIAC;
-        }
-        return null;
-    }
-```
+- 在定时任务中识别当前行动者是否为 NPC；
+- 如果是 NPC，则调用 `DpNpcEngine` 拿到一个 `BotAction`，再调用自身已有的下注 / 弃牌方法；
+- 在结算后根据输赢调整机器人情绪 `mood`，其余 NPC 内部细节全部放在 `DpNpcEngine` 中维护。
 
 - **整体思路**：
   - 前端房主在房主神器里点击按钮，请求在“下一局”加入一个 `BOT_Demo`；
