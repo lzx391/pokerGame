@@ -50,7 +50,8 @@ public class DpRoomServiceImpl {
 //                            System.out.println("定时器检测："+kickPlayer.getNickname()+"是活人");
                         }
                     }
-                        if (size == 0) {
+
+                        if (size == 0 && getNewSpectators(room)==null) {
                         System.out.println("定时器检测：房间：" + room.getRoomId() + "没活人了");
                         roomMap.remove(room.getRoomId());//房间空了就清人
                         continue;
@@ -514,9 +515,9 @@ public class DpRoomServiceImpl {
         }
         // 如果当前没有任何有能力继续玩的真人玩家（size==0），
         // 不在这里自动开新局，改由结算阶段的超时逻辑 handleReadyTimeout 统一处理
-        if (size == 0) {
-            return;
-        }
+//        if (size == 0) {
+//            return;
+//        }
         //如果有能力的人齐了就可以开始newHand了，拉人踢人开场
         if (size == size1) {
             newHand(r.getRoomId());

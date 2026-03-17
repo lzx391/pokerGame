@@ -1656,35 +1656,6 @@ export default {
   pointer-events: none;
 }
 
-/* --- 暗色调花色背景 --- */
-
-/* 暗红 (红桃) */
-.bg-red {
-  background: linear-gradient(135deg, #8b0000 0%, #5d0000 100%);
-}
-
-/* 暗蓝 (方块) */
-.bg-blue {
-  background: linear-gradient(135deg, #1e3a5f 0%, #102a43 100%);
-}
-
-/* 暗绿 (梅花) */
-.bg-green {
-  background: linear-gradient(135deg, #1b4332 0%, #081c15 100%);
-}
-
-/* 墨黑 (黑桃) */
-.bg-black {
-  background: linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%);
-}
-
-/* 盖牌/未知 */
-.bg-gray {
-  background: linear-gradient(135deg, #434343 0%, #232323 100%);
-  color: #666;
-  border: 1px dashed #555;
-}
-
 /* 悬停效果：轻微发光 */
 .card-base:hover {
   transform: translateY(-4px);

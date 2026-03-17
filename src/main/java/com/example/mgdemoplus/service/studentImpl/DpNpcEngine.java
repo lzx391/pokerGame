@@ -436,8 +436,8 @@ public final class DpNpcEngine {
 
     /**
      * 底池赔率：call / (pot + call)，并根据难度加入轻微噪声。
+     * SHARK 在决定弃牌/跟注时会参考此值（赔率差时更易弃牌，赔率好时略减弃牌率）。
      */
-    @SuppressWarnings("unused")
     private static double computePotOdds(DpRoom room, DpPlayer bot, int callAmount, Random random, NpcDifficulty difficulty) {
         int pot = room.getPot();
         int denom = pot + callAmount;
@@ -671,16 +671,19 @@ public final class DpNpcEngine {
 
         switch (type) {
             case DEMO: {
-                double foldBase = 0.0;
-                if (strength == SimpleStrength.WEAK && callAmount > 0 && callRatio > 0.5) {
-                    foldBase = 0.6;
-                    if (boardDanger == BoardDanger.WET) {
-                        foldBase += 0.2;
+                // 免费看牌时（对手过牌、无需跟注）绝不弃牌，至少过牌看摊牌
+                if (callAmount > 0) {
+                    double foldBase = 0.0;
+                    if (strength == SimpleStrength.WEAK && callRatio > 0.5) {
+                        foldBase = 0.6;
+                        if (boardDanger == BoardDanger.WET) {
+                            foldBase += 0.2;
+                        }
                     }
-                }
-                double foldProb = Math.min(1.0, Math.max(0.0, foldBase + (-mood) * 0.2));
-                if (foldProb > 0 && random.nextDouble() < foldProb) {
-                    return new BotAction(BotActionType.FOLD, 0);
+                    double foldProb = Math.min(1.0, Math.max(0.0, foldBase + (-mood) * 0.2));
+                    if (foldProb > 0 && random.nextDouble() < foldProb) {
+                        return new BotAction(BotActionType.FOLD, 0);
+                    }
                 }
 
                 double r = random.nextDouble();
@@ -757,7 +760,8 @@ public final class DpNpcEngine {
                 double maniFoldProb = maniFoldBase - mood * 0.2;
                 if (maniFoldProb < 0.0) maniFoldProb = 0.0;
                 if (maniFoldProb > 0.5) maniFoldProb = 0.5;
-                if (random.nextDouble() < maniFoldProb) {
+                // 免费看牌时不弃牌
+                if (callAmount > 0 && random.nextDouble() < maniFoldProb) {
                     return new BotAction(BotActionType.FOLD, 0);
                 }
 
@@ -798,11 +802,11 @@ public final class DpNpcEngine {
                     baseFold = (bd == BoardDanger.WET) ? 0.7 : 0.5;
                 }
 
+                DpPlayer aggressor = null;
                 PlayerStats.SingleHandStats lastAggressorStats = null;
                 PlayerStats aggressorStats = null;
                 Map<String, PlayerStats> statsMap = room.getPlayerStatsMap();
                 if (statsMap != null) {
-                    DpPlayer aggressor = null;
                     int maxBet = 0;
                     for (DpPlayer p : room.getPlayers()) {
                         if (p.isFold() || p.isLeftThisHand()) continue;
@@ -819,7 +823,11 @@ public final class DpNpcEngine {
                     }
                 }
 
-                if (aggressorStats != null) {
+                VillainRangeTier villainTier = estimateVillainRangeTier(aggressorStats);
+                ActionCredibility credibility = estimateActionCredibility(room, bot, aggressor);
+
+                // 仅在有跟注额时根据对手风格调整弃牌率（免费看牌时不因“石头型”而弃牌）
+                if (callAmount > 0 && aggressorStats != null) {
                     double overallPart = aggressorStats.getOverallParticipationRate();
                     double overallRaise = aggressorStats.getOverallRaiseRate();
 
@@ -838,8 +846,29 @@ public final class DpNpcEngine {
                     }
                 }
 
+                // 整合：根据对手动作可信度调整——对手偏诈唬时降低弃牌率
+                if (callAmount > 0) {
+                    if (credibility == ActionCredibility.LOW) {
+                        baseFold *= 0.6;
+                    } else if (credibility == ActionCredibility.HIGH) {
+                        baseFold = Math.min(1.0, baseFold * 1.2);
+                    }
+                }
+
+                // 底池赔率：跟注成本相对底池越大，弱牌越倾向弃牌；赔率好时略降低弃牌率
+                double potOdds = 0.0;
+                if (callAmount > 0) {
+                    potOdds = computePotOdds(room, bot, callAmount, random, difficulty);
+                    if (potOdds > 0.5) {
+                        baseFold = Math.min(1.0, baseFold * 1.15);
+                    } else if (potOdds < 0.25) {
+                        baseFold = Math.max(0.0, baseFold * 0.85);
+                    }
+                }
+
                 double foldProbShark = Math.min(1.0, Math.max(0.0, baseFold + (-mood) * 0.1));
-                if (foldProbShark > 0 && random.nextDouble() < foldProbShark) {
+                // 免费看牌时（对手过牌）绝不弃牌，至少过牌看摊牌
+                if (callAmount > 0 && foldProbShark > 0 && random.nextDouble() < foldProbShark) {
                     System.out.println("[BOT_Shark] 决策=FOLD"
                             + " room=" + room.getRoomId()
                             + " hero=" + bot.getNickname()
@@ -851,6 +880,16 @@ public final class DpNpcEngine {
                             + " call=" + callAmount
                             + " mood=" + mood
                             + " foldProb=" + String.format(java.util.Locale.ENGLISH, "%.2f", foldProbShark));
+                    System.out.println("[BOT_Shark-Explain] "
+                            + "阶段=" + room.getCurrentStage()
+                            + " 牌力=" + st
+                            + " 牌面=" + bd
+                            + " 对手风格=" + villainTier
+                            + " 动作可信度=" + credibility
+                            + " 底池赔率=" + String.format(java.util.Locale.ENGLISH, "%.2f", potOdds)
+                            + " 跟注成本占筹码=" + String.format(java.util.Locale.ENGLISH, "%.2f", callRatio)
+                            + " 情绪=" + String.format(java.util.Locale.ENGLISH, "%.2f", mood)
+                            + " → 选择=FOLD");
                     return new BotAction(BotActionType.FOLD, 0);
                 }
 
@@ -882,21 +921,70 @@ public final class DpNpcEngine {
                             + " call=" + callAmount
                             + " mood=" + mood
                             + " callProb=" + String.format(java.util.Locale.ENGLISH, "%.2f", callProb));
+                    System.out.println("[BOT_Shark-Explain] "
+                            + "阶段=" + stage
+                            + " 牌力=" + st
+                            + " 牌面=" + bd
+                            + " 对手风格=" + villainTier
+                            + " 动作可信度=" + credibility
+                            + " 底池赔率=" + String.format(java.util.Locale.ENGLISH, "%.2f", potOdds)
+                            + " 跟注成本占筹码=" + String.format(java.util.Locale.ENGLISH, "%.2f", callRatio)
+                            + " 情绪=" + String.format(java.util.Locale.ENGLISH, "%.2f", mood)
+                            + " → 选择=CALL_OR_CHECK");
                     return new BotAction(BotActionType.CALL_OR_CHECK, 0);
                 }
 
                 if (!"preflop".equals(stage) && chips > callAmount) {
-                    int raiseBase = callAmount;
-                    int extraBB;
-                    if (st == SimpleStrength.STRONG) {
-                        extraBB = isLateStreet ? 4 : 2;
-                    } else if (st == SimpleStrength.MEDIUM) {
-                        extraBB = 2;
+                    int sb = DpRoom.getSBChips();
+                    int bb = DpRoom.getBBChips();
+                    int raiseAmount;
+                    if (callAmount == 0) {
+                        int pot = room.getPot();
+                        double baseFactor;
+                        if (st == SimpleStrength.STRONG || st == SimpleStrength.MONSTER) {
+                            baseFactor = 0.8;
+                        } else if (st == SimpleStrength.MEDIUM) {
+                            baseFactor = 0.6;
+                        } else {
+                            baseFactor = 0.45;
+                        }
+                        double randomFactor = 0.9 + random.nextDouble() * 0.3; // 0.9~1.2
+                        int target = (int) Math.round(pot * baseFactor * randomFactor);
+                        int minBet = bb * 2;
+                        if (target < minBet) {
+                            target = minBet;
+                        }
+                        raiseAmount = Math.min(chips, target);
                     } else {
-                        extraBB = 1;
+                        int strengthFactor;
+                        if (st == SimpleStrength.STRONG || st == SimpleStrength.MONSTER) {
+                            strengthFactor = 5;
+                        } else if (st == SimpleStrength.MEDIUM) {
+                            strengthFactor = 4;
+                        } else {
+                            strengthFactor = 3;
+                        }
+                        int streetFactor = isLateStreet ? 2 : 1;
+                        int extraMin = bb * strengthFactor;
+                        int extraMax = bb * (strengthFactor + streetFactor);
+                        if (extraMax < extraMin) {
+                            extraMax = extraMin;
+                        }
+                        int extraRange = extraMax - extraMin + 1;
+                        int extra = extraMin + random.nextInt(Math.max(1, extraRange));
+                        int target = callAmount + extra;
+                        raiseAmount = Math.min(chips, target);
                     }
-                    int minExtra = DpRoom.getBBChips() * extraBB;
-                    int raiseAmount = Math.min(chips, raiseBase + minExtra);
+                    // 统一将加注额调整为「小盲筹码」的整数倍，避免出现 78 这类不规则金额
+                    if (sb > 0 && raiseAmount > 0) {
+                        int units = Math.max(1, Math.round(raiseAmount * 1.0f / sb));
+                        raiseAmount = units * sb;
+                        if (raiseAmount > chips) {
+                            // 若四舍五入后超过筹码上限，则向下取整到最近的小盲倍数
+                            units = Math.max(1, chips / sb);
+                            raiseAmount = units * sb;
+                        }
+                    }
                     System.out.println("[BOT_Shark] 决策=RAISE"
                             + " room=" + room.getRoomId()
                             + " hero=" + bot.getNickname()
@@ -908,6 +996,17 @@ public final class DpNpcEngine {
                             + " call=" + callAmount
                             + " raiseAmount=" + raiseAmount
                             + " mood=" + mood);
+                    System.out.println("[BOT_Shark-Explain] "
+                            + "阶段=" + stage
+                            + " 牌力=" + st
+                            + " 牌面=" + bd
+                            + " 对手风格=" + villainTier
+                            + " 动作可信度=" + credibility
+                            + " 底池赔率=" + String.format(java.util.Locale.ENGLISH, "%.2f", potOdds)
+                            + " 跟注成本占筹码=" + String.format(java.util.Locale.ENGLISH, "%.2f", callRatio)
+                            + " 情绪=" + String.format(java.util.Locale.ENGLISH, "%.2f", mood)
+                            + " → 选择=RAISE"
+                            + " 金额=" + raiseAmount);
                     return new BotAction(BotActionType.RAISE, raiseAmount);
                 }
                 System.out.println("[BOT_Shark] 决策=CALL_OR_CHECK(默认)"
@@ -920,6 +1019,16 @@ public final class DpNpcEngine {
                         + " chips=" + chips
                         + " call=" + callAmount
                         + " mood=" + mood);
+                System.out.println("[BOT_Shark-Explain] "
+                        + "阶段=" + stage
+                        + " 牌力=" + st
+                        + " 牌面=" + bd
+                        + " 对手风格=" + villainTier
+                        + " 动作可信度=" + credibility
+                        + " 底池赔率=" + String.format(java.util.Locale.ENGLISH, "%.2f", potOdds)
+                        + " 跟注成本占筹码=" + String.format(java.util.Locale.ENGLISH, "%.2f", callRatio)
+                        + " 情绪=" + String.format(java.util.Locale.ENGLISH, "%.2f", mood)
+                        + " → 选择=CALL_OR_CHECK(默认)");
                 return new BotAction(BotActionType.CALL_OR_CHECK, 0);
             }
             default:
