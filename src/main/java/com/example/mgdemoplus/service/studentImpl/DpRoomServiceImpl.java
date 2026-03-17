@@ -648,6 +648,7 @@ public class DpRoomServiceImpl {
             p.setTotalBet(0);
             p.setAllIn(false);
             p.setLeftThisHand(false);
+            System.out.println(p.getNickname()+"的手牌是："+r.getDeck().get(0)+"和"+r.getDeck().get(1));
             p.setHoleCards(Arrays.asList(r.getDeck().remove(0), r.getDeck().remove(0)));
         }
         //留着上一把遗留下来的按钮以便确认下一把的按钮

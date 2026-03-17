@@ -269,6 +269,69 @@ preflop 阶段，如果公共牌不足 3 张，就直接根据手牌做一个简
   - 超强牌在早期街会留一些慢打空间，河牌阶段再打大一点。
 - 控制台会输出简单的决策日志（方便调参）：
   - `[BOT_Shark] 决策=FOLD / CALL_OR_CHECK / RAISE / CALL_OR_CHECK(默认)`，附带房间号、阶段、牌力档、筹码、跟注额、情绪等。
+  - `[BOT_Shark-Explain]` 还会额外打印本手中其他玩家的筹码深度信息，比如 `minStackBB` / `avgStackBB`，方便观察是否因为桌上有短码/深码而调整了下注量。
+
+#### 7.3.1 后手筹码（Stack）意识与隐含赔率/压迫力
+
+- 为了让 SHARK 在翻后下注时更像一个“懂筹码深度”的常客，引入了一个简化的 **后手筹码分析**：
+  - 在 `DpNpcEngine` 内部新增 `StackContext`：
+    - `minStack / maxStack / avgStack`：本手牌中，除自己以外、未弃牌且未离桌玩家的剩余筹码；
+    - `minStackBB / maxStackBB / avgStackBB`：上述筹码按大盲 `BB` 换算成的倍数。
+  - 通过 `analyzeStacks(DpRoom room, DpPlayer hero)` 计算得到 `StackContext`：
+    - 遍历 `room.getPlayers()`，忽略 `null`、`fold`、`leftThisHand` 以及 hero 自己；
+    - 统计 min / max / avg，并用当前 `DpRoom.getBBChips()` 换算为 BB 倍数；
+    - 无其他有效玩家时返回全 0，保证调用安全。
+- 约定上的筹码深度阈值（只是启发式规则，不是 GTO）：
+  - `minStackBB <= 20`：视为桌上存在 **短码病人 short stack**；
+  - `minStackBB > 60 && avgStackBB > 80`：视为整体是 **深码桌 deep stack table**。
+
+##### (a) 无人下注时（`callAmount == 0`）的调整
+
+- 仍然以原有逻辑为基础：
+  - 先根据牌力 `SimpleStrength` 选择一个 `baseFactor`（约 0.45~0.8），再乘一个 0.9~1.2 的 `randomFactor`：
+    - `target ≈ pot × baseFactor × randomFactor`；
+  - 然后做一些启发式修正：
+    - **短码 + 强牌/怪兽牌**：  
+      - 条件：`stackCtx.minStackBB > 0 && stackCtx.minStackBB <= 20 && st ∈ {STRONG, MONSTER}`；
+      - 使用 `effectiveBase = min(pot, minStack)` 作为基准池；
+      - 在 40%~80% 区间内随机一个系数，得到 `shortTarget ≈ effectiveBase × [0.4, 0.8]`；
+      - 若 `shortTarget > target`，就提升到 `shortTarget`。  
+      - 直观含义：桌上有典型短码且自己有强牌时，把下注量调到“短码一跟就接近 all‑in”的区间，提高从短码身上获取隐含价值。
+    - **整体深码 + 弱牌，在 flop/turn 的 c‑bet**：  
+      - 条件：`stackCtx.avgStackBB >= 80 && st == WEAK && stage ∈ {flop, turn}`；
+      - 将 `target` 乘以 0.8，偏向较小的 1/3~1/2 pot 下注；
+      - 直观含义：大家都很深码而自己只是在 flop/turn 有中等/弱牌时，用更小的 c‑bet 维护范围，避免在很早的街就把底池抬得过大。
+- 然后仍按原来的规则：
+  - 保证 `target >= 2 * BB`；
+  - `raiseAmount = min(chips, target)`；
+  - 最终统一吸附到“小盲 `SB` 的整数倍”，避免出现 78 这种奇怪金额。
+
+##### (b) 已有人下注时（`callAmount > 0`）的调整
+
+- 原有逻辑：  
+  - 先根据牌力 + 当前街道选择一个 `extraMin` / `extraMax`（若干个 BB），在区间内随机一个 `extra`；
+  - 得到 `target = callAmount + extra`；
+  - 再截断到不超过自己筹码，然后吸附为 `SB` 的整数倍。
+- 新增的筹码深度意识主要体现在“主要加注者 stack”的判断上：
+  - 利用已有的 `aggressor`，取 `aggressor.getChips()` 作为对手后手筹码；
+  - 计算 `aggressorStackBB = aggressorStack / BB`。
+- 规则化调整：
+  - **对短码（≤ 20BB）的主要对手**：
+    - 若 SHARK 拿的是 **强牌/怪兽牌**：
+      - 在对手后手筹码的 60%~100% 区间随机一个 `pressureFactor`；
+      - 计算 `desired = callAmount + aggressorStack × pressureFactor`；
+      - 如果 `desired > target`，则把 `target` 拉高到 `desired`；  
+      - 直观含义：用更大、接近对手 all‑in 的加注量，让短码一跟就“入 all‑in 区间”，最大化价值。
+    - 若 SHARK 只是 **弱牌 bluff**：
+      - 设定 `maxBluffExtra = 3 * BB`，`bluffCap = callAmount + maxBluffExtra`；
+      - 如果原来的 `target > bluffCap`，则压回到 `bluffCap`；  
+      - 直观含义：不要在短码身上做太过激的 bluff，加注量控制在几个大盲之内，防止被短码宽范围轻易跟 all‑in。
+  - **整体深码桌（`minStackBB > 60 && avgStackBB > 80`）**：
+    - 若 SHARK 为 **强牌/怪兽牌**：`target *= 1.15`，略微放大额外加注，体现“深码可以多街玩、河牌可以打大一点”的倾向；
+    - 若 SHARK 为 **弱牌 bluff**：`target *= 0.9`，轻微缩小 bluff 尺度，避免在深码对手面前做过大的单街 bluff。
+- 最终流程保持不变：
+  - `raiseAmount = min(chips, target)`；
+  - `raiseAmount` 再被吸附为 `SB` 的整数倍，不会超过自己筹码。
 
 ---
 
@@ -283,6 +346,10 @@ preflop 阶段，如果公共牌不足 3 张，就直接根据手牌做一个简
 
 - **`computePotOdds`**：原未在决策中使用，现已在 SHARK 的弃牌逻辑中整合。当存在跟注额时，计算底池赔率；赔率差（potOdds > 0.5）时略增弃牌率，赔率好（potOdds < 0.25）时略减弃牌率。
 - **`estimateActionCredibility`**：原未在决策中使用，现已在 SHARK 中整合。根据对手类型（NIT/TIGHT → 高可信度、MANIAC/LOOSE → 低可信度）调整弃牌率：对手偏诈唬（LOW）时 baseFold × 0.6，对手偏价值（HIGH）时 baseFold × 1.2。
+- **`StackContext` + `analyzeStacks`**：新增的后手筹码分析工具，用于：
+  - 统计本手中其他未弃牌玩家的 `minStack` / `maxStack` / `avgStack` 及其 BB 倍数；
+  - 在 SHARK 的下注/加注逻辑中区分“短码病人”（minStackBB ≤ 20）和“整体深码桌”（minStackBB > 60 & avgStackBB > 80）；
+  - 根据这些信息微调 pot × 系数 和 callAmount + 若干 BB 的目标金额，体现隐含赔率和筹码压迫力。
 
 ---
 

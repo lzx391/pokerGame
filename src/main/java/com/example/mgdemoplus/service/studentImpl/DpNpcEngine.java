@@ -457,6 +457,67 @@ public final class DpNpcEngine {
     }
 
     /**
+     * 本手牌场上其他未弃牌玩家的筹码分布（后手 stack 视角）。
+     * 用于区分短码（short stack）和深码（deep stack），指导 SHARK 调整下注压力。
+     */
+    private static class StackContext {
+        final int minStack;
+        final int maxStack;
+        final int avgStack;
+        final double minStackBB;
+        final double maxStackBB;
+        final double avgStackBB;
+
+        StackContext(int minStack, int maxStack, int avgStack, int bb) {
+            this.minStack = minStack;
+            this.maxStack = maxStack;
+            this.avgStack = avgStack;
+            this.minStackBB = bb > 0 ? minStack * 1.0 / bb : 0.0;
+            this.maxStackBB = bb > 0 ? maxStack * 1.0 / bb : 0.0;
+            this.avgStackBB = bb > 0 ? avgStack * 1.0 / bb : 0.0;
+        }
+    }
+
+    /**
+     * 统计除自己外、所有“未弃牌且未离桌”的玩家后手筹码。
+     * - minStackBB <= 20 视为有典型短码病人
+     * - minStackBB > 60 & avgStackBB > 80 视为整体深码桌
+     */
+    private static StackContext analyzeStacks(DpRoom room, DpPlayer hero) {
+        if (room == null || hero == null) {
+            return new StackContext(0, 0, 0, DpRoom.getBBChips());
+        }
+        int bb = DpRoom.getBBChips();
+        int min = Integer.MAX_VALUE;
+        int max = 0;
+        int sum = 0;
+        int count = 0;
+        List<DpPlayer> players = room.getPlayers();
+        if (players != null) {
+            for (DpPlayer p : players) {
+                if (p == null) continue;
+                if (p.isFold() || p.isLeftThisHand()) continue;
+                if (p == hero) continue;
+                int stack = p.getChips();
+                if (stack <= 0) continue;
+                if (stack < min) {
+                    min = stack;
+                }
+                if (stack > max) {
+                    max = stack;
+                }
+                sum += stack;
+                count++;
+            }
+        }
+        if (count == 0 || min == Integer.MAX_VALUE) {
+            return new StackContext(0, 0, 0, bb);
+        }
+        int avg = sum / count;
+        return new StackContext(min, max, avg, bb);
+    }
+
+    /**
      * 在定时任务中调用：如果轮到机器人行动，则根据思考时间和当前局面给出一个 BotAction。
      * 返回 null 表示暂时不需要行动（例如正在“思考中”或不该由该机器人行动）。
      */
@@ -796,6 +857,7 @@ public final class DpNpcEngine {
             case SHARK: {
                 BoardDanger bd = boardDanger;
                 SimpleStrength st = strength;
+                StackContext stackCtx = analyzeStacks(room, bot);
 
                 double baseFold = 0.0;
                 if (st == SimpleStrength.WEAK && callAmount > 0 && callRatio > 0.4) {
@@ -825,6 +887,7 @@ public final class DpNpcEngine {
 
                 VillainRangeTier villainTier = estimateVillainRangeTier(aggressorStats);
                 ActionCredibility credibility = estimateActionCredibility(room, bot, aggressor);
+                String villainName = aggressor != null ? aggressor.getNickname() : "-";
 
                 // 仅在有跟注额时根据对手风格调整弃牌率（免费看牌时不因“石头型”而弃牌）
                 if (callAmount > 0 && aggressorStats != null) {
@@ -884,11 +947,14 @@ public final class DpNpcEngine {
                             + "阶段=" + room.getCurrentStage()
                             + " 牌力=" + st
                             + " 牌面=" + bd
+                            + " 主要对手=" + villainName
                             + " 对手风格=" + villainTier
                             + " 动作可信度=" + credibility
                             + " 底池赔率=" + String.format(java.util.Locale.ENGLISH, "%.2f", potOdds)
                             + " 跟注成本占筹码=" + String.format(java.util.Locale.ENGLISH, "%.2f", callRatio)
                             + " 情绪=" + String.format(java.util.Locale.ENGLISH, "%.2f", mood)
+                            + " minStackBB=" + String.format(java.util.Locale.ENGLISH, "%.2f", stackCtx.minStackBB)
+                            + " avgStackBB=" + String.format(java.util.Locale.ENGLISH, "%.2f", stackCtx.avgStackBB)
                             + " → 选择=FOLD");
                     return new BotAction(BotActionType.FOLD, 0);
                 }
@@ -909,6 +975,21 @@ public final class DpNpcEngine {
                     callProb += 0.05;
                 }
 
+                // 弱牌 + 有人下注时，大致视为诈唬候选，根据对手后手筹码调整 bluff 频率
+                if (st == SimpleStrength.WEAK && callAmount > 0) {
+                    int bbForBluff = DpRoom.getBBChips();
+                    int villainStack = aggressor != null ? aggressor.getChips() : 0;
+                    double villainBB = bbForBluff > 0 ? villainStack * 1.0 / bbForBluff : 0.0;
+                    // 对方和桌面整体都很深码 → 适当提升跟注/弃牌倾向，减少 bluff
+                    if (villainBB > 60 && stackCtx.avgStackBB > 80) {
+                        callProb += 0.10; // 更少 raise，更多 call
+                    }
+                    // 典型短码面前也不做特别夸张 bluff，略微偏向跟注
+                    if (villainBB > 0 && villainBB <= 20) {
+                        callProb += 0.05;
+                    }
+                }
+
                 if (r < Math.max(0.1, Math.min(0.9, callProb))) {
                     System.out.println("[BOT_Shark] 决策=CALL_OR_CHECK"
                             + " room=" + room.getRoomId()
@@ -925,11 +1006,14 @@ public final class DpNpcEngine {
                             + "阶段=" + stage
                             + " 牌力=" + st
                             + " 牌面=" + bd
+                            + " 主要对手=" + villainName
                             + " 对手风格=" + villainTier
                             + " 动作可信度=" + credibility
                             + " 底池赔率=" + String.format(java.util.Locale.ENGLISH, "%.2f", potOdds)
                             + " 跟注成本占筹码=" + String.format(java.util.Locale.ENGLISH, "%.2f", callRatio)
                             + " 情绪=" + String.format(java.util.Locale.ENGLISH, "%.2f", mood)
+                            + " minStackBB=" + String.format(java.util.Locale.ENGLISH, "%.2f", stackCtx.minStackBB)
+                            + " avgStackBB=" + String.format(java.util.Locale.ENGLISH, "%.2f", stackCtx.avgStackBB)
                             + " → 选择=CALL_OR_CHECK");
                     return new BotAction(BotActionType.CALL_OR_CHECK, 0);
                 }
@@ -950,6 +1034,25 @@ public final class DpNpcEngine {
                         }
                         double randomFactor = 0.9 + random.nextDouble() * 0.3; // 0.9~1.2
                         int target = (int) Math.round(pot * baseFactor * randomFactor);
+
+                        // 短码桌：若存在典型短码且自己为强牌/怪兽牌，适当提高下注倍数，让短码一跟就接近 all-in
+                        if (stackCtx.minStackBB > 0 && stackCtx.minStackBB <= 20
+                                && (st == SimpleStrength.STRONG || st == SimpleStrength.MONSTER)) {
+                            int effectiveBase = pot > 0 ? Math.min(pot, stackCtx.minStack) : stackCtx.minStack;
+                            // 在 40%~80% 区间内平滑随机，模拟“让短码做生死决定”
+                            double shortFactor = 0.4 + random.nextDouble() * 0.4;
+                            int shortTarget = (int) Math.round(effectiveBase * shortFactor);
+                            if (shortTarget > target) {
+                                target = shortTarget;
+                            }
+                        }
+
+                        // 深码桌 + 弱牌：翻后用更小的 c-bet 维护范围，避免在深码面前过度 bloating pot
+                        if (stackCtx.avgStackBB >= 80 && st == SimpleStrength.WEAK
+                                && ("flop".equals(stage) || "turn".equals(stage))) {
+                            target = (int) Math.round(target * 0.8); // 稍微缩小到接近 1/3~1/2 pot
+                        }
+
                         int minBet = bb * 2;
                         if (target < minBet) {
                             target = minBet;
@@ -972,7 +1075,39 @@ public final class DpNpcEngine {
                         }
                         int extraRange = extraMax - extraMin + 1;
                         int extra = extraMin + random.nextInt(Math.max(1, extraRange));
+
                         int target = callAmount + extra;
+
+                        // 根据主要对手 stack 深度微调加注额，体现“短码 all-in 压迫”与“深码多街 maneuver”
+                        int aggressorStack = (aggressor != null) ? aggressor.getChips() : 0;
+                        double aggressorStackBB = (bb > 0) ? (aggressorStack * 1.0 / bb) : 0.0;
+
+                        // 对典型短码：强牌时把加注量拉近其 all-in 区，弱牌时控制 bluff 尺度
+                        if (aggressorStackBB > 0 && aggressorStackBB <= 20) {
+                            if (st == SimpleStrength.STRONG || st == SimpleStrength.MONSTER) {
+                                // 让短码一跟就接近 all-in：在其后手 60%~100% 之间平滑选择一个阈值
+                                double pressureFactor = 0.6 + random.nextDouble() * 0.4;
+                                int desired = callAmount + (int) Math.round(aggressorStack * pressureFactor);
+                                if (desired > target) {
+                                    target = desired;
+                                }
+                            } else if (st == SimpleStrength.WEAK) {
+                                // 弱牌 bluff 面对短码：限制在少量额外 BB，避免被轻松跟 all-in
+                                int maxBluffExtra = bb * 3;
+                                int bluffCap = callAmount + maxBluffExtra;
+                                if (target > bluffCap) {
+                                    target = bluffCap;
+                                }
+                            }
+                        } else if (stackCtx.minStackBB > 60 && stackCtx.avgStackBB > 80) {
+                            // 全体深码：强牌时可以略微放大 extra，弱牌 bluff 略微缩小
+                            if (st == SimpleStrength.STRONG || st == SimpleStrength.MONSTER) {
+                                target = (int) Math.round(target * 1.15);
+                            } else if (st == SimpleStrength.WEAK) {
+                                target = (int) Math.round(target * 0.9);
+                            }
+                        }
+
                         raiseAmount = Math.min(chips, target);
                     }
                     // 统一将加注额调整为「小盲筹码」的整数倍，避免出现 78 这类不规则金额
@@ -1000,11 +1135,14 @@ public final class DpNpcEngine {
                             + "阶段=" + stage
                             + " 牌力=" + st
                             + " 牌面=" + bd
+                            + " 主要对手=" + villainName
                             + " 对手风格=" + villainTier
                             + " 动作可信度=" + credibility
                             + " 底池赔率=" + String.format(java.util.Locale.ENGLISH, "%.2f", potOdds)
                             + " 跟注成本占筹码=" + String.format(java.util.Locale.ENGLISH, "%.2f", callRatio)
                             + " 情绪=" + String.format(java.util.Locale.ENGLISH, "%.2f", mood)
+                            + " minStackBB=" + String.format(java.util.Locale.ENGLISH, "%.2f", stackCtx.minStackBB)
+                            + " avgStackBB=" + String.format(java.util.Locale.ENGLISH, "%.2f", stackCtx.avgStackBB)
                             + " → 选择=RAISE"
                             + " 金额=" + raiseAmount);
                     return new BotAction(BotActionType.RAISE, raiseAmount);
@@ -1023,11 +1161,14 @@ public final class DpNpcEngine {
                         + "阶段=" + stage
                         + " 牌力=" + st
                         + " 牌面=" + bd
+                        + " 主要对手=" + villainName
                         + " 对手风格=" + villainTier
                         + " 动作可信度=" + credibility
                         + " 底池赔率=" + String.format(java.util.Locale.ENGLISH, "%.2f", potOdds)
                         + " 跟注成本占筹码=" + String.format(java.util.Locale.ENGLISH, "%.2f", callRatio)
                         + " 情绪=" + String.format(java.util.Locale.ENGLISH, "%.2f", mood)
+                        + " minStackBB=" + String.format(java.util.Locale.ENGLISH, "%.2f", stackCtx.minStackBB)
+                        + " avgStackBB=" + String.format(java.util.Locale.ENGLISH, "%.2f", stackCtx.avgStackBB)
                         + " → 选择=CALL_OR_CHECK(默认)");
                 return new BotAction(BotActionType.CALL_OR_CHECK, 0);
             }
