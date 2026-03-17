@@ -411,13 +411,13 @@
       <div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
         <button
             @click="toggleReady"
-            :disabled="myChips < 10"
+            :disabled="myChips < bigBlind"
             style="padding:8px 16px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;
                    background: #52c41a; color:#fff;">
-          {{ myReady ? '取消准备' : (myChips >= 10 ? '准备下一局' : '积分不足大盲(10)，无法准备') }}
+          {{ myReady ? '取消准备' : (myChips >= bigBlind ? '准备下一局' : ('积分不足大盲(' + bigBlind + ')，无法准备')) }}
         </button>
         <button
-            v-if="myChips < 10"
+            v-if="myChips < bigBlind"
             @click="rebuy"
             style="padding:8px 16px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;
                    background:#fa8c16; color:#fff;">
@@ -458,23 +458,23 @@
         </button>
 
         <div style="display:flex; align-items:center; gap:5px; height: 40px;">
-          <button @click="raiseAmount += 5"
+          <button @click="raiseAmount += smallBlind"
                   style="height: 32px; width: 32px; padding: 0; background: #fff; border: 1px solid #f57f17; color: #f57f17; border-radius: 4px; cursor: pointer; font-weight: bold;">
-            +5
+            +{{ smallBlind }}
           </button>
-          <button @click="raiseAmount += 10"
+          <button @click="raiseAmount += bigBlind"
                   style="height: 32px; width: 32px; padding: 0; background: #fff; border: 1px solid #f57f17; color: #f57f17; border-radius: 4px; cursor: pointer; font-weight: bold;">
-            +10
+            +{{ bigBlind }}
           </button>
           <input type="number" v-model.number="raiseAmount" :min="minRaise" :max="myChips"
                  style="width: 60px; height: 32px; padding: 0; border: 1px solid #d9d9d9; border-radius: 4px; text-align: center;"/>
-          <button @click="raiseAmount -= 10"
+          <button @click="raiseAmount -= bigBlind"
                   style="height: 32px; width: 32px; padding: 0; background: #fff; border: 1px solid #f57f17; color: #f57f17; border-radius: 4px; cursor: pointer; font-weight: bold;">
-            -10
+            -{{ bigBlind }}
           </button>
-          <button @click="raiseAmount -= 5"
+          <button @click="raiseAmount -= smallBlind"
                   style="height: 32px; width: 32px; padding: 0; background: #fff; border: 1px solid #f57f17; color: #f57f17; border-radius: 4px; cursor: pointer; font-weight: bold;">
-            -5
+            -{{ smallBlind }}
           </button>
         </div>
 
@@ -690,8 +690,16 @@ export default {
     callAmount() {
       return Math.max(0, this.currentBetToCall - this.myBet)
     },
+    smallBlind() {
+      // 使用与后端一致的小盲配置，默认 5，后续可从服务端房间配置透传
+      return 5
+    },
+    bigBlind() {
+      // 使用与后端一致的大盲配置，默认 10，后续可从服务端房间配置透传
+      return 10
+    },
     minRaise() {
-      return this.callAmount + 10
+      return this.callAmount + this.bigBlind
     },
     allPotsHaveWinners() {
       if (this.pots.length === 0) return false
