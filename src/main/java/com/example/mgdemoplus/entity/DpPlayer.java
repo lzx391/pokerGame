@@ -43,6 +43,35 @@ public class DpPlayer {
      */
     private long nextBotActionTime = 0L;
 
+    /**
+     * 当前这手牌的“整手牌计划”类型，仅 NPC 使用。
+     * 取值来自内部枚举 PlanType 的 name()，例如：VALUE / BLUFF / POT_CONTROL / GIVE_UP。
+     * 典型使用方式：在 flop 首次行动时写入，hand 结束或新一手开局时清空。
+     */
+    private String npcHandPlanType;
+
+    /**
+     * 当前整手计划还准备“主动出手”的最大街数倒计数：
+     * - 常见范围：0~3；
+     * - 数值越大，代表更愿意多街持续下注（例如 3-barrel bluff / value）。
+     * 建议根据机器人风格与难度调整：紧凶 TAG 可设为 1~2，Shark 可设为 2~3。
+     */
+    private int npcHandPlanMaxBarrels;
+
+    /**
+     * 当前整手计划的翻后激进度，范围建议在 [0.0, 1.0]：
+     * - 越接近 1.0：同样牌力下更偏向较大下注 / 多次下注；
+     * - 越接近 0.0：更偏向 check / 小额 probing bet / 控池。
+     * 默认由 NPC 引擎在 flop 初始化 HandPlan 时写入。
+     */
+    private double npcHandPlanAggression;
+
+    /**
+     * 本手计划重点针对的主要对手昵称，仅用于 Shark 等高级机器人微调策略或输出调试日志。
+     * 可为空，纯辅助信息，不影响正常结算。
+     */
+    private String npcHandPlanTargetVillain;
+
     // getter & setter
     public boolean isActed() { return acted; }
     public void setActed(boolean acted) { this.acted = acted; }
@@ -76,4 +105,36 @@ public class DpPlayer {
     public void setMood(double mood) { this.mood = mood; }
     public long getNextBotActionTime() { return nextBotActionTime; }
     public void setNextBotActionTime(long nextBotActionTime) { this.nextBotActionTime = nextBotActionTime; }
+
+    public String getNpcHandPlanType() {
+        return npcHandPlanType;
+    }
+
+    public void setNpcHandPlanType(String npcHandPlanType) {
+        this.npcHandPlanType = npcHandPlanType;
+    }
+
+    public int getNpcHandPlanMaxBarrels() {
+        return npcHandPlanMaxBarrels;
+    }
+
+    public void setNpcHandPlanMaxBarrels(int npcHandPlanMaxBarrels) {
+        this.npcHandPlanMaxBarrels = npcHandPlanMaxBarrels;
+    }
+
+    public double getNpcHandPlanAggression() {
+        return npcHandPlanAggression;
+    }
+
+    public void setNpcHandPlanAggression(double npcHandPlanAggression) {
+        this.npcHandPlanAggression = npcHandPlanAggression;
+    }
+
+    public String getNpcHandPlanTargetVillain() {
+        return npcHandPlanTargetVillain;
+    }
+
+    public void setNpcHandPlanTargetVillain(String npcHandPlanTargetVillain) {
+        this.npcHandPlanTargetVillain = npcHandPlanTargetVillain;
+    }
 }

@@ -51,7 +51,7 @@ public class DpRoomServiceImpl {
                             System.out.println("定时器检测："+kickPlayer.getNickname()+"是活人");
                         }
                     }
-                    System.out.println("定时器检测：人数："+size);
+//                    System.out.println("定时器检测：人数："+size);
                         if (size == 0 ) {
                         System.out.println("定时器检测：房间：" + room.getRoomId() + "没活人了");
                         roomMap.remove(room.getRoomId());//房间空了就清人
@@ -664,6 +664,11 @@ public class DpRoomServiceImpl {
             p.setTotalBet(0);
             p.setAllIn(false);
             p.setLeftThisHand(false);
+            // 每一手开局时清理 NPC 的整手牌 HandPlan 状态，避免跨手残留
+            p.setNpcHandPlanType(null);
+            p.setNpcHandPlanMaxBarrels(0);
+            p.setNpcHandPlanAggression(0.0);
+            p.setNpcHandPlanTargetVillain(null);
             System.out.println(p.getNickname()+"的手牌是："+r.getDeck().get(0)+"和"+r.getDeck().get(1));
             p.setHoleCards(Arrays.asList(r.getDeck().remove(0), r.getDeck().remove(0)));
         }
@@ -1050,6 +1055,7 @@ public class DpRoomServiceImpl {
         // ==== 更新玩家行为统计：用于高级机器人（如 BOT_Shark）判断对手风格 ====
         if (r.getPlayerStatsMap() != null) {
             Map<String, PlayerStats> statsMap = r.getPlayerStatsMap();
+            int bb = DpRoom.getBBChips();
             for (DpPlayer p : r.getPlayers()) {
                 String name = p.getNickname();
                 PlayerStats stats = statsMap.get(name);
@@ -1058,10 +1064,11 @@ public class DpRoomServiceImpl {
                     statsMap.put(name, stats);
                 }
                 PlayerStats.SingleHandStats hand = new PlayerStats.SingleHandStats();
-                // 参与：本手有过下注（totalBet>0）且未在翻前直接弃牌
-                hand.setParticipated(p.getTotalBet() > 0 && !p.isFold());
-                // 加注：简单视为本手中有过超过大盲的下注
-                hand.setRaised(p.getTotalBet() > DpRoom.getBBChips());
+                int totalBet = p.getTotalBet();
+                boolean participated = totalBet > 0 && !p.isFold();
+                hand.setParticipated(participated);
+                // 加注：简单视为本手中有过超过大盲的下注（不区分具体街道）
+                hand.setRaised(bb > 0 && totalBet > bb);
                 // 摊牌：到 showdown 阶段且未弃牌
                 boolean wentToShowdown = "showdown".equals(r.getCurrentStage()) && !p.isFold();
                 hand.setWentToShowdown(wentToShowdown);
@@ -1070,11 +1077,55 @@ public class DpRoomServiceImpl {
                     DpHandEvaluator.HandStrength hs = strengthMap.get(name);
                     hand.setFinalRankCategory(hs != null ? hs.rankCategory : 0);
                 }
-                // 街道级进攻标志目前先作为占位，后续可由更精细的行为快照在这里赋值
-                hand.setPreflopOpenRaise(false);
+
+                // === 基于本手最终下注规模和公共牌张数的粗略行为标签推断 ===
+                // 这里只做非常简化的近似：项目当前未记录逐街下注轨迹，因此只能依赖 totalBet / 公共牌数量等信息。
+                // 这些标签主要用于长期统计上的趋势判断，而非精确还原单手动作。
+
+                // 粗略判断翻前 limp / open-raise：
+                boolean limpedPreflop = false;
+                boolean openRaisedPreflop = false;
+                if (participated && bb > 0) {
+                    int blindChips = 0;
+                    if (p.getBlind() == 1) {
+                        blindChips = DpRoom.getSBChips();
+                    } else if (p.getBlind() == 2) {
+                        blindChips = DpRoom.getBBChips();
+                    }
+                    // 视为“自愿入池”的最小投入：超过自身盲注部分的筹码
+                    int voluntary = Math.max(0, totalBet - blindChips);
+                    // 典型 limp：仅投入少量筹码（<= 2BB）且整体未超过常见开局加注尺寸
+                    if (p.getBlind() == 0 && voluntary > 0 && totalBet <= 2 * bb && !hand.isRaised()) {
+                        limpedPreflop = true;
+                    }
+                    // 典型 open-raise：非盲位且总投入已经达到 3BB 以上
+                    if (p.getBlind() == 0 && totalBet >= 3 * bb) {
+                        openRaisedPreflop = true;
+                    }
+                }
+                hand.setLimpedPreflop(limpedPreflop);
+                hand.setOpenRaisedPreflop(openRaisedPreflop);
+
+                // 逐街激进标志目前依然作为占位字段，后续如增加逐街下注快照，可在此填充。
+                hand.setPreflopOpenRaise(openRaisedPreflop);
                 hand.setFlopAggressive(false);
                 hand.setTurnAggressive(false);
                 hand.setRiverAggressive(false);
+
+                // 判断“加注后在 turn/river 放弃”的粗略模式：
+                boolean gaveUpTurnAfterRaise = false;
+                boolean gaveUpRiverAfterRaise = false;
+                if (hand.isRaised() && !wentToShowdown) {
+                    int communitySize = r.getCommunityCards() != null ? r.getCommunityCards().size() : 0;
+                    // community=4 代表至少看到 turn 后弃牌，视为 turn give-up；=5 代表 river give-up
+                    if (communitySize >= 4 && communitySize < 5) {
+                        gaveUpTurnAfterRaise = true;
+                    } else if (communitySize >= 5) {
+                        gaveUpRiverAfterRaise = true;
+                    }
+                }
+                hand.setGaveUpTurnAfterRaise(gaveUpTurnAfterRaise);
+                hand.setGaveUpRiverAfterRaise(gaveUpRiverAfterRaise);
 
                 stats.addHand(hand, 10);
 

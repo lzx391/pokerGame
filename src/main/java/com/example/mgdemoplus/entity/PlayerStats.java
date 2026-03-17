@@ -50,6 +50,35 @@ public class PlayerStats {
         /** river 阶段是否有过主动下注或加注（bet/raise）。 */
         private boolean riverAggressive;
 
+        /**
+         * 翻前是否以“只跟注未加注”的方式进池（limp）：
+         * - limpedPreflop = true：本手曾在 preflop 只跟注入池，且从未 open-raise；
+         * - 调用方在结算阶段根据本手下注轨迹推断并赋值。
+         * 该标志用于识别典型 limp 玩家，便于 Shark 做 thin value 或更少尊重其 limp 线。
+         */
+        private boolean limpedPreflop;
+
+        /**
+         * 翻前是否有 open-raise 行为：
+         * - openRaisedPreflop = true：本手中曾在无人加注前首先加注；
+         * - 用于区分“主动开局者”与纯 limp / 跟注型玩家。
+         */
+        private boolean openRaisedPreflop;
+
+        /**
+         * 是否存在“前一街曾主动加注，转牌圈明显放弃”的模式：
+         * - 由结算阶段根据各街下注记录进行粗略标记；
+         * - 频繁为 true 时，说明该玩家经常只打一枪就放弃，Shark 可以多用 delayed bluff 或加大 turn 压力。
+         */
+        private boolean gaveUpTurnAfterRaise;
+
+        /**
+         * 是否存在“一直激进到 river，最终在 river 放弃”的模式：
+         * - 频繁为 true 时，说明该玩家怕河牌完成的听牌或常在 river 收手；
+         * - Shark 可以在 river 用更大尺度的 value bet 或合适的 bluff。
+         */
+        private boolean gaveUpRiverAfterRaise;
+
         public boolean isParticipated() {
             return participated;
         }
@@ -112,6 +141,38 @@ public class PlayerStats {
 
         public void setRiverAggressive(boolean riverAggressive) {
             this.riverAggressive = riverAggressive;
+        }
+
+        public boolean isLimpedPreflop() {
+            return limpedPreflop;
+        }
+
+        public void setLimpedPreflop(boolean limpedPreflop) {
+            this.limpedPreflop = limpedPreflop;
+        }
+
+        public boolean isOpenRaisedPreflop() {
+            return openRaisedPreflop;
+        }
+
+        public void setOpenRaisedPreflop(boolean openRaisedPreflop) {
+            this.openRaisedPreflop = openRaisedPreflop;
+        }
+
+        public boolean isGaveUpTurnAfterRaise() {
+            return gaveUpTurnAfterRaise;
+        }
+
+        public void setGaveUpTurnAfterRaise(boolean gaveUpTurnAfterRaise) {
+            this.gaveUpTurnAfterRaise = gaveUpTurnAfterRaise;
+        }
+
+        public boolean isGaveUpRiverAfterRaise() {
+            return gaveUpRiverAfterRaise;
+        }
+
+        public void setGaveUpRiverAfterRaise(boolean gaveUpRiverAfterRaise) {
+            this.gaveUpRiverAfterRaise = gaveUpRiverAfterRaise;
         }
     }
 

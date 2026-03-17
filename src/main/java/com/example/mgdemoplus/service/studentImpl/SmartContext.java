@@ -2,6 +2,7 @@ package com.example.mgdemoplus.service.studentImpl;
 
 import com.example.mgdemoplus.entity.DpPlayer;
 import com.example.mgdemoplus.entity.PlayerStats;
+import java.util.List;
 
 /**
  * 德扑 NPC 的统一“聪明决策上下文”数据结构。
@@ -18,6 +19,25 @@ final class SmartContext {
     final DpNpcEngine.StackContext stackCtx;         // 筹码深度上下文
     final int activeVillains;           // hero 之外还在这手牌里的玩家数
 
+    /**
+     * multi-way 相关扩展数据：
+     * - multiwayVillains：当前牌局中其它未弃牌玩家的简要信息列表；
+     * - tightBehindCount：在 hero 后位且整体风格为 NIT/TIGHT 的人数；
+     * - deepBehindCount：在 hero 后位且筹码深度为深码的玩家数；
+     * - shortBehindCount：在 hero 后位且筹码 ≤ 典型短码阈值的玩家数。
+     * 这些指标用于 Shark 在多人底池下更精细地控制 bluff/value 尺度。
+     */
+    final List<DpNpcEngine.MultiwayVillainInfo> multiwayVillains;
+    final int tightBehindCount;
+    final int deepBehindCount;
+    final int shortBehindCount;
+
+    /**
+     * 针对主要对手的 counter-strategy 建议：由 DpNpcEngine.analyzeVillainCounterStrategy 生成。
+     * 包含是否更适合 thin value、call down、对大注多弃牌、减少 bluff 等方向。
+     */
+    final DpNpcEngine.CounterStrategyProfile counterStrategy;
+
     SmartContext(DpPlayer aggressor,
                  PlayerStats aggressorStats,
                  DpNpcEngine.VillainRangeTier villainTier,
@@ -26,7 +46,12 @@ final class SmartContext {
                  double potOdds,
                  double equityEst,
                  DpNpcEngine.StackContext stackCtx,
-                 int activeVillains) {
+                 int activeVillains,
+                 List<DpNpcEngine.MultiwayVillainInfo> multiwayVillains,
+                 int tightBehindCount,
+                 int deepBehindCount,
+                 int shortBehindCount,
+                 DpNpcEngine.CounterStrategyProfile counterStrategy) {
         this.aggressor = aggressor;
         this.aggressorStats = aggressorStats;
         this.villainTier = villainTier;
@@ -36,6 +61,11 @@ final class SmartContext {
         this.equityEst = equityEst;
         this.stackCtx = stackCtx;
         this.activeVillains = activeVillains;
+        this.multiwayVillains = multiwayVillains;
+        this.tightBehindCount = tightBehindCount;
+        this.deepBehindCount = deepBehindCount;
+        this.shortBehindCount = shortBehindCount;
+        this.counterStrategy = counterStrategy;
     }
 }
 
