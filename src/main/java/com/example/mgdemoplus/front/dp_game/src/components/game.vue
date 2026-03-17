@@ -95,8 +95,9 @@
           </div>
           <div style="font-size:12px; color:#8c8c8c; margin-bottom:6px;">
             你可以在下一局加入不同风格的机器人玩家，当前支持：
-            <span style="font-weight:bold;">BOT_Demo</span>（普通风格）、
+            <span style="font-weight:bold;">BOT_Fish</span>（简单鱼式，偏被动，适合新手练习）、
             <span style="font-weight:bold;">BOT_Maniac</span>（疯子风格，喜欢乱加注）、
+            <span style="font-weight:bold;">BOT_Tag</span>（紧凶风格，范围较紧、价值下注为主）、
             <span style="font-weight:bold;">BOT_Shark</span>（会简单“读对手”的聪明型）。
           </div>
           <div style="display:flex; flex-direction:column; gap:6px;">
@@ -106,7 +107,7 @@
                   :disabled="demoBotAdding"
                   style="padding:6px 10px; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;
                          background:#faad14; color:#fff; margin-right:8px;">
-                {{ demoBotAdding ? '正在添加 BOT_Demo...' : '添加 BOT_Demo 到下一局' }}
+                {{ demoBotAdding ? '正在添加 BOT_Fish...' : '添加 BOT_Fish 到下一局' }}
               </button>
               <span v-if="demoBotAddedTip" style="font-size:12px; color:#595959;">
                 {{ demoBotAddedTip }}
@@ -122,6 +123,18 @@
               </button>
               <span v-if="maniacBotAddedTip" style="font-size:12px; color:#595959;">
                 {{ maniacBotAddedTip }}
+              </span>
+            </div>
+            <div>
+              <button
+                  @click="addTagBot"
+                  :disabled="tagBotAdding"
+                  style="padding:6px 10px; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;
+                         background:#389e0d; color:#fff; margin-right:8px;">
+                {{ tagBotAdding ? '正在添加 BOT_Tag...' : '添加紧凶 BOT_Tag 到下一局' }}
+              </button>
+              <span v-if="tagBotAddedTip" style="font-size:12px; color:#595959;">
+                {{ tagBotAddedTip }}
               </span>
             </div>
             <div>
@@ -649,6 +662,9 @@ export default {
       // 疯子型 NPC 状态
       maniacBotAdding: false,
       maniacBotAddedTip: '',
+      // 紧凶型 NPC 状态
+      tagBotAdding: false,
+      tagBotAddedTip: '',
       // 聪明型 NPC 状态
       sharkBotAdding: false,
       sharkBotAddedTip: ''
@@ -1006,6 +1022,7 @@ export default {
       this.showOwnerToolModal = true
       this.demoBotAddedTip = ''
       this.maniacBotAddedTip = ''
+      this.tagBotAddedTip = ''
       this.sharkBotAddedTip = ''
     },
 
@@ -1074,8 +1091,8 @@ export default {
     },
 
     /**
-     * 将演示用 NPC（BOT_Demo）加入下一局等待列表。
-     * 当前仅用于验证机器人整体流程是否正常。
+     * 将简单鱼式 NPC（BOT_Fish，原 BOT_Demo）加入下一局等待列表。
+     * 当前用于基础难度练习与流程验证。
      */
     async addDemoBot() {
       if (!this.roomId) return
@@ -1086,7 +1103,7 @@ export default {
           params: {roomId: this.roomId}
         })
         if (res.data === 'ok') {
-          this.demoBotAddedTip = '已请求在下一局加入 BOT_Demo，请等待本局结束后自动入座。'
+          this.demoBotAddedTip = '已请求在下一局加入 BOT_Fish，请等待本局结束后自动入座。'
         } else {
           this.demoBotAddedTip = '添加 NPC 失败：' + res.data
         }
@@ -1117,6 +1134,30 @@ export default {
         this.maniacBotAddedTip = '网络错误：' + (e && e.message ? e.message : e)
       } finally {
         this.maniacBotAdding = false
+      }
+    },
+
+    /**
+     * 将紧凶型 NPC（BOT_Tag）加入下一局等待列表。
+     * 该机器人打得相对紧凶，但不会像 Shark 那样根据对手历史动态调整策略。
+     */
+    async addTagBot() {
+      if (!this.roomId) return
+      this.tagBotAdding = true
+      this.tagBotAddedTip = ''
+      try {
+        var res = await this.$http.post('/dpRoom/addTagBot', null, {
+          params: {roomId: this.roomId}
+        })
+        if (res.data === 'ok') {
+          this.tagBotAddedTip = '已请求在下一局加入 BOT_Tag，请等待本局结束后自动入座。'
+        } else {
+          this.tagBotAddedTip = '添加紧凶 NPC 失败：' + res.data
+        }
+      } catch (e) {
+        this.tagBotAddedTip = '网络错误：' + (e && e.message ? e.message : e)
+      } finally {
+        this.tagBotAdding = false
       }
     },
 

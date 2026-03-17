@@ -49,6 +49,12 @@ public class DpRoom {
      * key 为玩家昵称，value 为该玩家的统计信息。
      */
     private Map<String, PlayerStats> playerStatsMap = new HashMap<>();
+
+    /**
+     * 当前这手牌的随机种子：用于让机器人在同一局内的随机行为可复现、跨多次调用共享。
+     * 由服务层在 newHand 时生成。
+     */
+    private long currentHandSeed;
     // getter & setter
     public String getRoomId() { return roomId; }
     public void setRoomId(String roomId) { this.roomId = roomId; }
@@ -100,5 +106,13 @@ public class DpRoom {
 
     public void setPlayerStatsMap(Map<String, PlayerStats> playerStatsMap) {
         this.playerStatsMap = playerStatsMap;
+    }
+
+    public long getCurrentHandSeed() {
+        return currentHandSeed;
+    }
+
+    public void setCurrentHandSeed(long currentHandSeed) {
+        this.currentHandSeed = currentHandSeed;
     }
 }

@@ -16,8 +16,9 @@ public class DpRoomServiceImpl {
     private final Map<String, DpRoom> roomMap = new ConcurrentHashMap<>();
 
     // 统一从 NPC 引擎中获取机器人昵称，避免散落魔法字符串
-    private static final String DEMO_BOT_NICKNAME = DpNpcEngine.DEMO_BOT_NICKNAME;
+    private static final String DEMO_BOT_NICKNAME = DpNpcEngine.DEMO_BOT_NICKNAME;   // BOT_Fish
     private static final String MANIAC_BOT_NICKNAME = DpNpcEngine.MANIAC_BOT_NICKNAME;
+    private static final String TAG_BOT_NICKNAME   = DpNpcEngine.TAG_BOT_NICKNAME;    // BOT_Tag
 
     public DpRoomServiceImpl() {
         // 心跳清理 + 超时行动
@@ -435,8 +436,8 @@ public class DpRoomServiceImpl {
     }
 
     /**
-     * 将演示用 NPC 加入指定房间的下一局等待列表。
-     * 对外作为一个简单的演示入口，后续可以替换为更通用的「添加机器人」接口。
+     * 将简单鱼式 NPC（BOT_Fish，原 BOT_Demo）加入指定房间的下一局等待列表。
+     * 对外作为一个基础演示入口。
      */
     public boolean addDemoBotToNextHand(String roomId) {
         return readyNextHand(roomId, DEMO_BOT_NICKNAME);
@@ -455,6 +456,14 @@ public class DpRoomServiceImpl {
      */
     public boolean addSharkBotToNextHand(String roomId) {
         return readyNextHand(roomId, "BOT_Shark");
+    }
+
+    /**
+     * 将紧凶型 NPC（BOT_Tag）加入指定房间的下一局等待列表。
+     * 该机器人只基于牌力/牌面/赔率做相对稳健的紧凶决策，不做复杂“读对手”调整。
+     */
+    public boolean addTagBotToNextHand(String roomId) {
+        return readyNextHand(roomId, TAG_BOT_NICKNAME);
     }
 
     public boolean toggleReady(String roomId, String nickname) {
@@ -630,6 +639,13 @@ public class DpRoomServiceImpl {
         // 把上一局观战并标记“下一局加入”的玩家，加入到本局的玩家列表中，并更新观众列表
 // 检测是否有积分不足的玩家，清理到观众厅，都在getAllCanPlayer方法里
         r.setPlayers(getAllCanPlayer(r));
+
+        // 为本手牌生成一个稳定的随机种子：基于当前时间与房间号混合
+        long seedBase = System.currentTimeMillis();
+        if (roomId != null) {
+            seedBase ^= roomId.hashCode();
+        }
+        r.setCurrentHandSeed(seedBase);
 
         r.setDeck(newDeck());
         r.setCommunityCards(new ArrayList<>());
@@ -969,7 +985,7 @@ public class DpRoomServiceImpl {
             r.setPots(list);
         }
 
-        // 预先解析每个玩家的 7 张牌，评估牌力
+        // 预先解析每个玩家的 7 张牌，评估牌力（供结算与统计复用）
         Map<String, DpHandEvaluator.HandStrength> strengthMap = new HashMap<>();
         for (DpPlayer p : r.getPlayers()) {
             if (p.isFold()) continue;
@@ -1047,8 +1063,36 @@ public class DpRoomServiceImpl {
                 // 加注：简单视为本手中有过超过大盲的下注
                 hand.setRaised(p.getTotalBet() > DpRoom.getBBChips());
                 // 摊牌：到 showdown 阶段且未弃牌
-                hand.setWentToShowdown("showdown".equals(r.getCurrentStage()) && !p.isFold());
+                boolean wentToShowdown = "showdown".equals(r.getCurrentStage()) && !p.isFold();
+                hand.setWentToShowdown(wentToShowdown);
+                // 记录摊牌时的最终牌型大类（仅在真正摊牌且有评估结果时有效），供 BOT_Shark 评估 bluff 倾向
+                if (wentToShowdown) {
+                    DpHandEvaluator.HandStrength hs = strengthMap.get(name);
+                    hand.setFinalRankCategory(hs != null ? hs.rankCategory : 0);
+                }
+                // 街道级进攻标志目前先作为占位，后续可由更精细的行为快照在这里赋值
+                hand.setPreflopOpenRaise(false);
+                hand.setFlopAggressive(false);
+                hand.setTurnAggressive(false);
+                hand.setRiverAggressive(false);
+
                 stats.addHand(hand, 10);
+
+                // 个体化长期弃牌调整：
+                // - 若该玩家经常以较弱牌力摊牌且本手去了摊牌，适当降低 foldAdjustment（Shark 更少相信其价值下注）；
+                // - 若摊牌大多是强牌，则略微提高 foldAdjustment。
+                double adj = stats.getFoldAdjustmentAgainstHero();
+                if (wentToShowdown) {
+                    int cat = hand.getFinalRankCategory();
+                    if (cat > 0 && cat <= 4) {
+                        adj -= 0.01;
+                    } else if (cat >= 7) {
+                        adj += 0.01;
+                    }
+                    if (adj > 0.3) adj = 0.3;
+                    if (adj < -0.3) adj = -0.3;
+                    stats.setFoldAdjustmentAgainstHero(adj);
+                }
             }
         }
 

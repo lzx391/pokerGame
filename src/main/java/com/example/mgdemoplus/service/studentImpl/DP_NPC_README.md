@@ -25,15 +25,17 @@
 
 ### 2.1 昵称约定
 
-`DpNpcEngine` 中定义了三个机器人昵称常量：
+`DpNpcEngine` 中定义了多个机器人昵称常量：
 
-- `BOT_Demo` → 演示/普通风格机器人；
+- `BOT_Fish` → 简单鱼式机器人（原 BOT_Demo，范围较宽、偏被动，适合新手与流程演示）；
 - `BOT_Maniac` → 疯子风格机器人；
+- `BOT_Tag` → 紧凶型机器人（Tight-Aggressive）；
 - `BOT_Shark` → 聪明型机器人。
 
 ```java
-public static final String DEMO_BOT_NICKNAME = "BOT_Demo";
+public static final String DEMO_BOT_NICKNAME = "BOT_Fish";
 public static final String MANIAC_BOT_NICKNAME = "BOT_Maniac";
+public static final String TAG_BOT_NICKNAME   = "BOT_Tag";
 public static final String SHARK_BOT_NICKNAME = "BOT_Shark";
 ```
 
@@ -45,7 +47,8 @@ public static boolean isBotPlayer(DpPlayer p) {
     String name = p.getNickname();
     return DEMO_BOT_NICKNAME.equals(name)
             || MANIAC_BOT_NICKNAME.equals(name)
-            || SHARK_BOT_NICKNAME.equals(name);
+            || SHARK_BOT_NICKNAME.equals(name)
+            || TAG_BOT_NICKNAME.equals(name);
 }
 ```
 
@@ -55,7 +58,8 @@ public static boolean isBotPlayer(DpPlayer p) {
 private enum BotType {
     DEMO,
     MANIAC,
-    SHARK
+    SHARK,
+    TAG
 }
 ```
 
@@ -71,6 +75,9 @@ public static BotType getBotTypeByNickname(String nickname) {
     }
     if (SHARK_BOT_NICKNAME.equals(nickname)) {
         return BotType.SHARK;
+    }
+    if (TAG_BOT_NICKNAME.equals(nickname)) {
+        return BotType.TAG;
     }
     return null;
 }
@@ -186,7 +193,7 @@ preflop 阶段，如果公共牌不足 3 张，就直接根据手牌做一个简
 
 难度枚举：
 
-- `EASY`、`MEDIUM`、`HARD`。
+- `EASY`、`MEDIUM`、`HARD`、`PRO`。
 
 参数控制：
 
@@ -197,10 +204,13 @@ preflop 阶段，如果公共牌不足 3 张，就直接根据手牌做一个简
 - `missBluffCatchProb`：错过抓诈唬机会的概率；
 - `randomSpewProb`：偶尔完全乱来一次的概率。
 
-当前约定：
+当前约定（内部通过 `BotType` → `NpcDifficulty` 映射实现）：
 
-- `BOT_Demo` / `BOT_Maniac` 大致属于 MEDIUM；
-- `BOT_Shark` 使用 HARD 设置，决策更稳定、更少低级错误。
+- `BOT_Fish`（DEMO 类型）：使用 `EASY` 设置，更容易出现简单错误，整体偏弱，主要适合新手和流程演示；
+- `BOT_Maniac`：使用 `MEDIUM` 设置，整体偏松凶，但仍然会出现明显失误；
+- `BOT_Tag`：使用 `HARD` 设置，范围更紧、更偏价值下注，基本不额外引入“难度削弱噪声”，但不做复杂“读对手”调整；
+- `BOT_Shark`：使用 **PRO** 设置：在现有策略逻辑下关闭所有“难度削弱噪声”（不再额外看错牌、算错赔率、忽视位置/赔率、随机乱来等），尽量发挥策略上限；
+- 若未来需要一个略弱一点但仍然“聪明”的 Shark，可以改回使用 `HARD` 档，重新引入少量噪声。
 
 ---
 
@@ -231,13 +241,13 @@ preflop 阶段，如果公共牌不足 3 张，就直接根据手牌做一个简
 
 ## 7. 各机器人类型的总体性格
 
-### 7.1 BOT_Demo（普通玩家）
+### 7.1 BOT_Fish（简单鱼式玩家，原 BOT_Demo）
 
 - 翻前 / 翻后逻辑较简单：
   - 弱牌 + 高跟注成本 + 危险牌面 → 偏向弃牌；
   - 大多数时间选择跟注/过牌；
   - 小概率加注，强牌加注力度略大。
-- 难度：中等，适合作为“基础机器人”用于流程演示和初学者对战。
+- 难度：简单（EASY），适合作为“基础机器人”用于流程演示和初学者对战。
 
 ### 7.2 BOT_Maniac（疯子）
 
@@ -270,6 +280,25 @@ preflop 阶段，如果公共牌不足 3 张，就直接根据手牌做一个简
 - 控制台会输出简单的决策日志（方便调参）：
   - `[BOT_Shark] 决策=FOLD / CALL_OR_CHECK / RAISE / CALL_OR_CHECK(默认)`，附带房间号、阶段、牌力档、筹码、跟注额、情绪等。
   - `[BOT_Shark-Explain]` 还会额外打印本手中其他玩家的筹码深度信息，比如 `minStackBB` / `avgStackBB`，方便观察是否因为桌上有短码/深码而调整了下注量。
+
+### 7.4 BOT_Tag（紧凶型 TAG）
+
+- 整体思路：
+  - **信息来源**：只使用自身牌力 `SimpleStrength`、牌面危险度 `BoardDanger`、当前阶段、跟注成本占筹码比例 `callRatio` 和简单赔率 `computePotOdds`；  
+    不会像 Shark 一样综合 `PlayerStats`、筹码深度、多玩家牌局结构做复杂“读对手”与筹码压制。
+  - **风格**：起手选择相对紧（弱牌在高压力或湿牌面更容易弃牌），拿到 STRONG/MONSTER 牌时偏向价值加注，整体更像一个稳健的 TAG 常客。
+- 典型行为：
+  - 免费看牌（`callAmount == 0`）时：
+    - 强牌/怪兽牌在 flop/turn/river 有较高概率下注获取价值（0.5~0.7 区间）；  
+    - 其余情况大多选择过牌控制底池。
+  - 有跟注成本时：
+    - 弱牌 + 高 `callRatio` + 湿牌面 → 明显倾向弃牌；  
+    - 中等牌在高压力 + 湿牌面时也会有一定弃牌概率；  
+    - 简单用 `potOdds` 做“赔率好/差”的修正，但不做基于对手历史的风格识别。
+  - 价值加注：
+    - STRONG/MONSTER 时，根据阶段在若干 BB 区间内随机加注，河牌阶段强牌会略微放大加注倍数；  
+    - MEDIUM 牌更多是小到中等加注或仅跟注，避免在早期街就把底池打得过大。
+  - 不会主动引入多余“乱来”噪声，所有随机性仅用来在「一小段合理范围内」分布下注尺度和概率。
 
 #### 7.3.1 后手筹码（Stack）意识与隐含赔率/压迫力
 
@@ -350,6 +379,87 @@ preflop 阶段，如果公共牌不足 3 张，就直接根据手牌做一个简
   - 统计本手中其他未弃牌玩家的 `minStack` / `maxStack` / `avgStack` 及其 BB 倍数；
   - 在 SHARK 的下注/加注逻辑中区分“短码病人”（minStackBB ≤ 20）和“整体深码桌”（minStackBB > 60 & avgStackBB > 80）；
   - 根据这些信息微调 pot × 系数 和 callAmount + 若干 BB 的目标金额，体现隐含赔率和筹码压迫力。
+
+---
+
+## 9. Shark 2.0 决策要素补充（赢率 / 赔率 / 筹码 / 位置 / 摊牌 bluff）
+
+### 9.1 粗略赢率桶 vs 底池赔率
+
+- 在 SHARK 的弃牌逻辑中，引入了一个非常简单的“赢率估计桶”：
+  - `estimateEquityBucket(SimpleStrength st, String stage)`：
+    - preflop：MONSTER≈0.75，STRONG≈0.60，MEDIUM≈0.40，WEAK≈0.25；
+    - 翻后（flop/turn/river）：MONSTER≈0.85，STRONG≈0.65，MEDIUM≈0.45，WEAK≈0.20。
+- 对有跟注成本的场景（`callAmount > 0`）：
+  - 先算底池赔率 `potOdds = call / (pot + call)`；
+  - 再比较 `equity` vs `potOdds`：
+    - 若 `equity + EQUITY_POTODDS_EPS < potOdds` → 在原有 `baseFold` 基础上 +0.15，明显不划算时更倾向弃牌；
+    - 若 `equity > potOdds + EQUITY_POTODDS_MARGIN` → `baseFold *= 0.8`，明显划算时更不容易被吓走。
+- 大额跟注保护：
+  - 当 `callRatio = callAmount / chips > 0.5` 且 `potOdds > 0.45` 且 `牌力 == WEAK` 时：
+    - `baseFold` 至少提升到 ≈0.85，弱牌面对大锅有更强烈的弃牌倾向。
+
+### 9.2 筹码深度与筹码比压制
+
+- 关键常量集中在 `DpNpcEngine` 顶部：
+  - `SHORT_STACK_BB = 20.0`：典型短码；
+  - `DEEP_STACK_MIN_BB = 60.0`：单个玩家深码下限；
+  - `DEEP_TABLE_AVG_BB = 80.0`：整桌平均深码阈值。
+- 辅助函数：
+  - `StackContext analyzeStacks(...)`：如前文；
+  - `computeHeroVsVillainStackRatio(DpPlayer hero, DpPlayer villain)`：返回 heroChips / villainChips。
+- 使用策略概览：
+  - **短码 vs 强牌/怪兽**：
+    - 无人下注时（free bet）：若存在 `minStackBB <= SHORT_STACK_BB` 且 SHARK 为 STRONG/MONSTER：
+      - 目标下注 `target` 会被拉近“短码一跟就接近 all-in”的区间（约对方后手 40%~80%）。
+    - 已有人下注时：
+      - 主要对手后手 ≤ 20BB 且 SHARK 为 STRONG/MONSTER 时：
+        - 在 `60%~100%` 对手后手之间随机一个压力系数，提升 `target`，让短码一跟基本进入 all-in 区。
+      - 若是 WEAK 牌 bluff 面对短码：
+        - 将加注额上限限制在 `callAmount + 3*BB` 左右，避免在短码面前做过头的 bluff。
+  - **整体深码桌（minStackBB>60 && avgStackBB>80）**：
+    - 强牌/怪兽：
+      - 有人下注时，`target` 约乘以 1.15，体现深码局更敢打大一点的 value bet；
+      - turn/river 且 `heroVsVillainStackRatio >= 1.5` 且 `villainStackBB ∈ [25,60]` 时：
+        - 再对 `target` 做一次轻微放大（约 1.15），表现为“筹码优势下的价值压制”，而不是盲目 bluff。
+    - 弱牌 bluff：
+      - 在深码桌时略微缩小 bluff 尺度（约乘 0.9），避免深码对手轻松跟大注。
+
+### 9.3 位置与翻后 c-bet / 防守
+
+- 位置枚举仍然是 `TablePosition`（EARLY/MIDDLE/LATE/BLINDS）。
+- 晚位无人下注时的 c‑bet（更像常客）：
+  - 条件：`callAmount == 0`、`stage ∈ {flop, turn}`、`position == LATE`、`BoardDanger == DRY`；
+  - 若牌力 `WEAK/MEDIUM`：
+    - 计算一个 `baseCbetProb`（约 0.45~0.55），根据对手风格和整体深码情况略微 +/‑：
+      - 松凶/疯狗或短码 → 概率略减；
+      - 紧弱/整体深码 → 概率略增；
+      - 情绪高时再略微放大；
+    - 若命中该概率：直接在 1/3~1/2 pot 区间随机一个下注量，吸附到 SB 整数倍后做一次小额 c‑bet。
+- 早位 + 湿牌面 + 弱牌的防守：
+  - 条件：`position == EARLY && BoardDanger == WET && SimpleStrength == WEAK`；
+  - 有人下注时：
+    - 在原有 `callProb` 基础上略微下调（相当于提升 `baseFold`），让 SHARK 在 bad board 上更愿意提前放弃；
+  - 无人下注时：
+    - 不额外鼓励主动下注，更多选择 check/back，避免在早位湿牌面上做轻率 c‑bet。
+
+### 9.4 摊牌 bluff 倾向（showdown bluffiness）
+
+- `PlayerStats.SingleHandStats` 新增字段：
+  - `finalRankCategory`：摊牌时的最终牌型大类（同 `HandStrength.rankCategory`）。
+- 结算处（`autoSettle`）会在为每位玩家更新统计时写入：
+  - 仅在 `wentToShowdown == true` 且存在牌力评估结果时设置此字段。
+- 新增辅助：
+  - `estimateShowdownBluffiness(PlayerStats stats)`：
+    - 只看最近 N 手（目前 10 手）中 `wentToShowdown == true && raised == true` 的局；
+    - 统计其中 `finalRankCategory <= 4`（高牌/一对/两对/三条）的比例；
+    - 返回 [0,1]，越高说明“经常拿一般牌/空气牌打到河牌摊牌”，bluff 倾向越强。
+- 接入 SHARK 的决策：
+  - 在已有 `estimateActionCredibility` 的基础上，再用 `showdownBluffiness` 调整 `baseFold`：
+    - 若 `bluffiness > 0.4`：`baseFold *= 0.7`，在大尺度上更不轻易相信对手强牌叙事；
+    - 若 `bluffiness < 0.1`：`baseFold *≈ 1.2`，对摊牌大多是强牌的“诚实玩家”提升整体弃牌率。
+  - 日志增强：
+    - 在所有 `[BOT_Shark-Explain]` 输出中追加：`showdownBluffiness=0.xx`，方便观测调参。
 
 ---
 

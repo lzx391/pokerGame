@@ -102,7 +102,7 @@ public class DpRoomController {
     }
 
     /**
-     * 将演示用 NPC（BOT_Demo）加入到指定房间的「下一局加入」列表中。
+     * 将简单鱼式 NPC（BOT_Fish，原 BOT_Demo）加入到指定房间的「下一局加入」列表中。
      * 主要用于当前阶段验证机器人流程是否正常工作，后续可扩展为通用添加机器人接口。
      */
     @PostMapping("/addDemoBot")
@@ -124,6 +124,15 @@ public class DpRoomController {
     @PostMapping("/addSharkBot")
     public String addSharkBot(@RequestParam String roomId) {
         return dpRoomService.addSharkBotToNextHand(roomId) ? "ok" : "fail";
+    }
+
+    /**
+     * 将紧凶型 NPC（BOT_Tag）加入到指定房间的「下一局加入」列表中。
+     * 该机器人打得相对紧凶，但不像 Shark 那样根据对手历史动态调整策略。
+     */
+    @PostMapping("/addTagBot")
+    public String addTagBot(@RequestParam String roomId) {
+        return dpRoomService.addTagBotToNextHand(roomId) ? "ok" : "fail";
     }
 
     /**
