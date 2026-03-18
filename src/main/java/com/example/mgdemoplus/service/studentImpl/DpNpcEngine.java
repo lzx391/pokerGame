@@ -584,12 +584,24 @@ public final class DpNpcEngine {
         tag3Bet[PreflopHandCategory.STRONG_SUITED_BROADWAY.ordinal()] = 5;
         shark3Bet[PreflopHandCategory.STRONG_SUITED_BROADWAY.ordinal()] = 6;
 
-        // SUITED_CONNECTOR：主要在 late/盲注 open
+        // SUITED_CONNECTOR：主要在 late/盲注 open，包含高同花连张 + 部分高 one-gap
         for (PreflopPosition pos : PreflopPosition.values()) {
             int idx = PreflopHandCategory.SUITED_CONNECTOR.ordinal();
             int posIdx = pos.ordinal();
-            tagOpen[idx][posIdx] = (pos == PreflopPosition.LATE ? 2 : 0);
-            sharkOpen[idx][posIdx] = (pos == PreflopPosition.EARLY ? 0 : 2);
+            // TAG：中位少量 open，晚位和盲注更愿意开池
+            if (pos == PreflopPosition.LATE || pos == PreflopPosition.BLINDS) {
+                tagOpen[idx][posIdx] = 2;
+            } else if (pos == PreflopPosition.MIDDLE) {
+                tagOpen[idx][posIdx] = 1;
+            } else {
+                tagOpen[idx][posIdx] = 0;
+            }
+            // SHARK：从中位开始更积极地 open suited connectors
+            if (pos == PreflopPosition.EARLY) {
+                sharkOpen[idx][posIdx] = 0;
+            } else {
+                sharkOpen[idx][posIdx] = 2;
+            }
         }
         tag3Bet[PreflopHandCategory.SUITED_CONNECTOR.ordinal()] = 0;
         shark3Bet[PreflopHandCategory.SUITED_CONNECTOR.ordinal()] = 4;
@@ -1114,19 +1126,36 @@ public final class DpNpcEngine {
         boolean anyAce = (r1.equals("A") || r2.equals("A"));
 
         if (suited && (broadway1 || broadway2)) {
-            // AJs+, KQs, KJs, QJs 等
+            // 调整：把 KTs/QTs/JTs 这类典型“可玩同花大牌”也纳入到强同花大牌桶里
+            // 原先要求 low >= J，导致 KTs/QTs 被误判为 TRASH，这里放宽到 low >= 10
             if ((anyAce && high >= CARD_RANK_MAP.getOrDefault("J", 11))
-                    || (high >= CARD_RANK_MAP.getOrDefault("K", 13) && low >= CARD_RANK_MAP.getOrDefault("J", 11))) {
+                    || (high >= CARD_RANK_MAP.getOrDefault("K", 13) && low >= CARD_RANK_MAP.getOrDefault("10", 10))) {
                 return PreflopHandCategory.STRONG_SUITED_BROADWAY;
             }
         }
 
         if (suited) {
             int gap = high - low;
-            if (gap >= 1 && gap <= 4 && high >= CARD_RANK_MAP.getOrDefault("6", 6)
+            // 高同花连张 / 小连张：gap == 1，high 在 6~Q 之间 → 典型 suited connector
+            if (gap == 1 && high >= CARD_RANK_MAP.getOrDefault("6", 6)
                     && high <= CARD_RANK_MAP.getOrDefault("Q", 12)) {
                 return PreflopHandCategory.SUITED_CONNECTOR;
             }
+            // 高同花 one-gap：例如 J9s、T8s、97s、86s 等，实战中经常被视为“可玩牌”
+            if (gap == 2 && high >= CARD_RANK_MAP.getOrDefault("10", 10)
+                    && high <= CARD_RANK_MAP.getOrDefault("Q", 12)) {
+                return PreflopHandCategory.SUITED_CONNECTOR;
+            }
+            // 高同花 one-gap：例如 J9s、T8s、97s、86s 等，实战中经常被视为“可玩牌”
+            if (gap == 2 && high >= CARD_RANK_MAP.getOrDefault("10", 10)
+                    && high <= CARD_RANK_MAP.getOrDefault("Q", 12)) {
+                return PreflopHandCategory.SUITED_CONNECTOR;
+            }
+        }
+
+        // 高张非同花大牌组合（如 KQo、KJo、QJo）：比杂牌强一档，至少不应被视作纯垃圾
+        if (!suited && broadway1 && broadway2 && high >= CARD_RANK_MAP.getOrDefault("Q", 12)) {
+            return PreflopHandCategory.MEDIUM_PAIR;
         }
 
         // AKo/AQo 作为强牌但非同花，近似归为 MEDIUM_PAIR 类似范围
@@ -1922,10 +1951,10 @@ public final class DpNpcEngine {
             }
         }
 
-        // 11. 针对主要对手生成 counter-strategy 建议
+        // 10. 针对主要对手生成 counter-strategy 建议
         CounterStrategyProfile counter = analyzeVillainCounterStrategy(aggressorStats);
 
-        // 12. 封装返回
+        // 11. 封装返回
         return new SmartContext(
                 aggressor,
                 aggressorStats,
@@ -1951,7 +1980,7 @@ public final class DpNpcEngine {
         }
 
         int callAmount = Math.max(0, room.getCurrentBetToCall() - bot.getBet());
-        double callRatio = chips == 0 ? 1.0 : (callAmount * 1.0 / chips);
+        double callRatio = chips == 0 || callAmount>=chips ? 1.0 : (callAmount * 1.0 / chips);//把要跟的大于自己的部分算作1，因为超出去部分没意义，要跟的已经占百分百了
         TablePosition position = getTablePosition(room, bot);
         SimpleStrength rawStrength = estimateCurrentStrength(room, bot);
         // 难度分配：
@@ -2083,17 +2112,32 @@ public final class DpNpcEngine {
                 }
 
                 if (!"preflop".equals(stage) && chips > callAmount) {
-                    int raiseBase = callAmount;
-                    int extraBB;
-                    if (strength == SimpleStrength.STRONG) {
-                        extraBB = 2;
+                    int pot = room.getPot();
+                    int bb = DpRoom.getBBChips();
+                    // 基于“这一轮对抗的目标尺度”做阶梯式加注，而不是只比对手多几个 BB
+                    double multi;
+                    if (strength == SimpleStrength.STRONG || strength == SimpleStrength.MONSTER) {
+                        multi = 3.0;
                     } else if (strength == SimpleStrength.MEDIUM) {
-                        extraBB = 1;
+                        multi = 2.5;
                     } else {
-                        extraBB = 1;
+                        multi = 2.0;
                     }
-                    int minExtra = DpRoom.getBBChips() * extraBB;
-                    int raiseAmount = Math.min(chips, raiseBase + minExtra);
+                    int targetByRaise = (int) Math.round(callAmount * multi);
+                    // 同时参考当前底池，避免在小锅里抬得过高，或者大锅里只抬一点点
+                    int targetByPot = (int) Math.round(pot * 0.6);
+                    int target = Math.max(targetByRaise, targetByPot);
+                    // 至少在对手下注基础上再加 2BB，防止出现“只多一点点”的 3B/4B
+                    int minExtra = (bb > 0 ? bb * 2 : 0);
+                    int minTarget = callAmount + minExtra;
+                    if (target < minTarget) {
+                        target = minTarget;
+                    }
+                    int raiseAmount = Math.min(chips, target);
+                    if (raiseAmount <= callAmount || raiseAmount <= 0) {
+                        // 如果按阶梯算出来的加注额过小或不合理，就退回跟注，避免奇怪的小抬
+                        return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+                    }
                     return new BotAction(BotActionType.RAISE, raiseAmount);
                 }
 
@@ -2110,6 +2154,28 @@ public final class DpNpcEngine {
                         difficulty,
                         random
                 );
+                StackContext maniStackCtx = ctx.stackCtx;
+                int maniTotalStack = bot.getBet() + bot.getChips();
+                double maniCommitFactor;
+                if (strength == SimpleStrength.MONSTER || strength == SimpleStrength.STRONG) {
+                    maniCommitFactor = 0.9;
+                } else if (strength == SimpleStrength.MEDIUM) {
+                    maniCommitFactor = 0.6;
+                } else {
+                    maniCommitFactor = 0.35;
+                }
+                if (!"preflop".equals(stage) && boardDanger == BoardDanger.WET) {
+                    maniCommitFactor *= 0.8;
+                }
+                if (!"preflop".equals(stage)
+                        && maniStackCtx != null
+                        && maniStackCtx.avgStackBB >= SharkConfig.DEEP_TABLE_AVG_BB
+                        && (strength == SimpleStrength.WEAK || strength == SimpleStrength.MEDIUM)) {
+                    maniCommitFactor *= 0.85;
+                }
+                if (maniCommitFactor < 0.1) maniCommitFactor = 0.1;
+                if (maniCommitFactor > 0.98) maniCommitFactor = 0.98;
+                double maniCommitThreshold = maniTotalStack * maniCommitFactor;
 
                 if (callAmount >= chips) {
                     double rAllIn = random.nextDouble();
@@ -2120,17 +2186,20 @@ public final class DpNpcEngine {
                         allInProb -= 0.25;
                         foldProb += 0.25;
                     }
-                    // 若当前主要 aggressor 被识别为“诚实且少 bluff”的类型，则略微提高弃牌概率
+                    // 利用 SmartContext：对弱鱼 / bluff 多的对手更敢 all-in，对紧弱 / 老实玩家稍微收一收
                     ActionCredibility maniCred = ctx.credibility;
                     double maniShowdownBluff = ctx.showdownBluffiness;
-                    if (maniCred == ActionCredibility.HIGH || maniShowdownBluff < 0.1) {
-                        // 认为对手更偏价值下注时，疯子略微降低 all-in 倾向
-                        allInProb -= 0.15;
-                        foldProb += 0.15;
-                    } else if (maniCred == ActionCredibility.LOW || maniShowdownBluff > 0.4) {
-                        // 认为对手常 bluff：用更多 all-in 回击
+                    VillainRangeTier maniTier = ctx.villainTier;
+                    if (maniCred == ActionCredibility.LOW || maniShowdownBluff > 0.4
+                            || maniTier == VillainRangeTier.LOOSE || maniTier == VillainRangeTier.MANIAC) {
+                        // 对手偏松 / 偏 bluff / 疯狗：疯狗更乐意用 all-in 施压，减少纯粹弃牌
                         allInProb += 0.1;
                         foldProb = Math.max(0.05, foldProb - 0.05);
+                    } else if (maniCred == ActionCredibility.HIGH || maniShowdownBluff < 0.1
+                            || maniTier == VillainRangeTier.NIT || maniTier == VillainRangeTier.TIGHT) {
+                        // 对手偏紧 / 偏诚实：疯狗略微减少 all-in 频率，多一点理性放弃
+                        allInProb -= 0.15;
+                        foldProb += 0.15;
                     }
                     if (allInProb < 0.5) allInProb = 0.5;
                     if (allInProb > 0.98) allInProb = 0.98;
@@ -2223,15 +2292,18 @@ public final class DpNpcEngine {
                 if (strength == SimpleStrength.WEAK && callRatio > 0.85 && boardDanger == BoardDanger.WET) {
                     maniFoldBase = 0.2;
                 }
-                // 结合对手风格与历史 bluff 倾向，稍微调整疯子的弃牌基准
+                // 结合对手风格与历史 bluff 倾向，稍微调整疯子的弃牌基准：
+                // - 弱鱼 / 松散 / bluff 多 → 更少弃牌；
+                // - 紧弱 / 老实 → 在极端差牌 + 巨大压力下多一点理性弃牌。
                 ActionCredibility maniCred2 = ctx.credibility;
                 double maniShowdownBluff2 = ctx.showdownBluffiness;
-                if (maniCred2 == ActionCredibility.HIGH || maniShowdownBluff2 < 0.1) {
-                    // 认为对手相对诚实时，疯子在极端差牌 + 巨大压力下会多一点放弃
-                    maniFoldBase += 0.05;
-                } else if (maniCred2 == ActionCredibility.LOW || maniShowdownBluff2 > 0.4) {
-                    // 认为对手经常 bluff：在同等条件下降低弃牌意愿
+                VillainRangeTier maniTier2 = ctx.villainTier;
+                if (maniCred2 == ActionCredibility.LOW || maniShowdownBluff2 > 0.4
+                        || maniTier2 == VillainRangeTier.LOOSE || maniTier2 == VillainRangeTier.MANIAC) {
                     maniFoldBase *= 0.5;
+                } else if (maniCred2 == ActionCredibility.HIGH || maniShowdownBluff2 < 0.1
+                        || maniTier2 == VillainRangeTier.NIT || maniTier2 == VillainRangeTier.TIGHT) {
+                    maniFoldBase += 0.05;
                 }
                 double maniFoldProb = maniFoldBase - mood * 0.2;
                 // callStation 越高，越不愿意弃牌：在同样条件下降低弃牌率
@@ -2267,6 +2339,44 @@ public final class DpNpcEngine {
                     int raiseAmount = Math.min(chips, target);
                     if (raiseAmount <= 0) {
                         return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+                    }
+                    // 当已面对较大 4B（跟注成本占筹码较高）时，不再做“小幅 5B”：直接在 all-in / 平跟 / 弃牌之间决策
+                    if ("preflop".equals(stage) && callRatio > 0.3) {
+                        double y = random.nextDouble();
+                        if (strength == SimpleStrength.MONSTER || strength == SimpleStrength.STRONG) {
+                            // 强牌：更偏向一把梭或者仅平跟
+                            if (y < 0.7) {
+                                return new BotAction(BotActionType.ALL_IN, chips);
+                            } else {
+                                return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+                            }
+                        } else if (strength == SimpleStrength.MEDIUM) {
+                            // 中等牌：多以平跟/弃牌为主
+                            if (y < 0.6) {
+                                return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+                            } else {
+                                return new BotAction(BotActionType.FOLD, 0);
+                            }
+                        } else {
+                            // 弱牌：在极大压力下大多直接弃牌
+                            if (y < 0.85) {
+                                return new BotAction(BotActionType.FOLD, 0);
+                            } else {
+                                return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+                            }
+                        }
+                    }
+                    int heroInvestAfterRaise = bot.getBet() + raiseAmount;
+                    if (heroInvestAfterRaise >= maniCommitThreshold) {
+                        // 已经接近这手牌的心理阈值：疯子更可能“摊牌一锤定音”，而不是继续小幅抬价
+                        double y = random.nextDouble();
+                        if (y < 0.7) {
+                            return new BotAction(BotActionType.ALL_IN, chips);
+                        }
+                        if (y < 0.9) {
+                            return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+                        }
+                        return new BotAction(BotActionType.FOLD, 0);
                     }
                     // 疯子型玩家：当底池已经被抬到较高水平时，容易“失去耐心”，直接一把梭哈
                     int bb = DpRoom.getBBChips();
@@ -2334,6 +2444,32 @@ public final class DpNpcEngine {
                 List<String> hole = bot.getHoleCards();
                 List<String> community = room.getCommunityCards();
                 CounterStrategyProfile counter = ctx.counterStrategy;
+
+                int sharkTotalStack = bot.getBet() + bot.getChips();
+                double sharkCommitFactor;
+                if (st == SimpleStrength.MONSTER) {
+                    sharkCommitFactor = 0.95;
+                } else if (st == SimpleStrength.STRONG) {
+                    sharkCommitFactor = 0.75;
+                } else if (st == SimpleStrength.MEDIUM) {
+                    sharkCommitFactor = 0.5;
+                } else {
+                    sharkCommitFactor = 0.3;
+                }
+                if (!"preflop".equals(stage) && bd == BoardDanger.WET) {
+                    // 潮湿牌面：即便是 Shark，也更愿意控池
+                    sharkCommitFactor *= 0.8;
+                }
+                if (!"preflop".equals(stage)
+                        && stackCtx != null
+                        && stackCtx.avgStackBB >= SharkConfig.DEEP_TABLE_AVG_BB
+                        && (st == SimpleStrength.WEAK || st == SimpleStrength.MEDIUM)) {
+                    // 深码 + 弱/中牌：整体减少愿意投入的总筹码比例
+                    sharkCommitFactor *= 0.85;
+                }
+                if (sharkCommitFactor < 0.15) sharkCommitFactor = 0.15;
+                if (sharkCommitFactor > 0.98) sharkCommitFactor = 0.98;
+                final double sharkCommitThreshold = sharkTotalStack * sharkCommitFactor;
 
                 double baseFold = 0.0;
                 if (st == SimpleStrength.WEAK && callAmount > 0 && callRatio > 0.4) {
@@ -2730,6 +2866,56 @@ public final class DpNpcEngine {
                         }
 
                         raiseAmount = Math.min(chips, target);
+                        int heroInvestAfterRaise = bot.getBet() + raiseAmount;
+                        // 翻前面对很大的 4B 时，不再做“只多一点点”的 5B：要么直接一口价（all-in），要么平跟/弃牌
+                        if ("preflop".equals(stage) && callRatio > 0.3) {
+                            double y = random.nextDouble();
+                            if (st == SimpleStrength.MONSTER || st == SimpleStrength.STRONG) {
+                                if (y < 0.65) {
+                                    return new BotAction(BotActionType.ALL_IN, chips);
+                                } else {
+                                    return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+                                }
+                            } else if (st == SimpleStrength.MEDIUM) {
+                                if (y < 0.7) {
+                                    return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+                                } else {
+                                    return new BotAction(BotActionType.FOLD, 0);
+                                }
+                            } else {
+                                if (y < 0.9) {
+                                    return new BotAction(BotActionType.FOLD, 0);
+                                } else {
+                                    return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+                                }
+                            }
+                        }
+                        if (heroInvestAfterRaise > sharkCommitThreshold) {
+                            // 超出了这手牌的“心理价”：不再用夸张的再加注，而是在 all-in / 跟注 / 弃牌之间做抉择
+                            double y = random.nextDouble();
+                            if (st == SimpleStrength.MONSTER || st == SimpleStrength.STRONG) {
+                                // 强牌：一部分直接 all-in，一部分只跟注，防止无意义小抬价
+                                if (y < 0.5) {
+                                    return new BotAction(BotActionType.ALL_IN, chips);
+                                } else {
+                                    return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+                                }
+                            } else if (st == SimpleStrength.MEDIUM) {
+                                // 中等牌：更多选择跟注，少量弃牌
+                                if (y < 0.8) {
+                                    return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+                                } else {
+                                    return new BotAction(BotActionType.FOLD, 0);
+                                }
+                            } else {
+                                // 弱牌：大多弃牌，极少 bluff all-in
+                                if (y < 0.85) {
+                                    return new BotAction(BotActionType.FOLD, 0);
+                                } else {
+                                    return new BotAction(BotActionType.ALL_IN, chips);
+                                }
+                            }
+                        }
                         // 有跟注时，为避免“只多加一点点”的反加，至少在当前跟注额基础上再加 3~4 个大盲
                         if (callAmount > 0 && bb > 0) {
                             int minExtraBB = 3;
@@ -2940,6 +3126,31 @@ public final class DpNpcEngine {
                         random
                 );
 
+                StackContext tagStackCtx = ctx.stackCtx;
+                int tagTotalStack = bot.getBet() + bot.getChips();
+                double tagCommitFactor;
+                if (st == SimpleStrength.MONSTER) {
+                    tagCommitFactor = 0.85;
+                } else if (st == SimpleStrength.STRONG) {
+                    tagCommitFactor = 0.65;
+                } else if (st == SimpleStrength.MEDIUM) {
+                    tagCommitFactor = 0.45;
+                } else {
+                    tagCommitFactor = 0.25;
+                }
+                if (!"preflop".equals(stage) && bd == BoardDanger.WET) {
+                    // 紧凶在湿牌面更愿意控池：整体降低愿意投入的总筹码比例
+                    tagCommitFactor *= 0.85;
+                }
+                if (!"preflop".equals(stage)
+                        && tagStackCtx != null
+                        && tagStackCtx.avgStackBB >= SharkConfig.DEEP_TABLE_AVG_BB
+                        && (st == SimpleStrength.WEAK || st == SimpleStrength.MEDIUM)) {
+                    tagCommitFactor *= 0.85;
+                }
+                if (tagCommitFactor < 0.15) tagCommitFactor = 0.15;
+                if (tagCommitFactor > 0.9) tagCommitFactor = 0.9;
+                final double tagCommitThreshold = tagTotalStack * tagCommitFactor;
                 // ==== 1) preflop：明显更紧，弱牌弃牌概率由 preflopTightness 驱动 ====
                 if ("preflop".equals(stage)) {
                     if (st == SimpleStrength.WEAK) {
@@ -3183,6 +3394,55 @@ public final class DpNpcEngine {
                 }
                 if (raiseAmount <= callAmount) {
                     return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+                }
+                int heroInvestAfter = bot.getBet() + raiseAmount;
+                // 翻前面对高额 4B 时，TAG 不再用小幅 5B：只在 all-in / 跟注 / 弃牌之间选择
+                if ("preflop".equals(stage) && callRatio > 0.3) {
+                    double y = random.nextDouble();
+                    if (st == SimpleStrength.MONSTER || st == SimpleStrength.STRONG) {
+                        if (y < 0.8) {
+                            return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+                        } else {
+                            return new BotAction(BotActionType.ALL_IN, chips);
+                        }
+                    } else if (st == SimpleStrength.MEDIUM) {
+                        if (y < 0.7) {
+                            return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+                        } else {
+                            return new BotAction(BotActionType.FOLD, 0);
+                        }
+                    } else {
+                        if (y < 0.9) {
+                            return new BotAction(BotActionType.FOLD, 0);
+                        } else {
+                            return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+                        }
+                    }
+                }
+                heroInvestAfter = bot.getBet() + raiseAmount;
+                if (heroInvestAfter > tagCommitThreshold) {
+                    // 超出 TAG 这手牌的心理范围：不再继续把锅抬大，回到控制池子 / 跟注 / 弃牌
+                    double y = random.nextDouble();
+                    if (st == SimpleStrength.STRONG || st == SimpleStrength.MONSTER) {
+                        // 强牌：多数回落到跟注，小部分直接全压收尾
+                        if (y < 0.8) {
+                            return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+                        } else {
+                            return new BotAction(BotActionType.ALL_IN, chips);
+                        }
+                    } else if (st == SimpleStrength.MEDIUM) {
+                        if (y < 0.7) {
+                            return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+                        } else {
+                            return new BotAction(BotActionType.FOLD, 0);
+                        }
+                    } else {
+                        if (y < 0.85) {
+                            return new BotAction(BotActionType.FOLD, 0);
+                        } else {
+                            return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+                        }
+                    }
                 }
                 if (shouldSkipAggressiveActionByPlan(bot, stage)) {
                     return new BotAction(BotActionType.CALL_OR_CHECK, 0);

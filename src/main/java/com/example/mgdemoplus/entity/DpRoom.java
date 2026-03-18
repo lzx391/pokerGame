@@ -23,6 +23,11 @@ public class DpRoom {
     private List<String> deck = new ArrayList<>();
     private int pot = 0;
     private int currentBetToCall = 0;
+    /**
+     * 当前下注轮中，自首次主动下注以来的“加注层级计数”：
+     * 1 = open（第一次下注），2 = 第一次 re-raise（3bet），3 = 第二次 re-raise（4bet），>=4 视为进入 all-in/平跟/弃牌的终局博弈阶段。
+     */
+    private int raiseLevel = 0;
     private static final int CHIPS =500;//全局筹码设置
     private static final int SB_CHIPS =5;//小盲筹码设置
     private static final int BB_CHIPS =10;//大盲筹码设置
@@ -76,6 +81,8 @@ public class DpRoom {
     public void setPot(int pot) { this.pot = pot; }
     public int getCurrentBetToCall() { return currentBetToCall; }
     public void setCurrentBetToCall(int currentBetToCall) { this.currentBetToCall = currentBetToCall; }
+    public int getRaiseLevel() { return raiseLevel; }
+    public void setRaiseLevel(int raiseLevel) { this.raiseLevel = raiseLevel; }
     public int getCurrentActorIndex() { return currentActorIndex; }
     public void setCurrentActorIndex(int currentActorIndex) { this.currentActorIndex = currentActorIndex; }
     public long getLastActionTime() { return lastActionTime; }

@@ -337,9 +337,15 @@
               </div>
             </div>
           </div>
-          <!-- 手牌：自己始终能看；摊牌/结算等待阶段只有未弃牌的人亮牌，弃牌的人依然盖牌 -->
+          <!-- 手牌：
+               - 自己始终能看
+               - 房主开启「一键看穿」后，可在任意阶段看到所有玩家底牌（仅本机显示）
+               - 否则，摊牌/结算等待阶段只有未弃牌的人亮牌，弃牌的人依然盖牌 -->
           <div style="display:flex; gap:5px; margin:8px 0; justify-content:center;">
-            <template v-if="isMe(p.nickname) || ((stage === 'showdown' || stage === 'settled') && !p.fold)">
+            <template
+                v-if="isMe(p.nickname)
+                  || (isOwner && ownerRevealAll && p.holeCards && p.holeCards.length > 0)
+                  || ((stage === 'showdown' || stage === 'settled') && !p.fold)">
               <div
                   v-for="(c, ci) in p.holeCards"
                   :key="'h' + ci"
@@ -355,10 +361,19 @@
             </template>
           </div>
 
-          <!-- 牌型显示：文字 + 最大牌型的 5 张牌 -->
-          <div v-if="communityCards.length >= 3 && communityCardsFlipComplete && (isMe(p.nickname) || ((stage === 'showdown' || stage === 'settled') && !p.fold))"
+          <!-- 牌型显示：文字 + 最大牌型的 5 张牌
+               - 自己始终能看
+               - 房主开启「一键看穿」后，可在任意阶段看到所有玩家牌型
+               - 或在摊牌/结算阶段给未弃牌玩家展示 -->
+          <div
+              v-if="communityCards.length >= 3
+                && communityCardsFlipComplete
+                && (isMe(p.nickname)
+                    || (isOwner && ownerRevealAll && p.holeCards && p.holeCards.length > 0)
+                    || ((stage === 'showdown' || stage === 'settled') && !p.fold))"
                style="margin-top:4px; text-align:center;">
-            <template v-if="isMe(p.nickname)">
+            <!-- 自己 或 房主开启看穿时看到的牌型（统一用蓝色样式） -->
+            <template v-if="isMe(p.nickname) || (isOwner && ownerRevealAll && p.holeCards && p.holeCards.length > 0)">
                 <span
                     style="background:#e6f7ff; color:#1890ff; padding:3px 10px; border-radius:4px; font-weight:bold; font-size:12px; display:inline-block;">
                   {{ getHandRank(p.holeCards, communityCards) }}
@@ -519,6 +534,16 @@
                    background: #722ed1; color:#fff; box-shadow:0 2px 6px rgba(114,46,209,0.35);">
           打开房主神器
         </button>
+        <button
+            @click="ownerRevealAll = !ownerRevealAll"
+            style="padding:8px 16px; border:none; border-radius:6px; cursor:pointer; font-size:13px; font-weight:bold;
+                   background: #fa8c16; color:#fff; box-shadow:0 2px 6px rgba(250,140,22,0.35);">
+          {{ ownerRevealAll ? '关闭看穿底牌' : '一键看穿所有底牌' }}
+        </button>
+      </div>
+
+      <div style="font-size:12px; color:#999; text-align:center; margin-bottom:6px;">
+        「一键看穿」仅你自己可见，NPC 和其他真人不会知道你看到了他们的牌。
       </div>
 
       <!-- showdown 结算：按池分配 -->
@@ -667,7 +692,10 @@ export default {
       tagBotAddedTip: '',
       // 聪明型 NPC 状态
       sharkBotAdding: false,
-      sharkBotAddedTip: ''
+      sharkBotAddedTip: '',
+
+      // 房主专用：一键看穿所有人底牌（仅本机显示，不影响后端和 NPC 决策）
+      ownerRevealAll: false
     }
   },
 

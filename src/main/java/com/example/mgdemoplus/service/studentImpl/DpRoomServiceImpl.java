@@ -52,7 +52,7 @@ public class DpRoomServiceImpl {
                         }
                     }
 //                    System.out.println("定时器检测：人数："+size);
-                        if (size == 0 ) {
+                        if (size == 0 && room.getSpectators().isEmpty()) {
                         System.out.println("定时器检测：房间：" + room.getRoomId() + "没活人了");
                         roomMap.remove(room.getRoomId());//房间空了就清人
                         continue;
@@ -524,9 +524,9 @@ public class DpRoomServiceImpl {
         }
         // 如果当前没有任何有能力继续玩的真人玩家（size==0），
         // 不在这里自动开新局，改由结算阶段的超时逻辑 handleReadyTimeout 统一处理
-       if (size == 0) {
-            return;
-        }
+//       if (size == 0) {
+//            return;
+//        }
         //如果有能力的人齐了就可以开始newHand了，拉人踢人开场
         if (size == size1) {
             newHand(r.getRoomId());
@@ -806,7 +806,16 @@ public class DpRoomServiceImpl {
         }
 
         int totalBet = p.getBet() + amount;
-        if (totalBet > r.getCurrentBetToCall()) {
+        int prevBetToCall = r.getCurrentBetToCall();
+        if (totalBet > prevBetToCall) {
+            // 出现了更高的一档下注：如果之前没有有效下注，则视为 open，否则视为一次 re-raise
+            int currentLevel = r.getRaiseLevel();
+            if (prevBetToCall <= 0) {
+                currentLevel = 1;
+            } else {
+                currentLevel = Math.max(1, currentLevel + 1);
+            }
+            r.setRaiseLevel(currentLevel);
             r.setCurrentBetToCall(totalBet);
         }
 
@@ -867,6 +876,7 @@ public class DpRoomServiceImpl {
             p.setActed(false);
         }
         r.setCurrentBetToCall(0);
+        r.setRaiseLevel(0);
 
         List<String> deck = r.getDeck();
         switch (r.getCurrentStage()) {
