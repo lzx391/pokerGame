@@ -33,6 +33,23 @@ public class PlayerStats {
          * 仅在 wentToShowdown = true 时有意义，用于 BOT_Shark 评估对手是否经常拿弱牌摊牌。
          */
         private int finalRankCategory;
+        /**
+         * 公共牌（5 张）自身可组成的“最佳牌型大类”（同样使用 rankCategory 编码）。
+         *
+         * <p>用途：过滤“公共牌主导”的摊牌样本。若玩家最终 rankCategory 与 boardRankCategory 相同，
+         * 说明这次摊牌对“玩家真实风格/范围”提供的信息较弱（很可能只是打公共牌）。</p>
+         *
+         * <p>仅在 wentToShowdown=true 时有意义。</p>
+         */
+        private int boardRankCategory;
+        /**
+         * 是否属于“公共牌主导”的摊牌：
+         * - true：最终最佳 5 张牌完全由公共牌构成（没有使用任何手牌）。
+         *
+         * <p>注意：这比 “finalRankCategory == boardRankCategory” 更精确：
+         * 即便牌型大类相同，只要使用了手牌 kicker，也能提供信息（例如空气 AK 摊牌仍会暴露风格）。</p>
+         */
+        private boolean boardDominantShowdown;
 
         // === 位置/街道行为占位字段：用于后续更细粒度读牌 ===
         /**
@@ -109,6 +126,22 @@ public class PlayerStats {
 
         public void setFinalRankCategory(int finalRankCategory) {
             this.finalRankCategory = finalRankCategory;
+        }
+
+        public int getBoardRankCategory() {
+            return boardRankCategory;
+        }
+
+        public void setBoardRankCategory(int boardRankCategory) {
+            this.boardRankCategory = boardRankCategory;
+        }
+
+        public boolean isBoardDominantShowdown() {
+            return boardDominantShowdown;
+        }
+
+        public void setBoardDominantShowdown(boolean boardDominantShowdown) {
+            this.boardDominantShowdown = boardDominantShowdown;
         }
 
         public boolean isPreflopOpenRaise() {
@@ -233,7 +266,12 @@ public class PlayerStats {
 
     /**
      * 最近若干手中，“亮出较弱摊牌牌力”的比例。
-     * 简单视为：wentToShowdown==true 且 finalRankCategory <= 4 的手数 / 样本手数。
+     *
+     * <p>优化版（用于 Shark 学习）：</p>
+     * <ul>
+     *   <li>弱牌：仅统计到“一对”为止（finalRankCategory <= 2），不把两对/三条算作“弱”。</li>
+     *   <li>过滤公共牌主导：若最终最佳 5 张牌完全不使用手牌（boardDominantShowdown==true），则该次摊牌不计入样本。</li>
+     * </ul>
      */
     public double getRecentShowdownWeakRatio(int windowSize) {
         if (recentHands.isEmpty() || windowSize <= 0) {
@@ -250,8 +288,16 @@ public class PlayerStats {
             if (!hand.isWentToShowdown()) {
                 continue;
             }
+            int finalCat = hand.getFinalRankCategory();
+            if (finalCat <= 0) {
+                continue;
+            }
+            if (hand.isBoardDominantShowdown()) {
+                // 公共牌主导：最终最佳 5 张牌完全来自公共牌，信息量低，跳过
+                continue;
+            }
             sample++;
-            if (hand.getFinalRankCategory() > 0 && hand.getFinalRankCategory() <= 4) {
+            if (finalCat <= 2) {
                 weakCount++;
             }
         }

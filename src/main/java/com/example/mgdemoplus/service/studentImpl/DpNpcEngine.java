@@ -214,6 +214,8 @@ public final class DpNpcEngine {
     public static final String DEMO_BOT_NICKNAME = "BOT_Fish";   // 原 BOT_Demo → 现在命名为 BOT_Fish（鱼式简单玩家）
     public static final String MANIAC_BOT_NICKNAME = "BOT_Maniac";
     public static final String SHARK_BOT_NICKNAME = "BOT_Shark";
+    private static final boolean SHARK_DEBUG = true;
+    private static final boolean DISABLE_BOT_THINK_DELAY = true;
     public static final String TAG_BOT_NICKNAME = "BOT_Tag";   // 新增：紧凶型 TAG（Tight-Aggressive），困难难度
 
     /**
@@ -394,11 +396,35 @@ public final class DpNpcEngine {
                 break;
             case WEAK:
             default:
-                if (activeVillains <= 1
-                        && position == TablePosition.LATE
-                        && boardDanger == BoardDanger.DRY) {
-                    // 单挑、后位、干燥牌面：偶尔选择 small bluff 计划
-                    planType = (random.nextDouble() < 0.6) ? HandPlanType.BLUFF : HandPlanType.GIVE_UP;
+                // 原逻辑过于死板：WEAK 只有“单挑+后位+干燥”才可能 BLUFF，其它几乎必 GIVE_UP，
+                // 在 2~3 人、盲位场景会导致 Shark 翻后几乎不主动开枪。
+                if (boardDanger == BoardDanger.DRY && activeVillains <= 2) {
+                    // 2 人 / 3 人 + 干燥牌面：允许一定比例的“试探开枪”或“控池打一枪”
+                    double bluffProb;
+                    if (position == TablePosition.LATE) {
+                        bluffProb = (activeVillains <= 1) ? 0.58 : 0.42;
+                    } else if (position == TablePosition.BLINDS) {
+                        // 盲位也允许偷（尤其 heads-up），但略低于后位
+                        bluffProb = (activeVillains <= 1) ? 0.46 : 0.32;
+                    } else {
+                        // 早中位：更保守，但对紧玩家仍可低频试探
+                        bluffProb = (villainTier == VillainRangeTier.NIT || villainTier == VillainRangeTier.TIGHT) ? 0.28 : 0.18;
+                    }
+
+                    // 多人（3 人局）再收一点
+                    if (activeVillains >= 2) {
+                        bluffProb *= 0.85;
+                    }
+
+                    double x = random.nextDouble();
+                    if (x < bluffProb) {
+                        planType = HandPlanType.BLUFF;
+                    } else if (x < bluffProb + 0.22) {
+                        // 给一部分 WEAK 一个 POT_CONTROL：允许打一枪/小 probing，而不是直接放弃
+                        planType = HandPlanType.POT_CONTROL;
+                    } else {
+                        planType = HandPlanType.GIVE_UP;
+                    }
                 } else {
                     planType = HandPlanType.GIVE_UP;
                 }
@@ -1712,9 +1738,14 @@ public final class DpNpcEngine {
         long now = System.currentTimeMillis();
         long nextTime = bot.getNextBotActionTime();
         if (nextTime <= 0L) {
-            long delayMs = calculateBotThinkDelay(room, bot);
-            bot.setNextBotActionTime(now + delayMs);
-            return null;
+            if (DISABLE_BOT_THINK_DELAY) {
+                // 调试阶段：关闭机器人思考时间，轮到行动就立刻出手
+                bot.setNextBotActionTime(now);
+            } else {
+                long delayMs = calculateBotThinkDelay(room, bot);
+                bot.setNextBotActionTime(now + delayMs);
+                return null;
+            }
         }
         if (now < nextTime) {
             // 还在思考时间窗口内，暂不行动
@@ -2475,36 +2506,35 @@ public final class DpNpcEngine {
                 return new BotAction(BotActionType.ALL_IN, chips);
             }
             case SHARK: {
+                if (SHARK_DEBUG) {
+                    String rid = room != null ? room.getRoomId() : "-";
+                    String bn = bot != null ? bot.getNickname() : "-";
+                    String stg = room != null ? room.getCurrentStage() : "-";
+                    System.out.println("[SHARK][room=" + rid + "] ENGINE ENTER bot=" + bn
+                            + " stage=" + stg
+                            + " callAmount=" + callAmount
+                            + " curBTC=" + (room != null ? room.getCurrentBetToCall() : -1)
+                            + " botBet=" + (bot != null ? bot.getBet() : -1)
+                            + " pot=" + (room != null ? room.getPot() : -1));
+                }
                 BoardDanger bd = boardDanger;
                 SimpleStrength st = strength;
                 String stage = room.getCurrentStage();
                 /// 翻前行动决策
                 if ("preflop".equals(stage)) {
-                    PreflopDecision pre = decidePreflopForTagOrShark(
+                    BotAction pre = DpNpcPreflopStrategy.decideForShark(
                             room,
                             bot,
-                            type,
-                            st,
-                            toPreflopPosition(position),
+                            position,
                             callAmount,
                             callRatio,
+                            preflopTight,
+                            callStation,
+                            mood,
                             random
                     );
                     if (pre != null) {
-                        if (pre.allIn) {
-                            return new BotAction(BotActionType.ALL_IN, chips);
-                        }
-                        switch (pre.action) {
-                            case FOLD:
-                                return new BotAction(BotActionType.FOLD, 0);
-                            case RAISE:
-                                return new BotAction(BotActionType.RAISE, pre.raiseAmount);
-                            case ALL_IN:
-                                return new BotAction(BotActionType.ALL_IN, pre.raiseAmount);
-                            case CALL_OR_CHECK:
-                            default:
-                                return new BotAction(BotActionType.CALL_OR_CHECK, 0);
-                        }
+                        return pre;
                     }
                 }
                 /// 翻后行动决策（拆分到独立类，减少 DpNpcEngine 体积）

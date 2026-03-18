@@ -696,16 +696,18 @@ public class DpRoomServiceImpl {
             int bb = (did + 2) % ps.size();
 
             ps.get(sb).setBlind(1);
+            int potBeforeSb = r.getPot();
             ps.get(sb).setChips(ps.get(sb).getChips() - DpRoom.getSBChips());
             ps.get(sb).setBet(DpRoom.getSBChips());
             ps.get(sb).setTotalBet(DpRoom.getSBChips());      // 记入累计下注
-            DpNpcSharkHandActionLog.recordBlind(r, ps.get(sb).getNickname(), true, DpRoom.getSBChips());
+            DpNpcSharkHandActionLog.recordBlind(r, ps.get(sb).getNickname(), true, DpRoom.getSBChips(), potBeforeSb);
 
             ps.get(bb).setBlind(2);
+            int potBeforeBb = r.getPot() + DpRoom.getSBChips();
             ps.get(bb).setChips(ps.get(bb).getChips() - DpRoom.getBBChips());
             ps.get(bb).setBet(DpRoom.getBBChips());
             ps.get(bb).setTotalBet(DpRoom.getBBChips());     // 记入累计下注
-            DpNpcSharkHandActionLog.recordBlind(r, ps.get(bb).getNickname(), false, DpRoom.getBBChips());
+            DpNpcSharkHandActionLog.recordBlind(r, ps.get(bb).getNickname(), false, DpRoom.getBBChips(), potBeforeBb);
 
             r.setCurrentBetToCall(DpRoom.getBBChips());
             r.setPot(DpRoom.getBBChips() + DpRoom.getSBChips());                    // 大小盲计入底池
@@ -807,6 +809,7 @@ public class DpRoomServiceImpl {
         // 记录下注前快照（用于逐街动作日志）
         int betToCallBefore = r.getCurrentBetToCall();
         int actorBetBefore = p.getBet();
+        int potBefore = r.getPot();
         boolean becameAllIn = false;
 
         // 如果下注金额 >= 玩家剩余筹码，视为 all-in
@@ -839,7 +842,7 @@ public class DpRoomServiceImpl {
         r.setPot(r.getPot() + amount);
 
         // Shark 专用逐街动作日志（只在桌上存在 BOT_Shark 时启用）
-        DpNpcSharkHandActionLog.recordBetLikeAction(r, p, amount, betToCallBefore, actorBetBefore, becameAllIn, isRaise);
+        DpNpcSharkHandActionLog.recordBetLikeAction(r, p, amount, betToCallBefore, actorBetBefore, potBefore, becameAllIn, isRaise);
 
         moveToNextValidActor(r);
         autoAdvanceIfRoundFinished(r);
@@ -855,7 +858,7 @@ public class DpRoomServiceImpl {
 
         p.setFold(true);
         // Shark 专用逐街动作日志（只在桌上存在 BOT_Shark 时启用）
-        DpNpcSharkHandActionLog.recordFold(r, p);
+        DpNpcSharkHandActionLog.recordFold(r, p, r.getPot());
         moveToNextValidActor(r);  // 统一用新方法，不再用旧的 nextActor
         autoAdvanceIfRoundFinished(r);
         return true;
@@ -1107,6 +1110,32 @@ public class DpRoomServiceImpl {
                 if (wentToShowdown) {
                     DpHandEvaluator.HandStrength hs = strengthMap.get(name);
                     hand.setFinalRankCategory(hs != null ? hs.rankCategory : 0);
+                    // 同时记录“公共牌主导”的基准：仅用公共牌能形成的最佳牌型大类
+                    // 用于后续在统计中剔除“大家都在打公共牌”的摊牌样本。
+                    int boardCat = 0;
+                    List<String> board = r.getCommunityCards();
+                    if (board != null && board.size() >= 5) {
+                        DpHandEvaluator.HandStrength bhs = DpHandEvaluator.evaluateBestHand(board);
+                        boardCat = (bhs != null ? bhs.rankCategory : 0);
+                    }
+                    hand.setBoardRankCategory(boardCat);
+
+                    // 更精确的公共牌主导判定：最终最佳 5 张牌是否完全不使用手牌
+                    boolean boardDominant = false;
+                    List<String> hole = p.getHoleCards();
+                    if (board != null && board.size() >= 5 && hole != null && hole.size() >= 2) {
+                        List<String> all = new java.util.ArrayList<>();
+                        all.addAll(board);
+                        all.addAll(hole);
+                        List<String> best5 = DpHandEvaluator.getBestHandCards(all);
+                        if (best5 != null && best5.size() == 5) {
+                            String h1 = hole.get(0);
+                            String h2 = hole.get(1);
+                            boolean usedHole = (h1 != null && best5.contains(h1)) || (h2 != null && best5.contains(h2));
+                            boardDominant = !usedHole;
+                        }
+                    }
+                    hand.setBoardDominantShowdown(boardDominant);
                 }
 
                 // === 基于本手最终下注规模和公共牌张数的粗略行为标签推断 ===

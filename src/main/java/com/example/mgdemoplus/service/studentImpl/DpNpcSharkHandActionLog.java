@@ -44,6 +44,7 @@ final class DpNpcSharkHandActionLog {
         final int betToCallBefore;
         final int actorBetBefore;
         final int raiseLevelAfter;
+        final int potBefore;    // 发生该动作前的底池（用于按尺度分桶：bet/pot）
 
         ActionEvent(long ts,
                     String stage,
@@ -52,7 +53,8 @@ final class DpNpcSharkHandActionLog {
                     int amount,
                     int betToCallBefore,
                     int actorBetBefore,
-                    int raiseLevelAfter) {
+                    int raiseLevelAfter,
+                    int potBefore) {
             this.ts = ts;
             this.stage = stage == null ? "" : stage;
             this.actor = actor == null ? "" : actor;
@@ -61,6 +63,7 @@ final class DpNpcSharkHandActionLog {
             this.betToCallBefore = betToCallBefore;
             this.actorBetBefore = actorBetBefore;
             this.raiseLevelAfter = raiseLevelAfter;
+            this.potBefore = potBefore;
         }
     }
 
@@ -122,18 +125,18 @@ final class DpNpcSharkHandActionLog {
         EVENTS.remove(new Key(room.getRoomId(), room.getCurrentHandSeed()));
     }
 
-    static void recordBlind(DpRoom room, String nickname, boolean isSb, int amount) {
+    static void recordBlind(DpRoom room, String nickname, boolean isSb, int amount, int potBefore) {
         if (room == null || nickname == null) return;
         if (!isEnabledForRoom(room)) return;
         ActionType t = isSb ? ActionType.POST_BLIND_SB : ActionType.POST_BLIND_BB;
-        append(room, new ActionEvent(System.currentTimeMillis(), "preflop", nickname, t, amount, 0, 0, room.getRaiseLevel()));
+        append(room, new ActionEvent(System.currentTimeMillis(), "preflop", nickname, t, amount, 0, 0, room.getRaiseLevel(), potBefore));
     }
 
-    static void recordFold(DpRoom room, DpPlayer actor) {
+    static void recordFold(DpRoom room, DpPlayer actor, int potBefore) {
         if (room == null || actor == null) return;
         if (!isEnabledForRoom(room)) return;
         append(room, new ActionEvent(System.currentTimeMillis(), room.getCurrentStage(), actor.getNickname(),
-                ActionType.FOLD, 0, room.getCurrentBetToCall(), actor.getBet(), room.getRaiseLevel()));
+                ActionType.FOLD, 0, room.getCurrentBetToCall(), actor.getBet(), room.getRaiseLevel(), potBefore));
     }
 
     static void recordBetLikeAction(DpRoom room,
@@ -141,6 +144,7 @@ final class DpNpcSharkHandActionLog {
                                     int amount,
                                     int betToCallBefore,
                                     int actorBetBefore,
+                                    int potBefore,
                                     boolean becameAllIn,
                                     boolean isRaise) {
         if (room == null || actor == null) return;
@@ -159,7 +163,7 @@ final class DpNpcSharkHandActionLog {
         }
 
         append(room, new ActionEvent(System.currentTimeMillis(), room.getCurrentStage(), actor.getNickname(),
-                t, amount, betToCallBefore, actorBetBefore, room.getRaiseLevel()));
+                t, amount, betToCallBefore, actorBetBefore, room.getRaiseLevel(), potBefore));
     }
 
     private static void append(DpRoom room, ActionEvent e) {
