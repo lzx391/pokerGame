@@ -27,4 +27,5 @@
 - `part03_context_thinkdelay_entry.md`：对手画像/统计、SmartContext 构建、思考时间、`decideActionIfReady` 入口
 - `part04_shark_postflop.md`：`case SHARK` 翻后决策主体（fold 概率合成、c-bet、call/raise、commit threshold、river overbet/block 等）
 - `part05_tag_strategy.md`：`case TAG`（更紧的翻前、更简单的翻后）与文件结尾
+- `part06_shark_learning_lab.md`：Shark 动态学习实验（旋钮参数）+ 逐街动作日志（只影响 BOT_Shark）
 

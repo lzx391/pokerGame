@@ -1198,6 +1198,7 @@ public final class DpNpcEngine {
 
         double stackBB = bot.getChips() * 1.0 / bb;
         boolean facingRaise = callAmount > 0 && room.getPot() > (bb + sb);
+        int raiseLevel = room.getRaiseLevel();
 
         // 短码 all-in 规则：强牌 + 面对 open/3bet 时，直接全下
         if (facingRaise
@@ -1246,6 +1247,55 @@ public final class DpNpcEngine {
                 || cat == PreflopHandCategory.MEDIUM_PAIR
                 || cat == PreflopHandCategory.STRONG_SUITED_BROADWAY);
 
+        // ===== SHARK 专用：更像真人的 3bet/4bet sizing + raiseLevel 终局规则（防 overfold）=====
+        // raiseLevel 约定（由房间层维护）：1=open, 2=3bet, 3=4bet, >=4 进入终局
+        // 终局规则：到 4bet 往后不再“小加一点点”，而是在 all-in / call / fold 中收敛。
+        if (type == BotType.SHARK && facingRaise && raiseLevel >= 3) {
+            boolean premium = (cat == PreflopHandCategory.PREMIUM_PAIR);
+            boolean broadway = (cat == PreflopHandCategory.STRONG_SUITED_BROADWAY);
+            boolean medium = (cat == PreflopHandCategory.MEDIUM_PAIR);
+
+            // 便宜跟注保护（按底池赔率）：当 potOdds 很好时，不要轻易弃牌（防止被小幅加注稳定剥削）
+            // potOdds = call / (pot + call)，越小代表“越便宜”
+            double prePotOdds;
+            int denom = room.getPot() + callAmount;
+            if (callAmount <= 0 || denom <= 0) {
+                prePotOdds = 1.0;
+            } else {
+                prePotOdds = callAmount * 1.0 / denom;
+            }
+            // 经验阈值：<=0.18 视为“很便宜”（例如底池已经很大，你只加 2BB/3BB 也会落在这里）
+            if (callAmount > 0 && prePotOdds <= 0.18) {
+                if (strength != SimpleStrength.WEAK || premium || broadway) {
+                    return new PreflopDecision(BotActionType.CALL_OR_CHECK, 0, false);
+                }
+                // 弱牌也不应该全弃：保留一定随机防守频率
+                if (random.nextDouble() < 0.45) {
+                    return new PreflopDecision(BotActionType.CALL_OR_CHECK, 0, false);
+                }
+                return new PreflopDecision(BotActionType.FOLD, 0, false);
+            }
+
+            // 强牌更愿意打光；中等牌更多控制；弱牌多数弃
+            if (premium || (broadway && strength != SimpleStrength.WEAK) || (strength == SimpleStrength.MONSTER)) {
+                // 深码时也不总是推，给少量平跟空间（避免过于机械）
+                if (stackBB >= 45 && random.nextDouble() < 0.25) {
+                    return new PreflopDecision(BotActionType.CALL_OR_CHECK, 0, false);
+                }
+                return new PreflopDecision(BotActionType.ALL_IN, bot.getChips(), true);
+            }
+            if (medium && strength != SimpleStrength.WEAK) {
+                // 中等牌面对 4bet：更偏向平跟（看翻牌）或直接弃牌
+                double foldP = 0.30 + 0.20 * Math.min(1.0, callRatio);
+                if (random.nextDouble() < foldP) {
+                    return new PreflopDecision(BotActionType.FOLD, 0, false);
+                }
+                return new PreflopDecision(BotActionType.CALL_OR_CHECK, 0, false);
+            }
+            // 其余：大多数弃牌
+            return new PreflopDecision(BotActionType.FOLD, 0, false);
+        }
+
         // 强牌优先 3bet；中等牌更多选择跟注；垃圾牌在较高压力下直接弃牌
         if (strongCategory && extraBB > 0 && bot.getChips() > callAmount) {
             double base3betProb = (type == BotType.TAG ? 0.55 : 0.7);
@@ -1255,16 +1305,57 @@ public final class DpNpcEngine {
                 base3betProb -= 0.1;
             }
             if (random.nextDouble() < base3betProb) {
-                int extra = extraBB * bb;
-                int target = callAmount + extra;
-                int raiseAmount = Math.min(bot.getChips(), target);
-                // 保证是真 3bet：在 call 基础上至少再多出 3BB
-                if (bb > 0) {
-                    int minRaise = callAmount + 3 * bb;
-                    if (raiseAmount < minRaise) {
-                        raiseAmount = Math.min(bot.getChips(), minRaise);
+                // TAG：保留原先“固定额外 BB”逻辑
+                // SHARK：更像真人的 sizing：按当前 betToCall（对手下注总额）乘倍数，并做少量随机抖动
+                int raiseAmount;
+                if (type == BotType.SHARK) {
+                    int villainBetToCall = room.getCurrentBetToCall(); // 本轮对手下注总额（不是 callAmount）
+                    if (villainBetToCall < bb) villainBetToCall = bb;
+
+                    boolean inPositionApprox = (pos == PreflopPosition.LATE || pos == PreflopPosition.MIDDLE);
+                    boolean outOfPositionApprox = (pos == PreflopPosition.BLINDS);
+
+                    double mult;
+                    if (raiseLevel <= 1) {
+                        // 3bet：IP ~3x，OOP ~4x
+                        mult = outOfPositionApprox ? 4.0 : (inPositionApprox ? 3.0 : 3.5);
+                        mult += (random.nextDouble() * 0.4 - 0.2); // ±0.2
+                    } else {
+                        // 4bet：对 3bet 通常 ~2.2x~2.6x
+                        mult = 2.2 + random.nextDouble() * 0.4;
+                        if (outOfPositionApprox) {
+                            mult += 0.1;
+                        }
+                    }
+
+                    int desiredTotalBet = (int) Math.round(villainBetToCall * mult);
+                    // 兜底：至少比跟注多出 3BB（防止出现“加注不像加注”）
+                    int minTotalBet = room.getCurrentBetToCall() + 3 * bb;
+                    if (desiredTotalBet < minTotalBet) {
+                        desiredTotalBet = minTotalBet;
+                    }
+                    // 转成“本次需要再加多少”
+                    raiseAmount = desiredTotalBet - bot.getBet();
+                    if (raiseAmount < 0) raiseAmount = 0;
+                    if (raiseAmount > bot.getChips()) raiseAmount = bot.getChips();
+                    // 确保确实是 raise（必须 > callAmount）
+                    if (raiseAmount <= callAmount && bot.getChips() > callAmount) {
+                        int bump = Math.min(bot.getChips(), callAmount + bb * 2);
+                        raiseAmount = Math.max(raiseAmount, bump);
+                    }
+                } else {
+                    int extra = extraBB * bb;
+                    int target = callAmount + extra;
+                    raiseAmount = Math.min(bot.getChips(), target);
+                    // 保证是真 3bet：在 call 基础上至少再多出 3BB
+                    if (bb > 0) {
+                        int minRaise = callAmount + 3 * bb;
+                        if (raiseAmount < minRaise) {
+                            raiseAmount = Math.min(bot.getChips(), minRaise);
+                        }
                     }
                 }
+
                 if (sb > 0 && raiseAmount > 0) {
                     int units = Math.max(1, Math.round(raiseAmount * 1.0f / sb));
                     raiseAmount = units * sb;

@@ -155,6 +155,20 @@ final class DpNpcSharkStrategy {
             }
         }
 
+        // === Shark 学习实验（不改 SmartContext）：按“对手长期摊牌弱牌比例”微调弃牌倾向 ===
+        // 直觉：如果某人经常用弱牌摊牌，说明其线里 bluff/薄价值更多 → Shark 更少弃牌（更敢 bluff-catch）。
+        if (callAmount > 0 && aggressor != null) {
+            DpNpcSharkLearningLab.LearnedAdjust learned = DpNpcSharkLearningLab.getAdjust(room, bot, aggressor);
+            double adj = learned.foldAdjustment;
+            // 新增：对“高频 all-in/高压玩家”额外降低弃牌（更敢跟）
+            double bluffCatchBoost = learned.bluffCatchBoost;
+            // 只在“压力较大”时启用 boost，避免把低压局面也打成站桩
+            if (callRatio >= 0.25) {
+                adj -= bluffCatchBoost;
+            }
+            baseFold = Math.min(1.0, Math.max(0.0, baseFold + adj));
+        }
+
         double equityEst = ctx.equityEst;
         if (callAmount > 0) {
             if (equityEst + DpNpcEngine.SharkConfig.EQUITY_POTODDS_EPS < potOdds) {
@@ -419,6 +433,30 @@ final class DpNpcSharkStrategy {
                 if (raiseAmount > chips) {
                     units = Math.max(1, chips / sb);
                     raiseAmount = units * sb;
+                }
+            }
+
+            // 旋钮：对特定对手的下注尺度微调（只在有主要进攻者时应用）
+            if (aggressor != null) {
+                double sizing = DpNpcSharkLearningLab.getAdjust(room, bot, aggressor).sizingFactor;
+                int scaled = (int) Math.round(raiseAmount * sizing);
+                if (scaled < raiseAmount && callAmount > 0) {
+                    // 有成本时不把加注缩到不像加注：至少比跟注多 2BB
+                    int minExtra = DpRoom.getBBChips() * 2;
+                    int minRaise = callAmount + minExtra;
+                    if (scaled < minRaise) scaled = minRaise;
+                }
+                if (scaled > chips) scaled = chips;
+                if (sb > 0 && scaled > 0) {
+                    int units = Math.max(1, Math.round(scaled * 1.0f / sb));
+                    scaled = units * sb;
+                    if (scaled > chips) {
+                        units = Math.max(1, chips / sb);
+                        scaled = units * sb;
+                    }
+                }
+                if (scaled > callAmount) {
+                    raiseAmount = scaled;
                 }
             }
 

@@ -48,7 +48,7 @@ public class DpRoomServiceImpl {
                     for (DpPlayer kickPlayer : room.getPlayers()) {
                         if (!kickPlayer.isLeftThisHand() && !DpNpcEngine.isBotPlayer(kickPlayer)) {
                             size += 1;
-                            System.out.println("定时器检测："+kickPlayer.getNickname()+"是活人");
+//                            System.out.println("定时器检测："+kickPlayer.getNickname()+"是活人");
                         }
                     }
 //                    System.out.println("定时器检测：人数："+size);
@@ -647,6 +647,9 @@ public class DpRoomServiceImpl {
         }
         r.setCurrentHandSeed(seedBase);
 
+        // Shark 专用逐街动作日志：为新一手初始化（只在桌上存在 BOT_Shark 时启用）
+        DpNpcSharkHandActionLog.beginHand(r);
+
         r.setDeck(newDeck());
         r.setCommunityCards(new ArrayList<>());
         r.setCurrentStage("preflop");
@@ -696,11 +699,13 @@ public class DpRoomServiceImpl {
             ps.get(sb).setChips(ps.get(sb).getChips() - DpRoom.getSBChips());
             ps.get(sb).setBet(DpRoom.getSBChips());
             ps.get(sb).setTotalBet(DpRoom.getSBChips());      // 记入累计下注
+            DpNpcSharkHandActionLog.recordBlind(r, ps.get(sb).getNickname(), true, DpRoom.getSBChips());
 
             ps.get(bb).setBlind(2);
             ps.get(bb).setChips(ps.get(bb).getChips() - DpRoom.getBBChips());
             ps.get(bb).setBet(DpRoom.getBBChips());
             ps.get(bb).setTotalBet(DpRoom.getBBChips());     // 记入累计下注
+            DpNpcSharkHandActionLog.recordBlind(r, ps.get(bb).getNickname(), false, DpRoom.getBBChips());
 
             r.setCurrentBetToCall(DpRoom.getBBChips());
             r.setPot(DpRoom.getBBChips() + DpRoom.getSBChips());                    // 大小盲计入底池
@@ -799,10 +804,16 @@ public class DpRoomServiceImpl {
                 .findFirst().orElse(null);
         if (p == null || p.isFold() || p.isAllIn()) return false;
 
+        // 记录下注前快照（用于逐街动作日志）
+        int betToCallBefore = r.getCurrentBetToCall();
+        int actorBetBefore = p.getBet();
+        boolean becameAllIn = false;
+
         // 如果下注金额 >= 玩家剩余筹码，视为 all-in
         if (amount >= p.getChips()) {
             amount = p.getChips();
             p.setAllIn(true);
+            becameAllIn = true;
         }
 
         int totalBet = p.getBet() + amount;
@@ -819,11 +830,16 @@ public class DpRoomServiceImpl {
             r.setCurrentBetToCall(totalBet);
         }
 
+        boolean isRaise = totalBet > betToCallBefore;
+
         p.setChips(p.getChips() - amount);
         p.setBet(totalBet);
         p.setTotalBet(p.getTotalBet() + amount);
         p.setActed(true);
         r.setPot(r.getPot() + amount);
+
+        // Shark 专用逐街动作日志（只在桌上存在 BOT_Shark 时启用）
+        DpNpcSharkHandActionLog.recordBetLikeAction(r, p, amount, betToCallBefore, actorBetBefore, becameAllIn, isRaise);
 
         moveToNextValidActor(r);
         autoAdvanceIfRoundFinished(r);
@@ -838,6 +854,8 @@ public class DpRoomServiceImpl {
         if (!p.getNickname().equals(nickname) || p.isFold()) return false;
 
         p.setFold(true);
+        // Shark 专用逐街动作日志（只在桌上存在 BOT_Shark 时启用）
+        DpNpcSharkHandActionLog.recordFold(r, p);
         moveToNextValidActor(r);  // 统一用新方法，不再用旧的 nextActor
         autoAdvanceIfRoundFinished(r);
         return true;
@@ -1063,6 +1081,9 @@ public class DpRoomServiceImpl {
         r.setPots(new ArrayList<>());
 
         // ==== 更新玩家行为统计：用于高级机器人（如 BOT_Shark）判断对手风格 ====
+        // Shark 专用逐街动作日志快照：用于更精确填充 SingleHandStats 的逐街字段（不影响其他 NPC）
+        List<DpNpcSharkHandActionLog.ActionEvent> sharkEvents = DpNpcSharkHandActionLog.snapshot(r);
+
         if (r.getPlayerStatsMap() != null) {
             Map<String, PlayerStats> statsMap = r.getPlayerStatsMap();
             int bb = DpRoom.getBBChips();
@@ -1116,22 +1137,72 @@ public class DpRoomServiceImpl {
                 hand.setLimpedPreflop(limpedPreflop);
                 hand.setOpenRaisedPreflop(openRaisedPreflop);
 
-                // 逐街激进标志目前依然作为占位字段，后续如增加逐街下注快照，可在此填充。
+                // === 逐街激进行为：优先用 Shark 动作日志填充（否则回退为 false） ===
+                boolean flopAgg = false;
+                boolean turnAgg = false;
+                boolean riverAgg = false;
+                boolean foldedOnTurn = false;
+                boolean foldedOnRiver = false;
+                boolean hadAggBeforeTurn = false;
+                boolean hadAggBeforeRiver = false;
+
+                if (sharkEvents != null && !sharkEvents.isEmpty()) {
+                    for (DpNpcSharkHandActionLog.ActionEvent e : sharkEvents) {
+                        if (e == null) continue;
+                        if (!name.equals(e.actor)) continue;
+                        boolean isAgg = e.type == DpNpcSharkHandActionLog.ActionType.BET
+                                || e.type == DpNpcSharkHandActionLog.ActionType.RAISE
+                                || e.type == DpNpcSharkHandActionLog.ActionType.ALL_IN;
+                        if ("flop".equals(e.stage)) {
+                            if (isAgg) {
+                                flopAgg = true;
+                                hadAggBeforeTurn = true;
+                                hadAggBeforeRiver = true;
+                            }
+                        } else if ("turn".equals(e.stage)) {
+                            if (isAgg) {
+                                turnAgg = true;
+                                hadAggBeforeRiver = true;
+                            }
+                            if (e.type == DpNpcSharkHandActionLog.ActionType.FOLD) {
+                                foldedOnTurn = true;
+                            }
+                        } else if ("river".equals(e.stage)) {
+                            if (isAgg) {
+                                riverAgg = true;
+                            }
+                            if (e.type == DpNpcSharkHandActionLog.ActionType.FOLD) {
+                                foldedOnRiver = true;
+                            }
+                        }
+                    }
+                }
+
                 hand.setPreflopOpenRaise(openRaisedPreflop);
-                hand.setFlopAggressive(false);
-                hand.setTurnAggressive(false);
-                hand.setRiverAggressive(false);
+                hand.setFlopAggressive(flopAgg);
+                hand.setTurnAggressive(turnAgg);
+                hand.setRiverAggressive(riverAgg);
 
                 // 判断“加注后在 turn/river 放弃”的粗略模式：
                 boolean gaveUpTurnAfterRaise = false;
                 boolean gaveUpRiverAfterRaise = false;
                 if (hand.isRaised() && !wentToShowdown) {
-                    int communitySize = r.getCommunityCards() != null ? r.getCommunityCards().size() : 0;
-                    // community=4 代表至少看到 turn 后弃牌，视为 turn give-up；=5 代表 river give-up
-                    if (communitySize >= 4 && communitySize < 5) {
-                        gaveUpTurnAfterRaise = true;
-                    } else if (communitySize >= 5) {
-                        gaveUpRiverAfterRaise = true;
+                    // 优先用动作日志判断放弃街道（更准确）；没有日志时才回退用公共牌张数猜
+                    if (sharkEvents != null && !sharkEvents.isEmpty()) {
+                        if (foldedOnTurn && (hadAggBeforeTurn || openRaisedPreflop)) {
+                            gaveUpTurnAfterRaise = true;
+                        }
+                        if (foldedOnRiver && (hadAggBeforeRiver || openRaisedPreflop)) {
+                            gaveUpRiverAfterRaise = true;
+                        }
+                    } else {
+                        int communitySize = r.getCommunityCards() != null ? r.getCommunityCards().size() : 0;
+                        // community=4 代表至少看到 turn 后弃牌，视为 turn give-up；=5 代表 river give-up
+                        if (communitySize >= 4 && communitySize < 5) {
+                            gaveUpTurnAfterRaise = true;
+                        } else if (communitySize >= 5) {
+                            gaveUpRiverAfterRaise = true;
+                        }
                     }
                 }
                 hand.setGaveUpTurnAfterRaise(gaveUpTurnAfterRaise);
@@ -1177,6 +1248,13 @@ public class DpRoomServiceImpl {
             if (newMood < -1.0) newMood = -1.0;
             p.setMood(newMood);
         }
+
+        // Shark 学习实验：基于本手统计结果更新“长期记忆参数”（只在 BOT_Shark 决策里读取）
+        // 注意：LearningLab 内部会读取本手动作日志做 shove 频率等统计，因此必须先学习、后清理日志。
+        DpNpcSharkLearningLab.onHandSettled(r);
+
+        // Shark 逐街动作日志：本手结束后清理，避免内存增长
+        DpNpcSharkHandActionLog.clearHand(r);
 
         // 结算完成后，先清理本手中已离开的“僵尸位”玩家
         List<DpPlayer> currentPlayers = r.getPlayers();
