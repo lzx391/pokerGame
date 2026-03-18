@@ -29,7 +29,7 @@ public final class DpNpcEngine {
      * Shark 策略参数表：将原先散落在 case SHARK 中的关键常量集中到一个配置中，方便统一调参。
      * 所有字段的推荐范围与“调大/调小效果”见各字段注释。
      */
-    private static final class SharkStrategyProfile {
+    static final class SharkStrategyProfile {
         /**
          * 典型短码阈值（单位：BB）：
          * - 建议范围：15~30，默认 20；
@@ -52,11 +52,11 @@ public final class DpNpcEngine {
         /**
          * 赢率 vs 赔率容忍区间：
          * - equityPotOddsEps：认为“几乎持平”的 epsilon（建议 0.03~0.08）；
-         *   调大：对小幅不利/有利不敏感，减少频繁的轻微调整；
-         *   调小：对小幅差异也会更快放大或缩小弃牌意愿。
+         * 调大：对小幅不利/有利不敏感，减少频繁的轻微调整；
+         * 调小：对小幅差异也会更快放大或缩小弃牌意愿。
          * - equityPotOddsMargin：认为“明显划算”的差值阈值（建议 0.08~0.15）；
-         *   调大：需要更明显的好赔率才会大幅降低弃牌率；
-         *   调小：在略好赔率下也更倾向坚持到底。
+         * 调大：需要更明显的好赔率才会大幅降低弃牌率；
+         * 调小：在略好赔率下也更倾向坚持到底。
          */
         final double equityPotOddsEps;
         final double equityPotOddsMargin;
@@ -64,11 +64,11 @@ public final class DpNpcEngine {
         /**
          * 赢率 vs 赔率修正幅度：
          * - equityFoldBoost：当估计赢率明显小于底池赔率时，对基础弃牌率的附加值（建议 0.08~0.25，默认 0.15）；
-         *   调大：Shark 更敏感于“不划算”的跟注，更容易直接弃牌；
-         *   调小：面对不太划算的赔率也更愿意“看一张”。
+         * 调大：Shark 更敏感于“不划算”的跟注，更容易直接弃牌；
+         * 调小：面对不太划算的赔率也更愿意“看一张”。
          * - equityFoldShrinkFactor：当估计赢率明显大于底池赔率时，对基础弃牌率的缩放因子（建议 0.6~0.9，默认 0.8）；
-         *   调小（如 0.6）：好赔率下更不容易被吓走；
-         *   调大（接近 1）：对好赔率敏感度降低。
+         * 调小（如 0.6）：好赔率下更不容易被吓走；
+         * 调大（接近 1）：对好赔率敏感度降低。
          */
         final double equityFoldBoost;
         final double equityFoldShrinkFactor;
@@ -114,9 +114,9 @@ public final class DpNpcEngine {
         /**
          * 翻后 c-bet / value bet 尺度：
          * - cbetBaseWeak / Medium / Strong：无人下注时以 pot×factor 作为基准下注比例；
-         *   建议：弱牌 0.3~0.5，中牌 0.4~0.7，强牌 0.6~0.9；
+         * 建议：弱牌 0.3~0.5，中牌 0.4~0.7，强牌 0.6~0.9；
          * - cbetRandomMin / Max：在基准上乘以 [min, max] 的随机因子（例如 0.9~1.2）；
-         *   调小区间：下注量更接近固定值；调大区间：尺度多样性更高。
+         * 调小区间：下注量更接近固定值；调大区间：尺度多样性更高。
          */
         final double cbetBaseWeak;
         final double cbetBaseMedium;
@@ -194,7 +194,7 @@ public final class DpNpcEngine {
      * 向后兼容的 Shark 常量访问器：保留原有 SharkConfig.* 写法，
      * 但实际值全部来自 SharkStrategyProfile.DEFAULT，便于通过一个地方调参。
      */
-    private static final class SharkConfig {
+    static final class SharkConfig {
         private static final SharkStrategyProfile P = SharkStrategyProfile.DEFAULT;
 
         static final double SHORT_STACK_BB = P.shortStackBB;
@@ -214,13 +214,13 @@ public final class DpNpcEngine {
     public static final String DEMO_BOT_NICKNAME = "BOT_Fish";   // 原 BOT_Demo → 现在命名为 BOT_Fish（鱼式简单玩家）
     public static final String MANIAC_BOT_NICKNAME = "BOT_Maniac";
     public static final String SHARK_BOT_NICKNAME = "BOT_Shark";
-    public static final String TAG_BOT_NICKNAME   = "BOT_Tag";   // 新增：紧凶型 TAG（Tight-Aggressive），困难难度
+    public static final String TAG_BOT_NICKNAME = "BOT_Tag";   // 新增：紧凶型 TAG（Tight-Aggressive），困难难度
 
     /**
      * 机器人类型（现有昵称入口），后续只用来映射「风格 + 难度」。
      * 真正的决策逻辑不按类型分叉，只按参数表工作。
      */
-    private enum BotType {
+    enum BotType {
         DEMO,
         MANIAC,
         SHARK,
@@ -231,7 +231,7 @@ public final class DpNpcEngine {
      * 整手牌计划类型：在 flop 首次行动时为 TAG/SHARK 生成，
      * 后续 turn/river 通过剩余“barrels”数量控制继续进攻的积极程度。
      */
-    private enum HandPlanType {
+    enum HandPlanType {
         VALUE,          // 价值下注为主：强牌多街 value
         BLUFF,          // 诈唬为主：弱牌/听牌在合适牌面多街持续施压
         POT_CONTROL,    // 控池：中等牌为主，更多 check / 小额 probing
@@ -242,7 +242,7 @@ public final class DpNpcEngine {
      * NPC 风格：紧凶 / 松凶 / 紧弱 / 松散娱乐。
      * 所有风格通过参数差异体现，而不是多套逻辑。
      */
-    private enum NpcStyle {
+    enum NpcStyle {
         TIGHT_AGGRO,    // 紧凶型：紧、凶、会诈唬、读牌准
         LOOSE_AGGRO,    // 松凶型：入池宽、极凶、高诈唬、爱偷盲
         TIGHT_PASSIVE,  // 紧弱型：只玩好牌、被加注就弃、不诈唬
@@ -252,7 +252,7 @@ public final class DpNpcEngine {
     /**
      * 难度等级：通过“削弱系数 + 随机失误”来控制强弱。
      */
-    private enum NpcDifficulty {
+    enum NpcDifficulty {
         EASY,
         MEDIUM,
         HARD,
@@ -290,7 +290,7 @@ public final class DpNpcEngine {
     /**
      * 公共牌干湿度：用于控制“怕被听牌 / 抓诈唬”的程度。
      */
-    private enum BoardDanger {
+    enum BoardDanger {
         DRY,
         WET
     }
@@ -298,7 +298,7 @@ public final class DpNpcEngine {
     /**
      * 座位位置意识：早位紧，晚位凶，盲注位有独立策略。
      */
-    private enum TablePosition {
+    enum TablePosition {
         EARLY,
         MIDDLE,
         LATE,
@@ -308,7 +308,7 @@ public final class DpNpcEngine {
     /**
      * 翻前位置抽象：与 TablePosition 一一对应，作为 preflop 策略层的统一入口。
      */
-    private enum PreflopPosition {
+    enum PreflopPosition {
         EARLY,
         MIDDLE,
         LATE,
@@ -318,7 +318,7 @@ public final class DpNpcEngine {
     /**
      * 简化的起手牌分类，用于 TAG/SHARK 的翻前决策。
      */
-    private enum PreflopHandCategory {
+    enum PreflopHandCategory {
         PREMIUM_PAIR,              // JJ+、AKs/AQo+
         MEDIUM_PAIR,               // 88-TT、AQo 之类
         SMALL_PAIR,                // 22-77
@@ -330,7 +330,7 @@ public final class DpNpcEngine {
     /**
      * 将玩家当前字段映射为 HandPlanType。
      */
-    private static HandPlanType getHandPlanType(DpPlayer bot) {
+    static HandPlanType getHandPlanType(DpPlayer bot) {
         if (bot == null) return null;
         String t = bot.getNpcHandPlanType();
         if (t == null || t.isEmpty()) {
@@ -347,7 +347,7 @@ public final class DpNpcEngine {
      * 在 flop 首次行动时为 TAG/SHARK 初始化整手牌计划。
      * 仅在当前还没有计划（npcHandPlanType 为空）时才会生成一次。
      */
-    private static void initHandPlanIfNeededForPostflop(
+    static void initHandPlanIfNeededForPostflop(
             DpRoom room,
             DpPlayer bot,
             BotType type,
@@ -446,7 +446,7 @@ public final class DpNpcEngine {
     /**
      * 判断在当前阶段是否应当因为 HandPlan 放弃主动大额进攻（例如 GIVE_UP 或已用尽 barrels）。
      */
-    private static boolean shouldSkipAggressiveActionByPlan(DpPlayer bot, String stage) {
+    static boolean shouldSkipAggressiveActionByPlan(DpPlayer bot, String stage) {
         if (bot == null || stage == null) return false;
         HandPlanType plan = getHandPlanType(bot);
         if (plan == null) return false;
@@ -463,7 +463,7 @@ public final class DpNpcEngine {
     /**
      * 在成功执行一次主动下注/加注后消耗一个“barrel”。
      */
-    private static void consumeOneBarrelIfAny(DpPlayer bot, String stage) {
+    static void consumeOneBarrelIfAny(DpPlayer bot, String stage) {
         if (bot == null || stage == null) return;
         HandPlanType plan = getHandPlanType(bot);
         if (plan == null) return;
@@ -1546,7 +1546,7 @@ public final class DpNpcEngine {
     /**
      * 计算 hero 与单个对手的筹码比率（heroChips / villainChips），双方筹码均 >0 时才有意义。
      */
-    private static double computeHeroVsVillainStackRatio(DpPlayer hero, DpPlayer villain) {
+    static double computeHeroVsVillainStackRatio(DpPlayer hero, DpPlayer villain) {
         if (hero == null || villain == null) {
             return 1.0;
         }
@@ -1808,7 +1808,7 @@ public final class DpNpcEngine {
     /**
      * 对概率应用一个 [-delta, +delta] 的软噪声，并裁剪在 [0,1]。
      */
-    private static double applySoftNoise(double prob, double delta, Random random) {
+    static double applySoftNoise(double prob, double delta, Random random) {
         if (delta <= 0 || random == null) {
             if (prob < 0) return 0.0;
             if (prob > 1) return 1.0;
@@ -1839,7 +1839,7 @@ public final class DpNpcEngine {
      * 为当前 hero 构建统一的“聪明决策上下文”。
      * 不改变任何底层工具函数的行为，只做一次集中调用与打包。
      */
-    private static SmartContext buildSmartContext(
+    static SmartContext buildSmartContext(
             DpRoom room,
             DpPlayer hero,
             SimpleStrength strength,
@@ -1978,16 +1978,12 @@ public final class DpNpcEngine {
         if (chips <= 0) {
             return new BotAction(BotActionType.FOLD, 0);
         }
-
+        ///这里是获取跟注额，位置信息，牌力信息的模块
         int callAmount = Math.max(0, room.getCurrentBetToCall() - bot.getBet());
-        double callRatio = chips == 0 || callAmount>=chips ? 1.0 : (callAmount * 1.0 / chips);//把要跟的大于自己的部分算作1，因为超出去部分没意义，要跟的已经占百分百了
-        TablePosition position = getTablePosition(room, bot);
-        SimpleStrength rawStrength = estimateCurrentStrength(room, bot);
-        // 难度分配：
-        // - FISH（DEMO）：EASY（简单）
-        // - MANIAC：HARD（松凶疯狗，但减少低级失误）
-        // - TAG：HARD（困难，紧凶风格但不做复杂“读对手”）
-        // - SHARK：PRO（在当前策略逻辑下关闭难度噪声，发挥上限）
+        double callRatio = chips == 0 || callAmount >= chips ? 1.0 : (callAmount * 1.0 / chips);//把要跟的大于自己的部分算作1，因为超出去部分没意义，要跟的已经占百分百了
+        TablePosition position = getTablePosition(room, bot);//看位置方法
+        SimpleStrength rawStrength = estimateCurrentStrength(room, bot);//看牌力方法
+        /// 这里是根据类型去看对应的难度，从而用噪声干扰牌力感知的模块
         NpcDifficulty difficulty;
         switch (type) {
             case SHARK:
@@ -2005,13 +2001,13 @@ public final class DpNpcEngine {
                 break;
         }
         Random random = buildHandRandom(room, bot);
-        SimpleStrength strength = applyStrengthNoise(rawStrength, difficulty, random);
+        SimpleStrength strength = applyStrengthNoise(rawStrength, difficulty, random);//通过难度噪声来干扰对牌力的感知
+        ///这里判断牌面危险度，心情模块,取风格配置参数，涉及翻前范围，凶度，偷盲率，诈唬频率等
         BoardDanger boardDanger = evaluateBoardDanger(room.getCommunityCards());
         double mood = bot.getMood();
-
         // 统一根据 BotType 拿到风格配置，后续各 case 里不再写死“紧/松、凶/弱”等魔法数字。
         StyleProfile style = STYLE_PROFILE_MAP.get(getStyleByBotType(type));
-        if (style == null) {
+        if (style == null) {//如果没有对应风格默认紧凶
             style = STYLE_PROFILE_MAP.get(NpcStyle.TIGHT_AGGRO);
         }
         double preflopTight = style.preflopTightness;
@@ -2020,7 +2016,7 @@ public final class DpNpcEngine {
         double callStation = style.callStation;
         double stealBlindFrequency = style.stealBlindFrequency;
         double checkRaiseFear = style.checkRaiseFear;
-
+      ///整合好上面全部参数，进入具体类型的决策
         switch (type) {
             case DEMO: {
                 String stage = room.getCurrentStage();
@@ -2391,6 +2387,7 @@ public final class DpNpcEngine {
                 BoardDanger bd = boardDanger;
                 SimpleStrength st = strength;
                 String stage = room.getCurrentStage();
+                /// 翻前行动决策
                 if ("preflop".equals(stage)) {
                     PreflopDecision pre = decidePreflopForTagOrShark(
                             room,
@@ -2419,653 +2416,27 @@ public final class DpNpcEngine {
                         }
                     }
                 }
-                SmartContext ctx = buildSmartContext(
-                        room,
-                        bot,
-                        st,
-                        stage,
-                        callAmount,
-                        difficulty,
-                        random
-                );
-                // 在 flop 首次行动时为 Shark 初始化整手 HandPlan
-                initHandPlanIfNeededForPostflop(
+                /// 翻后行动决策（拆分到独立类，减少 DpNpcEngine 体积）
+                BotAction delegated = DpNpcSharkStrategy.decide(
                         room,
                         bot,
                         type,
+                        chips,
+                        callAmount,
+                        callRatio,
+                        position,
                         st,
                         bd,
-                        position,
-                        ctx,
-                        random
+                        difficulty,
+                        random,
+                        mood,
+                        callStation,
+                        checkRaiseFear
                 );
-                StackContext stackCtx = ctx.stackCtx;
-                int activeVillains = ctx.activeVillains;
-                List<String> hole = bot.getHoleCards();
-                List<String> community = room.getCommunityCards();
-                CounterStrategyProfile counter = ctx.counterStrategy;
-
-                int sharkTotalStack = bot.getBet() + bot.getChips();
-                double sharkCommitFactor;
-                if (st == SimpleStrength.MONSTER) {
-                    sharkCommitFactor = 0.95;
-                } else if (st == SimpleStrength.STRONG) {
-                    sharkCommitFactor = 0.75;
-                } else if (st == SimpleStrength.MEDIUM) {
-                    sharkCommitFactor = 0.5;
-                } else {
-                    sharkCommitFactor = 0.3;
-                }
-                if (!"preflop".equals(stage) && bd == BoardDanger.WET) {
-                    // 潮湿牌面：即便是 Shark，也更愿意控池
-                    sharkCommitFactor *= 0.8;
-                }
-                if (!"preflop".equals(stage)
-                        && stackCtx != null
-                        && stackCtx.avgStackBB >= SharkConfig.DEEP_TABLE_AVG_BB
-                        && (st == SimpleStrength.WEAK || st == SimpleStrength.MEDIUM)) {
-                    // 深码 + 弱/中牌：整体减少愿意投入的总筹码比例
-                    sharkCommitFactor *= 0.85;
-                }
-                if (sharkCommitFactor < 0.15) sharkCommitFactor = 0.15;
-                if (sharkCommitFactor > 0.98) sharkCommitFactor = 0.98;
-                final double sharkCommitThreshold = sharkTotalStack * sharkCommitFactor;
-
-                double baseFold = 0.0;
-                if (st == SimpleStrength.WEAK && callAmount > 0 && callRatio > 0.4) {
-                    baseFold = (bd == BoardDanger.WET) ? 0.7 : 0.5;
+                if (delegated != null) {
+                    return delegated;
                 }
 
-                DpPlayer aggressor = ctx.aggressor;
-                PlayerStats aggressorStats = ctx.aggressorStats;
-                PlayerStats.SingleHandStats lastAggressorStats = null;
-                if (aggressorStats != null && !aggressorStats.getRecentHands().isEmpty()) {
-                    lastAggressorStats = aggressorStats.getRecentHands().peekLast();
-                }
-                VillainRangeTier villainTier = ctx.villainTier;
-                ActionCredibility credibility = ctx.credibility;
-                double showdownBluffiness = ctx.showdownBluffiness;
-                String villainName = aggressor != null ? aggressor.getNickname() : "-";
-
-                // 仅在有跟注额时根据对手风格调整弃牌率（免费看牌时不因“石头型”而弃牌）
-                if (callAmount > 0 && aggressorStats != null) {
-                    double overallPart = aggressorStats.getOverallParticipationRate();
-                    double overallRaise = aggressorStats.getOverallRaiseRate();
-
-                    boolean looseAggressiveLong = overallPart > 0.5 && overallRaise > 0.3;
-                    boolean tightPassiveLong = overallPart < 0.25 && overallRaise < 0.15;
-
-                    boolean looseAggressiveRecent = lastAggressorStats != null
-                            && lastAggressorStats.isParticipated() && lastAggressorStats.isRaised();
-                    boolean tightPassiveRecent = lastAggressorStats != null
-                            && !lastAggressorStats.isParticipated() && !lastAggressorStats.isRaised();
-
-                    if (looseAggressiveLong || looseAggressiveRecent) {
-                        baseFold *= 0.4;
-                    } else if (tightPassiveLong || tightPassiveRecent) {
-                        baseFold = Math.min(1.0, baseFold + 0.35);
-                    }
-                }
-
-                // 整合：根据对手动作可信度 + 摊牌 bluff 倾向调整——更相信“石头”，更质疑“常拿空气摊牌”的人
-                if (callAmount > 0) {
-                    if (credibility == ActionCredibility.LOW) {
-                        baseFold *= 0.6;
-                    } else if (credibility == ActionCredibility.HIGH) {
-                        baseFold = Math.min(1.0, baseFold * 1.2);
-                    }
-                    // showdown bluffiness：对经常拿一般牌摊牌到河牌的玩家，进一步降低弃牌率；对摊牌大多是强牌的玩家，略微提高弃牌率
-                    if (showdownBluffiness > 0.4) {
-                        baseFold *= 0.7;
-                    } else if (showdownBluffiness < 0.1) {
-                        baseFold = Math.min(1.0, baseFold * 1.2);
-                    }
-                }
-
-                // 底池赔率：跟注成本相对底池越大，弱牌越倾向弃牌；赔率好时略降低弃牌率
-                double potOdds = ctx.potOdds;
-                if (callAmount > 0) {
-                    if (potOdds > 0.5) {
-                        baseFold = Math.min(1.0, baseFold * 1.15);
-                    } else if (potOdds < 0.25) {
-                        baseFold = Math.max(0.0, baseFold * 0.85);
-                    }
-                }
-
-                // 赢率 vs 赔率：在底池赔率基础上，再用一个非常粗粒度的赢率桶做一次 sanity check
-                double equityEst = ctx.equityEst;
-                if (callAmount > 0) {
-                    // 赢率明显逊于赔率：更倾向弃牌
-                    if (equityEst + SharkConfig.EQUITY_POTODDS_EPS < potOdds) {
-                        baseFold = Math.min(1.0, baseFold + SharkConfig.EQUITY_FOLD_BOOST);
-                    }
-                    // 赢率显著好于赔率：更乐意承担跟注 / 不轻易 fold
-                    if (equityEst > potOdds + SharkConfig.EQUITY_POTODDS_MARGIN) {
-                        baseFold = Math.max(0.0, baseFold * SharkConfig.EQUITY_FOLD_SHRINK);
-                    }
-                    // 大额跟注保护：弱牌 + 高跟注成本 + 较差赔率时，强力倾向 FOLD，避免被疯狗一把大锅带走
-                    if (st == SimpleStrength.WEAK && callRatio > 0.5 && potOdds > 0.45) {
-                        baseFold = Math.min(1.0, Math.max(baseFold, 0.85));
-                    }
-                }
-
-                // 针对主要对手的 counter-strategy 微调：
-                if (counter != null && callAmount > 0) {
-                    // 面对“大注几乎总是强牌”的对手：在高压下注下更愿意弃牌
-                    if (counter.foldMoreToBigBets && callRatio > 0.5) {
-                        baseFold = Math.min(1.0, baseFold + 0.1);
-                    }
-                    // 面对“经常拿中弱牌摊牌的对手”：适当降低整体弃牌倾向
-                    if (counter.callDownMore) {
-                        baseFold = Math.max(0.0, baseFold * 0.8);
-                    }
-                    // 对容易在进攻线中放弃的玩家，在合理赔率下略微增加 bluff catch 倾向
-                    if (counter.bluffCatchMore && st != SimpleStrength.WEAK && potOdds < 0.5) {
-                        baseFold = Math.max(0.0, baseFold * 0.85);
-                    }
-                }
-
-                // multi-way pot：当同时对抗 3 人及以上并且有跟注成本时，整体更偏向弃牌（但会受 callStation / checkRaiseFear 影响）
-                if (callAmount > 0 && activeVillains >= 3) {
-                    // checkRaiseFear 越高，在多人底池里越容易被吓退
-                    double boost = SharkConfig.MULTIWAY_FOLD_BOOST * (0.5 + 0.5 * checkRaiseFear);
-                    // callStation 越高，越不容易在多人底池直接弃牌
-                    boost *= (1.0 - 0.4 * callStation);
-                    baseFold = Math.min(1.0, baseFold + boost);
-                }
-
-                // 若 HandPlan 为 GIVE_UP，则在有压力下注时整体更偏向弃牌
-                HandPlanType planShark = getHandPlanType(bot);
-                if (planShark == HandPlanType.GIVE_UP && callAmount > 0) {
-                    baseFold = Math.min(1.0, baseFold + 0.15);
-                }
-
-                double foldProbShark = Math.min(1.0, Math.max(0.0, baseFold + (-mood) * 0.1));
-                foldProbShark = applySoftNoise(foldProbShark, SharkConfig.PROB_NOISE_DELTA, random);
-                // 免费看牌时（对手过牌）绝不弃牌，至少过牌看摊牌
-                if (callAmount > 0 && foldProbShark > 0 && random.nextDouble() < foldProbShark) {
-                    System.out.println("[BOT_Shark] 决策=FOLD"
-                            + " room=" + room.getRoomId()
-                            + " hero=" + bot.getNickname()
-                            + " stage=" + room.getCurrentStage()
-                            + " pos=" + getTablePosition(room, bot)
-                            + " strength=" + st
-                            + " board=" + bd
-                            + " chips=" + chips
-                            + " call=" + callAmount
-                            + " mood=" + mood
-                            + " foldProb=" + String.format(java.util.Locale.ENGLISH, "%.2f", foldProbShark));
-                    System.out.println("[BOT_Shark-Explain] "
-                            + "阶段=" + room.getCurrentStage()
-                            + " 牌力=" + st
-                            + " 牌面=" + bd
-                            + " 主要对手=" + villainName
-                            + " 对手风格=" + villainTier
-                            + " 动作可信度=" + credibility
-                            + " showdownBluffiness=" + String.format(java.util.Locale.ENGLISH, "%.2f", showdownBluffiness)
-                            + " equityEst=" + String.format(java.util.Locale.ENGLISH, "%.2f", equityEst)
-                            + " 底池赔率=" + String.format(java.util.Locale.ENGLISH, "%.2f", potOdds)
-                            + " 跟注成本占筹码=" + String.format(java.util.Locale.ENGLISH, "%.2f", callRatio)
-                            + " 情绪=" + String.format(java.util.Locale.ENGLISH, "%.2f", mood)
-                            + " minStackBB=" + String.format(java.util.Locale.ENGLISH, "%.2f", stackCtx.minStackBB)
-                            + " avgStackBB=" + String.format(java.util.Locale.ENGLISH, "%.2f", stackCtx.avgStackBB)
-                            + " activeVillains=" + activeVillains
-                            + " → 选择=FOLD");
-                    return new BotAction(BotActionType.FOLD, 0);
-                }
-
-                double r = random.nextDouble();
-
-                // 位置意识：翻后无人下注时，晚位在干燥牌面上有一定概率用弱/中牌做小额 c-bet
-//                TablePosition position = getTablePosition(room, bot);
-                if (callAmount == 0
-                        && ("flop".equals(stage) || "turn".equals(stage))
-                        && position == TablePosition.LATE
-                        && bd == BoardDanger.DRY
-                        && (st == SimpleStrength.WEAK || st == SimpleStrength.MEDIUM)) {
-                    if (shouldSkipAggressiveActionByPlan(bot, stage)) {
-                        // 当前 HandPlan 不允许主动进攻：直接选择过牌
-                        return new BotAction(BotActionType.CALL_OR_CHECK, 0);
-                    }
-                    double baseCbetProb = (st == SimpleStrength.MEDIUM) ? 0.55 : 0.45;
-                    // 根据对手类型和筹码环境微调：面对疯狗/短码时稍微谨慎，面对紧弱/全体深码时更爱 c-bet
-                    if (villainTier == VillainRangeTier.MANIAC || villainTier == VillainRangeTier.LOOSE) {
-                        baseCbetProb -= 0.05;
-                    } else if (villainTier == VillainRangeTier.NIT || villainTier == VillainRangeTier.TIGHT) {
-                        baseCbetProb += 0.05;
-                    }
-                    if (stackCtx.avgStackBB >= SharkConfig.DEEP_TABLE_AVG_BB) {
-                        baseCbetProb += 0.05;
-                    }
-                    // 情绪高时更愿意主动下注，情绪低时略微收缩
-                    baseCbetProb += mood * 0.05;
-                    if (baseCbetProb < 0.2) baseCbetProb = 0.2;
-                    if (baseCbetProb > 0.8) baseCbetProb = 0.8;
-                    baseCbetProb = applySoftNoise(baseCbetProb, SharkConfig.PROB_NOISE_DELTA, random);
-
-                    if (random.nextDouble() < baseCbetProb) {
-                        int sb = DpRoom.getSBChips();
-                        int pot = room.getPot();
-                        double sizeFactor = 0.33 + random.nextDouble() * 0.17; // 约 1/3 ~ 1/2 pot
-                        int target = (int) Math.round(pot * sizeFactor);
-                        int minBet = DpRoom.getBBChips() * 2;
-                        if (target < minBet) {
-                            target = minBet;
-                        }
-                        int raiseAmount = Math.min(chips, target);
-                        if (sb > 0 && raiseAmount > 0) {
-                            int units = Math.max(1, Math.round(raiseAmount * 1.0f / sb));
-                            raiseAmount = units * sb;
-                            if (raiseAmount > chips) {
-                                units = Math.max(1, chips / sb);
-                                raiseAmount = units * sb;
-                            }
-                        }
-                        consumeOneBarrelIfAny(bot, stage);
-
-                        System.out.println("[BOT_Shark] 决策=RAISE(CBET)"
-                                + " room=" + room.getRoomId()
-                                + " hero=" + bot.getNickname()
-                                + " stage=" + stage
-                                + " pos=" + position
-                                + " strength=" + st
-                                + " board=" + bd
-                                + " chips=" + chips
-                                + " call=" + callAmount
-                                + " mood=" + mood
-                                + " raiseAmount=" + raiseAmount);
-                        System.out.println("[BOT_Shark-Explain] "
-                                + "阶段=" + stage
-                                + " 牌力=" + st
-                                + " 牌面=" + bd
-                                + " 主要对手=" + villainName
-                                + " 对手风格=" + villainTier
-                                + " 动作可信度=" + credibility
-                                + " showdownBluffiness=" + String.format(java.util.Locale.ENGLISH, "%.2f", showdownBluffiness)
-                                + " 底池赔率=" + String.format(java.util.Locale.ENGLISH, "%.2f", potOdds)
-                                + " 跟注成本占筹码=" + String.format(java.util.Locale.ENGLISH, "%.2f", callRatio)
-                                + " 情绪=" + String.format(java.util.Locale.ENGLISH, "%.2f", mood)
-                                + " minStackBB=" + String.format(java.util.Locale.ENGLISH, "%.2f", stackCtx.minStackBB)
-                                + " avgStackBB=" + String.format(java.util.Locale.ENGLISH, "%.2f", stackCtx.avgStackBB)
-                                + " → 选择=RAISE(CBET)"
-                                + " 金额=" + raiseAmount);
-                        return new BotAction(BotActionType.RAISE, raiseAmount);
-                    }
-                }
-
-                boolean isLateStreet = "river".equals(stage);
-
-                double callProb = 0.6 + mood * 0.05;
-                if (st == SimpleStrength.STRONG) {
-                    callProb -= 0.25;
-                    if (!isLateStreet) {
-                        callProb += 0.15;
-                    }
-                } else if (st == SimpleStrength.MEDIUM) {
-                    callProb += 0.05;
-                }
-
-                // 弱牌 + 有人下注时，大致视为诈唬候选，根据对手后手筹码调整 bluff 频率
-                if (st == SimpleStrength.WEAK && callAmount > 0) {
-                    int bbForBluff = DpRoom.getBBChips();
-                    int villainStack = aggressor != null ? aggressor.getChips() : 0;
-                    double villainBB = bbForBluff > 0 ? villainStack * 1.0 / bbForBluff : 0.0;
-                    // 对方和桌面整体都很深码 → 适当提升跟注/弃牌倾向，减少 bluff
-                    if (villainBB > SharkConfig.DEEP_STACK_MIN_BB && stackCtx.avgStackBB > SharkConfig.DEEP_TABLE_AVG_BB) {
-                        callProb += 0.10; // 更少 raise，更多 call
-                    }
-                    // 典型短码面前也不做特别夸张 bluff，略微偏向跟注
-                    if (villainBB > 0 && villainBB <= SharkConfig.SHORT_STACK_BB) {
-                        callProb += 0.05;
-                    }
-                }
-
-                // 早位 + 湿牌面 + 弱牌：整体更趋向防守 —— 免费看牌时更少主动下注，有人下注时略微提高弃牌倾向
-                if (position == TablePosition.EARLY && bd == BoardDanger.WET && st == SimpleStrength.WEAK) {
-                    // 有人下注时：在前面基础上再叠加一个轻微弃牌意愿
-                    if (callAmount > 0) {
-                        callProb -= 0.08;
-                    }
-                }
-
-                callProb = applySoftNoise(callProb, SharkConfig.PROB_NOISE_DELTA, random);
-                if (r < Math.max(0.1, Math.min(0.9, callProb))) {
-                    System.out.println("[BOT_Shark] 决策=CALL_OR_CHECK"
-                            + " room=" + room.getRoomId()
-                            + " hero=" + bot.getNickname()
-                            + " stage=" + room.getCurrentStage()
-                            + " pos=" + getTablePosition(room, bot)
-                            + " strength=" + st
-                            + " board=" + bd
-                            + " chips=" + chips
-                            + " call=" + callAmount
-                            + " mood=" + mood
-                            + " callProb=" + String.format(java.util.Locale.ENGLISH, "%.2f", callProb));
-                    System.out.println("[BOT_Shark-Explain] "
-                            + "阶段=" + stage
-                            + " 牌力=" + st
-                            + " 牌面=" + bd
-                            + " 主要对手=" + villainName
-                            + " 对手风格=" + villainTier
-                            + " 动作可信度=" + credibility
-                                + " showdownBluffiness=" + String.format(java.util.Locale.ENGLISH, "%.2f", showdownBluffiness)
-                                + " equityEst=" + String.format(java.util.Locale.ENGLISH, "%.2f", equityEst)
-                            + " 底池赔率=" + String.format(java.util.Locale.ENGLISH, "%.2f", potOdds)
-                            + " 跟注成本占筹码=" + String.format(java.util.Locale.ENGLISH, "%.2f", callRatio)
-                            + " 情绪=" + String.format(java.util.Locale.ENGLISH, "%.2f", mood)
-                            + " minStackBB=" + String.format(java.util.Locale.ENGLISH, "%.2f", stackCtx.minStackBB)
-                                + " avgStackBB=" + String.format(java.util.Locale.ENGLISH, "%.2f", stackCtx.avgStackBB)
-                                + " activeVillains=" + activeVillains
-                            + " → 选择=CALL_OR_CHECK");
-                    return new BotAction(BotActionType.CALL_OR_CHECK, 0);
-                }
-
-                if (!"preflop".equals(stage) && chips > callAmount) {
-                    if (shouldSkipAggressiveActionByPlan(bot, stage)) {
-                        // HandPlan 已用尽进攻额度或为 GIVE_UP：不再主动加注，只考虑跟注/过牌
-                        return new BotAction(BotActionType.CALL_OR_CHECK, 0);
-                    }
-                    int sb = DpRoom.getSBChips();
-                    int bb = DpRoom.getBBChips();
-                    int raiseAmount;
-                    if (callAmount == 0) {
-                        int pot = room.getPot();
-                        double baseFactor;
-                        if (st == SimpleStrength.STRONG || st == SimpleStrength.MONSTER) {
-                            baseFactor = 0.8;
-                        } else if (st == SimpleStrength.MEDIUM) {
-                            baseFactor = 0.6;
-                        } else {
-                            baseFactor = 0.45;
-                        }
-                        double randomFactor = 0.9 + random.nextDouble() * 0.3; // 0.9~1.2
-                        int target = (int) Math.round(pot * baseFactor * randomFactor);
-
-                        // 短码桌：若存在典型短码且自己为强牌/怪兽牌，适当提高下注倍数，让短码一跟就接近 all-in
-                        if (stackCtx.minStackBB > 0 && stackCtx.minStackBB <= SharkConfig.SHORT_STACK_BB
-                                && (st == SimpleStrength.STRONG || st == SimpleStrength.MONSTER)) {
-                            int effectiveBase = pot > 0 ? Math.min(pot, stackCtx.minStack) : stackCtx.minStack;
-                            // 在 40%~80% 区间内平滑随机，模拟“让短码做生死决定”
-                            double shortFactor = 0.4 + random.nextDouble() * 0.4;
-                            int shortTarget = (int) Math.round(effectiveBase * shortFactor);
-                            if (shortTarget > target) {
-                                target = shortTarget;
-                            }
-                        }
-
-                        // 深码桌 + 弱牌：翻后用更小的 c-bet 维护范围，避免在深码面前过度 bloating pot
-                        if (stackCtx.avgStackBB >= SharkConfig.DEEP_TABLE_AVG_BB && st == SimpleStrength.WEAK
-                                && ("flop".equals(stage) || "turn".equals(stage))) {
-                            target = (int) Math.round(target * 0.8); // 稍微缩小到接近 1/3~1/2 pot
-                        }
-
-                        int minBet = bb * 2;
-                        if (target < minBet) {
-                            target = minBet;
-                        }
-                        raiseAmount = Math.min(chips, target);
-                    } else {
-                        int strengthFactor;
-                        if (st == SimpleStrength.STRONG || st == SimpleStrength.MONSTER) {
-                            strengthFactor = 5;
-                        } else if (st == SimpleStrength.MEDIUM) {
-                            strengthFactor = 4;
-                        } else {
-                            strengthFactor = 3;
-                        }
-                        int streetFactor = isLateStreet ? 2 : 1;
-                        int extraMin = bb * strengthFactor;
-                        int extraMax = bb * (strengthFactor + streetFactor);
-                        if (extraMax < extraMin) {
-                            extraMax = extraMin;
-                        }
-                        int extraRange = extraMax - extraMin + 1;
-                        int extra = extraMin + random.nextInt(Math.max(1, extraRange));
-
-                        int target = callAmount + extra;
-
-                        // 根据主要对手 stack 深度微调加注额，体现“短码 all-in 压迫”与“深码多街 maneuver”
-                        int aggressorStack = (aggressor != null) ? aggressor.getChips() : 0;
-                        double aggressorStackBB = (bb > 0) ? (aggressorStack * 1.0 / bb) : 0.0;
-
-                        // 对典型短码：强牌时把加注量拉近其 all-in 区，弱牌时控制 bluff 尺度
-                        if (aggressorStackBB > 0 && aggressorStackBB <= SharkConfig.SHORT_STACK_BB) {
-                            if (st == SimpleStrength.STRONG || st == SimpleStrength.MONSTER) {
-                                // 让短码一跟就接近 all-in：在其后手 60%~100% 之间平滑选择一个阈值
-                                double pressureFactor = 0.6 + random.nextDouble() * 0.4;
-                                int desired = callAmount + (int) Math.round(aggressorStack * pressureFactor);
-                                if (desired > target) {
-                                    target = desired;
-                                }
-                            } else if (st == SimpleStrength.WEAK) {
-                                // 弱牌 bluff 面对短码：限制在少量额外 BB，避免被轻松跟 all-in
-                                int maxBluffExtra = bb * 3;
-                                int bluffCap = callAmount + maxBluffExtra;
-                                if (target > bluffCap) {
-                                    target = bluffCap;
-                                }
-                            }
-                        } else if (stackCtx.minStackBB > SharkConfig.DEEP_STACK_MIN_BB && stackCtx.avgStackBB > SharkConfig.DEEP_TABLE_AVG_BB) {
-                            // 全体深码：强牌/怪兽在 turn/river 利用筹码优势做一点“价值压制”，弱牌 bluff 略微缩小
-                            if (st == SimpleStrength.STRONG || st == SimpleStrength.MONSTER) {
-                                // 价值下注 + 筹码优势时略微放大目标加注额
-                                if ("turn".equals(stage) || "river".equals(stage)) {
-                                    double hvRatio = computeHeroVsVillainStackRatio(bot, aggressor);
-                                    if (hvRatio >= 1.5 && aggressorStackBB >= 25 && aggressorStackBB <= 60) {
-                                        target = (int) Math.round(target * 1.15);
-                                    }
-                                }
-                            } else if (st == SimpleStrength.WEAK) {
-                                target = (int) Math.round(target * 0.9);
-                            }
-                        }
-
-                        // multi-way pot 下的 bluff 收缩：弱牌 + 有人下注 + 多人参与时缩小目标加注量
-                        if (activeVillains >= 3 && st == SimpleStrength.WEAK && callAmount > 0) {
-                            target = (int) Math.round(target * 0.85);
-                        }
-
-                        raiseAmount = Math.min(chips, target);
-                        int heroInvestAfterRaise = bot.getBet() + raiseAmount;
-                        // 翻前面对很大的 4B 时，不再做“只多一点点”的 5B：要么直接一口价（all-in），要么平跟/弃牌
-                        if ("preflop".equals(stage) && callRatio > 0.3) {
-                            double y = random.nextDouble();
-                            if (st == SimpleStrength.MONSTER || st == SimpleStrength.STRONG) {
-                                if (y < 0.65) {
-                                    return new BotAction(BotActionType.ALL_IN, chips);
-                                } else {
-                                    return new BotAction(BotActionType.CALL_OR_CHECK, 0);
-                                }
-                            } else if (st == SimpleStrength.MEDIUM) {
-                                if (y < 0.7) {
-                                    return new BotAction(BotActionType.CALL_OR_CHECK, 0);
-                                } else {
-                                    return new BotAction(BotActionType.FOLD, 0);
-                                }
-                            } else {
-                                if (y < 0.9) {
-                                    return new BotAction(BotActionType.FOLD, 0);
-                                } else {
-                                    return new BotAction(BotActionType.CALL_OR_CHECK, 0);
-                                }
-                            }
-                        }
-                        if (heroInvestAfterRaise > sharkCommitThreshold) {
-                            // 超出了这手牌的“心理价”：不再用夸张的再加注，而是在 all-in / 跟注 / 弃牌之间做抉择
-                            double y = random.nextDouble();
-                            if (st == SimpleStrength.MONSTER || st == SimpleStrength.STRONG) {
-                                // 强牌：一部分直接 all-in，一部分只跟注，防止无意义小抬价
-                                if (y < 0.5) {
-                                    return new BotAction(BotActionType.ALL_IN, chips);
-                                } else {
-                                    return new BotAction(BotActionType.CALL_OR_CHECK, 0);
-                                }
-                            } else if (st == SimpleStrength.MEDIUM) {
-                                // 中等牌：更多选择跟注，少量弃牌
-                                if (y < 0.8) {
-                                    return new BotAction(BotActionType.CALL_OR_CHECK, 0);
-                                } else {
-                                    return new BotAction(BotActionType.FOLD, 0);
-                                }
-                            } else {
-                                // 弱牌：大多弃牌，极少 bluff all-in
-                                if (y < 0.85) {
-                                    return new BotAction(BotActionType.FOLD, 0);
-                                } else {
-                                    return new BotAction(BotActionType.ALL_IN, chips);
-                                }
-                            }
-                        }
-                        // 有跟注时，为避免“只多加一点点”的反加，至少在当前跟注额基础上再加 3~4 个大盲
-                        if (callAmount > 0 && bb > 0) {
-                            int minExtraBB = 3;
-                            // 若底池已经较大，说明可能已经多次加注，适当再多加一个 BB
-                            if (room.getPot() > bb * 20) {
-                                minExtraBB = 4;
-                            }
-                            int minRaise = callAmount + minExtraBB * bb;
-                            if (raiseAmount < minRaise) {
-                                raiseAmount = Math.min(chips, minRaise);
-                            }
-                        }
-                    }
-                    // 统一将加注额调整为「小盲筹码」的整数倍，避免出现 78 这类不规则金额
-                    if (sb > 0 && raiseAmount > 0) {
-                        int units = Math.max(1, Math.round(raiseAmount * 1.0f / sb));
-                        raiseAmount = units * sb;
-                        if (raiseAmount > chips) {
-                            // 若四舍五入后超过筹码上限，则向下取整到最近的小盲倍数
-                            units = Math.max(1, chips / sb);
-                            raiseAmount = units * sb;
-                        }
-                    }
-                    // 河牌极强牌：在干燥牌面上以一定概率选择 overbet 模式
-                    boolean riverOverbet = false;
-                    if ("river".equals(stage)
-                            && st == SimpleStrength.MONSTER
-                            && bd == BoardDanger.DRY
-                            && room.getPot() > 0
-                            && random.nextDouble() < SharkConfig.RIVER_OVERBET_PROB) {
-                        int pot = room.getPot();
-                        double factor = 1.2 + random.nextDouble() * 0.3; // 1.2~1.5
-                        int overTarget = (int) Math.round(pot * factor);
-                        if (overTarget > raiseAmount) {
-                            raiseAmount = Math.min(chips, overTarget);
-                            riverOverbet = true;
-                        }
-                    }
-
-                    String raiseTag = riverOverbet ? "RAISE(OVERBET)" : "RAISE";
-
-                    consumeOneBarrelIfAny(bot, stage);
-
-                    System.out.println("[BOT_Shark] 决策=" + raiseTag
-                            + " room=" + room.getRoomId()
-                            + " hero=" + bot.getNickname()
-                            + " stage=" + room.getCurrentStage()
-                            + " pos=" + getTablePosition(room, bot)
-                            + " strength=" + st
-                            + " board=" + bd
-                            + " chips=" + chips
-                            + " call=" + callAmount
-                            + " raiseAmount=" + raiseAmount
-                            + " mood=" + mood);
-                    System.out.println("[BOT_Shark-Explain] "
-                            + "阶段=" + stage
-                            + " 牌力=" + st
-                            + " 牌面=" + bd
-                            + " 主要对手=" + villainName
-                            + " 对手风格=" + villainTier
-                            + " 动作可信度=" + credibility
-                            + " showdownBluffiness=" + String.format(java.util.Locale.ENGLISH, "%.2f", showdownBluffiness)
-                            + " 底池赔率=" + String.format(java.util.Locale.ENGLISH, "%.2f", potOdds)
-                            + " 跟注成本占筹码=" + String.format(java.util.Locale.ENGLISH, "%.2f", callRatio)
-                            + " 情绪=" + String.format(java.util.Locale.ENGLISH, "%.2f", mood)
-                            + " minStackBB=" + String.format(java.util.Locale.ENGLISH, "%.2f", stackCtx.minStackBB)
-                            + " avgStackBB=" + String.format(java.util.Locale.ENGLISH, "%.2f", stackCtx.avgStackBB)
-                            + " → 选择=" + raiseTag
-                            + " 金额=" + raiseAmount);
-                    return new BotAction(BotActionType.RAISE, raiseAmount);
-                }
-                // 河牌无人下注且持有中等牌力时，有一定概率选择 block bet（小额价值下注）
-                if ("river".equals(stage)
-                        && callAmount == 0
-                        && st == SimpleStrength.MEDIUM
-                        && chips > 0
-                        && random.nextDouble() < SharkConfig.RIVER_BLOCK_PROB) {
-                    int sb = DpRoom.getSBChips();
-                    int pot = room.getPot();
-                    double factor = 0.33;
-                    int target = (int) Math.round(pot * factor);
-                    int bb = DpRoom.getBBChips();
-                    int minBet = bb * 2;
-                    if (target < minBet) {
-                        target = minBet;
-                    }
-                    int raiseAmount = Math.min(chips, target);
-                    if (sb > 0 && raiseAmount > 0) {
-                        int units = Math.max(1, Math.round(raiseAmount * 1.0f / sb));
-                        raiseAmount = units * sb;
-                        if (raiseAmount > chips) {
-                            units = Math.max(1, chips / sb);
-                            raiseAmount = units * sb;
-                        }
-                    }
-                    System.out.println("[BOT_Shark] 决策=RAISE(BLOCK)"
-                            + " room=" + room.getRoomId()
-                            + " hero=" + bot.getNickname()
-                            + " stage=" + stage
-                            + " pos=" + getTablePosition(room, bot)
-                            + " strength=" + st
-                            + " board=" + bd
-                            + " chips=" + chips
-                            + " call=" + callAmount
-                            + " mood=" + mood
-                            + " raiseAmount=" + raiseAmount);
-                    System.out.println("[BOT_Shark-Explain] "
-                            + "阶段=" + stage
-                            + " 牌力=" + st
-                            + " 牌面=" + bd
-                            + " 主要对手=" + villainName
-                            + " 对手风格=" + villainTier
-                            + " 动作可信度=" + credibility
-                            + " showdownBluffiness=" + String.format(java.util.Locale.ENGLISH, "%.2f", showdownBluffiness)
-                            + " equityEst=" + String.format(java.util.Locale.ENGLISH, "%.2f", equityEst)
-                            + " 底池赔率=" + String.format(java.util.Locale.ENGLISH, "%.2f", potOdds)
-                            + " 跟注成本占筹码=" + String.format(java.util.Locale.ENGLISH, "%.2f", callRatio)
-                            + " 情绪=" + String.format(java.util.Locale.ENGLISH, "%.2f", mood)
-                            + " minStackBB=" + String.format(java.util.Locale.ENGLISH, "%.2f", stackCtx.minStackBB)
-                            + " avgStackBB=" + String.format(java.util.Locale.ENGLISH, "%.2f", stackCtx.avgStackBB)
-                            + " activeVillains=" + activeVillains
-                            + " → 选择=RAISE(BLOCK)"
-                            + " 金额=" + raiseAmount);
-                    return new BotAction(BotActionType.RAISE, raiseAmount);
-                }
-                System.out.println("[BOT_Shark] 决策=CALL_OR_CHECK(默认)"
-                        + " room=" + room.getRoomId()
-                        + " hero=" + bot.getNickname()
-                        + " stage=" + room.getCurrentStage()
-                        + " pos=" + getTablePosition(room, bot)
-                        + " strength=" + st
-                        + " board=" + bd
-                        + " chips=" + chips
-                        + " call=" + callAmount
-                        + " mood=" + mood);
-                System.out.println("[BOT_Shark-Explain] "
-                        + "阶段=" + stage
-                        + " 牌力=" + st
-                        + " 牌面=" + bd
-                        + " 主要对手=" + villainName
-                        + " 对手风格=" + villainTier
-                        + " 动作可信度=" + credibility
-                        + " 底池赔率=" + String.format(java.util.Locale.ENGLISH, "%.2f", potOdds)
-                        + " 跟注成本占筹码=" + String.format(java.util.Locale.ENGLISH, "%.2f", callRatio)
-                        + " 情绪=" + String.format(java.util.Locale.ENGLISH, "%.2f", mood)
-                        + " minStackBB=" + String.format(java.util.Locale.ENGLISH, "%.2f", stackCtx.minStackBB)
-                        + " avgStackBB=" + String.format(java.util.Locale.ENGLISH, "%.2f", stackCtx.avgStackBB)
-                        + " activeVillains=" + activeVillains
-                        + " → 选择=CALL_OR_CHECK(默认)");
-                return new BotAction(BotActionType.CALL_OR_CHECK, 0);
             }
             case TAG: {
                 // 紧凶型 TAG（重写逻辑）：
@@ -3271,7 +2642,7 @@ public final class DpNpcEngine {
                         return new BotAction(BotActionType.CALL_OR_CHECK, 0);
                     }
                     // 若对手被识别为“爱 limp / 范围较宽”，则在有牌力时略微增加 thin value 频率
-                     counterTag = ctx.counterStrategy;
+                    counterTag = ctx.counterStrategy;
                     if (counterTag != null && counterTag.moreThinValue
                             && (st == SimpleStrength.MEDIUM || st == SimpleStrength.STRONG || st == SimpleStrength.MONSTER)) {
                         valueBetProb *= 1.1;
