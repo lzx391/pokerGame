@@ -222,8 +222,14 @@ public final class DpNpcEngine {
         // 主动开枪 / value raise 旋钮：上限与学习率（按街）
         static final double LEARN_BLUFF_FIRE_LR = 0.14;
         static final double LEARN_BLUFF_FIRE_CAP = 0.42;       // 让“读人更准→更敢开枪”更明显
-        static final double LEARN_VALUE_RAISE_LR = 0.12;
-        static final double LEARN_VALUE_RAISE_CAP = 0.38;
+        static final double LEARN_VALUE_RAISE_LR = 0.14;
+        static final double LEARN_VALUE_RAISE_CAP = 0.52;
+
+        /** 对默认诈唬/施压概率的整体乘子下限（1=不压，越低越像面对跟注站） */
+        static final double LEARN_BLUFF_FREQ_SCALE_MIN = 0.20;
+        static final double LEARN_BLUFF_FREQ_SCALE_LR = 0.16;
+        /** 决策层把学习到的 valueRaise 旋钮放大应用（旋钮本身仍受 CAP 限制） */
+        static final double LEARN_VALUE_RAISE_APPLY_MULT = 1.75;
 
         // 下注尺度旋钮
         static final double LEARN_SIZING_LR = 0.10;

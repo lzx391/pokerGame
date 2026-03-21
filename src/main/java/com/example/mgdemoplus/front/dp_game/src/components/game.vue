@@ -288,6 +288,7 @@
       <div
           v-for="(p, i) in players"
           :key="(p.leftThisHand ? 'offline-' + i : p.nickname)"
+          :class="{ 'player-card--win-streak': !p.leftThisHand && (p.winStreak || 0) >= 2 }"
           :style="getPlayerBoxStyle(p, i)"
           @click="!p.leftThisHand && onPlayerCardClick(p.nickname)"
       >
@@ -302,7 +303,8 @@
           <span v-if="!p.leftThisHand && (p.winStreak || 0) >= 2"
                 class="win-streak-badge"
                 :title="'已连续赢下 ' + (p.winStreak || 0) + ' 手'">
-            🔥 {{ p.winStreak }}连胜
+            <span class="win-streak-badge__emoji" aria-hidden="true">🔥</span>
+            <span class="win-streak-badge__text">{{ p.winStreak }}连胜</span>
           </span>
         </div>
 
@@ -1793,15 +1795,159 @@ export default {
   filter: none;
 }
 
+/* 连胜玩家整张卡片：外发光 + 描边脉冲（直接作用在卡片上，不会被白底盖住） */
+.player-card--win-streak {
+  position: relative;
+  overflow: visible;
+  animation: win-streak-card-aura 2.5s ease-in-out infinite;
+}
+
+@keyframes win-streak-card-aura {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px rgba(255, 77, 79, 0.45),
+      0 0 16px rgba(255, 77, 79, 0.28),
+      0 0 28px rgba(250, 173, 20, 0.15),
+      0 4px 12px rgba(0, 0, 0, 0.06);
+    filter: saturate(1.02) brightness(1);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px rgba(250, 173, 20, 0.55),
+      0 0 26px rgba(255, 77, 79, 0.42),
+      0 0 42px rgba(255, 197, 61, 0.22),
+      0 6px 16px rgba(0, 0, 0, 0.08);
+    filter: saturate(1.08) brightness(1.02);
+  }
+}
+
 .win-streak-badge {
-  background: linear-gradient(135deg, #ff4d4f 0%, #fa8c16 100%);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  position: relative;
+  overflow: hidden;
   color: #fff;
-  padding: 2px 8px;
+  padding: 3px 10px 3px 8px;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.5px;
-  box-shadow: 0 1px 4px rgba(250, 140, 22, 0.45);
   white-space: nowrap;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: linear-gradient(
+    120deg,
+    #cf1322 0%,
+    #ff4d4f 25%,
+    #fa8c16 55%,
+    #ffc53d 78%,
+    #ff4d4f 100%
+  );
+  background-size: 220% 100%;
+  animation:
+    win-streak-badge-gradient 3s ease infinite,
+    win-streak-badge-float 1.6s ease-in-out infinite;
+  box-shadow:
+    0 0 12px rgba(255, 77, 79, 0.55),
+    0 2px 8px rgba(250, 140, 22, 0.4);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.win-streak-badge::after {
+  content: '';
+  position: absolute;
+  top: -20%;
+  left: -40%;
+  width: 45%;
+  height: 140%;
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.55) 45%,
+    transparent 75%
+  );
+  transform: skewX(-18deg);
+  animation: win-streak-badge-shine 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.win-streak-badge__emoji {
+  display: inline-block;
+  line-height: 1;
+  animation: win-streak-emoji-flicker 0.85s ease-in-out infinite;
+  filter: drop-shadow(0 0 4px rgba(255, 200, 80, 0.9));
+}
+
+.win-streak-badge__text {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes win-streak-badge-gradient {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes win-streak-badge-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes win-streak-badge-shine {
+  0% {
+    left: -45%;
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  55% {
+    left: 120%;
+    opacity: 0.85;
+  }
+  100% {
+    left: 120%;
+    opacity: 0;
+  }
+}
+
+@keyframes win-streak-emoji-flicker {
+  0%,
+  100% {
+    transform: scale(1) rotate(-4deg);
+  }
+  50% {
+    transform: scale(1.12) rotate(5deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player-card--win-streak,
+  .win-streak-badge,
+  .win-streak-badge::after,
+  .win-streak-badge__emoji {
+    animation: none !important;
+  }
+
+  .player-card--win-streak {
+    box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.35), 0 4px 12px rgba(0, 0, 0, 0.06);
+    filter: none;
+  }
+
+  .win-streak-badge {
+    background: linear-gradient(135deg, #ff4d4f 0%, #fa8c16 100%);
+    background-size: 100% 100%;
+  }
 }
 </style>

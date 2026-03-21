@@ -186,11 +186,15 @@ final class DpNpcSharkStrategy {
         if (targetVillain != null) {
             learnedVsAggressor = DpNpcSharkLearningLab.getAdjust(room, bot, targetVillain);
         }
+        /** 学习得到的「诈唬总乘子」：对跟注站趋近下限，决策里统一用 */
+        double bfs = learnedVsAggressor != null ? learnedVsAggressor.bluffFrequencyScale : 1.0;
+        final double vrMult = DpNpcEngine.SharkConfig.LEARN_VALUE_RAISE_APPLY_MULT;
         if (learnedVsAggressor != null) {
             dbg(room, type, bot, "LEARNED vs=" + targetVillain.getNickname()
                     + " foldAdj=" + String.format("%.3f", learnedVsAggressor.foldAdjustment)
                     + " bcBoost=" + String.format("%.3f", learnedVsAggressor.bluffCatchBoost)
                     + " sz=" + String.format("%.3f", learnedVsAggressor.sizingFactor)
+                    + " bfs=" + String.format("%.3f", bfs)
                     + " bf(f/t/r)=" + String.format("%.3f", learnedVsAggressor.bluffFireBoostFlop) + "/"
                     + String.format("%.3f", learnedVsAggressor.bluffFireBoostTurn) + "/"
                     + String.format("%.3f", learnedVsAggressor.bluffFireBoostRiver)
@@ -217,7 +221,8 @@ final class DpNpcSharkStrategy {
                 + " bfTurn=" + (learnedVsAggressor != null ? String.format("%.3f", learnedVsAggressor.bluffFireBoostTurn) : "0.000")
                 + " bfRiver=" + (learnedVsAggressor != null ? String.format("%.3f", learnedVsAggressor.bluffFireBoostRiver) : "0.000")
                 + " vrTurn=" + (learnedVsAggressor != null ? String.format("%.3f", learnedVsAggressor.valueRaiseBoostTurn) : "0.000")
-                + " vrRiver=" + (learnedVsAggressor != null ? String.format("%.3f", learnedVsAggressor.valueRaiseBoostRiver) : "0.000"));
+                + " vrRiver=" + (learnedVsAggressor != null ? String.format("%.3f", learnedVsAggressor.valueRaiseBoostRiver) : "0.000")
+                + " bfs=" + String.format("%.3f", bfs));
 
         // 仅在有跟注额时根据对手风格调整弃牌率（免费看牌时不因“石头型”而弃牌）
         if (callAmount > 0 && aggressorStats != null) {
@@ -269,10 +274,10 @@ final class DpNpcSharkStrategy {
                     ? learnedVsAggressor
                     : DpNpcSharkLearningLab.getAdjust(room, bot, aggressor);
             double baseFoldBeforeLearn = baseFold;
-            double adj = learned.foldAdjustment;
-            // 新增：对“高频 all-in/高压玩家”额外降低弃牌（更敢跟）
-            double bluffCatchBoost = learned.bluffCatchBoost;
-            // 只在“压力较大”时启用 boost，避免把低压局面也打成站桩
+            // 面对「几乎不弃牌」的对手：削弱「少弃牌/抓诈」类学习，避免拿弱牌跟到底
+            double learnDamp = 0.22 + 0.78 * learned.bluffFrequencyScale;
+            double adj = learned.foldAdjustment * learnDamp;
+            double bluffCatchBoost = learned.bluffCatchBoost * learnDamp;
             if (callRatio >= 0.25) {
                 adj -= bluffCatchBoost;
             }
@@ -385,16 +390,20 @@ final class DpNpcSharkStrategy {
                 // 读人：valueRaiseBoost 提升强牌加注；bluffFire 在 turn/river 也提升少量反击频率
                 double norm = Math.max(0.10, DpNpcEngine.SharkConfig.LEARN_BOOST_NORM);
                 if (st == SimpleStrength.MONSTER || st == SimpleStrength.STRONG) {
-                    raiseProb += 0.22 * (valueRaiseBoost / norm);
+                    raiseProb += 0.22 * (valueRaiseBoost / norm) * vrMult;
+                    raiseProb += 0.10 * (1.0 - bfs);
                 } else if (st == SimpleStrength.MEDIUM) {
-                    raiseProb += 0.10 * (bluffFire / norm);
+                    raiseProb += 0.10 * (bluffFire / norm) * bfs;
                 } else {
                     // 弱牌只在可信度低 + 压力不大时才少量反加注（避免“瞎送”）
                     if (credibility == DpNpcEngine.ActionCredibility.LOW && callRatio <= 0.28) {
-                        raiseProb += 0.08 * (bluffFire / norm);
+                        raiseProb += 0.08 * (bluffFire / norm) * bfs;
                     } else {
                         raiseProb *= 0.35;
                     }
+                }
+                if (st == SimpleStrength.WEAK || st == SimpleStrength.MEDIUM) {
+                    raiseProb *= 0.30 + 0.70 * bfs;
                 }
 
                 // 多人底池更少反击；湿牌面更少“随便抬”
@@ -576,8 +585,8 @@ final class DpNpcSharkStrategy {
             }
             boolean allowOverride = (plan == DpNpcEngine.HandPlanType.GIVE_UP)
                     && (("flop".equals(stage) || "turn".equals(stage)))
-                    // 学习到的 bluffFire 在早期会很小（0.03~0.06），门槛过高会导致永远不触发破例开枪
                     && bluffFire >= 0.04
+                    && bfs >= 0.42
                     && bd == DpNpcEngine.BoardDanger.DRY
                     && activeVillains <= 2;
 
@@ -607,9 +616,16 @@ final class DpNpcSharkStrategy {
                 double planAgg = bot.getNpcHandPlanAggression();
                 betProb += (planAgg - 0.45) * 0.18; // 约 -0.08 ~ +0.10
 
-                // 读人：bluffFire 越高，越敢在该街开枪
                 double norm = Math.max(0.10, DpNpcEngine.SharkConfig.LEARN_BOOST_NORM);
-                betProb += 0.18 * (bluffFire / norm);
+                betProb += 0.18 * (bluffFire / norm) * bfs;
+
+                if (st == SimpleStrength.WEAK) {
+                    betProb *= 0.25 + 0.75 * bfs;
+                } else if (st == SimpleStrength.MEDIUM) {
+                    betProb *= 0.40 + 0.60 * bfs;
+                } else if (st == SimpleStrength.STRONG || st == SimpleStrength.MONSTER) {
+                    betProb += 0.07 * (1.0 - bfs);
+                }
 
                 // 心情：轻微影响
                 betProb += mood * 0.03;
@@ -742,16 +758,16 @@ final class DpNpcSharkStrategy {
             // 1) 无需付费（callAmount==0）时，弱/中牌更容易主动开枪（尤其 flop/turn）
             if (callAmount == 0 && ("flop".equals(stage) || "turn".equals(stage))
                     && (st == SimpleStrength.WEAK || st == SimpleStrength.MEDIUM)) {
-                // bluffFire 越高，越减少“直接过牌/跟注”的概率，让 raise 分支更常发生
+                // bluffFire 越高，越减少“直接过牌/跟注”的概率；bfs 低时（跟注站）不再硬推去下注分支
                 double norm = Math.max(0.10, DpNpcEngine.SharkConfig.LEARN_BOOST_NORM);
-                double shrink = 0.20 * (bluffFire / norm);
+                double shrink = 0.20 * (bluffFire / norm) * bfs;
                 callProb -= shrink;
             }
 
             // 2) 需要付费（callAmount>0）时：强牌更倾向 value raise，而不是仅 call
             if (callAmount > 0 && (st == SimpleStrength.STRONG || st == SimpleStrength.MONSTER)) {
                 double norm = Math.max(0.10, DpNpcEngine.SharkConfig.LEARN_BOOST_NORM);
-                double shrink = 0.18 * (valueRaise / norm);
+                double shrink = 0.18 * (valueRaise / norm) * vrMult;
                 // 潮湿牌面仍保守一些，避免无脑加注把自己抬到 commit 区间
                 if (bd == DpNpcEngine.BoardDanger.WET) {
                     shrink *= 0.75;
