@@ -17,10 +17,15 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>当前实验只做一件事：对不同对手，累积一个“更愿意抓诈唬 / 更不尊重大注”的倾向，
  * 最终以一个 foldAdjustment（[-0.25, 0.25]）输出给 Shark 使用。</p>
  *
- * <p>注意：这是内存态实验；服务重启会清空。后续若要持久化，可接 DB/文件。</p>
+ * <p>旋钮按对手 {@link DpPlayer#getNickname()} 全局存储（与房间 ID 无关），便于跨房间认出同一昵称；
+ * 持久化由 {@link DpSharkOpponentMemoryService} 在结算后写入 DB、上桌时加载。</p>
  */
 final class DpNpcSharkLearningLab {
     private DpNpcSharkLearningLab() {
+    }
+
+    private static String nk(String v) {
+        return v == null ? "" : v;
     }
 
     private static void dbg(DpRoom room, String msg) {
@@ -104,56 +109,54 @@ final class DpNpcSharkLearningLab {
         }
     }
 
-    private static final class Key {
-        private final String roomId;
-        private final String villain;
+    /**
+     * 可序列化快照（供 {@link DpSharkOpponentMemoryService} 写入 JSON）。
+     */
+    public static final class LearnedPersistSnapshot {
+        public double foldAdj;
+        public double bluffCatch;
+        public double sizing;
+        public double shoveFreq;
+        public double bluffFireFlop;
+        public double bluffFireTurn;
+        public double bluffFireRiver;
+        public double valueRaiseFlop;
+        public double valueRaiseTurn;
+        public double valueRaiseRiver;
+        public java.util.List<BucketPersist> buckets = new java.util.ArrayList<>();
 
-        private Key(String roomId, String villain) {
-            this.roomId = roomId == null ? "" : roomId;
-            this.villain = villain == null ? "" : villain;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            Key key = (Key) o;
-            return Objects.equals(roomId, key.roomId) && Objects.equals(villain, key.villain);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(roomId, villain);
+        public static final class BucketPersist {
+            public String street;
+            public String bucket;
+            public int faced;
+            public int folded;
+            public double rewardSum;
+            public int rewardCnt;
         }
     }
 
-    /**
-     * 内存态参数：按（roomId + villain）存。
-     * roomId 维度是为了避免不同房间的人互相“串味”（你也可以改成全局共享）。
-     */
-    private static final ConcurrentHashMap<Key, Double> FOLD_ADJ = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<Key, Double> BLUFF_CATCH_BOOST = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<Key, Double> SIZING_FACTOR = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<Key, Double> SHOVE_FREQ = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<Key, Double> BLUFF_FIRE_BOOST_FLOP = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<Key, Double> BLUFF_FIRE_BOOST_TURN = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<Key, Double> BLUFF_FIRE_BOOST_RIVER = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<Key, Double> VALUE_RAISE_BOOST_FLOP = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<Key, Double> VALUE_RAISE_BOOST_TURN = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<Key, Double> VALUE_RAISE_BOOST_RIVER = new ConcurrentHashMap<>();
+    /** 旋钮：按对手昵称（全局，不按房间）。 */
+    private static final ConcurrentHashMap<String, Double> FOLD_ADJ = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, Double> BLUFF_CATCH_BOOST = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, Double> SIZING_FACTOR = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, Double> SHOVE_FREQ = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, Double> BLUFF_FIRE_BOOST_FLOP = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, Double> BLUFF_FIRE_BOOST_TURN = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, Double> BLUFF_FIRE_BOOST_RIVER = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, Double> VALUE_RAISE_BOOST_FLOP = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, Double> VALUE_RAISE_BOOST_TURN = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, Double> VALUE_RAISE_BOOST_RIVER = new ConcurrentHashMap<>();
 
     // ====== 按街 + 按尺度分桶：对手面对下注压力时的弃牌反应 ======
     private enum SizeBucket {SMALL, MEDIUM, BIG}
 
     private static final class BucketKey {
-        final String roomId;
         final String villain;
         final String street; // flop/turn/river
         final SizeBucket bucket;
 
-        BucketKey(String roomId, String villain, String street, SizeBucket bucket) {
-            this.roomId = roomId == null ? "" : roomId;
-            this.villain = villain == null ? "" : villain;
+        BucketKey(String villain, String street, SizeBucket bucket) {
+            this.villain = nk(villain);
             this.street = street == null ? "" : street;
             this.bucket = bucket == null ? SizeBucket.MEDIUM : bucket;
         }
@@ -163,15 +166,14 @@ final class DpNpcSharkLearningLab {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
             BucketKey that = (BucketKey) o;
-            return Objects.equals(roomId, that.roomId)
-                    && Objects.equals(villain, that.villain)
+            return Objects.equals(villain, that.villain)
                     && Objects.equals(street, that.street)
                     && bucket == that.bucket;
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(roomId, villain, street, bucket);
+            return Objects.hash(villain, street, bucket);
         }
     }
 
@@ -193,16 +195,16 @@ final class DpNpcSharkLearningLab {
                     0.0, 0.0, 0.0,
                     0.45, 0.55, 0.55);
         }
-        Key key = new Key(room.getRoomId(), villain.getNickname());
-        double foldAdj = FOLD_ADJ.getOrDefault(key, 0.0);
-        double bluffCatch = BLUFF_CATCH_BOOST.getOrDefault(key, 0.0);
-        double sizing = SIZING_FACTOR.getOrDefault(key, 1.0);
-        double bluffFireFlop = BLUFF_FIRE_BOOST_FLOP.getOrDefault(key, 0.0);
-        double bluffFireTurn = BLUFF_FIRE_BOOST_TURN.getOrDefault(key, 0.0);
-        double bluffFireRiver = BLUFF_FIRE_BOOST_RIVER.getOrDefault(key, 0.0);
-        double valueRaiseFlop = VALUE_RAISE_BOOST_FLOP.getOrDefault(key, 0.0);
-        double valueRaiseTurn = VALUE_RAISE_BOOST_TURN.getOrDefault(key, 0.0);
-        double valueRaiseRiver = VALUE_RAISE_BOOST_RIVER.getOrDefault(key, 0.0);
+        String vk = nk(villain.getNickname());
+        double foldAdj = FOLD_ADJ.getOrDefault(vk, 0.0);
+        double bluffCatch = BLUFF_CATCH_BOOST.getOrDefault(vk, 0.0);
+        double sizing = SIZING_FACTOR.getOrDefault(vk, 1.0);
+        double bluffFireFlop = BLUFF_FIRE_BOOST_FLOP.getOrDefault(vk, 0.0);
+        double bluffFireTurn = BLUFF_FIRE_BOOST_TURN.getOrDefault(vk, 0.0);
+        double bluffFireRiver = BLUFF_FIRE_BOOST_RIVER.getOrDefault(vk, 0.0);
+        double valueRaiseFlop = VALUE_RAISE_BOOST_FLOP.getOrDefault(vk, 0.0);
+        double valueRaiseTurn = VALUE_RAISE_BOOST_TURN.getOrDefault(vk, 0.0);
+        double valueRaiseRiver = VALUE_RAISE_BOOST_RIVER.getOrDefault(vk, 0.0);
         if (sizing < DpNpcEngine.SharkConfig.LEARN_SIZING_MIN) sizing = DpNpcEngine.SharkConfig.LEARN_SIZING_MIN;
         if (sizing > DpNpcEngine.SharkConfig.LEARN_SIZING_MAX) sizing = DpNpcEngine.SharkConfig.LEARN_SIZING_MAX;
         if (bluffCatch < 0) bluffCatch = 0;
@@ -215,9 +217,9 @@ final class DpNpcSharkLearningLab {
         valueRaiseRiver = clampValueRaiseBoost(valueRaiseRiver);
         if (foldAdj < -DpNpcEngine.SharkConfig.LEARN_FOLD_ADJ_CAP) foldAdj = -DpNpcEngine.SharkConfig.LEARN_FOLD_ADJ_CAP;
         if (foldAdj > DpNpcEngine.SharkConfig.LEARN_FOLD_ADJ_CAP) foldAdj = DpNpcEngine.SharkConfig.LEARN_FOLD_ADJ_CAP;
-        double bluffBetFlop = getPreferredBluffBetPot(room.getRoomId(), villain.getNickname(), "flop", 0.45);
-        double bluffBetTurn = getPreferredBluffBetPot(room.getRoomId(), villain.getNickname(), "turn", 0.55);
-        double bluffBetRiver = getPreferredBluffBetPot(room.getRoomId(), villain.getNickname(), "river", 0.55);
+        double bluffBetFlop = getPreferredBluffBetPot(vk, "flop", 0.45);
+        double bluffBetTurn = getPreferredBluffBetPot(vk, "turn", 0.55);
+        double bluffBetRiver = getPreferredBluffBetPot(vk, "river", 0.55);
 
         return new LearnedAdjust(foldAdj, bluffCatch, sizing,
                 bluffFireFlop, bluffFireTurn, bluffFireRiver,
@@ -286,9 +288,9 @@ final class DpNpcSharkLearningLab {
                     + " PFR=" + String.format("%.3f", s.getOverallRaiseRate()));
 
             // === 基于 ActionLog 的“在压力下的弃牌曲线”作为主信号 ===
-            String roomId = room.getRoomId();
-            double turnBigFold = computeFoldRate(roomId, name, "turn", SizeBucket.BIG);
-            double riverBigFold = computeFoldRate(roomId, name, "river", SizeBucket.BIG);
+            String vk = nk(name);
+            double turnBigFold = computeFoldRate(name, "turn", SizeBucket.BIG);
+            double riverBigFold = computeFoldRate(name, "river", SizeBucket.BIG);
             int bigCnt = 0;
             double bigSum = 0.0;
             if (turnBigFold >= 0.0) {
@@ -332,8 +334,7 @@ final class DpNpcSharkLearningLab {
                 }
             }
 
-            Key key = new Key(room.getRoomId(), name);
-            double old = FOLD_ADJ.getOrDefault(key, 0.0);
+            double old = FOLD_ADJ.getOrDefault(vk, 0.0);
 
             // 缓慢学习：每手只向目标靠近一点点（避免两三手就“人格突变”）
             double lr = DpNpcEngine.SharkConfig.LEARN_FOLD_LR; // learning rate
@@ -343,7 +344,7 @@ final class DpNpcSharkLearningLab {
             if (next > DpNpcEngine.SharkConfig.LEARN_FOLD_ADJ_CAP) next = DpNpcEngine.SharkConfig.LEARN_FOLD_ADJ_CAP;
             if (next < -DpNpcEngine.SharkConfig.LEARN_FOLD_ADJ_CAP) next = -DpNpcEngine.SharkConfig.LEARN_FOLD_ADJ_CAP;
 
-            FOLD_ADJ.put(key, next);
+            FOLD_ADJ.put(vk, next);
 
             // ===== 旋钮 2：对“高频 all-in / 高压玩家”增加 bluff-catch（更敢跟）=====
             // 信号来源：Shark 逐街动作日志（本手快照已在结算阶段生成 PlayerStats 前后可用）
@@ -360,7 +361,7 @@ final class DpNpcSharkLearningLab {
                     }
                 }
             }
-            double shoveOld = SHOVE_FREQ.getOrDefault(key, 0.0);
+            double shoveOld = SHOVE_FREQ.getOrDefault(vk, 0.0);
             double shoveObs = shovedThisHand ? 1.0 : 0.0;
             double a = DpNpcEngine.SharkConfig.LEARN_SHOVE_EMA_ALPHA;
             if (a < 0.01) a = 0.01;
@@ -368,15 +369,15 @@ final class DpNpcSharkLearningLab {
             double shoveNext = shoveOld * (1.0 - a) + shoveObs * a;
             if (shoveNext < 0) shoveNext = 0;
             if (shoveNext > 1) shoveNext = 1;
-            SHOVE_FREQ.put(key, shoveNext);
+            SHOVE_FREQ.put(vk, shoveNext);
 
             // shove 越高，bluffCatchBoost 越高（0~cap）
             double bluffCatchTarget = DpNpcEngine.SharkConfig.LEARN_BLUFF_CATCH_CAP * shoveNext;
-            double bcOld = BLUFF_CATCH_BOOST.getOrDefault(key, 0.0);
+            double bcOld = BLUFF_CATCH_BOOST.getOrDefault(vk, 0.0);
             double bcNext = bcOld + (bluffCatchTarget - bcOld) * DpNpcEngine.SharkConfig.LEARN_BLUFF_CATCH_LR;
             if (bcNext < 0) bcNext = 0;
             if (bcNext > DpNpcEngine.SharkConfig.LEARN_BLUFF_CATCH_CAP) bcNext = DpNpcEngine.SharkConfig.LEARN_BLUFF_CATCH_CAP;
-            BLUFF_CATCH_BOOST.put(key, bcNext);
+            BLUFF_CATCH_BOOST.put(vk, bcNext);
 
             // ===== 旋钮 4：针对该玩家的“主动开枪/持续施压”倾向（按街拆分）=====
             // 信号：1）该玩家是否偏紧偏怂（tight passive）→ 更适合偷；2）该玩家是否常在 turn/river 放弃 → 更适合二枪/三枪；
@@ -426,9 +427,9 @@ final class DpNpcSharkLearningLab {
             bluffFireRiverTarget = clampBluffFireBoost(bluffFireRiverTarget);
 
             double bfLr = DpNpcEngine.SharkConfig.LEARN_BLUFF_FIRE_LR;
-            BLUFF_FIRE_BOOST_FLOP.put(key, lerpBoost(BLUFF_FIRE_BOOST_FLOP.getOrDefault(key, 0.0), bluffFireFlopTarget, bfLr));
-            BLUFF_FIRE_BOOST_TURN.put(key, lerpBoost(BLUFF_FIRE_BOOST_TURN.getOrDefault(key, 0.0), bluffFireTurnTarget, bfLr));
-            BLUFF_FIRE_BOOST_RIVER.put(key, lerpBoost(BLUFF_FIRE_BOOST_RIVER.getOrDefault(key, 0.0), bluffFireRiverTarget, bfLr));
+            BLUFF_FIRE_BOOST_FLOP.put(vk, lerpBoost(BLUFF_FIRE_BOOST_FLOP.getOrDefault(vk, 0.0), bluffFireFlopTarget, bfLr));
+            BLUFF_FIRE_BOOST_TURN.put(vk, lerpBoost(BLUFF_FIRE_BOOST_TURN.getOrDefault(vk, 0.0), bluffFireTurnTarget, bfLr));
+            BLUFF_FIRE_BOOST_RIVER.put(vk, lerpBoost(BLUFF_FIRE_BOOST_RIVER.getOrDefault(vk, 0.0), bluffFireRiverTarget, bfLr));
 
             // ===== 旋钮 5：针对该玩家的 value 加注倾向（按街拆分）=====
             // 直觉：面对“爱跟不爱加”的人（站桩/松被动），强牌要更敢加注、加大榨取。
@@ -444,9 +445,9 @@ final class DpNpcSharkLearningLab {
             double valueRiverTarget = clampValueRaiseBoost(baseValue * 1.05);
 
             double vrLr = DpNpcEngine.SharkConfig.LEARN_VALUE_RAISE_LR;
-            VALUE_RAISE_BOOST_FLOP.put(key, lerpValueBoost(VALUE_RAISE_BOOST_FLOP.getOrDefault(key, 0.0), valueFlopTarget, vrLr));
-            VALUE_RAISE_BOOST_TURN.put(key, lerpValueBoost(VALUE_RAISE_BOOST_TURN.getOrDefault(key, 0.0), valueTurnTarget, vrLr));
-            VALUE_RAISE_BOOST_RIVER.put(key, lerpValueBoost(VALUE_RAISE_BOOST_RIVER.getOrDefault(key, 0.0), valueRiverTarget, vrLr));
+            VALUE_RAISE_BOOST_FLOP.put(vk, lerpValueBoost(VALUE_RAISE_BOOST_FLOP.getOrDefault(vk, 0.0), valueFlopTarget, vrLr));
+            VALUE_RAISE_BOOST_TURN.put(vk, lerpValueBoost(VALUE_RAISE_BOOST_TURN.getOrDefault(vk, 0.0), valueTurnTarget, vrLr));
+            VALUE_RAISE_BOOST_RIVER.put(vk, lerpValueBoost(VALUE_RAISE_BOOST_RIVER.getOrDefault(vk, 0.0), valueRiverTarget, vrLr));
 
             // ===== 旋钮 3：下注尺度微调（更像真人“对不同人下不同尺寸”）=====
             // 对于经常 shove 的玩家：我们更偏向用稍小的试探/控池（避免把自己逼进高波动）
@@ -461,27 +462,27 @@ final class DpNpcSharkLearningLab {
             if (sizingTarget < 0.9) sizingTarget = 0.9;
             if (sizingTarget > 1.15) sizingTarget = 1.15;
 
-            double szOld = SIZING_FACTOR.getOrDefault(key, 1.0);
+            double szOld = SIZING_FACTOR.getOrDefault(vk, 1.0);
             double szNext = szOld + (sizingTarget - szOld) * DpNpcEngine.SharkConfig.LEARN_SIZING_LR;
             if (szNext < DpNpcEngine.SharkConfig.LEARN_SIZING_MIN) szNext = DpNpcEngine.SharkConfig.LEARN_SIZING_MIN;
             if (szNext > DpNpcEngine.SharkConfig.LEARN_SIZING_MAX) szNext = DpNpcEngine.SharkConfig.LEARN_SIZING_MAX;
-            SIZING_FACTOR.put(key, szNext);
+            SIZING_FACTOR.put(vk, szNext);
 
-            double prefF = getPreferredBluffBetPot(room.getRoomId(), name, "flop", 0.45);
-            double prefT = getPreferredBluffBetPot(room.getRoomId(), name, "turn", 0.55);
-            double prefR = getPreferredBluffBetPot(room.getRoomId(), name, "river", 0.55);
-            turnBigFold = computeFoldRate(room.getRoomId(), name, "turn", SizeBucket.BIG);
-            riverBigFold = computeFoldRate(room.getRoomId(), name, "river", SizeBucket.BIG);
+            double prefF = getPreferredBluffBetPot(name, "flop", 0.45);
+            double prefT = getPreferredBluffBetPot(name, "turn", 0.55);
+            double prefR = getPreferredBluffBetPot(name, "river", 0.55);
+            turnBigFold = computeFoldRate(name, "turn", SizeBucket.BIG);
+            riverBigFold = computeFoldRate(name, "river", SizeBucket.BIG);
             dbg(room, "updated villain=" + name
                     + " foldAdj=" + String.format("%.3f", next)
                     + " bc=" + String.format("%.3f", bcNext)
                     + " sz=" + String.format("%.3f", szNext)
-                    + " bf(f/t/r)=" + String.format("%.3f", BLUFF_FIRE_BOOST_FLOP.getOrDefault(key, 0.0)) + "/"
-                    + String.format("%.3f", BLUFF_FIRE_BOOST_TURN.getOrDefault(key, 0.0)) + "/"
-                    + String.format("%.3f", BLUFF_FIRE_BOOST_RIVER.getOrDefault(key, 0.0))
-                    + " vr(f/t/r)=" + String.format("%.3f", VALUE_RAISE_BOOST_FLOP.getOrDefault(key, 0.0)) + "/"
-                    + String.format("%.3f", VALUE_RAISE_BOOST_TURN.getOrDefault(key, 0.0)) + "/"
-                    + String.format("%.3f", VALUE_RAISE_BOOST_RIVER.getOrDefault(key, 0.0))
+                    + " bf(f/t/r)=" + String.format("%.3f", BLUFF_FIRE_BOOST_FLOP.getOrDefault(vk, 0.0)) + "/"
+                    + String.format("%.3f", BLUFF_FIRE_BOOST_TURN.getOrDefault(vk, 0.0)) + "/"
+                    + String.format("%.3f", BLUFF_FIRE_BOOST_RIVER.getOrDefault(vk, 0.0))
+                    + " vr(f/t/r)=" + String.format("%.3f", VALUE_RAISE_BOOST_FLOP.getOrDefault(vk, 0.0)) + "/"
+                    + String.format("%.3f", VALUE_RAISE_BOOST_TURN.getOrDefault(vk, 0.0)) + "/"
+                    + String.format("%.3f", VALUE_RAISE_BOOST_RIVER.getOrDefault(vk, 0.0))
                     + " turnBigFold=" + String.format("%.3f", turnBigFold < 0 ?  -1.0 : turnBigFold)
                     + " riverBigFold=" + String.format("%.3f", riverBigFold < 0 ? -1.0 : riverBigFold)
                     + " prefSize(f/t/r)=" + String.format("%.2f", prefF) + "/" + String.format("%.2f", prefT) + "/" + String.format("%.2f", prefR));
@@ -491,7 +492,6 @@ final class DpNpcSharkLearningLab {
     private static void updateFoldBucketsFromActionLog(DpRoom room) {
         List<DpNpcSharkHandActionLog.ActionEvent> events = DpNpcSharkHandActionLog.snapshot(room);
         if (events == null || events.isEmpty()) return;
-        String roomId = room.getRoomId();
         for (DpNpcSharkHandActionLog.ActionEvent e : events) {
             if (e == null) continue;
             String street = e.stage;
@@ -506,7 +506,7 @@ final class DpNpcSharkLearningLab {
             double betPot = callNeed * 1.0 / potBefore;
             SizeBucket b = bucketByBetPot(betPot);
 
-            BucketKey k = new BucketKey(roomId, e.actor, street, b);
+            BucketKey k = new BucketKey(e.actor, street, b);
             // faced：只要该玩家在该街“需要付费才能继续”且做出了动作，就算一次面对压力的样本
             // 记录的动作包括：fold / call / raise / all-in
             boolean isResponse = e.type == DpNpcSharkHandActionLog.ActionType.FOLD
@@ -557,12 +557,12 @@ final class DpNpcSharkLearningLab {
      * 计算某玩家在指定街道 + 尺度桶下“在压力下的弃牌率”（fold / faced）。
      * 样本不足时返回 -1，调用方负责回退。
      */
-    private static double computeFoldRate(String roomId, String villain, String street, SizeBucket bucket) {
-        if (roomId == null || villain == null || street == null || bucket == null) {
+    private static double computeFoldRate(String villain, String street, SizeBucket bucket) {
+        if (villain == null || street == null || bucket == null) {
             return -1.0;
         }
         final int minSamples = 4;
-        BucketKey k = new BucketKey(roomId, villain, street, bucket);
+        BucketKey k = new BucketKey(villain, street, bucket);
         int faced = FACED.getOrDefault(k, 0);
         int folded = FOLDED.getOrDefault(k, 0);
         if (faced < minSamples) {
@@ -574,7 +574,7 @@ final class DpNpcSharkLearningLab {
         return folded * 1.0 / faced;
     }
 
-    private static double getPreferredBluffBetPot(String roomId, String villain, String street, double fallback) {
+    private static double getPreferredBluffBetPot(String villain, String street, double fallback) {
         // 我们在 LearningLab 里希望得到“哪种尺度更容易让他弃牌”
         // 规则：优先选择 foldRate 更高的桶；样本太少时回退默认
         final int minSamples = 3;
@@ -582,7 +582,7 @@ final class DpNpcSharkLearningLab {
         double bestFactor = fallback;
 
         for (SizeBucket b : SizeBucket.values()) {
-            BucketKey k = new BucketKey(roomId, villain, street, b);
+            BucketKey k = new BucketKey(villain, street, b);
             int faced = FACED.getOrDefault(k, 0);
             int folded = FOLDED.getOrDefault(k, 0);
             if (faced < minSamples) continue;
@@ -607,7 +607,6 @@ final class DpNpcSharkLearningLab {
                                                    double fallback,
                                                    double epsilon) {
         if (room == null || villain == null || random == null) return fallback;
-        String roomId = room.getRoomId();
         String name = villain.getNickname();
         if (name == null) return fallback;
         if (!"flop".equals(street) && !"turn".equals(street) && !"river".equals(street)) return fallback;
@@ -615,7 +614,7 @@ final class DpNpcSharkLearningLab {
         // 样本少时，提高探索概率（避免早期被噪声锁死）
         int totalFaced = 0;
         for (SizeBucket b : SizeBucket.values()) {
-            BucketKey k = new BucketKey(roomId, name, street, b);
+            BucketKey k = new BucketKey(name, street, b);
             totalFaced += FACED.getOrDefault(k, 0);
         }
         double eps = epsilon;
@@ -632,7 +631,7 @@ final class DpNpcSharkLearningLab {
         SizeBucket best = null;
         double bestScore = -1;
         for (SizeBucket b : SizeBucket.values()) {
-            BucketKey k = new BucketKey(roomId, name, street, b);
+            BucketKey k = new BucketKey(name, street, b);
             int cnt = REWARD_CNT.getOrDefault(k, 0);
             double sum = REWARD_SUM.getOrDefault(k, 0.0);
             if (cnt <= 0) continue;
@@ -665,6 +664,104 @@ final class DpNpcSharkLearningLab {
     private static double lerpValueBoost(double old, double target, double lr) {
         double next = old + (target - old) * lr;
         return clampValueRaiseBoost(next);
+    }
+
+    private static SizeBucket parseBucketName(String raw) {
+        if (raw == null) {
+            return SizeBucket.MEDIUM;
+        }
+        try {
+            return SizeBucket.valueOf(raw.trim().toUpperCase());
+        } catch (Exception ignored) {
+            return SizeBucket.MEDIUM;
+        }
+    }
+
+    /** 清除某对手在内存中的学习旋钮（用于导入前覆盖）。 */
+    static void wipeLearnedForVillain(String villain) {
+        String v = nk(villain);
+        FOLD_ADJ.remove(v);
+        BLUFF_CATCH_BOOST.remove(v);
+        SIZING_FACTOR.remove(v);
+        SHOVE_FREQ.remove(v);
+        BLUFF_FIRE_BOOST_FLOP.remove(v);
+        BLUFF_FIRE_BOOST_TURN.remove(v);
+        BLUFF_FIRE_BOOST_RIVER.remove(v);
+        VALUE_RAISE_BOOST_FLOP.remove(v);
+        VALUE_RAISE_BOOST_TURN.remove(v);
+        VALUE_RAISE_BOOST_RIVER.remove(v);
+        FACED.keySet().removeIf(k -> v.equals(k.villain));
+        FOLDED.keySet().removeIf(k -> v.equals(k.villain));
+        REWARD_SUM.keySet().removeIf(k -> v.equals(k.villain));
+        REWARD_CNT.keySet().removeIf(k -> v.equals(k.villain));
+    }
+
+    static LearnedPersistSnapshot exportLearnedSnapshot(String villain) {
+        String v = nk(villain);
+        LearnedPersistSnapshot s = new LearnedPersistSnapshot();
+        s.foldAdj = FOLD_ADJ.getOrDefault(v, 0.0);
+        s.bluffCatch = BLUFF_CATCH_BOOST.getOrDefault(v, 0.0);
+        s.sizing = SIZING_FACTOR.getOrDefault(v, 1.0);
+        s.shoveFreq = SHOVE_FREQ.getOrDefault(v, 0.0);
+        s.bluffFireFlop = BLUFF_FIRE_BOOST_FLOP.getOrDefault(v, 0.0);
+        s.bluffFireTurn = BLUFF_FIRE_BOOST_TURN.getOrDefault(v, 0.0);
+        s.bluffFireRiver = BLUFF_FIRE_BOOST_RIVER.getOrDefault(v, 0.0);
+        s.valueRaiseFlop = VALUE_RAISE_BOOST_FLOP.getOrDefault(v, 0.0);
+        s.valueRaiseTurn = VALUE_RAISE_BOOST_TURN.getOrDefault(v, 0.0);
+        s.valueRaiseRiver = VALUE_RAISE_BOOST_RIVER.getOrDefault(v, 0.0);
+        for (java.util.Map.Entry<BucketKey, Integer> e : FACED.entrySet()) {
+            BucketKey bk = e.getKey();
+            if (!v.equals(bk.villain)) {
+                continue;
+            }
+            LearnedPersistSnapshot.BucketPersist row = new LearnedPersistSnapshot.BucketPersist();
+            row.street = bk.street;
+            row.bucket = bk.bucket.name();
+            row.faced = e.getValue() != null ? e.getValue() : 0;
+            row.folded = FOLDED.getOrDefault(bk, 0);
+            row.rewardSum = REWARD_SUM.getOrDefault(bk, 0.0);
+            row.rewardCnt = REWARD_CNT.getOrDefault(bk, 0);
+            s.buckets.add(row);
+        }
+        return s;
+    }
+
+    static void importLearnedSnapshot(String villain, LearnedPersistSnapshot snap) {
+        String v = nk(villain);
+        wipeLearnedForVillain(v);
+        if (snap == null) {
+            return;
+        }
+        FOLD_ADJ.put(v, snap.foldAdj);
+        BLUFF_CATCH_BOOST.put(v, snap.bluffCatch);
+        SIZING_FACTOR.put(v, snap.sizing);
+        SHOVE_FREQ.put(v, snap.shoveFreq);
+        BLUFF_FIRE_BOOST_FLOP.put(v, snap.bluffFireFlop);
+        BLUFF_FIRE_BOOST_TURN.put(v, snap.bluffFireTurn);
+        BLUFF_FIRE_BOOST_RIVER.put(v, snap.bluffFireRiver);
+        VALUE_RAISE_BOOST_FLOP.put(v, snap.valueRaiseFlop);
+        VALUE_RAISE_BOOST_TURN.put(v, snap.valueRaiseTurn);
+        VALUE_RAISE_BOOST_RIVER.put(v, snap.valueRaiseRiver);
+        if (snap.buckets == null) {
+            return;
+        }
+        for (LearnedPersistSnapshot.BucketPersist b : snap.buckets) {
+            if (b == null) {
+                continue;
+            }
+            SizeBucket sb = parseBucketName(b.bucket);
+            BucketKey k = new BucketKey(v, b.street, sb);
+            if (b.faced > 0) {
+                FACED.put(k, b.faced);
+            }
+            if (b.folded > 0) {
+                FOLDED.put(k, b.folded);
+            }
+            if (b.rewardCnt > 0) {
+                REWARD_CNT.put(k, b.rewardCnt);
+                REWARD_SUM.put(k, b.rewardSum);
+            }
+        }
     }
 }
 

@@ -277,6 +277,32 @@ public class PlayerStats {
         }
     }
 
+    /**
+     * 从数据库恢复累计统计与最近一手窗口（须与 {@link #addHand} 使用的 windowSize 一致，当前结算处为 10）。
+     */
+    public void restoreFromPersistence(int totalHands, int totalParticipated, int totalRaised, int totalShowdown,
+                                       double foldAdjustmentAgainstHero, java.util.List<SingleHandStats> recentSlice,
+                                       int windowSize) {
+        recentHands.clear();
+        this.totalHands = totalHands;
+        this.totalParticipated = totalParticipated;
+        this.totalRaised = totalRaised;
+        this.totalShowdown = totalShowdown;
+        this.foldAdjustmentAgainstHero = foldAdjustmentAgainstHero;
+        if (recentSlice == null || windowSize <= 0) {
+            return;
+        }
+        for (SingleHandStats h : recentSlice) {
+            if (h == null) {
+                continue;
+            }
+            if (recentHands.size() >= windowSize) {
+                recentHands.pollFirst();
+            }
+            recentHands.addLast(h);
+        }
+    }
+
     public Deque<SingleHandStats> getRecentHands() {
         return recentHands;
     }
@@ -389,6 +415,18 @@ public class PlayerStats {
 
     public int getTotalHands() {
         return totalHands;
+    }
+
+    public int getTotalParticipatedCount() {
+        return totalParticipated;
+    }
+
+    public int getTotalRaisedCount() {
+        return totalRaised;
+    }
+
+    public int getTotalShowdownCount() {
+        return totalShowdown;
     }
 
     public double getOverallParticipationRate() {

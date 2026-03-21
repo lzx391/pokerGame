@@ -24,3 +24,13 @@
 
 - `src/main/java/com/example/mgdemoplus/service/studentImpl/DpNpcPreflopStrategy.java`
 - `src/main/java/com/example/mgdemoplus/service/studentImpl/DpNpcEngine.java`
+
+#### Shark 对手习惯跨房间记忆（2026-03-21）
+
+桌上存在 `BOT_Shark` 时：
+
+- **持久化表**：执行 `src/main/resources/db/dp_shark_opponent_profile.sql` 建表 `dp_shark_opponent_profile`（主键为玩家昵称）。
+- **存什么**：`PlayerStats`（累计入池/加注/摊牌等 + 最近 10 手窗口）与 `DpNpcSharkLearningLab` 的全部旋钮及分桶样本；**不按房间 ID**，只按昵称，适配随机房间号。
+- **何时写入**：每手正常结算后，`DpSharkOpponentMemoryService.persistOpponentsAfterHand` 在 `onHandSettled` 之后执行。
+- **何时读入**：玩家 `joinRoom` 上桌时、以及每手 `newHand` 盲注就绪后，若 `playerStatsMap` 尚无该昵称则 `hydrate` 从 DB 加载。
+- **代码入口**：`DpSharkOpponentMemoryService`、`DpNpcSharkLearningLab`（旋钮键已改为仅对手昵称）。
