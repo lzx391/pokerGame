@@ -1006,6 +1006,23 @@ public class DpRoomServiceImpl {
         return notAllIn <= 1;
     }
 
+    /**
+     * 本手牌池底分配完成后更新连胜：至少分到一手池的玩家 +1，其余未离线座位清零。
+     * 若没有任何赢家昵称（异常局），不修改避免误清空。
+     */
+    private void applyWinStreakAfterHand(DpRoom r, Set<String> winnerNicknames) {
+        if (r == null || r.getPlayers() == null) return;
+        if (winnerNicknames == null || winnerNicknames.isEmpty()) return;
+        for (DpPlayer p : r.getPlayers()) {
+            if (p == null || p.isLeftThisHand()) continue;
+            if (winnerNicknames.contains(p.getNickname())) {
+                p.setWinStreak(p.getWinStreak() + 1);
+            } else {
+                p.setWinStreak(0);
+            }
+        }
+    }
+
     // ========== 游戏尾声：结算与下一局准备 ==========
 
     /**
@@ -1062,6 +1079,7 @@ public class DpRoomServiceImpl {
         }
 
         // 按池分配：每个池在 eligiblePlayers 中找到牌力最高的一批人，平分该池
+        Set<String> handWinnerNicknames = new HashSet<>();
         for (DpPot pot : r.getPots()) {
             List<String> eligible = pot.getEligiblePlayers();
             if (eligible == null || eligible.isEmpty()) continue;
@@ -1101,8 +1119,11 @@ public class DpRoomServiceImpl {
                     w.setChips(w.getChips() + 1);
                     remainder -= 1;
                 }
+                handWinnerNicknames.add(w.getNickname());
             }
         }
+
+        applyWinStreakAfterHand(r, handWinnerNicknames);
 
         // Shark 在场：结算分配前快照底池结构（随后会清空 pots）
         DpNpcSharkObservedHandHistory.capturePotsBeforeClear(r);

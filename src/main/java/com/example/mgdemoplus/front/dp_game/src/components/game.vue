@@ -292,13 +292,18 @@
           @click="!p.leftThisHand && onPlayerCardClick(p.nickname)"
       >
         <!-- 标记（庄家/盲注顺序保留，便于看行动顺序） -->
-        <div style="display:flex; gap:5px; margin-bottom:5px;">
+        <div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:5px; align-items:center;">
             <span v-if="p.dealer"
                   style="background:#faad14; color:#fff; padding:1px 5px; border-radius:3px; font-size:12px;">D</span>
           <span v-if="p.blind === 1"
                 style="background:#722ed1; color:#fff; padding:1px 5px; border-radius:3px; font-size:12px;">SB</span>
           <span v-if="p.blind === 2"
                 style="background:#52c41a; color:#fff; padding:1px 5px; border-radius:3px; font-size:12px;">BB</span>
+          <span v-if="!p.leftThisHand && (p.winStreak || 0) >= 2"
+                class="win-streak-badge"
+                :title="'已连续赢下 ' + (p.winStreak || 0) + ' 手'">
+            🔥 {{ p.winStreak }}连胜
+          </span>
         </div>
 
         <!-- 离线位：不显示任何个人信息，仅显示「该玩家已离线」 -->
@@ -1786,5 +1791,17 @@ export default {
 .best-hand-cards .best-hand-card:hover {
   transform: none;
   filter: none;
+}
+
+.win-streak-badge {
+  background: linear-gradient(135deg, #ff4d4f 0%, #fa8c16 100%);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  box-shadow: 0 1px 4px rgba(250, 140, 22, 0.45);
+  white-space: nowrap;
 }
 </style>

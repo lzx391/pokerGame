@@ -30,6 +30,12 @@ public class DpPlayer {
     private List<String> bestHandCards = new ArrayList<>();
 
     /**
+     * 当前房间内连续赢下完整一手牌的次数（至少赢下本手任意底池的一份即计为赢）。
+     * 非赢家在本手结算后归零；用于前端展示「连胜」标记。
+     */
+    private int winStreak = 0;
+
+    /**
      * 机器人情绪值：范围建议在 [-1.0, 1.0] 内，
      * 用于简单模拟“连赢变得更放松，连输变得更保守”的状态。
      * 对真人玩家逻辑没有影响，只有在 NPC 决策时才会读取。
@@ -101,6 +107,8 @@ public class DpPlayer {
     public void setLeftThisHand(boolean leftThisHand) { this.leftThisHand = leftThisHand; }
     public List<String> getBestHandCards() { return bestHandCards; }
     public void setBestHandCards(List<String> bestHandCards) { this.bestHandCards = bestHandCards != null ? bestHandCards : new ArrayList<>(); }
+    public int getWinStreak() { return winStreak; }
+    public void setWinStreak(int winStreak) { this.winStreak = Math.max(0, winStreak); }
     public double getMood() { return mood; }
     public void setMood(double mood) { this.mood = mood; }
     public long getNextBotActionTime() { return nextBotActionTime; }

@@ -1029,8 +1029,10 @@ public final class DpNpcEngine {
                 // 紧凶常客
                 return NpcStyle.TIGHT_AGGRO;
             case SHARK:
+                // 松凶（LAG）：翻前范围更宽，面对 open 不会过度弃牌；与 MANIAC 共用 LOOSE_AGGRO 参数表，
+                // 但 Shark 仍走 DpNpcPreflopStrategy + DpNpcSharkStrategy，与疯子分支逻辑不同。
+                return NpcStyle.LOOSE_AGGRO;
             default:
-                // 目前 Shark 也先视为紧凶，后续有需要可以为其单独增加一个风格枚举
                 return NpcStyle.TIGHT_AGGRO;
         }
     }

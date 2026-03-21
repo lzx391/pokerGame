@@ -14,7 +14,7 @@
 - **核心思路**：
   - **底层**：把起手牌映射到一个“手牌分组”`HandGroup`（近似 13×13 的强度分层）
   - **上层**：把 **人数 / 位置 / 有效筹码深度 / 松紧风格 / 情绪** 合成一个 `rangeLevel(1~8)`
-  - **调参备忘（2026-03-21）**：`StyleProfile.preflopTightness`（Shark 与 TAG 同为紧凶约 0.85）若用「×2 扣档 + 面对 open 再减 2 档」会叠成**面对单次加注只剩顶级牌**，观感像「有人加就弃」。已在 `DpNpcPreflopStrategy` 中改为更温和的扣档，并把「面对 open」的阈值放宽一档（后位再略宽）。
+  - **风格（2026-03-21）**：Shark 的 `BotType → NpcStyle` 已改为 **松凶 `LOOSE_AGGRO`**（`preflopTightness`≈0.30），不再与 TAG 共用紧凶表（≈0.85），避免「有人翻前加注就大量弃牌」的观感。TAG 仍为紧凶。历史上若用「×2 扣档 + 面对 open 再减 2 档」叠高紧度也会加剧该问题；当前策略在 `DpNpcPreflopStrategy` 中已用较温和扣档 + 面对 open 放宽。
   - 再用 `rangeLevel` 决定：
     - **无人加注**：要不要 open（以及 open 多大）
     - **面对 open**：call / 3bet / fold
