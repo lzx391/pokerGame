@@ -1090,6 +1090,40 @@ public class DpRoomServiceImpl {
         if (r.getPlayerStatsMap() != null) {
             Map<String, PlayerStats> statsMap = r.getPlayerStatsMap();
             int bb = DpRoom.getBBChips();
+            // 即使 Shark 没摊牌，也为“对 Shark 的精确 WEAK 摊牌统计”准备基准牌力：
+            // Shark 知道自己手牌，结算时也能用最终公共牌计算“如果没弃牌会是什么牌力”，从而学习修正。
+            final String sharkName = DpNpcEngine.SHARK_BOT_NICKNAME;
+            DpHandEvaluator.HandStrength sharkHs = null;
+            long sharkStrengthValue = 0L;
+            DpPlayer sharkPlayer = null;
+            if ("showdown".equals(r.getCurrentStage())) {
+                for (DpPlayer px : r.getPlayers()) {
+                    if (px == null) continue;
+                    if (sharkName.equals(px.getNickname())) {
+                        sharkPlayer = px;
+                        break;
+                    }
+                }
+            }
+            boolean boardCompleteForCompare = false;
+            List<String> boardForCompare = r.getCommunityCards();
+            if (boardForCompare != null && boardForCompare.size() >= 5) {
+                boardCompleteForCompare = true;
+            }
+            if (sharkPlayer != null && boardCompleteForCompare) {
+                // 优先使用 strengthMap（若 Shark 摊牌，里面一定有），否则用“洞牌+公共牌”补算
+                sharkHs = strengthMap.get(sharkName);
+                if (sharkHs == null) {
+                    List<String> hole = sharkPlayer.getHoleCards();
+                    if (hole != null && hole.size() >= 2) {
+                        List<String> all = new java.util.ArrayList<>();
+                        all.addAll(boardForCompare);
+                        all.addAll(hole);
+                        sharkHs = DpHandEvaluator.evaluateBestHand(all);
+                    }
+                }
+                sharkStrengthValue = DpHandEvaluator.encodeStrengthValue(sharkHs);
+            }
             for (DpPlayer p : r.getPlayers()) {
                 String name = p.getNickname();
                 PlayerStats stats = statsMap.get(name);
@@ -1110,6 +1144,7 @@ public class DpRoomServiceImpl {
                 if (wentToShowdown) {
                     DpHandEvaluator.HandStrength hs = strengthMap.get(name);
                     hand.setFinalRankCategory(hs != null ? hs.rankCategory : 0);
+                    hand.setFinalStrengthValue(DpHandEvaluator.encodeStrengthValue(hs));
                     // 同时记录“公共牌主导”的基准：仅用公共牌能形成的最佳牌型大类
                     // 用于后续在统计中剔除“大家都在打公共牌”的摊牌样本。
                     int boardCat = 0;
@@ -1136,6 +1171,24 @@ public class DpRoomServiceImpl {
                         }
                     }
                     hand.setBoardDominantShowdown(boardDominant);
+
+                    // === Shark 学习：精确 WEAK 摊牌判定（只在 Shark 也摊牌且该玩家也摊牌时写入样本） ===
+                    boolean comparedToShark = false;
+                    boolean weakVsShark = false;
+                    if (hs != null
+                            && sharkHs != null
+                            && sharkStrengthValue > 0
+                            && !sharkName.equals(name)) {
+                        comparedToShark = true;
+                        int finalCat = hs.rankCategory;
+                        if (finalCat > 0 && finalCat <= 2) {
+                            long v = hand.getFinalStrengthValue();
+                            // “精确牌型大小”：按 HandStrength.compareTo 的同序编码比较
+                            weakVsShark = v > 0 && sharkStrengthValue > 0 && v < sharkStrengthValue;
+                        }
+                    }
+                    hand.setComparedToSharkAtShowdown(comparedToShark);
+                    hand.setShowdownWeakVsShark(weakVsShark);
                 }
 
                 // === 基于本手最终下注规模和公共牌张数的粗略行为标签推断 ===

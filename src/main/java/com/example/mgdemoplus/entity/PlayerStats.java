@@ -51,6 +51,28 @@ public class PlayerStats {
          */
         private boolean boardDominantShowdown;
 
+        /**
+         * 摊牌时的“精确牌力值”（包含 kicker），用于精确比较大小。
+         * 由结算阶段写入：{@code DpHandEvaluator.encodeStrengthValue(hs)}。
+         */
+        private long finalStrengthValue;
+
+        /**
+         * 是否在“Shark 也摊牌”的前提下，当前玩家摊牌牌力属于明显偏弱：
+         * - 只认可高牌/一对（finalRankCategory <= 2）
+         * - 且精确牌力严格小于 Shark（包含 kicker 比较）
+         *
+         * <p>用途：让 Shark 的学习统计更贴近你说的“弱牌摊牌 / 空气诈唬摊牌”。</p>
+         */
+        private boolean showdownWeakVsShark;
+
+        /**
+         * 本手摊牌是否存在“与 Shark 的精确比较样本”。
+         * - true：Shark 与该玩家都去摊牌（且有评估结果），则可用 {@link #showdownWeakVsShark} 做统计
+         * - false：说明本手不是“对 Shark 的摊牌”，不应混入 Shark 的 WEAK 样本
+         */
+        private boolean comparedToSharkAtShowdown;
+
         // === 位置/街道行为占位字段：用于后续更细粒度读牌 ===
         /**
          * 翻前是否曾主动开局加注（open raise）。
@@ -142,6 +164,30 @@ public class PlayerStats {
 
         public void setBoardDominantShowdown(boolean boardDominantShowdown) {
             this.boardDominantShowdown = boardDominantShowdown;
+        }
+
+        public long getFinalStrengthValue() {
+            return finalStrengthValue;
+        }
+
+        public void setFinalStrengthValue(long finalStrengthValue) {
+            this.finalStrengthValue = finalStrengthValue;
+        }
+
+        public boolean isShowdownWeakVsShark() {
+            return showdownWeakVsShark;
+        }
+
+        public void setShowdownWeakVsShark(boolean showdownWeakVsShark) {
+            this.showdownWeakVsShark = showdownWeakVsShark;
+        }
+
+        public boolean isComparedToSharkAtShowdown() {
+            return comparedToSharkAtShowdown;
+        }
+
+        public void setComparedToSharkAtShowdown(boolean comparedToSharkAtShowdown) {
+            this.comparedToSharkAtShowdown = comparedToSharkAtShowdown;
         }
 
         public boolean isPreflopOpenRaise() {
@@ -277,32 +323,51 @@ public class PlayerStats {
         if (recentHands.isEmpty() || windowSize <= 0) {
             return 0.0;
         }
-        int sample = 0;
-        int weakCount = 0;
+        ShowdownWeakStats s = getRecentShowdownWeakStats(windowSize);
+        return s.sample == 0 ? 0.0 : (s.weakCount * 1.0 / s.sample);
+    }
+
+    /**
+     * 给 Shark 学习调试用：返回弱摊牌比例的“分子/分母/过滤信息”。
+     */
+    public ShowdownWeakStats getRecentShowdownWeakStats(int windowSize) {
+        ShowdownWeakStats out = new ShowdownWeakStats();
+        if (recentHands.isEmpty() || windowSize <= 0) {
+            return out;
+        }
         int processed = 0;
         for (SingleHandStats hand : recentHands) {
-            if (processed >= windowSize) {
-                break;
-            }
+            if (processed >= windowSize) break;
             processed++;
-            if (!hand.isWentToShowdown()) {
-                continue;
-            }
+            if (!hand.isWentToShowdown()) continue;
             int finalCat = hand.getFinalRankCategory();
-            if (finalCat <= 0) {
-                continue;
-            }
+            if (finalCat <= 0) continue;
             if (hand.isBoardDominantShowdown()) {
-                // 公共牌主导：最终最佳 5 张牌完全来自公共牌，信息量低，跳过
+                out.skippedBoardDominant++;
                 continue;
             }
-            sample++;
-            if (finalCat <= 2) {
-                weakCount++;
+            // Shark 学习的 WEAK：只统计“对 Shark 有意义的样本”（双方都摊牌且可比较）
+            if (!hand.isComparedToSharkAtShowdown()) {
+                out.skippedNotVsShark++;
+                continue;
+            }
+            out.sample++;
+            if (hand.isShowdownWeakVsShark()) {
+                out.weakCount++;
             }
         }
-        if (sample == 0) return 0.0;
-        return weakCount * 1.0 / sample;
+        return out;
+    }
+
+    public static final class ShowdownWeakStats {
+        public int sample;
+        public int weakCount;
+        public int skippedBoardDominant;
+        public int skippedNotVsShark;
+
+        public double ratio() {
+            return sample <= 0 ? 0.0 : (weakCount * 1.0 / sample);
+        }
     }
 
     // === 个体化长期调整：对特定玩家整体弃牌倾向的微调因子（占位实现） ===

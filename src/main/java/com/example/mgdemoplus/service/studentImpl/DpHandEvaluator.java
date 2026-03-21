@@ -37,6 +37,130 @@ public final class DpHandEvaluator {
     }
 
     /**
+     * 仅用于内部辅助：解析一张牌得到点数（2~14）和花色编码，以及是否来自手牌。
+     */
+    private static final class ParsedCard {
+        final int rank;      // 2~14
+        final int suitCode;  // 0~3
+        final boolean fromHole;
+
+        ParsedCard(int rank, int suitCode, boolean fromHole) {
+            this.rank = rank;
+            this.suitCode = suitCode;
+            this.fromHole = fromHole;
+        }
+    }
+
+    private static List<ParsedCard> parseCardsWithSource(List<String> holeCards, List<String> community) {
+        List<ParsedCard> all = new ArrayList<>();
+        if (holeCards != null) {
+            for (String c : holeCards) {
+                ParsedCard pc = parseSingleCard(c, true);
+                if (pc != null) all.add(pc);
+            }
+        }
+        if (community != null) {
+            for (String c : community) {
+                ParsedCard pc = parseSingleCard(c, false);
+                if (pc != null) all.add(pc);
+            }
+        }
+        return all;
+    }
+
+    private static ParsedCard parseSingleCard(String card, boolean fromHole) {
+        if (card == null) return null;
+        String[] parts = card.split("_");
+        if (parts.length != 2) return null;
+        String suit = parts[0];
+        String rankStr = parts[1];
+        Integer rank = CARD_RANK_MAP.get(rankStr);
+        if (rank == null) return null;
+        int suitCode;
+        switch (suit) {
+            case "hearts":
+                suitCode = 0;
+                break;
+            case "diamonds":
+                suitCode = 1;
+                break;
+            case "clubs":
+                suitCode = 2;
+                break;
+            case "spades":
+                suitCode = 3;
+                break;
+            default:
+                suitCode = 4;
+        }
+        return new ParsedCard(rank, suitCode, fromHole);
+    }
+
+    /**
+     * 判断是否存在“强同花听牌”（至少 4 张同花，且其中至少一张来自手牌）。
+     */
+    private static boolean hasStrongFlushDraw(List<String> holeCards, List<String> community) {
+        List<ParsedCard> all = parseCardsWithSource(holeCards, community);
+        if (all.isEmpty()) return false;
+        int[] suitCount = new int[4];
+        int[] suitHoleCount = new int[4];
+        for (ParsedCard pc : all) {
+            if (pc.suitCode < 0 || pc.suitCode > 3) continue;
+            suitCount[pc.suitCode]++;
+            if (pc.fromHole) {
+                suitHoleCount[pc.suitCode]++;
+            }
+        }
+        for (int s = 0; s < 4; s++) {
+            if (suitCount[s] >= 4 && suitHoleCount[s] >= 1) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 判断是否存在“强顺子听牌”（近似双头顺子听牌）：在任意连续 4 个点数窗口中，
+     * 至少有 3 个不同点数出现，并且其中至少一个来自手牌。
+     *
+     * 这是一个简化模型：不追求覆盖所有复杂顺子听牌，只抓主要高 equity 情形。
+     */
+    private static boolean hasStrongStraightDraw(List<String> holeCards, List<String> community) {
+        List<ParsedCard> all = parseCardsWithSource(holeCards, community);
+        if (all.isEmpty()) return false;
+
+        // 针对 A-5 顺子，简单把 A 也视作 1 参与一次扫描
+        List<ParsedCard> extended = new ArrayList<>(all);
+        for (ParsedCard pc : all) {
+            if (pc.rank == 14) {
+                extended.add(new ParsedCard(1, pc.suitCode, pc.fromHole));
+            }
+        }
+
+        for (int start = 2; start <= 10; start++) {
+            int end = start + 3;
+            int distinctCnt = 0;
+            boolean[] seen = new boolean[15];
+            boolean hasHoleInWindow = false;
+            for (ParsedCard pc : extended) {
+                int r = pc.rank;
+                if (r < start || r > end) continue;
+                if (!seen[r]) {
+                    seen[r] = true;
+                    distinctCnt++;
+                }
+                if (pc.fromHole) {
+                    hasHoleInWindow = true;
+                }
+            }
+            if (distinctCnt >= 3 && hasHoleInWindow) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * 手牌强度：先比牌型，再比 5 张牌从大到小的点数。
      */
     public static class HandStrength implements Comparable<HandStrength> {
@@ -60,6 +184,31 @@ public final class DpHandEvaluator {
             }
             return 0;
         }
+    }
+
+    /**
+     * 把 {@link HandStrength} 编码成一个“可比较的精确牌力值”（越大越强）。
+     *
+     * <p>用途：做“精确牌型大小”的比较（包含 kicker），例如用于 Shark 学习统计时判断
+     * “对手摊牌是否明显弱于 Shark”。</p>
+     *
+     * <p>编码规则：先放 rankCategory，再按 5 个 kicker（不足补 0）做 base-15 的字典序编码，
+     * 从而保持与 {@link HandStrength#compareTo(HandStrength)} 一致的比较方向。</p>
+     */
+    public static long encodeStrengthValue(HandStrength hs) {
+        if (hs == null) return 0L;
+        long v = hs.rankCategory;
+        // 固定 5 个 kicker 位，不足补 0，避免不同长度 ranks 影响可比性
+        for (int i = 0; i < 5; i++) {
+            int r = 0;
+            if (hs.ranks != null && i < hs.ranks.size()) {
+                r = hs.ranks.get(i) != null ? hs.ranks.get(i) : 0;
+            }
+            if (r < 0) r = 0;
+            if (r > 14) r = 14;
+            v = v * 15L + r;
+        }
+        return v;
     }
 
     /**
@@ -405,6 +554,7 @@ public final class DpHandEvaluator {
 
         int cat = hs.rankCategory;
         if ("flop".equals(stage) || "turn".equals(stage) || "river".equals(stage)) {
+            // 先按已经成牌的牌型做一个基础划分
             if (cat >= 7) {
                 return SimpleStrength.MONSTER;
             }
@@ -414,6 +564,26 @@ public final class DpHandEvaluator {
             if (cat == 4 || cat == 3) {
                 return SimpleStrength.MEDIUM;
             }
+
+            // 剩下的就是“一对或高牌”这类相对弱的成牌，
+            // 在这里叠加“强听牌”信息，把有高 equity 的听牌提档。
+            boolean strongFlushDraw = hasStrongFlushDraw(holeCards, community);
+            boolean strongStraightDraw = hasStrongStraightDraw(holeCards, community);
+            boolean comboDraw = strongFlushDraw && strongStraightDraw;
+
+            if (comboDraw) {
+                // 顺子+同花的组合听牌：整体 equity 极高，视作强牌
+                return SimpleStrength.STRONG;
+            }
+            if (strongFlushDraw || strongStraightDraw) {
+                // 单一强听牌：flop 上视作中等牌力；到了 turn equity 更稳定，可提到强牌
+                if ("turn".equals(stage)) {
+                    return SimpleStrength.STRONG;
+                } else {
+                    return SimpleStrength.MEDIUM;
+                }
+            }
+
             return SimpleStrength.WEAK;
         }
 

@@ -208,6 +208,30 @@ public final class DpNpcEngine {
         static final double PROB_NOISE_DELTA = P.probNoiseDelta;
         static final double RIVER_OVERBET_PROB = P.riverOverbetProb;
         static final double RIVER_BLOCK_PROB = P.riverBlockProb;
+
+        // ===== Shark LearningLab / 旋钮参数（集中配置）=====
+        // foldAdjustment（整体弃牌倾向）学习率与裁剪上限
+        static final double LEARN_FOLD_LR = 0.10;
+        static final double LEARN_FOLD_ADJ_CAP = 0.25;
+
+        // 对“高压/高频 all-in”玩家的 bluff-catch 旋钮上限与学习率
+        static final double LEARN_SHOVE_EMA_ALPHA = 0.10;      // shoveFreq EMA 的观测权重
+        static final double LEARN_BLUFF_CATCH_LR = 0.18;
+        static final double LEARN_BLUFF_CATCH_CAP = 0.32;      // 让抓诈唬更明显
+
+        // 主动开枪 / value raise 旋钮：上限与学习率（按街）
+        static final double LEARN_BLUFF_FIRE_LR = 0.14;
+        static final double LEARN_BLUFF_FIRE_CAP = 0.42;       // 让“读人更准→更敢开枪”更明显
+        static final double LEARN_VALUE_RAISE_LR = 0.12;
+        static final double LEARN_VALUE_RAISE_CAP = 0.38;
+
+        // 下注尺度旋钮
+        static final double LEARN_SIZING_LR = 0.10;
+        static final double LEARN_SIZING_MIN = 0.85;
+        static final double LEARN_SIZING_MAX = 1.20;
+
+        // 策略侧使用旋钮时的归一化分母（避免到处写死 0.25）
+        static final double LEARN_BOOST_NORM = 0.25;
     }
 
     // 显示昵称：后端/前端都以这些字符串识别不同 NPC
@@ -371,8 +395,20 @@ public final class DpNpcEngine {
 
         int activeVillains = ctx.activeVillains;
         VillainRangeTier villainTier = ctx.villainTier;
+        double equityEst = ctx.equityEst;
+
+        // Shark 翻后“相对牌力”修正：公共牌主导时，避免把自己当成强牌去走 VALUE 线路
+        // 同时：当 strength 被粗分为 WEAK，但 equityEst 不低（例如强听牌/两头顺等），不要太早进入 GIVE_UP。
+        boolean isShark = type == BotType.SHARK;
+        boolean boardDominant = isShark && isBoardDominantBestHand(room, bot);
 
         // 基于牌力 + 牌面 + 参与人数的简单规则生成计划
+        SimpleStrength planStrength = strength;
+        if (boardDominant) {
+            if (planStrength == SimpleStrength.MONSTER) planStrength = SimpleStrength.STRONG;
+            else if (planStrength == SimpleStrength.STRONG) planStrength = SimpleStrength.MEDIUM;
+        }
+
         switch (strength) {
             case MONSTER:
             case STRONG:
@@ -416,6 +452,11 @@ public final class DpNpcEngine {
                         bluffProb *= 0.85;
                     }
 
+                    // Shark 专用：当 equityEst 不低（通常是听牌/可持续施压结构），降低 GIVE_UP 概率，保留探索空间
+                    if (isShark && equityEst >= 0.30 && !boardDominant) {
+                        bluffProb = Math.min(0.75, bluffProb + 0.12);
+                    }
+
                     double x = random.nextDouble();
                     if (x < bluffProb) {
                         planType = HandPlanType.BLUFF;
@@ -431,8 +472,18 @@ public final class DpNpcEngine {
                 break;
         }
 
+        // 公共牌主导：进一步抑制 VALUE，更多控池/试探，避免“打公共牌却觉得自己稳赢”
+        if (boardDominant) {
+            if (planType == HandPlanType.VALUE) {
+                planType = HandPlanType.POT_CONTROL;
+            }
+            if (planStrength == SimpleStrength.WEAK && planType == HandPlanType.BLUFF) {
+                // 纯公共牌 + 弱：减少无谓开火
+                planType = HandPlanType.POT_CONTROL;
+            }
+        }
+
         // 不同机器人风格下的默认“最大进攻街数”和基础激进度
-        boolean isShark = type == BotType.SHARK;
         switch (planType) {
             case VALUE:
                 maxBarrels = isShark ? 3 : 2;
@@ -500,6 +551,64 @@ public final class DpNpcEngine {
         if (barrels > 0) {
             bot.setNpcHandPlanMaxBarrels(barrels - 1);
         }
+    }
+
+    /**
+     * 翻牌生成 HandPlan 之后，允许在 turn/river 根据“牌力明显升级”纠正过度保守的计划。
+     *
+     * <p>目的：修复“flop 打了一枪，然后 barrels 消耗到 0，turn/river 仍然全部 check”的观感问题。
+     * 当 st==STRONG/MONSTER 且 equityEst 足够高时，强制把计划切回 VALUE，并给至少 1 个 barrel
+     * （turn 给 2，保证还能落在河牌拿价值）。</p>
+     */
+    static void updateHandPlanForLaterStreetIfNeeded(
+            DpRoom room,
+            DpPlayer bot,
+            BotType type,
+            SimpleStrength st,
+            BoardDanger boardDanger,
+            SmartContext ctx
+    ) {
+        if (room == null || bot == null || ctx == null) return;
+        String stage = room.getCurrentStage();
+        if (!"turn".equals(stage) && !"river".equals(stage)) return;
+        if (type != BotType.SHARK) return; // 先只修复 Shark 的观感
+
+        HandPlanType currentPlan = getHandPlanType(bot);
+        if (currentPlan == null) return;
+
+        // 尽量避免把“公共牌主导的牌面”当成 hero 价值线来乱抬，但仍允许强听/强成时回到 value
+        boolean boardDominant = isBoardDominantBestHand(room, bot);
+
+        double equityEst = ctx.equityEst;
+        boolean isStrong = (st == SimpleStrength.STRONG || st == SimpleStrength.MONSTER);
+
+        // st 升级到“强牌”才触发纠正：避免弱牌把计划硬改成价值线
+        double minEq = (st == SimpleStrength.MONSTER) ? 0.60 : 0.45;
+        if (!isStrong || equityEst + SharkConfig.EQUITY_POTODDS_EPS < minEq) return;
+
+        // 如果你已经是 VALUE 且 barrels 还够，那就没必要强行改
+        int curBarrels = bot.getNpcHandPlanMaxBarrels();
+        if (currentPlan == HandPlanType.VALUE && curBarrels > 0) return;
+
+        // 给到最小合理 value 进攻额度：turn 争取“还能打到河牌”，river 至少能下注一次
+        int newMaxBarrels = "turn".equals(stage) ? 2 : 1;
+        double aggression = isBoardDominantBestHand(room, bot)
+                ? 0.55
+                : 0.8;
+
+        // 若公共牌主导，value 也降级为 POT_CONTROL，避免过度“为公共牌下注”
+        HandPlanType newPlan = boardDominant ? HandPlanType.POT_CONTROL : HandPlanType.VALUE;
+
+        // 只在计划太保守/无法再主动出手时才覆盖，否则让原计划保持风格
+        boolean needFix = currentPlan == HandPlanType.GIVE_UP
+                || currentPlan == HandPlanType.POT_CONTROL
+                || (currentPlan == HandPlanType.BLUFF && curBarrels <= 0)
+                || curBarrels <= 0;
+        if (!needFix) return;
+
+        bot.setNpcHandPlanType(newPlan.name());
+        bot.setNpcHandPlanMaxBarrels(newMaxBarrels);
+        bot.setNpcHandPlanAggression(aggression);
     }
 
     /**
@@ -968,6 +1077,32 @@ public final class DpNpcEngine {
             }
         }
         return maxRun >= 4;
+    }
+
+    /**
+     * 是否属于“公共牌主导”的最佳牌型：
+     * - true：hero 的最佳 5 张牌完全不使用任何手牌（纯公共牌）。
+     *
+     * <p>用于 Shark 翻后避免误判“公共牌很强 = 我很强”。</p>
+     */
+    static boolean isBoardDominantBestHand(DpRoom room, DpPlayer hero) {
+        if (room == null || hero == null) return false;
+        List<String> board = room.getCommunityCards();
+        List<String> hole = hero.getHoleCards();
+        if (board == null || board.size() < 5 || hole == null || hole.size() < 2) {
+            return false;
+        }
+        List<String> all = new ArrayList<>();
+        all.addAll(board);
+        all.addAll(hole);
+        List<String> best5 = DpHandEvaluator.getBestHandCards(all);
+        if (best5 == null || best5.size() != 5) {
+            return false;
+        }
+        String h1 = hole.get(0);
+        String h2 = hole.get(1);
+        boolean usedHole = (h1 != null && best5.contains(h1)) || (h2 != null && best5.contains(h2));
+        return !usedHole;
     }
 
     private static SimpleStrength estimateCurrentStrength(DpRoom room, DpPlayer bot) {
@@ -2506,16 +2641,41 @@ public final class DpNpcEngine {
                 return new BotAction(BotActionType.ALL_IN, chips);
             }
             case SHARK: {
-                if (SHARK_DEBUG) {
-                    String rid = room != null ? room.getRoomId() : "-";
-                    String bn = bot != null ? bot.getNickname() : "-";
-                    String stg = room != null ? room.getCurrentStage() : "-";
-                    System.out.println("[SHARK][room=" + rid + "] ENGINE ENTER bot=" + bn
-                            + " stage=" + stg
-                            + " callAmount=" + callAmount
-                            + " curBTC=" + (room != null ? room.getCurrentBetToCall() : -1)
-                            + " botBet=" + (bot != null ? bot.getBet() : -1)
-                            + " pot=" + (room != null ? room.getPot() : -1));
+                String rid = room != null ? room.getRoomId() : "-";
+                String bn = bot != null ? bot.getNickname() : "-";
+                String stg = room != null ? room.getCurrentStage() : "-";
+                String holeStr = "-";
+                if (bot != null && bot.getHoleCards() != null && !bot.getHoleCards().isEmpty()) {
+                    holeStr = String.join(",", bot.getHoleCards());
+                }
+                String boardStr = "-";
+                if (room != null && room.getCommunityCards() != null && !room.getCommunityCards().isEmpty()) {
+                    boardStr = String.join(",", room.getCommunityCards());
+                }
+                System.out.println("[SHARK][room=" + rid + "] ENGINE ENTER bot=" + bn
+                        + " stage=" + stg
+                        + " callAmount=" + callAmount
+                        + " curBTC=" + (room != null ? room.getCurrentBetToCall() : -1)
+                        + " botBet=" + (bot != null ? bot.getBet() : -1)
+                        + " pot=" + (room != null ? room.getPot() : -1)
+                        + " hole=" + holeStr
+                        + " board=" + boardStr);
+
+                // 额外打印一条“桌面快照”：所有在局内对手的关键状态，便于离线分析 Shark 决策是否合理。
+                if (room != null && room.getPlayers() != null) {
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("[SHARK][room=").append(rid).append("] TABLE STATE:");
+                    for (DpPlayer p : room.getPlayers()) {
+                        if (p == null) continue;
+                        sb.append(" {name=").append(p.getNickname())
+                                .append(", chips=").append(p.getChips())
+                                .append(", bet=").append(p.getBet())
+                                .append(", fold=").append(p.isFold())
+                                .append(", allIn=").append(p.isAllIn())
+                                .append(", left=").append(p.isLeftThisHand())
+                                .append("}");
+                    }
+                    System.out.println(sb.toString());
                 }
                 BoardDanger bd = boardDanger;
                 SimpleStrength st = strength;
