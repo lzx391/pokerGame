@@ -433,8 +433,10 @@ final class DpNpcPreflopStrategy {
         if (effStackBB >= 50) base += 1;
         if (effStackBB <= 16) base -= 1;
 
-        // 风格：preflopTightness 越大越紧；callStation 越高越“爱玩”
-        base -= (int) Math.round(preflopTightness * 2.0); // 0~1 -> 0~2
+        // 风格：preflopTightness 越大越紧。
+        // 注意：原先用 *2.0 且 vsOpen 再用 rangeLevel-2，配合 Shark/TAG 的 preflopTightness≈0.85
+        // 会把「面对 open」压成几乎只剩 G1（JJ+/AK），观感像「有人加就弃」。
+        base -= (int) Math.round(preflopTightness * 1.0); // 0~1 -> 约 0~1，避免过度扣档
         base += (int) Math.round(callStation * 1.0);      // 0~1 -> 0~1
 
         // 情绪：更开心更松
@@ -472,14 +474,15 @@ final class DpNpcPreflopStrategy {
         else if (pos == DpNpcEngine.TablePosition.LATE) open = mapLevelToGroup(rangeLevel);
         else open = mapLevelToGroup(rangeLevel - 1);
 
-        HandGroup vsOpenContinue = mapLevelToGroup(rangeLevel - 2);
+        // 面对 open：比「自己 open」紧 1 档即可；非后位原先用 rangeLevel-2 过紧
+        HandGroup vsOpenContinue = mapLevelToGroup(rangeLevel - 1);
         HandGroup vsOpen3BetValue = mapLevelToGroup(rangeLevel - 4);
         HandGroup vs3BetContinue = mapLevelToGroup(rangeLevel - 4);
         HandGroup vs3Bet4BetValue = mapLevelToGroup(rangeLevel - 6);
 
-        // 边界修正
+        // 后位可再宽半档：用满档 rangeLevel 映射到略宽的一组
         if (pos == DpNpcEngine.TablePosition.LATE) {
-            vsOpenContinue = mapLevelToGroup(rangeLevel - 1);
+            vsOpenContinue = mapLevelToGroup(rangeLevel);
         }
         if (pos == DpNpcEngine.TablePosition.EARLY) {
             vsOpen3BetValue = mapLevelToGroup(rangeLevel - 5);

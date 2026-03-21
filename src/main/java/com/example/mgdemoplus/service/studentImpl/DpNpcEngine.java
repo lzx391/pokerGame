@@ -514,10 +514,59 @@ public final class DpNpcEngine {
         DpPlayer aggressor = ctx.aggressor;
         String targetVillain = aggressor != null ? aggressor.getNickname() : null;
 
+        if (isShark) {
+            DpPlayer primaryVillain = resolvePrimaryVillainForShark(room, bot, ctx);
+            PlayerStats villainStats = null;
+            if (primaryVillain != null && room.getPlayerStatsMap() != null) {
+                villainStats = room.getPlayerStatsMap().get(primaryVillain.getNickname());
+            }
+            DpNpcSharkLearningLab.LearnedAdjust learnedAdj =
+                    DpNpcSharkLearningLab.getAdjust(room, bot, primaryVillain);
+            DpSharkExploitHandPlan.MutableFlopPlan tune = new DpSharkExploitHandPlan.MutableFlopPlan();
+            tune.type = planType;
+            tune.barrels = maxBarrels;
+            tune.aggression = aggression;
+            DpSharkExploitHandPlan.tuneAfterBasePlan(
+                    tune,
+                    villainStats,
+                    learnedAdj,
+                    strength,
+                    equityEst,
+                    boardDominant,
+                    random
+            );
+            planType = tune.type;
+            maxBarrels = tune.barrels;
+            aggression = tune.aggression;
+            targetVillain = primaryVillain != null ? primaryVillain.getNickname() : targetVillain;
+        }
+
         bot.setNpcHandPlanType(planType.name());
         bot.setNpcHandPlanMaxBarrels(maxBarrels);
         bot.setNpcHandPlanAggression(aggression);
         bot.setNpcHandPlanTargetVillain(targetVillain);
+    }
+
+    /**
+     * Shark 剥削/读牌用的「主对手」：有当前街最大下注者则用其，否则取第一个仍在局且可行动的对手。
+     */
+    static DpPlayer resolvePrimaryVillainForShark(DpRoom room, DpPlayer bot, SmartContext ctx) {
+        if (ctx != null && ctx.aggressor != null && ctx.aggressor != bot) {
+            return ctx.aggressor;
+        }
+        if (room == null || room.getPlayers() == null) {
+            return null;
+        }
+        for (DpPlayer p : room.getPlayers()) {
+            if (p == null || p == bot) {
+                continue;
+            }
+            if (p.isFold() || p.isAllIn() || p.isLeftThisHand()) {
+                continue;
+            }
+            return p;
+        }
+        return null;
     }
 
     /**
@@ -609,6 +658,24 @@ public final class DpNpcEngine {
         bot.setNpcHandPlanType(newPlan.name());
         bot.setNpcHandPlanMaxBarrels(newMaxBarrels);
         bot.setNpcHandPlanAggression(aggression);
+
+        String tv = bot.getNpcHandPlanTargetVillain();
+        if (tv != null && room.getPlayerStatsMap() != null) {
+            DpPlayer vil = null;
+            for (DpPlayer px : room.getPlayers()) {
+                if (px != null && tv.equals(px.getNickname())) {
+                    vil = px;
+                    break;
+                }
+            }
+            PlayerStats vs = room.getPlayerStatsMap().get(tv);
+            DpNpcSharkLearningLab.LearnedAdjust la = DpNpcSharkLearningLab.getAdjust(room, bot, vil);
+            if (vil != null
+                    && DpSharkExploitHandPlan.classify(vs, la) == DpSharkExploitHandPlan.ExploitScript.CALLING_STATION
+                    && newPlan == HandPlanType.VALUE) {
+                bot.setNpcHandPlanMaxBarrels(Math.min(3, bot.getNpcHandPlanMaxBarrels() + 1));
+            }
+        }
     }
 
     /**

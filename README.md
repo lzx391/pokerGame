@@ -14,6 +14,7 @@
 - **核心思路**：
   - **底层**：把起手牌映射到一个“手牌分组”`HandGroup`（近似 13×13 的强度分层）
   - **上层**：把 **人数 / 位置 / 有效筹码深度 / 松紧风格 / 情绪** 合成一个 `rangeLevel(1~8)`
+  - **调参备忘（2026-03-21）**：`StyleProfile.preflopTightness`（Shark 与 TAG 同为紧凶约 0.85）若用「×2 扣档 + 面对 open 再减 2 档」会叠成**面对单次加注只剩顶级牌**，观感像「有人加就弃」。已在 `DpNpcPreflopStrategy` 中改为更温和的扣档，并把「面对 open」的阈值放宽一档（后位再略宽）。
   - 再用 `rangeLevel` 决定：
     - **无人加注**：要不要 open（以及 open 多大）
     - **面对 open**：call / 3bet / fold
@@ -34,3 +35,10 @@
 - **何时写入**：每手正常结算后，`DpSharkOpponentMemoryService.persistOpponentsAfterHand` 在 `onHandSettled` 之后执行。
 - **何时读入**：玩家 `joinRoom` 上桌时、以及每手 `newHand` 盲注就绪后，若 `playerStatsMap` 尚无该昵称则 `hydrate` 从 DB 加载。
 - **代码入口**：`DpSharkOpponentMemoryService`、`DpNpcSharkLearningLab`（旋钮键已改为仅对手昵称）。
+
+#### Shark 翻后：剥削剧本驱动 HandPlan（2026-03-21）
+
+- **说明**：下面这段是**说明书**，不是“待开启功能”。只要运行的是当前工程编译出的服务、桌上有 `BOT_Shark`，翻后就会走这套逻辑。
+- **做什么**：在 flop 首次生成整手计划（VALUE / BLUFF / POT_CONTROL / GIVE_UP 与 barrels、激进度）之后，根据**对手 `PlayerStats` + `LearningLab` 旋钮**归类成粗剧本（跟注站 / 紧弱 / 松凶等），再**改线路、加减压枪数、调激进度**；turn/river 强牌纠正为价值线时，对「跟注站」会多给 1 枪额度。
+- **代码**：`DpSharkExploitHandPlan`；接入点在 `DpNpcEngine.initHandPlanIfNeededForPostflop`（仅 Shark）与 `updateHandPlanForLaterStreetIfNeeded`。
+- **数据库**：**不需要**为剥削剧本单独加表或加字段；沿用 `dp_shark_opponent_profile` 里已有的统计与旋钮 JSON 即可。

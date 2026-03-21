@@ -534,12 +534,12 @@
                    background: #722ed1; color:#fff; box-shadow:0 2px 6px rgba(114,46,209,0.35);">
           打开房主神器
         </button>
-<!--        <button-->
-<!--            @click="ownerRevealAll = !ownerRevealAll"-->
-<!--            style="padding:8px 16px; border:none; border-radius:6px; cursor:pointer; font-size:13px; font-weight:bold;-->
-<!--                   background: #fa8c16; color:#fff; box-shadow:0 2px 6px rgba(250,140,22,0.35);">-->
-<!--          {{ ownerRevealAll ? '关闭看穿底牌' : '一键看穿所有底牌' }}-->
-<!--        </button>-->
+        <button
+            @click="ownerRevealAll = !ownerRevealAll"
+            style="padding:8px 16px; border:none; border-radius:6px; cursor:pointer; font-size:13px; font-weight:bold;
+                   background: #fa8c16; color:#fff; box-shadow:0 2px 6px rgba(250,140,22,0.35);">
+          {{ ownerRevealAll ? '关闭看穿底牌' : '一键看穿所有底牌' }}
+        </button>
       </div>
 
       <div style="font-size:12px; color:#999; text-align:center; margin-bottom:6px;">
