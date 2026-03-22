@@ -2311,7 +2311,7 @@ public final class DpNpcEngine {
                 counter
         );
     }
-
+//已学习，这里是把smartContext的情报转成llm的情报
     /**
      * 仅给 {@code BOT_LLM} 使用：打包当前局面摘要，供大模型阅读。
      * 不进入 {@link #decideBotAction}，与普通规则 NPC 分离。
