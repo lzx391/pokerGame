@@ -26,7 +26,7 @@ import java.util.regex.Pattern;
  */
 @Service
 public class DpLlmNpcDecisionService {
-
+//已学习，提示词所在地
     /**
      * 极短 system，省输入 token；具体规则在 user 里一行即可。
      */
@@ -34,7 +34,7 @@ public class DpLlmNpcDecisionService {
             "NLHE bot BOT_LLM. Reply with one JSON object only, no markdown: "
                     + "{\"action\":\"FOLD|CALL_OR_CHECK|RAISE|ALL_IN\",\"chips_to_add\":int}. "
                     + "chips_to_add = extra chips added this action; use 0 for FOLD/CALL_OR_CHECK.";
-
+//等待时间
     private static final long PRE_API_DELAY_MS = 200L;
     private static final Pattern JSON_BLOCK = Pattern.compile("```(?:json)?\\s*([\\s\\S]*?)```", Pattern.CASE_INSENSITIVE);
 
@@ -47,7 +47,7 @@ public class DpLlmNpcDecisionService {
     private final ConcurrentHashMap<String, Inflight> inflightByKey = new ConcurrentHashMap<>();
     private final LlmNpc llmNpc;
     private final ObjectMapper objectMapper = new ObjectMapper();
-
+//构造器中从配置文件里取输入大模型请求的id，key baseUrl信息
     public DpLlmNpcDecisionService(
             @Value("${dp.llm.ark.api-key:}") String propApiKey,
             @Value("${dp.llm.ark.endpoint-id:}") String propEndpointId,
@@ -55,7 +55,7 @@ public class DpLlmNpcDecisionService {
         String apiKey = firstNonBlank(propApiKey, env("ARK_API_KEY"));
         String endpointId = firstNonBlank(propEndpointId, env("ARK_ENDPOINT_ID"));
         String baseUrl = firstNonBlank(propBaseUrl, env("ARK_BASE_URL"));
-        this.llmNpc = new LlmNpc(apiKey, endpointId, baseUrl.isEmpty() ? null : baseUrl);
+        this.llmNpc = new LlmNpc(apiKey, endpointId, baseUrl.isEmpty() ? null : baseUrl);//这里涉及到Llmpc类
     }
 
     private static String env(String name) {
@@ -70,7 +70,7 @@ public class DpLlmNpcDecisionService {
         }
         return envVal != null && !envVal.isBlank() ? envVal.trim() : "";
     }
-
+//已学习，检查快照是否有效的类和方法
     private record LlmActionTicket(
             long handSeed,
             String stage,
@@ -104,7 +104,7 @@ public class DpLlmNpcDecisionService {
             return room.getCurrentHandSeed() == handSeed;
         }
     }
-
+//已学习，这个是用来保存future异步任务信息，ticket保存离开前的桌面快照，说白了没有这个就不知道是否有在途任务，也无法取消它
     private static final class Inflight {
         final CompletableFuture<DpNpcEngine.BotAction> future;
         final LlmActionTicket ticket;
@@ -114,7 +114,7 @@ public class DpLlmNpcDecisionService {
             this.ticket = ticket;
         }
     }
-
+//已学习，决策核心
     /**
      * 与 {@link DpNpcEngine#decideActionIfReady} 相同调用约定：未到点或请求未完成时返回 null。
      */
@@ -148,13 +148,13 @@ public class DpLlmNpcDecisionService {
             }
             return applyLocalFallback(room, bot, "桌上仅1名未离桌玩家(不请求大模型)");
         }
-
+//如果这个在途请求有，但是快照变了，那么就要撤销这个请求，消耗这个key
         Inflight stale = inflightByKey.get(key);
         if (stale != null && !stale.ticket.stillValid(room, bot)) {
             stale.future.cancel(true);
             inflightByKey.remove(key, stale);
         }
-
+//如果都没问题的话，正片开始
         Inflight slot = inflightByKey.get(key);
         long now = System.currentTimeMillis();
         long nextTime = bot.getNextBotActionTime();
@@ -174,9 +174,9 @@ public class DpLlmNpcDecisionService {
                     bot.getNickname(),
                     bot.getBet(),
                     room.getCurrentBetToCall());
-            LlmNpcGameContext gameContext = DpNpcEngine.buildLlmNpcGameSnapshot(room, bot);//获取当前情况
-            String userPrompt = buildUserPrompt(room, bot, gameContext);
-
+            LlmNpcGameContext gameContext = DpNpcEngine.buildLlmNpcGameSnapshot(room, bot);//获取当前情况,Mapper相当于转接器，把smartcontext信息利用了
+            String userPrompt = buildUserPrompt(room, bot, gameContext);//用的是GameContext的方法，打包压缩送给大模型的信息
+//异步发送打包信息，把传回来的信息给future
             CompletableFuture<DpNpcEngine.BotAction> future = CompletableFuture
                     .supplyAsync(() -> invokeModel(userPrompt), llmExecutor)
                     .orTimeout(125, TimeUnit.SECONDS)
@@ -186,38 +186,39 @@ public class DpLlmNpcDecisionService {
                     });
 
             System.out.println("[BOT_LLM] 【已发起大模型请求】room=" + room.getRoomId() + " stage=" + room.getCurrentStage());
-            inflightByKey.put(key, new Inflight(future, ticket));
+            inflightByKey.put(key, new Inflight(future, ticket));//钥匙和在途任务以及快照信息，等请求完成了，用key取出来结果核验快照
             return null;
         }
-
+//如果返回了就删掉key，没返回就卡着
         if (!slot.future.isDone()) {
             return null;
         }
 
         inflightByKey.remove(key);
         bot.setNextBotActionTime(0L);
-
-        if (!slot.ticket.stillValid(room, bot)) {
+//快照过期了，返回的决策不能用了，执行兜底决策
+        if (!slot.ticket.stillValid(room, bot)) {//执行兜底决策
             return applyLocalFallback(room, bot, "局面已变(与发起请求时不一致，丢弃模型结果)");
         }
-
+//模型返回null也走兜底
         DpNpcEngine.BotAction parsed = slot.future.getNow(null);
         if (parsed == null) {
             return applyLocalFallback(room, bot, "模型返回null/未配置/解析失败/超时");
         }
+        //正常返回之后处理信息，有时候LLM返回的信息并不能实行，比如筹码剩下200了，他却要raise250，所以需要再最后把把关，弄成符合游戏实际的操作返回
         DpNpcEngine.BotAction executed = normalizeAndClamp(room, bot, parsed);
         System.out.println("[BOT_LLM] 【采用大模型】解析动作=" + parsed.getType() + " chips_to_add=" + parsed.getAmount()
                 + " -> 规范化执行=" + executed.getType() + " amount=" + executed.getAmount());
         return executed;
     }
-
+//已学习，离线决策
     /** 未走模型或丢弃模型结果时的本地兜底，统一打日志便于对照控制台。 */
     private static DpNpcEngine.BotAction applyLocalFallback(DpRoom room, DpPlayer bot, String reason) {
         DpNpcEngine.BotAction a = fallback(room, bot);
         System.out.println("[BOT_LLM] 【本地决策】原因=" + reason + " -> " + a.getType() + " amount=" + a.getAmount());
         return a;
     }
-
+//已学习，返回决策结果
     private DpNpcEngine.BotAction invokeModel(String userPrompt) {
         if (!llmNpc.isConfigured()) {
             System.out.println("[BOT_LLM] 未配置密钥/接入点，跳过请求");
@@ -228,6 +229,7 @@ public class DpLlmNpcDecisionService {
         System.out.println("======== [BOT_LLM] 输入 user ========");
         System.out.println(userPrompt);
         try {
+            //把大模型key id 提示词 信息包输入进去
             String raw = llmNpc.chat(LLM_SYSTEM_PROMPT, userPrompt);
             System.out.println("======== [BOT_LLM] 模型返回原文 ========");
             System.out.println(raw == null ? "(null)" : raw);
@@ -238,13 +240,14 @@ public class DpLlmNpcDecisionService {
             if (parsed != null) {
                 System.out.println("[BOT_LLM] JSON 已解析为: " + parsed.getType() + " chips_to_add=" + parsed.getAmount());
             }
+            //返回决策结果
             return parsed;
         } catch (Exception e) {
             System.err.println("[BOT_LLM] HTTP/调用失败: " + e.getMessage());
             return null;
         }
     }
-
+//已学习，防御性编程
     /** 本手牌里尚未标记离桌的玩家数（含自己）。≤1 表示没有对手在同一手内。 */
     private static int countPlayersStillInThisHand(DpRoom room) {
         List<DpPlayer> ps = room.getPlayers();
@@ -259,19 +262,19 @@ public class DpLlmNpcDecisionService {
         }
         return n;
     }
-
+//已学习，构建喂给AI的信息包
     private String buildUserPrompt(DpRoom room, DpPlayer bot, LlmNpcGameContext ctx) {
         StringBuilder sb = new StringBuilder(1024);
         sb.append("M BB=").append(DpRoom.getBBChips()).append(" SB=").append(DpRoom.getSBChips())
                 .append(" rl=").append(room.getRaiseLevel()).append('\n');
         sb.append("T ").append(compactTable(room, bot)).append('\n');
         if (ctx != null) {
-            sb.append(ctx.toPromptBlock());
+            sb.append(ctx.toPromptBlock());//LNGameContext的方法
         }
         sb.append("O H line: hole=your cards, board=community cards (- if none). CALL_OR_CHECK=check/call; RAISE chips_to_add=extra.\n");
         return sb.toString();
     }
-
+//已学习，用于拼接场上信息
     /**
      * 每人一段：昵称,后手,本街注,标记；| 分隔。D=庄 F=弃 A=全下 *=行动者。
      */
@@ -304,7 +307,7 @@ public class DpLlmNpcDecisionService {
         }
         return sb.toString();
     }
-
+//已学习，获取LLM返回结果并打包npc决策格式的数据结构
     private DpNpcEngine.BotAction parseModelReply(String raw) {
         if (raw == null || raw.isBlank()) {
             return null;
@@ -338,7 +341,7 @@ public class DpLlmNpcDecisionService {
             return null;
         }
     }
-
+//已学习，简单离线决策，有钱直接跟或者过牌，没钱直接弃
     private static DpNpcEngine.BotAction fallback(DpRoom room, DpPlayer bot) {
         int callAmount = Math.max(0, room.getCurrentBetToCall() - bot.getBet());
         if (callAmount <= 0) {
@@ -349,7 +352,7 @@ public class DpLlmNpcDecisionService {
         }
         return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.FOLD, 0);
     }
-
+//已学习，LLM决策修正
     private static DpNpcEngine.BotAction normalizeAndClamp(DpRoom room, DpPlayer bot, DpNpcEngine.BotAction a) {
         int callAmount = Math.max(0, room.getCurrentBetToCall() - bot.getBet());
         int chips = bot.getChips();

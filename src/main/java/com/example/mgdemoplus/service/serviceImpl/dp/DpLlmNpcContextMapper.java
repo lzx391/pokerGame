@@ -54,7 +54,7 @@ public final class DpLlmNpcContextMapper {
         String multi = summarizeMultiway(ctx.multiwayVillains);
         String counter = summarizeCounter(ctx.counterStrategy);
 
-        return new LlmNpcGameContext(
+        return new LlmNpcGameContext(//参数传入
                 st,
                 pot,
                 callAmount,

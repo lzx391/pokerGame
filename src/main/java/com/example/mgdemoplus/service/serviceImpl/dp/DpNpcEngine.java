@@ -2326,7 +2326,7 @@ public final class DpNpcEngine {
         TablePosition position = getTablePosition(room, bot);
         Random random = buildHandRandom(room, bot);
         DpUtilSmartContext ctx = buildSmartContext(room, bot, strength, stage, callAmount, NpcDifficulty.PRO, random);
-        return DpLlmNpcContextMapper.map(room, bot, ctx, stage, callAmount, strength, position);
+        return DpLlmNpcContextMapper.map(room, bot, ctx, stage, callAmount, strength, position);//DNCMapper->new LlmNpcGameContext->
     }
 
     private static BotAction decideBotAction(DpRoom room, DpPlayer bot, BotType type) {
