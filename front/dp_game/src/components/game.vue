@@ -2,645 +2,155 @@
   <div class="game"
        style="padding:10px; max-width:800px; margin:0 auto; font-family:sans-serif; background:#f0f2f5; min-height:100vh;">
 
-    <!-- 顶部信息栏 -->
-    <div
-        style="background:#fff; padding:15px; border-radius:10px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 5px rgba(0,0,0,0.1); margin-bottom:15px;">
-      <div>
-        <div style="font-size:18px; font-weight:bold;">
-          房间: {{ roomId }} | 阶段: <span style="color:#1890ff;">{{ stageCN }}</span>
-        </div>
-        <div style="font-size:14px; color:#666;">
-          底池: <span style="color:#f5222d; font-weight:bold;">{{ pot }}</span>
-          | 当前跟注额: <span style="font-weight:bold;">{{ currentBetToCall }}</span>
-        </div>
-      </div>
-      <div style="display:flex; gap:8px;">
-        <button @click="showHandRankModal = true"
-                style="background:#1890ff; color:#fff; border:none; padding:8px 15px; border-radius:5px; cursor:pointer; font-size:13px;">
-          牌型说明
-        </button>
-        <button
-            v-if="spectators && spectators.length > 0"
-            @click="showSpectatorModal = true"
-            style="background:#13c2c2; color:#fff; border:none; padding:8px 10px; border-radius:5px; cursor:pointer; font-size:12px;">
-          观众席（{{ spectators.length }}）
-        </button>
-        <button @click="exitGame"
-                style="background:#ff4d4f; color:#fff; border:none; padding:8px 15px; border-radius:5px; cursor:pointer;">
-          退出对局
-        </button>
-      </div>
-    </div>
+    <game-top-bar
+        :room-id="roomId"
+        :stage-label="stageCN"
+        :pot="pot"
+        :current-bet-to-call="currentBetToCall"
+        :spectator-count="spectators.length"
+        @show-hand-rank="showHandRankModal = true"
+        @show-spectators="showSpectatorModal = true"
+        @exit="exitGame"
+    />
 
-    <!-- 牌型说明弹窗 -->
-    <div v-if="showHandRankModal" class="hand-rank-modal-mask" @click="showHandRankModal = false">
-      <div class="hand-rank-modal" @click.stop>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-          <span style="font-size:18px; font-weight:bold;">牌型大小参考（从大到小）</span>
-          <button @click="showHandRankModal = false"
-                  style="background:#d9d9d9; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; font-size:16px; line-height:1;">×</button>
-        </div>
-        <div class="hand-rank-list">
-          <div v-for="(item, idx) in handRankReference" :key="idx" class="hand-rank-item">
-            <span class="hand-rank-num">{{ idx + 1 }}</span>
-            <span class="hand-rank-name">{{ item.name }}</span>
-            <div class="hand-rank-cards">
-              <div v-for="c in item.cards" :key="c" :class="getCardClass(c)" class="hand-rank-card">
-                {{ getCardDisplay(c) }}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <game-hand-rank-modal
+        :visible="showHandRankModal"
+        :items="handRankReference"
+        @close="showHandRankModal = false"
+    />
 
-    <!-- 观众席弹窗 -->
-    <div v-if="showSpectatorModal" class="hand-rank-modal-mask" @click="showSpectatorModal = false">
-      <div class="hand-rank-modal" @click.stop>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-          <span style="font-size:18px; font-weight:bold;">观众席名单</span>
-          <button @click="showSpectatorModal = false"
-                  style="background:#d9d9d9; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; font-size:16px; line-height:1;">×</button>
-        </div>
-        <div v-if="!spectators || spectators.length === 0" style="font-size:13px; color:#999;">
-          当前没有观众。
-        </div>
-        <ul v-else style="list-style:none; padding:0; margin:0;">
-          <li v-for="name in spectators" :key="name"
-              style="padding:6px 0; border-bottom:1px solid #f0f0f0; font-size:14px; color:#333;">
-            {{ name }}
-          </li>
-        </ul>
-      </div>
-    </div>
+    <game-spectator-modal
+        :visible="showSpectatorModal"
+        :spectators="spectators"
+        @close="showSpectatorModal = false"
+    />
 
-    <!-- 房主神器弹窗 -->
-    <div v-if="showOwnerToolModal" class="hand-rank-modal-mask" @click="closeOwnerToolPanel">
-      <div class="hand-rank-modal" @click.stop>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-          <span style="font-size:18px; font-weight:bold;">房主神器</span>
-          <button @click="closeOwnerToolPanel"
-                  style="background:#d9d9d9; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; font-size:16px; line-height:1;">×
-          </button>
-        </div>
+    <game-owner-tool-modal
+        :visible="showOwnerToolModal"
+        :owner-tool-type.sync="ownerToolType"
+        :owner-action-target.sync="ownerActionTarget"
+        :owner-action-players="ownerActionPlayers"
+        :demo-bot-adding="demoBotAdding"
+        :demo-bot-added-tip="demoBotAddedTip"
+        :maniac-bot-adding="maniacBotAdding"
+        :maniac-bot-added-tip="maniacBotAddedTip"
+        :tag-bot-adding="tagBotAdding"
+        :tag-bot-added-tip="tagBotAddedTip"
+        :shark-bot-adding="sharkBotAdding"
+        :shark-bot-added-tip="sharkBotAddedTip"
+        :llm-bot-adding="llmBotAdding"
+        :llm-bot-added-tip="llmBotAddedTip"
+        @close="closeOwnerToolPanel"
+        @add-demo-bot="addDemoBot"
+        @add-maniac-bot="addManiacBot"
+        @add-tag-bot="addTagBot"
+        @add-shark-bot="addSharkBot"
+        @add-llm-bot="addLlmBot"
+        @transfer-owner="doTransferOwner"
+        @kick-player="doKickPlayer"
+    />
 
-        <div style="margin-bottom:12px; font-size:13px; color:#666;">
-          仅显示当前在本局中的玩家（不含房主与僵尸位）。
-        </div>
+    <game-spectator-prepare-banner
+        v-if="showSpectatorPrepareBlock"
+        :next-hand-ready="nextHandReady"
+        @ready-next-hand="readyNextHand"
+    />
 
-        <!-- 简单演示：添加机器人玩家到下一局 -->
-        <div style="margin-bottom:12px; padding:8px; border-radius:6px; background:#fff7e6; border:1px dashed #ffa940;">
-          <div style="font-size:13px; font-weight:bold; color:#d46b08; margin-bottom:4px;">
-            实验功能：加入演示 NPC
-          </div>
-          <div style="font-size:12px; color:#8c8c8c; margin-bottom:6px;">
-            你可以在下一局加入不同风格的机器人玩家，当前支持：
-            <span style="font-weight:bold;">BOT_Fish</span>（简单鱼式，偏被动，适合新手练习）、
-            <span style="font-weight:bold;">BOT_Maniac</span>（疯子风格，喜欢乱加注）、
-            <span style="font-weight:bold;">BOT_Tag</span>（紧凶风格，范围较紧、价值下注为主）、
-            <span style="font-weight:bold;">BOT_Shark</span>（会简单“读对手”的聪明型）、
-            <span style="font-weight:bold;">BOT_LLM</span>（大模型决策，需在服务端配置方舟密钥与接入点）。
-          </div>
-          <div style="display:flex; flex-direction:column; gap:6px;">
-            <div>
-              <button
-                  @click="addDemoBot"
-                  :disabled="demoBotAdding"
-                  style="padding:6px 10px; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;
-                         background:#faad14; color:#fff; margin-right:8px;">
-                {{ demoBotAdding ? '正在添加 BOT_Fish...' : '添加 BOT_Fish 到下一局' }}
-              </button>
-              <span v-if="demoBotAddedTip" style="font-size:12px; color:#595959;">
-                {{ demoBotAddedTip }}
-              </span>
-            </div>
-            <div>
-              <button
-                  @click="addManiacBot"
-                  :disabled="maniacBotAdding"
-                  style="padding:6px 10px; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;
-                         background:#f5222d; color:#fff; margin-right:8px;">
-                {{ maniacBotAdding ? '正在添加 BOT_Maniac...' : '添加疯子 BOT_Maniac 到下一局' }}
-              </button>
-              <span v-if="maniacBotAddedTip" style="font-size:12px; color:#595959;">
-                {{ maniacBotAddedTip }}
-              </span>
-            </div>
-            <div>
-              <button
-                  @click="addTagBot"
-                  :disabled="tagBotAdding"
-                  style="padding:6px 10px; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;
-                         background:#389e0d; color:#fff; margin-right:8px;">
-                {{ tagBotAdding ? '正在添加 BOT_Tag...' : '添加紧凶 BOT_Tag 到下一局' }}
-              </button>
-              <span v-if="tagBotAddedTip" style="font-size:12px; color:#595959;">
-                {{ tagBotAddedTip }}
-              </span>
-            </div>
-            <div>
-              <button
-                  @click="addSharkBot"
-                  :disabled="sharkBotAdding"
-                  style="padding:6px 10px; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;
-                         background:#722ed1; color:#fff; margin-right:8px;">
-                {{ sharkBotAdding ? '正在添加 BOT_Shark...' : '添加聪明 BOT_Shark 到下一局' }}
-              </button>
-              <span v-if="sharkBotAddedTip" style="font-size:12px; color:#595959;">
-                {{ sharkBotAddedTip }}
-              </span>
-            </div>
-            <div>
-              <button
-                  @click="addLlmBot"
-                  :disabled="llmBotAdding"
-                  style="padding:6px 10px; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;
-                         background:#08979c; color:#fff; margin-right:8px;">
-                {{ llmBotAdding ? '正在添加 BOT_LLM...' : '添加大模型 BOT_LLM 到下一局' }}
-              </button>
-              <span v-if="llmBotAddedTip" style="font-size:12px; color:#595959;">
-                {{ llmBotAddedTip }}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 操作类型选择 -->
-        <div style="display:flex; gap:8px; margin-bottom:12px;">
-          <button
-              @click="ownerToolType = 'transfer'"
-              :style="{
-                padding: '6px 10px',
-                borderRadius: '4px',
-                border: '1px solid ' + (ownerToolType === 'transfer' ? '#722ed1' : '#d9d9d9'),
-                background: ownerToolType === 'transfer' ? '#f9f0ff' : '#fff',
-                color: ownerToolType === 'transfer' ? '#722ed1' : '#333',
-                cursor: 'pointer',
-                fontSize: '12px',
-                fontWeight: 'bold',
-              }"
-          >
-            移交房主
-          </button>
-          <button
-              @click="ownerToolType = 'kick'"
-              :style="{
-                padding: '6px 10px',
-                borderRadius: '4px',
-                border: '1px solid ' + (ownerToolType === 'kick' ? '#ff4d4f' : '#d9d9d9'),
-                background: ownerToolType === 'kick' ? '#fff1f0' : '#fff',
-                color: ownerToolType === 'kick' ? '#ff4d4f' : '#333',
-                cursor: 'pointer',
-                fontSize: '12px',
-                fontWeight: 'bold',
-              }"
-          >
-            踢出至观众席
-          </button>
-        </div>
-
-        <!-- 当前操作说明 -->
-        <div style="margin-bottom:10px; font-size:13px; color:#333;">
-          <span v-if="ownerToolType === 'transfer'">选择一名玩家成为新的房主：</span>
-          <span v-else>选择一名玩家踢出本局并移至观众席：</span>
-        </div>
-
-        <!-- 玩家选择 -->
-        <div v-if="ownerActionPlayers.length === 0" style="font-size:13px; color:#999;">
-          当前没有可操作的玩家。
-        </div>
-        <div v-else style="margin-bottom:12px;">
-          <select v-model="ownerActionTarget"
-                  style="width:100%; padding:6px 8px; border-radius:4px; border:1px solid #d9d9d9; font-size:13px;">
-            <option disabled value="">请选择玩家</option>
-            <option v-for="p in ownerActionPlayers"
-                    :key="'owner-tool-' + p.nickname"
-                    :value="p.nickname">
-              {{ p.nickname }}
-            </option>
-          </select>
-        </div>
-
-        <!-- 底部操作按钮 -->
-        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:4px;">
-          <button
-              @click="closeOwnerToolPanel"
-              style="padding:6px 12px; border-radius:4px; border:1px solid #d9d9d9; background:#fff; cursor:pointer; font-size:12px;">
-            取消
-          </button>
-          <button
-              v-if="ownerToolType === 'transfer'"
-              @click="doTransferOwner"
-              :disabled="!ownerActionTarget"
-              :style="{
-                padding: '6px 12px',
-                borderRadius: '4px',
-                border: 'none',
-                cursor: ownerActionTarget ? 'pointer' : 'not-allowed',
-                fontSize: '12px',
-                fontWeight: 'bold',
-                background: ownerActionTarget ? '#722ed1' : '#d9d9d9',
-                color: '#fff'
-              }"
-          >
-            确认移交
-          </button>
-          <button
-              v-else
-              @click="doKickPlayer"
-              :disabled="!ownerActionTarget"
-              :style="{
-                padding: '6px 12px',
-                borderRadius: '4px',
-                border: 'none',
-                cursor: ownerActionTarget ? 'pointer' : 'not-allowed',
-                fontSize: '12px',
-                fontWeight: 'bold',
-                background: ownerActionTarget ? '#ff4d4f' : '#d9d9d9',
-                color: '#fff'
-              }"
-          >
-            确认踢出
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ========== 游戏进行中 ========== -->
-
-    <!-- 观战提示 + 下一局加入按钮：观众 或 本手已退出的僵尸位 都显示（退了又进来的人也能立刻准备下一局） -->
-    <div v-if="showSpectatorPrepareBlock"
-         style="background:#fff; padding:10px 15px; border-radius:8px; margin-bottom:15px; text-align:center; font-size:13px;">
-      <div style="margin-bottom:8px;">
-        你当前正在<span style="color:#1890ff;">旁观本局</span>，不会参与下注和结算。
-      </div>
-      <button
-          @click="readyNextHand"
-          :disabled="nextHandReady"
-          style="padding:6px 14px; border:none; border-radius:4px; cursor:pointer; background:#52c41a; color:#fff; font-size:13px;"
-      >
-        {{ nextHandReady ? '已报名下一局，等待房主重新发牌' : '准备在下一局加入对局' }}
-      </button>
-    </div>
-
-    <!-- 公共牌（带翻转动画） -->
-    <div style="display:flex; gap:8px; justify-content:center; margin:20px 0;">
-      <div v-for="(c, cIdx) in communityCards" :key="c + cIdx" class="card-flip-wrapper">
-        <div class="card-flip-inner" :class="{ flipped: communityCardsFlipState[cIdx] }">
-          <div class="card-face card-back card-base bg-gray">?</div>
-          <div class="card-face card-front" :class="getCardClass(c)">
-            {{ getCardDisplay(c) }}
-          </div>
-        </div>
-      </div>
-      <div v-for="i in (5 - communityCards.length)" :key="'e' + i" class="card-base bg-gray">?</div>
-    </div>
+    <game-community-cards
+        :community-cards="communityCards"
+        :flip-state="communityCardsFlipState"
+    />
 
     <!-- 玩家列表：离线位只保留座位与 D/SB/BB 顺序，仅显示「该玩家已离线」 -->
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
-      <div
+      <game-player-card
           v-for="(p, i) in players"
           :key="(p.leftThisHand ? 'offline-' + i : p.nickname)"
-          :class="{ 'player-card--win-streak': !p.leftThisHand && (p.winStreak || 0) >= 2 }"
-          :style="getPlayerBoxStyle(p, i)"
-          @click="!p.leftThisHand && onPlayerCardClick(p.nickname)"
-      >
-        <!-- 标记（庄家/盲注顺序保留，便于看行动顺序） -->
-        <div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:5px; align-items:center;">
-            <span v-if="p.dealer"
-                  style="background:#faad14; color:#fff; padding:1px 5px; border-radius:3px; font-size:12px;">D</span>
-          <span v-if="p.blind === 1"
-                style="background:#722ed1; color:#fff; padding:1px 5px; border-radius:3px; font-size:12px;">SB</span>
-          <span v-if="p.blind === 2"
-                style="background:#52c41a; color:#fff; padding:1px 5px; border-radius:3px; font-size:12px;">BB</span>
-          <span v-if="!p.leftThisHand && (p.winStreak || 0) >= 2"
-                class="win-streak-badge"
-                :title="'已连续赢下 ' + (p.winStreak || 0) + ' 手'">
-            <span class="win-streak-badge__emoji" aria-hidden="true">🔥</span>
-            <span class="win-streak-badge__text">{{ p.winStreak }}连胜</span>
-          </span>
-        </div>
-
-        <!-- 离线位：不显示任何个人信息，仅显示「该玩家已离线」 -->
-        <template v-if="p.leftThisHand">
-          <div style="font-weight:bold; color:#8c8c8c; font-size:14px;">
-            该玩家已离线
-          </div>
-          <div style="margin-top:8px; font-size:12px; color:#bfbfbf;">
-            座位保留至本局结束，行动顺序不变
-          </div>
-        </template>
-
-        <!-- 正常玩家：名字、筹码、手牌、状态 -->
-        <template v-else>
-          <!-- 名字 -->
-          <div style="font-weight:bold;">
-            {{ p.nickname }}
-            <span v-if="isMe(p.nickname)" style="color:#1890ff;">(我)</span>
-          </div>
-          <!-- 筹码 -->
-          <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 4px;">
-            <div
-                style="font-size: 13px; color: #555; display: flex; align-items: center; justify-content: center; background: #f8f9fa; border-radius: 4px; padding: 2px 0;">
-              <span style="color: #8c8c8c; margin-right: 4px;">剩余积分:</span>
-              <span style="font-weight: 800; font-family: monospace; color: #2f3542;">{{ p.chips }}</span>
-            </div>
-
-            <div
-                style="background: #fff2f0; border: 1px solid #ffccc7; border-radius: 6px; padding: 4px 0; text-align: center;">
-              <div
-                  style="font-size: 11px; color: #ff4d4f; text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px;">
-                本轮积分
-              </div>
-              <div style="font-size: 16px; color: #cf1322; font-weight: 900; font-family: 'Arial Black', sans-serif;">
-                {{ p.bet }}
-              </div>
-            </div>
-          </div>
-          <!-- 手牌：
-               - 自己始终能看
-               - 房主开启「一键看穿」后，可在任意阶段看到所有玩家底牌（仅本机显示）
-               - 否则，摊牌/结算等待阶段只有未弃牌的人亮牌，弃牌的人依然盖牌 -->
-          <div style="display:flex; gap:5px; margin:8px 0; justify-content:center;">
-            <template
-                v-if="isMe(p.nickname)
-                  || (isOwner && ownerRevealAll && p.holeCards && p.holeCards.length > 0)
-                  || ((stage === 'showdown' || stage === 'settled') && !p.fold)">
-              <div
-                  v-for="(c, ci) in p.holeCards"
-                  :key="'h' + ci"
-                  :class="[getCardClass(c), 'hole-card-flip']"
-                  style="width:36px; height:52px; font-size:13px;">
-                {{ getCardDisplay(c) }}
-              </div>
-            </template>
-            <template v-else-if="p.holeCards && p.holeCards.length > 0">
-              <div v-for="ci in p.holeCards.length" :key="'hb' + ci" class="card-base bg-gray"
-                   style="width:36px; height:52px; font-size:13px;">?
-              </div>
-            </template>
-          </div>
-
-          <!-- 牌型显示：文字 + 最大牌型的 5 张牌
-               - 自己始终能看
-               - 房主开启「一键看穿」后，可在任意阶段看到所有玩家牌型
-               - 或在摊牌/结算阶段给未弃牌玩家展示 -->
-          <div
-              v-if="communityCards.length >= 3
-                && communityCardsFlipComplete
-                && (isMe(p.nickname)
-                    || (isOwner && ownerRevealAll && p.holeCards && p.holeCards.length > 0)
-                    || ((stage === 'showdown' || stage === 'settled') && !p.fold))"
-               style="margin-top:4px; text-align:center;">
-            <!-- 自己 或 房主开启看穿时看到的牌型（统一用蓝色样式） -->
-            <template v-if="isMe(p.nickname) || (isOwner && ownerRevealAll && p.holeCards && p.holeCards.length > 0)">
-                <span
-                    style="background:#e6f7ff; color:#1890ff; padding:3px 10px; border-radius:4px; font-weight:bold; font-size:12px; display:inline-block;">
-                  {{ getHandRank(p.holeCards, communityCards) }}
-                </span>
-                <div v-if="p.bestHandCards && p.bestHandCards.length === 5" class="best-hand-cards"
-                     style="display:flex; gap:4px; justify-content:center; margin-top:6px; flex-wrap:wrap;">
-                  <div v-for="(c, ci) in p.bestHandCards" :key="'best'+ci"
-                       :class="[getCardClass(c), 'best-hand-card']"
-                       style="width:32px; height:46px; font-size:11px; display:inline-flex; align-items:center; justify-content:center; border-radius:4px;">
-                    {{ getCardDisplay(c) }}
-                  </div>
-                </div>
-            </template>
-            <template v-else-if="(stage === 'showdown' || stage === 'settled') && !p.fold">
-                <span
-                    style="background:#f6ffed; color:#52c41a; padding:3px 10px; border-radius:4px; font-weight:bold; font-size:12px; display:inline-block;">
-                  {{ getHandRank(p.holeCards, communityCards) }}
-                </span>
-                <div v-if="p.bestHandCards && p.bestHandCards.length === 5" class="best-hand-cards"
-                     style="display:flex; gap:4px; justify-content:center; margin-top:6px; flex-wrap:wrap;">
-                  <div v-for="(c, ci) in p.bestHandCards" :key="'best'+ci"
-                       :class="[getCardClass(c), 'best-hand-card']"
-                       style="width:32px; height:46px; font-size:11px; display:inline-flex; align-items:center; justify-content:center; border-radius:4px;">
-                    {{ getCardDisplay(c) }}
-                  </div>
-                </div>
-            </template>
-          </div>
-
-          <!-- 状态 -->
-          <div style="font-weight:bold; font-size:12px; margin-top:4px;"
-               :style="{ color: p.fold ? '#ff4d4f' : (actIndex === i ? '#faad14' : '#52c41a') }">
-            {{ p.fold ? '已弃牌' : (actIndex === i ? '思考中...' : '进行中') }}
-          </div>
-        </template>
-      </div>
+          :player="p"
+          :seat-index="i"
+          :box-style="getPlayerBoxStyle(p, i)"
+          :act-index="actIndex"
+          :stage="stage"
+          :community-cards="communityCards"
+          :community-cards-flip-complete="communityCardsFlipComplete"
+          :is-owner="isOwner"
+          :owner-reveal-all="ownerRevealAll"
+          :my-nickname="user ? user.nickname : ''"
+          @card-click="onPlayerCardClick"
+      />
     </div>
 
-    <!-- 结算后准备 & 补码区域 -->
-    <div v-if="inSettledStage"
-         style="margin-top:15px; background:#fff; padding:12px; border-radius:8px; box-shadow:0 1px 4px rgba(0,0,0,0.06);">
-      <div style="font-size:14px; font-weight:bold; text-align:center; margin-bottom:8px; color:#333;">
-        本局已结算，请准备下一局（约30秒后未准备的玩家将被移到观众席）
-      </div>
-      <div style="display:flex; justify-content:center; align-items:center; gap:10px; margin-bottom:8px;">
-        <div
-            style="display:flex; align-items:center; justify-content:center;
-                   width:32px; height:32px;
-                   background:#ffffff;
-                   border:2px solid #000000;
-                   border-radius:50%;
-                   flex-shrink:0; box-sizing:border-box;">
-          <span
-              style="color:#ff4d4f; font-size:14px; font-weight:900; font-family:'Arial Black', sans-serif; line-height:1;">
-            {{ readyTimeLeft }}
-          </span>
-        </div>
-        <span style="font-size:12px; color:#999;">准备倒计时</span>
-      </div>
-      <div style="text-align:center; font-size:13px; color:#666; margin-bottom:8px;">
-        当前积分：<span style="font-weight:bold; color:#1890ff;">{{ myChips }}</span>
-      </div>
-      <div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
-        <button
-            @click="toggleReady"
-            :disabled="myChips < bigBlind"
-            style="padding:8px 16px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;
-                   background: #52c41a; color:#fff;">
-          {{ myReady ? '取消准备' : (myChips >= bigBlind ? '准备下一局' : ('积分不足大盲(' + bigBlind + ')，无法准备')) }}
-        </button>
-        <button
-            v-if="myChips < bigBlind"
-            @click="rebuy"
-            style="padding:8px 16px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;
-                   background:#fa8c16; color:#fff;">
-          补码到初始积分
-        </button>
-      </div>
-    </div>
+    <game-settled-prepare-panel
+        v-if="inSettledStage"
+        :ready-time-left="readyTimeLeft"
+        :my-chips="myChips"
+        :big-blind="bigBlind"
+        :my-ready="myReady"
+        @toggle-ready="toggleReady"
+        @rebuy="rebuy"
+    />
 
-    <!-- ===== 我的行动区 ===== -->
-    <div v-if="isMyTurn"
-         style="margin-top:20px; background:#fff; padding:15px; border-radius:10px; box-shadow:0 -2px 10px rgba(0,0,0,0.05);">
-      <div style="text-align:center; color:#faad14; font-weight:bold; margin-bottom:10px;">
-        轮到你行动了（30秒超时自动弃牌）
-      </div>
-      <div style="font-size:13px; color:#666; text-align:center; margin-bottom:10px;">
-        当前跟注额: {{ currentBetToCall }} | 你已下注: {{ myBet }} | 还需跟: {{ callAmount }}
-      </div>
+    <game-action-panel
+        v-if="isMyTurn"
+        :time-left="timeLeft"
+        :current-bet-to-call="currentBetToCall"
+        :my-bet="myBet"
+        :call-amount="callAmount"
+        :small-blind="smallBlind"
+        :big-blind="bigBlind"
+        :min-raise="minRaise"
+        :my-chips="myChips"
+        :raise-amount.sync="raiseAmount"
+        @call="doCall"
+        @raise="doRaise"
+        @all-in="doAllIn"
+        @fold="doFold"
+    />
 
-      <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center; align-items:center;">
-
-        <div v-if="players[actIndex]?.nickname === user.nickname"
-             style="display: flex; align-items: center; justify-content: center;
-                width: 40px; height: 40px;
-                background: #ffffff;
-                border: 2px solid #000000;
-                border-radius: 50%;
-                flex-shrink: 0;
-                box-sizing: border-box;">
-      <span
-          style="color: #ff4d4f; font-size: 18px; font-weight: 900; font-family: 'Arial Black', sans-serif; line-height: 1;">
-        {{ timeLeft }}
-      </span>
-        </div>
-
-        <button @click="doCall"
-                style="height: 40px; padding: 0 18px; background: #1890ff; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; display: flex; align-items: center;">
-          {{ callAmount > 0 ? '跟注 ' + callAmount : '过牌' }}
-        </button>
-
-        <div style="display:flex; align-items:center; gap:5px; height: 40px;">
-          <button @click="raiseAmount += smallBlind"
-                  style="height: 32px; width: 32px; padding: 0; background: #fff; border: 1px solid #f57f17; color: #f57f17; border-radius: 4px; cursor: pointer; font-weight: bold;">
-            +{{ smallBlind }}
-          </button>
-          <button @click="raiseAmount += bigBlind"
-                  style="height: 32px; width: 32px; padding: 0; background: #fff; border: 1px solid #f57f17; color: #f57f17; border-radius: 4px; cursor: pointer; font-weight: bold;">
-            +{{ bigBlind }}
-          </button>
-          <input type="number" v-model.number="raiseAmount" :min="minRaise" :max="myChips"
-                 style="width: 60px; height: 32px; padding: 0; border: 1px solid #d9d9d9; border-radius: 4px; text-align: center;"/>
-          <button @click="raiseAmount -= bigBlind"
-                  style="height: 32px; width: 32px; padding: 0; background: #fff; border: 1px solid #f57f17; color: #f57f17; border-radius: 4px; cursor: pointer; font-weight: bold;">
-            -{{ bigBlind }}
-          </button>
-          <button @click="raiseAmount -= smallBlind"
-                  style="height: 32px; width: 32px; padding: 0; background: #fff; border: 1px solid #f57f17; color: #f57f17; border-radius: 4px; cursor: pointer; font-weight: bold;">
-            -{{ smallBlind }}
-          </button>
-        </div>
-
-        <button @click="doRaise" :disabled="raiseAmount < minRaise"
-                style="height: 40px; padding: 0 14px; background: #f57f17; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
-          加注
-        </button>
-
-        <button @click="doAllIn"
-                style="height: 40px; padding: 0 14px; background: #c62828; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
-          All-In ({{ myChips }})
-        </button>
-
-        <button @click="doFold"
-                style="height: 40px; padding: 0 18px; background: #ff4d4f; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
-          弃牌
-        </button>
-      </div>
-    </div>
-
-    <!-- ===== 房主控制区 ===== -->
-    <div v-if="isOwner" style="margin-top:20px; background:#fff; padding:15px; border-radius:10px;">
-      <div style="font-size:14px; font-weight:bold; color:#333; margin-bottom:10px; text-align:center;">房主有神器</div>
-
-      <div style="display:flex; justify-content:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
-        <button
-            @click="openOwnerToolPanel"
-            style="padding:8px 16px; border:none; border-radius:6px; cursor:pointer; font-size:13px; font-weight:bold;
-                   background: #722ed1; color:#fff; box-shadow:0 2px 6px rgba(114,46,209,0.35);">
-          打开房主神器
-        </button>
-        <button
-            @click="ownerRevealAll = !ownerRevealAll"
-            style="padding:8px 16px; border:none; border-radius:6px; cursor:pointer; font-size:13px; font-weight:bold;
-                   background: #fa8c16; color:#fff; box-shadow:0 2px 6px rgba(250,140,22,0.35);">
-          {{ ownerRevealAll ? '关闭看穿底牌' : '一键看穿所有底牌' }}
-        </button>
-      </div>
-
-      <div style="font-size:12px; color:#999; text-align:center; margin-bottom:6px;">
-        「一键看穿」仅你自己可见，NPC 和其他真人不会知道你看到了他们的牌。
-      </div>
-
-      <!-- showdown 结算：按池分配 -->
-      <div v-if="stage === 'showdown'" style="text-align:center; margin-bottom:10px;">
-        <div style="color:#f5222d; font-weight:bold; margin-bottom:8px;">
-          摊牌阶段 - 请为每个池选择赢家
-        </div>
-
-        <!-- 有边池数据时：按池分别选赢家 -->
-        <template v-if="pots.length > 0">
-          <div v-for="(potItem, pi) in pots" :key="'pot' + pi"
-               style="background:#fafafa; border:1px solid #e8e8e8; border-radius:8px; padding:10px; margin-bottom:10px; text-align:left;">
-            <div style="font-weight:bold; margin-bottom:6px; color:#333;">
-              {{ pi === 0 ? '主池' : '边池 ' + pi }} - 金额: <span style="color:#f5222d;">{{ potItem.amount }}</span>
-            </div>
-            <div style="font-size:12px; color:#999; margin-bottom:6px;">
-              有资格的玩家: {{ potItem.eligiblePlayers.join(', ') }}
-            </div>
-            <div style="display:flex; flex-wrap:wrap; gap:6px;">
-              <button
-                  v-for="name in potItem.eligiblePlayers"
-                  :key="'pw' + pi + name"
-                  @click="togglePotWinner(pi, name)"
-                  :style="{
-                    padding: '5px 12px',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    border: isPotWinner(pi, name) ? '2px solid #52c41a' : '1px solid #d9d9d9',
-                    background: isPotWinner(pi, name) ? '#f6ffed' : '#fff',
-                    color: isPotWinner(pi, name) ? '#52c41a' : '#333',
-                    fontWeight: isPotWinner(pi, name) ? 'bold' : 'normal'
-                  }"
-              >
-                {{ name }} {{ isPotWinner(pi, name) ? '(已选)' : '' }}
-              </button>
-            </div>
-          </div>
-          <button
-              @click="confirmPotJudge"
-              :disabled="!allPotsHaveWinners"
-              style="width:100%; padding:12px; background:#52c41a; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;"
-              :style="{ opacity: allPotsHaveWinners ? 1 : 0.4 }"
-          >
-            确认按池结算
-          </button>
-        </template>
-
-        <!-- 没有边池数据（后端未更新）：退回旧的简单模式 -->
-        <template v-else>
-          <div style="font-size:13px; color:#666; margin-bottom:8px;">
-            点击上方玩家卡片选择赢家（可多选平分）
-          </div>
-          <div v-if="selectedWinners.length > 0" style="font-size:13px; color:#333; margin-bottom:8px;">
-            已选: {{ selectedWinners.join(', ') }}
-          </div>
-          <button
-              @click="confirmJudgeWin"
-              :disabled="selectedWinners.length === 0"
-              style="width:100%; padding:12px; background:#52c41a; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold;"
-              :style="{ opacity: selectedWinners.length === 0 ? 0.4 : 1 }"
-          >
-            确认结算（底池 {{ pot }} 分给 {{ selectedWinners.length }} 人）
-          </button>
-        </template>
-      </div>
-
-      <div class="actions" style="margin-top: 20px; text-align: center; font-size:12px; color:#999;">
-        摊牌后系统会自动结算并在准备阶段结束后开启下一局，无需手动点击“重新发牌”
-      </div>
-    </div>
-
+    <game-owner-panel
+        v-if="isOwner"
+        :owner-reveal-all.sync="ownerRevealAll"
+        :stage="stage"
+        :pots="pots"
+        :pot="pot"
+        :pot-winners="potWinners"
+        :selected-winners="selectedWinners"
+        :all-pots-have-winners="allPotsHaveWinners"
+        @open-owner-tools="openOwnerToolPanel"
+        @toggle-pot-winner="onTogglePotWinnerPayload"
+        @confirm-pot-judge="confirmPotJudge"
+        @confirm-judge-win="confirmJudgeWin"
+    />
 
   </div>
 </template>
 
 <script>
+import GamePlayerCard from './GamePlayerCard.vue'
+import GameTopBar from './GameTopBar.vue'
+import GameHandRankModal from './GameHandRankModal.vue'
+import GameSpectatorModal from './GameSpectatorModal.vue'
+import GameOwnerToolModal from './GameOwnerToolModal.vue'
+import GameSpectatorPrepareBanner from './GameSpectatorPrepareBanner.vue'
+import GameCommunityCards from './GameCommunityCards.vue'
+import GameSettledPreparePanel from './GameSettledPreparePanel.vue'
+import GameActionPanel from './GameActionPanel.vue'
+import GameOwnerPanel from './GameOwnerPanel.vue'
+import { HAND_RANK_REFERENCE } from '../constants/dpGameHandRankReference'
+
 export default {
+  components: {
+    GamePlayerCard,
+    GameTopBar,
+    GameHandRankModal,
+    GameSpectatorModal,
+    GameOwnerToolModal,
+    GameSpectatorPrepareBanner,
+    GameCommunityCards,
+    GameSettledPreparePanel,
+    GameActionPanel,
+    GameOwnerPanel
+  },
   data() {
     return {
       roomId: '',
@@ -690,18 +200,6 @@ export default {
       // 牌型说明弹窗
       showHandRankModal: false,
       showSpectatorModal: false,
-      handRankReference: [
-        { name: '皇家同花顺', cards: ['hearts_A', 'hearts_K', 'hearts_Q', 'hearts_J', 'hearts_10'] },
-        { name: '同花顺', cards: ['hearts_9', 'hearts_8', 'hearts_7', 'hearts_6', 'hearts_5'] },
-        { name: '四条', cards: ['hearts_A', 'spades_A', 'diamonds_A', 'clubs_A', 'hearts_2'] },
-        { name: '葫芦', cards: ['hearts_A', 'spades_A', 'diamonds_A', 'hearts_K', 'spades_K'] },
-        { name: '同花', cards: ['hearts_A', 'hearts_J', 'hearts_9', 'hearts_6', 'hearts_2'] },
-        { name: '顺子', cards: ['hearts_10', 'spades_9', 'diamonds_8', 'clubs_7', 'hearts_6'] },
-        { name: '三条', cards: ['hearts_A', 'spades_A', 'diamonds_A', 'hearts_K', 'clubs_2'] },
-        { name: '两对', cards: ['hearts_A', 'spades_A', 'hearts_K', 'diamonds_K', 'clubs_2'] },
-        { name: '一对', cards: ['hearts_A', 'spades_A', 'hearts_K', 'diamonds_Q', 'clubs_2'] },
-        { name: '高牌', cards: ['hearts_A', 'spades_K', 'diamonds_Q', 'clubs_J', 'hearts_9'] }
-      ],
       // 房主踢人/移交房主弹窗
       showOwnerToolModal: false,
       ownerToolType: 'transfer',  // 'transfer' | 'kick'
@@ -728,6 +226,9 @@ export default {
   },
 
   computed: {
+    handRankReference() {
+      return HAND_RANK_REFERENCE
+    },
     stageCN() {
       var m = {preflop: '翻牌前', flop: '翻牌圈', turn: '转牌圈', river: '河牌圈', showdown: '摊牌结算', settled: '准备下一局'}
       return m[this.stage] || this.stage
@@ -1082,9 +583,8 @@ export default {
       this.$set(this.potWinners, potIndex, winners)
     },
 
-    isPotWinner(potIndex, nickname) {
-      var winners = this.potWinners[potIndex] || []
-      return winners.indexOf(nickname) > -1
+    onTogglePotWinnerPayload(payload) {
+      this.togglePotWinner(payload.potIndex, payload.nickname)
     },
 
     // ---- 按池确认结算 ----
@@ -1401,7 +901,7 @@ export default {
         })(j, 350 * (j - prevLen))
       }
       if (numNew > 0) {
-        var flipDuration = 600
+        var flipDuration = 800
         var lastFlipStart = 350 * (numNew - 1)
         var self = this
         this.communityCardsFlipCompleteTimer = setTimeout(function () {
@@ -1418,23 +918,6 @@ export default {
     // ---- 工具方法 ----
     isMe(nickname) {
       return this.user && this.user.nickname === nickname
-    },
-
-    // 后端牌格式: "hearts_A", "spades_10", "diamonds_K" 等
-    // 只显示数字/字母，颜色靠方块背景区分红黑
-    getCardDisplay(c) {
-      if (!c || !c.includes('_')) return '?'
-      return c.split('_')[1]
-    },
-
-    getCardClass(c) {
-      if (!c || !c.includes('_')) return 'card-base bg-gray'
-      var suit = c.split('_')[0]
-      if (suit === 'hearts') return 'card-base bg-red'
-      if (suit === 'diamonds') return 'card-base bg-blue'
-      if (suit === 'clubs') return 'card-base bg-green'
-      if (suit === 'spades') return 'card-base bg-black'
-      return 'card-base bg-gray'
     },
 
     getPlayerBoxStyle(p, i) {
@@ -1523,547 +1006,7 @@ export default {
         clearInterval(this.readyTimer)
         this.readyTimer = null
       }
-    },
-
-    // ========== 新增：牌型计算方法 ==========
-
-    /**
-     * 计算最大牌型
-     * @param holeCards - 玩家手牌，如 ["hearts_A", "spades_K"]
-     * @param communityCards - 公共牌，如 ["hearts_10", "hearts_J", "hearts_Q", "clubs_2", "diamonds_5"]
-     * @returns 牌型名称，如 "皇家同花顺"、"同花顺"、"四条" 等
-     */
-    getHandRank(holeCards, communityCards) {
-      if (!holeCards || holeCards.length < 2 || !communityCards || communityCards.length < 3) {
-        return '牌不足'
-      }
-
-      // 合并所有牌
-      var allCards = holeCards.concat(communityCards)
-
-      // 解析牌：将 "hearts_A" 转成 { suit: 'hearts', rank: 14 }
-      var rankMap = {
-        '2': 2,
-        '3': 3,
-        '4': 4,
-        '5': 5,
-        '6': 6,
-        '7': 7,
-        '8': 8,
-        '9': 9,
-        '10': 10,
-        'J': 11,
-        'Q': 12,
-        'K': 13,
-        'A': 14
-      }
-      var parsed = []
-      for (var i = 0; i < allCards.length; i++) {
-        var c = allCards[i]
-        var parts = c.split('_')
-        parsed.push({suit: parts[0], rank: rankMap[parts[1]] || 0})
-      }
-
-      // 生成所有5张牌的组合 (C(7,5) = 21种)
-      var combos = this.getCombinations(parsed, 5)
-
-      // 对每种组合评分，取最高分
-      var bestScore = 0
-      var bestName = ''
-
-      for (var j = 0; j < combos.length; j++) {
-        var result = this.evaluateHand(combos[j])
-        if (result.score > bestScore) {
-          bestScore = result.score
-          bestName = result.name
-        }
-      }
-
-      return bestName
-    },
-
-    // 生成组合的辅助函数
-    getCombinations(arr, k) {
-      var result = []
-      var combo = []
-
-      function backtrack(start) {
-        if (combo.length === k) {
-          result.push(combo.slice())
-          return
-        }
-        for (var i = start; i < arr.length; i++) {
-          combo.push(arr[i])
-          backtrack(i + 1)
-          combo.pop()
-        }
-      }
-
-      backtrack(0)
-      return result
-    },
-
-    // 评估5张牌的牌型
-    evaluateHand(cards) {
-      // 复制数组避免修改原数据
-      var cardsCopy = cards.slice()
-      // 按点数排序（降序）
-      cardsCopy.sort(function (a, b) {
-        return b.rank - a.rank
-      })
-
-      var ranks = []
-      var suits = []
-      for (var i = 0; i < cardsCopy.length; i++) {
-        ranks.push(cardsCopy[i].rank)
-        suits.push(cardsCopy[i].suit)
-      }
-
-      // 判断同花
-      var isFlush = true
-      for (var f = 1; f < suits.length; f++) {
-        if (suits[f] !== suits[0]) {
-          isFlush = false
-          break
-        }
-      }
-
-      // 判断顺子
-      var isStraight = false
-      // 普通顺子
-      var uniqueRanks = []
-      for (var u = 0; u < ranks.length; u++) {
-        if (uniqueRanks.indexOf(ranks[u]) === -1) uniqueRanks.push(ranks[u])
-      }
-      if (ranks[0] - ranks[4] === 4 && uniqueRanks.length === 5) {
-        isStraight = true
-      }
-      // A-2-3-4-5 小顺子
-      if (ranks[0] === 14 && ranks[1] === 5 && ranks[2] === 4 && ranks[3] === 3 && ranks[4] === 2) {
-        isStraight = true
-      }
-
-      // 统计点数出现次数
-      var rankCount = {}
-      for (var r = 0; r < ranks.length; r++) {
-        rankCount[ranks[r]] = (rankCount[ranks[r]] || 0) + 1
-      }
-      var counts = []
-      for (var key in rankCount) {
-        counts.push(rankCount[key])
-      }
-      counts.sort(function (a, b) {
-        return b - a
-      })
-
-      // 判断牌型并返回分数
-      // 分数越高越大，方便比较
-
-      // 皇家同花顺
-      if (isFlush && isStraight && ranks[0] === 14 && ranks[1] === 13) {
-        return {score: 10, name: '皇家同花顺'}
-      }
-
-      // 同花顺
-      if (isFlush && isStraight) {
-        return {score: 9, name: '同花顺'}
-      }
-
-      // 四条
-      if (counts[0] === 4) {
-        return {score: 8, name: '四条'}
-      }
-
-      // 葫芦（满堂红）
-      if (counts[0] === 3 && counts[1] === 2) {
-        return {score: 7, name: '葫芦'}
-      }
-
-      // 同花
-      if (isFlush) {
-        return {score: 6, name: '同花'}
-      }
-
-      // 顺子
-      if (isStraight) {
-        return {score: 5, name: '顺子'}
-      }
-
-      // 三条
-      if (counts[0] === 3) {
-        return {score: 4, name: '三条'}
-      }
-
-      // 两对
-      if (counts[0] === 2 && counts[1] === 2) {
-        return {score: 3, name: '两对'}
-      }
-
-      // 一对
-      if (counts[0] === 2) {
-        return {score: 2, name: '一对'}
-      }
-
-      // 高牌
-      return {score: 1, name: '高牌'}
     }
   }
 }
 </script>
-
-<style scoped>
-/* 牌型说明弹窗 */
-.hand-rank-modal-mask {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-.hand-rank-modal {
-  background: #fff;
-  border-radius: 10px;
-  padding: 20px;
-  max-width: 400px;
-  width: 90%;
-  max-height: 80vh;
-  overflow-y: auto;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-}
-.hand-rank-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.hand-rank-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
-  background: #fafafa;
-  border-radius: 6px;
-  font-size: 14px;
-}
-.hand-rank-num {
-  width: 24px;
-  height: 24px;
-  background: #1890ff;
-  color: #fff;
-  border-radius: 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 12px;
-  flex-shrink: 0;
-}
-.hand-rank-name {
-  font-weight: bold;
-  color: #333;
-  min-width: 90px;
-  flex-shrink: 0;
-}
-.hand-rank-cards {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
-/* 公共牌翻转动画 */
-.card-flip-wrapper {
-  perspective: 600px;
-  width: 44px;
-  height: 62px;
-}
-.card-flip-inner {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  transition: transform 0.6s ease-in-out;
-  transform-style: preserve-3d;
-}
-.card-flip-inner.flipped {
-  transform: rotateY(180deg);
-}
-.card-flip-inner .card-face {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 5px;
-}
-.card-flip-inner .card-back {
-  background: linear-gradient(135deg, #8c8c8c 0%, #6b6b6b 100%);
-  color: #d9d9d9;
-  border: 1px dashed #999;
-  z-index: 2;
-}
-.card-flip-inner .card-front {
-  transform: rotateY(180deg);
-  z-index: 1;
-}
-
-/* 扑克牌基础美化 */
-/* 扑克牌基础美化 - 沉稳色调版 */
-.card-base {
-  width: 44px;
-  height: 62px;
-  border-radius: 5px; /* 稍微方一点更硬朗 */
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #e0e0e0; /* 文字不再用纯白，用浅灰更有质感 */
-  font-weight: 800;
-  font-size: 18px;
-  font-family: 'Garamond', 'Georgia', serif; /* 换个带衬线的字体，更有赌场风 */
-
-  /* 镶边效果：深色细边框 + 低调阴影 */
-  border: 1px solid rgba(0, 0, 0, 0.3);
-  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.4), inset 0 0 12px rgba(0, 0, 0, 0.2);
-
-  position: relative;
-  transition: all 0.2s ease;
-  overflow: hidden;
-}
-
-/* 内部装饰线：增加"高级感"的关键 */
-.card-base::before {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  right: 2px;
-  bottom: 2px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 3px;
-  pointer-events: none;
-}
-
-/* 悬停效果：轻微发光 */
-.card-base:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
-  filter: brightness(1.1);
-}
-
-.bg-red {
-  background: #f5222d;
-}
-
-.bg-blue {
-  background: #1890ff;
-}
-
-.bg-green {
-  background: #52c41a;
-}
-
-.bg-black {
-  background: #2f3542;
-}
-
-.bg-gray {
-  background: #8c8c8c;
-}
-
-/* 玩家手牌翻转动画：在摊牌/结算阶段亮牌时增加翻牌效果 */
-.hole-card-flip {
-  transform-origin: center;
-  animation: hole-card-flip-anim 0.45s ease-out;
-}
-
-@keyframes hole-card-flip-anim {
-  0% {
-    transform: rotateY(90deg);
-  }
-  100% {
-    transform: rotateY(0deg);
-  }
-}
-
-/* 牌型说明弹窗内的小牌 */
-.hand-rank-cards .hand-rank-card {
-  width: 32px;
-  height: 46px;
-  font-size: 12px;
-}
-.hand-rank-cards .hand-rank-card:hover {
-  transform: none;
-  filter: none;
-}
-
-/* 最大牌型 5 张牌：小尺寸，不做大 hover */
-.best-hand-cards .best-hand-card {
-  min-width: 32px;
-  min-height: 46px;
-}
-.best-hand-cards .best-hand-card:hover {
-  transform: none;
-  filter: none;
-}
-
-/* 连胜玩家整张卡片：外发光 + 描边脉冲（直接作用在卡片上，不会被白底盖住） */
-.player-card--win-streak {
-  position: relative;
-  overflow: visible;
-  animation: win-streak-card-aura 2.5s ease-in-out infinite;
-}
-
-@keyframes win-streak-card-aura {
-  0%,
-  100% {
-    box-shadow:
-      0 0 0 2px rgba(255, 77, 79, 0.45),
-      0 0 16px rgba(255, 77, 79, 0.28),
-      0 0 28px rgba(250, 173, 20, 0.15),
-      0 4px 12px rgba(0, 0, 0, 0.06);
-    filter: saturate(1.02) brightness(1);
-  }
-  50% {
-    box-shadow:
-      0 0 0 3px rgba(250, 173, 20, 0.55),
-      0 0 26px rgba(255, 77, 79, 0.42),
-      0 0 42px rgba(255, 197, 61, 0.22),
-      0 6px 16px rgba(0, 0, 0, 0.08);
-    filter: saturate(1.08) brightness(1.02);
-  }
-}
-
-.win-streak-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  position: relative;
-  overflow: hidden;
-  color: #fff;
-  padding: 3px 10px 3px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-  white-space: nowrap;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  background: linear-gradient(
-    120deg,
-    #cf1322 0%,
-    #ff4d4f 25%,
-    #fa8c16 55%,
-    #ffc53d 78%,
-    #ff4d4f 100%
-  );
-  background-size: 220% 100%;
-  animation:
-    win-streak-badge-gradient 3s ease infinite,
-    win-streak-badge-float 1.6s ease-in-out infinite;
-  box-shadow:
-    0 0 12px rgba(255, 77, 79, 0.55),
-    0 2px 8px rgba(250, 140, 22, 0.4);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
-}
-
-.win-streak-badge::after {
-  content: '';
-  position: absolute;
-  top: -20%;
-  left: -40%;
-  width: 45%;
-  height: 140%;
-  background: linear-gradient(
-    105deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.55) 45%,
-    transparent 75%
-  );
-  transform: skewX(-18deg);
-  animation: win-streak-badge-shine 2.8s ease-in-out infinite;
-  pointer-events: none;
-}
-
-.win-streak-badge__emoji {
-  display: inline-block;
-  line-height: 1;
-  animation: win-streak-emoji-flicker 0.85s ease-in-out infinite;
-  filter: drop-shadow(0 0 4px rgba(255, 200, 80, 0.9));
-}
-
-.win-streak-badge__text {
-  position: relative;
-  z-index: 1;
-}
-
-@keyframes win-streak-badge-gradient {
-  0%,
-  100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-}
-
-@keyframes win-streak-badge-float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-1px);
-  }
-}
-
-@keyframes win-streak-badge-shine {
-  0% {
-    left: -45%;
-    opacity: 0;
-  }
-  12% {
-    opacity: 1;
-  }
-  55% {
-    left: 120%;
-    opacity: 0.85;
-  }
-  100% {
-    left: 120%;
-    opacity: 0;
-  }
-}
-
-@keyframes win-streak-emoji-flicker {
-  0%,
-  100% {
-    transform: scale(1) rotate(-4deg);
-  }
-  50% {
-    transform: scale(1.12) rotate(5deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .player-card--win-streak,
-  .win-streak-badge,
-  .win-streak-badge::after,
-  .win-streak-badge__emoji {
-    animation: none !important;
-  }
-
-  .player-card--win-streak {
-    box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.35), 0 4px 12px rgba(0, 0, 0, 0.06);
-    filter: none;
-  }
-
-  .win-streak-badge {
-    background: linear-gradient(135deg, #ff4d4f 0%, #fa8c16 100%);
-    background-size: 100% 100%;
-  }
-}
-</style>

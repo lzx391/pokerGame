@@ -1,0 +1,60 @@
+.hand-rank-modal-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.hand-rank-modal {
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px;
+  max-width: 400px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+.hand-rank-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.hand-rank-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #fafafa;
+  border-radius: 6px;
+  font-size: 14px;
+}
+.hand-rank-num {
+  width: 24px;
+  height: 24px;
+  background: #1890ff;
+  color: #fff;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.hand-rank-name {
+  font-weight: bold;
+  color: #333;
+  min-width: 90px;
+  flex-shrink: 0;
+}
+.hand-rank-cards {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}

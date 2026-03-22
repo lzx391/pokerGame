@@ -1,0 +1,394 @@
+/* 扑克牌 — 华丽质感 + 动画（公共牌、手牌、牌型说明共用） */
+.card-base {
+  width: 44px;
+  height: 62px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #f5f5f5;
+  font-weight: 800;
+  font-size: 18px;
+  font-family: 'Garamond', 'Georgia', serif;
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.45),
+    0 0 12px rgba(255, 255, 255, 0.12);
+
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  box-shadow:
+    0 0 0 1px rgba(212, 175, 55, 0.28),
+    0 3px 10px rgba(0, 0, 0, 0.45),
+    0 8px 24px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -2px 8px rgba(0, 0, 0, 0.12);
+
+  position: relative;
+  transition:
+    transform 0.28s cubic-bezier(0.34, 1.3, 0.64, 1),
+    box-shadow 0.28s ease,
+    filter 0.28s ease;
+  overflow: hidden;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.card-base::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  right: 2px;
+  bottom: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* 斜向光泽扫过（弹窗内小牌关闭，避免干扰阅读） */
+.card-base::after {
+  content: '';
+  position: absolute;
+  inset: -40% -60%;
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0) 42%,
+    rgba(255, 255, 255, 0.35) 50%,
+    rgba(255, 255, 255, 0) 58%,
+    transparent 100%
+  );
+  transform: translateX(-35%) rotate(12deg);
+  animation: card-luxury-shine 4.5s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0.85;
+}
+
+@keyframes card-luxury-shine {
+  0%,
+  12% {
+    transform: translateX(-120%) rotate(12deg);
+    opacity: 0;
+  }
+  18% {
+    opacity: 0.9;
+  }
+  35% {
+    transform: translateX(120%) rotate(12deg);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateX(120%) rotate(12deg);
+    opacity: 0;
+  }
+}
+
+.card-base:hover {
+  transform: translateY(-6px) scale(1.04);
+  box-shadow:
+    0 0 0 1px rgba(255, 220, 140, 0.45),
+    0 6px 16px rgba(0, 0, 0, 0.5),
+    0 16px 40px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -2px 10px rgba(0, 0, 0, 0.1);
+  filter: brightness(1.08) saturate(1.05);
+}
+
+.bg-red {
+  background:
+    radial-gradient(ellipse 120% 80% at 30% 20%, rgba(255, 255, 255, 0.35) 0%, transparent 55%),
+    linear-gradient(145deg, #ff6b8a 0%, #e84855 35%, #a8071a 100%);
+}
+
+.bg-blue {
+  background:
+    radial-gradient(ellipse 120% 80% at 28% 18%, rgba(255, 255, 255, 0.38) 0%, transparent 50%),
+    linear-gradient(145deg, #69c0ff 0%, #1890ff 40%, #0050b3 100%);
+}
+
+.bg-green {
+  background:
+    radial-gradient(ellipse 120% 80% at 30% 22%, rgba(255, 255, 255, 0.32) 0%, transparent 52%),
+    linear-gradient(145deg, #95de64 0%, #389e0d 42%, #135200 100%);
+}
+
+.bg-black {
+  background:
+    radial-gradient(ellipse 100% 70% at 35% 15%, rgba(255, 255, 255, 0.14) 0%, transparent 45%),
+    linear-gradient(145deg, #4a5568 0%, #2f3542 38%, #141820 100%);
+}
+
+.bg-gray {
+  background:
+    linear-gradient(145deg, #9e9e9e 0%, #757575 45%, #424242 100%),
+    repeating-linear-gradient(
+      -35deg,
+      transparent,
+      transparent 3px,
+      rgba(0, 0, 0, 0.06) 3px,
+      rgba(0, 0, 0, 0.06) 5px
+    );
+}
+
+/* 玩家手牌翻开：3D + 轻微回弹 */
+.hole-card-flip {
+  transform-origin: center center;
+  animation: hole-card-flip-anim 0.55s cubic-bezier(0.34, 1.25, 0.64, 1) both;
+}
+
+@keyframes hole-card-flip-anim {
+  0% {
+    transform: perspective(320px) rotateY(92deg) scale(0.88);
+    opacity: 0.75;
+    filter: brightness(1.35) blur(0.5px);
+  }
+  55% {
+    transform: perspective(320px) rotateY(-10deg) scale(1.04);
+    opacity: 1;
+    filter: brightness(1.12) blur(0);
+  }
+  80% {
+    transform: perspective(320px) rotateY(4deg) scale(0.99);
+  }
+  100% {
+    transform: perspective(320px) rotateY(0deg) scale(1);
+    opacity: 1;
+    filter: brightness(1) blur(0);
+  }
+}
+
+/* 摊牌最佳五张：依次弹出 */
+.best-hand-card-enter {
+  animation: best-hand-pop 0.5s cubic-bezier(0.34, 1.45, 0.64, 1) both;
+}
+
+@keyframes best-hand-pop {
+  0% {
+    transform: scale(0.5) rotateZ(-10deg);
+    opacity: 0;
+    filter: brightness(1.4);
+  }
+  70% {
+    transform: scale(1.06) rotateZ(2deg);
+    filter: brightness(1.08);
+  }
+  100% {
+    transform: scale(1) rotateZ(0deg);
+    opacity: 1;
+    filter: brightness(1);
+  }
+}
+
+/* 牌型说明弹窗内的小牌 */
+.hand-rank-cards .hand-rank-card {
+  width: 32px;
+  height: 46px;
+  font-size: 12px;
+}
+.hand-rank-cards .hand-rank-card::after {
+  animation: none;
+  opacity: 0;
+}
+.hand-rank-cards .hand-rank-card:hover {
+  transform: none;
+  filter: none;
+}
+
+/* 最大牌型 5 张牌 — 保留略强描边，减弱扫光 */
+.best-hand-cards .best-hand-card::after {
+  animation-duration: 7s;
+  opacity: 0.45;
+}
+.best-hand-cards .best-hand-card:hover {
+  transform: none;
+  filter: none;
+}
+
+/* 连胜玩家卡片 */
+.player-card--win-streak {
+  position: relative;
+  overflow: visible;
+  animation: win-streak-card-aura 2.5s ease-in-out infinite;
+}
+
+@keyframes win-streak-card-aura {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px rgba(255, 77, 79, 0.45),
+      0 0 16px rgba(255, 77, 79, 0.28),
+      0 0 28px rgba(250, 173, 20, 0.15),
+      0 4px 12px rgba(0, 0, 0, 0.06);
+    filter: saturate(1.02) brightness(1);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px rgba(250, 173, 20, 0.55),
+      0 0 26px rgba(255, 77, 79, 0.42),
+      0 0 42px rgba(255, 197, 61, 0.22),
+      0 6px 16px rgba(0, 0, 0, 0.08);
+    filter: saturate(1.08) brightness(1.02);
+  }
+}
+
+.win-streak-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  position: relative;
+  overflow: hidden;
+  color: #fff;
+  padding: 3px 10px 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: linear-gradient(
+    120deg,
+    #cf1322 0%,
+    #ff4d4f 25%,
+    #fa8c16 55%,
+    #ffc53d 78%,
+    #ff4d4f 100%
+  );
+  background-size: 220% 100%;
+  animation:
+    win-streak-badge-gradient 3s ease infinite,
+    win-streak-badge-float 1.6s ease-in-out infinite;
+  box-shadow:
+    0 0 12px rgba(255, 77, 79, 0.55),
+    0 2px 8px rgba(250, 140, 22, 0.4);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.win-streak-badge::after {
+  content: '';
+  position: absolute;
+  top: -20%;
+  left: -40%;
+  width: 45%;
+  height: 140%;
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.55) 45%,
+    transparent 75%
+  );
+  transform: skewX(-18deg);
+  animation: win-streak-badge-shine 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.win-streak-badge__emoji {
+  display: inline-block;
+  line-height: 1;
+  animation: win-streak-emoji-flicker 0.85s ease-in-out infinite;
+  filter: drop-shadow(0 0 4px rgba(255, 200, 80, 0.9));
+}
+
+.win-streak-badge__text {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes win-streak-badge-gradient {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes win-streak-badge-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes win-streak-badge-shine {
+  0% {
+    left: -45%;
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  55% {
+    left: 120%;
+    opacity: 0.85;
+  }
+  100% {
+    left: 120%;
+    opacity: 0;
+  }
+}
+
+@keyframes win-streak-emoji-flicker {
+  0%,
+  100% {
+    transform: scale(1) rotate(-4deg);
+  }
+  50% {
+    transform: scale(1.12) rotate(5deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-base {
+    transition: none;
+  }
+
+  .card-base::after {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+
+  .card-base:hover {
+    transform: none;
+    filter: none;
+  }
+
+  .hole-card-flip {
+    animation: hole-card-flip-reduced 0.35s ease-out both;
+  }
+
+  @keyframes hole-card-flip-reduced {
+    from {
+      opacity: 0.6;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .best-hand-card-enter {
+    animation: none !important;
+  }
+
+  .player-card--win-streak,
+  .win-streak-badge,
+  .win-streak-badge::after,
+  .win-streak-badge__emoji {
+    animation: none !important;
+  }
+
+  .player-card--win-streak {
+    box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.35), 0 4px 12px rgba(0, 0, 0, 0.06);
+    filter: none;
+  }
+
+  .win-streak-badge {
+    background: linear-gradient(135deg, #ff4d4f 0%, #fa8c16 100%);
+    background-size: 100% 100%;
+  }
+}
