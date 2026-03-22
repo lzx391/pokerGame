@@ -106,6 +106,9 @@ final class DpNpcSharkStrategy {
         DpNpcEngine.StackContext stackCtx = ctx.stackCtx;
         int activeVillains = ctx.activeVillains;
         DpNpcEngine.CounterStrategyProfile counter = ctx.counterStrategy;
+        // 情报：recentHands 推出的 counter（与跟注站剧本互补——跟注站走 CALLING_STATION + bfs；bluffLess 针对「进攻线很实」）
+        final double countBluffScale = (counter != null && counter.bluffLess) ? 0.70 : 1.0;
+        final boolean thinVsVillain = counter != null && counter.moreThinValue;
 
         dbg(room, type, bot, "CTX activeVillains=" + activeVillains
                 + " aggressor=" + (ctx.aggressor != null ? ctx.aggressor.getNickname() : "-")
@@ -118,7 +121,9 @@ final class DpNpcSharkStrategy {
                 + " boardDominant=" + boardDominant
                 + " plan=" + DpNpcEngine.getHandPlanType(bot)
                 + " barrels=" + bot.getNpcHandPlanMaxBarrels()
-                + " planAgg=" + String.format("%.3f", bot.getNpcHandPlanAggression()));
+                + " planAgg=" + String.format("%.3f", bot.getNpcHandPlanAggression())
+                + " countBluffScale=" + String.format("%.2f", countBluffScale)
+                + " thinVsVillain=" + thinVsVillain);
 
         // 在“无人下注”时 buildSmartContext 会让 aggressor=null（因为所有人 bet 都是 0）。
         // 但 Shark 的开枪/学习必须有一个“主要目标对手”，否则 learned 永远拿不到，bluffFire 永远是 0。
@@ -405,6 +410,21 @@ final class DpNpcSharkStrategy {
                 if (st == SimpleStrength.WEAK || st == SimpleStrength.MEDIUM) {
                     raiseProb *= 0.30 + 0.70 * bfs;
                 }
+                // 情报：对「进攻摊牌很实」的对手压空气反击；limp 多略抬中强牌价值加注
+                if (countBluffScale < 1.0) {
+                    if (st == SimpleStrength.WEAK) {
+                        raiseProb *= countBluffScale;
+                    } else if (st == SimpleStrength.MEDIUM) {
+                        raiseProb *= 0.50 + 0.50 * countBluffScale;
+                    }
+                }
+                if (thinVsVillain) {
+                    if (st == SimpleStrength.MEDIUM) {
+                        raiseProb = Math.min(0.92, raiseProb + 0.04);
+                    } else if (st == SimpleStrength.STRONG) {
+                        raiseProb = Math.min(0.92, raiseProb + 0.05);
+                    }
+                }
 
                 // 多人底池更少反击；湿牌面更少“随便抬”
                 if (activeVillains >= 3) raiseProb *= 0.75;
@@ -587,6 +607,7 @@ final class DpNpcSharkStrategy {
                     && (("flop".equals(stage) || "turn".equals(stage)))
                     && bluffFire >= 0.04
                     && bfs >= 0.42
+                    && countBluffScale >= 0.99
                     && bd == DpNpcEngine.BoardDanger.DRY
                     && activeVillains <= 2;
 
@@ -625,6 +646,22 @@ final class DpNpcSharkStrategy {
                     betProb *= 0.40 + 0.60 * bfs;
                 } else if (st == SimpleStrength.STRONG || st == SimpleStrength.MONSTER) {
                     betProb += 0.07 * (1.0 - bfs);
+                }
+
+                // 情报 counter.bluffLess：压弱/中空气开枪；moreThinValue：对爱 limp 的对手略增薄价值
+                if (countBluffScale < 1.0) {
+                    if (st == SimpleStrength.WEAK) {
+                        betProb *= countBluffScale;
+                    } else if (st == SimpleStrength.MEDIUM) {
+                        betProb *= 0.55 + 0.45 * countBluffScale;
+                    }
+                }
+                if (thinVsVillain) {
+                    if (st == SimpleStrength.MEDIUM) {
+                        betProb = Math.min(0.92, betProb + 0.07);
+                    } else if (st == SimpleStrength.STRONG || st == SimpleStrength.MONSTER) {
+                        betProb = Math.min(0.92, betProb + 0.05);
+                    }
                 }
 
                 // 心情：轻微影响
@@ -675,7 +712,7 @@ final class DpNpcSharkStrategy {
                         double fallback = "flop".equals(stage) ? 0.45 : ("turn".equals(stage) ? 0.55 : 0.55);
                         double pref = DpNpcSharkLearningLab.pickBluffBetPotFactorWithExplore(room, aggressor, stage, random, fallback, eps);
                         double norm2 = Math.max(0.10, DpNpcEngine.SharkConfig.LEARN_BOOST_NORM);
-                        double alpha = 0.50 * (bluffFire / norm2); // 0~0.50
+                        double alpha = 0.50 * (bluffFire / norm2) * countBluffScale; // 0~0.50，对大注实牌对手收敛探索尺度
                         if (alpha < 0) alpha = 0;
                         if (alpha > 0.50) alpha = 0.50;
                         sizeFactor = sizeFactor * (1.0 - alpha) + pref * alpha;
@@ -760,7 +797,7 @@ final class DpNpcSharkStrategy {
                     && (st == SimpleStrength.WEAK || st == SimpleStrength.MEDIUM)) {
                 // bluffFire 越高，越减少“直接过牌/跟注”的概率；bfs 低时（跟注站）不再硬推去下注分支
                 double norm = Math.max(0.10, DpNpcEngine.SharkConfig.LEARN_BOOST_NORM);
-                double shrink = 0.20 * (bluffFire / norm) * bfs;
+                double shrink = 0.20 * (bluffFire / norm) * bfs * countBluffScale;
                 callProb -= shrink;
             }
 
