@@ -2,7 +2,7 @@ package com.example.mgdemoplus.service.serviceImpl.dp;
 
 import com.example.mgdemoplus.entity.dp.DpPlayer;
 import com.example.mgdemoplus.entity.dp.DpRoom;
-import com.example.mgdemoplus.entity.dp.PlayerStats;
+import com.example.mgdemoplus.entity.dp.DpPlayerStats;
 
 import java.util.List;
 import java.util.Map;
@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 最终以一个 foldAdjustment（[-0.25, 0.25]）输出给 Shark 使用。</p>
  *
  * <p>旋钮按对手 {@link DpPlayer#getNickname()} 全局存储（与房间 ID 无关），便于跨房间认出同一昵称；
- * 持久化由 {@link DpSharkOpponentMemoryService} 在结算后写入 DB、上桌时加载。</p>
+ * 持久化由 {@link DpNpcSharkOpponentMemoryService} 在结算后写入 DB、上桌时加载。</p>
  */
 final class DpNpcSharkLearningLab {
     private DpNpcSharkLearningLab() {
@@ -118,7 +118,7 @@ final class DpNpcSharkLearningLab {
     }
 
     /**
-     * 可序列化快照（供 {@link DpSharkOpponentMemoryService} 写入 JSON）。
+     * 可序列化快照（供 {@link DpNpcSharkOpponentMemoryService} 写入 JSON）。
      */
     public static final class LearnedPersistSnapshot {
         public double foldAdj;
@@ -320,7 +320,7 @@ final class DpNpcSharkLearningLab {
         if (room == null || room.getPlayerStatsMap() == null) {
             return;
         }
-        Map<String, PlayerStats> statsMap = room.getPlayerStatsMap();
+        Map<String, DpPlayerStats> statsMap = room.getPlayerStatsMap();
         if (statsMap.isEmpty()) {
             return;
         }
@@ -338,11 +338,11 @@ final class DpNpcSharkLearningLab {
             if (name == null) continue;
             if (DpNpcEngine.SHARK_BOT_NICKNAME.equals(name)) continue;
 
-            PlayerStats s = statsMap.get(name);
+            DpPlayerStats s = statsMap.get(name);
             if (s == null) continue;
 
             // 用最近 10 手的“弱摊牌比例”作为稳定信号（并输出调试分解，方便确认过滤是否生效）
-            PlayerStats.ShowdownWeakStats weakStats = s.getRecentShowdownWeakStats(10);
+            DpPlayerStats.ShowdownWeakStats weakStats = s.getRecentShowdownWeakStats(10);
             double weakRatio = weakStats.ratio();
             dbg(room, "onHandSettled villain=" + name
                     + " sample=" + s.getSampleCount()
@@ -458,7 +458,7 @@ final class DpNpcSharkLearningLab {
             int giveUpRiver = 0;
             int barrelOpp = 0;
             int processed = 0;
-            for (PlayerStats.SingleHandStats h : s.getRecentHands()) {
+            for (DpPlayerStats.SingleHandStats h : s.getRecentHands()) {
                 if (processed >= windowN) break;
                 processed++;
                 // 只统计该玩家确实参与过的手，避免被弃牌/离线污染

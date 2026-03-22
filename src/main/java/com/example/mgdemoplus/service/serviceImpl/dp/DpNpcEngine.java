@@ -2,15 +2,15 @@ package com.example.mgdemoplus.service.serviceImpl.dp;
 
 import com.example.mgdemoplus.entity.dp.DpPlayer;
 import com.example.mgdemoplus.entity.dp.DpRoom;
-import com.example.mgdemoplus.entity.dp.PlayerStats;
+import com.example.mgdemoplus.entity.dp.DpPlayerStats;
 
 import java.util.*;
 
-import static com.example.mgdemoplus.service.serviceImpl.dp.DpHandEvaluator.CARD_RANK_MAP;
-import static com.example.mgdemoplus.service.serviceImpl.dp.DpHandEvaluator.SimpleStrength;
-import static com.example.mgdemoplus.service.serviceImpl.dp.DpHandEvaluator.getRankFromCard;
-import static com.example.mgdemoplus.service.serviceImpl.dp.DpHandEvaluator.toSimpleStrength;
-import static com.example.mgdemoplus.service.serviceImpl.dp.DpHandEvaluator.evaluateBestHand;
+import static com.example.mgdemoplus.service.serviceImpl.dp.DpUtilHandEvaluator.CARD_RANK_MAP;
+import static com.example.mgdemoplus.service.serviceImpl.dp.DpUtilHandEvaluator.SimpleStrength;
+import static com.example.mgdemoplus.service.serviceImpl.dp.DpUtilHandEvaluator.getRankFromCard;
+import static com.example.mgdemoplus.service.serviceImpl.dp.DpUtilHandEvaluator.toSimpleStrength;
+import static com.example.mgdemoplus.service.serviceImpl.dp.DpUtilHandEvaluator.evaluateBestHand;
 
 /**
  * 德扑 NPC 行为模块。
@@ -386,7 +386,7 @@ public final class DpNpcEngine {
             SimpleStrength strength,
             BoardDanger boardDanger,
             TablePosition position,
-            SmartContext ctx,
+            DpUtilSmartContext ctx,
             Random random
     ) {
         if (room == null || bot == null || ctx == null) return;
@@ -522,17 +522,17 @@ public final class DpNpcEngine {
 
         if (isShark) {
             DpPlayer primaryVillain = resolvePrimaryVillainForShark(room, bot, ctx);
-            PlayerStats villainStats = null;
+            DpPlayerStats villainStats = null;
             if (primaryVillain != null && room.getPlayerStatsMap() != null) {
                 villainStats = room.getPlayerStatsMap().get(primaryVillain.getNickname());
             }
             DpNpcSharkLearningLab.LearnedAdjust learnedAdj =
                     DpNpcSharkLearningLab.getAdjust(room, bot, primaryVillain);
-            DpSharkExploitHandPlan.MutableFlopPlan tune = new DpSharkExploitHandPlan.MutableFlopPlan();
+            DpNpcSharkExploitHandPlan.MutableFlopPlan tune = new DpNpcSharkExploitHandPlan.MutableFlopPlan();
             tune.type = planType;
             tune.barrels = maxBarrels;
             tune.aggression = aggression;
-            DpSharkExploitHandPlan.tuneAfterBasePlan(
+            DpNpcSharkExploitHandPlan.tuneAfterBasePlan(
                     tune,
                     villainStats,
                     learnedAdj,
@@ -556,7 +556,7 @@ public final class DpNpcEngine {
     /**
      * Shark 剥削/读牌用的「主对手」：有当前街最大下注者则用其，否则取第一个仍在局且可行动的对手。
      */
-    static DpPlayer resolvePrimaryVillainForShark(DpRoom room, DpPlayer bot, SmartContext ctx) {
+    static DpPlayer resolvePrimaryVillainForShark(DpRoom room, DpPlayer bot, DpUtilSmartContext ctx) {
         if (ctx != null && ctx.aggressor != null && ctx.aggressor != bot) {
             return ctx.aggressor;
         }
@@ -621,7 +621,7 @@ public final class DpNpcEngine {
             BotType type,
             SimpleStrength st,
             BoardDanger boardDanger,
-            SmartContext ctx
+            DpUtilSmartContext ctx
     ) {
         if (room == null || bot == null || ctx == null) return;
         String stage = room.getCurrentStage();
@@ -674,10 +674,10 @@ public final class DpNpcEngine {
                     break;
                 }
             }
-            PlayerStats vs = room.getPlayerStatsMap().get(tv);
+            DpPlayerStats vs = room.getPlayerStatsMap().get(tv);
             DpNpcSharkLearningLab.LearnedAdjust la = DpNpcSharkLearningLab.getAdjust(room, bot, vil);
             if (vil != null
-                    && DpSharkExploitHandPlan.classify(vs, la) == DpSharkExploitHandPlan.ExploitScript.CALLING_STATION
+                    && DpNpcSharkExploitHandPlan.classify(vs, la) == DpNpcSharkExploitHandPlan.ExploitScript.CALLING_STATION
                     && newPlan == HandPlanType.VALUE) {
                 bot.setNpcHandPlanMaxBarrels(Math.min(3, bot.getNpcHandPlanMaxBarrels() + 1));
             }
@@ -1170,7 +1170,7 @@ public final class DpNpcEngine {
         List<String> all = new ArrayList<>();
         all.addAll(board);
         all.addAll(hole);
-        List<String> best5 = DpHandEvaluator.getBestHandCards(all);
+        List<String> best5 = DpUtilHandEvaluator.getBestHandCards(all);
         if (best5 == null || best5.size() != 5) {
             return false;
         }
@@ -1194,7 +1194,7 @@ public final class DpNpcEngine {
             // 公共牌不足 3 张时，用简单 preflop 规则
             return toSimpleStrength(null, room.getCurrentStage(), hole, community);
         }
-        DpHandEvaluator.HandStrength hs = evaluateBestHand(all);
+        DpUtilHandEvaluator.HandStrength hs = evaluateBestHand(all);
         return toSimpleStrength(hs, room.getCurrentStage(), hole, community);
     }
 
@@ -1627,7 +1627,7 @@ public final class DpNpcEngine {
     /**
      * 利用最近 10 手，读出对手大致牌范围强度。
      */
-    private static VillainRangeTier estimateVillainRangeTier(PlayerStats stats) {
+    private static VillainRangeTier estimateVillainRangeTier(DpPlayerStats stats) {
         if (stats == null) {
             return VillainRangeTier.BALANCED;
         }
@@ -1722,7 +1722,7 @@ public final class DpNpcEngine {
      * 根据最近若干手对局的统计，为单个对手生成一个粗略的 counter-strategy 建议。
      * - windowSize 约为 10 手，样本过少时自动退化为中性配置。
      */
-    private static CounterStrategyProfile analyzeVillainCounterStrategy(PlayerStats stats) {
+    private static CounterStrategyProfile analyzeVillainCounterStrategy(DpPlayerStats stats) {
         if (stats == null || stats.getRecentHands().isEmpty()) {
             return CounterStrategyProfile.NEUTRAL;
         }
@@ -1734,7 +1734,7 @@ public final class DpNpcEngine {
         int weakShowdown = 0;
 
         int processed = 0;
-        for (PlayerStats.SingleHandStats h : stats.getRecentHands()) {
+        for (DpPlayerStats.SingleHandStats h : stats.getRecentHands()) {
             if (processed++ >= window) break;
             if (h.isLimpedPreflop()) limpCount++;
             if (h.isGaveUpTurnAfterRaise()) gaveUpTurn++;
@@ -1768,8 +1768,8 @@ public final class DpNpcEngine {
         if (aggressor == null || aggressor == bot) {
             return ActionCredibility.MEDIUM;
         }
-        Map<String, PlayerStats> statsMap = room.getPlayerStatsMap();
-        PlayerStats stats = statsMap != null ? statsMap.get(aggressor.getNickname()) : null;
+        Map<String, DpPlayerStats> statsMap = room.getPlayerStatsMap();
+        DpPlayerStats stats = statsMap != null ? statsMap.get(aggressor.getNickname()) : null;
         VillainRangeTier tier = estimateVillainRangeTier(stats);
 
         if (tier == VillainRangeTier.NIT || tier == VillainRangeTier.TIGHT) {
@@ -1779,7 +1779,7 @@ public final class DpNpcEngine {
             return ActionCredibility.LOW;
         }
         if (stats != null && !stats.getRecentHands().isEmpty()) {
-            PlayerStats.SingleHandStats last = stats.getRecentHands().peekLast();
+            DpPlayerStats.SingleHandStats last = stats.getRecentHands().peekLast();
             if (last != null && last.isRaised() && !last.isWentToShowdown()) {
                 return ActionCredibility.LOW;
             }
@@ -1890,7 +1890,7 @@ public final class DpNpcEngine {
      * - 只统计「本手有主动加注 + 走到摊牌」的局；
      * - 若这类局中，摊牌时牌力大多数只是高牌/一对/两对（三类中等偏弱），则视为 bluff 倾向偏高。
      */
-    private static double estimateShowdownBluffiness(PlayerStats stats) {
+    private static double estimateShowdownBluffiness(DpPlayerStats stats) {
         if (stats == null || stats.getRecentHands().isEmpty()) {
             return 0.0;
         }
@@ -1899,7 +1899,7 @@ public final class DpNpcEngine {
         // 只看最近 N 手（例如 10 手）即可
         int limit = 10;
         int processed = 0;
-        for (PlayerStats.SingleHandStats hand : stats.getRecentHands()) {
+        for (DpPlayerStats.SingleHandStats hand : stats.getRecentHands()) {
             if (processed >= limit) {
                 break;
             }
@@ -2171,7 +2171,7 @@ public final class DpNpcEngine {
      * 为当前 hero 构建统一的“聪明决策上下文”。
      * 不改变任何底层工具函数的行为，只做一次集中调用与打包。
      */
-    static SmartContext buildSmartContext(
+    static DpUtilSmartContext buildSmartContext(
             DpRoom room,
             DpPlayer hero,
             SimpleStrength strength,
@@ -2182,7 +2182,7 @@ public final class DpNpcEngine {
     ) {
         if (room == null || hero == null) {
             StackContext emptyStacks = analyzeStacks(room, hero);
-            return new SmartContext(
+            return new DpUtilSmartContext(
                     null,
                     null,
                     VillainRangeTier.BALANCED,
@@ -2202,7 +2202,7 @@ public final class DpNpcEngine {
 
         // 1. 找当前主要 aggressor（最大 bet 且不是 hero，未弃牌未离桌）
         DpPlayer aggressor = null;
-        Map<String, PlayerStats> statsMap = room.getPlayerStatsMap();
+        Map<String, DpPlayerStats> statsMap = room.getPlayerStatsMap();
         if (room.getPlayers() != null) {
             int maxBet = 0;
             for (DpPlayer p : room.getPlayers()) {
@@ -2217,7 +2217,7 @@ public final class DpNpcEngine {
         }
 
         // 2. 从 statsMap 取该玩家的 PlayerStats（可为 null）
-        PlayerStats aggressorStats = null;
+        DpPlayerStats aggressorStats = null;
         if (aggressor != null && statsMap != null) {
             aggressorStats = statsMap.get(aggressor.getNickname());
         }
@@ -2264,7 +2264,7 @@ public final class DpNpcEngine {
                     continue;
                 }
                 boolean behind = ((i - heroIndex + size) % size) > 0;
-                PlayerStats ps = statsMap != null ? statsMap.get(p.getNickname()) : null;
+                DpPlayerStats ps = statsMap != null ? statsMap.get(p.getNickname()) : null;
                 VillainRangeTier tier = estimateVillainRangeTier(ps);
                 double stackBB = bb > 0 ? (p.getChips() * 1.0 / bb) : 0.0;
                 boolean raisedThisStreet = (aggressor == p);
@@ -2287,7 +2287,7 @@ public final class DpNpcEngine {
         CounterStrategyProfile counter = analyzeVillainCounterStrategy(aggressorStats);
 
         // 11. 封装返回
-        return new SmartContext(
+        return new DpUtilSmartContext(
                 aggressor,
                 aggressorStats,
                 villainTier,
@@ -2473,7 +2473,7 @@ public final class DpNpcEngine {
             }
             case MANIAC: {
                 String stage = room.getCurrentStage();
-                SmartContext ctx = buildSmartContext(
+                DpUtilSmartContext ctx = buildSmartContext(
                         room,
                         bot,
                         strength,
@@ -2832,7 +2832,7 @@ public final class DpNpcEngine {
                         }
                     }
                 }
-                SmartContext ctx = buildSmartContext(
+                DpUtilSmartContext ctx = buildSmartContext(
                         room,
                         bot,
                         st,

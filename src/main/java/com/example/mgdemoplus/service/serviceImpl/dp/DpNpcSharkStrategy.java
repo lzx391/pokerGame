@@ -2,11 +2,11 @@ package com.example.mgdemoplus.service.serviceImpl.dp;
 
 import com.example.mgdemoplus.entity.dp.DpPlayer;
 import com.example.mgdemoplus.entity.dp.DpRoom;
-import com.example.mgdemoplus.entity.dp.PlayerStats;
+import com.example.mgdemoplus.entity.dp.DpPlayerStats;
 
 import java.util.Random;
 
-import static com.example.mgdemoplus.service.serviceImpl.dp.DpHandEvaluator.SimpleStrength;
+import static com.example.mgdemoplus.service.serviceImpl.dp.DpUtilHandEvaluator.SimpleStrength;
 
 /**
  * 单独拆出来的 Shark 决策逻辑（只负责 SHARK 分支）。
@@ -70,7 +70,7 @@ final class DpNpcSharkStrategy {
                 + " pot=" + room.getPot()
                 + " activeVillains=?");
 
-        SmartContext ctx = DpNpcEngine.buildSmartContext(
+        DpUtilSmartContext ctx = DpNpcEngine.buildSmartContext(
                 room,
                 bot,
                 st,
@@ -175,8 +175,8 @@ final class DpNpcSharkStrategy {
         }
 
         DpPlayer aggressor = ctx.aggressor;
-        PlayerStats aggressorStats = ctx.aggressorStats;
-        PlayerStats.SingleHandStats lastAggressorStats = null;
+        DpPlayerStats aggressorStats = ctx.aggressorStats;
+        DpPlayerStats.SingleHandStats lastAggressorStats = null;
         if (aggressorStats != null && !aggressorStats.getRecentHands().isEmpty()) {
             lastAggressorStats = aggressorStats.getRecentHands().peekLast();
         }

@@ -10,9 +10,9 @@ import java.util.stream.Collectors;
  * - 牌型强度比较 HandStrength
  * - 粗粒度牌力枚举 SimpleStrength
  */
-public final class DpHandEvaluator {
+public final class DpUtilHandEvaluator {
 
-    private DpHandEvaluator() {
+    private DpUtilHandEvaluator() {
     }
 
     // 统一的点数映射

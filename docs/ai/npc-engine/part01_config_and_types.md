@@ -11,7 +11,7 @@ import com.example.mgdemoplus.entity.dp.DpRoom;
 
 import java.util.*;
 
-import static com.example.mgdemoplus.service.serviceImpl.dp.DpHandEvaluator.SimpleStrength;
+import static com.example.mgdemoplus.service.serviceImpl.dp.DpUtilHandEvaluator.SimpleStrength;
 
 public final class DpNpcEngine {
 

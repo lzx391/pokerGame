@@ -7,7 +7,7 @@ import java.util.Deque;
  * 玩家最近若干手牌的简单统计信息。
  * 仅用于高级机器人（如 BOT_Shark）根据对手风格做大致判断，不追求精确。
  */
-public class PlayerStats {
+public class DpPlayerStats {
 
     /**
      * 最近若干手的记录，长度控制在一个固定窗口（例如 12 手以内）。

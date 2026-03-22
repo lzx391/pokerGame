@@ -3,7 +3,7 @@ package com.example.mgdemoplus.service.serviceImpl.dp;
 import com.example.mgdemoplus.entity.dp.DpPlayer;
 import com.example.mgdemoplus.entity.dp.DpRoom;
 import com.example.mgdemoplus.entity.dp.DpSharkOpponentProfile;
-import com.example.mgdemoplus.entity.dp.PlayerStats;
+import com.example.mgdemoplus.entity.dp.DpPlayerStats;
 import com.example.mgdemoplus.mapper.dp.DpSharkOpponentProfileMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -15,13 +15,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 将 Shark 参考的 {@link PlayerStats} 与 {@link DpNpcSharkLearningLab} 旋钮按对手昵称持久化，
+ * 将 Shark 参考的 {@link DpPlayerStats} 与 {@link DpNpcSharkLearningLab} 旋钮按对手昵称持久化，
  * 跨随机房间 ID 认出同一玩家并恢复习惯画像。
  */
 @Service
-public class DpSharkOpponentMemoryService {
+public class DpNpcSharkOpponentMemoryService {
 
-    private static final Logger log = LoggerFactory.getLogger(DpSharkOpponentMemoryService.class);
+    private static final Logger log = LoggerFactory.getLogger(DpNpcSharkOpponentMemoryService.class);
     private static final int PAYLOAD_VERSION = 1;
     /** 与结算处 {@code stats.addHand(hand, 10)} 一致 */
     private static final int STATS_HAND_WINDOW = 10;
@@ -29,7 +29,7 @@ public class DpSharkOpponentMemoryService {
     private final DpSharkOpponentProfileMapper mapper;
     private final ObjectMapper objectMapper;
 
-    public DpSharkOpponentMemoryService(
+    public DpNpcSharkOpponentMemoryService(
             DpSharkOpponentProfileMapper mapper,
             ObjectMapper objectMapper
     ) {
@@ -44,7 +44,7 @@ public class DpSharkOpponentMemoryService {
         if (room == null || !DpNpcSharkObservedHandHistory.isEnabledForRoom(room)) {
             return;
         }
-        Map<String, PlayerStats> statsMap = room.getPlayerStatsMap();
+        Map<String, DpPlayerStats> statsMap = room.getPlayerStatsMap();
         if (statsMap == null || statsMap.isEmpty()) {
             return;
         }
@@ -63,7 +63,7 @@ public class DpSharkOpponentMemoryService {
             if (DpNpcEngine.SHARK_BOT_NICKNAME.equals(name)) {
                 continue;
             }
-            PlayerStats stats = statsMap.get(name);
+            DpPlayerStats stats = statsMap.get(name);
             if (stats == null) {
                 continue;
             }
@@ -106,7 +106,7 @@ public class DpSharkOpponentMemoryService {
         if (DpNpcEngine.SHARK_BOT_NICKNAME.equals(nickname)) {
             return;
         }
-        Map<String, PlayerStats> statsMap = room.getPlayerStatsMap();
+        Map<String, DpPlayerStats> statsMap = room.getPlayerStatsMap();
         if (statsMap == null) {
             return;
         }
@@ -120,7 +120,7 @@ public class DpSharkOpponentMemoryService {
             }
             if (row.getStatsJson() != null && !row.getStatsJson().isBlank()) {
                 StatsPayload sp = objectMapper.readValue(row.getStatsJson(), StatsPayload.class);
-                PlayerStats stats = new PlayerStats();
+                DpPlayerStats stats = new DpPlayerStats();
                 stats.restoreFromPersistence(
                         sp.totalHands,
                         sp.totalParticipated,
@@ -169,6 +169,6 @@ public class DpSharkOpponentMemoryService {
         public int totalRaised;
         public int totalShowdown;
         public double foldAdjustmentAgainstHero;
-        public List<PlayerStats.SingleHandStats> recentHands = new ArrayList<>();
+        public List<DpPlayerStats.SingleHandStats> recentHands = new ArrayList<>();
     }
 }

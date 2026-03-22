@@ -14,15 +14,15 @@ import org.springframework.stereotype.Service;
  * 在 {@link DpRoomServiceImpl} 结算流程中调用；表不存在或 DB 异常时仅打日志，不中断游戏。
  */
 @Service
-public class DpObservedHandHistoryPersistService {
+public class DpNpcObservedHandHistoryPersistService {
 
-    private static final Logger log = LoggerFactory.getLogger(DpObservedHandHistoryPersistService.class);
+    private static final Logger log = LoggerFactory.getLogger(DpNpcObservedHandHistoryPersistService.class);
     private static final int PAYLOAD_VERSION = 1;
 
     private final DpObservedHandHistoryMapper mapper;
     private final ObjectMapper payloadMapper;
 
-    public DpObservedHandHistoryPersistService(
+    public DpNpcObservedHandHistoryPersistService(
             DpObservedHandHistoryMapper mapper,
             ObjectMapper objectMapper
     ) {

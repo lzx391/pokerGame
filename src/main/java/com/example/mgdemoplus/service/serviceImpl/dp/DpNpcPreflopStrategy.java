@@ -2,7 +2,7 @@ package com.example.mgdemoplus.service.serviceImpl.dp;
 
 import com.example.mgdemoplus.entity.dp.DpPlayer;
 import com.example.mgdemoplus.entity.dp.DpRoom;
-import com.example.mgdemoplus.entity.dp.PlayerStats;
+import com.example.mgdemoplus.entity.dp.DpPlayerStats;
 
 import java.util.HashMap;
 import java.util.List;
@@ -89,7 +89,7 @@ final class DpNpcPreflopStrategy {
 
         int activePlayers = countActivePlayers(room);
         DpPlayer aggressor = findAggressor(room, hero);
-        PlayerStats aggressorStats = aggressor != null && room.getPlayerStatsMap() != null
+        DpPlayerStats aggressorStats = aggressor != null && room.getPlayerStatsMap() != null
                 ? room.getPlayerStatsMap().get(aggressor.getNickname())
                 : null;
         VillainTier tier = estimateVillainTier(aggressorStats);
@@ -668,7 +668,7 @@ final class DpNpcPreflopStrategy {
         LOOSE_OR_AGGRO
     }
 
-    private static VillainTier estimateVillainTier(PlayerStats stats) {
+    private static VillainTier estimateVillainTier(DpPlayerStats stats) {
         if (stats == null) return VillainTier.BALANCED;
         double vpip = stats.getOverallParticipationRate();
         double pfr = stats.getOverallRaiseRate();

@@ -4,7 +4,7 @@ import com.example.mgdemoplus.dto.DpRoomDTO;
 import com.example.mgdemoplus.entity.dp.DpPlayer;
 import com.example.mgdemoplus.entity.dp.DpPot;
 import com.example.mgdemoplus.entity.dp.DpRoom;
-import com.example.mgdemoplus.entity.dp.PlayerStats;
+import com.example.mgdemoplus.entity.dp.DpPlayerStats;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -14,8 +14,8 @@ import java.util.stream.Collectors;
 @Service
 public class DpRoomServiceImpl {
     private final Map<String, DpRoom> roomMap = new ConcurrentHashMap<>();
-    private final DpObservedHandHistoryPersistService observedHandPersistService;
-    private final DpSharkOpponentMemoryService sharkOpponentMemoryService;
+    private final DpNpcObservedHandHistoryPersistService observedHandPersistService;
+    private final DpNpcSharkOpponentMemoryService sharkOpponentMemoryService;
 
     // 统一从 NPC 引擎中获取机器人昵称，避免散落魔法字符串
     private static final String DEMO_BOT_NICKNAME = DpNpcEngine.DEMO_BOT_NICKNAME;   // BOT_Fish
@@ -23,8 +23,8 @@ public class DpRoomServiceImpl {
     private static final String TAG_BOT_NICKNAME   = DpNpcEngine.TAG_BOT_NICKNAME;    // BOT_Tag
 
     public DpRoomServiceImpl(
-            DpObservedHandHistoryPersistService observedHandPersistService,
-            DpSharkOpponentMemoryService sharkOpponentMemoryService
+            DpNpcObservedHandHistoryPersistService observedHandPersistService,
+            DpNpcSharkOpponentMemoryService sharkOpponentMemoryService
     ) {
         this.observedHandPersistService = observedHandPersistService;
         this.sharkOpponentMemoryService = sharkOpponentMemoryService;
@@ -364,7 +364,7 @@ public class DpRoomServiceImpl {
                 if (p.getHoleCards() != null && p.getHoleCards().size() >= 2) {
                     List<String> all = new ArrayList<>(p.getHoleCards());
                     all.addAll(community);
-                    p.setBestHandCards(DpHandEvaluator.getBestHandCards(all));
+                    p.setBestHandCards(DpUtilHandEvaluator.getBestHandCards(all));
                 } else {
                     p.setBestHandCards(Collections.emptyList());
                 }
@@ -1063,7 +1063,7 @@ public class DpRoomServiceImpl {
         }
 
         // 预先解析每个玩家的 7 张牌，评估牌力（供结算与统计复用）
-        Map<String, DpHandEvaluator.HandStrength> strengthMap = new HashMap<>();
+        Map<String, DpUtilHandEvaluator.HandStrength> strengthMap = new HashMap<>();
         for (DpPlayer p : r.getPlayers()) {
             if (p.isFold()) continue;
             List<String> allCards = new ArrayList<>();
@@ -1074,7 +1074,7 @@ public class DpRoomServiceImpl {
                 allCards.addAll(r.getCommunityCards());
             }
             if (allCards.size() < 5) continue;
-            DpHandEvaluator.HandStrength hs = DpHandEvaluator.evaluateBestHand(allCards);
+            DpUtilHandEvaluator.HandStrength hs = DpUtilHandEvaluator.evaluateBestHand(allCards);
             strengthMap.put(p.getNickname(), hs);
         }
 
@@ -1084,11 +1084,11 @@ public class DpRoomServiceImpl {
             List<String> eligible = pot.getEligiblePlayers();
             if (eligible == null || eligible.isEmpty()) continue;
 
-            DpHandEvaluator.HandStrength best = null;
+            DpUtilHandEvaluator.HandStrength best = null;
             List<DpPlayer> winners = new ArrayList<>();
 
             for (String name : eligible) {
-                DpHandEvaluator.HandStrength hs = strengthMap.get(name);
+                DpUtilHandEvaluator.HandStrength hs = strengthMap.get(name);
                 if (hs == null) continue;
                 if (best == null || hs.compareTo(best) > 0) {
                     best = hs;
@@ -1136,12 +1136,12 @@ public class DpRoomServiceImpl {
         List<DpNpcSharkHandActionLog.ActionEvent> sharkEvents = DpNpcSharkHandActionLog.snapshot(r);
 
         if (r.getPlayerStatsMap() != null) {
-            Map<String, PlayerStats> statsMap = r.getPlayerStatsMap();
+            Map<String, DpPlayerStats> statsMap = r.getPlayerStatsMap();
             int bb = DpRoom.getBBChips();
             // 即使 Shark 没摊牌，也为“对 Shark 的精确 WEAK 摊牌统计”准备基准牌力：
             // Shark 知道自己手牌，结算时也能用最终公共牌计算“如果没弃牌会是什么牌力”，从而学习修正。
             final String sharkName = DpNpcEngine.SHARK_BOT_NICKNAME;
-            DpHandEvaluator.HandStrength sharkHs = null;
+            DpUtilHandEvaluator.HandStrength sharkHs = null;
             long sharkStrengthValue = 0L;
             DpPlayer sharkPlayer = null;
             if ("showdown".equals(r.getCurrentStage())) {
@@ -1167,19 +1167,19 @@ public class DpRoomServiceImpl {
                         List<String> all = new java.util.ArrayList<>();
                         all.addAll(boardForCompare);
                         all.addAll(hole);
-                        sharkHs = DpHandEvaluator.evaluateBestHand(all);
+                        sharkHs = DpUtilHandEvaluator.evaluateBestHand(all);
                     }
                 }
-                sharkStrengthValue = DpHandEvaluator.encodeStrengthValue(sharkHs);
+                sharkStrengthValue = DpUtilHandEvaluator.encodeStrengthValue(sharkHs);
             }
             for (DpPlayer p : r.getPlayers()) {
                 String name = p.getNickname();
-                PlayerStats stats = statsMap.get(name);
+                DpPlayerStats stats = statsMap.get(name);
                 if (stats == null) {
-                    stats = new PlayerStats();
+                    stats = new DpPlayerStats();
                     statsMap.put(name, stats);
                 }
-                PlayerStats.SingleHandStats hand = new PlayerStats.SingleHandStats();
+                DpPlayerStats.SingleHandStats hand = new DpPlayerStats.SingleHandStats();
                 int totalBet = p.getTotalBet();
                 boolean participated = totalBet > 0 && !p.isFold();
                 hand.setParticipated(participated);
@@ -1190,15 +1190,15 @@ public class DpRoomServiceImpl {
                 hand.setWentToShowdown(wentToShowdown);
                 // 记录摊牌时的最终牌型大类（仅在真正摊牌且有评估结果时有效），供 BOT_Shark 评估 bluff 倾向
                 if (wentToShowdown) {
-                    DpHandEvaluator.HandStrength hs = strengthMap.get(name);
+                    DpUtilHandEvaluator.HandStrength hs = strengthMap.get(name);
                     hand.setFinalRankCategory(hs != null ? hs.rankCategory : 0);
-                    hand.setFinalStrengthValue(DpHandEvaluator.encodeStrengthValue(hs));
+                    hand.setFinalStrengthValue(DpUtilHandEvaluator.encodeStrengthValue(hs));
                     // 同时记录“公共牌主导”的基准：仅用公共牌能形成的最佳牌型大类
                     // 用于后续在统计中剔除“大家都在打公共牌”的摊牌样本。
                     int boardCat = 0;
                     List<String> board = r.getCommunityCards();
                     if (board != null && board.size() >= 5) {
-                        DpHandEvaluator.HandStrength bhs = DpHandEvaluator.evaluateBestHand(board);
+                        DpUtilHandEvaluator.HandStrength bhs = DpUtilHandEvaluator.evaluateBestHand(board);
                         boardCat = (bhs != null ? bhs.rankCategory : 0);
                     }
                     hand.setBoardRankCategory(boardCat);
@@ -1210,7 +1210,7 @@ public class DpRoomServiceImpl {
                         List<String> all = new java.util.ArrayList<>();
                         all.addAll(board);
                         all.addAll(hole);
-                        List<String> best5 = DpHandEvaluator.getBestHandCards(all);
+                        List<String> best5 = DpUtilHandEvaluator.getBestHandCards(all);
                         if (best5 != null && best5.size() == 5) {
                             String h1 = hole.get(0);
                             String h2 = hole.get(1);

@@ -51,7 +51,7 @@ public class DpRoom {
      * 粗略揣测每个玩家是紧/松、凶/弱，从而调整自己的跟注/加注策略。
      * key 为玩家昵称，value 为该玩家的统计信息。
      */
-    private Map<String, PlayerStats> playerStatsMap = new HashMap<>();
+    private Map<String, DpPlayerStats> playerStatsMap = new HashMap<>();
 
     /**
      * 当前这手牌的随机种子：用于让机器人在同一局内的随机行为可复现、跨多次调用共享。
@@ -105,11 +105,11 @@ public class DpRoom {
         this.lastDealerIndex = lastDealerIndex;
     }
 
-    public Map<String, PlayerStats> getPlayerStatsMap() {
+    public Map<String, DpPlayerStats> getPlayerStatsMap() {
         return playerStatsMap;
     }
 
-    public void setPlayerStatsMap(Map<String, PlayerStats> playerStatsMap) {
+    public void setPlayerStatsMap(Map<String, DpPlayerStats> playerStatsMap) {
         this.playerStatsMap = playerStatsMap;
     }
 
