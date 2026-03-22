@@ -1,4 +1,4 @@
-package com.example.mgdemoplus.entity;
+package com.example.mgdemoplus.entity.dp;
 
 public class DpUser {
     private  int id;

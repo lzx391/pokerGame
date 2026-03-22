@@ -1,6 +1,6 @@
-package com.example.mgdemoplus.mapper;
+package com.example.mgdemoplus.mapper.dp;
 
-import com.example.mgdemoplus.entity.DpUser;
+import com.example.mgdemoplus.entity.dp.DpUser;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;

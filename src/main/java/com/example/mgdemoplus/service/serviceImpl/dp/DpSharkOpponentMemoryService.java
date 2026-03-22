@@ -1,10 +1,10 @@
-package com.example.mgdemoplus.service.studentImpl;
+package com.example.mgdemoplus.service.serviceImpl.dp;
 
-import com.example.mgdemoplus.entity.DpPlayer;
-import com.example.mgdemoplus.entity.DpRoom;
-import com.example.mgdemoplus.entity.DpSharkOpponentProfile;
-import com.example.mgdemoplus.entity.PlayerStats;
-import com.example.mgdemoplus.mapper.DpSharkOpponentProfileMapper;
+import com.example.mgdemoplus.entity.dp.DpPlayer;
+import com.example.mgdemoplus.entity.dp.DpRoom;
+import com.example.mgdemoplus.entity.dp.DpSharkOpponentProfile;
+import com.example.mgdemoplus.entity.dp.PlayerStats;
+import com.example.mgdemoplus.mapper.dp.DpSharkOpponentProfileMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

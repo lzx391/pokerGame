@@ -1,8 +1,8 @@
 package com.example.mgdemoplus.controller.dp;
 
 import com.example.mgdemoplus.dto.DpRoomDTO;
-import com.example.mgdemoplus.entity.DpRoom;
-import com.example.mgdemoplus.service.studentImpl.DpRoomServiceImpl;
+import com.example.mgdemoplus.entity.dp.DpRoom;
+import com.example.mgdemoplus.service.serviceImpl.dp.DpRoomServiceImpl;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;

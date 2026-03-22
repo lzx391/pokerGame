@@ -1,7 +1,7 @@
-package com.example.mgdemoplus.service.studentImpl;
+package com.example.mgdemoplus.service.serviceImpl.dp;
 
-import com.example.mgdemoplus.entity.DpPlayer;
-import com.example.mgdemoplus.entity.PlayerStats;
+import com.example.mgdemoplus.entity.dp.DpPlayer;
+import com.example.mgdemoplus.entity.dp.PlayerStats;
 import java.util.List;
 
 /**

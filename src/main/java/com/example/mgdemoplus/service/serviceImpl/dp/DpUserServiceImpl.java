@@ -1,7 +1,7 @@
-package com.example.mgdemoplus.service.studentImpl;
+package com.example.mgdemoplus.service.serviceImpl.dp;
 
-import com.example.mgdemoplus.entity.DpUser;
-import com.example.mgdemoplus.mapper.DpUserMapper;
+import com.example.mgdemoplus.entity.dp.DpUser;
+import com.example.mgdemoplus.mapper.dp.DpUserMapper;
 import com.example.mgdemoplus.service.DpUserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

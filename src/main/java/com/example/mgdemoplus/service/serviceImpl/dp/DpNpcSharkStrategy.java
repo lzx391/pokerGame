@@ -1,13 +1,12 @@
-package com.example.mgdemoplus.service.studentImpl;
+package com.example.mgdemoplus.service.serviceImpl.dp;
 
-import com.example.mgdemoplus.entity.DpPlayer;
-import com.example.mgdemoplus.entity.DpRoom;
-import com.example.mgdemoplus.entity.PlayerStats;
+import com.example.mgdemoplus.entity.dp.DpPlayer;
+import com.example.mgdemoplus.entity.dp.DpRoom;
+import com.example.mgdemoplus.entity.dp.PlayerStats;
 
-import java.util.List;
 import java.util.Random;
 
-import static com.example.mgdemoplus.service.studentImpl.DpHandEvaluator.SimpleStrength;
+import static com.example.mgdemoplus.service.serviceImpl.dp.DpHandEvaluator.SimpleStrength;
 
 /**
  * 单独拆出来的 Shark 决策逻辑（只负责 SHARK 分支）。

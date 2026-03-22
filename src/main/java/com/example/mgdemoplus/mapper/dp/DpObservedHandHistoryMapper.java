@@ -1,6 +1,6 @@
-package com.example.mgdemoplus.mapper;
+package com.example.mgdemoplus.mapper.dp;
 
-import com.example.mgdemoplus.entity.DpObservedHandHistory;
+import com.example.mgdemoplus.entity.dp.DpObservedHandHistory;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 

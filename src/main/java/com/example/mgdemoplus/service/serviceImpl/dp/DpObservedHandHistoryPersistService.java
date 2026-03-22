@@ -1,7 +1,7 @@
-package com.example.mgdemoplus.service.studentImpl;
+package com.example.mgdemoplus.service.serviceImpl.dp;
 
-import com.example.mgdemoplus.entity.DpObservedHandHistory;
-import com.example.mgdemoplus.mapper.DpObservedHandHistoryMapper;
+import com.example.mgdemoplus.entity.dp.DpObservedHandHistory;
+import com.example.mgdemoplus.mapper.dp.DpObservedHandHistoryMapper;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.ObjectMapper;

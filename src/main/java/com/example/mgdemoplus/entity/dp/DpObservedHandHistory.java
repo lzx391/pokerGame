@@ -1,4 +1,4 @@
-package com.example.mgdemoplus.entity;
+package com.example.mgdemoplus.entity.dp;
 
 /**
  * 表 dp_observed_hand_history 对应实体（仅用于 MyBatis 写入）。

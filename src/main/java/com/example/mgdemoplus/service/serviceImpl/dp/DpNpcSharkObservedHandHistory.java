@@ -1,8 +1,8 @@
-package com.example.mgdemoplus.service.studentImpl;
+package com.example.mgdemoplus.service.serviceImpl.dp;
 
-import com.example.mgdemoplus.entity.DpPlayer;
-import com.example.mgdemoplus.entity.DpPot;
-import com.example.mgdemoplus.entity.DpRoom;
+import com.example.mgdemoplus.entity.dp.DpPlayer;
+import com.example.mgdemoplus.entity.dp.DpPot;
+import com.example.mgdemoplus.entity.dp.DpRoom;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;

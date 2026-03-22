@@ -1,4 +1,4 @@
-package com.example.mgdemoplus.entity;
+package com.example.mgdemoplus.entity.dp;
 
 /**
  * 表 dp_shark_opponent_profile（MyBatis 读写）。

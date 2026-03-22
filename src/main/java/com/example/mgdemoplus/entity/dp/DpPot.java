@@ -1,4 +1,4 @@
-package com.example.mgdemoplus.entity;
+package com.example.mgdemoplus.entity.dp;
 
 import java.util.List;
 

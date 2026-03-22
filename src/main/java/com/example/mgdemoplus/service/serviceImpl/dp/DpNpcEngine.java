@@ -1,16 +1,16 @@
-package com.example.mgdemoplus.service.studentImpl;
+package com.example.mgdemoplus.service.serviceImpl.dp;
 
-import com.example.mgdemoplus.entity.DpPlayer;
-import com.example.mgdemoplus.entity.DpRoom;
-import com.example.mgdemoplus.entity.PlayerStats;
+import com.example.mgdemoplus.entity.dp.DpPlayer;
+import com.example.mgdemoplus.entity.dp.DpRoom;
+import com.example.mgdemoplus.entity.dp.PlayerStats;
 
 import java.util.*;
 
-import static com.example.mgdemoplus.service.studentImpl.DpHandEvaluator.CARD_RANK_MAP;
-import static com.example.mgdemoplus.service.studentImpl.DpHandEvaluator.SimpleStrength;
-import static com.example.mgdemoplus.service.studentImpl.DpHandEvaluator.getRankFromCard;
-import static com.example.mgdemoplus.service.studentImpl.DpHandEvaluator.toSimpleStrength;
-import static com.example.mgdemoplus.service.studentImpl.DpHandEvaluator.evaluateBestHand;
+import static com.example.mgdemoplus.service.serviceImpl.dp.DpHandEvaluator.CARD_RANK_MAP;
+import static com.example.mgdemoplus.service.serviceImpl.dp.DpHandEvaluator.SimpleStrength;
+import static com.example.mgdemoplus.service.serviceImpl.dp.DpHandEvaluator.getRankFromCard;
+import static com.example.mgdemoplus.service.serviceImpl.dp.DpHandEvaluator.toSimpleStrength;
+import static com.example.mgdemoplus.service.serviceImpl.dp.DpHandEvaluator.evaluateBestHand;
 
 /**
  * 德扑 NPC 行为模块。

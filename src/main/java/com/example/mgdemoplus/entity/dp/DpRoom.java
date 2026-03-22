@@ -1,6 +1,4 @@
-package com.example.mgdemoplus.entity;
-
-import com.example.mgdemoplus.entity.DpPlayer;
+package com.example.mgdemoplus.entity.dp;
 
 import java.util.ArrayList;
 import java.util.HashMap;

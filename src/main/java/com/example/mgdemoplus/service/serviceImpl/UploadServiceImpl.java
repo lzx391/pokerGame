@@ -1,4 +1,4 @@
-package com.example.mgdemoplus.service.studentImpl;
+package com.example.mgdemoplus.service.serviceImpl;
 
 import com.example.mgdemoplus.mapper.UploadMapper;
 import com.example.mgdemoplus.service.UploadService;

@@ -4,25 +4,22 @@
 
 ```java
 // DpNpcEngine.java (摘录) - L1 ~ L520 左右
-package com.example.mgdemoplus.service.studentImpl;
+package com.example.mgdemoplus.service.serviceImpl;
 
-import com.example.mgdemoplus.entity.DpPlayer;
-import com.example.mgdemoplus.entity.DpRoom;
-import com.example.mgdemoplus.entity.PlayerStats;
+import com.example.mgdemoplus.entity.dp.DpPlayer;
+import com.example.mgdemoplus.entity.dp.DpRoom;
 
 import java.util.*;
 
-import static com.example.mgdemoplus.service.studentImpl.DpHandEvaluator.CARD_RANK_MAP;
-import static com.example.mgdemoplus.service.studentImpl.DpHandEvaluator.SimpleStrength;
-import static com.example.mgdemoplus.service.studentImpl.DpHandEvaluator.getRankFromCard;
-import static com.example.mgdemoplus.service.studentImpl.DpHandEvaluator.toSimpleStrength;
-import static com.example.mgdemoplus.service.studentImpl.DpHandEvaluator.evaluateBestHand;
+import static com.example.mgdemoplus.service.serviceImpl.dp.DpHandEvaluator.SimpleStrength;
 
 public final class DpNpcEngine {
 
-    private DpNpcEngine() {}
+    private DpNpcEngine() {
+    }
 
-    private static final class SharkStrategyProfile { /* ... 省略：大量参数注释 ... */ }
+    private static final class SharkStrategyProfile { /* ... 省略：大量参数注释 ... */
+    }
 
     private static final class SharkConfig {
         private static final SharkStrategyProfile P = SharkStrategyProfile.DEFAULT;
@@ -44,43 +41,66 @@ public final class DpNpcEngine {
     public static final String SHARK_BOT_NICKNAME = "BOT_Shark";
     public static final String TAG_BOT_NICKNAME = "BOT_Tag";
 
-    private enum BotType { DEMO, MANIAC, SHARK, TAG }
+    private enum BotType {DEMO, MANIAC, SHARK, TAG}
 
-    private enum HandPlanType { VALUE, BLUFF, POT_CONTROL, GIVE_UP }
+    private enum HandPlanType {VALUE, BLUFF, POT_CONTROL, GIVE_UP}
 
-    private enum NpcStyle { TIGHT_AGGRO, LOOSE_AGGRO, TIGHT_PASSIVE, LOOSE_FUN }
+    private enum NpcStyle {TIGHT_AGGRO, LOOSE_AGGRO, TIGHT_PASSIVE, LOOSE_FUN}
 
-    private enum NpcDifficulty { EASY, MEDIUM, HARD, PRO }
+    private enum NpcDifficulty {EASY, MEDIUM, HARD, PRO}
 
-    public enum BotActionType { FOLD, CALL_OR_CHECK, RAISE, ALL_IN }
+    public enum BotActionType {FOLD, CALL_OR_CHECK, RAISE, ALL_IN}
 
     public static class BotAction {
         private final BotActionType type;
         private final int amount;
-        BotAction(BotActionType type, int amount) { this.type = type; this.amount = amount; }
-        public BotActionType getType() { return type; }
-        public int getAmount() { return amount; }
+
+        BotAction(BotActionType type, int amount) {
+            this.type = type;
+            this.amount = amount;
+        }
+
+        public BotActionType getType() {
+            return type;
+        }
+
+        public int getAmount() {
+            return amount;
+        }
     }
 
-    private enum BoardDanger { DRY, WET }
-    private enum TablePosition { EARLY, MIDDLE, LATE, BLINDS }
-    private enum PreflopPosition { EARLY, MIDDLE, LATE, BLINDS }
+    private enum BoardDanger {DRY, WET}
+
+    private enum TablePosition {EARLY, MIDDLE, LATE, BLINDS}
+
+    private enum PreflopPosition {EARLY, MIDDLE, LATE, BLINDS}
+
     private enum PreflopHandCategory {
         PREMIUM_PAIR, MEDIUM_PAIR, SMALL_PAIR, STRONG_SUITED_BROADWAY, SUITED_CONNECTOR, TRASH
     }
 
     // HandPlan 相关（flop 首次行动时初始化）
-    private static HandPlanType getHandPlanType(DpPlayer bot) { /* ... */ return null; }
+    private static HandPlanType getHandPlanType(DpPlayer bot) { /* ... */
+        return null;
+    }
+
     private static void initHandPlanIfNeededForPostflop(
             DpRoom room, DpPlayer bot, BotType type, SimpleStrength strength,
             BoardDanger boardDanger, TablePosition position, SmartContext ctx, Random random
     ) { /* ... */ }
-    private static boolean shouldSkipAggressiveActionByPlan(DpPlayer bot, String stage) { /* ... */ return false; }
+
+    private static boolean shouldSkipAggressiveActionByPlan(DpPlayer bot, String stage) { /* ... */
+        return false;
+    }
+
     private static void consumeOneBarrelIfAny(DpPlayer bot, String stage) { /* ... */ }
 
     // PreflopDecision / PreflopStrategyProfile（后续 part02 会继续）
-    private static class PreflopDecision { /* ... */ }
-    private static final class PreflopStrategyProfile { /* ... */ }
+    private static class PreflopDecision { /* ... */
+    }
+
+    private static final class PreflopStrategyProfile { /* ... */
+    }
 }
 ```
 
