@@ -672,8 +672,13 @@ export default {
       communityCardsFlipComplete: false,
       communityCardsFlipCompleteTimer: null,
 
+      // 游戏对局 WebSocket（与后端 /ws/dp-game 同步，无 Redis）
+      gameWs: null,
+      gameWsConnected: false,
+
       // 定时器
       pollTimer: null,
+      backupPollTimer: null,
       heartbeatTimer: null,
       //游戏计时器
       actionTimer: null,
@@ -824,13 +829,23 @@ export default {
     }
     this.user = JSON.parse(raw)
 
-    // 立即加载一次
-    this.loadGame()
+    // 先 HTTP 拉一次，再建立 WebSocket（推送与定时器同 1s 节奏）
+    this.loadGame().then(function () {
+      this.connectGameWs()
+    }.bind(this))
 
-    // 1秒轮询游戏状态
+    // 未连上 WS 时 1 秒轮询兜底；握手过程中 readyState===CONNECTING 也要停掉，否则会连着打一串 getNowRoom
     this.pollTimer = setInterval(function () {
-      if (!this.loading) this.loadGame()
+      if (this.loading) return
+      if (this.gameWsConnected) return
+      if (this.gameWs && this.gameWs.readyState === WebSocket.CONNECTING) return
+      this.loadGame()
     }.bind(this), 1000)
+
+    // 已连上 WS 时低频 HTTP 兜底（防止长连异常而界面停滞）
+    this.backupPollTimer = setInterval(function () {
+      if (!this.loading && this.gameWsConnected) this.loadGame()
+    }.bind(this), 15000)
 
     // 5秒独立心跳（和 loadGame 解耦，loadGame 失败不影响心跳）
     this.sendHeartbeat()
@@ -840,7 +855,9 @@ export default {
   },
 
   beforeDestroy() {
+    this.disconnectGameWs()
     if (this.pollTimer) clearInterval(this.pollTimer)
+    if (this.backupPollTimer) clearInterval(this.backupPollTimer)
     if (this.heartbeatTimer) clearInterval(this.heartbeatTimer)
     if (this.actionTimer) clearInterval(this.actionTimer)
     if (this.readyTimer) clearInterval(this.readyTimer)
@@ -858,6 +875,83 @@ export default {
       })
     },
 
+    gameWsBaseUrl() {
+      // 与页面同源；开发时游戏 WS 走 vue.config.js 的 /dp-ws → 后端 /ws
+      var secure = window.location.protocol === 'https:'
+      return (secure ? 'wss:' : 'ws:') + '//' + window.location.host
+    },
+
+    connectGameWs() {
+      this.disconnectGameWs()
+      // 开发服：走 /dp-ws → vue 代理转成后端 /ws（避免与 webpack HMR 的 /ws 冲突）
+      var path = process.env.NODE_ENV === 'development' ? '/dp-ws/dp-game' : '/ws/dp-game'
+      var url = this.gameWsBaseUrl() + path + '?roomId=' + encodeURIComponent(this.roomId)
+      try {
+        var ws = new WebSocket(url)
+        this.gameWs = ws
+        var self = this
+        ws.onopen = function () {
+          self.gameWsConnected = true
+        }
+        ws.onmessage = function (ev) {
+          try {
+            var data = JSON.parse(ev.data)
+            if (data._ws === 'roomClosed') {
+              self.handleRoomClosedFromServer()
+              return
+            }
+            self.applyRoomFromServer(data)
+          } catch (e) {
+            console.error('WebSocket 消息解析失败', e)
+          }
+        }
+        ws.onclose = function () {
+          self.gameWsConnected = false
+          if (self.gameWs === ws) self.gameWs = null
+        }
+        ws.onerror = function (e) {
+          console.error('WebSocket 错误', e)
+        }
+      } catch (e) {
+        console.error('WebSocket 连接失败', e)
+      }
+    },
+
+    disconnectGameWs() {
+      if (this.gameWs) {
+        try {
+          this.gameWs.close()
+        } catch (e) { /* ignore */ }
+        this.gameWs = null
+      }
+      this.gameWsConnected = false
+    },
+
+    handleRoomClosedFromServer() {
+      alert('房间已解散或你已被移出')
+      this.disconnectGameWs()
+      if (this.pollTimer) clearInterval(this.pollTimer)
+      if (this.backupPollTimer) clearInterval(this.backupPollTimer)
+      if (this.heartbeatTimer) clearInterval(this.heartbeatTimer)
+      this.$router.push('/home')
+    },
+
+    applyRoomFromServer(room) {
+      this.owner = room.owner
+      this.players = room.players || []
+      this.playing = room.playing
+      this.stage = room.currentStage
+      this.communityCards = room.communityCards || []
+      this.syncCommunityCardsFlipState(room.communityCards || [])
+      this.pot = room.pot
+      this.pots = room.pots || []
+      this.currentBetToCall = room.currentBetToCall
+      this.actIndex = room.currentActorIndex
+      this.spectators = room.spectators || []
+      var list = room.waitNextHand || []
+      this.nextHandReady = !!(this.user && list.indexOf(this.user.nickname) !== -1)
+    },
+
     // ---- 拉取房间状态 ----
     async loadGame() {
       this.loading = true
@@ -867,27 +961,10 @@ export default {
         })
         var room = res.data
         if (!room) {
-          alert('房间已解散或你已被移出')
-          clearInterval(this.pollTimer)
-          clearInterval(this.heartbeatTimer)
-          this.$router.push('/home')
+          this.handleRoomClosedFromServer()
           return
         }
-
-        this.owner = room.owner
-        this.players = room.players || []
-        this.playing = room.playing
-        this.stage = room.currentStage
-        this.communityCards = room.communityCards || []
-        this.syncCommunityCardsFlipState(room.communityCards || [])
-        this.pot = room.pot
-        this.pots = room.pots || []
-        this.currentBetToCall = room.currentBetToCall
-        this.actIndex = room.currentActorIndex
-        this.spectators = room.spectators || []
-        // 报名下一局状态以服务端为准（被清到观众席后不在 waitNextHand，避免界面“已报名”但实际未报名导致流程卡死）
-        var list = room.waitNextHand || []
-        this.nextHandReady = !!(this.user && list.indexOf(this.user.nickname) !== -1)
+        this.applyRoomFromServer(room)
       } catch (err) {
         console.error('拉取状态失败', err)
       } finally {

@@ -5,6 +5,7 @@ import com.example.mgdemoplus.entity.dp.DpPlayer;
 import com.example.mgdemoplus.entity.dp.DpPot;
 import com.example.mgdemoplus.entity.dp.DpRoom;
 import com.example.mgdemoplus.entity.dp.DpPlayerStats;
+import com.example.mgdemoplus.websocket.DpGameRoomPushService;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -17,6 +18,7 @@ public class DpRoomServiceImpl {
     private final DpNpcObservedHandHistoryPersistService observedHandPersistService;
     private final DpNpcSharkOpponentMemoryService sharkOpponentMemoryService;
     private final DpLlmNpcDecisionService llmNpcDecisionService;
+    private final DpGameRoomPushService gameRoomPushService;
 
     // 统一从 NPC 引擎中获取机器人昵称，避免散落魔法字符串
     private static final String DEMO_BOT_NICKNAME = DpNpcEngine.DEMO_BOT_NICKNAME;   // BOT_Fish
@@ -26,11 +28,13 @@ public class DpRoomServiceImpl {
     public DpRoomServiceImpl(
             DpNpcObservedHandHistoryPersistService observedHandPersistService,
             DpNpcSharkOpponentMemoryService sharkOpponentMemoryService,
-            DpLlmNpcDecisionService llmNpcDecisionService
+            DpLlmNpcDecisionService llmNpcDecisionService,
+            DpGameRoomPushService gameRoomPushService
     ) {
         this.observedHandPersistService = observedHandPersistService;
         this.sharkOpponentMemoryService = sharkOpponentMemoryService;
         this.llmNpcDecisionService = llmNpcDecisionService;
+        this.gameRoomPushService = gameRoomPushService;
         // 心跳清理 + 超时行动
         new Timer().scheduleAtFixedRate(new TimerTask() {
             @Override
@@ -142,6 +146,7 @@ public class DpRoomServiceImpl {
                             && System.currentTimeMillis() > room.getReadyDeadline()) {
                         handleReadyTimeout(room);
                     }
+                    gameRoomPushService.broadcastIfSubscribed(room.getRoomId());
                 }
             }
         }, 0, 1000);

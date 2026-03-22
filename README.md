@@ -4,6 +4,14 @@
 
 - [DP游戏详细文档（规则、接口、开发与维护）](docs/DPGAME.md)
 
+### 游戏对局 WebSocket（无 Redis）
+
+- **用途**：仅 **游戏页** `front/dp_game` 使用；服务端在内存里按 `roomId` 维护连接，与 `ConcurrentHashMap` 房间数据同进程，**不需要 Redis**。
+- **地址**：`ws://<后端主机>:<端口>/ws/dp-game?roomId=房间号`（本地开发前端里默认连 `ws://localhost:8088`）。
+- **数据**：每条消息 JSON 与 `GET /dpRoom/getNowRoom` 一致；房间不存在时推送 `{"_ws":"roomClosed"}`。
+- **推送节奏**：与后端原有 1 秒定时任务对齐，仅当该房间 **至少有一个 WebSocket 订阅者** 时才序列化并广播，避免空订阅浪费。
+- **相关代码**：`DpGameRoomPushService`、`DpGameRoomWebSocketHandler`、`WebSocketGameRoomConfig`；`DpRoomServiceImpl` 定时循环末尾调用 `broadcastIfSubscribed`。
+
 ### NPC / AI（给不懂代码的人看的）
 
 #### Shark（BOT_Shark）现在会“翻前按局势调范围”
