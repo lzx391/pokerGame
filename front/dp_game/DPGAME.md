@@ -226,7 +226,7 @@ bet和fold可能会引起进程推进
 
 - **前端入口**：`game.vue` 中“房主神器”弹窗里的实验区块：
 
-```77:115:src/main/java/com/example/mgdemoplus/front/dp_game/src/components/game.vue
+```77:115:front/dp_game/src/components/game.vue
     <!-- 房主神器弹窗 -->
     <div v-if="showOwnerToolModal" class="hand-rank-modal-mask" @click="closeOwnerToolPanel">
       <div class="hand-rank-modal" @click.stop>
@@ -265,7 +265,7 @@ bet和fold可能会引起进程推进
 
 - **前端调用的方法**：
 
-```715:746:src/main/java/com/example/mgdemoplus/front/dp_game/src/components/game.vue
+```715:746:front/dp_game/src/components/game.vue
     async addDemoBot() {
       if (!this.roomId) return
       this.demoBotAdding = true
@@ -825,7 +825,7 @@ public class DpPlayer {
 
 前端 `game.vue` 里有一个**每秒轮询**房间状态的方法 `loadGame`：
 
-```603:637:src/main/java/com/example/mgdemoplus/front/dp_game/src/components/game.vue
+```603:637:front/dp_game/src/components/game.vue
     async loadGame() {
       this.loading = true
       try {
@@ -870,7 +870,7 @@ public class DpPlayer {
 
 #### 1. 模板中展示文字牌型 + 5 张最佳牌
 
-```179:210:src/main/java/com/example/mgdemoplus/front/dp_game/src/components/game.vue
+```179:210:front/dp_game/src/components/game.vue
           <!-- 牌型显示：文字 + 最大牌型的 5 张牌 -->
           <div v-if="communityCards.length >= 3 && communityCardsFlipComplete && (isMe(p.nickname) || ((stage === 'showdown' || stage === 'settled') && !p.fold))"
                style="margin-top:4px; text-align:center;">
@@ -923,7 +923,7 @@ public class DpPlayer {
 
 #### 2. 前端的牌型评估（文字版）`getHandRank`
 
-```1088:1135:src/main/java/com/example/mgdemoplus/front/dp_game/src/components/game.vue
+```1088:1135:front/dp_game/src/components/game.vue
     getHandRank(holeCards, communityCards) {
       if (!holeCards || holeCards.length < 2 || !communityCards || communityCards.length < 3) {
         return '牌不足'
@@ -936,7 +936,7 @@ public class DpPlayer {
     },
 ```
 
-```1158:1260:src/main/java/com/example/mgdemoplus/front/dp_game/src/components/game.vue
+```1158:1260:front/dp_game/src/components/game.vue
     evaluateHand(cards) {
       ...
       // 皇家同花顺
