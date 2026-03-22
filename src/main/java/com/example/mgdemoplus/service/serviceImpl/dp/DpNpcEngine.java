@@ -3,6 +3,7 @@ package com.example.mgdemoplus.service.serviceImpl.dp;
 import com.example.mgdemoplus.entity.dp.DpPlayer;
 import com.example.mgdemoplus.entity.dp.DpRoom;
 import com.example.mgdemoplus.entity.dp.DpPlayerStats;
+import com.example.mgdemoplus.service.serviceImpl.dp.npc.LlmNpcGameContext;
 
 import java.util.*;
 
@@ -247,6 +248,11 @@ public final class DpNpcEngine {
     private static final boolean SHARK_DEBUG = true;
     private static final boolean DISABLE_BOT_THINK_DELAY = true;
     public static final String TAG_BOT_NICKNAME = "BOT_Tag";   // 新增：紧凶型 TAG（Tight-Aggressive），困难难度
+    /**
+     * 大模型驱动机器人：决策走 {@link com.example.mgdemoplus.service.serviceImpl.dp.DpLlmNpcDecisionService}，
+     * 不进入本类 {@link #decideBotAction} 的分支，避免与普通规则 NPC 混在一起。
+     */
+    public static final String LLM_BOT_NICKNAME = "BOT_LLM";
 
     /**
      * 机器人类型（现有昵称入口），后续只用来映射「风格 + 难度」。
@@ -997,7 +1003,8 @@ public final class DpNpcEngine {
         return DEMO_BOT_NICKNAME.equals(name)
                 || MANIAC_BOT_NICKNAME.equals(name)
                 || SHARK_BOT_NICKNAME.equals(name)
-                || TAG_BOT_NICKNAME.equals(name);
+                || TAG_BOT_NICKNAME.equals(name)
+                || LLM_BOT_NICKNAME.equals(name);
     }
 
     public static BotType getBotTypeByNickname(String nickname) {
@@ -2303,6 +2310,23 @@ public final class DpNpcEngine {
                 shortBehind,
                 counter
         );
+    }
+
+    /**
+     * 仅给 {@code BOT_LLM} 使用：打包当前局面摘要，供大模型阅读。
+     * 不进入 {@link #decideBotAction}，与普通规则 NPC 分离。
+     */
+    public static LlmNpcGameContext buildLlmNpcGameSnapshot(DpRoom room, DpPlayer bot) {
+        if (room == null || bot == null) {
+            return null;
+        }
+        String stage = room.getCurrentStage() != null ? room.getCurrentStage() : "";
+        int callAmount = Math.max(0, room.getCurrentBetToCall() - bot.getBet());
+        SimpleStrength strength = estimateCurrentStrength(room, bot);
+        TablePosition position = getTablePosition(room, bot);
+        Random random = buildHandRandom(room, bot);
+        DpUtilSmartContext ctx = buildSmartContext(room, bot, strength, stage, callAmount, NpcDifficulty.PRO, random);
+        return DpLlmNpcContextMapper.map(room, bot, ctx, stage, callAmount, strength, position);
     }
 
     private static BotAction decideBotAction(DpRoom room, DpPlayer bot, BotType type) {

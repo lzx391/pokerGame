@@ -136,6 +136,14 @@ public class DpRoomController {
     }
 
     /**
+     * 将大模型 NPC（BOT_LLM）加入下一局；需配置环境变量 ARK_API_KEY、ARK_ENDPOINT_ID。
+     */
+    @PostMapping("/addLlmBot")
+    public String addLlmBot(@RequestParam String roomId) {
+        return dpRoomService.addLlmBotToNextHand(roomId) ? "ok" : "fail";
+    }
+
+    /**
      * 房主主动移交房主给房间内的另一位玩家
      */
     @PostMapping("/transferOwner")

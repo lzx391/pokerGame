@@ -98,7 +98,8 @@
             <span style="font-weight:bold;">BOT_Fish</span>（简单鱼式，偏被动，适合新手练习）、
             <span style="font-weight:bold;">BOT_Maniac</span>（疯子风格，喜欢乱加注）、
             <span style="font-weight:bold;">BOT_Tag</span>（紧凶风格，范围较紧、价值下注为主）、
-            <span style="font-weight:bold;">BOT_Shark</span>（会简单“读对手”的聪明型）。
+            <span style="font-weight:bold;">BOT_Shark</span>（会简单“读对手”的聪明型）、
+            <span style="font-weight:bold;">BOT_LLM</span>（大模型决策，需在服务端配置方舟密钥与接入点）。
           </div>
           <div style="display:flex; flex-direction:column; gap:6px;">
             <div>
@@ -147,6 +148,18 @@
               </button>
               <span v-if="sharkBotAddedTip" style="font-size:12px; color:#595959;">
                 {{ sharkBotAddedTip }}
+              </span>
+            </div>
+            <div>
+              <button
+                  @click="addLlmBot"
+                  :disabled="llmBotAdding"
+                  style="padding:6px 10px; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;
+                         background:#08979c; color:#fff; margin-right:8px;">
+                {{ llmBotAdding ? '正在添加 BOT_LLM...' : '添加大模型 BOT_LLM 到下一局' }}
+              </button>
+              <span v-if="llmBotAddedTip" style="font-size:12px; color:#595959;">
+                {{ llmBotAddedTip }}
               </span>
             </div>
           </div>
@@ -700,6 +713,9 @@ export default {
       // 聪明型 NPC 状态
       sharkBotAdding: false,
       sharkBotAddedTip: '',
+      // 大模型 NPC 状态
+      llmBotAdding: false,
+      llmBotAddedTip: '',
 
       // 房主专用：一键看穿所有人底牌（仅本机显示，不影响后端和 NPC 决策）
       ownerRevealAll: false
@@ -1217,6 +1233,29 @@ export default {
         this.sharkBotAddedTip = '网络错误：' + (e && e.message ? e.message : e)
       } finally {
         this.sharkBotAdding = false
+      }
+    },
+
+    /**
+     * 将大模型 NPC（BOT_LLM）加入下一局等待列表（后端 /dpRoom/addLlmBot）。
+     */
+    async addLlmBot() {
+      if (!this.roomId) return
+      this.llmBotAdding = true
+      this.llmBotAddedTip = ''
+      try {
+        var res = await this.$http.post('/dpRoom/addLlmBot', null, {
+          params: {roomId: this.roomId}
+        })
+        if (res.data === 'ok') {
+          this.llmBotAddedTip = '已请求在下一局加入 BOT_LLM，请等待本局结束后自动入座（需配置服务端方舟密钥）。'
+        } else {
+          this.llmBotAddedTip = '添加大模型 NPC 失败：' + res.data
+        }
+      } catch (e) {
+        this.llmBotAddedTip = '网络错误：' + (e && e.message ? e.message : e)
+      } finally {
+        this.llmBotAdding = false
       }
     },
 

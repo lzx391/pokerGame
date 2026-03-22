@@ -42,3 +42,15 @@
 - **做什么**：在 flop 首次生成整手计划（VALUE / BLUFF / POT_CONTROL / GIVE_UP 与 barrels、激进度）之后，根据**对手 `PlayerStats` + `LearningLab` 旋钮**归类成粗剧本（跟注站 / 紧弱 / 松凶等），再**改线路、加减压枪数、调激进度**；turn/river 强牌纠正为价值线时，对「跟注站」会多给 1 枪额度。
 - **代码**：`DpSharkExploitHandPlan`；接入点在 `DpNpcEngine.initHandPlanIfNeededForPostflop`（仅 Shark）与 `updateHandPlanForLaterStreetIfNeeded`。
 - **数据库**：**不需要**为剥削剧本单独加表或加字段；沿用 `dp_shark_opponent_profile` 里已有的统计与旋钮 JSON 即可。
+
+#### 大模型 NPC（BOT_LLM，火山方舟 / 豆包）
+
+- **做什么**：昵称 `BOT_LLM` 仅在 `DpRoomServiceImpl` 定时器里走 `DpLlmNpcDecisionService`，与普通规则 NPC 分离；接口 `POST /dpRoom/addLlmBot?roomId=...` 可预约下一局上桌。
+- **代码位置**：`npc/LlmNpc.java`、`DpLlmNpcDecisionService.java`、`DpNpcEngine.buildLlmNpcGameSnapshot` 等。
+- **密钥与接入点怎么配（二选一，配置文件优先）**：
+  1. **`application.properties`**（已预留项，适合本机开发）：`dp.llm.ark.api-key=`、`dp.llm.ark.endpoint-id=`（可选 `dp.llm.ark.base-url=`）。**不要把填了真密钥的文件提交到 Git。**
+  2. **系统环境变量**：`ARK_API_KEY`、`ARK_ENDPOINT_ID`（可选 `ARK_BASE_URL`）。  
+     - Windows：**设置 → 系统 → 关于 → 高级系统设置 → 环境变量**（用户或系统变量里新建）。  
+     - 仅当前 PowerShell 会话：`$env:ARK_API_KEY="你的key"`、`$env:ARK_ENDPOINT_ID="ep-..."`。  
+     - IntelliJ：**Run → Edit Configurations → 你的 Spring Boot → Environment variables**。
+- **对局摘要**：`DpUtilSmartContext` 由 `buildLlmNpcGameSnapshot` 与房间状态一起打成 `LlmNpcGameContext` 再发给模型。

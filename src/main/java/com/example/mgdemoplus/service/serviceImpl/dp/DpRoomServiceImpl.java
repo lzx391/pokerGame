@@ -16,6 +16,7 @@ public class DpRoomServiceImpl {
     private final Map<String, DpRoom> roomMap = new ConcurrentHashMap<>();
     private final DpNpcObservedHandHistoryPersistService observedHandPersistService;
     private final DpNpcSharkOpponentMemoryService sharkOpponentMemoryService;
+    private final DpLlmNpcDecisionService llmNpcDecisionService;
 
     // 统一从 NPC 引擎中获取机器人昵称，避免散落魔法字符串
     private static final String DEMO_BOT_NICKNAME = DpNpcEngine.DEMO_BOT_NICKNAME;   // BOT_Fish
@@ -24,10 +25,12 @@ public class DpRoomServiceImpl {
 
     public DpRoomServiceImpl(
             DpNpcObservedHandHistoryPersistService observedHandPersistService,
-            DpNpcSharkOpponentMemoryService sharkOpponentMemoryService
+            DpNpcSharkOpponentMemoryService sharkOpponentMemoryService,
+            DpLlmNpcDecisionService llmNpcDecisionService
     ) {
         this.observedHandPersistService = observedHandPersistService;
         this.sharkOpponentMemoryService = sharkOpponentMemoryService;
+        this.llmNpcDecisionService = llmNpcDecisionService;
         // 心跳清理 + 超时行动
         new Timer().scheduleAtFixedRate(new TimerTask() {
             @Override
@@ -70,8 +73,13 @@ public class DpRoomServiceImpl {
                             && room.getCurrentActorIndex() < room.getPlayers().size()) {
                         DpPlayer p = room.getPlayers().get(room.getCurrentActorIndex());
                         // 如果当前行动者是 NPC，则直接由后端自动决策行动，不等待前端操作
-                        if (DpNpcEngine.isBotPlayer(p)) {//决策入口
-                            DpNpcEngine.BotAction action = DpNpcEngine.decideActionIfReady(room, p);
+                        if (DpNpcEngine.isBotPlayer(p)) {//决策入口：BOT_LLM 与普通 NPC 分离
+                            DpNpcEngine.BotAction action;
+                            if (DpNpcEngine.LLM_BOT_NICKNAME.equals(p.getNickname())) {
+                                action = llmNpcDecisionService.decideActionIfReady(room, p);
+                            } else {
+                                action = DpNpcEngine.decideActionIfReady(room, p);
+                            }
                             if (action != null) {
                                 String roomId = room.getRoomId();
                                 switch (action.getType()) {
@@ -472,6 +480,13 @@ public class DpRoomServiceImpl {
      */
     public boolean addTagBotToNextHand(String roomId) {
         return readyNextHand(roomId, TAG_BOT_NICKNAME);
+    }
+
+    /**
+     * 将大模型 NPC（BOT_LLM）加入指定房间的下一局等待列表；决策仅走 {@link DpLlmNpcDecisionService}。
+     */
+    public boolean addLlmBotToNextHand(String roomId) {
+        return readyNextHand(roomId, DpNpcEngine.LLM_BOT_NICKNAME);
     }
 
     public boolean toggleReady(String roomId, String nickname) {
