@@ -534,6 +534,7 @@ export default {
     document.addEventListener('fullscreenchange', this._dpFsChange)
     document.addEventListener('webkitfullscreenchange', this._dpFsChange)
     this.syncDpFullscreenState()
+    this.wrapDpMessageForFullscreenOverlays()
   },
 
   beforeDestroy() {
@@ -621,6 +622,76 @@ export default {
     },
 
     /**
+     * 浏览器原生全屏时，只有全屏元素子树会显示。Element UI 的 MessageBox / $message 默认挂在 body 上，
+     * 用户在全屏里看不到；退出全屏后才“突然”出现在页面上方。将相关节点移入对局根节点即可。
+     */
+    reparentElementUiLayersIntoFullscreenRoot() {
+      var root = this.$refs.gameRoot
+      if (!root || !this.isFullscreen) return
+      var moveIfOutside = function (node) {
+        if (!node || !node.parentNode || root.contains(node)) return
+        root.appendChild(node)
+      }
+      var w = 0
+      var wrappers = document.querySelectorAll('.el-message-box__wrapper')
+      for (w = 0; w < wrappers.length; w++) {
+        moveIfOutside(wrappers[w])
+      }
+      var modals = document.getElementsByClassName('v-modal')
+      for (w = 0; w < modals.length; w++) {
+        moveIfOutside(modals[w])
+      }
+      var msgs = document.querySelectorAll('.el-message')
+      for (w = 0; w < msgs.length; w++) {
+        moveIfOutside(msgs[w])
+      }
+    },
+
+    scheduleReparentElementUiLayersIntoFullscreenRoot() {
+      var self = this
+      if (!self.isFullscreen) return
+      var run = function () {
+        self.reparentElementUiLayersIntoFullscreenRoot()
+      }
+      self.$nextTick(function () {
+        run()
+        if (typeof requestAnimationFrame === 'function') {
+          requestAnimationFrame(run)
+        }
+        setTimeout(run, 0)
+        setTimeout(run, 50)
+      })
+    },
+
+    /**
+     * 仅本页实例：在全屏下把 $message 生成的节点也移入 gameRoot（与 dpConfirm 一致）。
+     */
+    wrapDpMessageForFullscreenOverlays() {
+      if (this._dpMessageFullscreenWrapDone) return
+      var raw = this.$message
+      if (!raw || typeof raw !== 'function') return
+      var self = this
+      var wrapped = function () {
+        var ret = raw.apply(raw, arguments)
+        self.scheduleReparentElementUiLayersIntoFullscreenRoot()
+        return ret
+      }
+      var k
+      for (k in raw) {
+        if (!Object.prototype.hasOwnProperty.call(raw, k) || typeof raw[k] !== 'function') continue
+        wrapped[k] = (function (methodName) {
+          return function () {
+            var ret = raw[methodName].apply(raw, arguments)
+            self.scheduleReparentElementUiLayersIntoFullscreenRoot()
+            return ret
+          }
+        })(k)
+      }
+      this.$message = wrapped
+      this._dpMessageFullscreenWrapDone = true
+    },
+
+    /**
      * 使用 Element 弹层替代 window.confirm，避免原生对话框打断当前页面状态。
      */
     dpConfirm(text, title, options) {
@@ -630,7 +701,9 @@ export default {
         type: 'warning',
         closeOnClickModal: false
       }, options || {})
-      return this.$confirm(text, title || '请确认', o)
+      var p = this.$confirm(text, title || '请确认', o)
+      this.scheduleReparentElementUiLayersIntoFullscreenRoot()
+      return p
     },
 
     // ---- 心跳（独立，不依赖 loadGame） ----
