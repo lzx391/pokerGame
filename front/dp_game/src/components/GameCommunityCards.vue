@@ -25,6 +25,9 @@ import { DP_DEAL_STAGGER_MS } from '../constants/dpGameDealTiming'
 
 export default {
   name: 'GameCommunityCards',
+  inject: {
+    dpGameView: { default: null }
+  },
   props: {
     communityCards: { type: Array, required: true },
     flipState: { type: Array, required: true }
@@ -77,6 +80,7 @@ export default {
     getCardClass,
     getCardDisplay,
     prefersReducedMotion() {
+      if (this.dpGameView && this.dpGameView.ecoMode) return true
       if (typeof window === 'undefined' || !window.matchMedia) return false
       return window.matchMedia('(prefers-reduced-motion: reduce)').matches
     },

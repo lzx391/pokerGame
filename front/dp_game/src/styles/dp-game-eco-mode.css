@@ -1,0 +1,102 @@
+/**
+ * 节能模式：与系统「减少动态效果」类似的视觉降级，由用户在对局页勾选，作用域为 .dp-game-root
+ * （不依赖 UA，任意设备可开）
+ */
+
+.dp-game-root[data-dp-eco-mode='true'] .dp-player-card__rival-turn-dot {
+  animation: none !important;
+  opacity: 1;
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .dp-player-card--hand-reveal-glass {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .card-base {
+  transition: none !important;
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .card-base::after {
+  animation: none !important;
+  opacity: 0 !important;
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .card-base:hover {
+  transform: none;
+  filter: none;
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .hole-card-fly-wrapper.hole-deal-fly-in {
+  animation: none !important;
+  pointer-events: auto;
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .hole-card-fly-wrapper.hole-fold-to-muck {
+  animation: none !important;
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .hole-card-flip {
+  animation: hole-card-flip-eco 0.35s ease-out both;
+}
+
+@keyframes hole-card-flip-eco {
+  from {
+    opacity: 0.6;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .best-hand-card-enter {
+  animation: none !important;
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .best-hand-cards .best-hand-card::after {
+  animation: none !important;
+  opacity: 0;
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .player-card--win-streak,
+.dp-game-root[data-dp-eco-mode='true'] .win-streak-badge,
+.dp-game-root[data-dp-eco-mode='true'] .win-streak-badge::after,
+.dp-game-root[data-dp-eco-mode='true'] .win-streak-badge__emoji {
+  animation: none !important;
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .player-card--win-streak {
+  box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.35), 0 4px 12px rgba(0, 0, 0, 0.06);
+  filter: none;
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .win-streak-badge {
+  background: linear-gradient(135deg, #ff4d4f 0%, #fa8c16 100%);
+  background-size: 100% 100%;
+}
+
+/* 公共牌区 */
+.dp-game-root[data-dp-eco-mode='true'] .card-flip-wrapper.deal-fly-in {
+  animation: none !important;
+  pointer-events: auto;
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .card-flip-inner {
+  transition: transform 0.45s ease;
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .card-flip-inner.flipped .card-front {
+  animation: none !important;
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .card-flip-inner .card-back {
+  animation: none !important;
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .community-card-placeholder {
+  animation: none !important;
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .card-flip-wrapper {
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.25));
+}

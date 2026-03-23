@@ -263,6 +263,9 @@ import { DP_DEAL_STAGGER_MS } from '../constants/dpGameDealTiming'
 
 export default {
   name: 'GamePlayerCard',
+  inject: {
+    dpGameView: { default: null }
+  },
   props: {
     player: { type: Object, required: true },
     seatIndex: { type: Number, required: true },
@@ -452,6 +455,7 @@ export default {
     getHandRank,
     getHandRankDetail,
     prefersReducedMotion() {
+      if (this.dpGameView && this.dpGameView.ecoMode) return true
       if (typeof window === 'undefined' || !window.matchMedia) return false
       return window.matchMedia('(prefers-reduced-motion: reduce)').matches
     },
