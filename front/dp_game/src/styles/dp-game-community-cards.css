@@ -1,4 +1,40 @@
-/* 公共牌：3D 翻转 + 华丽牌背 + 翻亮 */
+/* 公共牌：3D 翻转 + 华丽牌背 + 翻亮 + 发牌飞入 */
+
+.community-cards-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin: 20px 0;
+  overflow: visible;
+  min-height: 62px;
+}
+
+/* 从桌面中心偏下（牌堆）飞向公共位 */
+.card-flip-wrapper.deal-fly-in {
+  animation: community-deal-fly 0.48s cubic-bezier(0.18, 0.85, 0.32, 1) both;
+  pointer-events: none;
+}
+
+@keyframes community-deal-fly {
+  0% {
+    opacity: 0.2;
+    transform: translate3d(var(--deal-from-x, 0px), 92px, 0) scale(0.52) rotateZ(var(--deal-from-rot, 0deg));
+    filter: blur(0.6px);
+  }
+  45% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  78% {
+    transform: translate3d(0, -6px, 0) scale(1.06) rotateZ(0deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1) rotateZ(0deg);
+    filter: blur(0);
+  }
+}
+
 .card-flip-wrapper {
   perspective: 880px;
   width: 44px;
@@ -139,6 +175,11 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .card-flip-wrapper.deal-fly-in {
+    animation: none !important;
+    pointer-events: auto;
+  }
+
   .card-flip-inner {
     transition: transform 0.45s ease;
   }

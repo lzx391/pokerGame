@@ -898,11 +898,12 @@ export default {
               self.$set(self.communityCardsFlipState, capturedIdx, true)
             }
           }, capturedDelay)
-        })(j, 350 * (j - prevLen))
+        })(j, 520 + 350 * (j - prevLen))
       }
       if (numNew > 0) {
         var flipDuration = 800
-        var lastFlipStart = 350 * (numNew - 1)
+        /* 等对应公共牌飞入动画（约 0.48s）后再翻牌，与 GameCommunityCards 发牌间隔一致 */
+        var lastFlipStart = 520 + 350 * (numNew - 1)
         var self = this
         this.communityCardsFlipCompleteTimer = setTimeout(function () {
           self.communityCardsFlipComplete = true
