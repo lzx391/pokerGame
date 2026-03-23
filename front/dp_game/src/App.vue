@@ -46,12 +46,12 @@ export default {
   color: #2c3e50;
   background-color: #f5f7fa;
   min-height: 100vh;
-  padding: 40px 20px;
 }
 
 .app-container {
   max-width: 500px;
   margin: 0 auto;
+  padding: 40px 20px;
 }
 
 /* 标题样式 */
@@ -103,9 +103,10 @@ export default {
   justify-content: center;
 }
 
-/* 非登录/注册页：全屏铺满窗口 */
+/* 非登录/注册页：全屏铺满窗口（对局等路由不再受 #app 外边距挤压） */
 .full-page {
   min-height: 100vh;
+  width: 100%;
   padding: 0;
   margin: 0;
 }

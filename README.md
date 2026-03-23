@@ -8,6 +8,7 @@
 
 - **用途**：仅 **游戏页** `front/dp_game` 使用；服务端在内存里按 `roomId` 维护连接，与 `ConcurrentHashMap` 房间数据同进程，**不需要 Redis**。
 - **对局页座位列表（2026-03-23）**：`game.vue` 中玩家网格按 **本机视角** 旋转展示——**自己的座位固定排在第一行**，其余人保持原有相对顺序；`seatIndex` 与后端一致，行动高亮与庄位动画不受影响。说明见 `docs/RoomUi.md`。
+- **对局页全宽（2026-03-23）**：原先 `#app` 全局 `padding` + `.dp-game-root` `max-width:800px` 居中，宽屏两侧会露出浅灰底。现登录/注册区 `padding` 仅加在 `.app-container`，对局根节点横向 `width:100%` 铺满视口。
 - **牌面 UI（2026-03-22）**：`dp-poker-cards.css`、`dp-game-community-cards.css` 中为扑克牌提供渐变高光、金边阴影、周期性扫光（牌型说明弹窗内小牌会关闭扫光以免干扰阅读）；公共牌会先 **从桌面下方飞入公共区**（`GameCommunityCards`），再依次翻转；`game.vue` 里翻牌 `setTimeout` 的前置时间（约 520ms）与飞入时长对齐，`communityCardsFlipComplete` 仍按最后一翻 + 翻转时长计算；系统开启「减少动态效果」时会跳过飞入并降级其它动画。
 - **地址**：`ws://<后端主机>:<端口>/ws/dp-game?roomId=房间号`（本地开发前端里默认连 `ws://localhost:8088`）。
 - **数据**：每条消息 JSON 与 `GET /dpRoom/getNowRoom` 一致；房间不存在时推送 `{"_ws":"roomClosed"}`。
