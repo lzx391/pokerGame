@@ -21,9 +21,7 @@
 
 <script>
 import { getCardClass, getCardDisplay } from '../utils/dpGameCardVisual'
-
-/** 与 game.vue 里公共牌翻转的间隔一致，飞入结束后再翻牌观感更顺 */
-var DEAL_STAGGER_MS = 350
+import { DP_DEAL_STAGGER_MS } from '../constants/dpGameDealTiming'
 
 export default {
   name: 'GameCommunityCards',
@@ -66,7 +64,7 @@ export default {
             self.dealOriginByIndex = self.computeDealOriginsFromDealer(oldLen, newLen)
             var n2 = {}
             for (var i = oldLen; i < newLen; i++) {
-              n2[i] = { delay: DEAL_STAGGER_MS * (i - oldLen) }
+              n2[i] = { delay: DP_DEAL_STAGGER_MS * (i - oldLen) }
             }
             self.dealFlyByIndex = n2
           })

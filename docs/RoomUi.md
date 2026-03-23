@@ -23,7 +23,10 @@
 
 `game.vue` 负责：拉取/应用房间状态、WebSocket、玩家网格布局、`getPlayerBoxStyle`（座位卡片外框）、以及主题根节点与主题选择器。
 
-**玩家网格顺序（本机）**：`playersDisplayOrder` 在 **`players` 数组顺序不变** 的前提下，把 **当前登录用户所在座位旋到第一项**（自己永远在网格最前），其余人按原相对顺序跟在后面；传给 `GamePlayerCard` 的 **`seatIndex` 仍为服务端座位下标**，因此轮到谁行动（`actIndex`）、庄位发牌动画、D/SB/BB 标记等与后端一致。纯观众（昵称不在 `players` 里）时保持服务端原始顺序。
+**玩家网格顺序（本机）**：`playersDisplayOrder` 在 **`players` 数组顺序不变** 的前提下，把 **当前登录用户所在座位旋到第一项**（自己永远在列表最前），其余人按原相对顺序跟在后面；传给 `GamePlayerCard` 的 **`seatIndex` 仍为服务端座位下标**，因此轮到谁行动（`actIndex`）、庄位发牌动画、D/SB/BB 标记等与后端一致。纯观众（昵称不在 `players` 里）时保持服务端原始顺序。
+
+
+**玩家网格布局**：`dp-game-players-grid` 在**包括手机在内的所有宽度**下均为 `repeat(auto-fill, minmax(...))` 多列（极窄时自动退成单列）；**≥768px** 时列宽 `148px` 略宽裕。所有座位同一紧凑样式。`GamePlayerCard` 默认 **`compact=true`**：未摊牌时不对他人渲染底牌背面占位，本人与摊牌/房主看穿后照常显示底牌与牌型。若需恢复旧版宽大卡片，可对组件传 **`compact=false`**。
 
 ---
 

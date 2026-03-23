@@ -13,8 +13,10 @@
         :pot="pot"
         :current-bet-to-call="currentBetToCall"
         :spectator-count="spectators.length"
+        :fullscreen-active="dpFullscreenActive"
         @show-hand-rank="showHandRankModal = true"
         @show-spectators="showSpectatorModal = true"
+        @toggle-fullscreen="toggleDpGameFullscreen"
         @exit="exitGame"
     />
 
@@ -64,29 +66,43 @@
     <div v-if="playing" class="dp-game-hint">
       各人手牌与公共牌均由庄位（D）发出
     </div>
-    <game-community-cards
-        :community-cards="communityCards"
-        :flip-state="communityCardsFlipState"
-    />
 
-    <!-- 玩家列表：本机视角将自己排到网格首行，其余座位相对顺序不变；seatIndex 仍为服务端座位下标 -->
-    <div class="dp-game-players-grid">
-      <game-player-card
-          v-for="row in playersDisplayOrder"
-          :key="(row.player.leftThisHand ? 'offline-' + row.seatIndex : row.player.nickname)"
-          :player="row.player"
-          :seat-index="row.seatIndex"
-          :box-style="getPlayerBoxStyle(row.player, row.seatIndex)"
-          :act-index="actIndex"
-          :stage="stage"
-          :community-cards="communityCards"
-          :community-cards-flip-complete="communityCardsFlipComplete"
-          :is-owner="isOwner"
-          :owner-reveal-all="ownerRevealAll"
-          :my-nickname="user ? user.nickname : ''"
-          :hand-deal-key="currentHandSeed"
-          @card-click="onPlayerCardClick"
-      />
+    <!-- 圆桌：公共牌在桌面中心；入座时本人在 6 点方向，所有座位沿椭圆整圈均分 -->
+    <div class="dp-game-table">
+      <div class="dp-game-table__layout">
+        <div class="dp-game-table__felt" aria-hidden="true" />
+        <div class="dp-game-table__center">
+          <game-community-cards
+              :community-cards="communityCards"
+              :flip-state="communityCardsFlipState"
+          />
+        </div>
+        <div
+            v-for="(row, displayIdx) in playersDisplayOrder"
+            :key="(row.player.leftThisHand ? 'offline-' + row.seatIndex : row.player.nickname)"
+            class="dp-game-table__seat"
+            :class="{ 'dp-game-table__seat--hero': viewerSeatedAtTable && displayIdx === 0 }"
+            :style="getPlayerRoundTableStyle(displayIdx, playersDisplayOrder.length)"
+        >
+          <game-player-card
+              :player="row.player"
+              :seat-index="row.seatIndex"
+              :box-style="getPlayerBoxStyle(row.player, row.seatIndex)"
+              :act-index="actIndex"
+              :stage="stage"
+              :community-cards="communityCards"
+              :community-cards-flip-complete="communityCardsFlipComplete"
+              :is-owner="isOwner"
+              :owner-reveal-all="ownerRevealAll"
+              :my-nickname="user ? user.nickname : ''"
+              :hand-deal-key="currentHandSeed"
+              :hole-deal-seat-order="holeDealOrderFromDealer(row.seatIndex)"
+              :hole-deal-player-count="holeDealPlayerCountForAnim"
+              :rival-mini="rivalMiniForDisplayIndex(displayIdx)"
+              @card-click="onPlayerCardClick"
+          />
+        </div>
+      </div>
     </div>
 
     <game-settled-prepare-panel
@@ -150,6 +166,14 @@ import GameSettledPreparePanel from './GameSettledPreparePanel.vue'
 import GameActionPanel from './GameActionPanel.vue'
 import GameOwnerPanel from './GameOwnerPanel.vue'
 import { HAND_RANK_REFERENCE } from '../constants/dpGameHandRankReference'
+import { dpDisplayNickname } from '../utils/dpDisplayNickname'
+import {
+  enterDpGameFullscreen,
+  exitFullscreen,
+  isFullscreenActive,
+  bindFullscreenChange,
+  unbindFullscreenChange
+} from '../utils/dpGameFullscreen'
 
 export default {
   components: {
@@ -213,6 +237,9 @@ export default {
       // 结算后准备阶段倒计时
       readyTimer: null,
       readyTimeLeft: 30,
+
+      /** 浏览器全屏 API 状态（与横屏无关，需用户点「全屏」） */
+      dpFullscreenActive: false,
 
       // 牌型说明弹窗
       showHandRankModal: false,
@@ -329,6 +356,19 @@ export default {
         out.push({ player: list[seatIndex], seatIndex: seatIndex })
       }
       return out
+    },
+    /** 当前登录用户是否在本桌玩家列表中（非观众席只看桌时用于整圈均分座位） */
+    viewerSeatedAtTable() {
+      var nick = this.user && this.user.nickname
+      if (!nick || !this.players || !this.players.length) return false
+      return this.players.some(function (p) {
+        return p.nickname === nick
+      })
+    },
+    /** 手牌两圈发牌动画与公共牌 stagger 对齐时的桌上人数 */
+    holeDealPlayerCountForAnim() {
+      if (!this.players || !this.players.length) return 1
+      return this.players.length
     }
   },
 
@@ -397,7 +437,20 @@ export default {
     }.bind(this), 5000)
   },
 
+  mounted() {
+    var self = this
+    this._dpFullscreenChangeHandler = function () {
+      self.dpFullscreenActive = isFullscreenActive()
+    }
+    bindFullscreenChange(this._dpFullscreenChangeHandler)
+    this._dpFullscreenChangeHandler()
+  },
+
   beforeDestroy() {
+    if (this._dpFullscreenChangeHandler) {
+      unbindFullscreenChange(this._dpFullscreenChangeHandler)
+      this._dpFullscreenChangeHandler = null
+    }
     this.disconnectGameWs()
     if (this.pollTimer) clearInterval(this.pollTimer)
     if (this.backupPollTimer) clearInterval(this.backupPollTimer)
@@ -408,6 +461,24 @@ export default {
   },
 
   methods: {
+    toggleDpGameFullscreen() {
+      if (isFullscreenActive()) {
+        exitFullscreen().catch(function (e) {
+          console.warn('exitFullscreen', e)
+        })
+        return
+      }
+      enterDpGameFullscreen(this.$el)
+        .catch(function (e) {
+          console.warn('enterFullscreen', e)
+          alert(
+            '当前环境可能不允许网页全屏（尤其苹果自带 Safari 常有限制）。可尝试：\n'
+            + '1）安卓或电脑用 Chrome 再点「全屏」\n'
+            + '2）iPhone：Safari 点底部分享 →「添加到主屏幕」，从桌面图标打开更接近全屏'
+          )
+        })
+    },
+
     // ---- 心跳（独立，不依赖 loadGame） ----
     sendHeartbeat() {
       if (!this.user) return
@@ -648,7 +719,7 @@ export default {
       var msg = '确认结算？\n'
       for (var j = 0; j < this.pots.length; j++) {
         var potName = j === 0 ? '主池' : '边池 ' + j
-        msg += potName + '(' + this.pots[j].amount + ') -> ' + (this.potWinners[j] || []).join(', ') + '\n'
+        msg += potName + '(' + this.pots[j].amount + ') -> ' + (this.potWinners[j] || []).map(dpDisplayNickname).join(', ') + '\n'
       }
       if (!confirm(msg)) return
 
@@ -671,7 +742,7 @@ export default {
         alert('请至少选择一位赢家')
         return
       }
-      var names = this.selectedWinners.join(', ')
+      var names = this.selectedWinners.map(dpDisplayNickname).join(', ')
       if (!confirm('确定由 [' + names + '] 平分底池 ' + this.pot + ' 吗？')) return
 
       try {
@@ -712,7 +783,7 @@ export default {
         alert('不能把房主移交给自己')
         return
       }
-      var ok = confirm('确定将房主移交给 [' + this.ownerActionTarget + '] 吗？')
+      var ok = confirm('确定将房主移交给 [' + dpDisplayNickname(this.ownerActionTarget) + '] 吗？')
       if (!ok) {
         return
       }
@@ -727,7 +798,7 @@ export default {
         if (res.data !== 'ok') {
           alert('移交失败：' + res.data)
         } else {
-          alert('已将房主移交给 ' + this.ownerActionTarget)
+          alert('已将房主移交给 ' + dpDisplayNickname(this.ownerActionTarget))
         }
         await this.loadGame()
         this.closeOwnerToolPanel()
@@ -742,7 +813,7 @@ export default {
         alert('请先选择要踢出的玩家')
         return
       }
-      if (!confirm('确定将 [' + this.ownerActionTarget + '] 踢出本局并移至观众席吗？')) {
+      if (!confirm('确定将 [' + dpDisplayNickname(this.ownerActionTarget) + '] 踢出本局并移至观众席吗？')) {
         return
       }
       try {
@@ -752,7 +823,7 @@ export default {
         if (res.data !== 'ok') {
           alert('踢人失败：' + res.data)
         } else {
-          alert('已将 [' + this.ownerActionTarget + '] 踢至观众席')
+          alert('已将 [' + dpDisplayNickname(this.ownerActionTarget) + '] 踢至观众席')
         }
         await this.loadGame()
         this.closeOwnerToolPanel()
@@ -762,7 +833,7 @@ export default {
     },
 
     /**
-     * 将简单鱼式 NPC（BOT_Fish，原 BOT_Demo）加入下一局等待列表。
+     * 将 DEMO 型 NPC（服务端昵称为 BOT_Fish，界面展示为 BOT_Lag）加入下一局等待列表。
      * 当前用于基础难度练习与流程验证。
      */
     async addDemoBot() {
@@ -774,7 +845,7 @@ export default {
           params: {roomId: this.roomId}
         })
         if (res.data === 'ok') {
-          this.demoBotAddedTip = '已请求在下一局加入 BOT_Fish，请等待本局结束后自动入座。'
+          this.demoBotAddedTip = '已请求在下一局加入 BOT_Lag，请等待本局结束后自动入座。'
         } else {
           this.demoBotAddedTip = '添加 NPC 失败：' + res.data
         }
@@ -962,6 +1033,54 @@ export default {
     // ---- 工具方法 ----
     isMe(nickname) {
       return this.user && this.user.nickname === nickname
+    },
+
+    /**
+     * 开局发牌动画：从庄家顺时针下一位起为 0，依次 1、2…（与常见首圈发牌顺序一致，仅用于错开飞入时间）
+     */
+    holeDealOrderFromDealer(seatIndex) {
+      var list = this.players
+      if (!list || !list.length) return 0
+      var dealerIdx = -1
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].dealer) {
+          dealerIdx = i
+          break
+        }
+      }
+      if (dealerIdx < 0) return 0
+      var start = (dealerIdx + 1) % list.length
+      return (seatIndex - start + list.length) % list.length
+    },
+
+    rivalMiniForDisplayIndex(displayIdx) {
+      if (this.viewerSeatedAtTable) return displayIdx !== 0
+      return true
+    },
+
+    /**
+     * 圆桌座位：θ=0 为 12 点方向。入座时 displayIdx=0 固定为本人（6 点），全体按座位数整圈均分，
+     * 避免旧版「对手只在 θ∈(0,π)」导致 sinθ>0、全部挤在桌面右半圈的问题。
+     */
+    getPlayerRoundTableStyle(displayIdx, total) {
+      if (!total) return {}
+      var seated = this.viewerSeatedAtTable
+      var theta
+      if (seated) {
+        theta = Math.PI + (2 * Math.PI * displayIdx) / total
+      } else {
+        theta = -Math.PI / 2 + (2 * Math.PI * displayIdx) / total
+      }
+      var rx = 41
+      var ry = 36
+      var cx = 50
+      var cy = 44
+      var x = cx + Math.sin(theta) * rx
+      var y = cy - Math.cos(theta) * ry
+      return {
+        left: x + '%',
+        top: y + '%'
+      }
     },
 
     getPlayerBoxStyle(p, i) {

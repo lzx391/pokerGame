@@ -10,6 +10,13 @@
       </div>
     </div>
     <div class="dp-top-bar__actions">
+      <button
+        type="button"
+        class="dp-btn dp-btn--ghost-screen"
+        @click="$emit('toggle-fullscreen')"
+      >
+        {{ fullscreenActive ? '退出全屏' : '全屏' }}
+      </button>
       <button type="button" class="dp-btn dp-btn--primary" @click="$emit('show-hand-rank')">
         牌型说明
       </button>
@@ -37,7 +44,8 @@ export default {
     stageLabel: { type: String, required: true },
     pot: { type: Number, required: true },
     currentBetToCall: { type: Number, required: true },
-    spectatorCount: { type: Number, default: 0 }
+    spectatorCount: { type: Number, default: 0 },
+    fullscreenActive: { type: Boolean, default: false }
   }
 }
 </script>

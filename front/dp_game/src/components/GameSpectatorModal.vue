@@ -18,7 +18,7 @@
           :key="name"
           style="padding:6px 0; border-bottom:1px solid #f0f0f0; font-size:14px; color:#333;"
         >
-          {{ name }}
+          {{ displayNickname(name) }}
         </li>
       </ul>
     </div>
@@ -26,11 +26,16 @@
 </template>
 
 <script>
+import { dpDisplayNickname } from '../utils/dpDisplayNickname'
+
 export default {
   name: 'GameSpectatorModal',
   props: {
     visible: { type: Boolean, default: false },
     spectators: { type: Array, default: function () { return [] } }
+  },
+  methods: {
+    displayNickname: dpDisplayNickname
   }
 }
 </script>

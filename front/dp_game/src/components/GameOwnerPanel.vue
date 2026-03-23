@@ -30,7 +30,7 @@
             {{ pi === 0 ? '主池' : '边池 ' + pi }} - 金额: <span class="dp-top-bar__pot">{{ potItem.amount }}</span>
           </div>
           <div class="dp-pot-block__eligible">
-            有资格的玩家: {{ potItem.eligiblePlayers.join(', ') }}
+            有资格的玩家: {{ formatNickList(potItem.eligiblePlayers) }}
           </div>
           <div class="dp-pot-block__btns">
             <button
@@ -40,7 +40,7 @@
               :style="potWinnerBtnStyle(pi, name)"
               @click="$emit('toggle-pot-winner', { potIndex: pi, nickname: name })"
             >
-              {{ name }} {{ isPotWinner(pi, name) ? '(已选)' : '' }}
+              {{ displayNick(name) }} {{ isPotWinner(pi, name) ? '(已选)' : '' }}
             </button>
           </div>
         </div>
@@ -60,7 +60,7 @@
           点击上方玩家卡片选择赢家（可多选平分）
         </div>
         <div v-if="selectedWinners.length > 0" class="dp-owner-panel__muted" style="text-align:center;">
-          已选: {{ selectedWinners.join(', ') }}
+          已选: {{ formatNickList(selectedWinners) }}
         </div>
         <button
           type="button"
@@ -81,6 +81,8 @@
 </template>
 
 <script>
+import { dpDisplayNickname } from '../utils/dpDisplayNickname'
+
 export default {
   name: 'GameOwnerPanel',
   props: {
@@ -93,6 +95,13 @@ export default {
     allPotsHaveWinners: { type: Boolean, default: false }
   },
   methods: {
+    displayNick(nickname) {
+      return dpDisplayNickname(nickname)
+    },
+    formatNickList(arr) {
+      if (!arr || arr.length === 0) return ''
+      return arr.map(dpDisplayNickname).join(', ')
+    },
     isPotWinner(potIndex, nickname) {
       var winners = this.potWinners[potIndex] || []
       return winners.indexOf(nickname) > -1

@@ -20,7 +20,7 @@
         </div>
         <div style="font-size:12px; color:#8c8c8c; margin-bottom:6px;">
           你可以在下一局加入不同风格的机器人玩家，当前支持：
-          <span style="font-weight:bold;">BOT_Fish</span>（简单鱼式，偏被动，适合新手练习）、
+          <span style="font-weight:bold;">BOT_Lag</span>（简单鱼式，偏被动，适合新手练习）、
           <span style="font-weight:bold;">BOT_Maniac</span>（疯子风格，喜欢乱加注）、
           <span style="font-weight:bold;">BOT_Tag</span>（紧凶风格，范围较紧、价值下注为主）、
           <span style="font-weight:bold;">BOT_Shark</span>（会简单“读对手”的聪明型）、
@@ -35,7 +35,7 @@
                      background:#faad14; color:#fff; margin-right:8px;"
               @click="$emit('add-demo-bot')"
             >
-              {{ demoBotAdding ? '正在添加 BOT_Fish...' : '添加 BOT_Fish 到下一局' }}
+              {{ demoBotAdding ? '正在添加 BOT_Lag...' : '添加 BOT_Lag 到下一局' }}
             </button>
             <span v-if="demoBotAddedTip" style="font-size:12px; color:#595959;">{{ demoBotAddedTip }}</span>
           </div>
@@ -127,7 +127,7 @@
             :key="'owner-tool-' + p.nickname"
             :value="p.nickname"
           >
-            {{ p.nickname }}
+            {{ displayNickname(p.nickname) }}
           </option>
         </select>
       </div>
@@ -164,6 +164,8 @@
 </template>
 
 <script>
+import { dpDisplayNickname } from '../utils/dpDisplayNickname'
+
 export default {
   name: 'GameOwnerToolModal',
   props: {
@@ -183,6 +185,7 @@ export default {
     llmBotAddedTip: { type: String, default: '' }
   },
   methods: {
+    displayNickname: dpDisplayNickname,
     tabStyle(type) {
       var on = this.ownerToolType === type
       var color = type === 'transfer' ? '#722ed1' : '#ff4d4f'

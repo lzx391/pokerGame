@@ -1,18 +1,23 @@
 <template>
   <div
     class="dp-player-card"
-    :class="{ 'player-card--win-streak': !player.leftThisHand && (player.winStreak || 0) >= 2 }"
-    :style="boxStyle"
+    :class="{
+      'player-card--win-streak': !player.leftThisHand && (player.winStreak || 0) >= 2,
+      'dp-player-card--compact': compact,
+      'dp-player-card--rival-mini': rivalMini
+    }"
+    :style="cardBoxStyle"
     v-bind="dealerAnchorAttrs"
     @click="onClick"
   >
-    <div class="dp-player-card__badges">
+    <div class="dp-player-card__badges" :class="{ 'dp-player-card__badges--rival': rivalMini }">
       <span v-if="player.dealer" class="dp-player-card__badge dp-player-card__badge--dealer">D</span>
       <span v-if="player.blind === 1" class="dp-player-card__badge dp-player-card__badge--sb">SB</span>
       <span v-if="player.blind === 2" class="dp-player-card__badge dp-player-card__badge--bb">BB</span>
       <span
         v-if="!player.leftThisHand && (player.winStreak || 0) >= 2"
         class="win-streak-badge"
+        :class="{ 'win-streak-badge--rival': rivalMini }"
         :title="'已连续赢下 ' + (player.winStreak || 0) + ' 手'"
       >
         <span class="win-streak-badge__emoji" aria-hidden="true">🔥</span>
@@ -20,7 +25,80 @@
       </span>
     </div>
 
-    <template v-if="player.leftThisHand">
+    <!-- 他人简化卡片：昵称 + 筹码/本轮 + 必要徽标 -->
+    <template v-if="rivalMini && player.leftThisHand">
+      <div class="dp-player-card__rival-offline">离线</div>
+      <div class="dp-player-card__rival-name dp-player-card__rival-name--dim">{{ displayPlayerName }}</div>
+    </template>
+
+    <template v-else-if="rivalMini">
+      <div class="dp-player-card__rival-head">
+        <span class="dp-player-card__rival-name">{{ displayPlayerName }}</span>
+        <span
+          v-if="!player.fold && actIndex === seatIndex"
+          class="dp-player-card__rival-turn-dot"
+          title="思考中"
+          aria-label="该座位正在行动"
+        />
+      </div>
+      <div
+        class="dp-player-card__rival-stats"
+        :class="{ 'dp-player-card__rival-stats--fold': player.fold }"
+      >
+        <span>{{ player.chips }}</span>
+        <span class="dp-player-card__rival-stats-sep">·</span>
+        <span>本轮 {{ player.bet }}</span>
+      </div>
+      <div v-if="player.fold" class="dp-player-card__rival-fold">已弃牌</div>
+      <div
+        v-if="showHoleCardsArea"
+        ref="holeCardsRow"
+        class="dp-player-card__hole-row dp-player-card__hole-row--rival"
+        :aria-label="'手牌'"
+      >
+        <template v-if="showHoleCardsRevealed">
+          <div
+            v-for="(c, ci) in player.holeCards"
+            :key="'h' + ci + '-' + handDealKey"
+            class="hole-card-fly-wrapper"
+            :class="{ 'hole-deal-fly-in': holeDealFlyActive(ci) }"
+            :style="holeDealFlyStyle(ci)"
+            @animationend="onHoleDealFlyEnd($event, ci)"
+          >
+            <div
+              :class="[getCardClass(c), 'hole-card-flip']"
+              :style="holeCardInnerStyleRival(ci)"
+            >
+              {{ getCardDisplay(c) }}
+            </div>
+          </div>
+        </template>
+        <template v-else-if="player.holeCards && player.holeCards.length > 0">
+          <div
+            v-for="n in player.holeCards.length"
+            :key="'hb' + (n - 1) + '-' + handDealKey"
+            class="hole-card-fly-wrapper"
+            :class="{ 'hole-deal-fly-in': holeDealFlyActive(n - 1) }"
+            :style="holeDealFlyStyle(n - 1)"
+            @animationend="onHoleDealFlyEnd($event, n - 1)"
+          >
+            <div
+              class="card-base bg-gray dp-player-card__hole-back-rival"
+            >?</div>
+          </div>
+        </template>
+      </div>
+      <div v-if="showHandRankSection" class="dp-player-card__hand-rank dp-player-card__hand-rank--rival">
+        <span
+          class="dp-player-card__rank-pill"
+          :class="showHandRankAsOpen ? 'dp-player-card__rank-pill--open' : 'dp-player-card__rank-pill--showdown'"
+        >
+          {{ getHandRank(player.holeCards, communityCards) }}
+        </span>
+      </div>
+    </template>
+
+    <template v-else-if="player.leftThisHand">
       <div class="dp-player-card__offline-title">该玩家已离线</div>
       <div class="dp-player-card__offline-hint">座位保留至本局结束，行动顺序不变</div>
     </template>
@@ -28,7 +106,7 @@
     <template v-else>
       <div class="dp-player-card__head">
         <div class="dp-player-card__name">
-          {{ player.nickname }}
+          {{ displayPlayerName }}
           <span v-if="isMe" class="dp-player-card__name-me">（我）</span>
         </div>
         <div
@@ -45,7 +123,7 @@
 
       <div
         class="dp-player-card__stats-row"
-        :class="{ 'dp-player-card__stats-row--has-holes': player.holeCards && player.holeCards.length > 0 }"
+        :class="{ 'dp-player-card__stats-row--has-holes': showHoleCardsArea }"
       >
         <div class="dp-player-card__chips">
           <span class="dp-player-card__mini-label">后手</span>
@@ -56,6 +134,7 @@
           <span class="dp-player-card__bet-val">{{ player.bet }}</span>
         </div>
         <div
+          v-if="showHoleCardsArea"
           ref="holeCardsRow"
           class="dp-player-card__hole-row"
           :aria-label="isMe ? '我的手牌' : '手牌'"
@@ -123,6 +202,8 @@
 <script>
 import { getCardClass, getCardDisplay } from '../utils/dpGameCardVisual'
 import { getHandRank } from '../utils/dpGameHandRank'
+import { dpDisplayNickname } from '../utils/dpDisplayNickname'
+import { DP_DEAL_STAGGER_MS } from '../constants/dpGameDealTiming'
 
 export default {
   name: 'GamePlayerCard',
@@ -138,35 +219,76 @@ export default {
     ownerRevealAll: { type: Boolean, required: true },
     myNickname: { type: String, default: '' },
     /** 与房间 currentHandSeed 同步，每新一手变化以触发展位发手牌动画 */
-    handDealKey: { type: Number, default: 0 }
+    handDealKey: { type: Number, default: 0 },
+    /** 设为 false 可恢复旧版「宽大座位」；默认全体紧凑多列 */
+    compact: { type: Boolean, default: true },
+    /** 圆桌模式下他人座位：极简信息密度 */
+    rivalMini: { type: Boolean, default: false },
+    /** 开局发牌顺序（庄家下家为 0），用于多座位错开飞入 */
+    holeDealSeatOrder: { type: Number, default: 0 },
+    /** 本桌人数：用于「先一圈再一圈」与公共牌同间隔(350ms)错开发牌 */
+    holeDealPlayerCount: { type: Number, default: 1 }
   },
   data() {
     return {
       holeDealFlyByIndex: {},
       holeDealOriginByIndex: null,
       /** 本手是否走庄位发牌；用于翻牌 delay，避免飞入结束改 style 导致翻牌动画重播 */
-      holeDealChainFlip: false
+      holeDealChainFlip: false,
+      /** 紧凑位他人：preflop 背面飞入结束后隐藏底牌行 */
+      holeDealIntroDone: false,
+      _holeIntroClearTimer: null,
+      /** 防止 handDealKey 多次 kick 在同一手内重复触发飞入 */
+      holeDealFlightStarted: false
     }
   },
   watch: {
     handDealKey: {
       immediate: true,
       handler() {
-        this.holeDealFlyByIndex = {}
-        this.holeDealOriginByIndex = null
-        this.holeDealChainFlip = false
-        if (!this.shouldRunHoleDealFromDealer()) return
-        if (this.prefersReducedMotion()) return
+        this.resetHoleDealFlyState()
         var self = this
-        this.$nextTick(function () {
-          self.startHoleDealFly()
-        })
+        function kick() {
+          self.tryStartHoleDealFly()
+        }
+        this.$nextTick(kick)
+        setTimeout(kick, 60)
+        setTimeout(kick, 200)
       }
+    },
+    stage(val) {
+      if (val !== 'preflop') this.holeDealIntroDone = true
     }
   },
+  beforeDestroy() {
+    this.clearHoleIntroTimer()
+  },
   computed: {
+    cardBoxStyle() {
+      var s = Object.assign({}, this.boxStyle)
+      if (this.rivalMini) {
+        s.padding = '6px 8px'
+        s.borderRadius = '10px'
+      } else if (this.compact) {
+        s.padding = '8px 10px'
+        s.borderRadius = '8px'
+      }
+      return s
+    },
+    /** 是否渲染底牌行（紧凑他人：preflop 开局暂显背面飞入，结束后隐藏） */
+    showHoleCardsArea() {
+      if (this.player.leftThisHand) return false
+      if (!this.player.holeCards || this.player.holeCards.length === 0) return false
+      if (!this.compact) return true
+      if (this.showHoleCardsRevealed) return true
+      if (this.stage === 'preflop') return !this.holeDealIntroDone
+      return false
+    },
     isMe() {
       return !!this.myNickname && this.player.nickname === this.myNickname
+    },
+    displayPlayerName() {
+      return dpDisplayNickname(this.player.nickname)
     },
     /** 是否展示真实手牌（本人 / 房主看穿 / 摊牌后） */
     showHoleCardsRevealed() {
@@ -211,7 +333,64 @@ export default {
       var hc = this.player.holeCards
       if (!hc || hc.length === 0) return false
       if (this.stage === 'showdown' || this.stage === 'settled') return false
+      if (this.stage === 'preflop') return true
+      if (this.compact && !this.showHoleCardsRevealed) return false
       return true
+    },
+    clearHoleIntroTimer() {
+      if (this._holeIntroClearTimer) {
+        clearTimeout(this._holeIntroClearTimer)
+        this._holeIntroClearTimer = null
+      }
+    },
+    resetHoleDealFlyState() {
+      this.clearHoleIntroTimer()
+      this.holeDealFlyByIndex = {}
+      this.holeDealOriginByIndex = null
+      this.holeDealChainFlip = false
+      this.holeDealIntroDone = false
+      this.holeDealFlightStarted = false
+      var self = this
+      var tailMs = this.computeHoleDealSequenceTailMs()
+      this._holeIntroClearTimer = setTimeout(function () {
+        self._holeIntroClearTimer = null
+        self.finishHoleDealIntroIfNeeded()
+      }, tailMs)
+    },
+    tryStartHoleDealFly() {
+      if (this.holeDealIntroDone) return
+      if (this.holeDealFlightStarted) return
+      if (this.prefersReducedMotion()) {
+        this.finishHoleDealIntroIfNeeded()
+        return
+      }
+      if (!this.shouldRunHoleDealFromDealer()) return
+      if (Object.keys(this.holeDealFlyByIndex).length > 0) return
+      var self = this
+      this.$nextTick(function () {
+        self.startHoleDealFly()
+      })
+    },
+    finishHoleDealIntroIfNeeded() {
+      this.clearHoleIntroTimer()
+      if (this.stage === 'preflop' && this.compact && !this.showHoleCardsRevealed) {
+        this.holeDealIntroDone = true
+      }
+    },
+    /** 最后一手牌飞入起点时间 + 飞入/翻面余量（与人数、张数相关） */
+    computeHoleDealSequenceTailMs() {
+      var stagger = DP_DEAL_STAGGER_MS
+      var pc = Math.max(1, this.holeDealPlayerCount || 1)
+      var nh = this.player.holeCards ? this.player.holeCards.length : 0
+      if (nh <= 0) return 5000
+      var lastStart = (nh - 1) * pc * stagger + (pc - 1) * stagger
+      return lastStart + 2200
+    },
+    holeDealDelayMsForCard(cardIdx) {
+      var stagger = DP_DEAL_STAGGER_MS
+      var pc = Math.max(1, this.holeDealPlayerCount || 1)
+      var seat = this.holeDealSeatOrder || 0
+      return cardIdx * pc * stagger + seat * stagger
     },
     startHoleDealFly() {
       var self = this
@@ -219,11 +398,18 @@ export default {
         var row = self.$refs.holeCardsRow
         var n = self.player.holeCards ? self.player.holeCards.length : 0
         if (!row || n === 0) return
+        self.holeDealFlightStarted = true
+        self.clearHoleIntroTimer()
+        var tailMs = self.computeHoleDealSequenceTailMs()
+        self._holeIntroClearTimer = setTimeout(function () {
+          self._holeIntroClearTimer = null
+          self.finishHoleDealIntroIfNeeded()
+        }, tailMs)
         self.holeDealChainFlip = true
         self.holeDealOriginByIndex = self.computeHoleOriginsFromDealer(row, n)
         var next = {}
         for (var i = 0; i < n; i++) {
-          next[i] = { delay: 95 * i }
+          next[i] = { delay: self.holeDealDelayMsForCard(i) }
         }
         self.holeDealFlyByIndex = next
       })
@@ -277,7 +463,20 @@ export default {
         fontSize: '13px'
       }
       if (this.holeDealChainFlip) {
-        base.animationDelay = (0.4 + ci * 0.09) + 's'
+        base.animationDelay = (this.holeDealDelayMsForCard(ci) / 1000 + 0.42) + 's'
+      } else {
+        base.animationDelay = (ci * 0.08) + 's'
+      }
+      return base
+    },
+    holeCardInnerStyleRival(ci) {
+      var base = {
+        width: '28px',
+        height: '40px',
+        fontSize: '11px'
+      }
+      if (this.holeDealChainFlip) {
+        base.animationDelay = (this.holeDealDelayMsForCard(ci) / 1000 + 0.42) + 's'
       } else {
         base.animationDelay = (ci * 0.08) + 's'
       }
@@ -292,6 +491,7 @@ export default {
       }
       if (Object.keys(this.holeDealFlyByIndex).length === 0) {
         this.holeDealOriginByIndex = null
+        this.finishHoleDealIntroIfNeeded()
       }
     },
     onClick() {

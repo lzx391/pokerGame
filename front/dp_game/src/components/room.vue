@@ -2,11 +2,11 @@
     <div class="room-page">
         <h1>房间内</h1>
         <p>房间号：{{ roomId }}</p>
-        <p>房主：{{ room?.owner }}</p>
+        <p>房主：{{ displayNickname(room?.owner) }}</p>
 
         <h3>玩家列表</h3>
         <div class="player" v-for="p in room?.players" :key="p.nickname">
-            <span>{{ p.nickname }}</span>
+            <span>{{ displayNickname(p.nickname) }}</span>
             <span :class="p.ready ? 'ok' : 'no'">{{ p.ready ? "已准备" : "未准备" }}</span>
         </div>
 
@@ -21,6 +21,8 @@
 </template>
 
 <script>
+import { dpDisplayNickname } from '../utils/dpDisplayNickname'
+
 export default {
     name: "Room",
     data() {
@@ -55,6 +57,7 @@ export default {
         clearInterval(this.heartbeatTimer);
     },
     methods: {
+        displayNickname: dpDisplayNickname,
         async ready() {
             try {
                 await this.$http.post("/dpRoom/toggleReady", null, {

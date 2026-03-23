@@ -38,6 +38,20 @@ export default {
   box-sizing: border-box;
 }
 
+/* 手机全屏 / 刘海屏：可滚动态视口高度 + iOS Safari 可用高度 */
+html {
+  height: 100%;
+  height: -webkit-fill-available;
+}
+
+body {
+  margin: 0;
+  min-height: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+}
+
 #app {
   font-family: Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -45,7 +59,10 @@ export default {
   text-align: center;
   color: #2c3e50;
   background-color: #f5f7fa;
+  min-height: 100%;
   min-height: 100vh;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
 }
 
 .app-container {
@@ -105,9 +122,12 @@ export default {
 
 /* 非登录/注册页：全屏铺满窗口（对局等路由不再受 #app 外边距挤压） */
 .full-page {
-  min-height: 100vh;
   width: 100%;
   padding: 0;
   margin: 0;
+  min-height: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
 }
 </style>
