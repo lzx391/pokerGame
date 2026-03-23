@@ -535,6 +535,11 @@ export default {
     document.addEventListener('webkitfullscreenchange', this._dpFsChange)
     this.syncDpFullscreenState()
     this.wrapDpMessageForFullscreenOverlays()
+    var self = this
+    this.$nextTick(function () {
+      self.tryEnterDpFullscreen()
+      self.scheduleReparentElementUiLayersIntoFullscreenRoot()
+    })
   },
 
   beforeDestroy() {
@@ -579,6 +584,30 @@ export default {
       } catch (e) { /* ignore */ }
     },
 
+    /** 进入对局时自动全屏（失败则伪全屏）；与顶栏「全屏」共用逻辑 */
+    tryEnterDpFullscreen() {
+      var root = this.$refs.gameRoot
+      if (!root || this.layoutFullscreen) return
+      var self = this
+      if (!this.dpFullscreenApiSupported) {
+        this.setPseudoFullscreen(true)
+        return
+      }
+      var req =
+        root.requestFullscreen ||
+        root.webkitRequestFullscreen ||
+        root.mozRequestFullScreen ||
+        root.msRequestFullscreen
+      if (!req) {
+        this.setPseudoFullscreen(true)
+        return
+      }
+      Promise.resolve(req.call(root)).catch(function (e) {
+        console.error('进入全屏失败', e)
+        self.setPseudoFullscreen(true)
+      })
+    },
+
     toggleDpFullscreen() {
       var root = this.$refs.gameRoot
       if (!root) return
@@ -601,24 +630,7 @@ export default {
         return
       }
 
-      if (!this.dpFullscreenApiSupported) {
-        this.setPseudoFullscreen(true)
-        return
-      }
-
-      var req =
-        root.requestFullscreen ||
-        root.webkitRequestFullscreen ||
-        root.mozRequestFullScreen ||
-        root.msRequestFullscreen
-      if (!req) {
-        this.setPseudoFullscreen(true)
-        return
-      }
-      Promise.resolve(req.call(root)).catch(function (e) {
-        console.error('进入全屏失败', e)
-        self.setPseudoFullscreen(true)
-      })
+      this.tryEnterDpFullscreen()
     },
 
     /**

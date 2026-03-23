@@ -370,7 +370,8 @@ export default {
     showHoleCardsArea() {
       if (this.player.leftThisHand) return false
       if (!this.player.holeCards || this.player.holeCards.length === 0) return false
-      if (this.player.fold && this.foldMuckAnimComplete) return false
+      /* 弃牌飞入弃牌堆后隐藏底牌区；本人仍可见自己的牌（对手端 isMe 为 false，仍不展示） */
+      if (this.player.fold && this.foldMuckAnimComplete && !this.isMe) return false
       if (!this.compact) return true
       if (this.showHoleCardsRevealed) return true
       if (this.stage === 'preflop') return !this.holeDealIntroDone
