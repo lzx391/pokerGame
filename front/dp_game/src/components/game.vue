@@ -69,14 +69,14 @@
         :flip-state="communityCardsFlipState"
     />
 
-    <!-- 玩家列表：离线位只保留座位与 D/SB/BB 顺序，仅显示「该玩家已离线」 -->
+    <!-- 玩家列表：本机视角将自己排到网格首行，其余座位相对顺序不变；seatIndex 仍为服务端座位下标 -->
     <div class="dp-game-players-grid">
       <game-player-card
-          v-for="(p, i) in players"
-          :key="(p.leftThisHand ? 'offline-' + i : p.nickname)"
-          :player="p"
-          :seat-index="i"
-          :box-style="getPlayerBoxStyle(p, i)"
+          v-for="row in playersDisplayOrder"
+          :key="(row.player.leftThisHand ? 'offline-' + row.seatIndex : row.player.nickname)"
+          :player="row.player"
+          :seat-index="row.seatIndex"
+          :box-style="getPlayerBoxStyle(row.player, row.seatIndex)"
           :act-index="actIndex"
           :stage="stage"
           :community-cards="communityCards"
@@ -307,6 +307,28 @@ export default {
       return this.players.filter(function (p) {
         return !p.leftThisHand && p.nickname !== this.owner
       }.bind(this))
+    },
+    /**
+     * 网格展示顺序：从「自己」起按座位顺时针展开（与 players 数组顺序一致，只是旋转起点）。
+     * seatIndex 仍为原数组下标，供 actIndex、庄位发牌动画等与后端一致。
+     */
+    playersDisplayOrder() {
+      var list = this.players
+      if (!list || list.length === 0) return []
+      var myNick = this.user && this.user.nickname
+      var start = 0
+      if (myNick) {
+        var idx = list.findIndex(function (p) {
+          return p.nickname === myNick
+        })
+        if (idx >= 0) start = idx
+      }
+      var out = []
+      for (var j = 0; j < list.length; j++) {
+        var seatIndex = (start + j) % list.length
+        out.push({ player: list[seatIndex], seatIndex: seatIndex })
+      }
+      return out
     }
   },
 
