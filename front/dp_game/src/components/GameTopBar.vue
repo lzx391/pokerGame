@@ -1,37 +1,28 @@
 <template>
-  <div
-    style="background:#fff; padding:15px; border-radius:10px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 5px rgba(0,0,0,0.1); margin-bottom:15px;"
-  >
+  <div class="dp-top-bar">
     <div>
-      <div style="font-size:18px; font-weight:bold;">
-        房间: {{ roomId }} | 阶段: <span style="color:#1890ff;">{{ stageLabel }}</span>
+      <div class="dp-top-bar__title">
+        房间: {{ roomId }} | 阶段: <span class="dp-top-bar__accent">{{ stageLabel }}</span>
       </div>
-      <div style="font-size:14px; color:#666;">
-        底池: <span style="color:#f5222d; font-weight:bold;">{{ pot }}</span>
+      <div class="dp-top-bar__sub">
+        底池: <span class="dp-top-bar__pot">{{ pot }}</span>
         | 当前跟注额: <span style="font-weight:bold;">{{ currentBetToCall }}</span>
       </div>
     </div>
-    <div style="display:flex; gap:8px;">
-      <button
-        type="button"
-        style="background:#1890ff; color:#fff; border:none; padding:8px 15px; border-radius:5px; cursor:pointer; font-size:13px;"
-        @click="$emit('show-hand-rank')"
-      >
+    <div class="dp-top-bar__actions">
+      <button type="button" class="dp-btn dp-btn--primary" @click="$emit('show-hand-rank')">
         牌型说明
       </button>
       <button
         v-if="spectatorCount > 0"
         type="button"
-        style="background:#13c2c2; color:#fff; border:none; padding:8px 10px; border-radius:5px; cursor:pointer; font-size:12px;"
+        class="dp-btn dp-btn--cyan"
+        style="padding:8px 10px; font-size:12px;"
         @click="$emit('show-spectators')"
       >
         观众席（{{ spectatorCount }}）
       </button>
-      <button
-        type="button"
-        style="background:#ff4d4f; color:#fff; border:none; padding:8px 15px; border-radius:5px; cursor:pointer;"
-        @click="$emit('exit')"
-      >
+      <button type="button" class="dp-btn dp-btn--danger" @click="$emit('exit')">
         退出对局
       </button>
     </div>

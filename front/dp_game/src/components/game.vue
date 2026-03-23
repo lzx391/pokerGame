@@ -1,6 +1,11 @@
 <template>
-  <div class="game"
-       style="padding:10px; max-width:800px; margin:0 auto; font-family:sans-serif; background:#f0f2f5; min-height:100vh;">
+  <div class="dp-game-root" :data-dp-game-theme="gameUiTheme">
+    <div class="dp-game-theme-row">
+      <span class="dp-game-theme-row__label">界面主题</span>
+      <select v-model="gameUiTheme" class="dp-game-theme-select" aria-label="选择对局界面主题">
+        <option v-for="t in gameThemeOptions" :key="t.id" :value="t.id">{{ t.label }}</option>
+      </select>
+    </div>
 
     <game-top-bar
         :room-id="roomId"
@@ -56,7 +61,7 @@
         @ready-next-hand="readyNextHand"
     />
 
-    <div v-if="playing" style="text-align:center; font-size:12px; color:#8c8c8c; margin:8px 0 0;">
+    <div v-if="playing" class="dp-game-hint">
       各人手牌与公共牌均由庄位（D）发出
     </div>
     <game-community-cards
@@ -65,7 +70,7 @@
     />
 
     <!-- 玩家列表：离线位只保留座位与 D/SB/BB 顺序，仅显示「该玩家已离线」 -->
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+    <div class="dp-game-players-grid">
       <game-player-card
           v-for="(p, i) in players"
           :key="(p.leftThisHand ? 'offline-' + i : p.nickname)"
@@ -130,6 +135,10 @@
 </template>
 
 <script>
+import '../styles/dp-game-themes.css'
+import '../styles/dp-game-shell.css'
+import { GAME_UI_THEMES } from '../constants/dpGameThemes'
+import { readGameTheme, writeGameTheme } from '../utils/dpGameTheme'
 import GamePlayerCard from './GamePlayerCard.vue'
 import GameTopBar from './GameTopBar.vue'
 import GameHandRankModal from './GameHandRankModal.vue'
@@ -157,6 +166,8 @@ export default {
   },
   data() {
     return {
+      gameUiTheme: readGameTheme(),
+      gameThemeOptions: GAME_UI_THEMES,
       roomId: '',
       user: null,
 
@@ -300,6 +311,9 @@ export default {
   },
 
   watch: {
+    gameUiTheme: function (id) {
+      writeGameTheme(id)
+    },
     isMyTurn: function (v) {
       if (v) this.raiseAmount = this.minRaise
     },
@@ -930,7 +944,7 @@ export default {
 
     getPlayerBoxStyle(p, i) {
       var s = {
-        background: '#fff',
+        background: 'var(--dp-player-card-bg)',
         padding: '12px',
         borderRadius: '10px',
         border: '2px solid transparent',
@@ -939,21 +953,21 @@ export default {
 
       // 离线位：灰显，不参与行动高亮
       if (p.leftThisHand) {
-        s.background = '#f5f5f5'
-        s.borderColor = '#d9d9d9'
+        s.background = 'var(--dp-player-card-offline-bg)'
+        s.borderColor = 'var(--dp-player-card-offline-border)'
         s.opacity = '0.85'
         return s
       }
 
-      // 当前行动者金色边框
+      // 当前行动者高亮边框
       if (this.actIndex === i) {
-        s.borderColor = '#faad14'
-        s.background = '#fffbe6'
+        s.borderColor = 'var(--dp-player-card-turn-border)'
+        s.background = 'var(--dp-player-card-turn-bg)'
       }
 
-      // 自己蓝色边框
+      // 自己强调边框
       if (this.isMe(p.nickname)) {
-        s.borderColor = '#1890ff'
+        s.borderColor = 'var(--dp-player-border-me)'
       }
 
       // 弃牌变灰
@@ -961,16 +975,16 @@ export default {
         s.opacity = '0.5'
       }
 
-      // 摊牌选中绿色
+      // 摊牌选中
       if (this.selectedWinners.includes(p.nickname)) {
-        s.borderColor = '#52c41a'
+        s.borderColor = 'var(--dp-player-card-winner-border)'
         s.borderWidth = '3px'
-        s.background = '#f6ffed'
+        s.background = 'var(--dp-player-card-winner-bg)'
         s.opacity = '1'
       } else if (this.stage === 'showdown' && this.isOwner) {
         s.cursor = 'pointer'
         s.borderStyle = 'dashed'
-        s.borderColor = '#d9d9d9'
+        s.borderColor = 'var(--dp-player-showdown-border)'
       }
 
       return s
