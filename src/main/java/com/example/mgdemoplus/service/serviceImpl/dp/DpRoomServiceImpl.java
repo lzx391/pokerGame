@@ -1028,8 +1028,47 @@ public class DpRoomServiceImpl {
     }
 
     /**
-     * 本手牌池底分配完成后更新连胜：至少分到一手池的玩家 +1，其余未离线座位清零。
-     * 若没有任何赢家昵称（异常局），不修改避免误清空。
+     * 本手结束后用于「连胜」的赢家：在所有未弃牌、本手未离桌的玩家中，取摊牌牌力最强者（含并列第一）。
+     * <p>说明：按池分配时，边池可能只有筹码更深的一方有资格，会不比较牌力就独吞边池；
+     * 若用“分到池子的人”算连胜，会出现“输主池但赢边池仍算胜”的错误。连胜只跟全局牌力挂钩。</p>
+     */
+    private Set<String> computeStreakWinnersByBestHand(DpRoom r, Map<String, DpUtilHandEvaluator.HandStrength> strengthMap) {
+        List<DpPlayer> stillIn = r.getPlayers().stream()
+                .filter(p -> p != null && !p.isLeftThisHand() && !p.isFold())
+                .collect(Collectors.toList());
+        if (stillIn.isEmpty()) {
+            return Collections.emptySet();
+        }
+        // 仅剩一人（典型：其余人弃牌），直接计胜，无需比牌
+        if (stillIn.size() == 1) {
+            return Collections.singleton(stillIn.get(0).getNickname());
+        }
+        DpUtilHandEvaluator.HandStrength best = null;
+        for (DpPlayer p : stillIn) {
+            DpUtilHandEvaluator.HandStrength hs = strengthMap.get(p.getNickname());
+            if (hs == null) {
+                continue;
+            }
+            if (best == null || hs.compareTo(best) > 0) {
+                best = hs;
+            }
+        }
+        if (best == null) {
+            return Collections.emptySet();
+        }
+        Set<String> out = new HashSet<>();
+        for (DpPlayer p : stillIn) {
+            DpUtilHandEvaluator.HandStrength hs = strengthMap.get(p.getNickname());
+            if (hs != null && hs.compareTo(best) == 0) {
+                out.add(p.getNickname());
+            }
+        }
+        return out;
+    }
+
+    /**
+     * 本手牌池底分配完成后更新连胜：牌力全局第一或并列第一的玩家 +1，其余未离线座位清零。
+     * 若没有任何此类赢家（异常局），不修改避免误清空。
      */
     private void applyWinStreakAfterHand(DpRoom r, Set<String> winnerNicknames) {
         if (r == null || r.getPlayers() == null) return;
@@ -1100,7 +1139,7 @@ public class DpRoomServiceImpl {
         }
 
         // 按池分配：每个池在 eligiblePlayers 中找到牌力最高的一批人，平分该池
-        Set<String> handWinnerNicknames = new HashSet<>();
+        Set<String> streakWinnerNicknames = computeStreakWinnersByBestHand(r, strengthMap);
         for (DpPot pot : r.getPots()) {
             List<String> eligible = pot.getEligiblePlayers();
             if (eligible == null || eligible.isEmpty()) continue;
@@ -1140,11 +1179,10 @@ public class DpRoomServiceImpl {
                     w.setChips(w.getChips() + 1);
                     remainder -= 1;
                 }
-                handWinnerNicknames.add(w.getNickname());
             }
         }
 
-        applyWinStreakAfterHand(r, handWinnerNicknames);
+        applyWinStreakAfterHand(r, streakWinnerNicknames);
 
         // Shark 在场：结算分配前快照底池结构（随后会清空 pots）
         DpNpcSharkObservedHandHistory.capturePotsBeforeClear(r);
