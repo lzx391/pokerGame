@@ -116,13 +116,18 @@
               :hole-deal-seat-order="holeDealOrderFromDealer(row.seatIndex)"
               :hole-deal-player-count="holeDealPlayerCountForAnim"
               :rival-mini="true"
+              :showdown-hand-leader="showdownHandLeaderNickname"
               @card-click="onPlayerCardClick"
           />
         </div>
       </div>
     </div>
 
-    <div v-if="heroDockRow" class="dp-game-hero-dock">
+    <div
+        v-if="heroDockRow"
+        class="dp-game-hero-dock"
+        :class="{ 'dp-game-hero-dock--hand-reveal': stage === 'showdown' || stage === 'settled' }"
+    >
       <game-player-card
           :player="heroDockRow.player"
           :seat-index="heroDockRow.seatIndex"
@@ -138,6 +143,7 @@
           :hole-deal-seat-order="holeDealOrderFromDealer(heroDockRow.seatIndex)"
           :hole-deal-player-count="holeDealPlayerCountForAnim"
           :rival-mini="false"
+          :showdown-hand-leader="showdownHandLeaderNickname"
           @card-click="onPlayerCardClick"
       />
     </div>
@@ -203,6 +209,7 @@ import GameSettledPreparePanel from './GameSettledPreparePanel.vue'
 import GameActionPanel from './GameActionPanel.vue'
 import GameOwnerPanel from './GameOwnerPanel.vue'
 import { HAND_RANK_REFERENCE } from '../constants/dpGameHandRankReference'
+import { pickShowdownLeaderNickname } from '../utils/dpGameHandRank'
 import { dpDisplayNickname } from '../utils/dpDisplayNickname'
 
 export default {
@@ -422,6 +429,21 @@ export default {
       var order = this.playersDisplayOrder
       if (!order || !order.length) return null
       return order[0]
+    },
+    /**
+     * 摊牌 / 准备下一局阶段桌上牌力最高者（含踢脚比较；平局取 players 顺序靠前者）。
+     * settled 时仍展示上一手公共牌与牌型，须与 showdown 共用同一套领先者逻辑。
+     */
+    showdownHandLeaderNickname() {
+      if (this.stage !== 'showdown' && this.stage !== 'settled') return ''
+      if (!this.players || !this.players.length) return ''
+      if (!this.communityCards || this.communityCards.length < 3) return ''
+      var boardReady =
+        this.communityCardsFlipComplete
+        || this.communityCards.length >= 5
+        || this.stage === 'settled'
+      if (!boardReady) return ''
+      return pickShowdownLeaderNickname(this.players, this.communityCards)
     }
   },
 
@@ -1225,6 +1247,17 @@ export default {
       var cy = 44
       var x = cx + Math.sin(theta) * rx
       var y = cy - Math.cos(theta) * ry
+      /* 摊牌 / 结算等待：上移靠上侧座位，下移靠下侧座位，减轻与中央公共牌重叠 */
+      if (this.stage === 'showdown' || this.stage === 'settled') {
+        var c = Math.cos(theta)
+        if (c > 0.2) {
+          y -= 9
+        } else if (c > -0.15) {
+          y -= 4
+        } else if (c < -0.35) {
+          y += 10
+        }
+      }
       return {
         left: x + '%',
         top: y + '%'

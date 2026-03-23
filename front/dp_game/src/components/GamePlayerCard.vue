@@ -4,7 +4,9 @@
     :class="{
       'player-card--win-streak': !player.leftThisHand && (player.winStreak || 0) >= 2,
       'dp-player-card--compact': compact,
-      'dp-player-card--rival-mini': rivalMini
+      'dp-player-card--rival-mini': rivalMini,
+      'dp-player-card--hand-reveal-glass':
+        (stage === 'showdown' || stage === 'settled') && !player.leftThisHand
     }"
     :style="cardBoxStyle"
     v-bind="dealerAnchorAttrs"
@@ -118,6 +120,25 @@
         >
           {{ getHandRank(player.holeCards, communityCards) }}
         </span>
+        <div
+          v-if="showShowdownLeaderDetail && showHandRankFiveCardRow.length !== 5"
+          class="dp-player-card__rank-detail"
+        >
+          {{ getHandRankDetail(player.holeCards, communityCards) }}
+        </div>
+        <div
+          v-if="showHandRankFiveCardRow.length === 5"
+          class="best-hand-cards dp-player-card__best-hand dp-player-card__best-hand--rival-leader"
+        >
+          <div
+            v-for="(c, ci) in showHandRankFiveCardRow"
+            :key="'sb5r-' + ci + '-' + handDealKey"
+            :class="[getCardClass(c), 'best-hand-card', 'best-hand-card-enter', 'dp-player-card__best-card', 'dp-player-card__best-card--rival-leader']"
+            :style="bestHandCardEnterStyle(ci)"
+          >
+            {{ getCardDisplay(c) }}
+          </div>
+        </div>
       </div>
     </template>
 
@@ -211,12 +232,18 @@
           {{ getHandRank(player.holeCards, communityCards) }}
         </span>
         <div
-          v-if="player.bestHandCards && player.bestHandCards.length === 5"
+          v-if="showShowdownLeaderDetail && showHandRankFiveCardRow.length !== 5"
+          class="dp-player-card__rank-detail"
+        >
+          {{ getHandRankDetail(player.holeCards, communityCards) }}
+        </div>
+        <div
+          v-if="showHandRankFiveCardRow.length === 5"
           class="best-hand-cards dp-player-card__best-hand"
         >
           <div
-            v-for="(c, ci) in player.bestHandCards"
-            :key="'best' + ci"
+            v-for="(c, ci) in showHandRankFiveCardRow"
+            :key="'best' + ci + '-' + handDealKey"
             :class="[getCardClass(c), 'best-hand-card', 'best-hand-card-enter', 'dp-player-card__best-card']"
             :style="bestHandCardEnterStyle(ci)"
           >
@@ -230,7 +257,7 @@
 
 <script>
 import { getCardClass, getCardDisplay } from '../utils/dpGameCardVisual'
-import { getHandRank } from '../utils/dpGameHandRank'
+import { getHandRank, getHandRankDetail, getBestFiveCardIds } from '../utils/dpGameHandRank'
 import { dpDisplayNickname } from '../utils/dpDisplayNickname'
 import { DP_DEAL_STAGGER_MS } from '../constants/dpGameDealTiming'
 
@@ -256,7 +283,9 @@ export default {
     /** 开局发牌顺序（庄家下家为 0），用于多座位错开飞入 */
     holeDealSeatOrder: { type: Number, default: 0 },
     /** 本桌人数：用于「先一圈再一圈」与公共牌同间隔(350ms)错开发牌 */
-    holeDealPlayerCount: { type: Number, default: 1 }
+    holeDealPlayerCount: { type: Number, default: 1 },
+    /** 摊牌阶段牌力最高者昵称（用于展示精确成牌说明） */
+    showdownHandLeader: { type: String, default: '' }
   },
   data() {
     return {
@@ -324,6 +353,14 @@ export default {
         s.padding = '8px 10px'
         s.borderRadius = '8px'
       }
+      /* 摊牌 / 准备下一局：半透明 + 描边，减轻遮挡中央公共牌 */
+      if ((this.stage === 'showdown' || this.stage === 'settled') && !this.player.leftThisHand) {
+        var base = s.background || 'var(--dp-player-card-bg)'
+        var pct = this.rivalMini ? '20%' : '26%'
+        s.background = 'color-mix(in srgb, ' + base + ' ' + pct + ', transparent)'
+        s.boxShadow =
+          (s.boxShadow ? s.boxShadow + ', ' : '') + 'inset 0 0 0 1px rgba(100, 100, 100, 0.22)'
+      }
       return s
     },
     /** 是否渲染底牌行（紧凑他人：preflop 开局暂显背面飞入，结束后隐藏） */
@@ -354,7 +391,12 @@ export default {
     /** Flop 后且成牌可读时展示牌型与最大五张 */
     showHandRankSection() {
       if (this.player.leftThisHand) return false
-      if (this.communityCards.length < 3 || !this.communityCardsFlipComplete) return false
+      if (this.communityCards.length < 3) return false
+      var boardOk =
+        this.communityCardsFlipComplete
+        || (this.stage === 'showdown' && this.communityCards.length >= 5)
+        || (this.stage === 'settled' && this.communityCards.length >= 3)
+      if (!boardOk) return false
       return (
         this.isMe
         || (this.isOwner && this.ownerRevealAll && this.player.holeCards && this.player.holeCards.length > 0)
@@ -365,6 +407,33 @@ export default {
     showHandRankAsOpen() {
       return this.isMe
         || (this.isOwner && this.ownerRevealAll && this.player.holeCards && this.player.holeCards.length > 0)
+    },
+    /** 摊牌或准备下一局：牌力最高者展示精确五张（与本人 bestHand 同款） */
+    showShowdownLeaderDetail() {
+      if (!this.showdownHandLeader) return false
+      return (
+        (this.stage === 'showdown' || this.stage === 'settled')
+        && this.player.nickname === this.showdownHandLeader
+        && this.showHandRankSection
+      )
+    },
+    /**
+     * 牌型区下方五张：优先用接口里 `DpPlayer.bestHandCards`（Java DpUtilHandEvaluator.sortCardsForDisplay：
+     * 先按牌型结构排、再踢脚），与文档 DPGAME.md 一致；仅在后端未带满 5 张时再用本地兜底。
+     */
+    showHandRankFiveCardRow() {
+      var fromServer =
+        this.player.bestHandCards && this.player.bestHandCards.length === 5
+          ? this.player.bestHandCards
+          : []
+      if (this.showShowdownLeaderDetail) {
+        if (fromServer.length === 5) return fromServer
+        return getBestFiveCardIds(this.player.holeCards, this.communityCards)
+      }
+      if (!this.rivalMini && fromServer.length === 5) {
+        return fromServer
+      }
+      return []
     },
     /** 供公共牌飞入动画定位庄位（D）发牌起点 */
     dealerAnchorAttrs() {
@@ -381,6 +450,7 @@ export default {
     getCardClass,
     getCardDisplay,
     getHandRank,
+    getHandRankDetail,
     prefersReducedMotion() {
       if (typeof window === 'undefined' || !window.matchMedia) return false
       return window.matchMedia('(prefers-reduced-motion: reduce)').matches

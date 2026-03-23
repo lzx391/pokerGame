@@ -122,6 +122,8 @@
 /* ---- 圆桌桌面（对局页玩家区） ---- */
 .dp-game-table {
   margin: 8px 0 18px;
+  position: relative;
+  z-index: 2;
 }
 
 .dp-game-table__layout {
@@ -273,11 +275,25 @@
   margin: 10px auto 6px;
   padding: 0 6px;
   box-sizing: border-box;
+  position: relative;
+  z-index: 1;
 }
 
 .dp-game-hero-dock .dp-player-card {
   width: 100%;
   max-width: 100%;
+}
+
+/* 摊牌后本人大卡：随内容变窄，并与圆桌区拉开，减少压住公共牌的观感 */
+.dp-game-hero-dock--hand-reveal {
+  margin-top: 14px;
+}
+
+.dp-game-hero-dock--hand-reveal .dp-player-card {
+  width: fit-content;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* 手机竖屏：圆桌高度跟「真实可视区」走，全屏/隐藏地址栏后多留出桌面区域 */
@@ -838,6 +854,23 @@
   max-width: 100%;
 }
 
+/* 摊牌：牌力最高者的精确成牌说明（在牌型 pill 下方） */
+.dp-player-card__rank-detail {
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--dp-text-secondary);
+  word-break: break-word;
+  max-width: 100%;
+}
+
+.dp-player-card__hand-rank--rival .dp-player-card__rank-detail {
+  margin-top: 3px;
+  font-size: 9px;
+  text-align: left;
+}
+
 .dp-player-card__hand-rank {
   margin-top: 2px;
   margin-bottom: 4px;
@@ -878,6 +911,37 @@
     border-color: rgba(82, 196, 26, 0.35);
     color: var(--dp-success);
   }
+}
+
+/* 摊牌 / 准备下一局：毛玻璃让桌布、公共牌能透出来 */
+.dp-player-card--hand-reveal-glass.dp-player-card--rival-mini {
+  backdrop-filter: blur(14px) saturate(1.12);
+  -webkit-backdrop-filter: blur(14px) saturate(1.12);
+}
+
+.dp-player-card--hand-reveal-glass:not(.dp-player-card--rival-mini) {
+  backdrop-filter: blur(10px) saturate(1.08);
+  -webkit-backdrop-filter: blur(10px) saturate(1.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dp-player-card--hand-reveal-glass {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+.dp-player-card__best-hand--rival-leader {
+  margin-top: 6px;
+  gap: 3px;
+  flex-wrap: nowrap;
+}
+
+.dp-player-card__best-card--rival-leader {
+  width: 24px;
+  height: 34px;
+  font-size: 9px;
+  border-radius: 3px;
 }
 
 .dp-player-card__best-hand {
