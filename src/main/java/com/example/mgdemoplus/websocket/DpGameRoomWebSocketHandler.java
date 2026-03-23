@@ -29,6 +29,7 @@ public class DpGameRoomWebSocketHandler extends TextWebSocketHandler {
             session.close(CloseStatus.BAD_DATA.withReason("missing roomId"));
             return;
         }
+        //已学习，将roomId存入session的attributes中
         session.getAttributes().put("roomId", roomId);
         //已学习，调用websocket的pushService.register(roomId, session)注册房间订阅者
         pushService.register(roomId, session);

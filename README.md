@@ -16,7 +16,7 @@
 - **对局布局（2026-03-23）**：圆桌区域按视口 **自适应**（`dvh` / `clamp` 等），**不再提供浏览器全屏按钮**；入座玩家 **本人完整卡片固定在圆桌下方**，桌上该方位仅保留空锚点，减少挡视野。确认类操作仍用 Element UI 的 `$confirm` / `$alert`，避免原生对话框干扰流程。
 - **地址**：`ws://<后端主机>:<端口>/ws/dp-game?roomId=房间号`（本地开发前端里默认连 `ws://localhost:8088`）。
 - **数据**：每条消息 JSON 与 `GET /dpRoom/getNowRoom` 一致；房间不存在时推送 `{"_ws":"roomClosed"}`。
-- **推送节奏**：与后端原有 1 秒定时任务对齐，仅当该房间 **至少有一个 WebSocket 订阅者** 时才序列化并广播，避免空订阅浪费。
+- **推送节奏**：与后端原有 1 秒定时任务对齐，仅当该房间 **至少有一个 WebSocket 订阅者** 时才序列化；**与上次成功下发的 JSON 相同则不再往客户端发**，减少流量（`DpGameRoomPushService` 内去重；`lastHeartBeat` 不参与 JSON，避免机器人心跳刷新把内容“刷变”）。
 - **相关代码**：`DpGameRoomPushService`、`DpGameRoomWebSocketHandler`、`WebSocketGameRoomConfig`；`DpRoomServiceImpl` 定时循环末尾调用 `broadcastIfSubscribed`。
 
 ### NPC / AI（给不懂代码的人看的）
