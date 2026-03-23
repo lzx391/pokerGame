@@ -13,6 +13,9 @@
 
     <div class="room-list">
       <h3>房间列表</h3>
+      <p v-if="roomsLoading" class="room-list__hint">加载中…</p>
+      <p v-else-if="roomsError" class="room-list__hint room-list__hint--error">{{ roomsError }}</p>
+      <p v-else-if="!roomDtos.length" class="room-list__hint">暂无房间，可先点「创建房间」开一桌。</p>
       <div class="room-item" v-for="roomDto in roomDtos" :key="roomDto.roomId">
         <span>房间 {{ roomDto.roomId }} ({{ roomDto.playerSize }}人)</span>
         <button @click="joinRoom(roomDto.roomId)">加入</button>
@@ -26,8 +29,9 @@ export default {
   data() {
     return {
       user: {},
-      roomDtos: []
-
+      roomDtos: [],
+      roomsLoading: true,
+      roomsError: ''
     }
   },
   created() {
@@ -51,8 +55,19 @@ export default {
       this.$router.push('/')
     },
     async getRooms() {
-      const res = await this.$http.get('/dpRoom/getAllRooms2')
-      this.roomDtos = res.data
+      try {
+        if (!this.roomDtos.length) this.roomsLoading = true
+        this.roomsError = ''
+        const res = await this.$http.get('/dpRoom/getAllRooms2')
+        var list = res.data
+        this.roomDtos = Array.isArray(list) ? list : []
+      } catch (e) {
+        console.error('getRooms', e)
+        this.roomsError = '房间列表加载失败，请确认后端已启动。'
+        this.roomDtos = []
+      } finally {
+        this.roomsLoading = false
+      }
     },
     async createRoom() {
       const res = await this.$http.post('/dpRoom/createRoom', null, {
@@ -75,7 +90,10 @@ export default {
 .home-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
 .user-info{display:flex;align-items:center;gap:10px;font-size:14px;color:#666}
 .btns{text-align:center;margin-bottom:20px}
-.room-list{margin-top:20px}
+.room-list{margin-top:20px;text-align:left}
+.room-list h3{text-align:center}
+.room-list__hint{margin:16px 0;padding:12px;color:#909399;font-size:14px;line-height:1.5}
+.room-list__hint--error{color:#f56c6c}
 .room-item{display:flex;justify-content:space-between;padding:10px;border-bottom:1px solid #eee}
 button{padding:8px 12px}
 .logout-btn{background:#f56c6c;color:#fff;border:none;border-radius:4px;cursor:pointer;padding:6px 10px}

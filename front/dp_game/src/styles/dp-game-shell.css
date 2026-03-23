@@ -931,7 +931,7 @@
   }
 }
 
-/* 摊牌 / 准备下一局：毛玻璃让桌布、公共牌能透出来 */
+/* 仅摊牌圈：毛玻璃；结算阶段不加此类，与节能模式同为半透明底、无 backdrop-filter */
 .dp-player-card--hand-reveal-glass.dp-player-card--rival-mini {
   backdrop-filter: blur(14px) saturate(1.12);
   -webkit-backdrop-filter: blur(14px) saturate(1.12);

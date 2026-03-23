@@ -5,8 +5,9 @@
       'player-card--win-streak': !player.leftThisHand && (player.winStreak || 0) >= 2,
       'dp-player-card--compact': compact,
       'dp-player-card--rival-mini': rivalMini,
+      /* 仅摊牌圈用毛玻璃；结算阶段与节能模式一致，仅用半透明底无 backdrop-filter */
       'dp-player-card--hand-reveal-glass':
-        (stage === 'showdown' || stage === 'settled') && !player.leftThisHand
+        stage === 'showdown' && !player.leftThisHand
     }"
     :style="cardBoxStyle"
     v-bind="dealerAnchorAttrs"
