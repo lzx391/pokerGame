@@ -1,5 +1,5 @@
 <template>
-  <div id="app">
+  <div id="app" :class="{ 'app--lobby': isLobbyRoute }">
     <!-- 登录 / 注册 页面：带有导航和盒子布局 -->
     <div v-if="isAuthPage" class="app-container">
       <h1 class="app-title">DP GAME</h1>
@@ -13,7 +13,7 @@
     </div>
 
     <!-- 其他路由：全屏展示，不显示登录 / 注册按钮 -->
-    <div v-else class="full-page">
+    <div v-else class="full-page" :class="{ 'full-page--lobby': isLobbyRoute }">
       <router-view></router-view>
     </div>
   </div>
@@ -26,6 +26,10 @@ export default {
     isAuthPage() {
       const path = this.$route.path
       return path === '/login' || path === '/register' || path === '/'
+    },
+    /** 大厅只需内容高度，避免整页强制 100vh 造成「下面一大块空白」的观感 */
+    isLobbyRoute() {
+      return this.$route.path === '/home'
     }
   }
 }
@@ -50,6 +54,8 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   min-height: -webkit-fill-available;
+  /* 与 #app 一致，避免底部露默认白底 */
+  background-color: #f5f7fa;
 }
 
 #app {
@@ -129,5 +135,14 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   min-height: -webkit-fill-available;
+}
+
+/* 游戏大厅：不要与 #app 双重撑满视口，高度随内容 */
+#app.app--lobby {
+  min-height: 0;
+}
+
+.full-page--lobby {
+  min-height: 0;
 }
 </style>
