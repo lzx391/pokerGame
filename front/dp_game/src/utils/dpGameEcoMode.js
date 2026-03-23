@@ -4,9 +4,11 @@ var STORAGE_KEY = 'dp_game_eco_mode'
 
 export function readEcoMode() {
   try {
-    return localStorage.getItem(STORAGE_KEY) === '1'
+    var v = localStorage.getItem(STORAGE_KEY)
+    if (v === null || v === '') return true
+    return v === '1'
   } catch (e) {
-    return false
+    return true
   }
 }
 
