@@ -37,6 +37,7 @@ public class DpGameRoomPushService {
     }
 
     public void register(String roomId, WebSocketSession session) {
+        //已学习，注册房间订阅者
         roomSessions.computeIfAbsent(roomId, k -> ConcurrentHashMap.newKeySet()).add(session);
     }
 
@@ -50,12 +51,12 @@ public class DpGameRoomPushService {
             roomSessions.remove(roomId);
         }
     }
-
+//已学习，判断房间是否有订阅者，如果房间有订阅者，则返回true，如果房间没有订阅者，则返回false
     public boolean hasSubscribers(String roomId) {
         Set<WebSocketSession> set = roomSessions.get(roomId);
         return set != null && !set.isEmpty();
     }
-
+//已学习，发送初始房间数据给订阅者
     public void sendInitialSnapshot(WebSocketSession session, String roomId) {
         try {
             DpRoom r = roomService.getAllRooms(roomId);
@@ -74,15 +75,17 @@ public class DpGameRoomPushService {
             log.warn("WebSocket initial snapshot failed roomId={}", roomId, e);
         }
     }
-
+//已学习，调用服务层的roomService.getAllRooms(roomId)获取房间数据，然后序列化成JSON字符串，然后广播给所有订阅者
     /**
      * 在 {@link DpRoomServiceImpl} 的定时任务中调用：仅当有订阅者时推送，避免空房间也序列化。
      */
     public void broadcastIfSubscribed(String roomId) {
+        //如果房间没有订阅者，则返回，如果房间有订阅者，则获取房间数据，然后序列化成JSON字符串，然后广播给所有订阅者
         if (!hasSubscribers(roomId)) {
             return;
         }
         try {
+            //正式返回房间数据给所有订阅者
             DpRoom r = roomService.getAllRooms(roomId);
             String json = r == null ? ROOM_CLOSED : objectMapper.writeValueAsString(r);
             Set<WebSocketSession> set = roomSessions.get(roomId);

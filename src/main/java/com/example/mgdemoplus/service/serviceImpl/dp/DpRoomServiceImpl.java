@@ -146,6 +146,7 @@ public class DpRoomServiceImpl {
                             && System.currentTimeMillis() > room.getReadyDeadline()) {
                         handleReadyTimeout(room);
                     }
+                    //已学习，调用websocket的gameRoomPushService.broadcastIfSubscribed(room.getRoomId())广播房间数据给所有订阅者
                     gameRoomPushService.broadcastIfSubscribed(room.getRoomId());
                 }
             }

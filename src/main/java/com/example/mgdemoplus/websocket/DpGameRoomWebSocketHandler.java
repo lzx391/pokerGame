@@ -30,7 +30,9 @@ public class DpGameRoomWebSocketHandler extends TextWebSocketHandler {
             return;
         }
         session.getAttributes().put("roomId", roomId);
+        //已学习，调用websocket的pushService.register(roomId, session)注册房间订阅者
         pushService.register(roomId, session);
+        //已学习，调用websocket的pushService.sendInitialSnapshot(session, roomId)发送初始房间数据给订阅者
         pushService.sendInitialSnapshot(session, roomId);
     }
 
