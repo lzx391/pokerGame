@@ -1,10 +1,5 @@
 package com.example.mgdemoplus.dto;
 
-import com.example.mgdemoplus.entity.DpPlayer;
-
-import java.util.ArrayList;
-import java.util.List;
-
 public class DpRoomDTO {
     private String roomId;
     private String owner;

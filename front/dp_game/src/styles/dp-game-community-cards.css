@@ -1,0 +1,202 @@
+/* 公共牌：3D 翻转 + 华丽牌背 + 翻亮 + 发牌飞入 */
+
+.community-cards-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin: 20px 0;
+  overflow: visible;
+  min-height: 62px;
+}
+
+/* 自庄位（D，data-dp-dealer-anchor）或默认自下方飞向公共位；--deal-from-x/y 为相对各牌槽的偏移(px) */
+.card-flip-wrapper.deal-fly-in {
+  animation: community-deal-fly 0.48s cubic-bezier(0.18, 0.85, 0.32, 1) both;
+  pointer-events: none;
+}
+
+@keyframes community-deal-fly {
+  0% {
+    opacity: 0.2;
+    transform: translate3d(var(--deal-from-x, 0px), var(--deal-from-y, 92px), 0) scale(0.52) rotateZ(var(--deal-from-rot, 0deg));
+    filter: blur(0.6px);
+  }
+  45% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  78% {
+    transform: translate3d(0, -6px, 0) scale(1.06) rotateZ(0deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1) rotateZ(0deg);
+    filter: blur(0);
+  }
+}
+
+.card-flip-wrapper {
+  perspective: 880px;
+  width: 44px;
+  height: 62px;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.35));
+}
+
+.card-flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.78s cubic-bezier(0.34, 1.15, 0.45, 1);
+  transform-style: preserve-3d;
+}
+
+.card-flip-inner.flipped {
+  transform: rotateY(180deg);
+}
+
+/* 翻开后牌面轻微“落定”光晕 */
+.card-flip-inner.flipped .card-front {
+  animation: community-card-reveal-glow 0.65s ease-out 0.12s both;
+}
+
+@keyframes community-card-reveal-glow {
+  0% {
+    box-shadow:
+      0 0 0 1px rgba(255, 220, 140, 0.65),
+      0 0 24px rgba(255, 200, 100, 0.55),
+      0 4px 14px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    filter: brightness(1.15) saturate(1.12);
+  }
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(212, 175, 55, 0.28),
+      0 3px 10px rgba(0, 0, 0, 0.45),
+      0 8px 24px rgba(0, 0, 0, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.22),
+      inset 0 -2px 8px rgba(0, 0, 0, 0.12);
+    filter: brightness(1) saturate(1);
+  }
+}
+
+.card-flip-inner .card-face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+
+/* 牌背：暗纹 + 中心徽章感 */
+.card-flip-inner .card-back {
+  background:
+    radial-gradient(circle at 50% 45%, rgba(255, 255, 255, 0.12) 0%, transparent 42%),
+    repeating-linear-gradient(
+      45deg,
+      rgba(0, 0, 0, 0.07) 0px,
+      rgba(0, 0, 0, 0.07) 2px,
+      transparent 2px,
+      transparent 6px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(255, 255, 255, 0.04) 0px,
+      rgba(255, 255, 255, 0.04) 1px,
+      transparent 1px,
+      transparent 7px
+    ),
+    linear-gradient(155deg, #6a6a6a 0%, #4a4a4a 40%, #2d2d2d 100%);
+  color: #c9c9c9;
+  font-weight: 900;
+  font-size: 20px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    inset 0 -6px 16px rgba(0, 0, 0, 0.35),
+    0 2px 8px rgba(0, 0, 0, 0.4);
+  z-index: 2;
+  animation: card-back-breathe 3.2s ease-in-out infinite;
+}
+
+@keyframes card-back-breathe {
+  0%,
+  100% {
+    filter: brightness(1);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+      inset 0 -6px 16px rgba(0, 0, 0, 0.35),
+      0 2px 8px rgba(0, 0, 0, 0.4);
+  }
+  50% {
+    filter: brightness(1.06);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+      inset 0 -6px 18px rgba(0, 0, 0, 0.38),
+      0 2px 12px rgba(0, 0, 0, 0.45),
+      0 0 14px rgba(212, 175, 55, 0.12);
+  }
+}
+
+.card-flip-inner .card-back::before {
+  border-color: rgba(212, 175, 55, 0.2);
+}
+
+/* 牌背已有暗纹呼吸，关闭通用扫光避免叠影 */
+.card-flip-inner .card-back::after {
+  display: none;
+}
+
+.card-flip-inner .card-front {
+  transform: rotateY(180deg);
+  z-index: 1;
+}
+
+/* 公共牌区未发位的占位牌 */
+.community-card-placeholder {
+  animation: community-placeholder-float 2.8s ease-in-out infinite;
+  opacity: 0.92;
+}
+
+@keyframes community-placeholder-float {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.92;
+  }
+  50% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-flip-wrapper.deal-fly-in {
+    animation: none !important;
+    pointer-events: auto;
+  }
+
+  .card-flip-inner {
+    transition: transform 0.45s ease;
+  }
+
+  .card-flip-inner.flipped .card-front {
+    animation: none !important;
+  }
+
+  .card-flip-inner .card-back {
+    animation: none !important;
+  }
+
+  .community-card-placeholder {
+    animation: none !important;
+  }
+
+  .card-flip-wrapper {
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.25));
+  }
+}
