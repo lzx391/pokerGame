@@ -164,6 +164,28 @@
   }
 }
 
+/* 弃牌：手牌飞向桌面弃牌堆（data-dp-muck-anchor） */
+.hole-card-fly-wrapper.hole-fold-to-muck {
+  animation: hole-fold-fly-muck 0.58s cubic-bezier(0.52, 0.02, 0.68, 0.48) forwards;
+  pointer-events: none;
+}
+
+.hole-card-fly-wrapper.hole-fold-to-muck .hole-card-flip,
+.hole-card-fly-wrapper.hole-fold-to-muck .card-base {
+  animation: none !important;
+}
+
+@keyframes hole-fold-fly-muck {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1) rotateZ(0deg);
+  }
+  100% {
+    opacity: 0.15;
+    transform: translate3d(var(--fold-dx, 0px), var(--fold-dy, 0px), 0) scale(0.22) rotateZ(18deg);
+  }
+}
+
 /* 玩家手牌翻开：3D + 轻微回弹 */
 .hole-card-flip {
   transform-origin: center center;
@@ -393,6 +415,10 @@
   .hole-card-fly-wrapper.hole-deal-fly-in {
     animation: none !important;
     pointer-events: auto;
+  }
+
+  .hole-card-fly-wrapper.hole-fold-to-muck {
+    animation: none !important;
   }
 
   .hole-card-flip {

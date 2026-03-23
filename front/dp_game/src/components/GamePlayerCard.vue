@@ -51,6 +51,23 @@
       </div>
       <div v-if="player.fold" class="dp-player-card__rival-fold">已弃牌</div>
       <div
+        v-if="foldGhostFly"
+        ref="foldGhostRow"
+        class="dp-player-card__fold-ghost-row dp-player-card__fold-ghost-row--rival"
+        aria-hidden="true"
+      >
+        <div
+          v-for="n in ghostHoleLen"
+          :key="'fg-r' + n + '-' + handDealKey"
+          class="hole-card-fly-wrapper"
+          :class="{ 'hole-fold-to-muck': foldMuckFlying }"
+          :style="foldGhostWrapperStyle(n - 1)"
+          @animationend="onHoleWrapperAnimEnd($event, n - 1)"
+        >
+          <div class="card-base bg-gray dp-player-card__hole-back-rival">?</div>
+        </div>
+      </div>
+      <div
         v-if="showHoleCardsArea"
         ref="holeCardsRow"
         class="dp-player-card__hole-row dp-player-card__hole-row--rival"
@@ -61,9 +78,12 @@
             v-for="(c, ci) in player.holeCards"
             :key="'h' + ci + '-' + handDealKey"
             class="hole-card-fly-wrapper"
-            :class="{ 'hole-deal-fly-in': holeDealFlyActive(ci) }"
-            :style="holeDealFlyStyle(ci)"
-            @animationend="onHoleDealFlyEnd($event, ci)"
+            :class="{
+              'hole-deal-fly-in': holeDealFlyActive(ci),
+              'hole-fold-to-muck': foldMuckFlying
+            }"
+            :style="holeWrapperStyle(ci)"
+            @animationend="onHoleWrapperAnimEnd($event, ci)"
           >
             <div
               :class="[getCardClass(c), 'hole-card-flip']"
@@ -78,9 +98,12 @@
             v-for="n in player.holeCards.length"
             :key="'hb' + (n - 1) + '-' + handDealKey"
             class="hole-card-fly-wrapper"
-            :class="{ 'hole-deal-fly-in': holeDealFlyActive(n - 1) }"
-            :style="holeDealFlyStyle(n - 1)"
-            @animationend="onHoleDealFlyEnd($event, n - 1)"
+            :class="{
+              'hole-deal-fly-in': holeDealFlyActive(n - 1),
+              'hole-fold-to-muck': foldMuckFlying
+            }"
+            :style="holeWrapperStyle(n - 1)"
+            @animationend="onHoleWrapperAnimEnd($event, n - 1)"
           >
             <div
               class="card-base bg-gray dp-player-card__hole-back-rival"
@@ -144,9 +167,12 @@
               v-for="(c, ci) in player.holeCards"
               :key="'h' + ci + '-' + handDealKey"
               class="hole-card-fly-wrapper"
-              :class="{ 'hole-deal-fly-in': holeDealFlyActive(ci) }"
-              :style="holeDealFlyStyle(ci)"
-              @animationend="onHoleDealFlyEnd($event, ci)"
+              :class="{
+                'hole-deal-fly-in': holeDealFlyActive(ci),
+                'hole-fold-to-muck': foldMuckFlying
+              }"
+              :style="holeWrapperStyle(ci)"
+              @animationend="onHoleWrapperAnimEnd($event, ci)"
             >
               <div
                 :class="[getCardClass(c), 'hole-card-flip']"
@@ -161,9 +187,12 @@
               v-for="n in player.holeCards.length"
               :key="'hb' + (n - 1) + '-' + handDealKey"
               class="hole-card-fly-wrapper"
-              :class="{ 'hole-deal-fly-in': holeDealFlyActive(n - 1) }"
-              :style="holeDealFlyStyle(n - 1)"
-              @animationend="onHoleDealFlyEnd($event, n - 1)"
+              :class="{
+                'hole-deal-fly-in': holeDealFlyActive(n - 1),
+                'hole-fold-to-muck': foldMuckFlying
+              }"
+              :style="holeWrapperStyle(n - 1)"
+              @animationend="onHoleWrapperAnimEnd($event, n - 1)"
             >
               <div
                 class="card-base bg-gray"
@@ -189,7 +218,7 @@
             v-for="(c, ci) in player.bestHandCards"
             :key="'best' + ci"
             :class="[getCardClass(c), 'best-hand-card', 'best-hand-card-enter', 'dp-player-card__best-card']"
-            :style="{ animationDelay: (ci * 0.07) + 's' }"
+            :style="bestHandCardEnterStyle(ci)"
           >
             {{ getCardDisplay(c) }}
           </div>
@@ -239,7 +268,15 @@ export default {
       holeDealIntroDone: false,
       _holeIntroClearTimer: null,
       /** 防止 handDealKey 多次 kick 在同一手内重复触发飞入 */
-      holeDealFlightStarted: false
+      holeDealFlightStarted: false,
+      /** 弃牌：手牌飞向桌面弃牌堆动画 */
+      foldMuckFlying: false,
+      foldFlyPerCard: [],
+      foldMuckAnimComplete: false,
+      foldMuckEndsPending: 0,
+      _foldMuckFallbackTimer: null,
+      /** 他人紧凑位底牌已隐藏时：临时渲染两张背面用于弃牌飞入弃牌堆 */
+      foldGhostFly: false
     }
   },
   watch: {
@@ -258,10 +295,24 @@ export default {
     },
     stage(val) {
       if (val !== 'preflop') this.holeDealIntroDone = true
+    },
+    'player.fold': function (now, was) {
+      if (now === true && was === false) {
+        this.onPlayerFoldEdge()
+      }
+      if (now === false) {
+        this.clearFoldMuckFallbackTimer()
+        this.foldMuckAnimComplete = false
+        this.foldMuckFlying = false
+        this.foldFlyPerCard = []
+        this.foldMuckEndsPending = 0
+        this.foldGhostFly = false
+      }
     }
   },
   beforeDestroy() {
     this.clearHoleIntroTimer()
+    this.clearFoldMuckFallbackTimer()
   },
   computed: {
     cardBoxStyle() {
@@ -279,6 +330,7 @@ export default {
     showHoleCardsArea() {
       if (this.player.leftThisHand) return false
       if (!this.player.holeCards || this.player.holeCards.length === 0) return false
+      if (this.player.fold && this.foldMuckAnimComplete) return false
       if (!this.compact) return true
       if (this.showHoleCardsRevealed) return true
       if (this.stage === 'preflop') return !this.holeDealIntroDone
@@ -318,6 +370,11 @@ export default {
     dealerAnchorAttrs() {
       if (this.player.leftThisHand || !this.player.dealer) return {}
       return { 'data-dp-dealer-anchor': 'true' }
+    },
+    /** 弃牌幽灵动画：手牌张数（用于 v-for 1..n） */
+    ghostHoleLen() {
+      var hc = this.player.holeCards
+      return hc && hc.length ? hc.length : 0
     }
   },
   methods: {
@@ -343,6 +400,12 @@ export default {
         this._holeIntroClearTimer = null
       }
     },
+    clearFoldMuckFallbackTimer() {
+      if (this._foldMuckFallbackTimer) {
+        clearTimeout(this._foldMuckFallbackTimer)
+        this._foldMuckFallbackTimer = null
+      }
+    },
     resetHoleDealFlyState() {
       this.clearHoleIntroTimer()
       this.holeDealFlyByIndex = {}
@@ -350,6 +413,12 @@ export default {
       this.holeDealChainFlip = false
       this.holeDealIntroDone = false
       this.holeDealFlightStarted = false
+      this.foldMuckFlying = false
+      this.foldFlyPerCard = []
+      this.foldMuckAnimComplete = false
+      this.foldMuckEndsPending = 0
+      this.foldGhostFly = false
+      this.clearFoldMuckFallbackTimer()
       var self = this
       var tailMs = this.computeHoleDealSequenceTailMs()
       this._holeIntroClearTimer = setTimeout(function () {
@@ -455,6 +524,27 @@ export default {
       }
       return style
     },
+    holeWrapperStyle(ci) {
+      var deal = this.holeDealFlyStyle(ci)
+      var fold = this.foldMuckFlyStyle(ci)
+      if (!fold || Object.keys(fold).length === 0) return deal
+      return Object.assign({}, deal, fold)
+    },
+    foldMuckFlyStyle(ci) {
+      if (!this.foldMuckFlying || !this.foldFlyPerCard || !this.foldFlyPerCard[ci]) return {}
+      return this.foldFlyPerCard[ci]
+    },
+    foldGhostWrapperStyle(ci) {
+      return this.foldMuckFlyStyle(ci)
+    },
+    /** 摊牌/结算同时翻开；仅首圈庄位发牌时沿用座位 stagger */
+    holeFlipDelaySec(ci) {
+      if (this.stage === 'showdown' || this.stage === 'settled') return '0s'
+      if (this.holeDealChainFlip) {
+        return (this.holeDealDelayMsForCard(ci) / 1000 + 0.42) + 's'
+      }
+      return (ci * 0.08) + 's'
+    },
     /** 飞入后再翻开，与庄位发牌节奏衔接 */
     holeCardInnerStyle(ci) {
       var base = {
@@ -462,11 +552,7 @@ export default {
         height: '52px',
         fontSize: '13px'
       }
-      if (this.holeDealChainFlip) {
-        base.animationDelay = (this.holeDealDelayMsForCard(ci) / 1000 + 0.42) + 's'
-      } else {
-        base.animationDelay = (ci * 0.08) + 's'
-      }
+      base.animationDelay = this.holeFlipDelaySec(ci)
       return base
     },
     holeCardInnerStyleRival(ci) {
@@ -475,12 +561,99 @@ export default {
         height: '40px',
         fontSize: '11px'
       }
-      if (this.holeDealChainFlip) {
-        base.animationDelay = (this.holeDealDelayMsForCard(ci) / 1000 + 0.42) + 's'
-      } else {
-        base.animationDelay = (ci * 0.08) + 's'
-      }
+      base.animationDelay = this.holeFlipDelaySec(ci)
       return base
+    },
+    bestHandCardEnterStyle(ci) {
+      if (this.stage === 'showdown' || this.stage === 'settled') {
+        return { animationDelay: '0s' }
+      }
+      return { animationDelay: (ci * 0.07) + 's' }
+    },
+    onPlayerFoldEdge() {
+      var self = this
+      this.clearFoldMuckFallbackTimer()
+      if (this.prefersReducedMotion()) {
+        this.foldMuckAnimComplete = true
+        return
+      }
+      var nh = this.player.holeCards ? this.player.holeCards.length : 0
+      if (nh <= 0) {
+        this.foldMuckAnimComplete = true
+        return
+      }
+      this.$nextTick(function () {
+        var muck = typeof document !== 'undefined'
+          ? document.querySelector('[data-dp-muck-anchor="true"]')
+          : null
+        if (!muck) {
+          self.foldMuckAnimComplete = true
+          return
+        }
+        var row = self.$refs.holeCardsRow
+        var wrappers = row ? row.querySelectorAll('.hole-card-fly-wrapper') : []
+        var useGhost = self.rivalMini && wrappers.length === 0
+        if (useGhost) {
+          self.foldGhostFly = true
+          self.$nextTick(function () {
+            self.startFoldMuckFromRow(self.$refs.foldGhostRow, muck)
+          })
+          return
+        }
+        if (!wrappers.length) {
+          self.foldMuckAnimComplete = true
+          return
+        }
+        self.startFoldMuckFromRow(row, muck)
+      })
+    },
+    startFoldMuckFromRow(row, muck) {
+      var self = this
+      if (!muck && typeof document !== 'undefined') {
+        muck = document.querySelector('[data-dp-muck-anchor="true"]')
+      }
+      if (!row || !muck) {
+        this.foldGhostFly = false
+        this.foldMuckAnimComplete = true
+        return
+      }
+      var wrappers = row.querySelectorAll('.hole-card-fly-wrapper')
+      if (!wrappers.length) {
+        this.foldGhostFly = false
+        this.foldMuckAnimComplete = true
+        return
+      }
+      var mr = muck.getBoundingClientRect()
+      var mtx = mr.left + mr.width / 2
+      var mty = mr.top + mr.height / 2
+      var arr = []
+      for (var i = 0; i < wrappers.length; i++) {
+        var r = wrappers[i].getBoundingClientRect()
+        var cx = r.left + r.width / 2
+        var cy = r.top + r.height / 2
+        arr.push({
+          '--fold-dx': (mtx - cx) + 'px',
+          '--fold-dy': (mty - cy) + 'px',
+          animationDelay: (i * 50) + 'ms',
+          zIndex: 14 + i
+        })
+      }
+      this.foldFlyPerCard = arr
+      this.foldMuckEndsPending = arr.length
+      this.foldMuckFlying = true
+      this._foldMuckFallbackTimer = setTimeout(function () {
+        self._foldMuckFallbackTimer = null
+        if (!self.foldMuckFlying) return
+        self.foldMuckFlying = false
+        self.foldMuckAnimComplete = true
+        self.foldFlyPerCard = []
+        self.foldMuckEndsPending = 0
+        self.foldGhostFly = false
+      }, 900)
+    },
+    onHoleWrapperAnimEnd(ev, ci) {
+      this.onHoleDealFlyEnd(ev, ci)
+      this.onFoldMuckFlyEnd(ev)
     },
     onHoleDealFlyEnd(ev, ci) {
       if (!ev) return
@@ -491,7 +664,23 @@ export default {
       }
       if (Object.keys(this.holeDealFlyByIndex).length === 0) {
         this.holeDealOriginByIndex = null
+        this.holeDealChainFlip = false
         this.finishHoleDealIntroIfNeeded()
+      }
+    },
+    onFoldMuckFlyEnd(ev) {
+      if (!this.foldMuckFlying || !ev) return
+      if (ev.target !== ev.currentTarget) return
+      var name = ev.animationName || ''
+      if (name.indexOf('hole-fold-fly-muck') === -1) return
+      this.foldMuckEndsPending -= 1
+      if (this.foldMuckEndsPending <= 0) {
+        this.clearFoldMuckFallbackTimer()
+        this.foldMuckFlying = false
+        this.foldMuckAnimComplete = true
+        this.foldFlyPerCard = []
+        this.foldMuckEndsPending = 0
+        this.foldGhostFly = false
       }
     },
     onClick() {

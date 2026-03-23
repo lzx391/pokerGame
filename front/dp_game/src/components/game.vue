@@ -1,5 +1,13 @@
 <template>
-  <div class="dp-game-root" :data-dp-game-theme="gameUiTheme">
+  <div
+      ref="gameRoot"
+      class="dp-game-root"
+      :class="{
+        'dp-game-root--pseudo-fs': pseudoFullscreen,
+        'dp-game-root--layout-fs': layoutFullscreen
+      }"
+      :data-dp-game-theme="gameUiTheme"
+  >
     <div class="dp-game-theme-row">
       <span class="dp-game-theme-row__label">界面主题</span>
       <select v-model="gameUiTheme" class="dp-game-theme-select" aria-label="选择对局界面主题">
@@ -13,10 +21,10 @@
         :pot="pot"
         :current-bet-to-call="currentBetToCall"
         :spectator-count="spectators.length"
-        :fullscreen-active="dpFullscreenActive"
+        :is-fullscreen="layoutFullscreen"
         @show-hand-rank="showHandRankModal = true"
         @show-spectators="showSpectatorModal = true"
-        @toggle-fullscreen="toggleDpGameFullscreen"
+        @toggle-fullscreen="toggleDpFullscreen"
         @exit="exitGame"
     />
 
@@ -72,19 +80,28 @@
       <div class="dp-game-table__layout">
         <div class="dp-game-table__felt" aria-hidden="true" />
         <div class="dp-game-table__center">
-          <game-community-cards
-              :community-cards="communityCards"
-              :flip-state="communityCardsFlipState"
-          />
+          <div class="dp-game-table__center-stack">
+            <game-community-cards
+                :community-cards="communityCards"
+                :flip-state="communityCardsFlipState"
+            />
+            <div
+                class="dp-game-muck-pile"
+                data-dp-muck-anchor="true"
+                title="弃牌堆"
+                aria-label="弃牌堆"
+            />
+          </div>
         </div>
         <div
             v-for="(row, displayIdx) in playersDisplayOrder"
             :key="(row.player.leftThisHand ? 'offline-' + row.seatIndex : row.player.nickname)"
             class="dp-game-table__seat"
-            :class="{ 'dp-game-table__seat--hero': viewerSeatedAtTable && displayIdx === 0 }"
+            :class="{ 'dp-game-table__seat--empty': viewerSeatedAtTable && displayIdx === 0 }"
             :style="getPlayerRoundTableStyle(displayIdx, playersDisplayOrder.length)"
         >
           <game-player-card
+              v-if="!(viewerSeatedAtTable && displayIdx === 0)"
               :player="row.player"
               :seat-index="row.seatIndex"
               :box-style="getPlayerBoxStyle(row.player, row.seatIndex)"
@@ -98,11 +115,31 @@
               :hand-deal-key="currentHandSeed"
               :hole-deal-seat-order="holeDealOrderFromDealer(row.seatIndex)"
               :hole-deal-player-count="holeDealPlayerCountForAnim"
-              :rival-mini="rivalMiniForDisplayIndex(displayIdx)"
+              :rival-mini="true"
               @card-click="onPlayerCardClick"
           />
         </div>
       </div>
+    </div>
+
+    <div v-if="heroDockRow" class="dp-game-hero-dock">
+      <game-player-card
+          :player="heroDockRow.player"
+          :seat-index="heroDockRow.seatIndex"
+          :box-style="getPlayerBoxStyle(heroDockRow.player, heroDockRow.seatIndex)"
+          :act-index="actIndex"
+          :stage="stage"
+          :community-cards="communityCards"
+          :community-cards-flip-complete="communityCardsFlipComplete"
+          :is-owner="isOwner"
+          :owner-reveal-all="ownerRevealAll"
+          :my-nickname="user ? user.nickname : ''"
+          :hand-deal-key="currentHandSeed"
+          :hole-deal-seat-order="holeDealOrderFromDealer(heroDockRow.seatIndex)"
+          :hole-deal-player-count="holeDealPlayerCountForAnim"
+          :rival-mini="false"
+          @card-click="onPlayerCardClick"
+      />
     </div>
 
     <game-settled-prepare-panel
@@ -167,13 +204,6 @@ import GameActionPanel from './GameActionPanel.vue'
 import GameOwnerPanel from './GameOwnerPanel.vue'
 import { HAND_RANK_REFERENCE } from '../constants/dpGameHandRankReference'
 import { dpDisplayNickname } from '../utils/dpDisplayNickname'
-import {
-  enterDpGameFullscreen,
-  exitFullscreen,
-  isFullscreenActive,
-  bindFullscreenChange,
-  unbindFullscreenChange
-} from '../utils/dpGameFullscreen'
 
 export default {
   components: {
@@ -238,9 +268,6 @@ export default {
       readyTimer: null,
       readyTimeLeft: 30,
 
-      /** 浏览器全屏 API 状态（与横屏无关，需用户点「全屏」） */
-      dpFullscreenActive: false,
-
       // 牌型说明弹窗
       showHandRankModal: false,
       showSpectatorModal: false,
@@ -265,11 +292,30 @@ export default {
       llmBotAddedTip: '',
 
       // 房主专用：一键看穿所有人底牌（仅本机显示，不影响后端和 NPC 决策）
-      ownerRevealAll: false
+      ownerRevealAll: false,
+
+      /** 是否处于浏览器全屏（整页对局根节点） */
+      isFullscreen: false,
+      /** 无 Fullscreen API 时的铺满视口回退（常见于部分 iOS WebView） */
+      pseudoFullscreen: false
     }
   },
 
   computed: {
+    /** 当前环境是否暴露全屏 API（部分移动端 WebView 不可用） */
+    dpFullscreenApiSupported() {
+      var d = document
+      return !!(
+        d.fullscreenEnabled ||
+        d.webkitFullscreenEnabled ||
+        d.mozFullScreenEnabled ||
+        d.msFullscreenEnabled
+      )
+    },
+    /** 原生全屏或伪全屏任一开启时，圆桌使用加宽布局 */
+    layoutFullscreen() {
+      return this.isFullscreen || this.pseudoFullscreen
+    },
     handRankReference() {
       return HAND_RANK_REFERENCE
     },
@@ -369,6 +415,13 @@ export default {
     holeDealPlayerCountForAnim() {
       if (!this.players || !this.players.length) return 1
       return this.players.length
+    },
+    /** 本人完整卡片放在圆桌下方时，取 displayOrder 中「自己」那一项（与 seatIndex 一致） */
+    heroDockRow() {
+      if (!this.viewerSeatedAtTable) return null
+      var order = this.playersDisplayOrder
+      if (!order || !order.length) return null
+      return order[0]
     }
   },
 
@@ -406,7 +459,7 @@ export default {
 
     var raw = localStorage.getItem('userInfo')
     if (!raw) {
-      alert('登录信息丢失，请重新登录')
+      this.$message.error('登录信息丢失，请重新登录')
       this.$router.push('/login')
       return
     }
@@ -438,19 +491,20 @@ export default {
   },
 
   mounted() {
-    var self = this
-    this._dpFullscreenChangeHandler = function () {
-      self.dpFullscreenActive = isFullscreenActive()
-    }
-    bindFullscreenChange(this._dpFullscreenChangeHandler)
-    this._dpFullscreenChangeHandler()
+    this._dpFsChange = this.syncDpFullscreenState.bind(this)
+    document.addEventListener('fullscreenchange', this._dpFsChange)
+    document.addEventListener('webkitfullscreenchange', this._dpFsChange)
+    this.syncDpFullscreenState()
   },
 
   beforeDestroy() {
-    if (this._dpFullscreenChangeHandler) {
-      unbindFullscreenChange(this._dpFullscreenChangeHandler)
-      this._dpFullscreenChangeHandler = null
+    if (this._dpFsChange) {
+      document.removeEventListener('fullscreenchange', this._dpFsChange)
+      document.removeEventListener('webkitfullscreenchange', this._dpFsChange)
+      this._dpFsChange = null
     }
+    this.exitDpFullscreenIfActive()
+    this.setPseudoFullscreen(false)
     this.disconnectGameWs()
     if (this.pollTimer) clearInterval(this.pollTimer)
     if (this.backupPollTimer) clearInterval(this.backupPollTimer)
@@ -461,22 +515,83 @@ export default {
   },
 
   methods: {
-    toggleDpGameFullscreen() {
-      if (isFullscreenActive()) {
-        exitFullscreen().catch(function (e) {
-          console.warn('exitFullscreen', e)
-        })
+    syncDpFullscreenState() {
+      var root = this.$refs.gameRoot
+      var active = document.fullscreenElement || document.webkitFullscreenElement
+      this.isFullscreen = !!(root && active === root)
+      if (this.isFullscreen && this.pseudoFullscreen) {
+        this.setPseudoFullscreen(false)
+      }
+    },
+
+    exitDpFullscreenIfActive() {
+      if (!this.isFullscreen) return
+      try {
+        if (document.exitFullscreen) document.exitFullscreen()
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen()
+      } catch (e) { /* ignore */ }
+    },
+
+    setPseudoFullscreen(on) {
+      this.pseudoFullscreen = !!on
+      try {
+        document.body.style.overflow = on ? 'hidden' : ''
+      } catch (e) { /* ignore */ }
+    },
+
+    toggleDpFullscreen() {
+      var root = this.$refs.gameRoot
+      if (!root) return
+      var self = this
+
+      if (this.layoutFullscreen) {
+        if (this.isFullscreen) {
+          Promise.resolve(
+            document.exitFullscreen
+              ? document.exitFullscreen()
+              : document.webkitExitFullscreen
+                ? document.webkitExitFullscreen()
+                : null
+          ).catch(function (e) {
+            console.error('退出全屏失败', e)
+            self.$message.warning('无法退出全屏')
+          })
+        }
+        if (this.pseudoFullscreen) this.setPseudoFullscreen(false)
         return
       }
-      enterDpGameFullscreen(this.$el)
-        .catch(function (e) {
-          console.warn('enterFullscreen', e)
-          alert(
-            '当前环境可能不允许网页全屏（尤其苹果自带 Safari 常有限制）。可尝试：\n'
-            + '1）安卓或电脑用 Chrome 再点「全屏」\n'
-            + '2）iPhone：Safari 点底部分享 →「添加到主屏幕」，从桌面图标打开更接近全屏'
-          )
-        })
+
+      if (!this.dpFullscreenApiSupported) {
+        this.setPseudoFullscreen(true)
+        return
+      }
+
+      var req =
+        root.requestFullscreen ||
+        root.webkitRequestFullscreen ||
+        root.mozRequestFullScreen ||
+        root.msRequestFullscreen
+      if (!req) {
+        this.setPseudoFullscreen(true)
+        return
+      }
+      Promise.resolve(req.call(root)).catch(function (e) {
+        console.error('进入全屏失败', e)
+        self.setPseudoFullscreen(true)
+      })
+    },
+
+    /**
+     * 使用 Element 弹层替代 window.confirm，避免原生对话框打断当前页面状态。
+     */
+    dpConfirm(text, title, options) {
+      var o = Object.assign({
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+        closeOnClickModal: false
+      }, options || {})
+      return this.$confirm(text, title || '请确认', o)
     },
 
     // ---- 心跳（独立，不依赖 loadGame） ----
@@ -542,12 +657,19 @@ export default {
     },
 
     handleRoomClosedFromServer() {
-      alert('房间已解散或你已被移出')
+      var self = this
       this.disconnectGameWs()
       if (this.pollTimer) clearInterval(this.pollTimer)
       if (this.backupPollTimer) clearInterval(this.backupPollTimer)
       if (this.heartbeatTimer) clearInterval(this.heartbeatTimer)
-      this.$router.push('/home')
+      this.$alert('房间已解散或你已被移出', '提示', {
+        confirmButtonText: '确定',
+        type: 'warning'
+      }).then(function () {
+        self.$router.push('/home')
+      }).catch(function () {
+        self.$router.push('/home')
+      })
     },
 
     applyRoomFromServer(room) {
@@ -593,10 +715,10 @@ export default {
         var res = await this.$http.post('/dpRoom/toggleReady', null, {
           params: {roomId: this.roomId, nickname: this.user.nickname}
         })
-        if (res.data !== 'ok') alert('操作失败')
+        if (res.data !== 'ok') this.$message.error('操作失败')
         await this.loadGame()
       } catch (err) {
-        alert('网络错误: ' + err.message)
+        this.$message.error('网络错误: ' + err.message)
       }
     },
     // 结算后筹码归零时补码
@@ -606,13 +728,13 @@ export default {
           params: {roomId: this.roomId, nickname: this.user.nickname}
         })
         if (res.data !== 'ok') {
-          alert('补码失败：' + res.data)
+          this.$message.error('补码失败：' + res.data)
         } else {
-          alert('补码成功，可以准备下一局了')
+          this.$message.success('补码成功，可以准备下一局了')
         }
         await this.loadGame()
       } catch (err) {
-        alert('网络错误: ' + err.message)
+        this.$message.error('网络错误: ' + err.message)
       }
     },
 
@@ -624,11 +746,11 @@ export default {
     // ---- 加注 ----
     async doRaise() {
       if (this.raiseAmount < this.minRaise) {
-        alert('加注额不能低于 ' + this.minRaise)
+        this.$message.warning('加注额不能低于 ' + this.minRaise)
         return
       }
       if (this.raiseAmount > this.myChips) {
-        alert('筹码不足！')
+        this.$message.warning('筹码不足！')
         return
       }
       await this.submitBet(this.raiseAmount)
@@ -645,11 +767,11 @@ export default {
         var res = await this.$http.post('/dpRoom/bet', null, {
           params: {roomId: this.roomId, nickname: this.user.nickname, bet: amount}
         })
-        if (res.data !== 'ok') alert('下注失败，请检查金额')
+        if (res.data !== 'ok') this.$message.error('下注失败，请检查金额')
         this.raiseAmount = 0
         await this.loadGame()
       } catch (err) {
-        alert('网络错误: ' + err.message)
+        this.$message.error('网络错误: ' + err.message)
       }
     },
 
@@ -659,10 +781,10 @@ export default {
         var res = await this.$http.post('/dpRoom/fold', null, {
           params: {roomId: this.roomId, nickname: this.user.nickname}
         })
-        if (res.data !== 'ok') alert('弃牌失败')
+        if (res.data !== 'ok') this.$message.error('弃牌失败')
         await this.loadGame()
       } catch (err) {
-        alert('网络错误: ' + err.message)
+        this.$message.error('网络错误: ' + err.message)
       }
     },
 
@@ -708,52 +830,67 @@ export default {
       for (var i = 0; i < this.pots.length; i++) {
         var winners = this.potWinners[i] || []
         if (winners.length === 0) {
-          alert('第 ' + (i === 0 ? '主' : i) + ' 池还没选赢家')
+          this.$message.warning('第 ' + (i === 0 ? '主' : i) + ' 池还没选赢家')
           return
         }
         parts.push(i + ':' + winners.join(','))
       }
       var potWinnersStr = parts.join(';')
 
-      // 组装确认信息
-      var msg = '确认结算？\n'
+      // 组装确认信息（HTML 换行，避免原生 confirm 打断全屏）
+      var lines = ['确认结算？']
       for (var j = 0; j < this.pots.length; j++) {
         var potName = j === 0 ? '主池' : '边池 ' + j
-        msg += potName + '(' + this.pots[j].amount + ') -> ' + (this.potWinners[j] || []).map(dpDisplayNickname).join(', ') + '\n'
+        lines.push(
+          potName + '(' + this.pots[j].amount + ') -> '
+          + (this.potWinners[j] || []).map(dpDisplayNickname).join(', ')
+        )
       }
-      if (!confirm(msg)) return
+      var msgHtml = lines.join('<br/>')
+      try {
+        await this.dpConfirm(msgHtml, '确认结算', {
+          confirmButtonText: '确定结算',
+          dangerouslyUseHTMLString: true
+        })
+      } catch (e) {
+        return
+      }
 
       try {
         var res = await this.$http.post('/dpRoom/judgeWin', null, {
           params: {roomId: this.roomId, potWinners: potWinnersStr}
         })
-        if (res.data !== 'ok') alert('结算失败')
+        if (res.data !== 'ok') this.$message.error('结算失败')
         this.potWinners = {}
         this.selectedWinners = []
         await this.loadGame()
       } catch (err) {
-        alert('网络错误: ' + err.message)
+        this.$message.error('网络错误: ' + err.message)
       }
     },
 
     // ---- 房主：确认结算 ----
     async confirmJudgeWin() {
       if (this.selectedWinners.length === 0) {
-        alert('请至少选择一位赢家')
+        this.$message.warning('请至少选择一位赢家')
         return
       }
       var names = this.selectedWinners.map(dpDisplayNickname).join(', ')
-      if (!confirm('确定由 [' + names + '] 平分底池 ' + this.pot + ' 吗？')) return
+      try {
+        await this.dpConfirm('确定由 [' + names + '] 平分底池 ' + this.pot + ' 吗？', '确认结算')
+      } catch (e) {
+        return
+      }
 
       try {
         var res = await this.$http.post('/dpRoom/judgeWin', null, {
           params: {roomId: this.roomId, winnerNickname: this.selectedWinners.join(',')}
         })
-        if (res.data !== 'ok') alert('结算失败')
+        if (res.data !== 'ok') this.$message.error('结算失败')
         this.selectedWinners = []
         await this.loadGame()
       } catch (err) {
-        alert('网络错误: ' + err.message)
+        this.$message.error('网络错误: ' + err.message)
       }
     },
 
@@ -776,15 +913,19 @@ export default {
     // ---- 房主：移交房主（通过弹窗选择玩家） ----
     async doTransferOwner() {
       if (!this.ownerActionTarget) {
-        alert('请先选择要移交房主的玩家')
+        this.$message.warning('请先选择要移交房主的玩家')
         return
       }
       if (this.ownerActionTarget === this.user.nickname) {
-        alert('不能把房主移交给自己')
+        this.$message.warning('不能把房主移交给自己')
         return
       }
-      var ok = confirm('确定将房主移交给 [' + dpDisplayNickname(this.ownerActionTarget) + '] 吗？')
-      if (!ok) {
+      try {
+        await this.dpConfirm(
+          '确定将房主移交给 [' + dpDisplayNickname(this.ownerActionTarget) + '] 吗？',
+          '移交房主'
+        )
+      } catch (e) {
         return
       }
       try {
@@ -796,24 +937,29 @@ export default {
           }
         })
         if (res.data !== 'ok') {
-          alert('移交失败：' + res.data)
+          this.$message.error('移交失败：' + res.data)
         } else {
-          alert('已将房主移交给 ' + dpDisplayNickname(this.ownerActionTarget))
+          this.$message.success('已将房主移交给 ' + dpDisplayNickname(this.ownerActionTarget))
         }
         await this.loadGame()
         this.closeOwnerToolPanel()
       } catch (err) {
-        alert('网络错误: ' + err.message)
+        this.$message.error('网络错误: ' + err.message)
       }
     },
 
     // ---- 房主：踢人到观众席（通过弹窗选择玩家） ----
     async doKickPlayer() {
       if (!this.ownerActionTarget) {
-        alert('请先选择要踢出的玩家')
+        this.$message.warning('请先选择要踢出的玩家')
         return
       }
-      if (!confirm('确定将 [' + dpDisplayNickname(this.ownerActionTarget) + '] 踢出本局并移至观众席吗？')) {
+      try {
+        await this.dpConfirm(
+          '确定将 [' + dpDisplayNickname(this.ownerActionTarget) + '] 踢出本局并移至观众席吗？',
+          '踢出玩家'
+        )
+      } catch (e) {
         return
       }
       try {
@@ -821,14 +967,14 @@ export default {
           params: {roomId: this.roomId, nickname: this.ownerActionTarget}
         })
         if (res.data !== 'ok') {
-          alert('踢人失败：' + res.data)
+          this.$message.error('踢人失败：' + res.data)
         } else {
-          alert('已将 [' + dpDisplayNickname(this.ownerActionTarget) + '] 踢至观众席')
+          this.$message.success('已将 [' + dpDisplayNickname(this.ownerActionTarget) + '] 踢至观众席')
         }
         await this.loadGame()
         this.closeOwnerToolPanel()
       } catch (err) {
-        alert('网络错误: ' + err.message)
+        this.$message.error('网络错误: ' + err.message)
       }
     },
 
@@ -952,7 +1098,14 @@ export default {
 
     // ---- 退出 ----
     async exitGame() {
-      if (!confirm('确定退出对局？')) return
+      try {
+        await this.dpConfirm('确定退出对局？', '退出对局', {
+          confirmButtonText: '退出',
+          cancelButtonText: '取消'
+        })
+      } catch (e) {
+        return
+      }
       try {
         await this.$http.post('/dpRoom/exitRoom', null, {
           params: {roomId: this.roomId, nickname: this.user.nickname}
@@ -974,12 +1127,12 @@ export default {
         })
         if (res.data === 'ok') {
           this.nextHandReady = true
-          alert('已报名下一局，将在下一局开局时自动加入对局')
+          this.$message.success('已报名下一局，将在下一局开局时自动加入对局')
         } else {
-          alert('报名失败：' + res.data)
+          this.$message.error('报名失败：' + res.data)
         }
       } catch (err) {
-        alert('网络错误: ' + err.message)
+        this.$message.error('网络错误: ' + err.message)
       }
     },
 
@@ -1051,11 +1204,6 @@ export default {
       if (dealerIdx < 0) return 0
       var start = (dealerIdx + 1) % list.length
       return (seatIndex - start + list.length) % list.length
-    },
-
-    rivalMiniForDisplayIndex(displayIdx) {
-      if (this.viewerSeatedAtTable) return displayIdx !== 0
-      return true
     },
 
     /**
