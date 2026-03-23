@@ -34,7 +34,9 @@ export default {
   data() {
     return {
       /** 仅本次新发的索引：{ 0: { delay: 0 }, 1: { delay: 350 } }，动画结束后清除 */
-      dealFlyByIndex: {}
+      dealFlyByIndex: {},
+      /** 自庄位到各新发公共牌槽的位移(px)，测不到庄位时为 null 走 CSS 默认 */
+      dealOriginByIndex: null
     }
   },
   computed: {
@@ -50,17 +52,24 @@ export default {
         var next = {}
         if (newLen < oldLen) {
           this.dealFlyByIndex = next
+          this.dealOriginByIndex = null
           return
         }
         if (newLen > oldLen) {
           if (this.prefersReducedMotion()) {
             this.dealFlyByIndex = {}
+            this.dealOriginByIndex = null
             return
           }
-          for (var i = oldLen; i < newLen; i++) {
-            next[i] = { delay: DEAL_STAGGER_MS * (i - oldLen) }
-          }
-          this.dealFlyByIndex = next
+          var self = this
+          this.$nextTick(function () {
+            self.dealOriginByIndex = self.computeDealOriginsFromDealer(oldLen, newLen)
+            var n2 = {}
+            for (var i = oldLen; i < newLen; i++) {
+              n2[i] = { delay: DEAL_STAGGER_MS * (i - oldLen) }
+            }
+            self.dealFlyByIndex = n2
+          })
         }
       },
       immediate: true
@@ -82,12 +91,46 @@ export default {
       var center = 2
       var slotShiftPx = (center - cIdx) * 30
       var rotDeg = (cIdx - center) * 3
+      var origin = this.dealOriginByIndex && this.dealOriginByIndex[cIdx]
+      if (origin) {
+        return {
+          animationDelay: (m.delay || 0) + 'ms',
+          '--deal-from-x': origin.x + 'px',
+          '--deal-from-y': origin.y + 'px',
+          '--deal-from-rot': rotDeg + 'deg',
+          zIndex: 10 + cIdx
+        }
+      }
       return {
         animationDelay: (m.delay || 0) + 'ms',
         '--deal-from-x': slotShiftPx + 'px',
+        '--deal-from-y': '92px',
         '--deal-from-rot': rotDeg + 'deg',
         zIndex: 10 + cIdx
       }
+    },
+    /**
+     * 以庄位（带 data-dp-dealer-anchor 的玩家卡片中心）为发牌起点，计算飞到各公共牌槽所需的 translate 偏移。
+     */
+    computeDealOriginsFromDealer(oldLen, newLen) {
+      if (typeof document === 'undefined' || !this.$el) return null
+      var dealerEl = document.querySelector('[data-dp-dealer-anchor="true"]')
+      var wrappers = this.$el.querySelectorAll('.card-flip-wrapper')
+      if (!dealerEl || !wrappers || wrappers.length === 0) return null
+      var d = dealerEl.getBoundingClientRect()
+      var dcx = d.left + d.width / 2
+      var dcy = d.top + d.height / 2
+      var map = {}
+      for (var i = oldLen; i < newLen; i++) {
+        var el = wrappers[i]
+        if (!el) continue
+        var r = el.getBoundingClientRect()
+        map[i] = {
+          x: dcx - (r.left + r.width / 2),
+          y: dcy - (r.top + r.height / 2)
+        }
+      }
+      return Object.keys(map).length ? map : null
     },
     onDealFlyAnimationEnd(ev, cIdx) {
       if (!ev) return

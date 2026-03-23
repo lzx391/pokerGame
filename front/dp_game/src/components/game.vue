@@ -56,6 +56,9 @@
         @ready-next-hand="readyNextHand"
     />
 
+    <div v-if="playing" style="text-align:center; font-size:12px; color:#8c8c8c; margin:8px 0 0;">
+      各人手牌与公共牌均由庄位（D）发出
+    </div>
     <game-community-cards
         :community-cards="communityCards"
         :flip-state="communityCardsFlipState"
@@ -76,6 +79,7 @@
           :is-owner="isOwner"
           :owner-reveal-all="ownerRevealAll"
           :my-nickname="user ? user.nickname : ''"
+          :hand-deal-key="currentHandSeed"
           @card-click="onPlayerCardClick"
       />
     </div>
@@ -157,6 +161,8 @@ export default {
       user: null,
 
       // 房间数据（对应后端 DpRoom 字段）
+      /** 每手牌唯一，用于前端手牌「庄位发牌」动画（与 newHand 时 currentHandSeed 一致） */
+      currentHandSeed: 0,
       owner: '',
       players: [],
       playing: false,
@@ -441,6 +447,7 @@ export default {
       this.owner = room.owner
       this.players = room.players || []
       this.playing = room.playing
+      this.currentHandSeed = room.currentHandSeed != null ? room.currentHandSeed : 0
       this.stage = room.currentStage
       this.communityCards = room.communityCards || []
       this.syncCommunityCardsFlipState(room.communityCards || [])

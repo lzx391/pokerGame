@@ -132,6 +132,38 @@
     );
 }
 
+/* 手牌外框：自庄位（--hole-from-x/y）飞入座位，再由内层 hole-card-flip 翻开 */
+.hole-card-fly-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hole-card-fly-wrapper.hole-deal-fly-in {
+  animation: hole-deal-fly 0.48s cubic-bezier(0.18, 0.85, 0.32, 1) both;
+  pointer-events: none;
+}
+
+@keyframes hole-deal-fly {
+  0% {
+    opacity: 0.2;
+    transform: translate3d(var(--hole-from-x, 0px), var(--hole-from-y, 64px), 0) scale(0.5) rotateZ(var(--hole-from-rot, 0deg));
+    filter: blur(0.5px);
+  }
+  45% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  78% {
+    transform: translate3d(0, -5px, 0) scale(1.05) rotateZ(0deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1) rotateZ(0deg);
+    filter: blur(0);
+  }
+}
+
 /* 玩家手牌翻开：3D + 轻微回弹 */
 .hole-card-flip {
   transform-origin: center center;
@@ -356,6 +388,11 @@
   .card-base:hover {
     transform: none;
     filter: none;
+  }
+
+  .hole-card-fly-wrapper.hole-deal-fly-in {
+    animation: none !important;
+    pointer-events: auto;
   }
 
   .hole-card-flip {
