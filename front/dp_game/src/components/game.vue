@@ -7,12 +7,17 @@
         'dp-game-root--layout-fs': layoutFullscreen
       }"
       :data-dp-game-theme="gameUiTheme"
+      :data-dp-eco-mode="ecoMode ? 'true' : 'false'"
   >
     <div class="dp-game-theme-row">
       <span class="dp-game-theme-row__label">界面主题</span>
       <select v-model="gameUiTheme" class="dp-game-theme-select" aria-label="选择对局界面主题">
         <option v-for="t in gameThemeOptions" :key="t.id" :value="t.id">{{ t.label }}</option>
       </select>
+      <label class="dp-game-eco-label">
+        <input v-model="ecoMode" type="checkbox" aria-label="节能模式：减少动画与模糊效果">
+        节能模式
+      </label>
     </div>
 
     <game-top-bar
@@ -196,8 +201,10 @@
 <script>
 import '../styles/dp-game-themes.css'
 import '../styles/dp-game-shell.css'
+import '../styles/dp-game-eco-mode.css'
 import { GAME_UI_THEMES } from '../constants/dpGameThemes'
 import { readGameTheme, writeGameTheme } from '../utils/dpGameTheme'
+import { readEcoMode, writeEcoMode } from '../utils/dpGameEcoMode'
 import GamePlayerCard from './GamePlayerCard.vue'
 import GameTopBar from './GameTopBar.vue'
 import GameHandRankModal from './GameHandRankModal.vue'
@@ -213,6 +220,11 @@ import { pickShowdownLeaderNickname } from '../utils/dpGameHandRank'
 import { dpDisplayNickname } from '../utils/dpDisplayNickname'
 
 export default {
+  provide() {
+    return {
+      dpGameView: this
+    }
+  },
   components: {
     GamePlayerCard,
     GameTopBar,
@@ -228,6 +240,8 @@ export default {
   data() {
     return {
       gameUiTheme: readGameTheme(),
+      /** 用户勾选：减轻动画/模糊/GPU 压力，存 localStorage */
+      ecoMode: readEcoMode(),
       gameThemeOptions: GAME_UI_THEMES,
       roomId: '',
       user: null,
@@ -450,6 +464,9 @@ export default {
   watch: {
     gameUiTheme: function (id) {
       writeGameTheme(id)
+    },
+    ecoMode: function (on) {
+      writeEcoMode(!!on)
     },
     isMyTurn: function (v) {
       if (v) this.raiseAmount = this.minRaise
