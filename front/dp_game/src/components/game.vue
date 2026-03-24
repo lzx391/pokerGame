@@ -122,6 +122,7 @@
               :hole-deal-player-count="holeDealPlayerCountForAnim"
               :rival-mini="true"
               :showdown-hand-leader="showdownHandLeaderNickname"
+              :seat-chat-text="seatChatTextFor(row.player.nickname)"
               @card-click="onPlayerCardClick"
           />
         </div>
@@ -149,6 +150,7 @@
           :hole-deal-player-count="holeDealPlayerCountForAnim"
           :rival-mini="false"
           :showdown-hand-leader="showdownHandLeaderNickname"
+          :seat-chat-text="seatChatTextFor(heroDockRow.player.nickname)"
           @card-click="onPlayerCardClick"
       />
     </div>
@@ -163,22 +165,59 @@
         @rebuy="rebuy"
     />
 
-    <game-action-panel
-        v-if="isMyTurn"
-        :time-left="timeLeft"
-        :current-bet-to-call="currentBetToCall"
-        :my-bet="myBet"
-        :call-amount="callAmount"
-        :small-blind="smallBlind"
-        :big-blind="bigBlind"
-        :min-raise="minRaise"
-        :my-chips="myChips"
-        :raise-amount.sync="raiseAmount"
-        @call="doCall"
-        @raise="doRaise"
-        @all-in="doAllIn"
-        @fold="doFold"
-    />
+    <!-- 观众等非桌上座位的聊天，显示在操作区上方 -->
+    <div
+        v-if="spectatorSeatChatEntries.length"
+        class="dp-game-seat-chat-orphans"
+        aria-label="观众消息"
+    >
+      <div
+          v-for="e in spectatorSeatChatEntries"
+          :key="'chat-orphan-' + e.nickname"
+          class="dp-game-seat-chat-orphans__row"
+      >
+        <span class="dp-game-seat-chat-orphans__who">{{ formatChatNick(e.nickname) }}</span>
+        <span class="dp-game-seat-chat-orphans__text">{{ e.text }}</span>
+      </div>
+    </div>
+
+    <!-- 行动按钮在上、聊天输入在下，避免遮挡手机端操作 -->
+    <div class="dp-game-action-hud" aria-label="行动与聊天">
+      <game-action-panel
+          v-if="isMyTurn"
+          :time-left="timeLeft"
+          :current-bet-to-call="currentBetToCall"
+          :my-bet="myBet"
+          :call-amount="callAmount"
+          :small-blind="smallBlind"
+          :big-blind="bigBlind"
+          :min-raise="minRaise"
+          :my-chips="myChips"
+          :raise-amount.sync="raiseAmount"
+          @call="doCall"
+          @raise="doRaise"
+          @all-in="doAllIn"
+          @fold="doFold"
+      />
+      <div class="dp-game-room-chat__bar">
+        <input
+            v-model="chatInputDraft"
+            type="text"
+            maxlength="200"
+            placeholder="说一句…"
+            class="dp-game-room-chat__input"
+            aria-label="房间聊天输入"
+            @keydown.enter.prevent="sendRoomChat"
+        >
+        <button
+            type="button"
+            class="dp-game-room-chat__send"
+            @click="sendRoomChat"
+        >
+          发送
+        </button>
+      </div>
+    </div>
 
     <game-owner-panel
         v-if="isOwner"
@@ -277,6 +316,10 @@ export default {
       // 游戏对局 WebSocket（与后端 /ws/dp-game 同步，无 Redis）
       gameWs: null,
       gameWsConnected: false,
+
+      /** 房间聊天：按昵称只保留一条文案（新发顶掉旧），到期移除 */
+      seatChatTextByNick: {},
+      chatInputDraft: '',
 
       // 定时器
       pollTimer: null,
@@ -458,6 +501,24 @@ export default {
         || this.stage === 'settled'
       if (!boardReady) return ''
       return pickShowdownLeaderNickname(this.players, this.communityCards)
+    },
+    /** 当前在桌上 players 里的昵称集合之外，仍可能有观众聊天，在操作区上方展示 */
+    spectatorSeatChatEntries() {
+      var map = this.seatChatTextByNick
+      if (!map || typeof map !== 'object') return []
+      var seated = {}
+      var players = this.players || []
+      for (var i = 0; i < players.length; i++) {
+        var n = players[i] && players[i].nickname
+        if (n) seated[n] = true
+      }
+      var out = []
+      for (var k in map) {
+        if (!Object.prototype.hasOwnProperty.call(map, k)) continue
+        if (seated[k]) continue
+        out.push({ nickname: k, text: map[k] })
+      }
+      return out
     }
   },
 
@@ -493,7 +554,8 @@ export default {
     }
   },
 
-  created() {
+    created() {
+    this._seatChatTimers = Object.create(null)
     this.roomId = this.$route.params.roomId
 
     var raw = localStorage.getItem('userInfo')
@@ -557,6 +619,13 @@ export default {
     if (this.actionTimer) clearInterval(this.actionTimer)
     if (this.readyTimer) clearInterval(this.readyTimer)
     if (this.communityCardsFlipCompleteTimer) clearTimeout(this.communityCardsFlipCompleteTimer)
+    if (this._seatChatTimers) {
+      var self = this
+      Object.keys(this._seatChatTimers).forEach(function (k) {
+        clearTimeout(self._seatChatTimers[k])
+      })
+      this._seatChatTimers = Object.create(null)
+    }
   },
 
   methods: {
@@ -753,6 +822,10 @@ export default {
               self.handleRoomClosedFromServer()
               return
             }
+            if (data._ws === 'chat') {
+              self.pushRoomChatFromServer(data)
+              return
+            }
             self.applyRoomFromServer(data)
           } catch (e) {
             console.error('WebSocket 消息解析失败', e)
@@ -794,6 +867,62 @@ export default {
       }).catch(function () {
         self.$router.push('/home')
       })
+    },
+
+    formatChatNick(name) {
+      return dpDisplayNickname(name || '')
+    },
+
+    seatChatTextFor(nickname) {
+      if (!nickname) return ''
+      var m = this.seatChatTextByNick
+      return (m && m[nickname]) ? m[nickname] : ''
+    },
+
+    pushRoomChatFromServer(data) {
+      var nick = (data.nickname || '').trim()
+      var text = (data.text != null ? String(data.text) : '').trim()
+      if (!nick || !text) return
+      var ttl = typeof data.ttlMs === 'number' && data.ttlMs > 0 ? data.ttlMs : 15000
+      var prev = this._seatChatTimers[nick]
+      if (prev) {
+        clearTimeout(prev)
+        delete this._seatChatTimers[nick]
+      }
+      this.$set(this.seatChatTextByNick, nick, text)
+      var self = this
+      var tid = setTimeout(function () {
+        if (self.seatChatTextByNick[nick] === text) {
+          self.$delete(self.seatChatTextByNick, nick)
+        }
+        delete self._seatChatTimers[nick]
+      }, ttl)
+      this._seatChatTimers[nick] = tid
+    },
+
+    sendRoomChat() {
+      var t = (this.chatInputDraft || '').trim()
+      if (!t) return
+      if (!this.user) return
+      if (!this.gameWs || this.gameWs.readyState !== WebSocket.OPEN) {
+        this.$message.warning('未连接房间推送，请稍候再试')
+        return
+      }
+      if (t.length > 200) {
+        this.$message.warning('单条最多 200 字')
+        return
+      }
+      try {
+        this.gameWs.send(JSON.stringify({
+          _ws: 'chatSend',
+          nickname: this.user.nickname,
+          text: t
+        }))
+        this.chatInputDraft = ''
+      } catch (e) {
+        console.error('发送聊天失败', e)
+        this.$message.error('发送失败')
+      }
     },
 
     applyRoomFromServer(room) {

@@ -259,6 +259,7 @@
   max-width: min(36vw, 168px);
   transform: translate(-50%, -50%);
   min-width: 0;
+  overflow: visible;
 }
 
 /* 本人位在圆桌仅保留角度锚点，不占大卡宽度，避免挡桌面 */
@@ -1407,4 +1408,127 @@
 .dp-spectator-banner__btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+/* ---- 行动区 + 房间聊天（输入栏在按钮下方，避免挡手机操作键） ---- */
+.dp-game-action-hud {
+  margin-top: 14px;
+  width: 100%;
+  max-width: min(520px, 100%);
+  margin-left: auto;
+  margin-right: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.dp-game-action-hud .dp-action-panel {
+  margin-top: 0;
+}
+
+.dp-game-seat-chat-orphans {
+  margin-top: 10px;
+  width: 100%;
+  max-width: min(520px, 100%);
+  margin-left: auto;
+  margin-right: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dp-game-seat-chat-orphans__row {
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--dp-panel-bg);
+  border: 1px solid var(--dp-panel-border);
+  box-shadow: var(--dp-panel-shadow);
+  font-size: 13px;
+  line-height: 1.35;
+  word-break: break-word;
+  color: var(--dp-text-primary);
+}
+
+.dp-game-seat-chat-orphans__who {
+  font-weight: 600;
+  color: var(--dp-text-secondary);
+  margin-right: 6px;
+}
+
+/* 座位上方的聊天气泡（每人同时只显示一条，新发顶旧） */
+.dp-player-card__seat-chat {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  z-index: 35;
+  max-width: min(190px, 78vw);
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: var(--dp-player-card-bg);
+  border: 1px solid var(--dp-panel-border);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--dp-text-primary);
+  word-break: break-word;
+  pointer-events: none;
+  text-align: center;
+}
+
+.dp-player-card__seat-chat--rival {
+  font-size: 11px;
+  padding: 5px 8px;
+  max-width: min(150px, 62vw);
+  border-radius: 10px;
+}
+
+.dp-game-room-chat__bar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  background: var(--dp-panel-bg);
+  border-radius: 10px;
+  border: 1px solid var(--dp-panel-border);
+  box-shadow: var(--dp-panel-shadow);
+}
+
+.dp-game-room-chat__input {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--dp-panel-border);
+  background: var(--dp-panel-bg);
+  color: var(--dp-text-primary);
+  font-size: 14px;
+  font-family: var(--dp-font-ui);
+}
+
+.dp-game-room-chat__input::placeholder {
+  color: var(--dp-text-secondary);
+  opacity: 0.85;
+}
+
+.dp-game-room-chat__send {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--dp-font-ui);
+  background: var(--dp-accent);
+  color: #fff;
+}
+
+.dp-game-room-chat__send:active {
+  opacity: 0.9;
 }

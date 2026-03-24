@@ -13,6 +13,14 @@
     v-bind="dealerAnchorAttrs"
     @click="onClick"
   >
+    <div
+        v-if="seatChatText"
+        class="dp-player-card__seat-chat"
+        :class="{ 'dp-player-card__seat-chat--rival': rivalMini }"
+        role="status"
+    >
+      {{ seatChatText }}
+    </div>
     <div class="dp-player-card__badges" :class="{ 'dp-player-card__badges--rival': rivalMini }">
       <span v-if="player.dealer" class="dp-player-card__badge dp-player-card__badge--dealer">D</span>
       <span v-if="player.blind === 1" class="dp-player-card__badge dp-player-card__badge--sb">SB</span>
@@ -289,7 +297,9 @@ export default {
     /** 本桌人数：用于「先一圈再一圈」与公共牌同间隔(350ms)错开发牌 */
     holeDealPlayerCount: { type: Number, default: 1 },
     /** 摊牌阶段牌力最高者昵称（用于展示精确成牌说明） */
-    showdownHandLeader: { type: String, default: '' }
+    showdownHandLeader: { type: String, default: '' },
+    /** 该座位玩家最近一条房间聊天（同一人新发会顶掉；由 game.vue 按昵称写入） */
+    seatChatText: { type: String, default: '' }
   },
   data() {
     return {
