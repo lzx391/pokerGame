@@ -26,6 +26,7 @@ public class DpRoomServiceImpl {
     private static final String TAG_BOT_NICKNAME   = DpNpcEngine.TAG_BOT_NICKNAME;    // BOT_Tag
 
     public DpRoomServiceImpl(
+        //注入服务
             DpNpcObservedHandHistoryPersistService observedHandPersistService,
             DpNpcSharkOpponentMemoryService sharkOpponentMemoryService,
             DpLlmNpcDecisionService llmNpcDecisionService,
@@ -79,6 +80,7 @@ public class DpRoomServiceImpl {
                         // 如果当前行动者是 NPC，则直接由后端自动决策行动，不等待前端操作
                         if (DpNpcEngine.isBotPlayer(p)) {//决策入口：BOT_LLM 与普通 NPC 分离
                             DpNpcEngine.BotAction action;
+                            //如果是BOT_LLM则走大模型逻辑
                             if (DpNpcEngine.LLM_BOT_NICKNAME.equals(p.getNickname())) {
                                 action = llmNpcDecisionService.decideActionIfReady(room, p);
                             } else {
@@ -116,11 +118,11 @@ public class DpRoomServiceImpl {
                             }
                         }
                     }
-
+                   
                     // 结算后准备阶段：机器人自动补码并自动准备
                     if (room.isPlaying() && "settled".equals(room.getCurrentStage())) {
                         boolean botTouched = false;
-                        //只有场上的NPC才能自动准备，踢走的不准备
+                        //只有场上的NPC才能自动准备，踢走的不准备，遍历所有机器人
                         for (DpPlayer p : room.getPlayers()) {
                             if (!DpNpcEngine.isBotPlayer(p)) continue;
                             // 若筹码不足大盲，自动补码（内部已有阶段与筹码校验）
@@ -128,13 +130,17 @@ public class DpRoomServiceImpl {
                                 rebuy(room.getRoomId(), p.getNickname());
                             }
                             // 筹码充足时自动准备
-                            if (p.getChips() >= DpRoom.getBBChips() && !p.isReady()) {
+                            if (p.getChips() >= DpRoom.getBBChips() && !p.isReady()&& !(room.getPlayers().size()==1 && room.getWaitNextHand().isEmpty())) {//防止机器人空转，一直发牌准备循环，白白浪费资源
+                                //这里插入一个功能，当机器人行动之前，先看下场上玩家数是否为1且准备下一把是否为空，防止机器人空转，一直发牌准备循环，白白浪费资源
                                 p.setReady(true);
-                                botTouched = true;
+                                botTouched = true;//有机器人准备状态被更新
+                               
                             }
+                            // System.out.println("准备状态是"+botTouched);
                         }
                         // 只要有机器人准备状态被更新，就检查是否可以直接开下一局
                         if (botTouched) {
+                       
                             checkAndStartNextHandAfterSettle(room);
                         }
                     }

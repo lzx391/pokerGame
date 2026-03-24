@@ -155,10 +155,12 @@ public class DpLlmNpcDecisionService {
             inflightByKey.remove(key, stale);
         }
 //如果都没问题的话，正片开始
-        Inflight slot = inflightByKey.get(key);
+        Inflight slot = inflightByKey.get(key);//这里看有没有在途任务
+        //这里分别用stale和slot检测两次是因为stale是检测快照是否有效，slot是检测在途任务是否存在
         long now = System.currentTimeMillis();
         long nextTime = bot.getNextBotActionTime();
 //思考时间设置
+//这里检测slot是因为如果是null说明没有在途任务，需要设置思考时间
         if (slot == null) {
             if (nextTime <= 0L) {//设置行动时间
                 bot.setNextBotActionTime(now + PRE_API_DELAY_MS);
