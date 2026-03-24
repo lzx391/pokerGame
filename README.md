@@ -17,6 +17,7 @@
 - **地址**：`ws://<后端主机>:<端口>/ws/dp-game?roomId=房间号`（本地开发前端里默认连 `ws://localhost:8088`）。
 - **数据**：每条消息 JSON 与 `GET /dpRoom/getNowRoom` 一致；房间不存在时推送 `{"_ws":"roomClosed"}`。
 - **推送节奏**：与后端原有 1 秒定时任务对齐，仅当该房间 **至少有一个 WebSocket 订阅者** 时才序列化；**与上次成功下发的 JSON 相同则不再往客户端发**，减少流量（`DpGameRoomPushService` 内去重；`lastHeartBeat` 不参与 JSON，避免机器人心跳刷新把内容“刷变”）。
+- **房间聊天（短时气泡）**：与同一 WS 连接收发；**每人只在对应座位卡片上方显示一条**，新发顶掉旧文案；**输入栏在行动面板下方**（避免挡手机按钮）；观众消息在操作区上方条带展示；协议见 `docs/WEBSOCKET.md`。
 - **相关代码**：`DpGameRoomPushService`、`DpGameRoomWebSocketHandler`、`WebSocketGameRoomConfig`；`DpRoomServiceImpl` 定时循环末尾调用 `broadcastIfSubscribed`。
 
 ### NPC / AI（给不懂代码的人看的）
@@ -69,3 +70,10 @@
      - 仅当前 PowerShell 会话：`$env:ARK_API_KEY="你的key"`、`$env:ARK_ENDPOINT_ID="ep-..."`。  
      - IntelliJ：**Run → Edit Configurations → 你的 Spring Boot → Environment variables**。
 - **对局摘要**：`DpUtilSmartContext` 由 `buildLlmNpcGameSnapshot` 与房间状态一起打成 `LlmNpcGameContext` 再发给模型。
+
+### Docker 部署
+
+- **一键（MySQL + 应用）**：仓库根目录执行 `docker compose up --build`，浏览器打开 `http://localhost:8088`（前端为 hash 路由，形如 `/#/login`）。默认 MySQL root 密码为 `mgdemo_root`，可通过环境变量 `MYSQL_ROOT_PASSWORD` 修改。
+- **仅构建后端镜像**：`docker build -t mgdemoplus .`，运行示例：  
+  `docker run -p 8088:8088 -e SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/school_db?useSSL=false -e SPRING_DATASOURCE_USERNAME=root -e SPRING_DATASOURCE_PASSWORD=你的密码 -e MGDEMOPLUS_IMAGES_FILE_LOCATION=file:/data/mgdemo-files/ -v 本机目录:/data/mgdemo-files mgdemoplus`
+- **说明**：`Dockerfile` 会编译 `front/dp_game` 并把 `dist` 打进 jar 的 `static`，与 API、WebSocket 同端口；`/images/**` 上传文件目录在容器内默认为 `/data/mgdemo-files`（compose 已映射到 `./docker-data/uploads`）。首次使用需在 `school_db` 中建好业务表；可将初始化 `.sql` 放入 `./docker-data/mysql-init`（仅 MySQL 第一次初始化数据卷时执行）。**勿把含真实密钥的 `application.properties` 依赖进镜像**；LLM 等密钥请用环境变量 `ARK_API_KEY`、`ARK_ENDPOINT_ID` 等在 compose 中注入。
