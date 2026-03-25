@@ -296,8 +296,8 @@ export default {
     holeDealSeatOrder: { type: Number, default: 0 },
     /** 本桌人数：用于「先一圈再一圈」与公共牌同间隔(350ms)错开发牌 */
     holeDealPlayerCount: { type: Number, default: 1 },
-    /** 摊牌阶段牌力最高者昵称（用于展示精确成牌说明） */
-    showdownHandLeader: { type: String, default: '' },
+    /** 摊牌阶段牌力最高者昵称列表（平局时并列者均展示完整牌型） */
+    showdownHandLeaders: { type: Array, default: function () { return [] } },
     /** 该座位玩家最近一条房间聊天（同一人新发会顶掉；由 game.vue 按昵称写入） */
     seatChatText: { type: String, default: '' }
   },
@@ -381,8 +381,15 @@ export default {
     showHoleCardsArea() {
       if (this.player.leftThisHand) return false
       if (!this.player.holeCards || this.player.holeCards.length === 0) return false
-      /* 弃牌飞入弃牌堆后隐藏底牌区；本人仍可见自己的牌（对手端 isMe 为 false，仍不展示） */
-      if (this.player.fold && this.foldMuckAnimComplete && !this.isMe) return false
+      /* 弃牌飞入弃牌堆后隐藏底牌区；本人仍可见；房主开启「看穿底牌」时仍展示 */
+      if (
+        this.player.fold
+        && this.foldMuckAnimComplete
+        && !this.isMe
+        && !(this.isOwner && this.ownerRevealAll)
+      ) {
+        return false
+      }
       if (!this.compact) return true
       if (this.showHoleCardsRevealed) return true
       if (this.stage === 'preflop') return !this.holeDealIntroDone
@@ -423,12 +430,13 @@ export default {
       return this.isMe
         || (this.isOwner && this.ownerRevealAll && this.player.holeCards && this.player.holeCards.length > 0)
     },
-    /** 摊牌或准备下一局：牌力最高者展示精确五张（与本人 bestHand 同款） */
+    /** 摊牌或准备下一局：牌力最高者（含平局并列）展示精确五张（与本人 bestHand 同款） */
     showShowdownLeaderDetail() {
-      if (!this.showdownHandLeader) return false
+      var leaders = this.showdownHandLeaders
+      if (!leaders || !leaders.length) return false
+      if (leaders.indexOf(this.player.nickname) === -1) return false
       return (
         (this.stage === 'showdown' || this.stage === 'settled')
-        && this.player.nickname === this.showdownHandLeader
         && this.showHandRankSection
       )
     },
