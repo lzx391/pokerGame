@@ -1546,8 +1546,9 @@ public class DpRoomServiceImpl {
 
         // 如果下一手总人数仍不足 2 个：
         if (nextCount < 2) {
-            // 1）如果还有至少 1 个玩家（典型场景：只剩一个人准备），允许“单人娱乐局”
-            if (remain.size() >= 1) {
+            // 1）桌上有人已准备，或仅有观众报名下一手：均允许单人娱乐局（否则空桌+waitNextHand 会误走结束对局，newHand 不执行）
+            boolean hasWaiters = waiters != null && !waiters.isEmpty();
+            if (remain.size() >= 1 || hasWaiters) {
                 // 清掉准备倒计时，直接开新一局（仍然按正常德扑流程发牌/算牌力）
                 r.setReadyDeadline(0L);
                 newHand(r.getRoomId());
