@@ -76,9 +76,9 @@
         @ready-next-hand="readyNextHand"
     />
 
-    <div v-if="playing" class="dp-game-hint">
+    <!-- <div v-if="playing" class="dp-game-hint">
       各人手牌与公共牌均由庄位（D）发出
-    </div>
+    </div> -->
 
     <!-- 圆桌：公共牌在桌面中心；入座时本人在 6 点方向，所有座位沿椭圆整圈均分 -->
     <div class="dp-game-table">
@@ -1548,8 +1548,8 @@ export default {
       } else {
         theta = -Math.PI / 2 + (2 * Math.PI * displayIdx) / total
       }
-      var rx = 41
-      var ry = 36
+      var rx = 46
+      var ry = 41
       var cx = 50
       var cy = 44
       var x = cx + Math.sin(theta) * rx
