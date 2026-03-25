@@ -23,6 +23,11 @@
 
 ### NPC / AI（给不懂代码的人看的）
 
+#### 酒馆档强度（BOT_Fish，2026-03-25）
+
+- **背景**：原先 `BOT_Fish` 使用 `NpcDifficulty.EASY`，读牌/底池赔率噪声很高（约 35%/40%），容易“看错牌力”，整体比《大镖客 2》酒馆 NPC 更弱、更好欺负。
+- **调整**：`BOT_Fish` 改为 **`MEDIUM` 难度**（并略收紧 `MEDIUM`/`HARD` 的噪声），`LOOSE_FUN` 风格提高激进度与诈唬频率、略收跟注站倾向；`DEMO` 分支翻后略提高加注倾向。仍弱于 `BOT_Shark`（PRO），但更接近单机酒馆桌的压迫感。若需要 **更菜的演示鱼**，可再把 `decideBotAction` 里 `case DEMO` 的难度改回 `EASY`。
+
 #### Shark（BOT_Shark）现在会“翻前按局势调范围”
 
 从 2026-03-18 起，Shark 的翻前（preflop）不再只靠粗分类规则，而是接入了一个可复用的翻前模块：
@@ -52,6 +57,12 @@
 - **何时写入**：每手正常结算后，`DpSharkOpponentMemoryService.persistOpponentsAfterHand` 在 `onHandSettled` 之后执行。
 - **何时读入**：玩家 `joinRoom` 上桌时、以及每手 `newHand` 盲注就绪后，若 `playerStatsMap` 尚无该昵称则 `hydrate` 从 DB 加载。
 - **代码入口**：`DpSharkOpponentMemoryService`、`DpNpcSharkLearningLab`（旋钮键已改为仅对手昵称）。
+
+#### Shark 策略 v2（2026-03-25）
+
+- **目标**：少「赔率还行却弃」、少对跟注型对手多街送诈唬、多价值与河牌薄价值；`BOT_Fish` 从第一手起按 **跟注站剧本** 归类（无需等统计样本）。
+- **参数中枢**：`DpNpcEngine.SharkStrategyProfile.DEFAULT` + `SharkConfig`（含 `CBET_*`、`RIVER_BLOCK_*`）；翻前 `DpNpcPreflopStrategy` 对 Shark **整体放宽一档**；翻后尺度由配置驱动，见 `DpNpcSharkStrategy`。
+- **剥削**：`DpNpcSharkExploitHandPlan.tuneAfterBasePlan` 增加主对手昵称，用于识别内置鱼机器人。
 
 #### Shark 翻后：剥削剧本驱动 HandPlan（2026-03-21）
 

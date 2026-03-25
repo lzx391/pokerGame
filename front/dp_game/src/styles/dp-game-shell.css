@@ -327,6 +327,36 @@
   animation: dp-table-action-timer-pulse 1.1s ease-in-out infinite;
 }
 
+/* 宽屏：中央行动计时器略缩小，少占桌面中心、与公共牌错开 */
+@media (min-width: 768px) {
+  .dp-game-table-action-timer__inner {
+    gap: 8px;
+    padding: 4px 10px 4px 6px;
+  }
+
+  .dp-game-table-action-timer__ring {
+    width: 36px;
+    height: 36px;
+  }
+
+  .dp-game-table-action-timer__ring::before {
+    inset: 4px;
+  }
+
+  .dp-game-table-action-timer__sec {
+    font-size: 14px;
+  }
+
+  .dp-game-table-action-timer__who {
+    font-size: 12px;
+    max-width: 140px;
+  }
+
+  .dp-game-table-action-timer__hint {
+    font-size: 10px;
+  }
+}
+
 .dp-game-table__center {
   position: absolute;
   z-index: 2;
