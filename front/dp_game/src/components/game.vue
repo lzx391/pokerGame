@@ -629,6 +629,18 @@ export default {
   },
 
   methods: {
+    /**
+     * 离开房间时多处可能同时触发跳转（WS roomClosed + 轮询 getNowRoom 为空、热更新等）；
+     * Vue Router 3 对重复 push 同一地址会抛 NavigationDuplicated，需吞掉或跳过。
+     */
+    navigateHomeIfNeeded() {
+      if (this.$route.path === '/home') return Promise.resolve()
+      return this.$router.push('/home').catch(function (err) {
+        if (err && err.name === 'NavigationDuplicated') return
+        throw err
+      })
+    },
+
     syncDpFullscreenState() {
       var root = this.$refs.gameRoot
       var active = document.fullscreenElement || document.webkitFullscreenElement
@@ -864,6 +876,8 @@ export default {
     },
 
     handleRoomClosedFromServer() {
+      if (this._dpRoomClosedHandled) return
+      this._dpRoomClosedHandled = true
       var self = this
       this.disconnectGameWs()
       if (this.pollTimer) clearInterval(this.pollTimer)
@@ -873,9 +887,9 @@ export default {
         confirmButtonText: '确定',
         type: 'warning'
       }).then(function () {
-        self.$router.push('/home')
+        return self.navigateHomeIfNeeded()
       }).catch(function () {
-        self.$router.push('/home')
+        return self.navigateHomeIfNeeded()
       })
     },
 
@@ -1378,7 +1392,7 @@ export default {
       }
       clearInterval(this.pollTimer)
       clearInterval(this.heartbeatTimer)
-      this.$router.push('/home')
+      this.navigateHomeIfNeeded()
     },
 
     // ---- 观众：报名在下一局加入 ----

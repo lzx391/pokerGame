@@ -8,6 +8,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @MapperScan("com.example.mgdemoplus.mapper")
 public class MgDemoPlusApplication {
 
+    
     private static final String[] DPGAME_BANNER = {
             "",
             " ██████╗ ██████╗   ██████╗   █████╗ ███╗   ███╗███████╗",
