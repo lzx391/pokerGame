@@ -1,62 +1,60 @@
 <template>
   <div class="dp-top-bar">
-    <div class="dp-top-bar__left">
-      <div class="dp-top-bar__head">
-        <div class="dp-top-bar__title">
+    <!-- 第一行：房间/阶段 + 底池跟注 + 设置（原三行合并为两行里的首行） -->
+    <div class="dp-top-bar__row dp-top-bar__row--primary">
+      <div class="dp-top-bar__primary-text">
+        <span class="dp-top-bar__title">
           房间: {{ roomId }} | 阶段: <span class="dp-top-bar__accent">{{ stageLabel }}</span>
-        </div>
-        <div ref="settingsRoot" class="dp-top-bar__settings-wrap">
-          <button
-              type="button"
-              class="dp-btn dp-top-bar__btn dp-top-bar__btn--ghost dp-top-bar__settings-btn"
-              :aria-expanded="settingsOpen ? 'true' : 'false'"
-              aria-haspopup="true"
-              aria-controls="dp-top-bar-settings-panel"
-              @click.stop="toggleSettings"
-          >
-            设置
-          </button>
-          <div
-              v-show="settingsOpen"
-              id="dp-top-bar-settings-panel"
-              class="dp-top-bar__settings-panel dp-game-theme-row"
-              role="region"
-              aria-label="对局显示设置"
-              @click.stop
-          >
-            <span class="dp-game-theme-row__label">界面主题</span>
-            <select
-                class="dp-game-theme-select"
-                aria-label="选择对局界面主题"
-                :value="gameUiTheme"
-                @change="onThemeChange($event.target.value)"
-            >
-              <option v-for="t in themeOptions" :key="t.id" :value="t.id">{{ t.label }}</option>
-            </select>
-            <label class="dp-game-eco-label">
-              <input
-                  type="checkbox"
-                  :checked="ecoMode"
-                  aria-label="节能模式：减少动画与模糊效果"
-                  @change="$emit('update:ecoMode', $event.target.checked)"
-              >
-              节能模式
-            </label>
-          </div>
-        </div>
+        </span>
+        <span class="dp-top-bar__meta-sep" aria-hidden="true">·</span>
+        <span class="dp-top-bar__sub">
+          底池 <span class="dp-top-bar__pot">{{ pot }}</span>
+          <span class="dp-top-bar__meta-sep dp-top-bar__meta-sep--thin" aria-hidden="true">|</span>
+          跟注 <span class="dp-top-bar__bet">{{ currentBetToCall }}</span>
+        </span>
       </div>
-      <div class="dp-top-bar__sub">
-        底池: <span class="dp-top-bar__pot">{{ pot }}</span>
-        | 当前跟注额: <span class="dp-top-bar__bet">{{ currentBetToCall }}</span>
+      <div ref="settingsRoot" class="dp-top-bar__settings-wrap">
+        <button
+            type="button"
+            class="dp-btn dp-top-bar__btn dp-top-bar__btn--ghost dp-top-bar__settings-btn"
+            :aria-expanded="settingsOpen ? 'true' : 'false'"
+            aria-haspopup="true"
+            aria-controls="dp-top-bar-settings-panel"
+            @click.stop="toggleSettings"
+        >
+          设置
+        </button>
+        <div
+            v-show="settingsOpen"
+            id="dp-top-bar-settings-panel"
+            class="dp-top-bar__settings-panel dp-game-theme-row"
+            role="region"
+            aria-label="对局显示设置"
+            @click.stop
+        >
+          <span class="dp-game-theme-row__label">界面主题</span>
+          <select
+              class="dp-game-theme-select"
+              aria-label="选择对局界面主题"
+              :value="gameUiTheme"
+              @change="onThemeChange($event.target.value)"
+          >
+            <option v-for="t in themeOptions" :key="t.id" :value="t.id">{{ t.label }}</option>
+          </select>
+          <label class="dp-game-eco-label">
+            <input
+                type="checkbox"
+                :checked="ecoMode"
+                aria-label="节能模式：减少动画与模糊效果"
+                @change="$emit('update:ecoMode', $event.target.checked)"
+            >
+            节能模式
+          </label>
+        </div>
       </div>
     </div>
-    <!-- <div class="dp-top-bar__right">
-      <div
-          v-if="showSpectatorPrepare"
-          class="dp-top-bar__spectator-hint dp-top-bar__spectator-hint--inline"
-      >
-        你正在<span class="dp-top-bar__spectator-accent">旁观本局</span>，不参与下注与结算。
-      </div> -->
+    <!-- 第二行：操作按钮 -->
+    <div class="dp-top-bar__row dp-top-bar__row--actions">
       <div class="dp-top-bar__actions">
         <button
             type="button"
@@ -90,6 +88,7 @@
           退出对局
         </button>
       </div>
+    </div>
   </div>
 </template>
 
