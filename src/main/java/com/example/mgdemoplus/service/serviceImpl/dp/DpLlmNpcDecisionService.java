@@ -34,8 +34,8 @@ public class DpLlmNpcDecisionService {
             "NLHE bot BOT_LLM. Reply with one JSON object only, no markdown: "
                     + "{\"action\":\"FOLD|CALL_OR_CHECK|RAISE|ALL_IN\",\"chips_to_add\":int}. "
                     + "chips_to_add = extra chips added this action; use 0 for FOLD/CALL_OR_CHECK.";
-//等待时间
-    private static final long PRE_API_DELAY_MS = 200L;
+    /** 轮到 BOT_LLM 后、发起方舟请求前的额外等待；0 表示不人为拖延（总耗时几乎全在 API 侧）。 */
+    private static final long PRE_API_DELAY_MS = 0L;
     private static final Pattern JSON_BLOCK = Pattern.compile("```(?:json)?\\s*([\\s\\S]*?)```", Pattern.CASE_INSENSITIVE);
 
     private final ExecutorService llmExecutor = Executors.newFixedThreadPool(4, r -> {
