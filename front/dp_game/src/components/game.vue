@@ -147,6 +147,7 @@
               :rival-mini="true"
               :showdown-hand-leaders="showdownHandLeaderNicknames"
               :seat-chat-text="seatChatTextFor(row.player.nickname)"
+              :seat-chat-side="getSeatChatBubbleSide(displayIdx, playersDisplayOrder.length)"
               @card-click="onPlayerCardClick"
           />
         </div>
@@ -189,7 +190,7 @@
         @rebuy="rebuy"
     />
 
-    <!-- 观众等非桌上座位的聊天，显示在操作区上方 -->
+    <!-- 观众等非桌上座位的聊天（先关闭，需要时取消注释并恢复 dp-game-seat-chat-orphans 样式块）
     <div
         v-if="spectatorSeatChatEntries.length"
         class="dp-game-seat-chat-orphans"
@@ -204,6 +205,7 @@
         <span class="dp-game-seat-chat-orphans__text">{{ e.text }}</span>
       </div>
     </div>
+    -->
 
     <!-- 行动按钮在上、聊天输入在下，避免遮挡手机端操作 -->
     <div class="dp-game-action-hud" aria-label="行动与聊天">
@@ -1536,18 +1538,41 @@ export default {
     },
 
     /**
+     * 圆桌极角（弧度）：与 getPlayerRoundTableStyle 一致，供座位聊天气泡左右侧向使用。
+     */
+    getRoundTableSeatTheta(displayIdx, total) {
+      if (!total) return 0
+      var seated = this.viewerSeatedAtTable
+      if (seated) {
+        return Math.PI + (2 * Math.PI * displayIdx) / total
+      }
+      return -Math.PI / 2 + (2 * Math.PI * displayIdx) / total
+    },
+
+    /**
+     * 座位聊天气泡锚点：桌左半圈从卡片左侧向外伸，右半圈从右侧伸，避免多人时被「上方」邻座挡住；
+     * 中间带（含正上、正下）仍用正上方。
+     */
+    getSeatChatBubbleSide(displayIdx, total) {
+      if (!total) return 'top'
+      /* 纯观众视角座位角度与入座不同，统一用上方气泡，避免「正上」座位被划到左侧 */
+      if (!this.viewerSeatedAtTable) return 'top'
+      var theta = this.getRoundTableSeatTheta(displayIdx, total)
+      var rx = 46
+      var cx = 50
+      var x = cx + Math.sin(theta) * rx
+      if (x < 38) return 'left'
+      if (x > 62) return 'right'
+      return 'top'
+    },
+
+    /**
      * 圆桌座位：θ=0 为 12 点方向。入座时 displayIdx=0 固定为本人（6 点），全体按座位数整圈均分，
      * 避免旧版「对手只在 θ∈(0,π)」导致 sinθ>0、全部挤在桌面右半圈的问题。
      */
     getPlayerRoundTableStyle(displayIdx, total) {
       if (!total) return {}
-      var seated = this.viewerSeatedAtTable
-      var theta
-      if (seated) {
-        theta = Math.PI + (2 * Math.PI * displayIdx) / total
-      } else {
-        theta = -Math.PI / 2 + (2 * Math.PI * displayIdx) / total
-      }
+      var theta = this.getRoundTableSeatTheta(displayIdx, total)
       var rx = 46
       var ry = 41
       var cx = 50
@@ -1574,7 +1599,7 @@ export default {
     getPlayerBoxStyle(p, i) {
       var s = {
         background: 'var(--dp-player-card-bg)',
-        padding: '12px',
+        padding: '10px',
         borderRadius: '10px',
         border: '2px solid transparent',
         transition: 'all 0.2s'

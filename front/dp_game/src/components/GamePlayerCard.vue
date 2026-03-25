@@ -16,7 +16,7 @@
     <div
         v-if="seatChatText"
         class="dp-player-card__seat-chat"
-        :class="{ 'dp-player-card__seat-chat--rival': rivalMini }"
+        :class="seatChatBubbleClass"
         role="status"
     >
       {{ seatChatText }}
@@ -299,7 +299,15 @@ export default {
     /** 摊牌阶段牌力最高者昵称列表（平局时并列者均展示完整牌型） */
     showdownHandLeaders: { type: Array, default: function () { return [] } },
     /** 该座位玩家最近一条房间聊天（同一人新发会顶掉；由 game.vue 按昵称写入） */
-    seatChatText: { type: String, default: '' }
+    seatChatText: { type: String, default: '' },
+    /** 聊天气泡锚点：top | left | right（圆桌左/右半圈侧向伸出，减轻被邻座遮挡） */
+    seatChatSide: {
+      type: String,
+      default: 'top',
+      validator: function (v) {
+        return v === 'top' || v === 'left' || v === 'right'
+      }
+    }
   },
   data() {
     return {
@@ -358,13 +366,22 @@ export default {
     this.clearFoldMuckFallbackTimer()
   },
   computed: {
+    seatChatBubbleClass() {
+      var o = { 'dp-player-card__seat-chat--rival': this.rivalMini }
+      if (this.seatChatSide === 'left') {
+        o['dp-player-card__seat-chat--out-left'] = true
+      } else if (this.seatChatSide === 'right') {
+        o['dp-player-card__seat-chat--out-right'] = true
+      }
+      return o
+    },
     cardBoxStyle() {
       var s = Object.assign({}, this.boxStyle)
       if (this.rivalMini) {
-        s.padding = '6px 8px'
+        s.padding = '5px 7px'
         s.borderRadius = '10px'
       } else if (this.compact) {
-        s.padding = '8px 10px'
+        s.padding = '7px 9px'
         s.borderRadius = '8px'
       }
       /* 摊牌 / 准备下一局：半透明 + 描边，减轻遮挡中央公共牌 */
