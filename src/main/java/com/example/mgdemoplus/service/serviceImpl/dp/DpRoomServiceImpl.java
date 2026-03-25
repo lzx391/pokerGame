@@ -149,7 +149,12 @@ public class DpRoomServiceImpl {
                     if (room.isPlaying()
                             && "settled".equals(room.getCurrentStage())
                             && room.getReadyDeadline() > 0
-                            && System.currentTimeMillis() > room.getReadyDeadline()) {
+                            && System.currentTimeMillis() > room.getReadyDeadline()) {//当前时间戳大于准备倒计时时间戳，则进入准备超时逻辑
+                                //如果场上只有一个人且没有等待者，则直接跳过，防止机器人自己重开
+                            if(room.getPlayers().size()==1 && room.getWaitNextHand().isEmpty())  {
+                                System.out.println("已跳过");
+                                continue;
+                            }
                         handleReadyTimeout(room);
                     }
                     //已学习，调用websocket的gameRoomPushService.broadcastIfSubscribed(room.getRoomId())广播房间数据给所有订阅者
