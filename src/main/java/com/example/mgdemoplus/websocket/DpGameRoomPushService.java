@@ -221,7 +221,7 @@ public class DpGameRoomPushService {
                 }
                 try {
                     synchronized (s) {
-                        System.out.println("成功推送");
+                        // System.out.println("成功推送");
                         s.sendMessage(new TextMessage(json));
                     }
                 } catch (IOException e) {
