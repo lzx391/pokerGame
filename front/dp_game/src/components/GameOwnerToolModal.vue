@@ -1,6 +1,6 @@
 <template>
   <div v-if="visible" class="hand-rank-modal-mask" @click="$emit('close')">
-    <div class="hand-rank-modal" @click.stop>
+    <div class="hand-rank-modal hand-rank-modal--legacy" @click.stop>
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
         <span style="font-size:18px; font-weight:bold;">房主神器</span>
         <button
