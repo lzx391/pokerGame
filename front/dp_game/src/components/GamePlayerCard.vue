@@ -97,7 +97,7 @@
             @animationend="onHoleWrapperAnimEnd($event, ci)"
           >
             <div
-              :class="[getCardClass(c), 'hole-card-flip']"
+              :class="[getCardClass(c), 'hole-card-flip', { 'hole-card-flip--instant': skipHoleDealAnimation }]"
               :style="holeCardInnerStyleRival(ci)"
             >
               {{ getCardDisplay(c) }}
@@ -205,7 +205,7 @@
               @animationend="onHoleWrapperAnimEnd($event, ci)"
             >
               <div
-                :class="[getCardClass(c), 'hole-card-flip']"
+                :class="[getCardClass(c), 'hole-card-flip', { 'hole-card-flip--instant': skipHoleDealAnimation }]"
                 :style="holeCardInnerStyle(ci)"
               >
                 {{ getCardDisplay(c) }}
@@ -307,7 +307,11 @@ export default {
       validator: function (v) {
         return v === 'top' || v === 'left' || v === 'right'
       }
-    }
+    },
+    /**
+     * 抽屉/镜像展示用手牌：跳过庄位发牌飞入与逐张翻面，避免「发完牌后再打开查看手牌」重复慢动画。
+     */
+    skipHoleDealAnimation: { type: Boolean, default: false }
   },
   data() {
     return {
@@ -497,6 +501,7 @@ export default {
       return window.matchMedia('(prefers-reduced-motion: reduce)').matches
     },
     shouldRunHoleDealFromDealer() {
+      if (this.skipHoleDealAnimation) return false
       if (this.player.leftThisHand) return false
       var hc = this.player.holeCards
       if (!hc || hc.length === 0) return false
@@ -519,6 +524,20 @@ export default {
     },
     resetHoleDealFlyState() {
       this.clearHoleIntroTimer()
+      if (this.skipHoleDealAnimation) {
+        this.holeDealFlyByIndex = {}
+        this.holeDealOriginByIndex = null
+        this.holeDealChainFlip = false
+        this.holeDealIntroDone = true
+        this.holeDealFlightStarted = true
+        this.foldMuckFlying = false
+        this.foldFlyPerCard = []
+        this.foldMuckAnimComplete = false
+        this.foldMuckEndsPending = 0
+        this.foldGhostFly = false
+        this.clearFoldMuckFallbackTimer()
+        return
+      }
       this.holeDealFlyByIndex = {}
       this.holeDealOriginByIndex = null
       this.holeDealChainFlip = false
@@ -650,6 +669,7 @@ export default {
     },
     /** 摊牌/结算同时翻开；仅首圈庄位发牌时沿用座位 stagger */
     holeFlipDelaySec(ci) {
+      if (this.skipHoleDealAnimation) return '0s'
       if (this.stage === 'showdown' || this.stage === 'settled') return '0s'
       if (this.holeDealChainFlip) {
         return (this.holeDealDelayMsForCard(ci) / 1000 + 0.42) + 's'

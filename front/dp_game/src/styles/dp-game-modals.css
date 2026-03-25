@@ -58,3 +58,84 @@
   gap: 4px;
   flex-wrap: wrap;
 }
+
+/* 对局页：窄屏「查看手牌 / 行动」底部抽屉（由 game.vue 内联使用） */
+.dp-game-sheet-mask--bottom {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.52);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 1010;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.dp-game-sheet {
+  width: 100%;
+  max-width: 520px;
+  max-height: min(88vh, 720px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--dp-panel-bg, #1e1e1e);
+  color: var(--dp-text-primary, #e8e8e8);
+  border-radius: 14px 14px 0 0;
+  border: 1px solid var(--dp-panel-border, rgba(255, 255, 255, 0.12));
+  border-bottom: none;
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.45);
+  box-sizing: border-box;
+}
+
+.dp-game-sheet--wide {
+  max-width: 100%;
+}
+
+.dp-game-sheet__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--dp-panel-border, rgba(255, 255, 255, 0.12));
+  flex-shrink: 0;
+}
+
+.dp-game-sheet__title {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.dp-game-sheet__close {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  background: var(--dp-input-bg, rgba(255, 255, 255, 0.08));
+  color: var(--dp-text-primary, #fff);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.dp-game-sheet__body {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 14px max(20px, env(safe-area-inset-bottom, 0px));
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.dp-game-sheet__body--action {
+  padding-top: 4px;
+}
+
+.dp-game-sheet__body--action .dp-action-panel {
+  margin-top: 0;
+}
