@@ -366,23 +366,41 @@ export function getHandRankDetail(holeCards, communityCards) {
 }
 
 /**
- * 摊牌时牌力最高的一位（含同型踢脚比较）；平局取 players 数组中更靠前的一位
+ * 摊牌时牌力最高的所有玩家（含同型踢脚比较）；平局时全部返回，顺序与 players 一致
  * @param players - { nickname, fold?, leftThisHand?, holeCards? }[]
+ * @returns {string[]}
  */
-export function pickShowdownLeaderNickname(players, communityCards) {
-  if (!players || !communityCards || communityCards.length < 3) return ''
+export function pickShowdownLeaderNicknames(players, communityCards) {
+  if (!players || !communityCards || communityCards.length < 3) return []
   var bestKey = null
-  var bestNick = ''
+  var nicks = []
   for (var i = 0; i < players.length; i++) {
     var p = players[i]
     if (!p || p.fold || p.leftThisHand) continue
     if (!p.holeCards || p.holeCards.length < 2) continue
     var ev = getBestHandEvaluation(p.holeCards, communityCards)
     if (!ev) continue
-    if (!bestKey || cmpCompareKey(ev.compareKey, bestKey) > 0) {
+    if (!bestKey) {
       bestKey = ev.compareKey
-      bestNick = p.nickname
+      nicks = [p.nickname]
+    } else {
+      var cmp = cmpCompareKey(ev.compareKey, bestKey)
+      if (cmp > 0) {
+        bestKey = ev.compareKey
+        nicks = [p.nickname]
+      } else if (cmp === 0) {
+        nicks.push(p.nickname)
+      }
     }
   }
-  return bestNick
+  return nicks
+}
+
+/**
+ * 摊牌时牌力最高的一位（含同型踢脚比较）；平局取 players 数组中更靠前的一位
+ * @param players - { nickname, fold?, leftThisHand?, holeCards? }[]
+ */
+export function pickShowdownLeaderNickname(players, communityCards) {
+  var arr = pickShowdownLeaderNicknames(players, communityCards)
+  return arr.length ? arr[0] : ''
 }

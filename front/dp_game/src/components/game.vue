@@ -121,7 +121,7 @@
               :hole-deal-seat-order="holeDealOrderFromDealer(row.seatIndex)"
               :hole-deal-player-count="holeDealPlayerCountForAnim"
               :rival-mini="true"
-              :showdown-hand-leader="showdownHandLeaderNickname"
+              :showdown-hand-leaders="showdownHandLeaderNicknames"
               :seat-chat-text="seatChatTextFor(row.player.nickname)"
               @card-click="onPlayerCardClick"
           />
@@ -149,7 +149,7 @@
           :hole-deal-seat-order="holeDealOrderFromDealer(heroDockRow.seatIndex)"
           :hole-deal-player-count="holeDealPlayerCountForAnim"
           :rival-mini="false"
-          :showdown-hand-leader="showdownHandLeaderNickname"
+          :showdown-hand-leaders="showdownHandLeaderNicknames"
           :seat-chat-text="seatChatTextFor(heroDockRow.player.nickname)"
           @card-click="onPlayerCardClick"
       />
@@ -255,7 +255,7 @@ import GameSettledPreparePanel from './GameSettledPreparePanel.vue'
 import GameActionPanel from './GameActionPanel.vue'
 import GameOwnerPanel from './GameOwnerPanel.vue'
 import { HAND_RANK_REFERENCE } from '../constants/dpGameHandRankReference'
-import { pickShowdownLeaderNickname } from '../utils/dpGameHandRank'
+import { pickShowdownLeaderNicknames } from '../utils/dpGameHandRank'
 import { dpDisplayNickname } from '../utils/dpDisplayNickname'
 
 export default {
@@ -488,19 +488,19 @@ export default {
       return order[0]
     },
     /**
-     * 摊牌 / 准备下一局阶段桌上牌力最高者（含踢脚比较；平局取 players 顺序靠前者）。
+     * 摊牌 / 准备下一局阶段桌上牌力最高者昵称列表（含踢脚比较；平局时并列者全部列出）。
      * settled 时仍展示上一手公共牌与牌型，须与 showdown 共用同一套领先者逻辑。
      */
-    showdownHandLeaderNickname() {
-      if (this.stage !== 'showdown' && this.stage !== 'settled') return ''
-      if (!this.players || !this.players.length) return ''
-      if (!this.communityCards || this.communityCards.length < 3) return ''
+    showdownHandLeaderNicknames() {
+      if (this.stage !== 'showdown' && this.stage !== 'settled') return []
+      if (!this.players || !this.players.length) return []
+      if (!this.communityCards || this.communityCards.length < 3) return []
       var boardReady =
         this.communityCardsFlipComplete
         || this.communityCards.length >= 5
         || this.stage === 'settled'
-      if (!boardReady) return ''
-      return pickShowdownLeaderNickname(this.players, this.communityCards)
+      if (!boardReady) return []
+      return pickShowdownLeaderNicknames(this.players, this.communityCards)
     },
     /** 当前在桌上 players 里的昵称集合之外，仍可能有观众聊天，在操作区上方展示 */
     spectatorSeatChatEntries() {
@@ -639,10 +639,20 @@ export default {
     },
 
     exitDpFullscreenIfActive() {
-      if (!this.isFullscreen) return
+      var root = this.$refs.gameRoot
+      var active = document.fullscreenElement || document.webkitFullscreenElement
+      if (!this.isFullscreen && !(root && active === root)) return
+      if (!active || (root && active !== root)) return
+      var swallow = function (p) {
+        if (p && typeof p.then === 'function') {
+          p.catch(function () {
+            /* 路由销毁/切 tab 时常见：Document not active；同步错误见 try/catch */
+          })
+        }
+      }
       try {
-        if (document.exitFullscreen) document.exitFullscreen()
-        else if (document.webkitExitFullscreen) document.webkitExitFullscreen()
+        if (document.exitFullscreen) swallow(document.exitFullscreen())
+        else if (document.webkitExitFullscreen) swallow(document.webkitExitFullscreen())
       } catch (e) { /* ignore */ }
     },
 
