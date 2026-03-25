@@ -86,6 +86,30 @@
         <div class="dp-game-table__felt" aria-hidden="true" />
         <div class="dp-game-table__center">
           <div class="dp-game-table__center-stack">
+            <div
+                v-if="showTableActionTimer"
+                class="dp-game-table-action-timer"
+                :class="[
+                  'dp-game-table-action-timer--' + tableActionTimerUrgency,
+                  { 'dp-game-table-action-timer--rich': !ecoMode }
+                ]"
+                role="status"
+                aria-live="polite"
+                :aria-label="'当前行动 ' + tableActionActorDisplayName + '，剩余 ' + timeLeft + ' 秒'"
+            >
+              <div class="dp-game-table-action-timer__inner">
+                <div
+                    class="dp-game-table-action-timer__ring"
+                    :style="{ '--dp-table-timer-pct': actionTimerProgressPct }"
+                >
+                  <span class="dp-game-table-action-timer__sec">{{ timeLeft }}</span>
+                </div>
+                <div class="dp-game-table-action-timer__meta">
+                  <span class="dp-game-table-action-timer__who">{{ tableActionActorDisplayName }}</span>
+                  <span class="dp-game-table-action-timer__hint">思考中</span>
+                </div>
+              </div>
+            </div>
             <game-community-cards
                 :community-cards="communityCards"
                 :flip-state="communityCardsFlipState"
@@ -327,6 +351,8 @@ export default {
       heartbeatTimer: null,
       //游戏计时器
       actionTimer: null,
+      /** 与 syncActionCountdown 配合：同一行动者会话内轮询不重置秒数 */
+      _actionCountdownKey: null,
       timeLeft: 30,
       // 结算后准备阶段倒计时
       readyTimer: null,
@@ -519,6 +545,31 @@ export default {
         out.push({ nickname: k, text: map[k] })
       }
       return out
+    },
+    /** 下注街有人行动时，桌面中央展示倒计时（全场可见；秒数与操作区一致） */
+    showTableActionTimer() {
+      return this.actionCountdownShouldRun()
+    },
+    tableActionActorDisplayName() {
+      var i = this.actIndex
+      var list = this.players
+      if (i < 0 || !list || i >= list.length) return '—'
+      var p = list[i]
+      if (!p || !p.nickname) return '—'
+      return dpDisplayNickname(p.nickname)
+    },
+    /** 圆环进度：剩余比例 0~1 */
+    actionTimerProgressPct() {
+      var t = Number(this.timeLeft)
+      if (isNaN(t) || t < 0) return 0
+      return Math.min(1, t / 30)
+    },
+    tableActionTimerUrgency() {
+      var t = Number(this.timeLeft)
+      if (isNaN(t)) return 'ok'
+      if (t > 10) return 'ok'
+      if (t > 5) return 'warn'
+      return 'danger'
     }
   },
 
@@ -532,20 +583,18 @@ export default {
     isMyTurn: function (v) {
       if (v) this.raiseAmount = this.minRaise
     },
-// 监听当前行动者的索引变化
-    actIndex(newVal) {
-      // 获取当前轮到的那个人
-      const currentPlayer = this.players[newVal];
-
-      // 如果这个人存在，且名字是我自己（守卫 user 未加载）
-      if (this.user && currentPlayer && currentPlayer.nickname === this.user.nickname) {
-        this.startCountdown();
-      } else {
-        this.stopCountdown();
-      }
+    actIndex() {
+      this.syncActionCountdown()
+    },
+    playing() {
+      this.syncActionCountdown()
+    },
+    currentHandSeed() {
+      this.syncActionCountdown()
     },
     // 监听阶段变化，用于控制结算后准备阶段的倒计时
     stage(newVal) {
+      this.syncActionCountdown()
       if (newVal === 'settled') {
         this.startReadyCountdown()
       } else {
@@ -964,6 +1013,9 @@ export default {
       this.spectators = room.spectators || []
       var list = room.waitNextHand || []
       this.nextHandReady = !!(this.user && list.indexOf(this.user.nickname) !== -1)
+      this.$nextTick(function () {
+        this.syncActionCountdown()
+      }.bind(this))
     },
 
     // ---- 拉取房间状态 ----
@@ -1567,23 +1619,58 @@ export default {
       return s
     },
 
+    /**
+     * 是否处于「有人要下注」阶段且当前座位有效（与后端 currentActorIndex 对齐）。
+     */
+    actionCountdownShouldRun() {
+      if (!this.playing) return false
+      var st = this.stage
+      if (st === 'showdown' || st === 'settled') return false
+      var i = this.actIndex
+      var list = this.players
+      if (i < 0 || !list || i >= list.length) return false
+      var p = list[i]
+      if (!p || p.leftThisHand || p.fold) return false
+      return true
+    },
+
+    actionCountdownSessionKey() {
+      return String(this.playing) + '|' + this.stage + '|' + this.actIndex + '|' + this.currentHandSeed
+    },
+
+    /**
+     * 任意玩家行动时全场共用同一段 30s 本地倒计时；换行动者/新一手才重置。
+     * 轮询拉取同一状态时不会反复把秒数打回 30。
+     */
+    syncActionCountdown() {
+      if (!this.actionCountdownShouldRun()) {
+        this.stopCountdown()
+        this._actionCountdownKey = null
+        return
+      }
+      var key = this.actionCountdownSessionKey()
+      if (this._actionCountdownKey === key) return
+      this._actionCountdownKey = key
+      this.startCountdown()
+    },
+
     startCountdown() {
-      this.stopCountdown(); // 先清除旧的
-      this.timeLeft = 30;
-      this.actionTimer = setInterval(() => {
-        if (this.timeLeft > 0) {
-          this.timeLeft--;
+      this.stopCountdown()
+      this.timeLeft = 30
+      var self = this
+      this.actionTimer = setInterval(function () {
+        if (self.timeLeft > 0) {
+          self.timeLeft--
         } else {
-          this.stopCountdown();
-          // 这里可以加个逻辑，比如时间到了自动弃牌：this.doFold();
+          self.stopCountdown()
         }
-      }, 1000);
+      }, 1000)
     },
 
     stopCountdown() {
       if (this.actionTimer) {
-        clearInterval(this.actionTimer);
-        this.actionTimer = null;
+        clearInterval(this.actionTimer)
+        this.actionTimer = null
       }
     },
 
