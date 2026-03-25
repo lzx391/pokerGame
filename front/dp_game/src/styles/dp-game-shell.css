@@ -144,6 +144,41 @@
   z-index: 2;
 }
 
+/* 宽屏：圆桌与本人大卡略收紧，纵向多留给操作区 */
+@media (min-width: 768px) {
+  .dp-game-table {
+    margin: 4px 0 12px;
+  }
+
+  .dp-game-table__layout {
+    min-height: clamp(232px, min(70vw, 42dvh), 420px);
+    padding-bottom: 4px;
+  }
+
+  .dp-game-hero-dock {
+    margin: 6px auto 4px;
+  }
+
+  .dp-game-action-hud {
+    margin-top: 10px;
+    gap: 8px;
+  }
+
+  .dp-game-root:fullscreen .dp-game-table__layout,
+  .dp-game-root:-webkit-full-screen .dp-game-table__layout,
+  .dp-game-root.dp-game-root--layout-fs .dp-game-table__layout {
+    min-height: clamp(236px, min(86vw, calc(100dvh - 228px)), 540px);
+  }
+
+  .dp-game-root:fullscreen .dp-game-hero-dock,
+  .dp-game-root:-webkit-full-screen .dp-game-hero-dock,
+  .dp-game-root.dp-game-root--layout-fs .dp-game-hero-dock {
+    max-width: min(480px, 100%);
+    margin-top: 4px;
+    margin-bottom: 4px;
+  }
+}
+
 .dp-game-table__layout {
   position: relative;
   width: 100%;
@@ -152,7 +187,6 @@
   min-height: clamp(260px, min(78vw, 52dvh), 500px);
   padding-bottom: 8px;
 }
-
 .dp-game-table__felt {
   position: absolute;
   z-index: 0;
@@ -1661,6 +1695,32 @@
   padding: 5px 8px;
   max-width: min(150px, 62vw);
   border-radius: 10px;
+}
+
+/* 左/右半桌：气泡从卡片外侧水平伸出，减少被「上方」邻座卡片挡住（多人场） */
+.dp-player-card__seat-chat--out-left {
+  left: auto;
+  right: calc(100% + 8px);
+  bottom: auto;
+  top: 50%;
+  transform: translateY(-50%);
+  text-align: left;
+  z-index: 42;
+}
+
+.dp-player-card__seat-chat--out-right {
+  left: calc(100% + 8px);
+  right: auto;
+  bottom: auto;
+  top: 50%;
+  transform: translateY(-50%);
+  text-align: left;
+  z-index: 42;
+}
+
+.dp-player-card__seat-chat--rival.dp-player-card__seat-chat--out-left,
+.dp-player-card__seat-chat--rival.dp-player-card__seat-chat--out-right {
+  padding: 5px 8px;
 }
 
 .dp-game-room-chat__bar {
