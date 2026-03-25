@@ -4,22 +4,14 @@
       class="dp-game-root"
       :class="{
         'dp-game-root--pseudo-fs': pseudoFullscreen,
-        'dp-game-root--layout-fs': layoutFullscreen
+        'dp-game-root--layout-fs': layoutFullscreen,
+        'dp-game-root--mobile-hero-dock': mobileHeroDockActive
       }"
       :data-dp-game-theme="gameUiTheme"
       :data-dp-eco-mode="ecoMode ? 'true' : 'false'"
   >
-    <div class="dp-game-theme-row">
-      <span class="dp-game-theme-row__label">界面主题</span>
-      <select v-model="gameUiTheme" class="dp-game-theme-select" aria-label="选择对局界面主题">
-        <option v-for="t in gameThemeOptions" :key="t.id" :value="t.id">{{ t.label }}</option>
-      </select>
-      <label class="dp-game-eco-label">
-        <input v-model="ecoMode" type="checkbox" aria-label="节能模式：减少动画与模糊效果">
-        节能模式
-      </label>
-    </div>
-
+    <div class="dp-game-page-flex">
+    <div class="dp-game-page-seg dp-game-page-seg--pre-table">
     <game-top-bar
         :room-id="roomId"
         :stage-label="stageCN"
@@ -27,55 +19,21 @@
         :current-bet-to-call="currentBetToCall"
         :spectator-count="spectators.length"
         :is-fullscreen="layoutFullscreen"
+        :show-spectator-prepare="showSpectatorPrepareBlock"
+        :next-hand-ready="nextHandReady"
+        :game-ui-theme.sync="gameUiTheme"
+        :eco-mode.sync="ecoMode"
+        :theme-options="gameThemeOptions"
         @show-hand-rank="showHandRankModal = true"
         @show-spectators="showSpectatorModal = true"
         @toggle-fullscreen="toggleDpFullscreen"
         @exit="exitGame"
-    />
-
-    <game-hand-rank-modal
-        :visible="showHandRankModal"
-        :items="handRankReference"
-        @close="showHandRankModal = false"
-    />
-
-    <game-spectator-modal
-        :visible="showSpectatorModal"
-        :spectators="spectators"
-        @close="showSpectatorModal = false"
-    />
-
-    <game-owner-tool-modal
-        :visible="showOwnerToolModal"
-        :owner-tool-type.sync="ownerToolType"
-        :owner-action-target.sync="ownerActionTarget"
-        :owner-action-players="ownerActionPlayers"
-        :demo-bot-adding="demoBotAdding"
-        :demo-bot-added-tip="demoBotAddedTip"
-        :maniac-bot-adding="maniacBotAdding"
-        :maniac-bot-added-tip="maniacBotAddedTip"
-        :tag-bot-adding="tagBotAdding"
-        :tag-bot-added-tip="tagBotAddedTip"
-        :shark-bot-adding="sharkBotAdding"
-        :shark-bot-added-tip="sharkBotAddedTip"
-        :llm-bot-adding="llmBotAdding"
-        :llm-bot-added-tip="llmBotAddedTip"
-        @close="closeOwnerToolPanel"
-        @add-demo-bot="addDemoBot"
-        @add-maniac-bot="addManiacBot"
-        @add-tag-bot="addTagBot"
-        @add-shark-bot="addSharkBot"
-        @add-llm-bot="addLlmBot"
-        @transfer-owner="doTransferOwner"
-        @kick-player="doKickPlayer"
-    />
-
-    <game-spectator-prepare-banner
-        v-if="showSpectatorPrepareBlock"
-        :next-hand-ready="nextHandReady"
         @ready-next-hand="readyNextHand"
     />
 
+    </div>
+
+    <div class="dp-game-page-seg dp-game-page-seg--table">
     <!-- <div v-if="playing" class="dp-game-hint">
       各人手牌与公共牌均由庄位（D）发出
     </div> -->
@@ -154,41 +112,145 @@
       </div>
     </div>
 
-    <div
-        v-if="heroDockRow"
-        class="dp-game-hero-dock"
-        :class="{ 'dp-game-hero-dock--hand-reveal': stage === 'showdown' || stage === 'settled' }"
-    >
-      <game-player-card
-          :player="heroDockRow.player"
-          :seat-index="heroDockRow.seatIndex"
-          :box-style="getPlayerBoxStyle(heroDockRow.player, heroDockRow.seatIndex)"
-          :act-index="actIndex"
-          :stage="stage"
-          :community-cards="communityCards"
-          :community-cards-flip-complete="communityCardsFlipComplete"
-          :is-owner="isOwner"
-          :owner-reveal-all="ownerRevealAll"
-          :my-nickname="user ? user.nickname : ''"
-          :hand-deal-key="currentHandSeed"
-          :hole-deal-seat-order="holeDealOrderFromDealer(heroDockRow.seatIndex)"
-          :hole-deal-player-count="holeDealPlayerCountForAnim"
-          :rival-mini="false"
-          :showdown-hand-leaders="showdownHandLeaderNicknames"
-          :seat-chat-text="seatChatTextFor(heroDockRow.player.nickname)"
-          @card-click="onPlayerCardClick"
-      />
     </div>
 
-    <game-settled-prepare-panel
-        v-if="inSettledStage"
-        :ready-time-left="readyTimeLeft"
-        :my-chips="myChips"
-        :big-blind="bigBlind"
-        :my-ready="myReady"
-        @toggle-ready="toggleReady"
-        @rebuy="rebuy"
-    />
+    <div class="dp-game-page-seg dp-game-page-seg--post-table">
+    <!-- 宽屏非全屏：内联手牌+操作；窄屏或全屏/伪全屏：底栏按钮 + 底部抽屉（见 dp-game-shell.css） -->
+    <div
+        v-if="heroDockRow || isMyTurn || inSettledStage"
+        class="dp-game-hero-action-row dp-game-hero-action-row--hide-narrow"
+        aria-label="本人手牌与操作"
+    >
+      <div class="dp-game-room-chat__bar dp-game-room-chat__bar--hero-row" aria-label="房间聊天">
+        <input
+            v-model="chatInputDraft"
+            type="text"
+            maxlength="200"
+            placeholder="说一句…"
+            class="dp-game-room-chat__input"
+            aria-label="房间聊天输入"
+            @keydown.enter.prevent="sendRoomChat"
+        >
+        <button
+            type="button"
+            class="dp-game-room-chat__send"
+            @click="sendRoomChat"
+        >
+          发送
+        </button>
+      </div>
+      <div
+          v-if="heroDockRow"
+          class="dp-game-hero-dock"
+          :class="{ 'dp-game-hero-dock--hand-reveal': stage === 'showdown' || stage === 'settled' }"
+      >
+        <game-player-card
+            :player="heroDockRow.player"
+            :seat-index="heroDockRow.seatIndex"
+            :box-style="getPlayerBoxStyle(heroDockRow.player, heroDockRow.seatIndex)"
+            :act-index="actIndex"
+            :stage="stage"
+            :community-cards="communityCards"
+            :community-cards-flip-complete="communityCardsFlipComplete"
+            :is-owner="isOwner"
+            :owner-reveal-all="ownerRevealAll"
+            :my-nickname="user ? user.nickname : ''"
+            :hand-deal-key="currentHandSeed"
+            :hole-deal-seat-order="holeDealOrderFromDealer(heroDockRow.seatIndex)"
+            :hole-deal-player-count="holeDealPlayerCountForAnim"
+            :rival-mini="false"
+            :showdown-hand-leaders="showdownHandLeaderNicknames"
+            :seat-chat-text="seatChatTextFor(heroDockRow.player.nickname)"
+            @card-click="onPlayerCardClick"
+        />
+      </div>
+      <!-- 右侧槽位固定：轮到本人显示面板，否则用主题底「盖住」占位，并与左侧手牌区等高 -->
+      <div
+          class="dp-game-inline-action-slot"
+          :class="{ 'dp-game-inline-action-slot--solo': !heroDockRow }"
+      >
+        <game-action-panel
+            v-if="isMyTurn || inSettledStage"
+            :settled-prepare="inSettledStage"
+            :ready-time-left="readyTimeLeft"
+            :my-ready="myReady"
+            :time-left="timeLeft"
+            :current-bet-to-call="currentBetToCall"
+            :my-bet="myBet"
+            :call-amount="callAmount"
+            :small-blind="smallBlind"
+            :big-blind="bigBlind"
+            :min-raise="minRaise"
+            :min-total-to-raise="minTotalToRaise"
+            :last-raise-increment="lastRaiseIncrementEffective"
+            :pot="pot"
+            :my-chips="myChips"
+            :raise-amount.sync="raiseAmount"
+            @call="doCall"
+            @raise="doRaise"
+            @all-in="doAllIn"
+            @fold="doFold"
+            @toggle-ready="toggleReady"
+            @rebuy="rebuy"
+        />
+        <div
+            v-else-if="heroDockRow"
+            class="dp-game-action-slot-cover"
+            aria-hidden="true"
+        />
+      </div>
+    </div>
+
+    <div
+        v-if="heroDockRow || isMyTurn || inSettledStage"
+        class="dp-game-mobile-hero-bar"
+        aria-label="手牌与行动"
+    >
+      <div class="dp-game-room-chat__bar dp-game-room-chat__bar--mobile-dock" aria-label="房间聊天">
+        <input
+            v-model="chatInputDraft"
+            type="text"
+            maxlength="200"
+            placeholder="说一句…"
+            class="dp-game-room-chat__input"
+            aria-label="房间聊天输入"
+            @keydown.enter.prevent="sendRoomChat"
+        >
+        <button
+            type="button"
+            class="dp-game-room-chat__send"
+            @click="sendRoomChat"
+        >
+          发送
+        </button>
+      </div>
+      <button
+          v-if="heroDockRow"
+          type="button"
+          class="dp-game-mobile-hero-bar__btn"
+          @click="showMobileHandSheet = true"
+      >
+        查看手牌
+      </button>
+      <button
+          v-if="isMyTurn"
+          type="button"
+          class="dp-game-mobile-hero-bar__btn dp-game-mobile-hero-bar__btn--action"
+          :class="{ 'dp-game-mobile-hero-bar__btn--urgent': timeLeft <= 10 }"
+          @click="showMobileActionSheet = true"
+      >
+        行动（{{ timeLeft }}s）
+      </button>
+      <button
+          v-if="inSettledStage"
+          type="button"
+          class="dp-game-mobile-hero-bar__btn dp-game-mobile-hero-bar__btn--action"
+          :class="{ 'dp-game-mobile-hero-bar__btn--urgent': readyTimeLeft <= 8 }"
+          @click="showMobileActionSheet = true"
+      >
+        准备（{{ readyTimeLeft }}s）
+      </button>
+    </div>
 
     <!-- 观众等非桌上座位的聊天（先关闭，需要时取消注释并恢复 dp-game-seat-chat-orphans 样式块）
     <div
@@ -207,24 +269,11 @@
     </div>
     -->
 
-    <!-- 行动按钮在上、聊天输入在下，避免遮挡手机端操作 -->
-    <div class="dp-game-action-hud" aria-label="行动与聊天">
-      <game-action-panel
-          v-if="isMyTurn"
-          :time-left="timeLeft"
-          :current-bet-to-call="currentBetToCall"
-          :my-bet="myBet"
-          :call-amount="callAmount"
-          :small-blind="smallBlind"
-          :big-blind="bigBlind"
-          :min-raise="minRaise"
-          :my-chips="myChips"
-          :raise-amount.sync="raiseAmount"
-          @call="doCall"
-          @raise="doRaise"
-          @all-in="doAllIn"
-          @fold="doFold"
-      />
+    <div
+        v-if="!mobileHeroDockActive"
+        class="dp-game-action-hud"
+        aria-label="房间聊天"
+    >
       <div class="dp-game-room-chat__bar">
         <input
             v-model="chatInputDraft"
@@ -260,12 +309,151 @@
         @confirm-judge-win="confirmJudgeWin"
     />
 
+    </div>
+    </div>
+
+    <game-hand-rank-modal
+        :visible="showHandRankModal"
+        :items="handRankReference"
+        @close="showHandRankModal = false"
+    />
+
+    <game-spectator-modal
+        :visible="showSpectatorModal"
+        :spectators="spectators"
+        @close="showSpectatorModal = false"
+    />
+
+    <game-owner-tool-modal
+        :visible="showOwnerToolModal"
+        :owner-tool-type.sync="ownerToolType"
+        :owner-action-target.sync="ownerActionTarget"
+        :owner-action-players="ownerActionPlayers"
+        :demo-bot-adding="demoBotAdding"
+        :demo-bot-added-tip="demoBotAddedTip"
+        :maniac-bot-adding="maniacBotAdding"
+        :maniac-bot-added-tip="maniacBotAddedTip"
+        :tag-bot-adding="tagBotAdding"
+        :tag-bot-added-tip="tagBotAddedTip"
+        :shark-bot-adding="sharkBotAdding"
+        :shark-bot-added-tip="sharkBotAddedTip"
+        :llm-bot-adding="llmBotAdding"
+        :llm-bot-added-tip="llmBotAddedTip"
+        @close="closeOwnerToolPanel"
+        @add-demo-bot="addDemoBot"
+        @add-maniac-bot="addManiacBot"
+        @add-tag-bot="addTagBot"
+        @add-shark-bot="addSharkBot"
+        @add-llm-bot="addLlmBot"
+        @transfer-owner="doTransferOwner"
+        @kick-player="doKickPlayer"
+    />
+
+    <div
+        v-if="showMobileHandSheet && heroDockRow"
+        class="dp-game-sheet-mask dp-game-sheet-mask--bottom"
+        role="dialog"
+        aria-modal="true"
+        aria-label="查看手牌"
+        @click.self="showMobileHandSheet = false"
+    >
+      <div class="dp-game-sheet" @click.stop>
+        <div class="dp-game-sheet__head">
+          <span class="dp-game-sheet__title">我的手牌</span>
+          <button
+              type="button"
+              class="dp-game-sheet__close"
+              aria-label="关闭"
+              @click="showMobileHandSheet = false"
+          >
+            ×
+          </button>
+        </div>
+        <div class="dp-game-sheet__body">
+          <div
+              class="dp-game-hero-dock dp-game-hero-dock--in-sheet"
+              :class="{ 'dp-game-hero-dock--hand-reveal': stage === 'showdown' || stage === 'settled' }"
+          >
+            <game-player-card
+                :player="heroDockRow.player"
+                :seat-index="heroDockRow.seatIndex"
+                :box-style="getPlayerBoxStyle(heroDockRow.player, heroDockRow.seatIndex)"
+                :act-index="actIndex"
+                :stage="stage"
+                :community-cards="communityCards"
+                :community-cards-flip-complete="communityCardsFlipComplete"
+                :is-owner="isOwner"
+                :owner-reveal-all="ownerRevealAll"
+                :my-nickname="user ? user.nickname : ''"
+                :hand-deal-key="currentHandSeed"
+                :hole-deal-seat-order="holeDealOrderFromDealer(heroDockRow.seatIndex)"
+                :hole-deal-player-count="holeDealPlayerCountForAnim"
+                :rival-mini="false"
+                :showdown-hand-leaders="showdownHandLeaderNicknames"
+                :seat-chat-text="seatChatTextFor(heroDockRow.player.nickname)"
+                :skip-hole-deal-animation="true"
+                @card-click="onPlayerCardClick"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+        v-if="showMobileActionSheet && (isMyTurn || inSettledStage)"
+        class="dp-game-sheet-mask dp-game-sheet-mask--bottom"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="inSettledStage ? '准备下一局' : '下注行动'"
+        @click.self="showMobileActionSheet = false"
+    >
+      <div class="dp-game-sheet dp-game-sheet--wide" @click.stop>
+        <div class="dp-game-sheet__head">
+          <span class="dp-game-sheet__title">{{ inSettledStage ? '准备下一局' : '本轮行动' }}</span>
+          <button
+              type="button"
+              class="dp-game-sheet__close"
+              aria-label="关闭"
+              @click="showMobileActionSheet = false"
+          >
+            ×
+          </button>
+        </div>
+        <div class="dp-game-sheet__body dp-game-sheet__body--action">
+          <game-action-panel
+              :settled-prepare="inSettledStage"
+              :ready-time-left="readyTimeLeft"
+              :my-ready="myReady"
+              :time-left="timeLeft"
+              :current-bet-to-call="currentBetToCall"
+              :my-bet="myBet"
+              :call-amount="callAmount"
+              :small-blind="smallBlind"
+              :big-blind="bigBlind"
+              :min-raise="minRaise"
+              :min-total-to-raise="minTotalToRaise"
+              :last-raise-increment="lastRaiseIncrementEffective"
+              :pot="pot"
+              :my-chips="myChips"
+              :raise-amount.sync="raiseAmount"
+              @call="doCall"
+              @raise="doRaise"
+              @all-in="doAllIn"
+              @fold="doFold"
+              @toggle-ready="toggleReady"
+              @rebuy="rebuy"
+          />
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <script>
 import '../styles/dp-game-themes.css'
 import '../styles/dp-game-shell.css'
+import '../styles/dp-game-modals.css'
 import '../styles/dp-game-eco-mode.css'
 import { GAME_UI_THEMES } from '../constants/dpGameThemes'
 import { readGameTheme, writeGameTheme } from '../utils/dpGameTheme'
@@ -275,9 +463,7 @@ import GameTopBar from './GameTopBar.vue'
 import GameHandRankModal from './GameHandRankModal.vue'
 import GameSpectatorModal from './GameSpectatorModal.vue'
 import GameOwnerToolModal from './GameOwnerToolModal.vue'
-import GameSpectatorPrepareBanner from './GameSpectatorPrepareBanner.vue'
 import GameCommunityCards from './GameCommunityCards.vue'
-import GameSettledPreparePanel from './GameSettledPreparePanel.vue'
 import GameActionPanel from './GameActionPanel.vue'
 import GameOwnerPanel from './GameOwnerPanel.vue'
 import { HAND_RANK_REFERENCE } from '../constants/dpGameHandRankReference'
@@ -296,9 +482,7 @@ export default {
     GameHandRankModal,
     GameSpectatorModal,
     GameOwnerToolModal,
-    GameSpectatorPrepareBanner,
     GameCommunityCards,
-    GameSettledPreparePanel,
     GameActionPanel,
     GameOwnerPanel
   },
@@ -322,6 +506,8 @@ export default {
       pot: 0,
       pots: [],             // 主池+边池列表 [{amount, eligiblePlayers}]
       currentBetToCall: 0,
+      /** 与后端 DpRoom.lastRaiseIncrement 一致：当前圈最小再加注的「增量」基准 */
+      lastRaiseIncrement: 10,
       actIndex: -1,
       // 观众席名单（由后端 DpRoom.spectators 提供）
       spectators: [],
@@ -385,6 +571,10 @@ export default {
 
       // 房主专用：一键看穿所有人底牌（仅本机显示，不影响后端和 NPC 决策）
       ownerRevealAll: false,
+
+      /** 窄屏：底部弹层查看手牌 / 行动 */
+      showMobileHandSheet: false,
+      showMobileActionSheet: false,
 
       /** 是否处于浏览器全屏（整页对局根节点） */
       isFullscreen: false,
@@ -453,8 +643,25 @@ export default {
       // 使用与后端一致的大盲配置，默认 10，后续可从服务端房间配置透传
       return 10
     },
+    /** 后端下发的加注增量，异常时回落为大盲 */
+    lastRaiseIncrementEffective() {
+      var v = Number(this.lastRaiseIncrement)
+      if (!isFinite(v) || v < 1) return this.bigBlind
+      return Math.floor(v)
+    },
+    /** 标准 NL：合法加注后「本街总注」至少为该值（仅展示/兼容；桌上最小再加注已临时关闭） */
+    minTotalToRaise() {
+      return this.currentBetToCall + this.lastRaiseIncrementEffective
+    },
+    /**
+     * 本轮至少再下多少筹码：临时关闭标准最小再加注，只要比跟注多 1（或无人跟注压力时至少 1）即可抬升，与后端 DpRoomServiceImpl 注释掉的校验一致。
+     */
     minRaise() {
-      return this.callAmount + this.bigBlind
+      var call = this.callAmount
+      if (!isFinite(call) || call < 0) call = 0
+      var fullMin = call > 0 ? call + 1 : 1
+      var cap = Math.min(fullMin, this.myChips)
+      return Math.max(1, cap)
     },
     allPotsHaveWinners() {
       if (this.pots.length === 0) return false
@@ -572,6 +779,10 @@ export default {
       if (t > 10) return 'ok'
       if (t > 5) return 'warn'
       return 'danger'
+    },
+    /** 窄屏底栏占位：避免固定底栏挡住聊天与房主区 */
+    mobileHeroDockActive() {
+      return !!(this.heroDockRow || this.isMyTurn || this.inSettledStage)
     }
   },
 
@@ -584,6 +795,15 @@ export default {
     },
     isMyTurn: function (v) {
       if (v) this.raiseAmount = this.minRaise
+      else this.showMobileActionSheet = false
+    },
+    heroDockRow: function (row) {
+      if (!row) this.showMobileHandSheet = false
+    },
+    minRaise: function () {
+      if (this.isMyTurn && this.raiseAmount < this.minRaise) {
+        this.raiseAmount = this.minRaise
+      }
     },
     actIndex() {
       this.syncActionCountdown()
@@ -601,6 +821,7 @@ export default {
         this.startReadyCountdown()
       } else {
         this.stopReadyCountdown()
+        this.showMobileActionSheet = false
       }
     }
   },
@@ -1011,12 +1232,17 @@ export default {
       this.pot = room.pot
       this.pots = room.pots || []
       this.currentBetToCall = room.currentBetToCall
+      this.lastRaiseIncrement =
+        room.lastRaiseIncrement != null ? room.lastRaiseIncrement : this.bigBlind
       this.actIndex = room.currentActorIndex
       this.spectators = room.spectators || []
       var list = room.waitNextHand || []
       this.nextHandReady = !!(this.user && list.indexOf(this.user.nickname) !== -1)
       this.$nextTick(function () {
         this.syncActionCountdown()
+        if (this.isMyTurn && this.raiseAmount < this.minRaise) {
+          this.raiseAmount = this.minRaise
+        }
       }.bind(this))
     },
 

@@ -40,6 +40,13 @@
   animation: hole-card-flip-eco 0.35s ease-out both;
 }
 
+.dp-game-root[data-dp-eco-mode='true'] .hole-card-flip.hole-card-flip--instant {
+  animation: none;
+  transform: none;
+  opacity: 1;
+  filter: none;
+}
+
 @keyframes hole-card-flip-eco {
   from {
     opacity: 0.6;

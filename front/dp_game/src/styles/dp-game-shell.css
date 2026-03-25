@@ -21,6 +21,43 @@
   text-align: left;
 }
 
+/* 对局主列：窄屏下通过 order 把桌面段提到最上，优先看到牌桌 */
+.dp-game-page-flex {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.dp-game-page-seg {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 600px) {
+  .dp-game-page-seg--table {
+    order: -1;
+  }
+
+  /* 固定底栏（聊天+手牌+行动同一行）时给页面底部留白 */
+  .dp-game-root--mobile-hero-dock {
+    padding-bottom: max(76px, calc(16px + env(safe-area-inset-bottom, 0px) + 56px));
+  }
+}
+
+/* 全屏 / 伪全屏：同样圆桌置顶（宽屏全屏时 max-width>600 也会生效） */
+.dp-game-root--layout-fs .dp-game-page-seg--table,
+.dp-game-root:fullscreen .dp-game-page-seg--table,
+.dp-game-root:-webkit-full-screen .dp-game-page-seg--table {
+  order: -1;
+}
+
+.dp-game-root--layout-fs.dp-game-root--mobile-hero-dock,
+.dp-game-root:fullscreen.dp-game-root--mobile-hero-dock,
+.dp-game-root:-webkit-full-screen.dp-game-root--mobile-hero-dock {
+  padding-bottom: max(76px, calc(16px + env(safe-area-inset-bottom, 0px) + 56px));
+}
+
 /* 全屏 / 伪全屏：原生 :fullscreen 与 .dp-game-root--layout-fs 共用圆桌自适应 */
 .dp-game-root:fullscreen,
 .dp-game-root:-webkit-full-screen {
@@ -50,7 +87,8 @@
 .dp-game-root.dp-game-root--layout-fs .dp-game-table__layout {
   max-width: min(920px, 100%);
   width: 100%;
-  min-height: clamp(260px, min(92vw, calc(100dvh - 200px)), 620px);
+  /* 全屏时手牌/行动改底栏抽屉，不再为内联操作区预留 ~200px */
+  min-height: clamp(280px, min(92vw, calc(100dvh - 120px)), 640px);
 }
 
 .dp-game-root:fullscreen .dp-game-table__felt,
@@ -65,17 +103,17 @@
   max-width: min(340px, 88vw);
 }
 
-.dp-game-root:fullscreen .dp-game-hero-dock,
-.dp-game-root:-webkit-full-screen .dp-game-hero-dock,
-.dp-game-root.dp-game-root--layout-fs .dp-game-hero-dock {
-  max-width: min(520px, 100%);
+.dp-game-root:fullscreen .dp-game-hero-action-row,
+.dp-game-root:-webkit-full-screen .dp-game-hero-action-row,
+.dp-game-root.dp-game-root--layout-fs .dp-game-hero-action-row {
+  max-width: min(900px, 100%);
 }
 
 @media (max-width: 600px) {
   .dp-game-root:fullscreen .dp-game-table__layout,
   .dp-game-root:-webkit-full-screen .dp-game-table__layout,
   .dp-game-root.dp-game-root--layout-fs .dp-game-table__layout {
-    min-height: clamp(260px, min(94vw, calc(100dvh - 180px)), 520px);
+    min-height: clamp(260px, min(94vw, calc(100dvh - 100px)), 520px);
   }
 }
 
@@ -94,6 +132,37 @@
   gap: 10px;
   margin-bottom: 10px;
   flex-wrap: wrap;
+}
+
+/* 顶栏「设置」内下拉：不再占整行，纵向排布 */
+.dp-top-bar__settings-panel.dp-game-theme-row {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+  margin: 0;
+  margin-bottom: 0;
+  padding: 12px 14px;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 10px;
+  min-width: min(240px, calc(100vw - 28px));
+  max-width: min(320px, calc(100vw - 28px));
+  background: var(--dp-panel-bg);
+  border: 1px solid var(--dp-panel-border);
+  border-radius: 10px;
+  box-shadow: var(--dp-panel-shadow);
+  text-align: left;
+}
+
+.dp-top-bar__settings-panel .dp-game-theme-select {
+  width: 100%;
+  max-width: none;
+}
+
+.dp-top-bar__settings-panel .dp-game-eco-label {
+  margin-left: 0;
 }
 
 .dp-game-theme-row__label {
@@ -130,6 +199,44 @@
   flex-shrink: 0;
 }
 
+/* 全屏对局：原独立主题行已迁入顶栏设置；此处仅排除下拉面板，避免绝对定位被 margin:auto 打乱 */
+.dp-game-root--layout-fs .dp-game-theme-row:not(.dp-top-bar__settings-panel),
+.dp-game-root:fullscreen .dp-game-theme-row:not(.dp-top-bar__settings-panel),
+.dp-game-root:-webkit-full-screen .dp-game-theme-row:not(.dp-top-bar__settings-panel) {
+  max-width: min(420px, calc(100% - 12px));
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 6px;
+  justify-content: center;
+  gap: 6px;
+}
+
+.dp-game-root--layout-fs .dp-game-theme-select,
+.dp-game-root:fullscreen .dp-game-theme-select,
+.dp-game-root:-webkit-full-screen .dp-game-theme-select {
+  max-width: min(148px, 36vw);
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.dp-game-root--layout-fs .dp-top-bar__settings-panel .dp-game-theme-select,
+.dp-game-root:fullscreen .dp-top-bar__settings-panel .dp-game-theme-select,
+.dp-game-root:-webkit-full-screen .dp-top-bar__settings-panel .dp-game-theme-select {
+  max-width: none;
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.dp-game-root--layout-fs .dp-game-theme-row__label,
+.dp-game-root--layout-fs .dp-game-eco-label,
+.dp-game-root:fullscreen .dp-game-theme-row__label,
+.dp-game-root:fullscreen .dp-game-eco-label,
+.dp-game-root:-webkit-full-screen .dp-game-theme-row__label,
+.dp-game-root:-webkit-full-screen .dp-game-eco-label {
+  font-size: 11px;
+}
+
 .dp-game-hint {
   text-align: center;
   font-size: 12px;
@@ -155,7 +262,7 @@
     padding-bottom: 4px;
   }
 
-  .dp-game-hero-dock {
+  .dp-game-hero-action-row {
     margin: 6px auto 4px;
   }
 
@@ -170,10 +277,10 @@
     min-height: clamp(236px, min(86vw, calc(100dvh - 228px)), 540px);
   }
 
-  .dp-game-root:fullscreen .dp-game-hero-dock,
-  .dp-game-root:-webkit-full-screen .dp-game-hero-dock,
-  .dp-game-root.dp-game-root--layout-fs .dp-game-hero-dock {
-    max-width: min(480px, 100%);
+  .dp-game-root:fullscreen .dp-game-hero-action-row,
+  .dp-game-root:-webkit-full-screen .dp-game-hero-action-row,
+  .dp-game-root.dp-game-root--layout-fs .dp-game-hero-action-row {
+    max-width: min(860px, 100%);
     margin-top: 4px;
     margin-bottom: 4px;
   }
@@ -500,15 +607,187 @@
   }
 }
 
-/* 本人完整信息：圆桌下方独立区域（手机 / 桌面共用） */
-.dp-game-hero-dock {
+/* 宽屏保留内联手牌+操作；窄屏或全屏对局时隐藏，改底栏 + 抽屉 */
+@media (max-width: 600px) {
+  .dp-game-hero-action-row--hide-narrow {
+    display: none !important;
+  }
+}
+
+.dp-game-root--layout-fs .dp-game-hero-action-row--hide-narrow,
+.dp-game-root:fullscreen .dp-game-hero-action-row--hide-narrow,
+.dp-game-root:-webkit-full-screen .dp-game-hero-action-row--hide-narrow {
+  display: none !important;
+}
+
+/* 底栏：默认隐藏；≤600px 或 全屏/伪全屏时显示 */
+.dp-game-mobile-hero-bar {
+  display: none;
+  box-sizing: border-box;
+}
+
+@media (max-width: 600px) {
+  .dp-game-mobile-hero-bar {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    justify-content: center;
+    gap: 8px;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 88;
+    padding: 8px max(10px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px));
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.2) 60%, transparent);
+    pointer-events: none;
+  }
+}
+
+.dp-game-root--layout-fs .dp-game-mobile-hero-bar,
+.dp-game-root:fullscreen .dp-game-mobile-hero-bar,
+.dp-game-root:-webkit-full-screen .dp-game-mobile-hero-bar {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  justify-content: center;
+  gap: 8px;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 88;
+  padding: 8px max(10px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px));
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.2) 60%, transparent);
+  pointer-events: none;
+}
+
+.dp-game-mobile-hero-bar > * {
+  pointer-events: auto;
+}
+
+.dp-game-mobile-hero-bar__btn {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: min(132px, 30vw);
+  border: 1px solid var(--dp-panel-border);
+  border-radius: 10px;
+  padding: 10px 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  background: var(--dp-panel-bg);
+  color: var(--dp-text-primary);
+  box-shadow: var(--dp-panel-shadow);
+  align-self: center;
+}
+
+.dp-game-mobile-hero-bar__btn--action {
+  background: var(--dp-btn-primary-bg);
+  color: var(--dp-btn-primary-fg);
+  border-color: transparent;
+}
+
+.dp-game-mobile-hero-bar__btn--urgent {
+  animation: dp-mobile-action-pulse 1s ease-in-out infinite;
+}
+
+@keyframes dp-mobile-action-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(250, 173, 20, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 14px 3px rgba(250, 173, 20, 0.25);
+  }
+}
+
+/* 宽屏且非全屏：仍用内联手牌行，隐藏底栏 */
+@media (min-width: 601px) {
+  .dp-game-root:not(.dp-game-root--layout-fs):not(:fullscreen):not(:-webkit-full-screen) .dp-game-mobile-hero-bar {
+    display: none !important;
+  }
+}
+
+/* 弹层内手牌区：占满宽度 */
+.dp-game-hero-dock--in-sheet {
   width: 100%;
-  max-width: min(420px, 100%);
+  max-width: 100%;
+}
+
+/* 本人手牌 + 右侧固定槽位：同一行，两列等高（stretch）；非本人回合右侧为主题底占位 */
+.dp-game-hero-action-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+  max-width: min(920px, 100%);
   margin: 10px auto 6px;
   padding: 0 6px;
   box-sizing: border-box;
   position: relative;
   z-index: 1;
+  justify-content: flex-start;
+}
+
+.dp-game-inline-action-slot {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  align-self: stretch;
+}
+
+.dp-game-inline-action-slot--solo {
+  flex: 1 1 100%;
+  width: 100%;
+  max-width: 100%;
+}
+
+/* 操作面板铺满槽位高度，背景与左侧底对齐 */
+.dp-game-inline-action-slot > .dp-action-panel {
+  margin-top: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: auto;
+}
+
+/* 非本人回合：与页面主题同色同渐变，视觉上「盖住」操作区 */
+.dp-game-action-slot-cover {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  border-radius: 10px;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  background: var(--dp-game-bg);
+  background-image: var(--dp-game-bg-image);
+  pointer-events: none;
+}
+
+/* 本人完整信息：在行内占左侧一条，宽度由父 flex 限制 */
+.dp-game-hero-dock {
+  width: 100%;
+  max-width: min(300px, 44vw);
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+  flex: 0 1 auto;
+  min-width: 0;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
 }
 
 .dp-game-hero-dock .dp-player-card {
@@ -516,9 +795,9 @@
   max-width: 100%;
 }
 
-/* 摊牌后本人大卡：随内容变窄，并与圆桌区拉开，减少压住公共牌的观感 */
+/* 摊牌后本人大卡：随内容变窄 */
 .dp-game-hero-dock--hand-reveal {
-  margin-top: 14px;
+  margin-top: 0;
 }
 
 .dp-game-hero-dock--hand-reveal .dp-player-card {
@@ -538,8 +817,30 @@
     padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
   }
 
-  .dp-game-theme-row {
-    margin-bottom: 8px;
+  .dp-game-theme-row:not(.dp-top-bar__settings-panel) {
+    margin-bottom: 6px;
+    gap: 5px;
+    font-size: 11px;
+    max-width: min(400px, 100%);
+    margin-left: auto;
+    margin-right: auto;
+    justify-content: center;
+  }
+
+  .dp-game-theme-row__label,
+  .dp-game-eco-label {
+    font-size: 10px;
+  }
+
+  .dp-game-theme-select {
+    font-size: 11px;
+    padding: 4px 8px;
+    max-width: min(132px, 40vw);
+  }
+
+  .dp-top-bar__settings-panel .dp-game-theme-select {
+    max-width: none;
+    width: 100%;
   }
 
   .dp-game-hint {
@@ -552,12 +853,35 @@
   }
 
   .dp-game-table__layout {
-    min-height: clamp(260px, min(90vw, max(300px, calc(52dvh - 120px))), 440px);
+    /* 桌面置顶后略压高度，给下方信息区留可视空间，减少整页滑动 */
+    min-height: clamp(220px, min(88vw, max(260px, calc(46dvh - 100px))), 400px);
   }
 
-  .dp-game-hero-dock {
+  .dp-game-hero-action-row {
     margin-top: 8px;
+    margin-bottom: 4px;
+    gap: 6px;
+  }
+
+  .dp-game-hero-action-row:has(.dp-game-hero-dock) .dp-game-hero-dock {
+    max-width: min(260px, 40vw);
+  }
+}
+
+/* 极窄屏：上下叠放，避免操作区挤到不可点 */
+@media (max-width: 360px) {
+  .dp-game-hero-action-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dp-game-hero-action-row .dp-game-hero-dock {
     max-width: 100%;
+  }
+
+  .dp-game-inline-action-slot {
+    flex: 1 1 auto;
+    width: 100%;
   }
 }
 
@@ -573,13 +897,29 @@
     top: 44%;
   }
 
-  .dp-game-theme-row {
+  .dp-game-theme-row:not(.dp-top-bar__settings-panel) {
     margin-bottom: 4px;
+    max-width: min(400px, 96vw);
+    margin-left: auto;
+    margin-right: auto;
+    justify-content: center;
   }
 
   .dp-game-theme-row__label,
   .dp-game-theme-select {
-    font-size: 11px;
+    font-size: 10px;
+  }
+
+  .dp-game-theme-select {
+    max-width: min(128px, 34vw);
+    padding: 3px 6px;
+  }
+
+  .dp-top-bar__settings-panel .dp-game-theme-select {
+    max-width: none;
+    width: 100%;
+    font-size: 12px;
+    padding: 5px 8px;
   }
 }
 
@@ -1228,6 +1568,10 @@
   color: var(--dp-accent);
 }
 
+.dp-top-bar__bet {
+  font-weight: bold;
+}
+
 .dp-top-bar__sub {
   font-size: 14px;
   color: var(--dp-text-secondary);
@@ -1238,10 +1582,205 @@
   font-weight: bold;
 }
 
+.dp-top-bar__left {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dp-top-bar__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dp-top-bar__head .dp-top-bar__title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dp-top-bar__settings-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.dp-top-bar__settings-btn {
+  white-space: nowrap;
+}
+
+.dp-top-bar__right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .dp-top-bar__actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.dp-top-bar__spectator-hint {
+  line-height: 1.35;
+  font-size: 12px;
+  color: var(--dp-text-secondary);
+  text-align: right;
+  max-width: 100%;
+}
+
+.dp-top-bar__spectator-hint--inline {
+  width: 100%;
+}
+
+.dp-top-bar__spectator-accent {
+  color: var(--dp-accent);
+  font-weight: 700;
+}
+
+.dp-top-bar__btn {
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.dp-top-bar__btn--ghost {
+  background: var(--dp-btn-ghost-bg);
+  border: 1px solid var(--dp-btn-ghost-border);
+  color: var(--dp-btn-ghost-fg);
+}
+
+/* 全屏：房间条收窄、字号与按钮略缩 */
+.dp-game-root--layout-fs .dp-top-bar,
+.dp-game-root:fullscreen .dp-top-bar,
+.dp-game-root:-webkit-full-screen .dp-top-bar {
+  max-width: min(460px, calc(100% - 12px));
+  margin-left: auto;
+  margin-right: auto;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  gap: 6px 8px;
+  align-items: flex-start;
+}
+
+.dp-game-root--layout-fs .dp-top-bar__title,
+.dp-game-root:fullscreen .dp-top-bar__title,
+.dp-game-root:-webkit-full-screen .dp-top-bar__title {
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.dp-game-root--layout-fs .dp-top-bar__sub,
+.dp-game-root:fullscreen .dp-top-bar__sub,
+.dp-game-root:-webkit-full-screen .dp-top-bar__sub {
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.dp-game-root--layout-fs .dp-top-bar__actions,
+.dp-game-root:fullscreen .dp-top-bar__actions,
+.dp-game-root:-webkit-full-screen .dp-top-bar__actions {
+  gap: 4px 6px;
+}
+
+.dp-game-root--layout-fs .dp-top-bar__btn,
+.dp-game-root:fullscreen .dp-top-bar__btn,
+.dp-game-root:-webkit-full-screen .dp-top-bar__btn {
+  padding: 5px 8px;
+  font-size: 11px;
+  border-radius: 4px;
+}
+
+@media (max-width: 600px) {
+  .dp-top-bar {
+    padding: 8px 10px;
+    gap: 6px;
+    margin-bottom: 8px;
+    max-width: min(460px, 100%);
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .dp-top-bar__title {
+    font-size: 13px;
+    line-height: 1.3;
+  }
+
+  .dp-top-bar__sub {
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .dp-top-bar__actions {
+    gap: 4px 6px;
+  }
+
+  .dp-top-bar__btn {
+    padding: 5px 8px;
+    font-size: 11px;
+    border-radius: 4px;
+  }
+}
+
+@media (max-width: 900px) and (max-height: 460px) {
+  .dp-top-bar {
+    max-width: min(440px, 96vw);
+    margin-left: auto;
+    margin-right: auto;
+    padding: 6px 8px;
+    margin-bottom: 6px;
+    gap: 4px 6px;
+  }
+
+  .dp-top-bar__title {
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  .dp-top-bar__sub {
+    font-size: 10px;
+    line-height: 1.3;
+  }
+
+  .dp-top-bar__btn {
+    padding: 4px 7px;
+    font-size: 10px;
+    border-radius: 4px;
+  }
+
+  /* 压过 .dp-game-root--layout-fs 下的顶栏字号与内边距 */
+  .dp-game-root--layout-fs .dp-top-bar,
+  .dp-game-root:fullscreen .dp-top-bar,
+  .dp-game-root:-webkit-full-screen .dp-top-bar {
+    max-width: min(420px, 94vw);
+    padding: 6px 8px;
+    margin-bottom: 6px;
+    gap: 4px 6px;
+  }
+
+  .dp-game-root--layout-fs .dp-top-bar__title,
+  .dp-game-root:fullscreen .dp-top-bar__title,
+  .dp-game-root:-webkit-full-screen .dp-top-bar__title {
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  .dp-game-root--layout-fs .dp-top-bar__sub,
+  .dp-game-root:fullscreen .dp-top-bar__sub,
+  .dp-game-root:-webkit-full-screen .dp-top-bar__sub {
+    font-size: 10px;
+    line-height: 1.3;
+  }
+
+  .dp-game-root--layout-fs .dp-top-bar__btn,
+  .dp-game-root:fullscreen .dp-top-bar__btn,
+  .dp-game-root:-webkit-full-screen .dp-top-bar__btn {
+    padding: 4px 7px;
+    font-size: 10px;
+  }
 }
 
 .dp-btn {
@@ -1277,6 +1816,59 @@
   border: 1px solid var(--dp-panel-border);
 }
 
+.dp-action-panel--settled {
+  margin-top: 0;
+}
+
+.dp-action-panel__settled-title {
+  font-size: 14px;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 8px;
+  color: var(--dp-text-primary);
+  line-height: 1.35;
+}
+
+.dp-action-panel__settled-count {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.dp-action-panel__settled-count-label {
+  font-size: 12px;
+  color: var(--dp-text-muted);
+}
+
+.dp-action-panel__settled-chips {
+  text-align: center;
+  font-size: 13px;
+  color: var(--dp-text-secondary);
+  margin-bottom: 8px;
+}
+
+.dp-action-panel__settled-chips strong {
+  font-weight: bold;
+  color: var(--dp-accent);
+}
+
+.dp-action-panel__settled-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dp-action-panel__settled-btn {
+  touch-action: manipulation;
+}
+
+.dp-action-panel__settled-btn--dim {
+  opacity: 0.45;
+}
+
 .dp-action-panel__turn {
   text-align: center;
   color: var(--dp-warning);
@@ -1288,15 +1880,153 @@
   font-size: 13px;
   color: var(--dp-text-secondary);
   text-align: center;
+  margin-bottom: 8px;
+}
+
+.dp-action-panel__raise-hint {
+  font-size: 12px;
+  color: var(--dp-text-secondary);
+  text-align: center;
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.dp-action-panel__raise-hint strong {
+  color: var(--dp-accent);
+  font-weight: 700;
+}
+
+.dp-action-panel__raise-hint-sub {
+  display: block;
+  font-size: 11px;
+  color: var(--dp-text-muted);
+  margin-top: 2px;
+}
+
+.dp-action-panel__presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
   margin-bottom: 10px;
 }
 
-.dp-action-panel__row {
+.dp-btn--pot-preset {
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--dp-btn-ghost-border);
+  background: var(--dp-btn-ghost-bg);
+  color: var(--dp-btn-ghost-fg);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.dp-btn--pot-preset:active {
+  opacity: 0.88;
+}
+
+.dp-action-panel__slider-row {
   display: flex;
-  gap: 10px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
   flex-wrap: wrap;
+}
+
+.dp-raise-slider-label {
+  font-size: 12px;
+  color: var(--dp-text-secondary);
+  flex: 0 0 auto;
+}
+
+.dp-raise-slider {
+  flex: 1 1 120px;
+  min-width: 100px;
+  height: 8px;
+  accent-color: var(--dp-btn-primary-bg);
+}
+
+.dp-raise-slider-value {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--dp-text-primary);
+  min-width: 36px;
+  text-align: right;
+}
+
+/* 操作区：手机双行（主流扑克 App 常见）— 底行全宽 All-In | 弃牌，避免横滑遮挡；宽屏并为一行 */
+.dp-action-panel__controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.dp-action-panel__row--main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   justify-content: center;
   align-items: center;
+}
+
+.dp-action-panel__row--commit {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+  padding-bottom: max(0px, env(safe-area-inset-bottom, 0px));
+}
+
+.dp-action-panel__row--commit .dp-btn--allin,
+.dp-action-panel__row--commit .dp-btn--fold {
+  width: 100%;
+  min-height: 44px;
+  height: auto;
+  padding: 10px 8px;
+  box-sizing: border-box;
+  font-size: 14px;
+}
+
+@media (min-width: 680px) {
+  .dp-action-panel__controls {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    column-gap: 10px;
+  }
+
+  .dp-action-panel__row--main {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    padding-bottom: 2px;
+  }
+
+  .dp-action-panel__row--commit {
+    display: flex;
+    flex: 0 0 auto;
+    width: auto;
+    padding-bottom: 0;
+    gap: 6px;
+  }
+
+  .dp-action-panel__row--commit .dp-btn--allin,
+  .dp-action-panel__row--commit .dp-btn--fold {
+    width: auto;
+    min-height: 40px;
+    height: 40px;
+    padding: 0 10px;
+    font-size: inherit;
+  }
 }
 
 .dp-timer-ring {
@@ -1322,7 +2052,7 @@
 
 .dp-btn--call {
   height: 40px;
-  padding: 0 18px;
+  padding: 0 12px;
   background: var(--dp-btn-primary-bg);
   color: var(--dp-btn-primary-fg);
   border: none;
@@ -1331,18 +2061,21 @@
   font-weight: bold;
   display: flex;
   align-items: center;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .dp-raise-controls {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   height: 40px;
+  flex-shrink: 0;
 }
 
 .dp-btn--ghost-sm {
-  height: 32px;
-  width: 32px;
+  height: 30px;
+  width: 30px;
   padding: 0;
   background: var(--dp-btn-ghost-bg);
   border: 1px solid var(--dp-btn-ghost-border);
@@ -1353,8 +2086,8 @@
 }
 
 .dp-input--raise {
-  width: 60px;
-  height: 32px;
+  width: 52px;
+  height: 30px;
   padding: 0;
   border: 1px solid var(--dp-input-border);
   border-radius: 4px;
@@ -1365,7 +2098,8 @@
 
 .dp-btn--raise-go {
   height: 40px;
-  padding: 0 14px;
+  padding: 0 10px;
+  flex-shrink: 0;
   background: var(--dp-btn-raise-bg);
   color: var(--dp-btn-raise-fg);
   border: none;
@@ -1376,7 +2110,9 @@
 
 .dp-btn--allin {
   height: 40px;
-  padding: 0 14px;
+  padding: 0 10px;
+  flex-shrink: 0;
+  white-space: nowrap;
   background: var(--dp-btn-allin-bg);
   color: var(--dp-btn-allin-fg);
   border: none;
@@ -1387,7 +2123,8 @@
 
 .dp-btn--fold {
   height: 40px;
-  padding: 0 18px;
+  padding: 0 12px;
+  flex-shrink: 0;
   background: var(--dp-danger);
   color: #fff;
   border: none;
@@ -1511,32 +2248,6 @@
   color: var(--dp-text-muted);
 }
 
-/* ---- Settled prepare ---- */
-.dp-settled-panel {
-  margin-top: 15px;
-  background: var(--dp-panel-bg);
-  padding: 12px;
-  border-radius: 8px;
-  box-shadow: var(--dp-panel-shadow);
-  border: 1px solid var(--dp-panel-border);
-}
-
-.dp-settled-panel__title {
-  font-size: 14px;
-  font-weight: bold;
-  text-align: center;
-  margin-bottom: 8px;
-  color: var(--dp-text-primary);
-}
-
-.dp-settled-panel__count-row {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-
 .dp-timer-ring--sm {
   width: 32px;
   height: 32px;
@@ -1544,30 +2255,6 @@
 
 .dp-timer-ring--sm .dp-timer-ring__text {
   font-size: 14px;
-}
-
-.dp-settled-panel__count-label {
-  font-size: 12px;
-  color: var(--dp-text-muted);
-}
-
-.dp-settled-panel__chips {
-  text-align: center;
-  font-size: 13px;
-  color: var(--dp-text-secondary);
-  margin-bottom: 8px;
-}
-
-.dp-settled-panel__chips strong {
-  font-weight: bold;
-  color: var(--dp-accent);
-}
-
-.dp-settled-panel__actions {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  flex-wrap: wrap;
 }
 
 .dp-btn--success {
@@ -1590,54 +2277,17 @@
   color: var(--dp-owner-orange-fg);
 }
 
-/* ---- Spectator banner ---- */
-.dp-spectator-banner {
-  background: var(--dp-panel-bg);
-  padding: 10px 15px;
-  border-radius: 8px;
-  margin-bottom: 15px;
-  text-align: center;
-  font-size: 13px;
-  border: 1px solid var(--dp-panel-border);
-  box-shadow: var(--dp-panel-shadow);
-  color: var(--dp-text-secondary);
-}
-
-.dp-spectator-banner__accent {
-  color: var(--dp-accent);
-}
-
-.dp-spectator-banner__btn {
-  padding: 6px 14px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  background: var(--dp-success);
-  color: #fff;
-  font-size: 13px;
-  margin-top: 8px;
-}
-
-.dp-spectator-banner__btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-/* ---- 行动区 + 房间聊天（输入栏在按钮下方，避免挡手机操作键） ---- */
+/* ---- 房间聊天（行动面板已并入 dp-game-hero-action-row） ---- */
 .dp-game-action-hud {
-  margin-top: 14px;
+  margin-top: 10px;
   width: 100%;
-  max-width: min(520px, 100%);
+  max-width: min(920px, 100%);
   margin-left: auto;
   margin-right: auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
   align-items: stretch;
-}
-
-.dp-game-action-hud .dp-action-panel {
-  margin-top: 0;
 }
 
 .dp-game-seat-chat-orphans {
@@ -1735,6 +2385,40 @@
   border-radius: 10px;
   border: 1px solid var(--dp-panel-border);
   box-shadow: var(--dp-panel-shadow);
+}
+
+/* 与本人手牌、行动面板同一行（宽屏） */
+.dp-game-room-chat__bar--hero-row {
+  flex: 1 1 220px;
+  min-width: min(140px, 36vw);
+  max-width: min(320px, 40vw);
+  width: auto;
+  margin: 0;
+  padding: 8px 10px;
+  align-self: stretch;
+}
+
+/* 与「查看手牌 / 行动」同一底栏（窄屏、全屏） */
+.dp-game-room-chat__bar--mobile-dock {
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+  margin: 0;
+  padding: 6px 8px;
+  gap: 6px;
+  align-self: center;
+}
+
+.dp-game-room-chat__bar--mobile-dock .dp-game-room-chat__input {
+  font-size: 13px;
+  padding: 6px 8px;
+  min-width: 0;
+}
+
+.dp-game-room-chat__bar--mobile-dock .dp-game-room-chat__send {
+  font-size: 12px;
+  padding: 6px 10px;
+  flex-shrink: 0;
 }
 
 .dp-game-room-chat__input {
