@@ -124,29 +124,20 @@ final class DpNpcSharkStrategy {
                 + " countBluffScale=" + String.format("%.2f", countBluffScale)
                 + " thinVsVillain=" + thinVsVillain);
 
-        // 在“无人下注”时 buildSmartContext 会让 aggressor=null（因为所有人 bet 都是 0）。
-        // 但 Shark 的开枪/学习必须有一个“主要目标对手”，否则 learned 永远拿不到，bluffFire 永远是 0。
-        DpPlayer targetVillain = ctx.aggressor;
-        if (targetVillain == null && room.getPlayers() != null) {
-            for (DpPlayer p : room.getPlayers()) {
-                if (p == null) continue;
-                if (p == bot) continue;
-                if (p.isFold() || p.isAllIn() || p.isLeftThisHand()) continue;
-                targetVillain = p;
-                break;
-            }
-        }
+        // 无人下注时 aggressor=null：主对手由 resolvePrimaryVillainForShark 按座位顺时针 +「下一位须表态者」选取，
+        // 与 DpNpcEngine.initHandPlanIfNeededForPostflop 一致，避免只盯住列表里第一个座位。
+        DpPlayer targetVillain = DpNpcEngine.resolvePrimaryVillainForShark(room, bot, ctx);
 
         int sharkTotalStack = bot.getBet() + bot.getChips();
         double sharkCommitFactor;
         if (st == SimpleStrength.MONSTER) {
-            sharkCommitFactor = 0.95;
+            sharkCommitFactor = 0.96;
         } else if (st == SimpleStrength.STRONG) {
-            sharkCommitFactor = 0.75;
+            sharkCommitFactor = 0.80;
         } else if (st == SimpleStrength.MEDIUM) {
-            sharkCommitFactor = 0.5;
+            sharkCommitFactor = 0.58;
         } else {
-            sharkCommitFactor = 0.3;
+            sharkCommitFactor = 0.34;
         }
         if (!"preflop".equals(stage) && bd == DpNpcEngine.BoardDanger.WET) {
             // 潮湿牌面：即便是 Shark，也更愿意控池
@@ -265,9 +256,9 @@ final class DpNpcSharkStrategy {
         double potOdds = ctx.potOdds;
         if (callAmount > 0) {
             if (potOdds > 0.5) {
-                baseFold = Math.min(1.0, baseFold * 1.15);
+                baseFold = Math.min(1.0, baseFold * 1.07);
             } else if (potOdds < 0.25) {
-                baseFold = Math.max(0.0, baseFold * 0.85);
+                baseFold = Math.max(0.0, baseFold * 0.76);
             }
         }
 
@@ -305,7 +296,7 @@ final class DpNpcSharkStrategy {
                 baseFold = Math.max(0.0, baseFold * DpNpcEngine.SharkConfig.EQUITY_FOLD_SHRINK);
             }
             if (st == SimpleStrength.WEAK && callRatio > 0.5 && potOdds > 0.45) {
-                baseFold = Math.min(1.0, Math.max(baseFold, 0.85));
+                baseFold = Math.min(1.0, Math.max(baseFold, 0.72));
             }
         }
 
@@ -329,7 +320,7 @@ final class DpNpcSharkStrategy {
 
         DpNpcEngine.HandPlanType planShark = DpNpcEngine.getHandPlanType(bot);
         if (planShark == DpNpcEngine.HandPlanType.GIVE_UP && callAmount > 0) {
-            baseFold = Math.min(1.0, baseFold + 0.15);
+            baseFold = Math.min(1.0, baseFold + 0.08);
         }
 
         double foldProbShark = Math.min(1.0, Math.max(0.0, baseFold + (-mood) * 0.1));
@@ -619,10 +610,10 @@ final class DpNpcSharkStrategy {
             if (!hardBlock) {
                 // 基础下注频率：强牌更高；弱牌也给一定 stab 空间（尤其对 tight / 一枪流）
                 double betProb;
-                if (st == SimpleStrength.MONSTER) betProb = 0.88;
-                else if (st == SimpleStrength.STRONG) betProb = 0.72;
-                else if (st == SimpleStrength.MEDIUM) betProb = 0.42;
-                else betProb = 0.20;
+                if (st == SimpleStrength.MONSTER) betProb = 0.91;
+                else if (st == SimpleStrength.STRONG) betProb = 0.79;
+                else if (st == SimpleStrength.MEDIUM) betProb = 0.51;
+                else betProb = 0.17;
 
                 // 牌面与人数：湿牌/多人减少无谓开枪
                 if (bd == DpNpcEngine.BoardDanger.WET) betProb *= 0.85;
@@ -690,11 +681,17 @@ final class DpNpcSharkStrategy {
                     int sb = DpRoom.getSBChips();
                     int pot = room.getPot();
                     double baseFactor;
-                    if (st == SimpleStrength.STRONG || st == SimpleStrength.MONSTER) baseFactor = 0.78;
-                    else if (st == SimpleStrength.MEDIUM) baseFactor = 0.58;
-                    else baseFactor = 0.42;
+                    if (st == SimpleStrength.STRONG || st == SimpleStrength.MONSTER) {
+                        baseFactor = DpNpcEngine.SharkConfig.CBET_BASE_STRONG;
+                    } else if (st == SimpleStrength.MEDIUM) {
+                        baseFactor = DpNpcEngine.SharkConfig.CBET_BASE_MEDIUM;
+                    } else {
+                        baseFactor = DpNpcEngine.SharkConfig.CBET_BASE_WEAK;
+                    }
 
-                    double randomFactor = 0.9 + random.nextDouble() * 0.3;
+                    double rMin = DpNpcEngine.SharkConfig.CBET_RANDOM_MIN;
+                    double rMax = DpNpcEngine.SharkConfig.CBET_RANDOM_MAX;
+                    double randomFactor = rMin + random.nextDouble() * (rMax - rMin);
                     double sizeFactor = baseFactor * randomFactor;
 
                     // 诈唬/偷的尺度：用分桶探索结果来“摸边界”
@@ -841,13 +838,15 @@ final class DpNpcSharkStrategy {
                 int pot = room.getPot();
                 double baseFactor;
                 if (st == SimpleStrength.STRONG || st == SimpleStrength.MONSTER) {
-                    baseFactor = 0.8;
+                    baseFactor = DpNpcEngine.SharkConfig.CBET_BASE_STRONG;
                 } else if (st == SimpleStrength.MEDIUM) {
-                    baseFactor = 0.6;
+                    baseFactor = DpNpcEngine.SharkConfig.CBET_BASE_MEDIUM;
                 } else {
-                    baseFactor = 0.45;
+                    baseFactor = DpNpcEngine.SharkConfig.CBET_BASE_WEAK;
                 }
-                double randomFactor = 0.9 + random.nextDouble() * 0.3; // 0.9~1.2
+                double rMin = DpNpcEngine.SharkConfig.CBET_RANDOM_MIN;
+                double rMax = DpNpcEngine.SharkConfig.CBET_RANDOM_MAX;
+                double randomFactor = rMin + random.nextDouble() * (rMax - rMin);
                 double factor = baseFactor * randomFactor;
 
                 // 学习到的“更怕哪个尺度”主要用于 bluff/steal（weak/medium），强牌仍以价值尺度为主
@@ -1057,7 +1056,7 @@ final class DpNpcSharkStrategy {
                 && random.nextDouble() < DpNpcEngine.SharkConfig.RIVER_BLOCK_PROB) {
             int sb = DpRoom.getSBChips();
             int pot = room.getPot();
-            double factor = 0.33;
+            double factor = DpNpcEngine.SharkConfig.RIVER_BLOCK_FACTOR;
             int target = (int) Math.round(pot * factor);
             int bb = DpRoom.getBBChips();
             int minBet = bb * 2;

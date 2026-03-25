@@ -104,6 +104,8 @@ final class DpNpcPreflopStrategy {
         PreflopSpot spot = spotBy(raiseLevel, callAmount);
 
         int rangeLevel = computeRangeLevel(activePlayers, position, effStackBB, preflopTightness, callStation, mood);
+        // Shark：整体放宽一档范围，减少「面对加注过度弃牌」、更贴 LAG
+        rangeLevel = Math.min(8, rangeLevel + 1);
         RangeThreshold th = thresholdsFor(position, rangeLevel);
 
         HandGroup g = groupOf(hole);
