@@ -456,11 +456,15 @@ public class DpRoomServiceImpl {
 //                return true;
 //            }
 //        }
-
+    
         List<String> waiters = r.getWaitNextHand();
         if (waiters == null) {
             waiters = new ArrayList<>();
             r.setWaitNextHand(waiters);
+        }
+        //如果游戏和等待人数满10人则不可继续加入游戏
+        if (r.getPlayers().size() + waiters.size() >= 10) {
+            return false;
         }
         if (!waiters.contains(nickname)) {
             waiters.add(nickname);

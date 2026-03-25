@@ -90,7 +90,7 @@ public class DpRoomController {
      */
     @PostMapping("/readyNextHand")
     public String readyNextHand(@RequestParam String roomId, @RequestParam String nickname) {
-        return dpRoomService.readyNextHand(roomId, nickname) ? "ok" : "fail";
+        return dpRoomService.readyNextHand(roomId, nickname) ? "ok" : "人数已满";
     }
 
     /**
