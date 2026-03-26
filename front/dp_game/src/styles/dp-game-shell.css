@@ -29,7 +29,7 @@
   }
 }
 
-/* 对局主列：窄屏下通过 order 把桌面段提到最上，优先看到牌桌 */
+/* 对局主列：固定顺序为 顶栏 → 圆桌 → 底区，避免窄屏圆桌置顶后与顶栏/座位叠在一起 */
 .dp-game-page-flex {
   display: flex;
   flex-direction: column;
@@ -43,21 +43,10 @@
 }
 
 @media (max-width: 600px) {
-  .dp-game-page-seg--table {
-    order: -1;
-  }
-
   /* 固定底栏（聊天+手牌+行动同一行）时给页面底部留白 */
   .dp-game-root--mobile-hero-dock {
     padding-bottom: max(76px, calc(16px + env(safe-area-inset-bottom, 0px) + 56px));
   }
-}
-
-/* 全屏 / 伪全屏：同样圆桌置顶（宽屏全屏时 max-width>600 也会生效） */
-.dp-game-root--layout-fs .dp-game-page-seg--table,
-.dp-game-root:fullscreen .dp-game-page-seg--table,
-.dp-game-root:-webkit-full-screen .dp-game-page-seg--table {
-  order: -1;
 }
 
 .dp-game-root--layout-fs.dp-game-root--mobile-hero-dock,
@@ -125,11 +114,12 @@
   }
 }
 
-@media (max-width: 900px) and (max-height: 460px) {
+/* 含大屏手机横屏（宽常 >900px，如 Pro Max），否则顶栏仍用大内边距、桌面被挤到屏外 */
+@media (max-width: 1024px) and (max-height: 560px) {
   .dp-game-root:fullscreen .dp-game-table__layout,
   .dp-game-root:-webkit-full-screen .dp-game-table__layout,
   .dp-game-root.dp-game-root--layout-fs .dp-game-table__layout {
-    min-height: min(78vw, calc(100dvh - 88px));
+    min-height: min(78vw, calc(100dvh - 72px));
   }
 }
 
@@ -918,12 +908,14 @@
   }
 
   .dp-game-table {
-    margin: 6px 0 12px;
+    /* 顶栏与圆桌之间少留白，底部座位区更容易一屏露出 */
+    margin: 4px 0 10px;
   }
 
   .dp-game-table__layout {
-    /* 桌面置顶后略压高度，给下方信息区留可视空间，减少整页滑动 */
-    min-height: clamp(220px, min(88vw, max(260px, calc(46dvh - 100px))), 400px);
+    /* 略压高度，减少顶栏与台呢之间空白带，底区更易一屏见 */
+    min-height: clamp(208px, min(82vw, max(240px, calc(44dvh - 112px))), 380px);
+    padding-bottom: 6px;
   }
 
   .dp-game-hero-action-row {
@@ -954,11 +946,20 @@
   }
 }
 
-/* 手机横屏：可视高度小，压低桌面高度避免与底栏叠在一起 */
-@media (max-width: 900px) and (max-height: 460px) {
+/* 手机横屏 / 矮视口：收紧顶栏与圆桌间距，整体上移，底部本人区与底栏更易同屏 */
+@media (max-width: 1024px) and (max-height: 560px) {
+  .dp-top-bar {
+    margin-bottom: 2px;
+  }
+
+  .dp-game-table {
+    margin: 0 0 6px;
+  }
+
   .dp-game-table__layout {
-    min-height: min(72vw, calc(100vh - 100px));
-    min-height: min(72vw, calc(100dvh - 100px));
+    min-height: min(72vw, calc(100vh - 76px));
+    min-height: min(72vw, calc(100dvh - 76px));
+    padding-bottom: 4px;
   }
 
   .dp-game-table__felt {
@@ -1613,9 +1614,13 @@
 }
 
 /* ---- Top bar（两行：信息行 + 按钮行） ---- */
+/* 抵消 .dp-game-root 的 padding-top（刘海安全区），使顶栏背景与屏顶对齐；内容仍保留 safe-area 内边距 */
 .dp-top-bar {
+  position: relative;
   background: var(--dp-panel-bg);
   padding: 10px 12px;
+  margin-top: calc(-1 * max(0px, env(safe-area-inset-top, 0px)));
+  padding-top: calc(10px + max(0px, env(safe-area-inset-top, 0px)));
   border-radius: 10px;
   display: flex;
   flex-direction: column;
@@ -1749,6 +1754,8 @@
   margin-left: auto;
   margin-right: auto;
   padding: 8px 10px;
+  margin-top: calc(-1 * max(0px, env(safe-area-inset-top, 0px)));
+  padding-top: calc(8px + max(0px, env(safe-area-inset-top, 0px)));
   margin-bottom: 8px;
   gap: 6px;
   align-items: stretch;
@@ -1784,9 +1791,11 @@
 
 @media (max-width: 600px) {
   .dp-top-bar {
-    padding: 6px 8px 8px;
-    gap: 6px;
-    margin-bottom: 6px;
+    padding: 4px 6px 5px;
+    margin-top: calc(-1 * max(0px, env(safe-area-inset-top, 0px)));
+    padding-top: calc(4px + max(0px, env(safe-area-inset-top, 0px)));
+    gap: 4px;
+    margin-bottom: 4px;
     max-width: min(460px, 100%);
     margin-left: auto;
     margin-right: auto;
@@ -1794,12 +1803,12 @@
 
   .dp-top-bar__title {
     font-size: 13px;
-    line-height: 1.3;
+    line-height: 1.2;
   }
 
   .dp-top-bar__sub {
     font-size: 11px;
-    line-height: 1.35;
+    line-height: 1.28;
   }
 
   .dp-top-bar__actions {
@@ -1807,34 +1816,37 @@
   }
 
   .dp-top-bar__btn {
-    padding: 5px 8px;
+    padding: 4px 7px;
     font-size: 11px;
     border-radius: 4px;
   }
 }
 
-@media (max-width: 900px) and (max-height: 460px) {
+@media (max-width: 1024px) and (max-height: 560px) {
   .dp-top-bar {
     max-width: min(440px, 96vw);
     margin-left: auto;
     margin-right: auto;
-    padding: 5px 7px 7px;
-    margin-bottom: 5px;
-    gap: 4px;
+    /* 上贴安全区下沿、下沿紧贴按钮行，减少纵向占位让圆桌整体上移 */
+    padding: 2px 6px 2px;
+    margin-top: calc(-1 * max(0px, env(safe-area-inset-top, 0px)));
+    padding-top: calc(2px + max(0px, env(safe-area-inset-top, 0px)));
+    margin-bottom: 2px;
+    gap: 2px;
   }
 
   .dp-top-bar__title {
     font-size: 12px;
-    line-height: 1.25;
+    line-height: 1.15;
   }
 
   .dp-top-bar__sub {
     font-size: 10px;
-    line-height: 1.3;
+    line-height: 1.2;
   }
 
   .dp-top-bar__btn {
-    padding: 4px 7px;
+    padding: 3px 6px;
     font-size: 10px;
     border-radius: 4px;
   }
@@ -1844,29 +1856,31 @@
   .dp-game-root:fullscreen .dp-top-bar,
   .dp-game-root:-webkit-full-screen .dp-top-bar {
     max-width: min(420px, 94vw);
-    padding: 5px 7px 7px;
-    margin-bottom: 5px;
-    gap: 4px;
+    padding: 2px 6px 2px;
+    margin-top: calc(-1 * max(0px, env(safe-area-inset-top, 0px)));
+    padding-top: calc(2px + max(0px, env(safe-area-inset-top, 0px)));
+    margin-bottom: 2px;
+    gap: 2px;
   }
 
   .dp-game-root--layout-fs .dp-top-bar__title,
   .dp-game-root:fullscreen .dp-top-bar__title,
   .dp-game-root:-webkit-full-screen .dp-top-bar__title {
     font-size: 12px;
-    line-height: 1.25;
+    line-height: 1.15;
   }
 
   .dp-game-root--layout-fs .dp-top-bar__sub,
   .dp-game-root:fullscreen .dp-top-bar__sub,
   .dp-game-root:-webkit-full-screen .dp-top-bar__sub {
     font-size: 10px;
-    line-height: 1.3;
+    line-height: 1.2;
   }
 
   .dp-game-root--layout-fs .dp-top-bar__btn,
   .dp-game-root:fullscreen .dp-top-bar__btn,
   .dp-game-root:-webkit-full-screen .dp-top-bar__btn {
-    padding: 4px 7px;
+    padding: 3px 6px;
     font-size: 10px;
   }
 }

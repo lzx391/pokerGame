@@ -1887,6 +1887,22 @@ export default {
           y += 10
         }
       }
+      /* 顶栏在圆桌之上 + 座位 translate(-50%,-50%) 会让上家牌盒上半截伸进顶栏带；按屏宽加大下移量（勿用顶栏 z-index 盖住座位） */
+      if (typeof window !== 'undefined') {
+        var w = window.innerWidth
+        var cosT = Math.cos(theta)
+        if (w <= 600) {
+          if (cosT > 0.2) {
+            y += 12
+          } else if (cosT > 0) {
+            y += 6
+          }
+        } else if (w <= 900) {
+          if (cosT > 0.08) {
+            y += 6
+          }
+        }
+      }
       return {
         left: x + '%',
         top: y + '%'
