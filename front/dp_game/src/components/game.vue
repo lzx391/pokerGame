@@ -117,7 +117,7 @@
     <div class="dp-game-page-seg dp-game-page-seg--post-table">
     <!-- 宽屏非全屏：内联手牌+操作；窄屏或全屏/伪全屏：底栏按钮 + 底部抽屉（见 dp-game-shell.css） -->
     <div
-        v-if="heroDockRow || isMyTurn || inSettledStage"
+        v-if="heroDockRow || isMyTurn || inSettledStage || isOwner"
         class="dp-game-hero-action-row dp-game-hero-action-row--hide-narrow"
         aria-label="本人手牌与操作"
     >
@@ -137,6 +137,27 @@
             @click="sendRoomChat"
         >
           发送
+        </button>
+      </div>
+      <div
+          v-if="isOwner"
+          class="dp-game-hero-action-row__owner-cluster"
+          aria-label="房主操作"
+      >
+        <button
+            v-if="heroDockRow"
+            type="button"
+            class="dp-game-hero-action-row__owner-btn dp-game-hero-action-row__owner-btn--hand"
+            @click="showMobileHandSheet = true"
+        >
+          查看手牌
+        </button>
+        <button
+            type="button"
+            class="dp-game-hero-action-row__owner-btn"
+            @click="openOwnerHubSheet"
+        >
+          房主操作
         </button>
       </div>
       <div
@@ -202,7 +223,7 @@
     </div>
 
     <div
-        v-if="heroDockRow || isMyTurn || inSettledStage"
+        v-if="heroDockRow || isMyTurn || inSettledStage || isOwner"
         class="dp-game-mobile-hero-bar"
         aria-label="手牌与行动"
     >
@@ -224,8 +245,29 @@
           发送
         </button>
       </div>
+      <div
+          v-if="isOwner"
+          class="dp-game-mobile-hero-bar__owner-cluster"
+          aria-label="房主操作"
+      >
+        <button
+            v-if="heroDockRow"
+            type="button"
+            class="dp-game-mobile-hero-bar__btn"
+            @click="showMobileHandSheet = true"
+        >
+          查看手牌
+        </button>
+        <button
+            type="button"
+            class="dp-game-mobile-hero-bar__btn dp-game-mobile-hero-bar__btn--owner"
+            @click="openOwnerHubSheet"
+        >
+          房主操作
+        </button>
+      </div>
       <button
-          v-if="heroDockRow"
+          v-if="heroDockRow && !isOwner"
           type="button"
           class="dp-game-mobile-hero-bar__btn"
           @click="showMobileHandSheet = true"
@@ -270,7 +312,7 @@
     -->
 
     <div
-        v-if="!mobileHeroDockActive"
+        v-if="!mobileHeroDockActive && !isOwner"
         class="dp-game-action-hud"
         aria-label="房间聊天"
     >
@@ -294,21 +336,6 @@
       </div>
     </div>
 
-    <game-owner-panel
-        v-if="isOwner"
-        :owner-reveal-all.sync="ownerRevealAll"
-        :stage="stage"
-        :pots="pots"
-        :pot="pot"
-        :pot-winners="potWinners"
-        :selected-winners="selectedWinners"
-        :all-pots-have-winners="allPotsHaveWinners"
-        @open-owner-tools="openOwnerToolPanel"
-        @toggle-pot-winner="onTogglePotWinnerPayload"
-        @confirm-pot-judge="confirmPotJudge"
-        @confirm-judge-win="confirmJudgeWin"
-    />
-
     </div>
     </div>
 
@@ -322,31 +349,6 @@
         :visible="showSpectatorModal"
         :spectators="spectators"
         @close="showSpectatorModal = false"
-    />
-
-    <game-owner-tool-modal
-        :visible="showOwnerToolModal"
-        :owner-tool-type.sync="ownerToolType"
-        :owner-action-target.sync="ownerActionTarget"
-        :owner-action-players="ownerActionPlayers"
-        :demo-bot-adding="demoBotAdding"
-        :demo-bot-added-tip="demoBotAddedTip"
-        :maniac-bot-adding="maniacBotAdding"
-        :maniac-bot-added-tip="maniacBotAddedTip"
-        :tag-bot-adding="tagBotAdding"
-        :tag-bot-added-tip="tagBotAddedTip"
-        :shark-bot-adding="sharkBotAdding"
-        :shark-bot-added-tip="sharkBotAddedTip"
-        :llm-bot-adding="llmBotAdding"
-        :llm-bot-added-tip="llmBotAddedTip"
-        @close="closeOwnerToolPanel"
-        @add-demo-bot="addDemoBot"
-        @add-maniac-bot="addManiacBot"
-        @add-tag-bot="addTagBot"
-        @add-shark-bot="addSharkBot"
-        @add-llm-bot="addLlmBot"
-        @transfer-owner="doTransferOwner"
-        @kick-player="doKickPlayer"
     />
 
     <div
@@ -442,6 +444,71 @@
               @fold="doFold"
               @toggle-ready="toggleReady"
               @rebuy="rebuy"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div
+        v-if="showOwnerHubSheet && isOwner"
+        class="dp-game-sheet-mask dp-game-sheet-mask--bottom"
+        role="dialog"
+        aria-modal="true"
+        aria-label="房主操作"
+        @click.self="closeOwnerHubPanel"
+    >
+      <div class="dp-game-sheet dp-game-sheet--wide" @click.stop>
+        <div class="dp-game-sheet__head">
+          <span class="dp-game-sheet__title">房主操作</span>
+          <button
+              type="button"
+              class="dp-game-sheet__close"
+              aria-label="关闭"
+              @click="closeOwnerHubPanel"
+          >
+            ×
+          </button>
+        </div>
+        <div class="dp-game-sheet__body dp-game-sheet__body--owner-hub">
+          <game-owner-panel
+              hide-title
+              hide-tool-entry
+              in-sheet
+              :stage="stage"
+              :pots="pots"
+              :pot="pot"
+              :pot-winners="potWinners"
+              :selected-winners="selectedWinners"
+              :all-pots-have-winners="allPotsHaveWinners"
+              @toggle-pot-winner="onTogglePotWinnerPayload"
+              @confirm-pot-judge="confirmPotJudge"
+              @confirm-judge-win="confirmJudgeWin"
+          />
+          <game-owner-tool-modal
+              :embedded="true"
+              :visible="true"
+              :owner-reveal-all.sync="ownerRevealAll"
+              :owner-tool-type.sync="ownerToolType"
+              :owner-action-target.sync="ownerActionTarget"
+              :owner-action-players="ownerActionPlayers"
+              :demo-bot-adding="demoBotAdding"
+              :demo-bot-added-tip="demoBotAddedTip"
+              :maniac-bot-adding="maniacBotAdding"
+              :maniac-bot-added-tip="maniacBotAddedTip"
+              :tag-bot-adding="tagBotAdding"
+              :tag-bot-added-tip="tagBotAddedTip"
+              :shark-bot-adding="sharkBotAdding"
+              :shark-bot-added-tip="sharkBotAddedTip"
+              :llm-bot-adding="llmBotAdding"
+              :llm-bot-added-tip="llmBotAddedTip"
+              @close="closeOwnerHubPanel"
+              @add-demo-bot="addDemoBot"
+              @add-maniac-bot="addManiacBot"
+              @add-tag-bot="addTagBot"
+              @add-shark-bot="addSharkBot"
+              @add-llm-bot="addLlmBot"
+              @transfer-owner="doTransferOwner"
+              @kick-player="doKickPlayer"
           />
         </div>
       </div>
@@ -550,7 +617,7 @@ export default {
       showHandRankModal: false,
       showSpectatorModal: false,
       // 房主踢人/移交房主弹窗
-      showOwnerToolModal: false,
+      showOwnerHubSheet: false,
       ownerToolType: 'transfer',  // 'transfer' | 'kick'
       ownerActionTarget: '',      // 当前选择的目标玩家昵称
       // 演示用 NPC 状态（仅前端提示用）
@@ -782,7 +849,7 @@ export default {
     },
     /** 窄屏底栏占位：避免固定底栏挡住聊天与房主区 */
     mobileHeroDockActive() {
-      return !!(this.heroDockRow || this.isMyTurn || this.inSettledStage)
+      return !!(this.heroDockRow || this.isMyTurn || this.inSettledStage || this.isOwner)
     }
   },
 
@@ -823,6 +890,9 @@ export default {
         this.stopReadyCountdown()
         this.showMobileActionSheet = false
       }
+    },
+    isOwner(v) {
+      if (!v) this.showOwnerHubSheet = false
     }
   },
 
@@ -1451,19 +1521,20 @@ export default {
       }
     },
 
-    // ---- 房主神器：打开/关闭 ----
-    openOwnerToolPanel() {
+    // ---- 房主神器：底栏入口与底部抽屉 ----
+    openOwnerHubSheet() {
       this.ownerToolType = 'transfer'
       this.ownerActionTarget = ''
-      this.showOwnerToolModal = true
+      this.showOwnerHubSheet = true
       this.demoBotAddedTip = ''
       this.maniacBotAddedTip = ''
       this.tagBotAddedTip = ''
       this.sharkBotAddedTip = ''
+      this.llmBotAddedTip = ''
     },
 
-    closeOwnerToolPanel() {
-      this.showOwnerToolModal = false
+    closeOwnerHubPanel() {
+      this.showOwnerHubSheet = false
       this.ownerActionTarget = ''
     },
 
@@ -1499,7 +1570,7 @@ export default {
           this.$message.success('已将房主移交给 ' + dpDisplayNickname(this.ownerActionTarget))
         }
         await this.loadGame()
-        this.closeOwnerToolPanel()
+        this.closeOwnerHubPanel()
       } catch (err) {
         this.$message.error('网络错误: ' + err.message)
       }
@@ -1529,7 +1600,7 @@ export default {
           this.$message.success('已将 [' + dpDisplayNickname(this.ownerActionTarget) + '] 踢至观众席')
         }
         await this.loadGame()
-        this.closeOwnerToolPanel()
+        this.closeOwnerHubPanel()
       } catch (err) {
         this.$message.error('网络错误: ' + err.message)
       }

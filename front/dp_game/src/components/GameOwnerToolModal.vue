@@ -1,14 +1,22 @@
 <template>
-  <div v-if="visible" class="hand-rank-modal-mask" @click="$emit('close')">
-    <div class="hand-rank-modal hand-rank-modal--legacy" @click.stop>
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+  <div
+      v-if="embedded || visible"
+      :class="embedded ? 'game-owner-tool-embedded-root' : 'hand-rank-modal-mask'"
+      @click="embedded ? null : $emit('close')"
+  >
+    <div
+        :class="embedded ? 'game-owner-tool-embedded' : 'hand-rank-modal hand-rank-modal--legacy'"
+        @click.stop
+    >
+      <div v-if="!embedded" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
         <span style="font-size:18px; font-weight:bold;">房主神器</span>
         <button
-          type="button"
-          style="background:#d9d9d9; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; font-size:16px; line-height:1;"
-          @click="$emit('close')"
+            type="button"
+            style="background:#d9d9d9; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; font-size:16px; line-height:1;"
+            @click="$emit('close')"
         >×</button>
       </div>
+      <div v-else class="game-owner-tool-embedded__title">房间管理 · 机器人与踢人</div>
 
       <div style="margin-bottom:12px; font-size:13px; color:#666;">
         仅显示当前在本局中的玩家（不含房主与僵尸位）。
@@ -90,7 +98,7 @@
         </div>
       </div>
 
-      <div style="display:flex; gap:8px; margin-bottom:12px;">
+      <div class="game-owner-tool__mgmt-row">
         <button
           type="button"
           :style="tabStyle('transfer')"
@@ -104,6 +112,13 @@
           @click="$emit('update:ownerToolType', 'kick')"
         >
           踢出至观众席
+        </button>
+        <button
+          type="button"
+          class="dp-btn--owner-orange game-owner-tool__reveal-btn"
+          @click="$emit('update:ownerRevealAll', !ownerRevealAll)"
+        >
+          {{ ownerRevealAll ? '关闭看穿' : '看穿底牌' }}
         </button>
       </div>
 
@@ -169,7 +184,10 @@ import { dpDisplayNickname } from '../utils/dpDisplayNickname'
 export default {
   name: 'GameOwnerToolModal',
   props: {
+    /** 嵌入 game.vue 底部抽屉时不使用遮罩层，由外层 sheet 承载 */
+    embedded: { type: Boolean, default: false },
     visible: { type: Boolean, default: false },
+    ownerRevealAll: { type: Boolean, default: false },
     ownerToolType: { type: String, default: 'transfer' },
     ownerActionTarget: { type: String, default: '' },
     ownerActionPlayers: { type: Array, default: function () { return [] } },

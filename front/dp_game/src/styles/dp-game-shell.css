@@ -703,6 +703,66 @@
   animation: dp-mobile-action-pulse 1s ease-in-out infinite;
 }
 
+.dp-game-mobile-hero-bar__btn--owner {
+  background: var(--dp-owner-purple-bg);
+  color: var(--dp-owner-purple-fg);
+  border-color: transparent;
+}
+
+/* 底栏：查看手牌 + 房主操作 同一组 */
+.dp-game-mobile-hero-bar__owner-cluster {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.dp-game-mobile-hero-bar__owner-cluster .dp-game-mobile-hero-bar__btn {
+  max-width: min(104px, 26vw);
+}
+
+.dp-game-mobile-hero-bar__owner-cluster .dp-game-mobile-hero-bar__btn--owner {
+  max-width: min(100px, 26vw);
+}
+
+/* 宽屏内联手牌行：查看手牌 + 房主操作（与聊天、手牌区同一行） */
+.dp-game-hero-action-row__owner-cluster {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  align-self: center;
+}
+
+.dp-game-hero-action-row__owner-btn {
+  flex: 0 0 auto;
+  align-self: center;
+  min-width: 0;
+  max-width: 100px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+  background: var(--dp-owner-purple-bg);
+  color: var(--dp-owner-purple-fg);
+  box-shadow: var(--dp-panel-shadow);
+}
+
+.dp-game-hero-action-row__owner-btn--hand {
+  background: var(--dp-panel-bg);
+  color: var(--dp-text-primary);
+  border: 1px solid var(--dp-panel-border);
+  box-shadow: var(--dp-panel-shadow);
+}
+
 @keyframes dp-mobile-action-pulse {
   0%,
   100% {
@@ -2171,6 +2231,15 @@
   box-shadow: var(--dp-panel-shadow);
 }
 
+.dp-owner-panel--in-sheet {
+  margin-top: 0;
+  margin-bottom: 16px;
+  padding: 12px 0 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
 .dp-owner-panel__title {
   font-size: 14px;
   font-weight: bold;
@@ -2209,6 +2278,18 @@
   background: var(--dp-owner-orange-bg);
   color: var(--dp-owner-orange-fg);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.dp-btn--owner-hand {
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: bold;
+  background: var(--dp-panel-bg);
+  color: var(--dp-text-primary);
+  border: 1px solid var(--dp-panel-border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
 .dp-owner-panel__hint {
