@@ -4,7 +4,8 @@
   box-sizing: border-box;
   font-family: var(--dp-font-ui);
   padding: 10px;
-  padding-top: max(10px, env(safe-area-inset-top, 0px));
+  /* 顶栏/首屏贴屏幕上沿：不再额外加 10px，仅保留刘海安全区 */
+  padding-top: max(0px, env(safe-area-inset-top, 0px));
   padding-left: max(10px, env(safe-area-inset-left, 0px));
   padding-right: max(10px, env(safe-area-inset-right, 0px));
   padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
@@ -23,8 +24,6 @@
 
 @media (max-width: 600px) {
   .dp-game-root {
-    /* 顶栏更贴安全区上沿，多留出纵向空间给牌桌 */
-    padding-top: max(0px, env(safe-area-inset-top, 0px));
     padding-left: max(6px, env(safe-area-inset-left, 0px));
     padding-right: max(6px, env(safe-area-inset-right, 0px));
   }
@@ -820,7 +819,8 @@
 @media (max-width: 600px) {
   .dp-game-root {
     padding: 8px;
-    padding-top: max(8px, env(safe-area-inset-top, 0px));
+    /* 与全局一致：勿再强制 min 8px，否则竖屏手机顶栏下会多一条缝（平板横屏常 >600px 不会进本段故显得「只有手机不贴边」） */
+    padding-top: max(0px, env(safe-area-inset-top, 0px));
     padding-left: max(8px, env(safe-area-inset-left, 0px));
     padding-right: max(8px, env(safe-area-inset-right, 0px));
     padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
