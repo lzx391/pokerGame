@@ -1,10 +1,20 @@
 /* 对局页布局与组件类（颜色来自 dp-game-themes.css 变量） */
 
+/*
+ * 【安全区 · 勿拆成对逻辑】.dp-game-root 的 padding-top 与下方 .dp-top-bar 的
+ * margin-top（负值）+ padding-top 是一套：根节点用 env(safe-area-inset-top) 把整页
+ * 往下推，避免首屏内容顶进刘海；顶栏再用负 margin 抵消这段 padding，让顶栏背景与
+ * 物理屏顶对齐，同时用自身 padding-top 把文字/按钮留在安全区内。
+ * 只删根的 padding-top 而不改顶栏 → 易进刘海；只删顶栏负 margin 而不改根 → 易出现
+ * 顶栏与屏顶之间的缝隙。横屏时安全区常在 left/right，勿假定横屏不用防。
+ * 依赖 front/dp_game/public/index.html 的 viewport-fit=cover。
+ */
+
 .dp-game-root {
   box-sizing: border-box;
   font-family: var(--dp-font-ui);
   padding: 10px;
-  /* 顶栏/首屏贴屏幕上沿：不再额外加 10px，仅保留刘海安全区 */
+  /* 顶栏/首屏贴屏幕上沿：不再额外加 10px，仅保留刘海安全区（与 .dp-top-bar 负 margin 成对，勿单独删） */
   padding-top: max(0px, env(safe-area-inset-top, 0px));
   padding-left: max(10px, env(safe-area-inset-left, 0px));
   padding-right: max(10px, env(safe-area-inset-right, 0px));
@@ -1614,11 +1624,16 @@
 }
 
 /* ---- Top bar（两行：信息行 + 按钮行） ---- */
-/* 抵消 .dp-game-root 的 padding-top（刘海安全区），使顶栏背景与屏顶对齐；内容仍保留 safe-area 内边距 */
+/*
+ * 与 .dp-game-root 的 padding-top（safe-area）成对：负 margin 抵消根节点上内边距，
+ * 顶栏背景贴屏顶；padding-top 内含安全区，避免标题/按钮画进刘海。改此处须同步核对根
+ * 节点与下方各 @media 里对 .dp-top-bar 的同类写法，否则易回归「顶缝」或「进刘海」。
+ */
 .dp-top-bar {
   position: relative;
   background: var(--dp-panel-bg);
   padding: 10px 12px;
+  /* 数值须与 .dp-game-root 的 padding-top 一致（同源 safe-area），才能对齐屏顶 */
   margin-top: calc(-1 * max(0px, env(safe-area-inset-top, 0px)));
   padding-top: calc(10px + max(0px, env(safe-area-inset-top, 0px)));
   border-radius: 10px;
@@ -1746,7 +1761,7 @@
   color: var(--dp-btn-ghost-fg);
 }
 
-/* 全屏：房间条收窄、字号与按钮略缩 */
+/* 全屏：房间条收窄、字号与按钮略缩（须保留与根节点 safe-area 成对的 margin/padding-top，勿单删） */
 .dp-game-root--layout-fs .dp-top-bar,
 .dp-game-root:fullscreen .dp-top-bar,
 .dp-game-root:-webkit-full-screen .dp-top-bar {
@@ -1789,6 +1804,7 @@
   border-radius: 4px;
 }
 
+/* 窄屏顶栏：紧凑间距；safe-area 抵消逻辑同文件头说明，勿只改此处而忘 .dp-game-root */
 @media (max-width: 600px) {
   .dp-top-bar {
     padding: 4px 6px 5px;
@@ -1822,6 +1838,7 @@
   }
 }
 
+/* 矮视口/横屏紧凑：顶栏 safe-area 抵消仍须与根节点成对 */
 @media (max-width: 1024px) and (max-height: 560px) {
   .dp-top-bar {
     max-width: min(440px, 96vw);
