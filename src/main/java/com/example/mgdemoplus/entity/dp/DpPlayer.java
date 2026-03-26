@@ -32,6 +32,17 @@ public class DpPlayer {
     private List<String> bestHandCards = new ArrayList<>();
 
     /**
+     * 翻后（公共牌 ≥3）由服务端按当前公共牌计算的成牌大类名称，如「一对」「同花顺」。
+     * 与 {@link #bestHandCards} 在 {@code DpRoomServiceImpl#getAllRooms} 中同批填充，不持久化。
+     */
+    private String handRankName = "";
+
+    /**
+     * 成牌说明文案（踢脚与结构等），供 UI 与「最佳五张」并列展示。
+     */
+    private String handRankDetail = "";
+
+    /**
      * 当前房间内连续赢下完整一手牌的次数（至少赢下本手任意底池的一份即计为赢）。
      * 非赢家在本手结算后归零；用于前端展示「连胜」标记。
      */
@@ -111,6 +122,10 @@ public class DpPlayer {
     public void setLeftThisHand(boolean leftThisHand) { this.leftThisHand = leftThisHand; }
     public List<String> getBestHandCards() { return bestHandCards; }
     public void setBestHandCards(List<String> bestHandCards) { this.bestHandCards = bestHandCards != null ? bestHandCards : new ArrayList<>(); }
+    public String getHandRankName() { return handRankName; }
+    public void setHandRankName(String handRankName) { this.handRankName = handRankName != null ? handRankName : ""; }
+    public String getHandRankDetail() { return handRankDetail; }
+    public void setHandRankDetail(String handRankDetail) { this.handRankDetail = handRankDetail != null ? handRankDetail : ""; }
     public int getWinStreak() { return winStreak; }
     public void setWinStreak(int winStreak) { this.winStreak = Math.max(0, winStreak); }
     public double getMood() { return mood; }

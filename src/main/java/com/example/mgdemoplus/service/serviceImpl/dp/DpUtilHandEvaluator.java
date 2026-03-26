@@ -599,5 +599,145 @@ public final class DpUtilHandEvaluator {
         }
         return SimpleStrength.WEAK;
     }
+
+    /**
+     * 点数标签（与前端 dpGameHandRank 展示一致）。
+     */
+    public static String rankLabelZh(int rank) {
+        if (rank <= 0) {
+            return "?";
+        }
+        if (rank == 14) {
+            return "A";
+        }
+        if (rank == 13) {
+            return "K";
+        }
+        if (rank == 12) {
+            return "Q";
+        }
+        if (rank == 11) {
+            return "J";
+        }
+        return String.valueOf(rank);
+    }
+
+    /**
+     * 牌型大类中文名（与 {@link HandStrength#rankCategory} 对应）。
+     */
+    public static String rankCategoryNameZh(int rankCategory) {
+        switch (rankCategory) {
+            case 10:
+                return "皇家同花顺";
+            case 9:
+                return "同花顺";
+            case 8:
+                return "四条";
+            case 7:
+                return "葫芦";
+            case 6:
+                return "同花";
+            case 5:
+                return "顺子";
+            case 4:
+                return "三条";
+            case 3:
+                return "两对";
+            case 2:
+                return "一对";
+            case 1:
+                return "高牌";
+            default:
+                return "牌不足";
+        }
+    }
+
+    private static int straightTopDisplayRank(List<Integer> ranksDesc) {
+        if (ranksDesc == null || ranksDesc.isEmpty()) {
+            return 0;
+        }
+        if (ranksDesc.size() < 5) {
+            return ranksDesc.get(0);
+        }
+        Integer a = ranksDesc.get(0);
+        Integer e = ranksDesc.get(4);
+        if (a != null && e != null && a == 5 && e == 1) {
+            return 5;
+        }
+        return a;
+    }
+
+    /**
+     * 与前端成牌说明文案对齐的简要描述（不含具体花色，仅点数与结构）。
+     */
+    public static String buildHandRankDetailZh(HandStrength hs) {
+        if (hs == null) {
+            return "";
+        }
+        int cat = hs.rankCategory;
+        List<Integer> r = hs.ranks;
+        if (r == null || r.isEmpty()) {
+            return "";
+        }
+        switch (cat) {
+            case 10:
+                return "皇家同花顺（10-J-Q-K-A 同花）";
+            case 9: {
+                int st = straightTopDisplayRank(r);
+                return "同花顺：" + rankLabelZh(st) + " 领顺";
+            }
+            case 8:
+                if (r.size() >= 2) {
+                    return "四条「" + rankLabelZh(r.get(0)) + "」+ 踢脚 " + rankLabelZh(r.get(1));
+                }
+                return "";
+            case 7:
+                if (r.size() >= 2) {
+                    return "葫芦：「" + rankLabelZh(r.get(0)) + "」三条带「" + rankLabelZh(r.get(1)) + "」一对";
+                }
+                return "";
+            case 6: {
+                StringBuilder sb = new StringBuilder("同花：");
+                for (int i = 0; i < r.size(); i++) {
+                    if (i > 0) {
+                        sb.append('-');
+                    }
+                    sb.append(rankLabelZh(r.get(i)));
+                }
+                return sb.toString();
+            }
+            case 5: {
+                int st = straightTopDisplayRank(r);
+                return "顺子：" + rankLabelZh(st) + " 领顺";
+            }
+            case 4:
+                if (r.size() >= 3) {
+                    return "三条「" + rankLabelZh(r.get(0)) + "」；踢脚 " + rankLabelZh(r.get(1)) + "、" + rankLabelZh(r.get(2));
+                }
+                return "";
+            case 3:
+                if (r.size() >= 3) {
+                    return "两对：" + rankLabelZh(r.get(0)) + " 与 " + rankLabelZh(r.get(1)) + "；踢脚 " + rankLabelZh(r.get(2));
+                }
+                return "";
+            case 2:
+                if (r.size() >= 4) {
+                    return "一对「" + rankLabelZh(r.get(0)) + "」；踢脚 " + rankLabelZh(r.get(1)) + "、" + rankLabelZh(r.get(2)) + "、" + rankLabelZh(r.get(3));
+                }
+                return "";
+            case 1: {
+                StringBuilder sb = new StringBuilder("高牌：");
+                for (int i = 0; i < r.size(); i++) {
+                    if (i > 0) {
+                        sb.append('-');
+                    }
+                    sb.append(rankLabelZh(r.get(i)));
+                }
+                return sb.toString();
+            }
+            default:
+                return "";
+        }
+    }
 }
 
