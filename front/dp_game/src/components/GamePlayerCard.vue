@@ -127,13 +127,13 @@
           class="dp-player-card__rank-pill"
           :class="showHandRankAsOpen ? 'dp-player-card__rank-pill--open' : 'dp-player-card__rank-pill--showdown'"
         >
-          {{ getHandRank(player.holeCards, communityCards) }}
+          {{ displayHandRankName }}
         </span>
         <div
           v-if="showShowdownLeaderDetail && showHandRankFiveCardRow.length !== 5"
           class="dp-player-card__rank-detail"
         >
-          {{ getHandRankDetail(player.holeCards, communityCards) }}
+          {{ displayHandRankDetail }}
         </div>
         <div
           v-if="showHandRankFiveCardRow.length === 5"
@@ -238,13 +238,13 @@
           class="dp-player-card__rank-pill"
           :class="showHandRankAsOpen ? 'dp-player-card__rank-pill--open' : 'dp-player-card__rank-pill--showdown'"
         >
-          {{ getHandRank(player.holeCards, communityCards) }}
+          {{ displayHandRankName }}
         </span>
         <div
           v-if="showShowdownLeaderDetail && showHandRankFiveCardRow.length !== 5"
           class="dp-player-card__rank-detail"
         >
-          {{ getHandRankDetail(player.holeCards, communityCards) }}
+          {{ displayHandRankDetail }}
         </div>
         <div
           v-if="showHandRankFiveCardRow.length === 5"
@@ -452,6 +452,20 @@ export default {
       return this.isMe
         || (this.isOwner && this.ownerRevealAll && this.player.holeCards && this.player.holeCards.length > 0)
     },
+    /** 牌型名称：优先服务端 `handRankName`（翻后与 bestHandCards 同批下发），缺省时本地兜底 */
+    displayHandRankName() {
+      if (this.player.leftThisHand) return ''
+      var n = this.player.handRankName
+      if (n != null && String(n).trim() !== '') return String(n).trim()
+      return getHandRank(this.player.holeCards, this.communityCards)
+    },
+    /** 成牌说明：优先服务端 `handRankDetail`，缺省时本地兜底 */
+    displayHandRankDetail() {
+      if (this.player.leftThisHand) return ''
+      var d = this.player.handRankDetail
+      if (d != null && String(d).trim() !== '') return String(d).trim()
+      return getHandRankDetail(this.player.holeCards, this.communityCards)
+    },
     /** 摊牌或准备下一局：牌力最高者（含平局并列）展示精确五张（与本人 bestHand 同款） */
     showShowdownLeaderDetail() {
       var leaders = this.showdownHandLeaders
@@ -494,8 +508,6 @@ export default {
   methods: {
     getCardClass,
     getCardDisplay,
-    getHandRank,
-    getHandRankDetail,
     prefersReducedMotion() {
       if (this.dpGameView && this.dpGameView.ecoMode) return true
       if (typeof window === 'undefined' || !window.matchMedia) return false

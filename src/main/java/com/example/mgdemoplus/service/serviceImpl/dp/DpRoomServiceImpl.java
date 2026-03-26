@@ -390,13 +390,20 @@ public class DpRoomServiceImpl {
                     List<String> all = new ArrayList<>(p.getHoleCards());
                     all.addAll(community);
                     p.setBestHandCards(DpUtilHandEvaluator.getBestHandCards(all));
+                    DpUtilHandEvaluator.HandStrength hs = DpUtilHandEvaluator.evaluateBestHand(all);
+                    p.setHandRankName(DpUtilHandEvaluator.rankCategoryNameZh(hs.rankCategory));
+                    p.setHandRankDetail(DpUtilHandEvaluator.buildHandRankDetailZh(hs));
                 } else {
                     p.setBestHandCards(Collections.emptyList());
+                    p.setHandRankName("");
+                    p.setHandRankDetail("");
                 }
             }
         } else {
             for (DpPlayer p : r.getPlayers()) {
                 p.setBestHandCards(Collections.emptyList());
+                p.setHandRankName("");
+                p.setHandRankDetail("");
             }
         }
         return r;
