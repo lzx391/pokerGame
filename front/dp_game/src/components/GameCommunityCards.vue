@@ -20,6 +20,7 @@
 </template>
 
 <script>
+import { getDealerAnchorViewportPoint } from '../utils/dpGameDealerAnchor'
 import { getCardClass, getCardDisplay } from '../utils/dpGameCardVisual'
 import { DP_DEAL_STAGGER_MS } from '../constants/dpGameDealTiming'
 
@@ -112,16 +113,16 @@ export default {
       }
     },
     /**
-     * 以庄位（带 data-dp-dealer-anchor 的玩家卡片中心）为发牌起点，计算飞到各公共牌槽所需的 translate 偏移。
+     * 以庄位（data-dp-dealer-anchor 可见时的卡片中心；不可见时见 dpGameDealerAnchor 回退）为发牌起点。
      */
     computeDealOriginsFromDealer(oldLen, newLen) {
       if (typeof document === 'undefined' || !this.$el) return null
-      var dealerEl = document.querySelector('[data-dp-dealer-anchor="true"]')
       var wrappers = this.$el.querySelectorAll('.card-flip-wrapper')
-      if (!dealerEl || !wrappers || wrappers.length === 0) return null
-      var d = dealerEl.getBoundingClientRect()
-      var dcx = d.left + d.width / 2
-      var dcy = d.top + d.height / 2
+      if (!wrappers || wrappers.length === 0) return null
+      var anchor = getDealerAnchorViewportPoint()
+      if (!anchor) return null
+      var dcx = anchor.x
+      var dcy = anchor.y
       var map = {}
       for (var i = oldLen; i < newLen; i++) {
         var el = wrappers[i]

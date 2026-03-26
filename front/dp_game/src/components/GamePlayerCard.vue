@@ -269,6 +269,7 @@ import { getCardClass, getCardDisplay } from '../utils/dpGameCardVisual'
 import { getHandRank, getHandRankDetail, getBestFiveCardIds } from '../utils/dpGameHandRank'
 import { dpDisplayNickname } from '../utils/dpDisplayNickname'
 import { DP_DEAL_STAGGER_MS } from '../constants/dpGameDealTiming'
+import { getDealerAnchorViewportPoint } from '../utils/dpGameDealerAnchor'
 
 export default {
   name: 'GamePlayerCard',
@@ -615,11 +616,11 @@ export default {
     },
     computeHoleOriginsFromDealer(row, n) {
       if (typeof document === 'undefined') return null
-      var dealerEl = document.querySelector('[data-dp-dealer-anchor="true"]')
-      if (!dealerEl || !row) return null
-      var d = dealerEl.getBoundingClientRect()
-      var dcx = d.left + d.width / 2
-      var dcy = d.top + d.height / 2
+      if (!row) return null
+      var anchor = getDealerAnchorViewportPoint()
+      if (!anchor) return null
+      var dcx = anchor.x
+      var dcy = anchor.y
       var wrappers = row.querySelectorAll('.hole-card-fly-wrapper')
       var map = {}
       for (var i = 0; i < n && i < wrappers.length; i++) {
