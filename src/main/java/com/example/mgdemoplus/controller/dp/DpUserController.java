@@ -15,6 +15,8 @@ public class DpUserController {
     public String registerUser(@RequestBody DpUser dpUser) {
         if (dpUserService.registerUser(dpUser) == 1) {
             return "注册成功";
+        }else if(dpUserService.registerUser(dpUser) == 2){
+            return "注册失败:用户名含有“海金”";
         }
         System.out.println("用户名重复");
         return "注册失败:用户名重复";
