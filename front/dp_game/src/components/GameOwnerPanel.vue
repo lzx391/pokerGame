@@ -1,17 +1,30 @@
 <template>
-  <div class="dp-owner-panel">
-    <div class="dp-owner-panel__title">房主有神器</div>
+  <div class="dp-owner-panel" :class="{ 'dp-owner-panel--in-sheet': inSheet }">
+    <div v-if="!hideTitle" class="dp-owner-panel__title">房主有神器</div>
 
-    <div class="dp-owner-panel__row">
-      <button type="button" class="dp-btn--owner-purple" @click="$emit('open-owner-tools')">
-        打开房主神器
+    <div
+        v-if="showViewHandButton || !hideToolEntry"
+        class="dp-owner-panel__row"
+    >
+      <button
+          v-if="showViewHandButton"
+          type="button"
+          class="dp-btn--owner-hand"
+          @click="$emit('show-hand-sheet')"
+      >
+        查看手牌
       </button>
-      <button type="button" class="dp-btn--owner-orange" @click="$emit('update:ownerRevealAll', !ownerRevealAll)">
-        {{ ownerRevealAll ? '关闭看穿底牌' : '一键看穿所有底牌' }}
+      <button
+          v-if="!hideToolEntry"
+          type="button"
+          class="dp-btn--owner-purple"
+          @click="$emit('open-owner-tools')"
+      >
+        打开房主神器
       </button>
     </div>
 
-    <div class="dp-owner-panel__hint">
+    <div v-if="!inSheet" class="dp-owner-panel__hint">
       「一键看穿」仅你自己可见，NPC 和其他真人不会知道你看到了他们的牌。
     </div>
 
@@ -74,7 +87,7 @@
       </template>
     </div>
 
-    <div class="dp-owner-panel__footer">
+    <div v-if="!inSheet" class="dp-owner-panel__footer">
       摊牌后系统会自动结算并在准备阶段结束后开启下一局，无需手动点击“重新发牌”
     </div>
   </div>
@@ -86,7 +99,12 @@ import { dpDisplayNickname } from '../utils/dpDisplayNickname'
 export default {
   name: 'GameOwnerPanel',
   props: {
-    ownerRevealAll: { type: Boolean, default: false },
+    /** 嵌入底部抽屉时隐藏标题与「打开房主神器」；看底牌区仅保留按钮；不展开说明与页脚 */
+    hideTitle: { type: Boolean, default: false },
+    hideToolEntry: { type: Boolean, default: false },
+    /** 与「看穿底牌」同一行：打开移动端我的手牌抽屉 */
+    showViewHandButton: { type: Boolean, default: false },
+    inSheet: { type: Boolean, default: false },
     stage: { type: String, required: true },
     pots: { type: Array, default: function () { return [] } },
     pot: { type: Number, default: 0 },
