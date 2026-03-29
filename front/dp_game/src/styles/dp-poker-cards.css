@@ -14,9 +14,9 @@
     0 1px 0 rgba(0, 0, 0, 0.45),
     0 0 12px rgba(255, 255, 255, 0.12);
 
-  border: 1px solid rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--dp-card-frame-outer);
   box-shadow:
-    0 0 0 1px rgba(212, 175, 55, 0.28),
+    0 0 0 1px var(--dp-card-frame-gold),
     0 3px 10px rgba(0, 0, 0, 0.45),
     0 8px 24px rgba(0, 0, 0, 0.18),
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
@@ -122,14 +122,11 @@
 
 .bg-gray {
   background:
-    linear-gradient(145deg, #9e9e9e 0%, #757575 45%, #424242 100%),
-    repeating-linear-gradient(
-      -35deg,
-      transparent,
-      transparent 3px,
-      rgba(0, 0, 0, 0.06) 3px,
-      rgba(0, 0, 0, 0.06) 5px
-    );
+    var(--dp-card-back-hole-top),
+    var(--dp-card-back-base),
+    var(--dp-card-back-hole-stripe);
+  color: var(--dp-card-back-fg);
+  text-shadow: var(--dp-card-back-text-shadow);
 }
 
 /* 手牌外框：自庄位（--hole-from-x/y）飞入座位，再由内层 hole-card-flip 翻开 */

@@ -1,9 +1,10 @@
 /**
- * 对局页主题：由 .dp-game-root[data-dp-game-theme] 提供 CSS 变量，
- * dp-game-shell.css 与各组件样式引用 var(--dp-*)。
+ * 对局页主题：由 .dp-game-root[data-dp-game-theme] 与 body[data-dp-game-theme] 提供 CSS 变量
+ * （game.vue 同步主题到 body，供挂在 body 上的 Element MessageBox / Message / v-modal 继承）。
  */
 
-.dp-game-root[data-dp-game-theme='default'] {
+.dp-game-root[data-dp-game-theme='default'],
+body[data-dp-game-theme='default'] {
   --dp-font-ui: Avenir, Helvetica, Arial, sans-serif;
   --dp-game-bg: #f0f2f5;
   --dp-game-bg-image: none;
@@ -57,7 +58,8 @@
 }
 
 /* 科幻：深色底 + 青蓝霓虹描边 */
-.dp-game-root[data-dp-game-theme='scifi'] {
+.dp-game-root[data-dp-game-theme='scifi'],
+body[data-dp-game-theme='scifi'] {
   --dp-font-ui: 'Segoe UI', 'Arial Narrow', 'Helvetica Neue', sans-serif;
   --dp-game-bg: #070b14;
   --dp-game-bg-image: linear-gradient(180deg, #0a1628 0%, #050810 45%, #0d1b2a 100%);
@@ -113,7 +115,8 @@
 }
 
 /* 暗黑哥特：暖灰字 + 酒红/旧金点缀 */
-.dp-game-root[data-dp-game-theme='gothic'] {
+.dp-game-root[data-dp-game-theme='gothic'],
+body[data-dp-game-theme='gothic'] {
   --dp-font-ui: Georgia, 'Times New Roman', Times, serif;
   --dp-game-bg: #140a0f;
   --dp-game-bg-image: radial-gradient(ellipse 120% 80% at 50% -20%, #2a1520 0%, #140a0f 50%, #0a0508 100%);
@@ -169,7 +172,8 @@
 }
 
 /* 澳门风云：赌桌墨绿台呢 + 金边丝绒感 + 筹码红绿点缀 */
-.dp-game-root[data-dp-game-theme='macau'] {
+.dp-game-root[data-dp-game-theme='macau'],
+body[data-dp-game-theme='macau'] {
   --dp-font-ui: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, 'Times New Roman', serif;
   --dp-game-bg: #070a08;
   --dp-game-bg-image:
@@ -229,7 +233,8 @@
 }
 
 /* 午夜蓝调：深海蓝 + 银灰高光，贵宾厅夜场 */
-.dp-game-root[data-dp-game-theme='midnight'] {
+.dp-game-root[data-dp-game-theme='midnight'],
+body[data-dp-game-theme='midnight'] {
   --dp-font-ui: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
   --dp-game-bg: #060d18;
   --dp-game-bg-image:
@@ -287,7 +292,8 @@
 }
 
 /* 森荫秘境：苔绿深林 + 琥珀点缀 */
-.dp-game-root[data-dp-game-theme='forest'] {
+.dp-game-root[data-dp-game-theme='forest'],
+body[data-dp-game-theme='forest'] {
   --dp-font-ui: 'Trebuchet MS', 'Lucida Grande', Verdana, Arial, sans-serif;
   --dp-game-bg: #081208;
   --dp-game-bg-image:
@@ -346,7 +352,8 @@
 }
 
 /* 落日熔金：暮紫霞光 + 暖橙强调 */
-.dp-game-root[data-dp-game-theme='sunset'] {
+.dp-game-root[data-dp-game-theme='sunset'],
+body[data-dp-game-theme='sunset'] {
   --dp-font-ui: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
   --dp-game-bg: #140a12;
   --dp-game-bg-image:
@@ -405,7 +412,8 @@
 }
 
 /* 水墨宣纸：浅纸色底 + 墨线 + 朱砂点缀 */
-.dp-game-root[data-dp-game-theme='ink'] {
+.dp-game-root[data-dp-game-theme='ink'],
+body[data-dp-game-theme='ink'] {
   --dp-font-ui: 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
   --dp-game-bg: #e8e4dc;
   --dp-game-bg-image:
@@ -458,4 +466,251 @@
   --dp-player-card-winner-bg: #e8f5e9;
   --dp-player-card-winner-border: #2e7d32;
   --dp-player-showdown-border: #a1887f;
+}
+
+/* 草莓软糖：粉嫩童话 + 草莓糖霜点缀（变量与 default 同级，节能模式仍走全局 dp-game-eco-mode.css） */
+.dp-game-root[data-dp-game-theme='strawberry'],
+body[data-dp-game-theme='strawberry'] {
+  --dp-font-ui: 'Nunito', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --dp-game-bg: #fff0f5;
+  --dp-game-bg-image:
+    radial-gradient(ellipse 110% 70% at 50% -15%, rgba(255, 182, 193, 0.55) 0%, transparent 52%),
+    radial-gradient(ellipse 60% 45% at 95% 85%, rgba(255, 105, 180, 0.14) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 40% at 5% 60%, rgba(196, 181, 253, 0.12) 0%, transparent 45%),
+    linear-gradient(175deg, #fff8fc 0%, #ffe8f0 38%, #ffd6e8 100%);
+
+  /* 须为纯色：shell 里 color-mix(..., var(--dp-panel-bg)) 不能与渐变叠加 */
+  --dp-panel-bg: rgba(255, 228, 240, 0.98);
+  --dp-panel-border: rgba(236, 72, 153, 0.22);
+  --dp-panel-shadow:
+    0 8px 28px rgba(236, 72, 153, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+
+  --dp-text-primary: #4a2c3d;
+  --dp-text-secondary: #8b5a6f;
+  --dp-text-muted: #b87a92;
+  --dp-accent: #ec4899;
+  --dp-pot: #db2777;
+  --dp-warning: #f59e0b;
+  --dp-success: #34d399;
+  --dp-danger: #e11d48;
+  --dp-cyan: #f472b6;
+
+  --dp-btn-primary-bg: linear-gradient(180deg, #f472b6 0%, #ec4899 100%);
+  --dp-btn-primary-fg: #ffffff;
+  --dp-btn-raise-bg: linear-gradient(180deg, #fcd34d 0%, #fbbf24 100%);
+  --dp-btn-raise-fg: #422006;
+  --dp-btn-allin-bg: linear-gradient(180deg, #be123c 0%, #9f1239 100%);
+  --dp-btn-allin-fg: #fff5f7;
+  --dp-btn-ghost-bg: rgba(255, 253, 255, 0.96);
+  --dp-btn-ghost-border: rgba(236, 72, 153, 0.4);
+  --dp-btn-ghost-fg: #db2777;
+
+  --dp-input-bg: #ffffff;
+  --dp-input-border: rgba(236, 72, 153, 0.28);
+  --dp-timer-ring: #f472b6;
+  --dp-timer-text: #db2777;
+
+  --dp-owner-purple-bg: linear-gradient(180deg, #a855f7 0%, #7c3aed 100%);
+  --dp-owner-purple-fg: #faf5ff;
+  --dp-owner-orange-bg: linear-gradient(180deg, #fb923c 0%, #ea580c 100%);
+  --dp-owner-orange-fg: #fff7ed;
+
+  --dp-subpanel-bg: rgba(255, 240, 248, 0.94);
+  --dp-subpanel-border: rgba(251, 182, 206, 0.45);
+
+  /* 座位卡：须带明显玫粉色相；勿用近 255 的白，否则与落日融金深色座卡对比像「白卡片贴图」 */
+  --dp-player-card-bg: rgba(252, 214, 230, 0.96);
+  --dp-player-card-offline-bg: rgba(244, 200, 218, 0.9);
+  --dp-player-card-offline-border: #f472b6;
+  --dp-player-card-turn-bg: rgba(249, 168, 200, 0.58);
+  --dp-player-card-turn-border: #ec4899;
+  --dp-player-border-me: #3b82f6;
+  --dp-player-card-winner-bg: rgba(167, 243, 208, 0.78);
+  --dp-player-card-winner-border: #059669;
+  --dp-player-showdown-border: #f472b6;
+
+  /* 牌背 / 牌框 / 弃牌堆：与哥特「全局深色牌背」同源变量，此处改为糖霜粉 */
+  --dp-card-back-highlight: radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.5) 0%, transparent 48%);
+  --dp-card-back-pattern-1: repeating-linear-gradient(
+    45deg,
+    rgba(219, 39, 119, 0.08) 0px,
+    rgba(219, 39, 119, 0.08) 2px,
+    transparent 2px,
+    transparent 6px
+  );
+  --dp-card-back-pattern-2: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.14) 0px,
+    rgba(255, 255, 255, 0.14) 1px,
+    transparent 1px,
+    transparent 7px
+  );
+  --dp-card-back-base: linear-gradient(155deg, #fff1f2 0%, #fbcfe8 42%, #f472b6 95%);
+  --dp-card-back-fg: #9d174d;
+  --dp-card-back-border: rgba(236, 72, 153, 0.45);
+  --dp-card-back-border-inner: rgba(255, 255, 255, 0.38);
+  --dp-card-back-text-shadow: 0 1px 2px rgba(255, 255, 255, 0.65);
+  --dp-card-back-shadow-idle:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
+    inset 0 -6px 14px rgba(219, 39, 119, 0.12),
+    0 2px 8px rgba(219, 39, 119, 0.2);
+  --dp-card-back-shadow-mid:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.45),
+    inset 0 -6px 16px rgba(219, 39, 119, 0.16),
+    0 2px 12px rgba(219, 39, 119, 0.28),
+    0 0 14px rgba(244, 114, 182, 0.28);
+  --dp-card-drop-shadow: drop-shadow(0 4px 12px rgba(219, 39, 119, 0.24));
+  --dp-card-back-hole-top: radial-gradient(ellipse 100% 70% at 35% 15%, rgba(255, 255, 255, 0.55) 0%, transparent 45%);
+  --dp-card-back-hole-stripe: repeating-linear-gradient(
+    -35deg,
+    transparent,
+    transparent 3px,
+    rgba(219, 39, 119, 0.08) 3px,
+    rgba(219, 39, 119, 0.08) 5px
+  );
+  --dp-card-frame-gold: rgba(244, 114, 182, 0.42);
+  --dp-card-frame-outer: rgba(190, 24, 93, 0.22);
+  --dp-table-felt-texture:
+    radial-gradient(ellipse 48% 38% at 50% 38%, rgba(255, 255, 255, 0.42) 0%, transparent 55%),
+    radial-gradient(ellipse 32% 28% at 72% 68%, rgba(251, 207, 232, 0.48) 0%, transparent 50%),
+    radial-gradient(ellipse 28% 22% at 22% 58%, rgba(255, 182, 193, 0.32) 0%, transparent 48%);
+  --dp-table-felt-texture-opacity: 0.5;
+  --dp-muck-tint: #fbcfe8;
+  --dp-muck-tint-deep: #f472b6;
+  --dp-muck-mini-card: linear-gradient(145deg, #fce7f3 0%, #fbcfe8 40%, #f472b6 100%);
+
+  /* 圆桌台呢：粉玫系明暗 + 玫色阴影（shell 默认混 #0a1620 会在浅色主题上发灰黑） */
+  --dp-table-felt-spot: #f9a8d4;
+  --dp-table-felt-depth: #e598b3;
+  --dp-table-felt-inset-bottom: inset 0 -12px 36px rgba(219, 39, 119, 0.13);
+  --dp-table-felt-drop-shadow: 0 12px 32px rgba(219, 39, 119, 0.12);
+  --dp-table-felt-ring-dark: rgba(236, 72, 153, 0.09);
+  --dp-table-felt-inset-deep: inset 0 -22px 50px rgba(190, 24, 93, 0.14);
+  --dp-table-felt-rim-mix: rgba(255, 192, 210, 0.88);
+  --dp-table-felt-rim-outer: rgba(236, 72, 153, 0.22);
+  --dp-table-felt-drop-shadow-lg: 0 18px 44px rgba(219, 39, 119, 0.12);
+  --dp-table-felt-vignette: rgba(190, 24, 93, 0.09);
+}
+
+/* 棉花糖云：更浅的粉紫童话（与草莓软糖同系、偏云雾感） */
+.dp-game-root[data-dp-game-theme='cotton'],
+body[data-dp-game-theme='cotton'] {
+  --dp-font-ui: 'Nunito', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --dp-game-bg: #faf5ff;
+  --dp-game-bg-image:
+    radial-gradient(ellipse 100% 65% at 50% -10%, rgba(233, 213, 255, 0.55) 0%, transparent 48%),
+    radial-gradient(ellipse 70% 50% at 0% 100%, rgba(251, 207, 232, 0.2) 0%, transparent 50%),
+    linear-gradient(180deg, #fefcff 0%, #f5e8ff 45%, #ede9fe 100%);
+
+  --dp-panel-bg: rgba(236, 224, 255, 0.98);
+  --dp-panel-border: rgba(167, 139, 250, 0.22);
+  --dp-panel-shadow:
+    0 8px 28px rgba(167, 139, 250, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+
+  --dp-text-primary: #3e2a45;
+  --dp-text-secondary: #7c6b8a;
+  --dp-text-muted: #a89bb5;
+  --dp-accent: #a855f7;
+  --dp-pot: #e11d48;
+  --dp-warning: #fbbf24;
+  --dp-success: #2dd4bf;
+  --dp-danger: #f43f5e;
+  --dp-cyan: #c084fc;
+
+  --dp-btn-primary-bg: linear-gradient(180deg, #c084fc 0%, #a855f7 100%);
+  --dp-btn-primary-fg: #ffffff;
+  --dp-btn-raise-bg: linear-gradient(180deg, #f9a8d4 0%, #ec4899 100%);
+  --dp-btn-raise-fg: #ffffff;
+  --dp-btn-allin-bg: linear-gradient(180deg, #be185d 0%, #9d174d 100%);
+  --dp-btn-allin-fg: #fdf2f8;
+  --dp-btn-ghost-bg: rgba(255, 254, 255, 0.96);
+  --dp-btn-ghost-border: rgba(167, 139, 250, 0.4);
+  --dp-btn-ghost-fg: #9333ea;
+
+  --dp-input-bg: #ffffff;
+  --dp-input-border: rgba(167, 139, 250, 0.3);
+  --dp-timer-ring: #c084fc;
+  --dp-timer-text: #e11d48;
+
+  --dp-owner-purple-bg: linear-gradient(180deg, #7c3aed 0%, #5b21b6 100%);
+  --dp-owner-purple-fg: #f5f3ff;
+  --dp-owner-orange-bg: linear-gradient(180deg, #f97316 0%, #c2410c 100%);
+  --dp-owner-orange-fg: #fff7ed;
+
+  --dp-subpanel-bg: rgba(245, 240, 255, 0.94);
+  --dp-subpanel-border: rgba(196, 181, 253, 0.45);
+
+  /* 座位卡：淡紫云雾底，避免与 #fff 无差；与落日融金的深色座卡同为「有色相的面板」 */
+  --dp-player-card-bg: rgba(226, 214, 254, 0.96);
+  --dp-player-card-offline-bg: rgba(214, 202, 242, 0.9);
+  --dp-player-card-offline-border: #a78bfa;
+  --dp-player-card-turn-bg: rgba(196, 181, 253, 0.52);
+  --dp-player-card-turn-border: #9333ea;
+  --dp-player-border-me: #0ea5e9;
+  --dp-player-card-winner-bg: rgba(153, 246, 228, 0.78);
+  --dp-player-card-winner-border: #0d9488;
+  --dp-player-showdown-border: #c4b5fd;
+
+  --dp-card-back-highlight: radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.48) 0%, transparent 48%);
+  --dp-card-back-pattern-1: repeating-linear-gradient(
+    45deg,
+    rgba(139, 92, 246, 0.09) 0px,
+    rgba(139, 92, 246, 0.09) 2px,
+    transparent 2px,
+    transparent 6px
+  );
+  --dp-card-back-pattern-2: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.12) 0px,
+    rgba(255, 255, 255, 0.12) 1px,
+    transparent 1px,
+    transparent 7px
+  );
+  --dp-card-back-base: linear-gradient(155deg, #faf5ff 0%, #e9d5ff 40%, #c084fc 92%);
+  --dp-card-back-fg: #5b21b6;
+  --dp-card-back-border: rgba(167, 139, 250, 0.5);
+  --dp-card-back-border-inner: rgba(255, 255, 255, 0.35);
+  --dp-card-back-text-shadow: 0 1px 2px rgba(255, 255, 255, 0.55);
+  --dp-card-back-shadow-idle:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.32),
+    inset 0 -6px 14px rgba(124, 58, 237, 0.12),
+    0 2px 8px rgba(139, 92, 246, 0.18);
+  --dp-card-back-shadow-mid:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.42),
+    inset 0 -6px 16px rgba(124, 58, 237, 0.16),
+    0 2px 12px rgba(139, 92, 246, 0.26),
+    0 0 14px rgba(192, 132, 252, 0.3);
+  --dp-card-drop-shadow: drop-shadow(0 4px 12px rgba(139, 92, 246, 0.22));
+  --dp-card-back-hole-top: radial-gradient(ellipse 100% 70% at 35% 15%, rgba(255, 255, 255, 0.52) 0%, transparent 45%);
+  --dp-card-back-hole-stripe: repeating-linear-gradient(
+    -35deg,
+    transparent,
+    transparent 3px,
+    rgba(139, 92, 246, 0.08) 3px,
+    rgba(139, 92, 246, 0.08) 5px
+  );
+  --dp-card-frame-gold: rgba(192, 132, 252, 0.4);
+  --dp-card-frame-outer: rgba(124, 58, 237, 0.22);
+  --dp-table-felt-texture:
+    radial-gradient(ellipse 46% 36% at 48% 36%, rgba(255, 255, 255, 0.4) 0%, transparent 54%),
+    radial-gradient(ellipse 30% 26% at 75% 70%, rgba(233, 213, 255, 0.5) 0%, transparent 50%),
+    radial-gradient(ellipse 26% 22% at 18% 55%, rgba(196, 181, 253, 0.35) 0%, transparent 48%);
+  --dp-table-felt-texture-opacity: 0.48;
+  --dp-muck-tint: #e9d5ff;
+  --dp-muck-tint-deep: #c084fc;
+  --dp-muck-mini-card: linear-gradient(145deg, #faf5ff 0%, #e9d5ff 38%, #a855f7 100%);
+
+  /* 圆桌台呢：淡紫云雾感，阴影用紫粉而非纯黑 */
+  --dp-table-felt-spot: #ddd6fe;
+  --dp-table-felt-depth: #b8a3dc;
+  --dp-table-felt-inset-bottom: inset 0 -12px 36px rgba(139, 92, 246, 0.11);
+  --dp-table-felt-drop-shadow: 0 12px 32px rgba(139, 92, 246, 0.1);
+  --dp-table-felt-ring-dark: rgba(167, 139, 250, 0.08);
+  --dp-table-felt-inset-deep: inset 0 -22px 50px rgba(124, 58, 237, 0.12);
+  --dp-table-felt-rim-mix: rgba(221, 214, 254, 0.92);
+  --dp-table-felt-rim-outer: rgba(139, 92, 246, 0.2);
+  --dp-table-felt-drop-shadow-lg: 0 18px 44px rgba(139, 92, 246, 0.11);
+  --dp-table-felt-vignette: rgba(124, 58, 237, 0.08);
 }
