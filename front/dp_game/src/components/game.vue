@@ -521,6 +521,7 @@
 import '../styles/dp-game-themes.css'
 import '../styles/dp-game-shell.css'
 import '../styles/dp-game-modals.css'
+import '../styles/dp-game-element-ui.css'
 import '../styles/dp-game-eco-mode.css'
 import { GAME_UI_THEMES } from '../constants/dpGameThemes'
 import { readGameTheme, writeGameTheme } from '../utils/dpGameTheme'
@@ -856,6 +857,7 @@ export default {
   watch: {
     gameUiTheme: function (id) {
       writeGameTheme(id)
+      this.syncBodyDpGameTheme()
     },
     ecoMode: function (on) {
       writeEcoMode(!!on)
@@ -899,6 +901,7 @@ export default {
     created() {
     this._seatChatTimers = Object.create(null)
     this.roomId = this.$route.params.roomId
+    this.syncBodyDpGameTheme()
 
     var raw = localStorage.getItem('userInfo')
     if (!raw) {
@@ -947,6 +950,7 @@ export default {
   },
 
   beforeDestroy() {
+    this.clearBodyDpGameTheme()
     if (this._dpFsChange) {
       document.removeEventListener('fullscreenchange', this._dpFsChange)
       document.removeEventListener('webkitfullscreenchange', this._dpFsChange)
@@ -971,6 +975,18 @@ export default {
   },
 
   methods: {
+    /** 将当前界面主题同步到 document.body，使挂在 body 上的 Element MessageBox / Message / v-modal 继承 --dp-* */
+    syncBodyDpGameTheme() {
+      try {
+        document.body.setAttribute('data-dp-game-theme', this.gameUiTheme || 'default')
+      } catch (e) { /* ignore */ }
+    },
+    clearBodyDpGameTheme() {
+      try {
+        document.body.removeAttribute('data-dp-game-theme')
+      } catch (e) { /* ignore */ }
+    },
+
     /**
      * 离开房间时多处可能同时触发跳转（WS roomClosed + 轮询 getNowRoom 为空、热更新等）；
      * Vue Router 3 对重复 push 同一地址会抛 NavigationDuplicated，需吞掉或跳过。

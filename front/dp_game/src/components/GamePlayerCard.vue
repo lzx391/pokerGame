@@ -389,11 +389,12 @@ export default {
         s.padding = '7px 9px'
         s.borderRadius = '8px'
       }
-      /* 摊牌 / 准备下一局：半透明 + 描边，减轻遮挡中央公共牌 */
+      /* 摊牌 / 准备下一局：与页面底混色半透明 + 描边，减轻遮挡中央公共牌。
+       * 第二色用 var(--dp-game-bg) 而非 transparent：浅色童话主题下「26%+透明」会与底图融成一片，像没渲染座位卡。 */
       if ((this.stage === 'showdown' || this.stage === 'settled') && !this.player.leftThisHand) {
         var base = s.background || 'var(--dp-player-card-bg)'
-        var pct = this.rivalMini ? '20%' : '26%'
-        s.background = 'color-mix(in srgb, ' + base + ' ' + pct + ', transparent)'
+        var pct = this.rivalMini ? '48%' : '58%'
+        s.background = 'color-mix(in srgb, ' + base + ' ' + pct + ', var(--dp-game-bg))'
         s.boxShadow =
           (s.boxShadow ? s.boxShadow + ', ' : '') + 'inset 0 0 0 1px rgba(100, 100, 100, 0.22)'
       }

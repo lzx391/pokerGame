@@ -30,6 +30,53 @@
   background-image: var(--dp-game-bg-image);
   color: var(--dp-text-primary);
   text-align: left;
+
+  /* 扑克牌背 / 占位：默认深灰赌场风；童话主题在 dp-game-themes 中覆盖 */
+  --dp-card-back-highlight: radial-gradient(circle at 50% 45%, rgba(255, 255, 255, 0.12) 0%, transparent 42%);
+  --dp-card-back-pattern-1: repeating-linear-gradient(
+    45deg,
+    rgba(0, 0, 0, 0.07) 0px,
+    rgba(0, 0, 0, 0.07) 2px,
+    transparent 2px,
+    transparent 6px
+  );
+  --dp-card-back-pattern-2: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.04) 0px,
+    rgba(255, 255, 255, 0.04) 1px,
+    transparent 1px,
+    transparent 7px
+  );
+  --dp-card-back-base: linear-gradient(155deg, #6a6a6a 0%, #4a4a4a 40%, #2d2d2d 100%);
+  --dp-card-back-fg: #c9c9c9;
+  --dp-card-back-border: rgba(212, 175, 55, 0.35);
+  --dp-card-back-border-inner: rgba(212, 175, 55, 0.2);
+  --dp-card-back-text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  --dp-card-back-shadow-idle:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    inset 0 -6px 16px rgba(0, 0, 0, 0.35),
+    0 2px 8px rgba(0, 0, 0, 0.4);
+  --dp-card-back-shadow-mid:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+    inset 0 -6px 18px rgba(0, 0, 0, 0.38),
+    0 2px 12px rgba(0, 0, 0, 0.45),
+    0 0 14px rgba(212, 175, 55, 0.12);
+  --dp-card-drop-shadow: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.35));
+  --dp-card-back-hole-top: radial-gradient(ellipse 100% 70% at 35% 15%, rgba(255, 255, 255, 0.14) 0%, transparent 45%);
+  --dp-card-back-hole-stripe: repeating-linear-gradient(
+    -35deg,
+    transparent,
+    transparent 3px,
+    rgba(0, 0, 0, 0.06) 3px,
+    rgba(0, 0, 0, 0.06) 5px
+  );
+  --dp-card-frame-gold: rgba(212, 175, 55, 0.28);
+  --dp-card-frame-outer: rgba(0, 0, 0, 0.35);
+  --dp-table-felt-texture: none;
+  --dp-table-felt-texture-opacity: 0;
+  --dp-muck-tint: #2a2a2a;
+  --dp-muck-tint-deep: #1a1a1a;
+  --dp-muck-mini-card: linear-gradient(145deg, #6b6b6b 0%, #3d3d3d 100%);
 }
 
 @media (max-width: 600px) {
@@ -313,18 +360,32 @@
   transform: translate(-50%, -50%);
   border-radius: 50%;
   pointer-events: none;
+  isolation: isolate;
+  /* 主题可在 dp-game-themes.css 覆盖 --dp-table-felt-*，使浅色童话系台呢不再混 #0a1620 发灰黑 */
   background:
     radial-gradient(
       ellipse 52% 48% at 50% 48%,
-      color-mix(in srgb, var(--dp-success) 12%, var(--dp-panel-bg)) 0%,
-      color-mix(in srgb, var(--dp-panel-bg) 88%, #0a1620) 72%,
+      color-mix(in srgb, var(--dp-table-felt-spot, var(--dp-success)) 12%, var(--dp-panel-bg)) 0%,
+      color-mix(in srgb, var(--dp-panel-bg) 88%, var(--dp-table-felt-depth, #0a1620)) 72%,
       color-mix(in srgb, var(--dp-text-primary) 8%, var(--dp-panel-bg)) 100%
     );
   box-shadow:
     inset 0 0 0 2px color-mix(in srgb, var(--dp-accent) 22%, transparent),
-    inset 0 -12px 36px rgba(0, 0, 0, 0.22),
-    0 10px 28px rgba(0, 0, 0, 0.18);
+    var(--dp-table-felt-inset-bottom, inset 0 -12px 36px rgba(0, 0, 0, 0.22)),
+    var(--dp-table-felt-drop-shadow, 0 10px 28px rgba(0, 0, 0, 0.18));
   border: 1px solid var(--dp-panel-border);
+}
+
+/* 棉花糖/草莓等：台呢上叠一层柔光纹理（与哥特深色台呢同源机制） */
+.dp-game-table__felt::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--dp-table-felt-texture);
+  opacity: var(--dp-table-felt-texture-opacity);
 }
 
 /* 非节能：加厚围边、台呢明暗与绒感层次（不增动画，仅静态质感） */
@@ -337,17 +398,22 @@
     ),
     radial-gradient(
       ellipse 55% 50% at 50% 52%,
-      color-mix(in srgb, var(--dp-success) 16%, var(--dp-panel-bg)) 0%,
-      color-mix(in srgb, var(--dp-panel-bg) 82%, #0a1620) 68%,
+      color-mix(in srgb, var(--dp-table-felt-spot, var(--dp-success)) 16%, var(--dp-panel-bg)) 0%,
+      color-mix(in srgb, var(--dp-panel-bg) 82%, var(--dp-table-felt-depth, #0a1620)) 68%,
       color-mix(in srgb, var(--dp-text-primary) 10%, var(--dp-panel-bg)) 100%
     );
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, var(--dp-text-primary) 12%, transparent),
-    inset 0 0 0 10px rgba(0, 0, 0, 0.14),
-    inset 0 -22px 50px rgba(0, 0, 0, 0.32),
-    0 0 0 3px color-mix(in srgb, var(--dp-accent) 28%, rgba(55, 42, 28, 0.92)),
-    0 0 0 5px rgba(20, 14, 8, 0.55),
-    0 16px 40px rgba(0, 0, 0, 0.24);
+    inset 0 0 0 10px var(--dp-table-felt-ring-dark, rgba(0, 0, 0, 0.14)),
+    var(--dp-table-felt-inset-deep, inset 0 -22px 50px rgba(0, 0, 0, 0.32)),
+    0 0 0 3px
+      color-mix(
+        in srgb,
+        var(--dp-accent) 28%,
+        var(--dp-table-felt-rim-mix, rgba(55, 42, 28, 0.92))
+      ),
+    0 0 0 5px var(--dp-table-felt-rim-outer, rgba(20, 14, 8, 0.55)),
+    var(--dp-table-felt-drop-shadow-lg, 0 16px 40px rgba(0, 0, 0, 0.24));
 }
 
 .dp-game-root:not([data-dp-eco-mode='true']) .dp-game-table__felt::after {
@@ -355,8 +421,9 @@
   position: absolute;
   inset: 5%;
   border-radius: 50%;
+  z-index: 1;
   pointer-events: none;
-  box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.2);
+  box-shadow: inset 0 0 50px var(--dp-table-felt-vignette, rgba(0, 0, 0, 0.2));
   opacity: 0.85;
 }
 
@@ -541,8 +608,8 @@
     0 2px 8px rgba(0, 0, 0, 0.28);
   background: linear-gradient(
     145deg,
-    color-mix(in srgb, var(--dp-panel-bg) 55%, #2a2a2a) 0%,
-    color-mix(in srgb, var(--dp-panel-bg) 40%, #1a1a1a) 100%
+    color-mix(in srgb, var(--dp-panel-bg) 55%, var(--dp-muck-tint)) 0%,
+    color-mix(in srgb, var(--dp-panel-bg) 40%, var(--dp-muck-tint-deep)) 100%
   );
 }
 
@@ -554,7 +621,7 @@
   height: 30px;
   border-radius: 4px;
   border: 1px solid rgba(0, 0, 0, 0.35);
-  background: linear-gradient(145deg, #6b6b6b 0%, #3d3d3d 100%);
+  background: var(--dp-muck-mini-card);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
 }
 
