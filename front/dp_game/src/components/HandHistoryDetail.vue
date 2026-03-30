@@ -50,14 +50,25 @@
             <thead>
               <tr>
                 <th>玩家</th>
-                <th v-for="(c, idx) in roundColCount" :key="'c' + idx">第{{ idx + 1 }}圈</th>
+                <th v-for="(label, idx) in roundColumnHeaders" :key="'rh' + idx">{{ label }}</th>
                 <th>底牌</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="nick in rowNicknames" :key="nick">
-                <td>{{ nick }}</td>
-                <td v-for="(c, idx) in roundColCount" :key="nick + '-' + idx">
+                <td class="hand-detail-page__player-cell">
+                  <span class="hand-detail-page__name">{{ nick }}</span>
+                  <span
+                    v-for="t in (playerRoleTags[nick] || [])"
+                    :key="nick + '-role-' + t"
+                    class="hand-detail-page__role-tag"
+                  >{{ t }}</span>
+                </td>
+                <td
+                  v-for="(label, idx) in roundColumnHeaders"
+                  :key="nick + '-' + label + '-' + idx"
+                  class="hand-detail-table__cell-actions"
+                >
                   {{ cellText(nick, idx) }}
                 </td>
                 <td class="hand-detail-table__holes-cell">
@@ -110,7 +121,14 @@
             </thead>
             <tbody>
               <tr v-for="row in settlementRowsWithCards" :key="row.nick">
-                <td>{{ row.nick }}</td>
+                <td class="hand-detail-page__player-cell">
+                  <span class="hand-detail-page__name">{{ row.nick }}</span>
+                  <span
+                    v-for="t in (playerRoleTags[row.nick] || [])"
+                    :key="row.nick + '-sr-' + t"
+                    class="hand-detail-page__role-tag"
+                  >{{ t }}</span>
+                </td>
                 <td :class="netClass(row.net)">{{ row.net }}</td>
                 <td class="hand-detail-table__holes-cell">
                   <span v-if="row.folded" class="hand-detail-page__folded-label">已弃牌</span>
@@ -149,13 +167,14 @@ import {
   STREET_TABS,
   seatNicknamesOrdered,
   activePlayersBeforeStreet,
-  splitBettingRounds,
+  splitRoundsByRaises,
   buildRoundGrid,
   boardForStreet,
   formatActionText,
   firstFoldStage,
   shouldShowHoleCardsOnStreetTab,
-  finalCommunityCards
+  finalCommunityCards,
+  playerRoleTagsByNickname
 } from '@/utils/dpHandHistoryReplay.js'
 
 export default {
@@ -221,6 +240,19 @@ export default {
     finalBoardCards() {
       return finalCommunityCards(this.boardsByStreet)
     },
+    playerRoleTags() {
+      return playerRoleTagsByNickname(this.seatsAtStart, this.detail && this.detail.dealerNickname)
+    },
+    roundColumnHeaders() {
+      if (this.activeTab === 'settlement') return []
+      const { prefix, rounds } = splitRoundsByRaises(this.streetActions)
+      const h = []
+      if (prefix.length) h.push('前置')
+      for (let i = 0; i < rounds.length; i++) {
+        h.push('第' + (i + 1) + '圈')
+      }
+      return h
+    },
     foldedNicknames() {
       const s = new Set()
       for (const a of this.actions) {
@@ -257,13 +289,18 @@ export default {
       const street = this.activeTab
       if (street === 'settlement') return []
       const playersArr = this.playersForStreet
-      const rounds = splitBettingRounds(this.streetActions, playersArr)
-      return buildRoundGrid(rounds, playersArr)
+      const { prefix, rounds } = splitRoundsByRaises(this.streetActions)
+      const cols = []
+      if (prefix.length) {
+        cols.push(buildRoundGrid([prefix], playersArr)[0])
+      }
+      if (rounds.length) {
+        cols.push(...buildRoundGrid(rounds, playersArr))
+      }
+      return cols
     },
     roundColCount() {
-      const n = this.roundGrid.length
-      if (n > 0) return n
-      return this.streetActions.length ? 1 : 0
+      return this.roundGrid.length
     },
     settlementNetRows() {
       const net = this.payload.netChipsChange
@@ -337,7 +374,7 @@ export default {
             parts.push(formatActionText(a))
           }
         }
-        return parts.length ? parts.join('；') : '—'
+        return parts.length ? parts.join('\n') : '—'
       }
       const col = g[colIdx]
       if (!col) return '—'
@@ -543,6 +580,38 @@ export default {
   background: #f5f7fa;
   color: #606266;
   font-weight: 600;
+}
+.hand-detail-page__player-cell {
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+.hand-detail-page__name {
+  font-weight: 600;
+  color: #303133;
+  margin-right: 6px;
+}
+.hand-detail-page__role-tag {
+  display: inline-block;
+  margin-right: 4px;
+  margin-top: 2px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #409eff;
+  background: #ecf5ff;
+  border: 1px solid #d9ecff;
+  border-radius: 4px;
+  vertical-align: middle;
+}
+.hand-detail-table__cell-actions {
+  white-space: pre-line;
+  line-height: 1.5;
+  font-size: 12px;
+  color: #303133;
+  vertical-align: top;
+  max-width: 240px;
+  min-width: 100px;
 }
 .hand-detail-table__net--win {
   color: #67c23a;

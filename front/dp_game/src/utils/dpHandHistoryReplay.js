@@ -36,60 +36,72 @@ export function activePlayersBeforeStreet(allActions, street, seatsNicknames) {
   return still
 }
 
-function allMatched(contrib, active, maxBet) {
-  if (active.size === 0) return false
-  if (maxBet <= 0) return false
-  for (const p of active) {
-    if ((contrib.get(p) || 0) !== maxBet) return false
+/**
+ * 是否视为「加注/开池」：盲注不算；ALL_IN 仅在抬升总注（相对需跟注额）时算新一圈起点。
+ */
+export function isRaiseLikeForRoundSplit(a) {
+  if (!a || !a.type) return false
+  if (a.type === 'POST_BLIND_SB' || a.type === 'POST_BLIND_BB') return false
+  if (a.type === 'RAISE' || a.type === 'BET') return true
+  if (a.type === 'ALL_IN') {
+    const btc = a.betToCallBefore != null ? Number(a.betToCallBefore) : 0
+    const ab = a.actorBetBefore != null ? Number(a.actorBetBefore) : 0
+    const amt = a.amount != null ? Number(a.amount) : 0
+    return ab + amt > btc
   }
-  return true
-}
-
-function isVoluntaryAggression(a) {
-  if (!a) return false
-  return a.type === 'RAISE' || a.type === 'BET' || a.type === 'ALL_IN'
+  return false
 }
 
 /**
- * 将一条街内的行动拆成「第1圈、第2圈…」（每轮大家都平注后，若有人再加注则进入下一圈）。
+ * 从「第一次加注/开池」起算第1圈；之后每次新的加注/开池开启下一圈；其前的盲注、跟注、过牌等为「前置」列。
+ * 若本街没有任何加注类行动（例如全过牌），则整街归入第1圈。
  */
-export function splitBettingRounds(actionsForStreet, playersAtStreetStart) {
+export function splitRoundsByRaises(actionsForStreet) {
   const list = Array.isArray(actionsForStreet) ? actionsForStreet : []
-  const rounds = []
-  let round = []
-  const contrib = new Map()
-  const active = new Set(playersAtStreetStart)
-  for (const n of playersAtStreetStart) contrib.set(n, 0)
-  let maxBet = 0
-
-  const apply = (a) => {
-    const n = a.actorNickname
-    if (a.type === 'FOLD') {
-      active.delete(n)
-      return
-    }
-    if (a.type === 'POST_BLIND_SB' || a.type === 'POST_BLIND_BB') {
-      const amt = a.amount || 0
-      contrib.set(n, (contrib.get(n) || 0) + amt)
-      maxBet = Math.max(maxBet, contrib.get(n) || 0)
-      return
-    }
-    const amt = a.amount || 0
-    contrib.set(n, (contrib.get(n) || 0) + amt)
-    maxBet = Math.max(maxBet, contrib.get(n) || 0)
+  if (!list.length) {
+    return { prefix: [], rounds: [] }
   }
-
+  let firstAgg = -1
   for (let i = 0; i < list.length; i++) {
-    const a = list[i]
-    if (round.length > 0 && allMatched(contrib, active, maxBet) && isVoluntaryAggression(a)) {
-      rounds.push(round)
-      round = []
+    if (isRaiseLikeForRoundSplit(list[i])) {
+      firstAgg = i
+      break
     }
-    round.push(a)
-    apply(a)
   }
-  if (round.length) rounds.push(round)
-  return rounds
+  if (firstAgg === -1) {
+    return { prefix: [], rounds: [list.slice()] }
+  }
+  const prefix = list.slice(0, firstAgg)
+  const rest = list.slice(firstAgg)
+  const rounds = []
+  let cur = []
+  for (let i = 0; i < rest.length; i++) {
+    const a = rest[i]
+    if (cur.length > 0 && isRaiseLikeForRoundSplit(a)) {
+      rounds.push(cur)
+      cur = []
+    }
+    cur.push(a)
+  }
+  if (cur.length) rounds.push(cur)
+  return { prefix, rounds }
+}
+
+/** 起手座位：庄、小盲、大盲标记（与 seatsAtStart.blind 一致） */
+export function playerRoleTagsByNickname(seatsAtStart, dealerNickname) {
+  const map = {}
+  if (!Array.isArray(seatsAtStart)) return map
+  for (const s of seatsAtStart) {
+    const n = s.nickname
+    if (!n) continue
+    const tags = []
+    if (dealerNickname && n === dealerNickname) tags.push('庄')
+    const bl = s.blind != null ? Number(s.blind) : 0
+    if (bl === 1) tags.push('小盲')
+    if (bl === 2) tags.push('大盲')
+    map[n] = tags
+  }
+  return map
 }
 
 export function formatActionText(a) {
@@ -134,7 +146,7 @@ export function buildRoundGrid(rounds, nicknamesOrdered) {
     const cells = {}
     for (const n of nicknamesOrdered) {
       const parts = byPlayer[n] || []
-      cells[n] = parts.length ? parts.join('；') : '—'
+      cells[n] = parts.length ? parts.join('\n') : '—'
     }
     cols.push(cells)
   }
