@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 @Service
 public class DpRoomServiceImpl {
     private final Map<String, DpRoom> roomMap = new ConcurrentHashMap<>();
-    private final DpNpcObservedHandHistoryPersistService observedHandPersistService;
+    private final DpHandHistoryPersistService observedHandPersistService;
     private final DpNpcSharkOpponentMemoryService sharkOpponentMemoryService;
     private final DpLlmNpcDecisionService llmNpcDecisionService;
     private final DpGameRoomPushService gameRoomPushService;
@@ -30,7 +30,7 @@ public class DpRoomServiceImpl {
 
     public DpRoomServiceImpl(
         //注入服务
-            DpNpcObservedHandHistoryPersistService observedHandPersistService,
+            DpHandHistoryPersistService observedHandPersistService,
             DpNpcSharkOpponentMemoryService sharkOpponentMemoryService,
             DpLlmNpcDecisionService llmNpcDecisionService,
             DpGameRoomPushService gameRoomPushService,

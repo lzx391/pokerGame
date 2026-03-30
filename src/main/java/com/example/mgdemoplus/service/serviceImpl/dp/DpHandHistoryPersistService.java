@@ -22,10 +22,19 @@ import java.util.List;
  * 并对非机器人玩家写入 dp_observed_hand_participant（user_id 优先来自 dpUserId，否则按昵称查 dp_user；均可无则仅存昵称快照）。
  * 在 {@link DpRoomServiceImpl} 结算流程中调用；表不存在或 DB 异常时仅打日志，不中断游戏。
  */
+//这个服务类是负责将DpNpcSharkObservedHandHistory.ObservedHandRecord写入dp_observed_hand_history表和dp_observed_hand_participant表的
 @Service
-public class DpNpcObservedHandHistoryPersistService {
+public class DpHandHistoryPersistService {
+    //本类分为以下模块：
+    //1. save方法：将DpNpcSharkObservedHandHistory.ObservedHandRecord写入dp_observed_hand_history表
+    //2. insertParticipants方法：将非机器人玩家写入dp_observed_hand_participant表
+    //3. Payload类：将DpNpcSharkObservedHandHistory.ObservedHandRecord转换为Payload对象
+    //4. SeatDto类：将DpNpcSharkObservedHandHistory.SeatAtHandStart转换为SeatDto对象
+    //5. BoardDto类：将DpNpcSharkObservedHandHistory.StreetBoard转换为BoardDto对象
+    //6. ActionDto类：将DpNpcSharkObservedHandHistory.ActionRecord转换为ActionDto对象
+    //7. PotDto类：将DpNpcSharkObservedHandHistory.PotSnapshot转换为PotDto对象
 
-    private static final Logger log = LoggerFactory.getLogger(DpNpcObservedHandHistoryPersistService.class);
+    private static final Logger log = LoggerFactory.getLogger(DpHandHistoryPersistService.class);
     private static final int PAYLOAD_VERSION = 1;
 
     private final DpObservedHandHistoryMapper mapper;
@@ -33,7 +42,7 @@ public class DpNpcObservedHandHistoryPersistService {
     private final DpUserMapper dpUserMapper;
     private final ObjectMapper payloadMapper;
 
-    public DpNpcObservedHandHistoryPersistService(
+    public DpHandHistoryPersistService(
             DpObservedHandHistoryMapper mapper,
             DpObservedHandParticipantMapper participantMapper,
             DpUserMapper dpUserMapper,
@@ -56,7 +65,9 @@ public class DpNpcObservedHandHistoryPersistService {
             return;
         }
         try {
+            //将DpNpcSharkObservedHandHistory.ObservedHandRecord转换为Payload对象
             Payload payload = Payload.from(rec);
+            //将Payload对象转换为JSON字符串
             String json = payloadMapper.writeValueAsString(payload);
             DpObservedHandHistory row = new DpObservedHandHistory();
             row.setRoomId(rec.roomId);
@@ -70,6 +81,7 @@ public class DpNpcObservedHandHistoryPersistService {
             row.setPayloadVersion(PAYLOAD_VERSION);
             row.setPayloadJson(json);
             mapper.insert(row);
+            //获取插入后的id给dp_observed_hand_participant表使用
             Long handId = row.getId();
             if (handId != null && room != null) {
                 insertParticipants(rec, handId, room);
@@ -122,6 +134,7 @@ public class DpNpcObservedHandHistoryPersistService {
     /**
      * 与 SQL 注释中的 payload 结构一致的可序列化 DTO（避免直接序列化内部嵌套类名路径）。
      */
+    //所谓的DTO就是数据传输对象，这里是为了将DpNpcSharkObservedHandHistory.ObservedHandRecord转换为Payload对象
     private static final class Payload {
         public java.util.List<SeatDto> seatsAtStart;
         public java.util.List<BoardDto> boardsByStreet;
@@ -129,7 +142,15 @@ public class DpNpcObservedHandHistoryPersistService {
         public java.util.List<PotDto> potsBeforeSettlement;
         public java.util.Map<String, java.util.List<String>> holeCardsAtEnd;
         public java.util.Map<String, Integer> netChipsChange;
-
+        //已学习，本模块代码精讲如下：
+        //1. from方法：将DpNpcSharkObservedHandHistory.ObservedHandRecord转换为Payload对象
+        //2. Payload对象：负责记录座位，公共牌，行动，池，洞牌，净盈亏
+        //3. SeatDto对象：负责记录座位
+        //4. BoardDto对象：负责记录公共牌
+        //5. ActionDto对象：负责记录行动
+        //6. PotDto对象：负责记录池
+        //7. HoleCardsAtEnd对象：负责记录洞牌
+        //8. NetChipsChange对象：负责记录净盈亏
         static Payload from(DpNpcSharkObservedHandHistory.ObservedHandRecord rec) {
             Payload p = new Payload();
             p.seatsAtStart = new java.util.ArrayList<>();

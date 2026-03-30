@@ -12,6 +12,13 @@ import java.util.List;
  */
 @Mapper
 public interface DpHandHistoryQueryMapper {
+//已学习，本模块代码精讲如下：
+//1. listForUserWithId方法：将userId和nickname传入，返回List<DpHandHistoryListItemDTO>对象
+//2. listForNicknameOnly方法：将nickname传入，返回List<DpHandHistoryListItemDTO>对象
+//3. countForUserWithId方法：将userId和nickname传入，返回long对象
+//4. countForNicknameOnly方法：将nickname传入，返回long对象
+//5. countParticipantForHandWithUserId方法：将handHistoryId和userId和nickname传入，返回long对象
+//6. countParticipantForHandNicknameOnly方法：将handHistoryId和nickname传入，返回long对象
 
     /**
      * 已传 userId 且与昵称校验通过：按 user_id 命中，或仅按昵称快照且 user_id 为空的历史行。
