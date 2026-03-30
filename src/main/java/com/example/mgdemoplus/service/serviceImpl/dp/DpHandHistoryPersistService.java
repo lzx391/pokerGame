@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 /**
- * 将 {@link DpNpcSharkObservedHandHistory.ObservedHandRecord} 写入表 dp_observed_hand_history，
+ * 将 {@link DpHandHistoryObserved.ObservedHandRecord} 写入表 dp_observed_hand_history，
  * 并对非机器人玩家写入 dp_observed_hand_participant（user_id 优先来自 dpUserId，否则按昵称查 dp_user；均可无则仅存昵称快照）。
  * 在 {@link DpRoomServiceImpl} 结算流程中调用；表不存在或 DB 异常时仅打日志，不中断游戏。
  */
@@ -61,7 +61,7 @@ public class DpHandHistoryPersistService {
     /**
      * @param room 结算当刻的房间（用于参与者与 dp_user 关联）；可为 null 则只写牌谱主表。
      */
-    public void save(DpNpcSharkObservedHandHistory.ObservedHandRecord rec, DpRoom room) {
+    public void save(DpHandHistoryObserved.ObservedHandRecord rec, DpRoom room) {
         if (rec == null) {
             return;
         }
@@ -93,7 +93,7 @@ public class DpHandHistoryPersistService {
         }
     }
 
-    private void insertParticipants(DpNpcSharkObservedHandHistory.ObservedHandRecord rec, long handHistoryId, DpRoom room) {
+    private void insertParticipants(DpHandHistoryObserved.ObservedHandRecord rec, long handHistoryId, DpRoom room) {
         List<DpPlayer> ps = room.getPlayers();
         if (ps == null) {
             return;
@@ -152,10 +152,10 @@ public class DpHandHistoryPersistService {
         //6. PotDto对象：负责记录池
         //7. HoleCardsAtEnd对象：负责记录洞牌
         //8. NetChipsChange对象：负责记录净盈亏
-        static Payload from(DpNpcSharkObservedHandHistory.ObservedHandRecord rec) {
+        static Payload from(DpHandHistoryObserved.ObservedHandRecord rec) {
             Payload p = new Payload();
             p.seatsAtStart = new ArrayList<>();
-            for (DpNpcSharkObservedHandHistory.SeatAtHandStart s : rec.seatsAtStart) {
+            for (DpHandHistoryObserved.SeatAtHandStart s : rec.seatsAtStart) {
                 SeatDto d = new SeatDto();
                 d.seatIndex = s.seatIndex;
                 d.nickname = s.nickname;
@@ -164,14 +164,14 @@ public class DpHandHistoryPersistService {
                 p.seatsAtStart.add(d);
             }
             p.boardsByStreet = new ArrayList<>();
-            for (DpNpcSharkObservedHandHistory.StreetBoard b : rec.boardsByStreet) {
+            for (DpHandHistoryObserved.StreetBoard b : rec.boardsByStreet) {
                 BoardDto d = new BoardDto();
                 d.stage = b.stage;
                 d.communityCards = new ArrayList<>(b.communityCards);
                 p.boardsByStreet.add(d);
             }
             p.actions = new ArrayList<>();
-            for (DpNpcSharkObservedHandHistory.ActionRecord a : rec.actions) {
+            for (DpHandHistoryObserved.ActionRecord a : rec.actions) {
                 ActionDto d = new ActionDto();
                 d.tsMs = a.tsMs;
                 d.stage = a.stage;
@@ -185,7 +185,7 @@ public class DpHandHistoryPersistService {
                 p.actions.add(d);
             }
             p.potsBeforeSettlement = new ArrayList<>();
-            for (DpNpcSharkObservedHandHistory.PotSnapshot pot : rec.potsBeforeSettlement) {
+            for (DpHandHistoryObserved.PotSnapshot pot : rec.potsBeforeSettlement) {
                 PotDto d = new PotDto();
                 d.amount = pot.amount;
                 d.eligibleNicknames = new ArrayList<>(pot.eligibleNicknames);

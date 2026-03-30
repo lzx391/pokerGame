@@ -41,7 +41,7 @@ public class DpNpcSharkOpponentMemoryService {
      * 一手结算且 LearningLab 已更新后调用：为每位非 Shark 对手 upsert 一行。
      */
     public void persistOpponentsAfterHand(DpRoom room) {
-        if (room == null || !DpNpcSharkObservedHandHistory.isSharkAtTable(room)) {
+        if (room == null || !DpHandHistoryObserved.isSharkAtTable(room)) {
             return;
         }
         Map<String, DpPlayerStats> statsMap = room.getPlayerStatsMap();
@@ -100,7 +100,7 @@ public class DpNpcSharkOpponentMemoryService {
         if (room == null || nickname == null || nickname.isEmpty()) {
             return;
         }
-        if (!DpNpcSharkObservedHandHistory.isSharkAtTable(room)) {
+        if (!DpHandHistoryObserved.isSharkAtTable(room)) {
             return;
         }
         if (DpNpcEngine.SHARK_BOT_NICKNAME.equals(nickname)) {
@@ -145,7 +145,7 @@ public class DpNpcSharkOpponentMemoryService {
 
     /** 新一手开局、座位已定后，为桌上每位非 Shark 玩家尝试加载记忆。 */
     public void hydrateAllOpponentsForNewHand(DpRoom room) {
-        if (room == null || !DpNpcSharkObservedHandHistory.isSharkAtTable(room)) {
+        if (room == null || !DpHandHistoryObserved.isSharkAtTable(room)) {
             return;
         }
         List<DpPlayer> ps = room.getPlayers();
