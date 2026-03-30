@@ -81,8 +81,9 @@
 - **做什么**：昵称 `BOT_LLM` 仅在 `DpRoomServiceImpl` 定时器里走 `DpLlmNpcDecisionService`，与普通规则 NPC 分离；接口 `POST /dpRoom/addLlmBot?roomId=...` 可预约下一局上桌。
 - **代码位置**：`npc/LlmNpc.java`、`DpLlmNpcDecisionService.java`、`DpNpcEngine.buildLlmNpcGameSnapshot` 等。
 - **密钥与接入点怎么配（二选一，配置文件优先）**：
-  1. **`application.properties`**（已预留项，适合本机开发）：`dp.llm.ark.api-key=`、`dp.llm.ark.endpoint-id=`（可选 `dp.llm.ark.base-url=`）。**不要把填了真密钥的文件提交到 Git。**
-  2. **系统环境变量**：`ARK_API_KEY`、`ARK_ENDPOINT_ID`（可选 `ARK_BASE_URL`）。  
+  1. **`application.properties`**（已预留项，适合本机开发）：`dp.llm.ark.api-key=`、`dp.llm.ark.endpoint-id=`（可选 `dp.llm.ark.base-url=`、`dp.llm.ark.reasoning-effort=`、`dp.llm.ark.thinking-type=`）。**不要把填了真密钥的文件提交到 Git。**
+  2. **系统环境变量**：`ARK_API_KEY`、`ARK_ENDPOINT_ID`（可选 `ARK_BASE_URL`、`ARK_REASONING_EFFORT`、`ARK_THINKING_TYPE`）。
+- **响应偏慢（深度思考 / 推理）**：方舟文档里两层独立控制：① `thinking.type`（`enabled` / `disabled` / `auto`）——是否走深度思考、是否返回思维链；若接入点为 Seed 等且**不传**，服务端对许多型号**默认为 `enabled`**，会明显变慢。② `reasoning_effort`（`minimal`～`high`）——在允许思考时调节思维链长度。**注意**：`thinking.type=disabled` 与部分 `reasoning_effort` 组合会被方舟拒绝（如 `low + disabled` → HTTP 400）。`LlmNpc` 在 `disabled` 时会自动不传 `reasoning_effort`，避免该错误；若需显式调推理强度，请用 `enabled`/`auto` 或去掉 `thinking-type` 让服务端默认。  
      - Windows：**设置 → 系统 → 关于 → 高级系统设置 → 环境变量**（用户或系统变量里新建）。  
      - 仅当前 PowerShell 会话：`$env:ARK_API_KEY="你的key"`、`$env:ARK_ENDPOINT_ID="ep-..."`。  
      - IntelliJ：**Run → Edit Configurations → 你的 Spring Boot → Environment variables**。
@@ -96,6 +97,7 @@
 - **历史查询**：有 `user_id` 时按 id 查；无则按 `nickname_snapshot`（需注意改名后旧昵称仍留在历史快照）。
 - **列表接口（分页，无 PageHelper）**：`GET /dpHandHistory/list?nickname=必填&userId=可选&page=1&pageSize=10` → 返回 `DpHandHistoryPageDTO`（`total`、`page`、`pageSize`、`records`）；`pageSize` 默认 10、最大 100。仅含 **存在参与者行** 的牌谱。
 - **详情接口（2026-03-30）**：`GET /dpHandHistory/detail?handHistoryId=必填&nickname=必填&userId=可选` → `DpHandHistoryDetailDTO`（表头字段 + `payload` 为 `payload_json` 解析对象）。仅 **参与者** 可读；`holeCardsAtEnd` 为归档全量洞牌。前端 `HandHistoryDetail`：**本人**始终可看自己的底牌（含自己弃牌后）；**他人**弃牌则不展示其底牌，未弃牌仍按街展示。**结算** 页另有终局公共牌。
+- **牌谱详情页 UI（2026-03-30）**：`HandHistoryDetail.vue` 使用浅灰渐变底、卡片式元信息、分段街导航（胶囊底 + 高亮当前街）、深绿「台呢」公共牌区与斑马纹表格；庄/小盲/大盲标签分色；边池以卡片列表展示。牌面仍复用 `dp-poker-cards.css`，详情页内关闭扫光动画以免干扰阅读。
 
 ### Docker 部署
 

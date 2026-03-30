@@ -1,162 +1,213 @@
 <template>
   <div class="hand-detail-page">
-    <div class="hand-detail-page__header">
-      <button type="button" class="hand-detail-page__back" @click="goBack">返回列表</button>
-      <h1>牌谱详情</h1>
-    </div>
-
-    <p v-if="loading" class="hand-detail-page__status">加载中…</p>
-    <p v-else-if="loadError" class="hand-detail-page__error">{{ loadError }}</p>
-
-    <template v-else-if="detail">
-      <div class="hand-detail-page__meta">
-        <span>房间 {{ detail.roomId }}</span>
-        <span>结束 {{ formatTime(detail.endedAtMs) }}</span>
-        <span>盲注 {{ detail.smallBlindChips }} / {{ detail.bigBlindChips }}</span>
-        <span>庄家 {{ detail.dealerNickname || '—' }}</span>
-      </div>
-
-      <nav class="hand-detail-page__tabs" role="tablist">
-        <button
-          v-for="tab in STREET_TABS"
-          :key="tab.key"
-          type="button"
-          role="tab"
-          class="hand-detail-page__tab"
-          :class="{ 'hand-detail-page__tab--active': activeTab === tab.key }"
-          @click="activeTab = tab.key"
-        >
-          {{ tab.label }}
+    <div class="hand-detail-page__shell">
+      <header class="hand-detail-page__hero">
+        <button type="button" class="hand-detail-page__back" @click="goBack">
+          <span class="hand-detail-page__back-icon" aria-hidden="true">←</span>
+          返回列表
         </button>
-      </nav>
+        <div class="hand-detail-page__hero-text">
+          <h1 class="hand-detail-page__title">牌谱详情</h1>
+          <p class="hand-detail-page__subtitle">按街复盘行动与公共牌，结算页查看盈亏与边池。</p>
+        </div>
+      </header>
 
-      <section v-if="activeTab !== 'settlement'" class="hand-detail-page__panel">
-        <div class="hand-detail-page__board-block">
-          <div class="hand-detail-page__board-label">公共牌</div>
-          <div v-if="!communityCardsForTab.length" class="hand-detail-page__empty hand-detail-page__empty--inline">（本街未发公共牌）</div>
-          <div v-else class="hand-detail-page__card-row">
-            <div
-              v-for="c in communityCardsForTab"
-              :key="'b-' + activeTab + '-' + c"
-              :class="[cardClass(c), 'hand-detail-page__card']"
-            >
-              {{ cardFace(c) }}
-            </div>
+      <div v-if="loading" class="hand-detail-page__state hand-detail-page__state--loading">
+        <span class="hand-detail-page__spinner" aria-hidden="true" />
+        加载中…
+      </div>
+      <p v-else-if="loadError" class="hand-detail-page__state hand-detail-page__state--error">{{ loadError }}</p>
+
+      <template v-else-if="detail">
+        <div class="hand-detail-page__meta-bar">
+          <div class="hand-detail-page__meta-chip" title="房间">
+            <span class="hand-detail-page__meta-k">房间</span>
+            <span class="hand-detail-page__meta-v">{{ detail.roomId }}</span>
+          </div>
+          <div class="hand-detail-page__meta-chip" title="结束时间">
+            <span class="hand-detail-page__meta-k">结束</span>
+            <span class="hand-detail-page__meta-v">{{ formatTime(detail.endedAtMs) }}</span>
+          </div>
+          <div class="hand-detail-page__meta-chip" title="盲注">
+            <span class="hand-detail-page__meta-k">盲注</span>
+            <span class="hand-detail-page__meta-v">{{ detail.smallBlindChips }} / {{ detail.bigBlindChips }}</span>
+          </div>
+          <div class="hand-detail-page__meta-chip" title="庄家">
+            <span class="hand-detail-page__meta-k">庄家</span>
+            <span class="hand-detail-page__meta-v">{{ detail.dealerNickname || '—' }}</span>
           </div>
         </div>
-        <div v-if="!streetActions.length" class="hand-detail-page__empty">本街无行动记录。</div>
-        <div v-else class="hand-detail-table-wrap">
-          <table class="hand-detail-table">
-            <thead>
-              <tr>
-                <th>玩家</th>
-                <th v-for="(label, idx) in roundColumnHeaders" :key="'rh' + idx">{{ label }}</th>
-                <th>底牌</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="nick in rowNicknames" :key="nick">
-                <td class="hand-detail-page__player-cell">
-                  <span class="hand-detail-page__name">{{ nick }}</span>
-                  <span
-                    v-for="t in (playerRoleTags[nick] || [])"
-                    :key="nick + '-role-' + t"
-                    class="hand-detail-page__role-tag"
-                  >{{ t }}</span>
-                </td>
-                <td
-                  v-for="(label, idx) in roundColumnHeaders"
-                  :key="nick + '-' + label + '-' + idx"
-                  class="hand-detail-table__cell-actions"
+
+        <nav class="hand-detail-page__tabs" role="tablist" aria-label="牌局阶段">
+          <button
+            v-for="tab in STREET_TABS"
+            :key="tab.key"
+            type="button"
+            role="tab"
+            :aria-selected="activeTab === tab.key"
+            class="hand-detail-page__tab"
+            :class="{ 'hand-detail-page__tab--active': activeTab === tab.key }"
+            @click="activeTab = tab.key"
+          >
+            {{ tab.label }}
+          </button>
+        </nav>
+
+        <section v-if="activeTab !== 'settlement'" class="hand-detail-page__panel">
+          <div class="hand-detail-page__board">
+            <div class="hand-detail-page__board-head">
+              <span class="hand-detail-page__board-title">公共牌</span>
+              <span class="hand-detail-page__board-hint">{{ streetHint }}</span>
+            </div>
+            <div class="hand-detail-page__board-felt">
+              <template v-if="!communityCardsForTab.length">
+                <div class="hand-detail-page__board-empty">本街尚未发出公共牌</div>
+              </template>
+              <div v-else class="hand-detail-page__card-row">
+                <div
+                  v-for="c in communityCardsForTab"
+                  :key="'b-' + activeTab + '-' + c"
+                  :class="[cardClass(c), 'hand-detail-page__card']"
                 >
-                  {{ cellText(nick, idx) }}
-                </td>
-                <td class="hand-detail-table__holes-cell">
-                  <template v-if="holeCardsByNickForStreet[nick] === null">
-                    <span class="hand-detail-page__no-holes">—</span>
-                  </template>
-                  <div
-                    v-else-if="holeCardsByNickForStreet[nick].length"
-                    class="hand-detail-page__card-row hand-detail-page__card-row--holes"
-                  >
-                    <div
-                      v-for="(hc, hidx) in holeCardsByNickForStreet[nick]"
-                      :key="nick + '-s-' + hidx"
-                      :class="[cardClass(hc), 'hand-detail-page__card']"
-                    >
-                      {{ cardFace(hc) }}
-                    </div>
-                  </div>
-                  <span v-else class="hand-detail-page__no-holes">—</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section v-else class="hand-detail-page__panel">
-        <div class="hand-detail-page__board-block hand-detail-page__board-block--settlement">
-          <div class="hand-detail-page__board-label">公共牌（终局）</div>
-          <div v-if="!finalBoardCards.length" class="hand-detail-page__empty hand-detail-page__empty--inline">（本手未发公共牌）</div>
-          <div v-else class="hand-detail-page__card-row">
-            <div
-              v-for="c in finalBoardCards"
-              :key="'final-' + c"
-              :class="[cardClass(c), 'hand-detail-page__card']"
-            >
-              {{ cardFace(c) }}
+                  {{ cardFace(c) }}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-        <h2 class="hand-detail-page__subh">盈亏与摊牌</h2>
-        <div class="hand-detail-table-wrap">
-          <table class="hand-detail-table hand-detail-table--settlement">
-            <thead>
-              <tr>
-                <th>玩家</th>
-                <th>本手盈亏</th>
-                <th>底牌</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="row in settlementRowsWithCards" :key="row.nick">
-                <td class="hand-detail-page__player-cell">
-                  <span class="hand-detail-page__name">{{ row.nick }}</span>
-                  <span
-                    v-for="t in (playerRoleTags[row.nick] || [])"
-                    :key="row.nick + '-sr-' + t"
-                    class="hand-detail-page__role-tag"
-                  >{{ t }}</span>
-                </td>
-                <td :class="netClass(row.net)">{{ row.net }}</td>
-                <td class="hand-detail-table__holes-cell">
-                  <span v-if="row.folded && !row.isSelf" class="hand-detail-page__folded-label">已弃牌</span>
-                  <div v-else-if="row.cards.length" class="hand-detail-page__card-row hand-detail-page__card-row--holes">
-                    <div
-                      v-for="(c, idx) in row.cards"
-                      :key="row.nick + '-h-' + idx"
-                      :class="[cardClass(c), 'hand-detail-page__card']"
-                    >
-                      {{ cardFace(c) }}
-                    </div>
-                  </div>
-                  <span v-else class="hand-detail-page__no-holes">—</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
 
-        <h2 class="hand-detail-page__subh">池</h2>
-        <ul v-if="pots.length" class="hand-detail-page__pots">
-          <li v-for="(p, i) in pots" :key="'pot' + i">
-            池 {{ i + 1 }}：{{ p.amount }} — {{ (p.eligibleNicknames || []).join('、') || '—' }}
-          </li>
-        </ul>
-        <p v-else class="hand-detail-page__empty">无池数据</p>
-      </section>
-    </template>
+          <div v-if="!streetActions.length" class="hand-detail-page__empty-block">本街暂无行动记录</div>
+          <div v-else class="hand-detail-table-wrap">
+            <table class="hand-detail-table">
+              <thead>
+                <tr>
+                  <th scope="col">玩家</th>
+                  <th
+                    v-for="(label, idx) in roundColumnHeaders"
+                    :key="'rh' + idx"
+                    scope="col"
+                  >{{ label }}</th>
+                  <th scope="col">底牌</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="nick in rowNicknames" :key="nick">
+                  <td class="hand-detail-page__player-cell">
+                    <div class="hand-detail-page__player-line">
+                      <span class="hand-detail-page__name">{{ nick }}</span>
+                      <span
+                        v-for="t in (playerRoleTags[nick] || [])"
+                        :key="nick + '-role-' + t"
+                        class="hand-detail-page__role-tag"
+                        :class="roleTagClass(t)"
+                      >{{ t }}</span>
+                    </div>
+                  </td>
+                  <td
+                    v-for="(label, idx) in roundColumnHeaders"
+                    :key="nick + '-' + label + '-' + idx"
+                    class="hand-detail-table__cell-actions"
+                  >
+                    <span class="hand-detail-table__action-text">{{ cellText(nick, idx) }}</span>
+                  </td>
+                  <td class="hand-detail-table__holes-cell">
+                    <template v-if="holeCardsByNickForStreet[nick] === null">
+                      <span class="hand-detail-page__no-holes">隐藏</span>
+                    </template>
+                    <div
+                      v-else-if="holeCardsByNickForStreet[nick].length"
+                      class="hand-detail-page__card-row hand-detail-page__card-row--holes"
+                    >
+                      <div
+                        v-for="(hc, hidx) in holeCardsByNickForStreet[nick]"
+                        :key="nick + '-s-' + hidx"
+                        :class="[cardClass(hc), 'hand-detail-page__card']"
+                      >
+                        {{ cardFace(hc) }}
+                      </div>
+                    </div>
+                    <span v-else class="hand-detail-page__no-holes">—</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section v-else class="hand-detail-page__panel">
+          <div class="hand-detail-page__board hand-detail-page__board--final">
+            <div class="hand-detail-page__board-head">
+              <span class="hand-detail-page__board-title">终局公共牌</span>
+            </div>
+            <div class="hand-detail-page__board-felt hand-detail-page__board-felt--final">
+              <template v-if="!finalBoardCards.length">
+                <div class="hand-detail-page__board-empty">本手未发出公共牌</div>
+              </template>
+              <div v-else class="hand-detail-page__card-row">
+                <div
+                  v-for="c in finalBoardCards"
+                  :key="'final-' + c"
+                  :class="[cardClass(c), 'hand-detail-page__card']"
+                >
+                  {{ cardFace(c) }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <h2 class="hand-detail-page__subh">盈亏与摊牌</h2>
+          <div class="hand-detail-table-wrap">
+            <table class="hand-detail-table hand-detail-table--settlement">
+              <thead>
+                <tr>
+                  <th scope="col">玩家</th>
+                  <th scope="col">本手盈亏</th>
+                  <th scope="col">底牌</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in settlementRowsWithCards" :key="row.nick">
+                  <td class="hand-detail-page__player-cell">
+                    <div class="hand-detail-page__player-line">
+                      <span class="hand-detail-page__name">{{ row.nick }}</span>
+                      <span
+                        v-for="t in (playerRoleTags[row.nick] || [])"
+                        :key="row.nick + '-sr-' + t"
+                        class="hand-detail-page__role-tag"
+                        :class="roleTagClass(t)"
+                      >{{ t }}</span>
+                    </div>
+                  </td>
+                  <td :class="['hand-detail-table__net', netClass(row.net)]">{{ row.net }}</td>
+                  <td class="hand-detail-table__holes-cell">
+                    <span v-if="row.folded && !row.isSelf" class="hand-detail-page__folded-label">已弃牌</span>
+                    <div v-else-if="row.cards.length" class="hand-detail-page__card-row hand-detail-page__card-row--holes">
+                      <div
+                        v-for="(c, idx) in row.cards"
+                        :key="row.nick + '-h-' + idx"
+                        :class="[cardClass(c), 'hand-detail-page__card']"
+                      >
+                        {{ cardFace(c) }}
+                      </div>
+                    </div>
+                    <span v-else class="hand-detail-page__no-holes">—</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 class="hand-detail-page__subh">边池</h2>
+          <ul v-if="pots.length" class="hand-detail-page__pots">
+            <li v-for="(p, i) in pots" :key="'pot' + i" class="hand-detail-page__pot-item">
+              <span class="hand-detail-page__pot-index">池 {{ i + 1 }}</span>
+              <span class="hand-detail-page__pot-amount">{{ p.amount }}</span>
+              <span class="hand-detail-page__pot-names">{{ (p.eligibleNicknames || []).join('、') || '—' }}</span>
+            </li>
+          </ul>
+          <p v-else class="hand-detail-page__empty-block">无池数据</p>
+        </section>
+      </template>
+    </div>
   </div>
 </template>
 
@@ -345,6 +396,15 @@ export default {
     },
     pots() {
       return Array.isArray(this.payload.potsBeforeSettlement) ? this.payload.potsBeforeSettlement : []
+    },
+    streetHint() {
+      const map = {
+        preflop: '翻前无公共牌',
+        flop: '最多 3 张',
+        turn: '第 4 张',
+        river: '第 5 张'
+      }
+      return map[this.activeTab] || ''
     }
   },
   watch: {
@@ -371,6 +431,12 @@ export default {
     },
     cardFace(c) {
       return getCardDisplay(c)
+    },
+    roleTagClass(t) {
+      if (t === '庄') return 'hand-detail-page__role-tag--dealer'
+      if (t === '小盲') return 'hand-detail-page__role-tag--sb'
+      if (t === '大盲') return 'hand-detail-page__role-tag--bb'
+      return ''
     },
     goBack() {
       this.$router.push('/hand-history')
@@ -440,208 +506,499 @@ export default {
 
 <style scoped>
 .hand-detail-page {
-  max-width: 960px;
+  --hd-bg: linear-gradient(165deg, #eef2f7 0%, #e4eaf3 45%, #f0f4fa 100%);
+  --hd-surface: #ffffff;
+  --hd-felt: linear-gradient(145deg, #0d3d2e 0%, #0f4a36 40%, #0a3024 100%);
+  --hd-felt-border: rgba(255, 255, 255, 0.08);
+  --hd-text: #1a2332;
+  --hd-muted: #5c6b7e;
+  --hd-accent: #1e6b55;
+  --hd-tab-active: #0f6b4f;
+  min-height: 100%;
+  box-sizing: border-box;
+  background: var(--hd-bg);
+  padding: clamp(16px, 4vw, 28px) clamp(12px, 3vw, 24px) 40px;
+}
+
+.hand-detail-page__shell {
+  max-width: 920px;
   margin: 0 auto;
-  padding: 24px 16px;
 }
-.hand-detail-page__header {
+
+.hand-detail-page__hero {
   display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 20px;
 }
-.hand-detail-page__header h1 {
-  margin: 0;
-  font-size: 1.35rem;
-}
+
 .hand-detail-page__back {
-  padding: 8px 14px;
-  border: 1px solid #dcdfe6;
-  border-radius: 6px;
-  background: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px 9px 12px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 1px 3px rgba(26, 35, 50, 0.08), 0 0 0 1px rgba(26, 35, 50, 0.06);
   cursor: pointer;
   font-size: 14px;
+  font-weight: 500;
+  color: var(--hd-text);
+  transition: box-shadow 0.2s ease, transform 0.15s ease;
 }
+
 .hand-detail-page__back:hover {
-  border-color: #409eff;
-  color: #409eff;
+  box-shadow: 0 4px 14px rgba(15, 107, 79, 0.18), 0 0 0 1px rgba(15, 107, 79, 0.2);
+  color: var(--hd-tab-active);
 }
-.hand-detail-page__status {
-  color: #909399;
+
+.hand-detail-page__back-icon {
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0.75;
 }
-.hand-detail-page__error {
-  color: #f56c6c;
+
+.hand-detail-page__hero-text {
+  width: 100%;
+}
+
+.hand-detail-page__title {
+  margin: 0 0 6px;
+  font-size: clamp(1.35rem, 3vw, 1.65rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--hd-text);
+}
+
+.hand-detail-page__subtitle {
+  margin: 0;
+  font-size: 13px;
   line-height: 1.5;
+  color: var(--hd-muted);
+  max-width: 36em;
 }
-.hand-detail-page__meta {
+
+.hand-detail-page__state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px;
+  border-radius: 14px;
+  background: var(--hd-surface);
+  box-shadow: 0 2px 12px rgba(26, 35, 50, 0.06);
+  font-size: 14px;
+}
+
+.hand-detail-page__state--loading {
+  color: var(--hd-muted);
+}
+
+.hand-detail-page__state--error {
+  color: #c45656;
+  border: 1px solid rgba(196, 86, 86, 0.25);
+}
+
+.hand-detail-page__spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #e0e6ee;
+  border-top-color: var(--hd-accent);
+  border-radius: 50%;
+  animation: hand-detail-spin 0.75s linear infinite;
+}
+
+@keyframes hand-detail-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.hand-detail-page__meta-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px 20px;
-  font-size: 13px;
-  color: #606266;
-  margin-bottom: 16px;
+  gap: 10px;
+  margin-bottom: 18px;
 }
+
+.hand-detail-page__meta-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--hd-surface);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 2px 10px rgba(26, 35, 50, 0.06);
+  border: 1px solid rgba(26, 35, 50, 0.06);
+}
+
+.hand-detail-page__meta-k {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8b98a8;
+}
+
+.hand-detail-page__meta-v {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--hd-text);
+  word-break: break-all;
+}
+
 .hand-detail-page__tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 0;
+  padding: 4px;
+  margin-bottom: 18px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.65);
+  box-shadow: inset 0 1px 2px rgba(26, 35, 50, 0.06);
+  border: 1px solid rgba(26, 35, 50, 0.07);
 }
+
 .hand-detail-page__tab {
-  padding: 8px 14px;
-  border: 1px solid #dcdfe6;
-  border-radius: 6px;
-  background: #fff;
+  flex: 1 1 auto;
+  min-width: 72px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
   cursor: pointer;
-  font-size: 14px;
-  color: #606266;
-}
-.hand-detail-page__tab:hover {
-  border-color: #c6e2ff;
-  color: #409eff;
-}
-.hand-detail-page__tab--active {
-  border-color: #409eff;
-  color: #409eff;
+  font-size: 13px;
   font-weight: 600;
+  color: var(--hd-muted);
+  transition: color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
+
+.hand-detail-page__tab:hover {
+  color: var(--hd-text);
+}
+
+.hand-detail-page__tab--active {
+  background: var(--hd-surface);
+  color: var(--hd-tab-active);
+  box-shadow: 0 2px 10px rgba(15, 107, 79, 0.12);
+}
+
 .hand-detail-page__panel {
-  margin-top: 8px;
+  padding: 20px;
+  border-radius: 18px;
+  background: var(--hd-surface);
+  box-shadow: 0 4px 24px rgba(26, 35, 50, 0.07), 0 0 0 1px rgba(26, 35, 50, 0.04);
 }
-.hand-detail-page__board-block--settlement {
+
+.hand-detail-page__board {
   margin-bottom: 20px;
 }
-.hand-detail-page__board-block {
-  margin: 0 0 16px;
-  text-align: left;
-}
-.hand-detail-page__board-label {
-  font-size: 13px;
-  color: #606266;
+
+.hand-detail-page__board--final {
   margin-bottom: 8px;
-  font-weight: 600;
 }
-.hand-detail-page__empty--inline {
-  margin: 0;
+
+.hand-detail-page__board-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
 }
+
+.hand-detail-page__board-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--hd-text);
+}
+
+.hand-detail-page__board-hint {
+  font-size: 12px;
+  color: var(--hd-muted);
+}
+
+.hand-detail-page__board-felt {
+  position: relative;
+  min-height: 88px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: var(--hd-felt);
+  box-shadow: inset 0 1px 0 var(--hd-felt-border), 0 8px 24px rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.hand-detail-page__board-felt--final {
+  min-height: 96px;
+}
+
+.hand-detail-page__board-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: 0.02em;
+}
+
+.hand-detail-page__empty-block {
+  margin: 0 0 16px;
+  padding: 16px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--hd-muted);
+  background: #f6f8fb;
+  border-radius: 12px;
+  border: 1px dashed #d5dde8;
+}
+
 .hand-detail-page__card-row {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   vertical-align: middle;
 }
+
 .hand-detail-page__card-row--holes {
   justify-content: flex-start;
 }
+
 .hand-detail-page__card {
   flex-shrink: 0;
-  transform: scale(0.92);
+  transform: scale(1);
   transform-origin: center center;
 }
+
 .hand-detail-page .card-base:hover {
-  transform: scale(0.92);
+  transform: scale(1);
   filter: none;
 }
+
 .hand-detail-page .card-base::after {
   animation: none;
   opacity: 0;
 }
+
 .hand-detail-table--settlement .hand-detail-table__holes-cell {
   min-width: 120px;
   vertical-align: middle;
 }
+
 .hand-detail-page__folded-label {
-  color: #909399;
-  font-size: 13px;
-}
-.hand-detail-page__no-holes {
-  color: #c0c4cc;
-  font-size: 14px;
-}
-.hand-detail-page__empty {
-  color: #909399;
-  font-size: 14px;
-}
-.hand-detail-page__subh {
-  font-size: 1rem;
-  margin: 16px 0 8px;
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 12px;
   font-weight: 600;
-  color: #303133;
+  color: #8b98a8;
+  background: #f0f3f7;
+  border-radius: 8px;
 }
+
+.hand-detail-page__no-holes {
+  color: #a8b4c4;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.hand-detail-page__subh {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.95rem;
+  margin: 22px 0 12px;
+  font-weight: 700;
+  color: var(--hd-text);
+  letter-spacing: -0.01em;
+}
+
+.hand-detail-page__subh::before {
+  content: '';
+  width: 4px;
+  height: 1em;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #1e8a6a, #0f5c45);
+}
+
 .hand-detail-page__pots {
   margin: 0;
-  padding-left: 0;
+  padding: 0;
   list-style: none;
-  font-size: 14px;
-  color: #606266;
-  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
-.hand-detail-page__pots li {
-  margin-bottom: 6px;
+
+.hand-detail-page__pot-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 14px;
+  row-gap: 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f6f8fb;
+  border: 1px solid #e8edf4;
 }
-.hand-detail-page__holes {
-  font-size: 15px;
-  letter-spacing: 0.05em;
-}
-.hand-detail-table-wrap {
-  overflow-x: auto;
-}
-.hand-detail-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-.hand-detail-table th,
-.hand-detail-table td {
-  border: 1px solid #ebeef5;
-  padding: 8px 10px;
-  text-align: left;
-  min-width: 72px;
-}
-.hand-detail-table th {
-  background: #f5f7fa;
-  color: #606266;
-  font-weight: 600;
-}
-.hand-detail-page__player-cell {
-  text-align: left;
-  vertical-align: top;
+
+.hand-detail-page__pot-index {
+  grid-column: 1;
+  grid-row: 1 / -1;
+  align-self: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--hd-accent);
   white-space: nowrap;
 }
-.hand-detail-page__name {
-  font-weight: 600;
-  color: #303133;
-  margin-right: 6px;
+
+.hand-detail-page__pot-amount {
+  grid-column: 2;
+  grid-row: 1;
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--hd-text);
 }
-.hand-detail-page__role-tag {
-  display: inline-block;
-  margin-right: 4px;
-  margin-top: 2px;
-  padding: 1px 6px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #409eff;
-  background: #ecf5ff;
-  border: 1px solid #d9ecff;
-  border-radius: 4px;
+
+.hand-detail-page__pot-names {
+  grid-column: 2;
+  grid-row: 2;
+  font-size: 13px;
+  color: var(--hd-muted);
+  line-height: 1.45;
+}
+
+.hand-detail-table-wrap {
+  overflow-x: auto;
+  margin: 0 -4px;
+  padding: 0 4px;
+  border-radius: 12px;
+}
+
+.hand-detail-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e8edf4;
+}
+
+.hand-detail-table th,
+.hand-detail-table td {
+  border: none;
+  border-bottom: 1px solid #eef1f6;
+  padding: 12px 14px;
+  text-align: left;
+  min-width: 72px;
   vertical-align: middle;
 }
+
+.hand-detail-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.hand-detail-table tbody tr:nth-child(even) {
+  background: #fafbfd;
+}
+
+.hand-detail-table tbody tr:hover {
+  background: #f3f7fb;
+}
+
+.hand-detail-table th {
+  background: linear-gradient(180deg, #f8fafc 0%, #f0f4f8 100%);
+  color: #4a5568;
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.hand-detail-page__player-cell {
+  text-align: left;
+  vertical-align: middle;
+  min-width: 140px;
+}
+
+.hand-detail-page__player-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.hand-detail-page__name {
+  font-weight: 700;
+  color: var(--hd-text);
+}
+
+.hand-detail-page__role-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 6px;
+  vertical-align: middle;
+}
+
+.hand-detail-page__role-tag--dealer {
+  color: #b45309;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+}
+
+.hand-detail-page__role-tag--sb {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+}
+
+.hand-detail-page__role-tag--bb {
+  color: #6d28d9;
+  background: #f5f3ff;
+  border: 1px solid #ddd6fe;
+}
+
 .hand-detail-table__cell-actions {
   white-space: pre-line;
-  line-height: 1.5;
-  font-size: 12px;
-  color: #303133;
-  vertical-align: top;
-  max-width: 240px;
-  min-width: 100px;
+  line-height: 1.55;
+  font-size: 13px;
+  color: #2d3748;
+  vertical-align: middle;
+  max-width: 260px;
+  min-width: 104px;
 }
+
+.hand-detail-table__action-text {
+  display: inline-block;
+}
+
+.hand-detail-table__net {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
 .hand-detail-table__net--win {
-  color: #67c23a;
-  font-weight: 600;
+  color: #15803d;
 }
+
 .hand-detail-table__net--lose {
-  color: #f56c6c;
+  color: #dc2626;
+}
+
+@media (max-width: 520px) {
+  .hand-detail-page__tab {
+    min-width: 56px;
+    padding: 8px 8px;
+    font-size: 12px;
+  }
+
+  .hand-detail-page__panel {
+    padding: 14px;
+  }
 }
 </style>

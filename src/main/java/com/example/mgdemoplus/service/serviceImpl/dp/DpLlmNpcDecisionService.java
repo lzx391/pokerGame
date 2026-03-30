@@ -51,11 +51,20 @@ public class DpLlmNpcDecisionService {
     public DpLlmNpcDecisionService(
             @Value("${dp.llm.ark.api-key:}") String propApiKey,
             @Value("${dp.llm.ark.endpoint-id:}") String propEndpointId,
-            @Value("${dp.llm.ark.base-url:}") String propBaseUrl) {
+            @Value("${dp.llm.ark.base-url:}") String propBaseUrl,
+            @Value("${dp.llm.ark.reasoning-effort:}") String propReasoningEffort,
+            @Value("${dp.llm.ark.thinking-type:}") String propThinkingType) {
         String apiKey = firstNonBlank(propApiKey, env("ARK_API_KEY"));
         String endpointId = firstNonBlank(propEndpointId, env("ARK_ENDPOINT_ID"));
         String baseUrl = firstNonBlank(propBaseUrl, env("ARK_BASE_URL"));
-        this.llmNpc = new LlmNpc(apiKey, endpointId, baseUrl.isEmpty() ? null : baseUrl);//这里涉及到Llmpc类
+        String reasoningEffort = firstNonBlank(propReasoningEffort, env("ARK_REASONING_EFFORT"));
+        String thinkingType = firstNonBlank(propThinkingType, env("ARK_THINKING_TYPE"));
+        this.llmNpc = new LlmNpc(
+                apiKey,
+                endpointId,
+                baseUrl.isEmpty() ? null : baseUrl,
+                reasoningEffort.isEmpty() ? null : reasoningEffort,
+                thinkingType.isEmpty() ? null : thinkingType);
     }
 
     private static String env(String name) {
