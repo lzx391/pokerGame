@@ -192,5 +192,8 @@
 - **DpHandHistoryController**->**DpHandHistoryService**->**DpHandHistoryQueryMapper**,**DpObservedHandHistoryMapper分页联查**  
 里面用到的数据结构有**DpHandHistoryPageDTO（集成DpHandHistoryListItemDTO）**，**DpHandHistoryDetailDTO**  
 ## 以下类是负责后端信息入库的
-- 由房间服务类的**autoSettle**方法开始->  
-**DpNpcObservedHandHistoryPersistService**负责对局信息落库和更新用户对局关联表，存对局信息的时候用的是json形式，先把DpNpcSharkObservedHandHistory.ObservedHandRecord类转化成playload类，然后playload->json格式
+- 由房间服务类的**autoSettle**方法开始->DpNpcSharkObservedHandHistory.finalizeHand处理->DpNpcSharkObservedHandHistory.ObservedHandRecord类->
+**DpNpcObservedHandHistoryPersistService**负责对局信息落库和更新用户对局关联表，存对局信息的时候用的是json形式，先把DpNpcSharkObservedHandHistory.ObservedHandRecord类转化成playload类，然后playload->json格式->**用DpObservedHandParticipant**和**DpObservedHandHistory**作为最终落库的实体  
+## 以下是对finalizeHand方法的剖析  
+首先**DpNpcSharkObservedHandHistory**这个类整个就是负责监控各个行动并写入内存的，里面有很多方法分别在开始，翻前行动前，翻前行动后的bet fold 等方法插眼，最后finalizeHand打包信息，并挂到近几手的内存对局队列中。
+

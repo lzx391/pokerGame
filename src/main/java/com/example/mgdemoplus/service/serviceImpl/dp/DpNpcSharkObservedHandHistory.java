@@ -178,7 +178,11 @@ final class DpNpcSharkObservedHandHistory {
             this.roomId = roomId == null ? "" : roomId;
             this.handSeed = handSeed;
         }
-
+/**
+ * 已学习，本模块代码精讲如下：
+ * 1. equals方法：负责判断两个Key对象是否相等
+ * 2. hashCode方法：负责计算Key对象的哈希值
+ */
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
@@ -258,18 +262,21 @@ final class DpNpcSharkObservedHandHistory {
             return Collections.unmodifiableList(new ArrayList<>(all.subList(from, all.size())));
         }
     }
-
+//这里是开始一手牌谱的记录
+//已学习
     static void beginHand(DpRoom room) {
         if (!isEnabledForRoom(room)) return;
         Key k = new Key(room.getRoomId(), room.getCurrentHandSeed());
         HandBuilder b = new HandBuilder();
         b.startedAtMs = System.currentTimeMillis();
-        BUILDERS.put(k, b);
+        //将手种子和房间id作为键，将HandBuilder对象作为值，存入BUILDERS中
+        BUILDERS.put(k, b);//BUILDERS是一个ConcurrentHashMap，用于存储手种子和房间id作为键，HandBuilder对象作为值
     }
 
     /**
      * 发牌与下盲结束后调用：固定座位序、盲注后筹码，并记一条 preflop 空_board。
      */
+    //已学习，本模块代码精讲如下：翻前行动前快照
     static void markHandReadyAfterBlinds(DpRoom room) {
         if (!isEnabledForRoom(room)) return;
         Key k = new Key(room.getRoomId(), room.getCurrentHandSeed());
@@ -291,7 +298,7 @@ final class DpNpcSharkObservedHandHistory {
         b.boardsByStreet.add(new StreetBoard("preflop", room.getCommunityCards() == null
                 ? List.of() : new ArrayList<>(room.getCommunityCards())));
     }
-
+//之后行动记录用
     static void recordBoardState(DpRoom room) {
         if (!isEnabledForRoom(room)) return;
         Key k = new Key(room.getRoomId(), room.getCurrentHandSeed());
@@ -364,7 +371,16 @@ final class DpNpcSharkObservedHandHistory {
     /**
      * @return 若本手已归档则返回记录（供入库）；未启用或无构建数据则 null
      */
-    static ObservedHandRecord finalizeHand(DpRoom room) {
+    //已学习，本模块代码精讲如下：
+    //1. finalizeHand方法：负责将牌谱归档
+    //2. isEnabledForRoom方法：负责判断是否启用
+    //3. Key类：负责记录房间id和手种子
+    //4. HandBuilder类：负责记录牌谱
+    //5. BUILDERS类：负责记录牌谱
+    //6. ARCHIVE类：负责记录牌谱
+    //7. append方法：负责记录行动
+    //8. blindPostedChipsForSeat方法：负责记录盲注
+    static ObservedHandRecord finalizeHand(DpRoom room) {//归档牌局，并挂到最近的手列表中限400手
         if (!isEnabledForRoom(room)) {
             return null;
         }
@@ -414,6 +430,7 @@ final class DpNpcSharkObservedHandHistory {
                 holes,
                 net
         );
+//所以这个队列是干啥的？是用来存储牌谱的，最多保存400手
 
         ARCHIVE.compute(room.getRoomId(), (rid, deque) -> {
             ArrayDeque<ObservedHandRecord> q = deque == null ? new ArrayDeque<>() : deque;
@@ -427,7 +444,7 @@ final class DpNpcSharkObservedHandHistory {
         });
         return rec;
     }
-
+//已学习，记录行动用的方法
     private static void append(DpRoom room, ActionRecord e) {
         Key k = new Key(room.getRoomId(), room.getCurrentHandSeed());
         HandBuilder b = BUILDERS.computeIfAbsent(k, kk -> {
