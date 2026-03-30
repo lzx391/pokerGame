@@ -131,7 +131,7 @@
                 </td>
                 <td :class="netClass(row.net)">{{ row.net }}</td>
                 <td class="hand-detail-table__holes-cell">
-                  <span v-if="row.folded" class="hand-detail-page__folded-label">已弃牌</span>
+                  <span v-if="row.folded && !row.isSelf" class="hand-detail-page__folded-label">已弃牌</span>
                   <div v-else-if="row.cards.length" class="hand-detail-page__card-row hand-detail-page__card-row--holes">
                     <div
                       v-for="(c, idx) in row.cards"
@@ -219,14 +219,28 @@ export default {
       if (this.activeTab === 'settlement') return []
       return boardForStreet(this.boardsByStreet, this.activeTab)
     },
-    /** 当前街各玩家底牌列：null 表示本街不展示（已在本街或之前弃牌） */
+    /**
+     * 当前街底牌列：本人始终可看自己的底牌；他人若弃牌则不展示，否则仍按街与弃牌时机规则。
+     * null 表示本格不展示他人底牌。
+     */
     holeCardsByNickForStreet() {
       const tab = this.activeTab
       const out = {}
       if (tab === 'settlement') return out
       const holes = this.payload.holeCardsAtEnd
       const map = holes && typeof holes === 'object' ? holes : {}
+      const viewer = this.user && this.user.nickname
       for (const nick of this.rowNicknames) {
+        const isSelf = viewer && nick === viewer
+        if (isSelf) {
+          const raw = map[nick]
+          out[nick] = Array.isArray(raw) ? raw : []
+          continue
+        }
+        if (this.foldedNicknames.has(nick)) {
+          out[nick] = null
+          continue
+        }
         const ff = firstFoldStage(this.actions, nick)
         if (!shouldShowHoleCardsOnStreetTab(ff, tab)) {
           out[nick] = null
@@ -263,11 +277,21 @@ export default {
     settlementRowsWithCards() {
       const holes = this.payload.holeCardsAtEnd
       const map = holes && typeof holes === 'object' ? holes : {}
+      const viewer = this.user && this.user.nickname
       return this.settlementNetRows.map((row) => {
         const folded = this.foldedNicknames.has(row.nick)
-        const raw = map[row.nick]
-        const cards = Array.isArray(raw) ? raw : []
-        return { ...row, folded, cards }
+        const isSelf = viewer && row.nick === viewer
+        let cards = []
+        if (isSelf) {
+          const raw = map[row.nick]
+          cards = Array.isArray(raw) ? raw : []
+        } else if (folded) {
+          cards = []
+        } else {
+          const raw = map[row.nick]
+          cards = Array.isArray(raw) ? raw : []
+        }
+        return { ...row, folded, isSelf, cards }
       })
     },
     playersForStreet() {
