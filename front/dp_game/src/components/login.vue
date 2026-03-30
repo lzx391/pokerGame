@@ -40,7 +40,7 @@ export default {
       if (user && user.nickname && user.password) {
         this.nickname = user.nickname;
         this.password = user.password;
-        // 本地已有登录信息，直接免登录进入主页
+        // 本地已有登录信息；无 userId 时仍可进主页，进房时可再登录以写入牌谱关联
         this.$router.push("/home");
       }
     } catch (e) {
@@ -57,7 +57,7 @@ export default {
         alert("请输入昵称和密码");
         return;
       }
-      this.$http.get("/dpUser/loginUser", {
+      this.$http.get("/dpUser/loginProfile", {
   params: {
     nickname: this.nickname,
     password: this.password
@@ -66,18 +66,20 @@ export default {
   console.log("登录结果：", res.data);
   
   // ============== 修复点：必须判断登录成功才允许进主页 ==============
-  if (res.data === "登录成功") {
+  var d = res.data;
+  if (d && d.ok === true) {
     alert("登录成功！");
-    // 保存用户信息
+    // 保存用户信息（userId 仅用于请求参数，界面仍只展示昵称）
     localStorage.setItem("userInfo", JSON.stringify({
-      nickname: this.nickname,
-      password: this.password
+      nickname: d.nickname || this.nickname,
+      password: this.password,
+      userId: d.userId
     }));
     // 只有成功才跳转
     this.$router.push("/home");
   } else {
     // 登录失败：提示 + 不跳转 + 不存信息
-    alert("登录失败：" + res.data);
+    alert("登录失败：" + (d && d.message ? d.message : '请检查账号密码'));
   }
   
 }).catch(err => {

@@ -14,11 +14,10 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 仅当桌上存在 {@link DpNpcEngine#SHARK_BOT_NICKNAME} 时，像“旁观者记笔记”一样
- * 在内存中保留本桌完整牌谱：每位玩家（含已弃牌）的逐行动、每街公共牌、底池结构、
- * 结算后服务端已知的手牌与筹码盈亏。供后续 Shark 或其它模块按手回放分析。
+ * 本桌有玩家时即记录完整牌谱（与是否坐 Shark 无关），供入库与回放。
+ * Shark 专用逻辑见 {@link #isSharkAtTable(DpRoom)}（对手记忆等仍仅在桌上有 Shark 时启用）。
  *
- * <p>与 {@link DpNpcSharkHandActionLog} 并行：ActionLog 供当手结算与学习用并在结算后清空；
+ * <p>与 {@link DpNpcSharkHandActionLog} 并行：ActionLog 仍仅在桌上有 Shark 时启用；
  * 本类将结束的整手归档到环形缓冲，不依赖当手临时列表。</p>
  */
 final class DpNpcSharkObservedHandHistory {
@@ -187,10 +186,32 @@ final class DpNpcSharkObservedHandHistory {
     private static final ConcurrentHashMap<Key, HandBuilder> BUILDERS = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, ArrayDeque<ObservedHandRecord>> ARCHIVE = new ConcurrentHashMap<>();
 
+    /**
+     * 是否为本桌记牌谱：有人上桌即开启（不再要求必须有 Shark）。
+     */
     static boolean isEnabledForRoom(DpRoom room) {
-        if (room == null || room.getPlayers() == null) return false;
+        if (room == null || room.getPlayers() == null) {
+            return false;
+        }
         for (DpPlayer p : room.getPlayers()) {
-            if (p == null) continue;
+            if (p != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 桌上是否有 BOT_Shark（仅 {@link DpNpcSharkOpponentMemoryService} 等 Shark 专用逻辑使用）。
+     */
+    static boolean isSharkAtTable(DpRoom room) {
+        if (room == null || room.getPlayers() == null) {
+            return false;
+        }
+        for (DpPlayer p : room.getPlayers()) {
+            if (p == null) {
+                continue;
+            }
             if (DpNpcEngine.SHARK_BOT_NICKNAME.equals(p.getNickname())) {
                 return true;
             }

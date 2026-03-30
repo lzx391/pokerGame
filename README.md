@@ -88,6 +88,14 @@
      - IntelliJ：**Run → Edit Configurations → 你的 Spring Boot → Environment variables**。
 - **对局摘要**：`DpUtilSmartContext` 由 `buildLlmNpcGameSnapshot` 与房间状态一起打成 `LlmNpcGameContext` 再发给模型。
 
+### 牌谱与用户关联（2026-03-30）
+
+- **表**：`src/main/resources/db/dp_observed_hand_participant.sql`（多对多拆解；**不设数据库外键**）。需在已有 `dp_observed_hand_history` 的库上执行建表。
+- **user_id**：列上**可为 NULL**；接口参数 **`userId` 仍可选**。入库时优先用内存 `dpUserId`，否则按 **昵称** 查 `dp_user`（昵称全局唯一时可补全）；仍无账号则只存 `nickname_snapshot`。机器人不占行。
+- **前端**：登录可用 `GET /dpUser/loginProfile` 拿到 `userId`；**创建房间 / 加入房间 / 观众「下一局加入」** 可带可选 `userId`（与昵称须与 `dp_user` 一致才采纳），界面只展示昵称。
+- **历史查询**：有 `user_id` 时按 id 查；无则按 `nickname_snapshot`（需注意改名后旧昵称仍留在历史快照）。
+- **列表接口（分页，无 PageHelper）**：`GET /dpHandHistory/list?nickname=必填&userId=可选&page=1&pageSize=10` → 返回 `DpHandHistoryPageDTO`（`total`、`page`、`pageSize`、`records`）；`pageSize` 默认 10、最大 100。仅含 **存在参与者行** 的牌谱。
+
 ### Docker 部署
 
 - **详细说明**（Git 与打包关系、`WebConfig` / 驱动 / 前端生产地址、DBeaver 连接串等）：见 [docs/DOCKER.md](docs/DOCKER.md)。

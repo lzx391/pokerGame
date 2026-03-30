@@ -40,6 +40,7 @@ import Vue from 'vue'
 import Router from 'vue-router'
 import Game from '../components/game.vue'
 import ImageUpload from '@/components/image_upload.vue'
+import HandHistory from '@/components/HandHistory.vue'
 
 Vue.use(Router)
 
@@ -49,6 +50,7 @@ export default new Router({
     { path: '/login', component: Login },
     { path: '/register', component: Register },
     { path: '/home', component: Home },
+    { path: '/hand-history', component: HandHistory },
     { path: '/room/:roomId', component: Room },   // 动态路由，不是嵌套
     { path: '/game/:roomId', component: Game } ,  // 动态路由，不是嵌套
     { path: '/image_upload', component: ImageUpload }

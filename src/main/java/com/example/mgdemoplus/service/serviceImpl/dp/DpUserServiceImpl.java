@@ -34,4 +34,9 @@ public class DpUserServiceImpl implements DpUserService {
         }
         return "登录成功";
     }
+
+    @Override
+    public DpUser loginUserOrNull(String nickname, String password) {
+        return dpUserMapper.loginUser(nickname, password);
+    }
 }

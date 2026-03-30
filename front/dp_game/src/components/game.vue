@@ -27,6 +27,7 @@
         @show-hand-rank="showHandRankModal = true"
         @show-spectators="showSpectatorModal = true"
         @toggle-fullscreen="toggleDpFullscreen"
+        @open-hand-history="openHandHistory"
         @exit="exitGame"
         @ready-next-hand="readyNextHand"
     />
@@ -1740,6 +1741,10 @@ export default {
       }
     },
 
+    openHandHistory() {
+      this.$router.push('/hand-history')
+    },
+
     // ---- 退出 ----
     async exitGame() {
       try {
@@ -1766,8 +1771,12 @@ export default {
     async readyNextHand() {
       if (!this.user) return
       try {
+        var rp = { roomId: this.roomId, nickname: this.user.nickname }
+        if (this.user.userId != null && this.user.userId !== '') {
+          rp.userId = this.user.userId
+        }
         var res = await this.$http.post('/dpRoom/readyNextHand', null, {
-          params: {roomId: this.roomId, nickname: this.user.nickname}
+          params: rp
         })
         if (res.data === 'ok') {
           this.nextHandReady = true
