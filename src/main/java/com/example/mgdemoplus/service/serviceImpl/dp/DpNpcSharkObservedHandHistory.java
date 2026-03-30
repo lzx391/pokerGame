@@ -368,8 +368,12 @@ final class DpNpcSharkObservedHandHistory {
                 } else {
                     holes.put(name, List.of());
                 }
-                int before = b.chipsAfterBlinds.getOrDefault(name, p.getChips());
-                net.put(name, p.getChips() - before);
+                // 基准须为「下盲注前」筹码：chipsAfterBlinds 已是扣盲后，若直接作差会把已交的盲注从盈亏里漏掉
+                //（例如仅输掉大盲时显示 0 而非 -BB）。beforeHand = afterBlinds + 本手已下盲注额。
+                int afterBlinds = b.chipsAfterBlinds.getOrDefault(name, p.getChips());
+                int blindPostedThisHand = blindPostedChipsForSeat(b.seatsAtStart, name);
+                int beforeHand = afterBlinds + blindPostedThisHand;
+                net.put(name, p.getChips() - beforeHand);
             }
         }
 
@@ -411,5 +415,31 @@ final class DpNpcSharkObservedHandHistory {
             return nb;
         });
         b.actions.add(e);
+    }
+
+    /**
+     * 本手开局时该座位已下盲注（与 {@link DpRoomServiceImpl#newHand} 中 SB/BB 一致）；
+     * 用于把「盲注后筹码」还原为「盲注前筹码」，使 net 表示本手相对发牌前的净变化。
+     */
+    private static int blindPostedChipsForSeat(List<SeatAtHandStart> seatsAtStart, String nickname) {
+        if (seatsAtStart == null || nickname == null) {
+            return 0;
+        }
+        for (SeatAtHandStart s : seatsAtStart) {
+            if (s == null) {
+                continue;
+            }
+            if (!nickname.equals(s.nickname)) {
+                continue;
+            }
+            if (s.blind == 1) {
+                return DpRoom.getSBChips();
+            }
+            if (s.blind == 2) {
+                return DpRoom.getBBChips();
+            }
+            return 0;
+        }
+        return 0;
     }
 }
