@@ -29,7 +29,8 @@ export default {
     },
     /** 大厅只需内容高度，避免整页强制 100vh 造成「下面一大块空白」的观感 */
     isLobbyRoute() {
-      return this.$route.path === '/home'
+      const p = this.$route.path
+      return p === '/home' || p === '/hand-history'
     }
   }
 }

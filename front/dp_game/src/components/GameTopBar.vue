@@ -67,6 +67,13 @@
         <button type="button" class="dp-btn dp-btn--primary dp-top-bar__btn" @click="$emit('show-hand-rank')">
           牌型说明
         </button>
+        <!-- <button
+            type="button"
+            class="dp-btn dp-top-bar__btn dp-top-bar__btn--ghost"
+            @click="$emit('open-hand-history')"
+        >
+          历史对局
+        </button> -->
         <button
             v-if="spectatorCount > 0"
             type="button"

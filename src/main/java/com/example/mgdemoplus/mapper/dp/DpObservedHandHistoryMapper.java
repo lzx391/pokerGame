@@ -3,6 +3,7 @@ package com.example.mgdemoplus.mapper.dp;
 import com.example.mgdemoplus.entity.dp.DpObservedHandHistory;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Options;
 
 @Mapper
 public interface DpObservedHandHistoryMapper {
@@ -18,5 +19,7 @@ public interface DpObservedHandHistoryMapper {
                 #{mainPotBeforeSettlement}, #{payloadVersion}, #{payloadJson}
             )
             """)
+    //这里是为了获取插入后的id给dp_observed_hand_participant表使用
+    @Options(useGeneratedKeys = true, keyProperty = "id", keyColumn = "id")
     int insert(DpObservedHandHistory row);
 }

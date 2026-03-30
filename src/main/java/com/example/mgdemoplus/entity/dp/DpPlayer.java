@@ -7,6 +7,11 @@ import java.util.List;
 
 public class DpPlayer {
     private String nickname;
+    /**
+     * 登录用户主键（dp_user.id），由进房/预约下一局等接口可选传入；不入 JSON，供牌谱关联表写入。
+     */
+    @JsonIgnore
+    private Integer dpUserId;
     private boolean ready = false;
     private int chips = 500;       // 初始500积分 = 50BB
     private List<String> holeCards = new ArrayList<>();
@@ -96,6 +101,14 @@ public class DpPlayer {
     public void setActed(boolean acted) { this.acted = acted; }
     public String getNickname() { return nickname; }
     public void setNickname(String nickname) { this.nickname = nickname; }
+
+    public Integer getDpUserId() {
+        return dpUserId;
+    }
+
+    public void setDpUserId(Integer dpUserId) {
+        this.dpUserId = dpUserId;
+    }
     public boolean isReady() { return ready; }
     public void setReady(boolean ready) { this.ready = ready; }
     public int getChips() { return chips; }

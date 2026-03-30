@@ -5,6 +5,8 @@ import com.example.mgdemoplus.entity.dp.DpPlayer;
 import com.example.mgdemoplus.entity.dp.DpPot;
 import com.example.mgdemoplus.entity.dp.DpRoom;
 import com.example.mgdemoplus.entity.dp.DpPlayerStats;
+import com.example.mgdemoplus.entity.dp.DpUser;
+import com.example.mgdemoplus.mapper.dp.DpUserMapper;
 import com.example.mgdemoplus.websocket.DpGameRoomPushService;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +21,7 @@ public class DpRoomServiceImpl {
     private final DpNpcSharkOpponentMemoryService sharkOpponentMemoryService;
     private final DpLlmNpcDecisionService llmNpcDecisionService;
     private final DpGameRoomPushService gameRoomPushService;
+    private final DpUserMapper dpUserMapper;
 
     // 统一从 NPC 引擎中获取机器人昵称，避免散落魔法字符串
     private static final String DEMO_BOT_NICKNAME = DpNpcEngine.DEMO_BOT_NICKNAME;   // BOT_Fish
@@ -30,12 +33,14 @@ public class DpRoomServiceImpl {
             DpNpcObservedHandHistoryPersistService observedHandPersistService,
             DpNpcSharkOpponentMemoryService sharkOpponentMemoryService,
             DpLlmNpcDecisionService llmNpcDecisionService,
-            DpGameRoomPushService gameRoomPushService
+            DpGameRoomPushService gameRoomPushService,
+            DpUserMapper dpUserMapper
     ) {
         this.observedHandPersistService = observedHandPersistService;
         this.sharkOpponentMemoryService = sharkOpponentMemoryService;
         this.llmNpcDecisionService = llmNpcDecisionService;
         this.gameRoomPushService = gameRoomPushService;
+        this.dpUserMapper = dpUserMapper;
         // 心跳清理 + 超时行动
         new Timer().scheduleAtFixedRate(new TimerTask() {
             @Override
@@ -347,7 +352,7 @@ public class DpRoomServiceImpl {
 
     // ========== 开局前：房间与准备 ==========
 
-    public DpRoom createRoom(String ownerNickname) {
+    public DpRoom createRoom(String ownerNickname, Integer ownerUserId) {
         String id = UUID.randomUUID().toString().substring(0, 8);//随机生成的id?
         DpRoom r = new DpRoom();
         r.setRoomId(id);
@@ -355,9 +360,28 @@ public class DpRoomServiceImpl {
         DpPlayer p = new DpPlayer();
         p.setNickname(ownerNickname);
         p.setReady(true);
+        Integer uid = resolveAndValidateUserId(ownerUserId, ownerNickname);
+        if (uid != null) {
+            p.setDpUserId(uid);
+            r.putRegisteredDpUserId(ownerNickname, uid);
+        }
         r.getPlayers().add(p);
         roomMap.put(id, r);
         return r;
+    }
+
+    /**
+     * 前端传入的 userId 必须与昵称在 dp_user 中一致，否则忽略（防伪造）。
+     */
+    private Integer resolveAndValidateUserId(Integer requestedUserId, String nickname) {
+        if (requestedUserId == null || nickname == null) {
+            return null;
+        }
+        DpUser u = dpUserMapper.selectById(requestedUserId);
+        if (u == null || !nickname.equals(u.getNickname())) {
+            return null;
+        }
+        return requestedUserId;
     }
 
     /**
@@ -410,7 +434,7 @@ public class DpRoomServiceImpl {
     }
 
 
-    public String joinRoom(String roomId, String nickname) {
+    public String joinRoom(String roomId, String nickname, Integer userId) {
         DpRoom r = roomMap.get(roomId);
         if (r == null) return "房间不存在";
         if (r.isPlaying()) {
@@ -431,6 +455,10 @@ public class DpRoomServiceImpl {
             if (!spectators.contains(nickname)) {
                 spectators.add(nickname);
             }
+            Integer uid = resolveAndValidateUserId(userId, nickname);
+            if (uid != null) {
+                r.putRegisteredDpUserId(nickname, uid);
+            }
             return "游戏已开始";
         }
         //存疑
@@ -442,6 +470,11 @@ public class DpRoomServiceImpl {
         //添加新的玩家
         DpPlayer p = new DpPlayer();
         p.setNickname(nickname);
+        Integer uid = resolveAndValidateUserId(userId, nickname);
+        if (uid != null) {
+            p.setDpUserId(uid);
+            r.putRegisteredDpUserId(nickname, uid);
+        }
         r.getPlayers().add(p);
         sharkOpponentMemoryService.hydratePlayerIfNeeded(r, nickname);
         return "ok";
@@ -451,9 +484,14 @@ public class DpRoomServiceImpl {
      * 观战期间，标记“下一局加入”
      * 当前局没有作为玩家参与的人，可以通过该接口在下一局开局时被加入 players
      */
-    public boolean readyNextHand(String roomId, String nickname) {
+    public boolean readyNextHand(String roomId, String nickname, Integer userId) {
         DpRoom r = roomMap.get(roomId);
         if (r == null) return false;
+
+        Integer uid = resolveAndValidateUserId(userId, nickname);
+        if (uid != null) {
+            r.putRegisteredDpUserId(nickname, uid);
+        }
 
         // 已经在桌上的玩家，不需要再标记下一局，直接视为成功
 //        for (DpPlayer p : r.getPlayers()) {
@@ -484,14 +522,14 @@ public class DpRoomServiceImpl {
      * 对外作为一个基础演示入口。
      */
     public boolean addDemoBotToNextHand(String roomId) {
-        return readyNextHand(roomId, DEMO_BOT_NICKNAME);
+        return readyNextHand(roomId, DEMO_BOT_NICKNAME, null);
     }
 
     /**
      * 将疯子风格 NPC 加入指定房间的下一局等待列表。
      */
     public boolean addManiacBotToNextHand(String roomId) {
-        return readyNextHand(roomId, MANIAC_BOT_NICKNAME);
+        return readyNextHand(roomId, MANIAC_BOT_NICKNAME, null);
     }
 
     /**
@@ -499,7 +537,7 @@ public class DpRoomServiceImpl {
      * 该机器人会基于最近几手对手的行为做简单“读对手”决策。
      */
     public boolean addSharkBotToNextHand(String roomId) {
-        return readyNextHand(roomId, "BOT_Shark");
+        return readyNextHand(roomId, "BOT_Shark", null);
     }
 
     /**
@@ -507,14 +545,14 @@ public class DpRoomServiceImpl {
      * 该机器人只基于牌力/牌面/赔率做相对稳健的紧凶决策，不做复杂“读对手”调整。
      */
     public boolean addTagBotToNextHand(String roomId) {
-        return readyNextHand(roomId, TAG_BOT_NICKNAME);
+        return readyNextHand(roomId, TAG_BOT_NICKNAME, null);
     }
 
     /**
      * 将大模型 NPC（BOT_LLM）加入指定房间的下一局等待列表；决策仅走 {@link DpLlmNpcDecisionService}。
      */
     public boolean addLlmBotToNextHand(String roomId) {
-        return readyNextHand(roomId, DpNpcEngine.LLM_BOT_NICKNAME);
+        return readyNextHand(roomId, DpNpcEngine.LLM_BOT_NICKNAME, null);
     }
 
     public boolean toggleReady(String roomId, String nickname) {
@@ -804,6 +842,10 @@ public class DpRoomServiceImpl {
 //
                 DpPlayer np = new DpPlayer();
                 np.setNickname(name);
+                Integer regUid = r.getRegisteredDpUserId(name);
+                if (regUid != null) {
+                    np.setDpUserId(regUid);
+                }
                 // 新加入的玩家带着默认筹码参与新一局
                 np.setChips(DpRoom.getChips());
                 np.setReady(true);
@@ -1151,7 +1193,7 @@ public class DpRoomServiceImpl {
             }
             DpNpcSharkObservedHandHistory.ObservedHandRecord archivedEarly = DpNpcSharkObservedHandHistory.finalizeHand(r);
             if (archivedEarly != null) {
-                observedHandPersistService.save(archivedEarly);
+                observedHandPersistService.save(archivedEarly, r);
             }
             DpNpcSharkHandActionLog.clearHand(r);
             return;
@@ -1493,7 +1535,7 @@ public class DpRoomServiceImpl {
         // 完整牌谱归档（仅 Shark 在座时）：须在 LearningLab 之前，以便后者仍可读 ActionLog
         DpNpcSharkObservedHandHistory.ObservedHandRecord archived = DpNpcSharkObservedHandHistory.finalizeHand(r);
         if (archived != null) {
-            observedHandPersistService.save(archived);
+            observedHandPersistService.save(archived, r);
         }
         DpNpcSharkLearningLab.onHandSettled(r);
         sharkOpponentMemoryService.persistOpponentsAfterHand(r);
