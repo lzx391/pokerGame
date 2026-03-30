@@ -2,6 +2,7 @@ package com.example.mgdemoplus.websocket;
 
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -29,6 +30,7 @@ public class DpGameRoomWebSocketHandler extends TextWebSocketHandler {
             session.close(CloseStatus.BAD_DATA.withReason("missing roomId"));
             return;
         }
+        //已学习，将roomId存入session的attributes中
         session.getAttributes().put("roomId", roomId);
         //已学习，调用websocket的pushService.register(roomId, session)注册房间订阅者
         pushService.register(roomId, session);
@@ -42,6 +44,11 @@ public class DpGameRoomWebSocketHandler extends TextWebSocketHandler {
         if (rid instanceof String) {
             pushService.unregister((String) rid, session);
         }
+    }
+
+    @Override
+    protected void handleTextMessage(WebSocketSession session, TextMessage message) {
+        pushService.handleClientTextMessage(session, message.getPayload());
     }
 
     private static String resolveRoomId(WebSocketSession session) {

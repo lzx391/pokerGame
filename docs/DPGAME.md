@@ -109,6 +109,7 @@ bet和fold可能会引起进程推进
 | communityCards | 公共牌 |
 | pot / pots | 底池、主池与边池列表 |
 | currentBetToCall / currentActorIndex | 当前跟注额、当前行动玩家下标 |
+| lastRaiseIncrement | **标准 NL 最小加注增量**：新一圈重置为大盲；有人把「当前跟注档」从 A 抬到 B 时，若构成完整加注则更新为 `B−A`（短全下不更新）。下一手合法加注总注 ≥ `currentBetToCall + lastRaiseIncrement`。 |
 | waitNextHand | 已报名在下一局加入的玩家昵称列表（本局仅围观） |
 
 ## 玩家（DpPlayer）

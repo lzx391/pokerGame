@@ -1,5 +1,7 @@
 package com.example.mgdemoplus.entity.dp;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -97,6 +99,8 @@ public class DpPlayer {
     public void setDealer(boolean dealer) { isDealer = dealer; }
     public int getBlind() { return blind; }
     public void setBlind(int blind) { this.blind = blind; }
+    /** 服务端踢人用，不参与 JSON，避免定时器每秒刷新机器人心跳导致 WS 无法按“状态未变则跳过推送”去重。 */
+    @JsonIgnore
     public long getLastHeartBeat() { return lastHeartBeat; }
     public void setLastHeartBeat(long lastHeartBeat) { this.lastHeartBeat = lastHeartBeat; }
     public int getTotalBet() { return totalBet; }

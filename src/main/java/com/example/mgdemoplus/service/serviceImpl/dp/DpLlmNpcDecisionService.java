@@ -34,8 +34,8 @@ public class DpLlmNpcDecisionService {
             "NLHE bot BOT_LLM. Reply with one JSON object only, no markdown: "
                     + "{\"action\":\"FOLD|CALL_OR_CHECK|RAISE|ALL_IN\",\"chips_to_add\":int}. "
                     + "chips_to_add = extra chips added this action; use 0 for FOLD/CALL_OR_CHECK.";
-//等待时间
-    private static final long PRE_API_DELAY_MS = 200L;
+    /** 轮到 BOT_LLM 后、发起方舟请求前的额外等待；0 表示不人为拖延（总耗时几乎全在 API 侧）。 */
+    private static final long PRE_API_DELAY_MS = 0L;
     private static final Pattern JSON_BLOCK = Pattern.compile("```(?:json)?\\s*([\\s\\S]*?)```", Pattern.CASE_INSENSITIVE);
 
     private final ExecutorService llmExecutor = Executors.newFixedThreadPool(4, r -> {
@@ -155,10 +155,12 @@ public class DpLlmNpcDecisionService {
             inflightByKey.remove(key, stale);
         }
 //如果都没问题的话，正片开始
-        Inflight slot = inflightByKey.get(key);
+        Inflight slot = inflightByKey.get(key);//这里看有没有在途任务
+        //这里分别用stale和slot检测两次是因为stale是检测快照是否有效，slot是检测在途任务是否存在
         long now = System.currentTimeMillis();
         long nextTime = bot.getNextBotActionTime();
 //思考时间设置
+//这里检测slot是因为如果是null说明没有在途任务，需要设置思考时间
         if (slot == null) {
             if (nextTime <= 0L) {//设置行动时间
                 bot.setNextBotActionTime(now + PRE_API_DELAY_MS);

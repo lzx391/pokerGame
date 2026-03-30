@@ -5,13 +5,22 @@
       'player-card--win-streak': !player.leftThisHand && (player.winStreak || 0) >= 2,
       'dp-player-card--compact': compact,
       'dp-player-card--rival-mini': rivalMini,
+      /* 仅摊牌圈用毛玻璃；结算阶段与节能模式一致，仅用半透明底无 backdrop-filter */
       'dp-player-card--hand-reveal-glass':
-        (stage === 'showdown' || stage === 'settled') && !player.leftThisHand
+        stage === 'showdown' && !player.leftThisHand
     }"
     :style="cardBoxStyle"
     v-bind="dealerAnchorAttrs"
     @click="onClick"
   >
+    <div
+        v-if="seatChatText"
+        class="dp-player-card__seat-chat"
+        :class="seatChatBubbleClass"
+        role="status"
+    >
+      {{ seatChatText }}
+    </div>
     <div class="dp-player-card__badges" :class="{ 'dp-player-card__badges--rival': rivalMini }">
       <span v-if="player.dealer" class="dp-player-card__badge dp-player-card__badge--dealer">D</span>
       <span v-if="player.blind === 1" class="dp-player-card__badge dp-player-card__badge--sb">SB</span>
@@ -88,7 +97,7 @@
             @animationend="onHoleWrapperAnimEnd($event, ci)"
           >
             <div
-              :class="[getCardClass(c), 'hole-card-flip']"
+              :class="[getCardClass(c), 'hole-card-flip', { 'hole-card-flip--instant': skipHoleDealAnimation }]"
               :style="holeCardInnerStyleRival(ci)"
             >
               {{ getCardDisplay(c) }}
@@ -196,7 +205,7 @@
               @animationend="onHoleWrapperAnimEnd($event, ci)"
             >
               <div
-                :class="[getCardClass(c), 'hole-card-flip']"
+                :class="[getCardClass(c), 'hole-card-flip', { 'hole-card-flip--instant': skipHoleDealAnimation }]"
                 :style="holeCardInnerStyle(ci)"
               >
                 {{ getCardDisplay(c) }}
@@ -260,9 +269,13 @@ import { getCardClass, getCardDisplay } from '../utils/dpGameCardVisual'
 import { getHandRank, getHandRankDetail, getBestFiveCardIds } from '../utils/dpGameHandRank'
 import { dpDisplayNickname } from '../utils/dpDisplayNickname'
 import { DP_DEAL_STAGGER_MS } from '../constants/dpGameDealTiming'
+import { getDealerAnchorViewportPoint } from '../utils/dpGameDealerAnchor'
 
 export default {
   name: 'GamePlayerCard',
+  inject: {
+    dpGameView: { default: null }
+  },
   props: {
     player: { type: Object, required: true },
     seatIndex: { type: Number, required: true },
@@ -284,8 +297,22 @@ export default {
     holeDealSeatOrder: { type: Number, default: 0 },
     /** 本桌人数：用于「先一圈再一圈」与公共牌同间隔(350ms)错开发牌 */
     holeDealPlayerCount: { type: Number, default: 1 },
-    /** 摊牌阶段牌力最高者昵称（用于展示精确成牌说明） */
-    showdownHandLeader: { type: String, default: '' }
+    /** 摊牌阶段牌力最高者昵称列表（平局时并列者均展示完整牌型） */
+    showdownHandLeaders: { type: Array, default: function () { return [] } },
+    /** 该座位玩家最近一条房间聊天（同一人新发会顶掉；由 game.vue 按昵称写入） */
+    seatChatText: { type: String, default: '' },
+    /** 聊天气泡锚点：top | left | right（圆桌左/右半圈侧向伸出，减轻被邻座遮挡） */
+    seatChatSide: {
+      type: String,
+      default: 'top',
+      validator: function (v) {
+        return v === 'top' || v === 'left' || v === 'right'
+      }
+    },
+    /**
+     * 抽屉/镜像展示用手牌：跳过庄位发牌飞入与逐张翻面，避免「发完牌后再打开查看手牌」重复慢动画。
+     */
+    skipHoleDealAnimation: { type: Boolean, default: false }
   },
   data() {
     return {
@@ -344,13 +371,22 @@ export default {
     this.clearFoldMuckFallbackTimer()
   },
   computed: {
+    seatChatBubbleClass() {
+      var o = { 'dp-player-card__seat-chat--rival': this.rivalMini }
+      if (this.seatChatSide === 'left') {
+        o['dp-player-card__seat-chat--out-left'] = true
+      } else if (this.seatChatSide === 'right') {
+        o['dp-player-card__seat-chat--out-right'] = true
+      }
+      return o
+    },
     cardBoxStyle() {
       var s = Object.assign({}, this.boxStyle)
       if (this.rivalMini) {
-        s.padding = '6px 8px'
+        s.padding = '5px 7px'
         s.borderRadius = '10px'
       } else if (this.compact) {
-        s.padding = '8px 10px'
+        s.padding = '7px 9px'
         s.borderRadius = '8px'
       }
       /* 摊牌 / 准备下一局：半透明 + 描边，减轻遮挡中央公共牌 */
@@ -367,7 +403,15 @@ export default {
     showHoleCardsArea() {
       if (this.player.leftThisHand) return false
       if (!this.player.holeCards || this.player.holeCards.length === 0) return false
-      if (this.player.fold && this.foldMuckAnimComplete) return false
+      /* 弃牌飞入弃牌堆后隐藏底牌区；本人仍可见；房主开启「看穿底牌」时仍展示 */
+      if (
+        this.player.fold
+        && this.foldMuckAnimComplete
+        && !this.isMe
+        && !(this.isOwner && this.ownerRevealAll)
+      ) {
+        return false
+      }
       if (!this.compact) return true
       if (this.showHoleCardsRevealed) return true
       if (this.stage === 'preflop') return !this.holeDealIntroDone
@@ -408,12 +452,13 @@ export default {
       return this.isMe
         || (this.isOwner && this.ownerRevealAll && this.player.holeCards && this.player.holeCards.length > 0)
     },
-    /** 摊牌或准备下一局：牌力最高者展示精确五张（与本人 bestHand 同款） */
+    /** 摊牌或准备下一局：牌力最高者（含平局并列）展示精确五张（与本人 bestHand 同款） */
     showShowdownLeaderDetail() {
-      if (!this.showdownHandLeader) return false
+      var leaders = this.showdownHandLeaders
+      if (!leaders || !leaders.length) return false
+      if (leaders.indexOf(this.player.nickname) === -1) return false
       return (
         (this.stage === 'showdown' || this.stage === 'settled')
-        && this.player.nickname === this.showdownHandLeader
         && this.showHandRankSection
       )
     },
@@ -452,10 +497,12 @@ export default {
     getHandRank,
     getHandRankDetail,
     prefersReducedMotion() {
+      if (this.dpGameView && this.dpGameView.ecoMode) return true
       if (typeof window === 'undefined' || !window.matchMedia) return false
       return window.matchMedia('(prefers-reduced-motion: reduce)').matches
     },
     shouldRunHoleDealFromDealer() {
+      if (this.skipHoleDealAnimation) return false
       if (this.player.leftThisHand) return false
       var hc = this.player.holeCards
       if (!hc || hc.length === 0) return false
@@ -478,6 +525,20 @@ export default {
     },
     resetHoleDealFlyState() {
       this.clearHoleIntroTimer()
+      if (this.skipHoleDealAnimation) {
+        this.holeDealFlyByIndex = {}
+        this.holeDealOriginByIndex = null
+        this.holeDealChainFlip = false
+        this.holeDealIntroDone = true
+        this.holeDealFlightStarted = true
+        this.foldMuckFlying = false
+        this.foldFlyPerCard = []
+        this.foldMuckAnimComplete = false
+        this.foldMuckEndsPending = 0
+        this.foldGhostFly = false
+        this.clearFoldMuckFallbackTimer()
+        return
+      }
       this.holeDealFlyByIndex = {}
       this.holeDealOriginByIndex = null
       this.holeDealChainFlip = false
@@ -555,11 +616,11 @@ export default {
     },
     computeHoleOriginsFromDealer(row, n) {
       if (typeof document === 'undefined') return null
-      var dealerEl = document.querySelector('[data-dp-dealer-anchor="true"]')
-      if (!dealerEl || !row) return null
-      var d = dealerEl.getBoundingClientRect()
-      var dcx = d.left + d.width / 2
-      var dcy = d.top + d.height / 2
+      if (!row) return null
+      var anchor = getDealerAnchorViewportPoint()
+      if (!anchor) return null
+      var dcx = anchor.x
+      var dcy = anchor.y
       var wrappers = row.querySelectorAll('.hole-card-fly-wrapper')
       var map = {}
       for (var i = 0; i < n && i < wrappers.length; i++) {
@@ -609,6 +670,7 @@ export default {
     },
     /** 摊牌/结算同时翻开；仅首圈庄位发牌时沿用座位 stagger */
     holeFlipDelaySec(ci) {
+      if (this.skipHoleDealAnimation) return '0s'
       if (this.stage === 'showdown' || this.stage === 'settled') return '0s'
       if (this.holeDealChainFlip) {
         return (this.holeDealDelayMsForCard(ci) / 1000 + 0.42) + 's'

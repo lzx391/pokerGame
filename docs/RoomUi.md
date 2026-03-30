@@ -10,13 +10,11 @@
 
 | 组件文件 | 职责 |
 |----------|------|
-| `GameTopBar.vue` | 顶栏：房间号、阶段、底池、跟注额；牌型说明 / 观众席 / 退出 |
+| `GameTopBar.vue` | 顶栏：房间号、阶段、底池、跟注额；牌型说明 / 观众席 / 退出；旁观时在同一组件内展示「下一局加入对局」 |
 | `GameCommunityCards.vue` | 公共牌展示、飞入与翻转动画 |
 | `GamePlayerCard.vue` | 单个座位：昵称、筹码、底牌/遮罩、庄盲标记、行动状态等 |
-| `GameActionPanel.vue` | 轮到自己时的跟注、加注、All-In、弃牌与倒计时 |
+| `GameActionPanel.vue` | 轮到自己时的跟注、加注、All-In、弃牌与倒计时；结算阶段「准备下一局 / 补码」同一组件内切换 |
 | `GameOwnerPanel.vue` | 房主：神器入口、看穿底牌、摊牌阶段按池/简单选赢家 |
-| `GameSettledPreparePanel.vue` | 结算后准备下一局、补码 |
-| `GameSpectatorPrepareBanner.vue` | 旁观时报名下一局 |
 | `GameHandRankModal.vue` | 牌型说明弹窗 |
 | `GameSpectatorModal.vue` | 观众席名单弹窗 |
 | `GameOwnerToolModal.vue` | 房主神器（移交、踢人、加 Bot 等）弹窗 |
@@ -48,11 +46,9 @@
 | `front/dp_game/src/styles/dp-game-themes.css` | 各主题下 **`--dp-*` CSS 变量** 定义 |
 | `front/dp_game/src/styles/dp-game-shell.css` | 对局页布局与面板/按钮的 **class**（颜色引用变量） |
 | `front/dp_game/src/components/game.vue` | 引入上述样式；`gameUiTheme` + `watch` 持久化；`getPlayerBoxStyle` 使用 `var(--dp-player-*)` |
-| `front/dp_game/src/components/GameTopBar.vue` | 改为 `dp-top-bar`、`dp-btn--*` 等壳层 class |
-| `front/dp_game/src/components/GameActionPanel.vue` | 改为 `dp-action-panel`、`dp-btn--call` 等 |
+| `front/dp_game/src/components/GameTopBar.vue` | `dp-top-bar`、`dp-btn--*`；旁观条 `dp-top-bar__spectator*` |
+| `front/dp_game/src/components/GameActionPanel.vue` | `dp-action-panel`、`dp-btn--call` 等；结算准备 `dp-action-panel--settled`、`dp-action-panel__settled-*` |
 | `front/dp_game/src/components/GameOwnerPanel.vue` | 改为 `dp-owner-panel` 等；池内选人按钮仍用内联 style，但颜色用 **`var(--dp-*)`** |
-| `front/dp_game/src/components/GameSettledPreparePanel.vue` | 改为 `dp-settled-panel` 等 |
-| `front/dp_game/src/components/GameSpectatorPrepareBanner.vue` | 改为 `dp-spectator-banner` 等 |
 
 ### 2.3 当前预制主题
 

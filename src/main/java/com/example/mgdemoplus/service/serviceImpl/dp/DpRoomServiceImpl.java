@@ -26,6 +26,7 @@ public class DpRoomServiceImpl {
     private static final String TAG_BOT_NICKNAME   = DpNpcEngine.TAG_BOT_NICKNAME;    // BOT_Tag
 
     public DpRoomServiceImpl(
+        //注入服务
             DpNpcObservedHandHistoryPersistService observedHandPersistService,
             DpNpcSharkOpponentMemoryService sharkOpponentMemoryService,
             DpLlmNpcDecisionService llmNpcDecisionService,
@@ -79,6 +80,7 @@ public class DpRoomServiceImpl {
                         // 如果当前行动者是 NPC，则直接由后端自动决策行动，不等待前端操作
                         if (DpNpcEngine.isBotPlayer(p)) {//决策入口：BOT_LLM 与普通 NPC 分离
                             DpNpcEngine.BotAction action;
+                            //如果是BOT_LLM则走大模型逻辑
                             if (DpNpcEngine.LLM_BOT_NICKNAME.equals(p.getNickname())) {
                                 action = llmNpcDecisionService.decideActionIfReady(room, p);
                             } else {
@@ -116,11 +118,11 @@ public class DpRoomServiceImpl {
                             }
                         }
                     }
-
+                   
                     // 结算后准备阶段：机器人自动补码并自动准备
                     if (room.isPlaying() && "settled".equals(room.getCurrentStage())) {
                         boolean botTouched = false;
-                        //只有场上的NPC才能自动准备，踢走的不准备
+                        //只有场上的NPC才能自动准备，踢走的不准备，遍历所有机器人
                         for (DpPlayer p : room.getPlayers()) {
                             if (!DpNpcEngine.isBotPlayer(p)) continue;
                             // 若筹码不足大盲，自动补码（内部已有阶段与筹码校验）
@@ -128,13 +130,17 @@ public class DpRoomServiceImpl {
                                 rebuy(room.getRoomId(), p.getNickname());
                             }
                             // 筹码充足时自动准备
-                            if (p.getChips() >= DpRoom.getBBChips() && !p.isReady()) {
+                            if (p.getChips() >= DpRoom.getBBChips() && !p.isReady()&& !(room.getPlayers().size()==1 && room.getWaitNextHand().isEmpty())) {//防止机器人空转，一直发牌准备循环，白白浪费资源
+                                //这里插入一个功能，当机器人行动之前，先看下场上玩家数是否为1且准备下一把是否为空，防止机器人空转，一直发牌准备循环，白白浪费资源
                                 p.setReady(true);
-                                botTouched = true;
+                                botTouched = true;//有机器人准备状态被更新
+                               
                             }
+                            // System.out.println("准备状态是"+botTouched);
                         }
                         // 只要有机器人准备状态被更新，就检查是否可以直接开下一局
                         if (botTouched) {
+                       
                             checkAndStartNextHandAfterSettle(room);
                         }
                     }
@@ -143,7 +149,12 @@ public class DpRoomServiceImpl {
                     if (room.isPlaying()
                             && "settled".equals(room.getCurrentStage())
                             && room.getReadyDeadline() > 0
-                            && System.currentTimeMillis() > room.getReadyDeadline()) {
+                            && System.currentTimeMillis() > room.getReadyDeadline()) {//当前时间戳大于准备倒计时时间戳，则进入准备超时逻辑
+                                //如果场上只有一个人且没有等待者，则直接跳过，防止机器人自己重开
+                            if(room.getPlayers().size()==1 && room.getWaitNextHand().isEmpty())  {
+                                System.out.println("已跳过");
+                                continue;
+                            }
                         handleReadyTimeout(room);
                     }
                     //已学习，调用websocket的gameRoomPushService.broadcastIfSubscribed(room.getRoomId())广播房间数据给所有订阅者
@@ -445,11 +456,15 @@ public class DpRoomServiceImpl {
 //                return true;
 //            }
 //        }
-
+    
         List<String> waiters = r.getWaitNextHand();
         if (waiters == null) {
             waiters = new ArrayList<>();
             r.setWaitNextHand(waiters);
+        }
+        //如果游戏和等待人数满10人则不可继续加入游戏
+        if (r.getPlayers().size() + waiters.size() >= 10) {
+            return false;
         }
         if (!waiters.contains(nickname)) {
             waiters.add(nickname);
@@ -686,6 +701,8 @@ public class DpRoomServiceImpl {
         r.setPot(0);
         r.setPots(new ArrayList<>());
         r.setCurrentBetToCall(0);
+        r.setRaiseLevel(0);
+        r.setLastRaiseIncrement(DpRoom.getBBChips());
         r.setReadyDeadline(0L);
         int did = 0;//庄家索引
         List<DpPlayer> ps = r.getPlayers();
@@ -743,6 +760,9 @@ public class DpRoomServiceImpl {
 
             r.setCurrentBetToCall(DpRoom.getBBChips());
             r.setPot(DpRoom.getBBChips() + DpRoom.getSBChips());                    // 大小盲计入底池
+            r.setLastRaiseIncrement(DpRoom.getBBChips());
+        } else {
+            r.setLastRaiseIncrement(DpRoom.getBBChips());
         }
 
         r.setCurrentActorIndex((did + 3) % ps.size());//翻前从大盲的下一个开始行动
@@ -846,6 +866,7 @@ public class DpRoomServiceImpl {
         int actorBetBefore = p.getBet();
         int potBefore = r.getPot();
         boolean becameAllIn = false;
+        int chipsBefore = p.getChips();
 
         // 如果下注金额 >= 玩家剩余筹码，视为 all-in
         if (amount >= p.getChips()) {
@@ -856,6 +877,20 @@ public class DpRoomServiceImpl {
 
         int totalBet = p.getBet() + amount;
         int prevBetToCall = r.getCurrentBetToCall();
+
+        // ---- 标准 NL 最小再加注（临时关闭：与 NPC 侧最小加注未对齐时先不拦真人；恢复时取消下面注释并改回增量更新分支）----
+        if (totalBet < prevBetToCall) {
+            if (amount < chipsBefore) {
+                return false;
+            }
+        }
+        // else if (totalBet > prevBetToCall) {
+        //     int minTotal = prevBetToCall + r.getLastRaiseIncrement();
+        //     if (totalBet < minTotal && amount < chipsBefore) {
+        //         return false;
+        //     }
+        // }
+
         if (totalBet > prevBetToCall) {
             // 出现了更高的一档下注：如果之前没有有效下注，则视为 open，否则视为一次 re-raise
             int currentLevel = r.getRaiseLevel();
@@ -866,6 +901,13 @@ public class DpRoomServiceImpl {
             }
             r.setRaiseLevel(currentLevel);
             r.setCurrentBetToCall(totalBet);
+            int increment = totalBet - prevBetToCall;
+            int minTotalLegacy = prevBetToCall + r.getLastRaiseIncrement();
+            // 短全下（按原 NL 规则够不着最小总注）仍不刷新增量；其余抬升一律按实际增量写入，避免关闭校验后增量与局面脱节
+            boolean shortAllInBelowLegacyMin = becameAllIn && totalBet < minTotalLegacy;
+            if (!shortAllInBelowLegacyMin) {
+                r.setLastRaiseIncrement(increment);
+            }
         }
 
         boolean isRaise = totalBet > betToCallBefore;
@@ -935,6 +977,7 @@ public class DpRoomServiceImpl {
         }
         r.setCurrentBetToCall(0);
         r.setRaiseLevel(0);
+        r.setLastRaiseIncrement(DpRoom.getBBChips());
 
         List<String> deck = r.getDeck();
         switch (r.getCurrentStage()) {
@@ -1535,8 +1578,9 @@ public class DpRoomServiceImpl {
 
         // 如果下一手总人数仍不足 2 个：
         if (nextCount < 2) {
-            // 1）如果还有至少 1 个玩家（典型场景：只剩一个人准备），允许“单人娱乐局”
-            if (remain.size() >= 1) {
+            // 1）桌上有人已准备，或仅有观众报名下一手：均允许单人娱乐局（否则空桌+waitNextHand 会误走结束对局，newHand 不执行）
+            boolean hasWaiters = waiters != null && !waiters.isEmpty();
+            if (remain.size() >= 1 || hasWaiters) {
                 // 清掉准备倒计时，直接开新一局（仍然按正常德扑流程发牌/算牌力）
                 r.setReadyDeadline(0L);
                 newHand(r.getRoomId());

@@ -192,6 +192,14 @@
   animation: hole-card-flip-anim 0.55s cubic-bezier(0.34, 1.25, 0.64, 1) both;
 }
 
+/* 抽屉内「仅展示」手牌：跳过翻面动画，与桌上发牌动画解耦 */
+.hole-card-flip.hole-card-flip--instant {
+  animation: none;
+  transform: none;
+  opacity: 1;
+  filter: none;
+}
+
 @keyframes hole-card-flip-anim {
   0% {
     transform: perspective(320px) rotateY(92deg) scale(0.88);

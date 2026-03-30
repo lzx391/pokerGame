@@ -4,17 +4,14 @@
       class="dp-game-root"
       :class="{
         'dp-game-root--pseudo-fs': pseudoFullscreen,
-        'dp-game-root--layout-fs': layoutFullscreen
+        'dp-game-root--layout-fs': layoutFullscreen,
+        'dp-game-root--mobile-hero-dock': mobileHeroDockActive
       }"
       :data-dp-game-theme="gameUiTheme"
+      :data-dp-eco-mode="ecoMode ? 'true' : 'false'"
   >
-    <div class="dp-game-theme-row">
-      <span class="dp-game-theme-row__label">界面主题</span>
-      <select v-model="gameUiTheme" class="dp-game-theme-select" aria-label="选择对局界面主题">
-        <option v-for="t in gameThemeOptions" :key="t.id" :value="t.id">{{ t.label }}</option>
-      </select>
-    </div>
-
+    <div class="dp-game-page-flex">
+    <div class="dp-game-page-seg dp-game-page-seg--pre-table">
     <game-top-bar
         :room-id="roomId"
         :stage-label="stageCN"
@@ -22,58 +19,24 @@
         :current-bet-to-call="currentBetToCall"
         :spectator-count="spectators.length"
         :is-fullscreen="layoutFullscreen"
+        :show-spectator-prepare="showSpectatorPrepareBlock"
+        :next-hand-ready="nextHandReady"
+        :game-ui-theme.sync="gameUiTheme"
+        :eco-mode.sync="ecoMode"
+        :theme-options="gameThemeOptions"
         @show-hand-rank="showHandRankModal = true"
         @show-spectators="showSpectatorModal = true"
         @toggle-fullscreen="toggleDpFullscreen"
         @exit="exitGame"
-    />
-
-    <game-hand-rank-modal
-        :visible="showHandRankModal"
-        :items="handRankReference"
-        @close="showHandRankModal = false"
-    />
-
-    <game-spectator-modal
-        :visible="showSpectatorModal"
-        :spectators="spectators"
-        @close="showSpectatorModal = false"
-    />
-
-    <game-owner-tool-modal
-        :visible="showOwnerToolModal"
-        :owner-tool-type.sync="ownerToolType"
-        :owner-action-target.sync="ownerActionTarget"
-        :owner-action-players="ownerActionPlayers"
-        :demo-bot-adding="demoBotAdding"
-        :demo-bot-added-tip="demoBotAddedTip"
-        :maniac-bot-adding="maniacBotAdding"
-        :maniac-bot-added-tip="maniacBotAddedTip"
-        :tag-bot-adding="tagBotAdding"
-        :tag-bot-added-tip="tagBotAddedTip"
-        :shark-bot-adding="sharkBotAdding"
-        :shark-bot-added-tip="sharkBotAddedTip"
-        :llm-bot-adding="llmBotAdding"
-        :llm-bot-added-tip="llmBotAddedTip"
-        @close="closeOwnerToolPanel"
-        @add-demo-bot="addDemoBot"
-        @add-maniac-bot="addManiacBot"
-        @add-tag-bot="addTagBot"
-        @add-shark-bot="addSharkBot"
-        @add-llm-bot="addLlmBot"
-        @transfer-owner="doTransferOwner"
-        @kick-player="doKickPlayer"
-    />
-
-    <game-spectator-prepare-banner
-        v-if="showSpectatorPrepareBlock"
-        :next-hand-ready="nextHandReady"
         @ready-next-hand="readyNextHand"
     />
 
-    <div v-if="playing" class="dp-game-hint">
-      各人手牌与公共牌均由庄位（D）发出
     </div>
+
+    <div class="dp-game-page-seg dp-game-page-seg--table">
+    <!-- <div v-if="playing" class="dp-game-hint">
+      各人手牌与公共牌均由庄位（D）发出
+    </div> -->
 
     <!-- 圆桌：公共牌在桌面中心；入座时本人在 6 点方向，所有座位沿椭圆整圈均分 -->
     <div class="dp-game-table">
@@ -81,6 +44,30 @@
         <div class="dp-game-table__felt" aria-hidden="true" />
         <div class="dp-game-table__center">
           <div class="dp-game-table__center-stack">
+            <div
+                v-if="showTableActionTimer"
+                class="dp-game-table-action-timer"
+                :class="[
+                  'dp-game-table-action-timer--' + tableActionTimerUrgency,
+                  { 'dp-game-table-action-timer--rich': !ecoMode }
+                ]"
+                role="status"
+                aria-live="polite"
+                :aria-label="'当前行动 ' + tableActionActorDisplayName + '，剩余 ' + timeLeft + ' 秒'"
+            >
+              <div class="dp-game-table-action-timer__inner">
+                <div
+                    class="dp-game-table-action-timer__ring"
+                    :style="{ '--dp-table-timer-pct': actionTimerProgressPct }"
+                >
+                  <span class="dp-game-table-action-timer__sec">{{ timeLeft }}</span>
+                </div>
+                <div class="dp-game-table-action-timer__meta">
+                  <span class="dp-game-table-action-timer__who">{{ tableActionActorDisplayName }}</span>
+                  <span class="dp-game-table-action-timer__hint">思考中</span>
+                </div>
+              </div>
+            </div>
             <game-community-cards
                 :community-cards="communityCards"
                 :flip-state="communityCardsFlipState"
@@ -116,79 +103,416 @@
               :hole-deal-seat-order="holeDealOrderFromDealer(row.seatIndex)"
               :hole-deal-player-count="holeDealPlayerCountForAnim"
               :rival-mini="true"
-              :showdown-hand-leader="showdownHandLeaderNickname"
+              :showdown-hand-leaders="showdownHandLeaderNicknames"
+              :seat-chat-text="seatChatTextFor(row.player.nickname)"
+              :seat-chat-side="getSeatChatBubbleSide(displayIdx, playersDisplayOrder.length)"
               @card-click="onPlayerCardClick"
           />
         </div>
       </div>
     </div>
 
-    <div
-        v-if="heroDockRow"
-        class="dp-game-hero-dock"
-        :class="{ 'dp-game-hero-dock--hand-reveal': stage === 'showdown' || stage === 'settled' }"
-    >
-      <game-player-card
-          :player="heroDockRow.player"
-          :seat-index="heroDockRow.seatIndex"
-          :box-style="getPlayerBoxStyle(heroDockRow.player, heroDockRow.seatIndex)"
-          :act-index="actIndex"
-          :stage="stage"
-          :community-cards="communityCards"
-          :community-cards-flip-complete="communityCardsFlipComplete"
-          :is-owner="isOwner"
-          :owner-reveal-all="ownerRevealAll"
-          :my-nickname="user ? user.nickname : ''"
-          :hand-deal-key="currentHandSeed"
-          :hole-deal-seat-order="holeDealOrderFromDealer(heroDockRow.seatIndex)"
-          :hole-deal-player-count="holeDealPlayerCountForAnim"
-          :rival-mini="false"
-          :showdown-hand-leader="showdownHandLeaderNickname"
-          @card-click="onPlayerCardClick"
-      />
     </div>
 
-    <game-settled-prepare-panel
-        v-if="inSettledStage"
-        :ready-time-left="readyTimeLeft"
-        :my-chips="myChips"
-        :big-blind="bigBlind"
-        :my-ready="myReady"
-        @toggle-ready="toggleReady"
-        @rebuy="rebuy"
+    <div class="dp-game-page-seg dp-game-page-seg--post-table">
+    <!-- 宽屏非全屏：内联手牌+操作；窄屏或全屏/伪全屏：底栏按钮 + 底部抽屉（见 dp-game-shell.css） -->
+    <div
+        v-if="heroDockRow || isMyTurn || inSettledStage || isOwner"
+        class="dp-game-hero-action-row dp-game-hero-action-row--hide-narrow"
+        aria-label="本人手牌与操作"
+    >
+      <div class="dp-game-room-chat__bar dp-game-room-chat__bar--hero-row" aria-label="房间聊天">
+        <input
+            v-model="chatInputDraft"
+            type="text"
+            maxlength="200"
+            placeholder="说一句…"
+            class="dp-game-room-chat__input"
+            aria-label="房间聊天输入"
+            @keydown.enter.prevent="sendRoomChat"
+        >
+        <button
+            type="button"
+            class="dp-game-room-chat__send"
+            @click="sendRoomChat"
+        >
+          发送
+        </button>
+      </div>
+      <div
+          v-if="isOwner"
+          class="dp-game-hero-action-row__owner-cluster"
+          aria-label="房主操作"
+      >
+        <button
+            v-if="heroDockRow"
+            type="button"
+            class="dp-game-hero-action-row__owner-btn dp-game-hero-action-row__owner-btn--hand"
+            @click="showMobileHandSheet = true"
+        >
+          查看手牌
+        </button>
+        <button
+            type="button"
+            class="dp-game-hero-action-row__owner-btn"
+            @click="openOwnerHubSheet"
+        >
+          房主操作
+        </button>
+      </div>
+      <div
+          v-if="heroDockRow"
+          class="dp-game-hero-dock"
+          :class="{ 'dp-game-hero-dock--hand-reveal': stage === 'showdown' || stage === 'settled' }"
+      >
+        <game-player-card
+            :player="heroDockRow.player"
+            :seat-index="heroDockRow.seatIndex"
+            :box-style="getPlayerBoxStyle(heroDockRow.player, heroDockRow.seatIndex)"
+            :act-index="actIndex"
+            :stage="stage"
+            :community-cards="communityCards"
+            :community-cards-flip-complete="communityCardsFlipComplete"
+            :is-owner="isOwner"
+            :owner-reveal-all="ownerRevealAll"
+            :my-nickname="user ? user.nickname : ''"
+            :hand-deal-key="currentHandSeed"
+            :hole-deal-seat-order="holeDealOrderFromDealer(heroDockRow.seatIndex)"
+            :hole-deal-player-count="holeDealPlayerCountForAnim"
+            :rival-mini="false"
+            :showdown-hand-leaders="showdownHandLeaderNicknames"
+            :seat-chat-text="seatChatTextFor(heroDockRow.player.nickname)"
+            @card-click="onPlayerCardClick"
+        />
+      </div>
+      <!-- 右侧槽位固定：轮到本人显示面板，否则用主题底「盖住」占位，并与左侧手牌区等高 -->
+      <div
+          class="dp-game-inline-action-slot"
+          :class="{ 'dp-game-inline-action-slot--solo': !heroDockRow }"
+      >
+        <game-action-panel
+            v-if="isMyTurn || inSettledStage"
+            :settled-prepare="inSettledStage"
+            :ready-time-left="readyTimeLeft"
+            :my-ready="myReady"
+            :time-left="timeLeft"
+            :current-bet-to-call="currentBetToCall"
+            :my-bet="myBet"
+            :call-amount="callAmount"
+            :small-blind="smallBlind"
+            :big-blind="bigBlind"
+            :min-raise="minRaise"
+            :min-total-to-raise="minTotalToRaise"
+            :last-raise-increment="lastRaiseIncrementEffective"
+            :pot="pot"
+            :my-chips="myChips"
+            :raise-amount.sync="raiseAmount"
+            @call="doCall"
+            @raise="doRaise"
+            @all-in="doAllIn"
+            @fold="doFold"
+            @toggle-ready="toggleReady"
+            @rebuy="rebuy"
+        />
+        <div
+            v-else-if="heroDockRow"
+            class="dp-game-action-slot-cover"
+            aria-hidden="true"
+        />
+      </div>
+    </div>
+
+    <div
+        v-if="heroDockRow || isMyTurn || inSettledStage || isOwner"
+        class="dp-game-mobile-hero-bar"
+        aria-label="手牌与行动"
+    >
+      <div class="dp-game-room-chat__bar dp-game-room-chat__bar--mobile-dock" aria-label="房间聊天">
+        <input
+            v-model="chatInputDraft"
+            type="text"
+            maxlength="200"
+            placeholder="说一句…"
+            class="dp-game-room-chat__input"
+            aria-label="房间聊天输入"
+            @keydown.enter.prevent="sendRoomChat"
+        >
+        <button
+            type="button"
+            class="dp-game-room-chat__send"
+            @click="sendRoomChat"
+        >
+          发送
+        </button>
+      </div>
+      <div
+          v-if="isOwner"
+          class="dp-game-mobile-hero-bar__owner-cluster"
+          aria-label="房主操作"
+      >
+        <button
+            v-if="heroDockRow"
+            type="button"
+            class="dp-game-mobile-hero-bar__btn"
+            @click="showMobileHandSheet = true"
+        >
+          查看手牌
+        </button>
+        <button
+            type="button"
+            class="dp-game-mobile-hero-bar__btn dp-game-mobile-hero-bar__btn--owner"
+            @click="openOwnerHubSheet"
+        >
+          房主操作
+        </button>
+      </div>
+      <button
+          v-if="heroDockRow && !isOwner"
+          type="button"
+          class="dp-game-mobile-hero-bar__btn"
+          @click="showMobileHandSheet = true"
+      >
+        查看手牌
+      </button>
+      <button
+          v-if="isMyTurn"
+          type="button"
+          class="dp-game-mobile-hero-bar__btn dp-game-mobile-hero-bar__btn--action"
+          :class="{ 'dp-game-mobile-hero-bar__btn--urgent': timeLeft <= 10 }"
+          @click="showMobileActionSheet = true"
+      >
+        行动（{{ timeLeft }}s）
+      </button>
+      <button
+          v-if="inSettledStage"
+          type="button"
+          class="dp-game-mobile-hero-bar__btn dp-game-mobile-hero-bar__btn--action"
+          :class="{ 'dp-game-mobile-hero-bar__btn--urgent': readyTimeLeft <= 8 }"
+          @click="showMobileActionSheet = true"
+      >
+        准备（{{ readyTimeLeft }}s）
+      </button>
+    </div>
+
+    <!-- 观众等非桌上座位的聊天（先关闭，需要时取消注释并恢复 dp-game-seat-chat-orphans 样式块）
+    <div
+        v-if="spectatorSeatChatEntries.length"
+        class="dp-game-seat-chat-orphans"
+        aria-label="观众消息"
+    >
+      <div
+          v-for="e in spectatorSeatChatEntries"
+          :key="'chat-orphan-' + e.nickname"
+          class="dp-game-seat-chat-orphans__row"
+      >
+        <span class="dp-game-seat-chat-orphans__who">{{ formatChatNick(e.nickname) }}</span>
+        <span class="dp-game-seat-chat-orphans__text">{{ e.text }}</span>
+      </div>
+    </div>
+    -->
+
+    <div
+        v-if="!mobileHeroDockActive && !isOwner"
+        class="dp-game-action-hud"
+        aria-label="房间聊天"
+    >
+      <div class="dp-game-room-chat__bar">
+        <input
+            v-model="chatInputDraft"
+            type="text"
+            maxlength="200"
+            placeholder="说一句…"
+            class="dp-game-room-chat__input"
+            aria-label="房间聊天输入"
+            @keydown.enter.prevent="sendRoomChat"
+        >
+        <button
+            type="button"
+            class="dp-game-room-chat__send"
+            @click="sendRoomChat"
+        >
+          发送
+        </button>
+      </div>
+    </div>
+
+    </div>
+    </div>
+
+    <game-hand-rank-modal
+        :visible="showHandRankModal"
+        :items="handRankReference"
+        @close="showHandRankModal = false"
     />
 
-    <game-action-panel
-        v-if="isMyTurn"
-        :time-left="timeLeft"
-        :current-bet-to-call="currentBetToCall"
-        :my-bet="myBet"
-        :call-amount="callAmount"
-        :small-blind="smallBlind"
-        :big-blind="bigBlind"
-        :min-raise="minRaise"
-        :my-chips="myChips"
-        :raise-amount.sync="raiseAmount"
-        @call="doCall"
-        @raise="doRaise"
-        @all-in="doAllIn"
-        @fold="doFold"
+    <game-spectator-modal
+        :visible="showSpectatorModal"
+        :spectators="spectators"
+        @close="showSpectatorModal = false"
     />
 
-    <game-owner-panel
-        v-if="isOwner"
-        :owner-reveal-all.sync="ownerRevealAll"
-        :stage="stage"
-        :pots="pots"
-        :pot="pot"
-        :pot-winners="potWinners"
-        :selected-winners="selectedWinners"
-        :all-pots-have-winners="allPotsHaveWinners"
-        @open-owner-tools="openOwnerToolPanel"
-        @toggle-pot-winner="onTogglePotWinnerPayload"
-        @confirm-pot-judge="confirmPotJudge"
-        @confirm-judge-win="confirmJudgeWin"
-    />
+    <div
+        v-if="showMobileHandSheet && heroDockRow"
+        class="dp-game-sheet-mask dp-game-sheet-mask--bottom"
+        role="dialog"
+        aria-modal="true"
+        aria-label="查看手牌"
+        @click.self="showMobileHandSheet = false"
+    >
+      <div class="dp-game-sheet" @click.stop>
+        <div class="dp-game-sheet__head">
+          <span class="dp-game-sheet__title">我的手牌</span>
+          <button
+              type="button"
+              class="dp-game-sheet__close"
+              aria-label="关闭"
+              @click="showMobileHandSheet = false"
+          >
+            ×
+          </button>
+        </div>
+        <div class="dp-game-sheet__body">
+          <div
+              class="dp-game-hero-dock dp-game-hero-dock--in-sheet"
+              :class="{ 'dp-game-hero-dock--hand-reveal': stage === 'showdown' || stage === 'settled' }"
+          >
+            <game-player-card
+                :player="heroDockRow.player"
+                :seat-index="heroDockRow.seatIndex"
+                :box-style="getPlayerBoxStyle(heroDockRow.player, heroDockRow.seatIndex)"
+                :act-index="actIndex"
+                :stage="stage"
+                :community-cards="communityCards"
+                :community-cards-flip-complete="communityCardsFlipComplete"
+                :is-owner="isOwner"
+                :owner-reveal-all="ownerRevealAll"
+                :my-nickname="user ? user.nickname : ''"
+                :hand-deal-key="currentHandSeed"
+                :hole-deal-seat-order="holeDealOrderFromDealer(heroDockRow.seatIndex)"
+                :hole-deal-player-count="holeDealPlayerCountForAnim"
+                :rival-mini="false"
+                :showdown-hand-leaders="showdownHandLeaderNicknames"
+                :seat-chat-text="seatChatTextFor(heroDockRow.player.nickname)"
+                :skip-hole-deal-animation="true"
+                @card-click="onPlayerCardClick"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+        v-if="showMobileActionSheet && (isMyTurn || inSettledStage)"
+        class="dp-game-sheet-mask dp-game-sheet-mask--bottom"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="inSettledStage ? '准备下一局' : '下注行动'"
+        @click.self="showMobileActionSheet = false"
+    >
+      <div class="dp-game-sheet dp-game-sheet--wide" @click.stop>
+        <div class="dp-game-sheet__head">
+          <span class="dp-game-sheet__title">{{ inSettledStage ? '准备下一局' : '本轮行动' }}</span>
+          <button
+              type="button"
+              class="dp-game-sheet__close"
+              aria-label="关闭"
+              @click="showMobileActionSheet = false"
+          >
+            ×
+          </button>
+        </div>
+        <div class="dp-game-sheet__body dp-game-sheet__body--action">
+          <game-action-panel
+              :settled-prepare="inSettledStage"
+              :ready-time-left="readyTimeLeft"
+              :my-ready="myReady"
+              :time-left="timeLeft"
+              :current-bet-to-call="currentBetToCall"
+              :my-bet="myBet"
+              :call-amount="callAmount"
+              :small-blind="smallBlind"
+              :big-blind="bigBlind"
+              :min-raise="minRaise"
+              :min-total-to-raise="minTotalToRaise"
+              :last-raise-increment="lastRaiseIncrementEffective"
+              :pot="pot"
+              :my-chips="myChips"
+              :raise-amount.sync="raiseAmount"
+              @call="doCall"
+              @raise="doRaise"
+              @all-in="doAllIn"
+              @fold="doFold"
+              @toggle-ready="toggleReady"
+              @rebuy="rebuy"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div
+        v-if="showOwnerHubSheet && isOwner"
+        class="dp-game-sheet-mask dp-game-sheet-mask--bottom"
+        role="dialog"
+        aria-modal="true"
+        aria-label="房主操作"
+        @click.self="closeOwnerHubPanel"
+    >
+      <div class="dp-game-sheet dp-game-sheet--wide" @click.stop>
+        <div class="dp-game-sheet__head">
+          <span class="dp-game-sheet__title">房主操作</span>
+          <button
+              type="button"
+              class="dp-game-sheet__close"
+              aria-label="关闭"
+              @click="closeOwnerHubPanel"
+          >
+            ×
+          </button>
+        </div>
+        <div class="dp-game-sheet__body dp-game-sheet__body--owner-hub">
+          <game-owner-panel
+              hide-title
+              hide-tool-entry
+              in-sheet
+              :stage="stage"
+              :pots="pots"
+              :pot="pot"
+              :pot-winners="potWinners"
+              :selected-winners="selectedWinners"
+              :all-pots-have-winners="allPotsHaveWinners"
+              @toggle-pot-winner="onTogglePotWinnerPayload"
+              @confirm-pot-judge="confirmPotJudge"
+              @confirm-judge-win="confirmJudgeWin"
+          />
+          <game-owner-tool-modal
+              :embedded="true"
+              :visible="true"
+              :owner-reveal-all.sync="ownerRevealAll"
+              :owner-tool-type.sync="ownerToolType"
+              :owner-action-target.sync="ownerActionTarget"
+              :owner-action-players="ownerActionPlayers"
+              :demo-bot-adding="demoBotAdding"
+              :demo-bot-added-tip="demoBotAddedTip"
+              :maniac-bot-adding="maniacBotAdding"
+              :maniac-bot-added-tip="maniacBotAddedTip"
+              :tag-bot-adding="tagBotAdding"
+              :tag-bot-added-tip="tagBotAddedTip"
+              :shark-bot-adding="sharkBotAdding"
+              :shark-bot-added-tip="sharkBotAddedTip"
+              :llm-bot-adding="llmBotAdding"
+              :llm-bot-added-tip="llmBotAddedTip"
+              @close="closeOwnerHubPanel"
+              @add-demo-bot="addDemoBot"
+              @add-maniac-bot="addManiacBot"
+              @add-tag-bot="addTagBot"
+              @add-shark-bot="addSharkBot"
+              @add-llm-bot="addLlmBot"
+              @transfer-owner="doTransferOwner"
+              @kick-player="doKickPlayer"
+          />
+        </div>
+      </div>
+    </div>
 
   </div>
 </template>
@@ -196,38 +520,44 @@
 <script>
 import '../styles/dp-game-themes.css'
 import '../styles/dp-game-shell.css'
+import '../styles/dp-game-modals.css'
+import '../styles/dp-game-eco-mode.css'
 import { GAME_UI_THEMES } from '../constants/dpGameThemes'
 import { readGameTheme, writeGameTheme } from '../utils/dpGameTheme'
+import { readEcoMode, writeEcoMode } from '../utils/dpGameEcoMode'
 import GamePlayerCard from './GamePlayerCard.vue'
 import GameTopBar from './GameTopBar.vue'
 import GameHandRankModal from './GameHandRankModal.vue'
 import GameSpectatorModal from './GameSpectatorModal.vue'
 import GameOwnerToolModal from './GameOwnerToolModal.vue'
-import GameSpectatorPrepareBanner from './GameSpectatorPrepareBanner.vue'
 import GameCommunityCards from './GameCommunityCards.vue'
-import GameSettledPreparePanel from './GameSettledPreparePanel.vue'
 import GameActionPanel from './GameActionPanel.vue'
 import GameOwnerPanel from './GameOwnerPanel.vue'
 import { HAND_RANK_REFERENCE } from '../constants/dpGameHandRankReference'
-import { pickShowdownLeaderNickname } from '../utils/dpGameHandRank'
+import { pickShowdownLeaderNicknames } from '../utils/dpGameHandRank'
 import { dpDisplayNickname } from '../utils/dpDisplayNickname'
 
 export default {
+  provide() {
+    return {
+      dpGameView: this
+    }
+  },
   components: {
     GamePlayerCard,
     GameTopBar,
     GameHandRankModal,
     GameSpectatorModal,
     GameOwnerToolModal,
-    GameSpectatorPrepareBanner,
     GameCommunityCards,
-    GameSettledPreparePanel,
     GameActionPanel,
     GameOwnerPanel
   },
   data() {
     return {
       gameUiTheme: readGameTheme(),
+      /** 用户勾选：减轻动画/模糊/GPU 压力，存 localStorage */
+      ecoMode: readEcoMode(),
       gameThemeOptions: GAME_UI_THEMES,
       roomId: '',
       user: null,
@@ -243,6 +573,8 @@ export default {
       pot: 0,
       pots: [],             // 主池+边池列表 [{amount, eligiblePlayers}]
       currentBetToCall: 0,
+      /** 与后端 DpRoom.lastRaiseIncrement 一致：当前圈最小再加注的「增量」基准 */
+      lastRaiseIncrement: 10,
       actIndex: -1,
       // 观众席名单（由后端 DpRoom.spectators 提供）
       spectators: [],
@@ -264,12 +596,18 @@ export default {
       gameWs: null,
       gameWsConnected: false,
 
+      /** 房间聊天：按昵称只保留一条文案（新发顶掉旧），到期移除 */
+      seatChatTextByNick: {},
+      chatInputDraft: '',
+
       // 定时器
       pollTimer: null,
       backupPollTimer: null,
       heartbeatTimer: null,
       //游戏计时器
       actionTimer: null,
+      /** 与 syncActionCountdown 配合：同一行动者会话内轮询不重置秒数 */
+      _actionCountdownKey: null,
       timeLeft: 30,
       // 结算后准备阶段倒计时
       readyTimer: null,
@@ -279,7 +617,7 @@ export default {
       showHandRankModal: false,
       showSpectatorModal: false,
       // 房主踢人/移交房主弹窗
-      showOwnerToolModal: false,
+      showOwnerHubSheet: false,
       ownerToolType: 'transfer',  // 'transfer' | 'kick'
       ownerActionTarget: '',      // 当前选择的目标玩家昵称
       // 演示用 NPC 状态（仅前端提示用）
@@ -300,6 +638,10 @@ export default {
 
       // 房主专用：一键看穿所有人底牌（仅本机显示，不影响后端和 NPC 决策）
       ownerRevealAll: false,
+
+      /** 窄屏：底部弹层查看手牌 / 行动 */
+      showMobileHandSheet: false,
+      showMobileActionSheet: false,
 
       /** 是否处于浏览器全屏（整页对局根节点） */
       isFullscreen: false,
@@ -368,8 +710,25 @@ export default {
       // 使用与后端一致的大盲配置，默认 10，后续可从服务端房间配置透传
       return 10
     },
+    /** 后端下发的加注增量，异常时回落为大盲 */
+    lastRaiseIncrementEffective() {
+      var v = Number(this.lastRaiseIncrement)
+      if (!isFinite(v) || v < 1) return this.bigBlind
+      return Math.floor(v)
+    },
+    /** 标准 NL：合法加注后「本街总注」至少为该值（仅展示/兼容；桌上最小再加注已临时关闭） */
+    minTotalToRaise() {
+      return this.currentBetToCall + this.lastRaiseIncrementEffective
+    },
+    /**
+     * 本轮至少再下多少筹码：临时关闭标准最小再加注，只要比跟注多 1（或无人跟注压力时至少 1）即可抬升，与后端 DpRoomServiceImpl 注释掉的校验一致。
+     */
     minRaise() {
-      return this.callAmount + this.bigBlind
+      var call = this.callAmount
+      if (!isFinite(call) || call < 0) call = 0
+      var fullMin = call > 0 ? call + 1 : 1
+      var cap = Math.min(fullMin, this.myChips)
+      return Math.max(1, cap)
     },
     allPotsHaveWinners() {
       if (this.pots.length === 0) return false
@@ -431,19 +790,66 @@ export default {
       return order[0]
     },
     /**
-     * 摊牌 / 准备下一局阶段桌上牌力最高者（含踢脚比较；平局取 players 顺序靠前者）。
+     * 摊牌 / 准备下一局阶段桌上牌力最高者昵称列表（含踢脚比较；平局时并列者全部列出）。
      * settled 时仍展示上一手公共牌与牌型，须与 showdown 共用同一套领先者逻辑。
      */
-    showdownHandLeaderNickname() {
-      if (this.stage !== 'showdown' && this.stage !== 'settled') return ''
-      if (!this.players || !this.players.length) return ''
-      if (!this.communityCards || this.communityCards.length < 3) return ''
+    showdownHandLeaderNicknames() {
+      if (this.stage !== 'showdown' && this.stage !== 'settled') return []
+      if (!this.players || !this.players.length) return []
+      if (!this.communityCards || this.communityCards.length < 3) return []
       var boardReady =
         this.communityCardsFlipComplete
         || this.communityCards.length >= 5
         || this.stage === 'settled'
-      if (!boardReady) return ''
-      return pickShowdownLeaderNickname(this.players, this.communityCards)
+      if (!boardReady) return []
+      return pickShowdownLeaderNicknames(this.players, this.communityCards)
+    },
+    /** 当前在桌上 players 里的昵称集合之外，仍可能有观众聊天，在操作区上方展示 */
+    spectatorSeatChatEntries() {
+      var map = this.seatChatTextByNick
+      if (!map || typeof map !== 'object') return []
+      var seated = {}
+      var players = this.players || []
+      for (var i = 0; i < players.length; i++) {
+        var n = players[i] && players[i].nickname
+        if (n) seated[n] = true
+      }
+      var out = []
+      for (var k in map) {
+        if (!Object.prototype.hasOwnProperty.call(map, k)) continue
+        if (seated[k]) continue
+        out.push({ nickname: k, text: map[k] })
+      }
+      return out
+    },
+    /** 下注街有人行动时，桌面中央展示倒计时（全场可见；秒数与操作区一致） */
+    showTableActionTimer() {
+      return this.actionCountdownShouldRun()
+    },
+    tableActionActorDisplayName() {
+      var i = this.actIndex
+      var list = this.players
+      if (i < 0 || !list || i >= list.length) return '—'
+      var p = list[i]
+      if (!p || !p.nickname) return '—'
+      return dpDisplayNickname(p.nickname)
+    },
+    /** 圆环进度：剩余比例 0~1 */
+    actionTimerProgressPct() {
+      var t = Number(this.timeLeft)
+      if (isNaN(t) || t < 0) return 0
+      return Math.min(1, t / 30)
+    },
+    tableActionTimerUrgency() {
+      var t = Number(this.timeLeft)
+      if (isNaN(t)) return 'ok'
+      if (t > 10) return 'ok'
+      if (t > 5) return 'warn'
+      return 'danger'
+    },
+    /** 窄屏底栏占位：避免固定底栏挡住聊天与房主区 */
+    mobileHeroDockActive() {
+      return !!(this.heroDockRow || this.isMyTurn || this.inSettledStage || this.isOwner)
     }
   },
 
@@ -451,32 +857,47 @@ export default {
     gameUiTheme: function (id) {
       writeGameTheme(id)
     },
+    ecoMode: function (on) {
+      writeEcoMode(!!on)
+    },
     isMyTurn: function (v) {
       if (v) this.raiseAmount = this.minRaise
+      else this.showMobileActionSheet = false
     },
-// 监听当前行动者的索引变化
-    actIndex(newVal) {
-      // 获取当前轮到的那个人
-      const currentPlayer = this.players[newVal];
-
-      // 如果这个人存在，且名字是我自己（守卫 user 未加载）
-      if (this.user && currentPlayer && currentPlayer.nickname === this.user.nickname) {
-        this.startCountdown();
-      } else {
-        this.stopCountdown();
+    heroDockRow: function (row) {
+      if (!row) this.showMobileHandSheet = false
+    },
+    minRaise: function () {
+      if (this.isMyTurn && this.raiseAmount < this.minRaise) {
+        this.raiseAmount = this.minRaise
       }
+    },
+    actIndex() {
+      this.syncActionCountdown()
+    },
+    playing() {
+      this.syncActionCountdown()
+    },
+    currentHandSeed() {
+      this.syncActionCountdown()
     },
     // 监听阶段变化，用于控制结算后准备阶段的倒计时
     stage(newVal) {
+      this.syncActionCountdown()
       if (newVal === 'settled') {
         this.startReadyCountdown()
       } else {
         this.stopReadyCountdown()
+        this.showMobileActionSheet = false
       }
+    },
+    isOwner(v) {
+      if (!v) this.showOwnerHubSheet = false
     }
   },
 
-  created() {
+    created() {
+    this._seatChatTimers = Object.create(null)
     this.roomId = this.$route.params.roomId
 
     var raw = localStorage.getItem('userInfo')
@@ -517,6 +938,12 @@ export default {
     document.addEventListener('fullscreenchange', this._dpFsChange)
     document.addEventListener('webkitfullscreenchange', this._dpFsChange)
     this.syncDpFullscreenState()
+    this.wrapDpMessageForFullscreenOverlays()
+    var self = this
+    this.$nextTick(function () {
+      self.tryEnterDpFullscreen()
+      self.scheduleReparentElementUiLayersIntoFullscreenRoot()
+    })
   },
 
   beforeDestroy() {
@@ -534,9 +961,28 @@ export default {
     if (this.actionTimer) clearInterval(this.actionTimer)
     if (this.readyTimer) clearInterval(this.readyTimer)
     if (this.communityCardsFlipCompleteTimer) clearTimeout(this.communityCardsFlipCompleteTimer)
+    if (this._seatChatTimers) {
+      var self = this
+      Object.keys(this._seatChatTimers).forEach(function (k) {
+        clearTimeout(self._seatChatTimers[k])
+      })
+      this._seatChatTimers = Object.create(null)
+    }
   },
 
   methods: {
+    /**
+     * 离开房间时多处可能同时触发跳转（WS roomClosed + 轮询 getNowRoom 为空、热更新等）；
+     * Vue Router 3 对重复 push 同一地址会抛 NavigationDuplicated，需吞掉或跳过。
+     */
+    navigateHomeIfNeeded() {
+      if (this.$route.path === '/home') return Promise.resolve()
+      return this.$router.push('/home').catch(function (err) {
+        if (err && err.name === 'NavigationDuplicated') return
+        throw err
+      })
+    },
+
     syncDpFullscreenState() {
       var root = this.$refs.gameRoot
       var active = document.fullscreenElement || document.webkitFullscreenElement
@@ -547,10 +993,20 @@ export default {
     },
 
     exitDpFullscreenIfActive() {
-      if (!this.isFullscreen) return
+      var root = this.$refs.gameRoot
+      var active = document.fullscreenElement || document.webkitFullscreenElement
+      if (!this.isFullscreen && !(root && active === root)) return
+      if (!active || (root && active !== root)) return
+      var swallow = function (p) {
+        if (p && typeof p.then === 'function') {
+          p.catch(function () {
+            /* 路由销毁/切 tab 时常见：Document not active；同步错误见 try/catch */
+          })
+        }
+      }
       try {
-        if (document.exitFullscreen) document.exitFullscreen()
-        else if (document.webkitExitFullscreen) document.webkitExitFullscreen()
+        if (document.exitFullscreen) swallow(document.exitFullscreen())
+        else if (document.webkitExitFullscreen) swallow(document.webkitExitFullscreen())
       } catch (e) { /* ignore */ }
     },
 
@@ -559,6 +1015,30 @@ export default {
       try {
         document.body.style.overflow = on ? 'hidden' : ''
       } catch (e) { /* ignore */ }
+    },
+
+    /** 进入对局时自动全屏（失败则伪全屏）；与顶栏「全屏」共用逻辑 */
+    tryEnterDpFullscreen() {
+      var root = this.$refs.gameRoot
+      if (!root || this.layoutFullscreen) return
+      var self = this
+      if (!this.dpFullscreenApiSupported) {
+        this.setPseudoFullscreen(true)
+        return
+      }
+      var req =
+        root.requestFullscreen ||
+        root.webkitRequestFullscreen ||
+        root.mozRequestFullScreen ||
+        root.msRequestFullscreen
+      if (!req) {
+        this.setPseudoFullscreen(true)
+        return
+      }
+      Promise.resolve(req.call(root)).catch(function (e) {
+        console.error('进入全屏失败', e)
+        self.setPseudoFullscreen(true)
+      })
     },
 
     toggleDpFullscreen() {
@@ -583,24 +1063,77 @@ export default {
         return
       }
 
-      if (!this.dpFullscreenApiSupported) {
-        this.setPseudoFullscreen(true)
-        return
-      }
+      this.tryEnterDpFullscreen()
+    },
 
-      var req =
-        root.requestFullscreen ||
-        root.webkitRequestFullscreen ||
-        root.mozRequestFullScreen ||
-        root.msRequestFullscreen
-      if (!req) {
-        this.setPseudoFullscreen(true)
-        return
+    /**
+     * 浏览器原生全屏时，只有全屏元素子树会显示。Element UI 的 MessageBox / $message 默认挂在 body 上，
+     * 用户在全屏里看不到；退出全屏后才“突然”出现在页面上方。将相关节点移入对局根节点即可。
+     */
+    reparentElementUiLayersIntoFullscreenRoot() {
+      var root = this.$refs.gameRoot
+      if (!root || !this.isFullscreen) return
+      var moveIfOutside = function (node) {
+        if (!node || !node.parentNode || root.contains(node)) return
+        root.appendChild(node)
       }
-      Promise.resolve(req.call(root)).catch(function (e) {
-        console.error('进入全屏失败', e)
-        self.setPseudoFullscreen(true)
+      var w = 0
+      var wrappers = document.querySelectorAll('.el-message-box__wrapper')
+      for (w = 0; w < wrappers.length; w++) {
+        moveIfOutside(wrappers[w])
+      }
+      var modals = document.getElementsByClassName('v-modal')
+      for (w = 0; w < modals.length; w++) {
+        moveIfOutside(modals[w])
+      }
+      var msgs = document.querySelectorAll('.el-message')
+      for (w = 0; w < msgs.length; w++) {
+        moveIfOutside(msgs[w])
+      }
+    },
+
+    scheduleReparentElementUiLayersIntoFullscreenRoot() {
+      var self = this
+      if (!self.isFullscreen) return
+      var run = function () {
+        self.reparentElementUiLayersIntoFullscreenRoot()
+      }
+      self.$nextTick(function () {
+        run()
+        if (typeof requestAnimationFrame === 'function') {
+          requestAnimationFrame(run)
+        }
+        setTimeout(run, 0)
+        setTimeout(run, 50)
       })
+    },
+
+    /**
+     * 仅本页实例：在全屏下把 $message 生成的节点也移入 gameRoot（与 dpConfirm 一致）。
+     */
+    wrapDpMessageForFullscreenOverlays() {
+      if (this._dpMessageFullscreenWrapDone) return
+      var raw = this.$message
+      if (!raw || typeof raw !== 'function') return
+      var self = this
+      var wrapped = function () {
+        var ret = raw.apply(raw, arguments)
+        self.scheduleReparentElementUiLayersIntoFullscreenRoot()
+        return ret
+      }
+      var k
+      for (k in raw) {
+        if (!Object.prototype.hasOwnProperty.call(raw, k) || typeof raw[k] !== 'function') continue
+        wrapped[k] = (function (methodName) {
+          return function () {
+            var ret = raw[methodName].apply(raw, arguments)
+            self.scheduleReparentElementUiLayersIntoFullscreenRoot()
+            return ret
+          }
+        })(k)
+      }
+      this.$message = wrapped
+      this._dpMessageFullscreenWrapDone = true
     },
 
     /**
@@ -613,7 +1146,9 @@ export default {
         type: 'warning',
         closeOnClickModal: false
       }, options || {})
-      return this.$confirm(text, title || '请确认', o)
+      var p = this.$confirm(text, title || '请确认', o)
+      this.scheduleReparentElementUiLayersIntoFullscreenRoot()
+      return p
     },
 
     // ---- 心跳（独立，不依赖 loadGame） ----
@@ -651,6 +1186,10 @@ export default {
               self.handleRoomClosedFromServer()
               return
             }
+            if (data._ws === 'chat') {
+              self.pushRoomChatFromServer(data)
+              return
+            }
             self.applyRoomFromServer(data)
           } catch (e) {
             console.error('WebSocket 消息解析失败', e)
@@ -679,6 +1218,8 @@ export default {
     },
 
     handleRoomClosedFromServer() {
+      if (this._dpRoomClosedHandled) return
+      this._dpRoomClosedHandled = true
       var self = this
       this.disconnectGameWs()
       if (this.pollTimer) clearInterval(this.pollTimer)
@@ -688,10 +1229,66 @@ export default {
         confirmButtonText: '确定',
         type: 'warning'
       }).then(function () {
-        self.$router.push('/home')
+        return self.navigateHomeIfNeeded()
       }).catch(function () {
-        self.$router.push('/home')
+        return self.navigateHomeIfNeeded()
       })
+    },
+
+    formatChatNick(name) {
+      return dpDisplayNickname(name || '')
+    },
+
+    seatChatTextFor(nickname) {
+      if (!nickname) return ''
+      var m = this.seatChatTextByNick
+      return (m && m[nickname]) ? m[nickname] : ''
+    },
+
+    pushRoomChatFromServer(data) {
+      var nick = (data.nickname || '').trim()
+      var text = (data.text != null ? String(data.text) : '').trim()
+      if (!nick || !text) return
+      var ttl = typeof data.ttlMs === 'number' && data.ttlMs > 0 ? data.ttlMs : 15000
+      var prev = this._seatChatTimers[nick]
+      if (prev) {
+        clearTimeout(prev)
+        delete this._seatChatTimers[nick]
+      }
+      this.$set(this.seatChatTextByNick, nick, text)
+      var self = this
+      var tid = setTimeout(function () {
+        if (self.seatChatTextByNick[nick] === text) {
+          self.$delete(self.seatChatTextByNick, nick)
+        }
+        delete self._seatChatTimers[nick]
+      }, ttl)
+      this._seatChatTimers[nick] = tid
+    },
+
+    sendRoomChat() {
+      var t = (this.chatInputDraft || '').trim()
+      if (!t) return
+      if (!this.user) return
+      if (!this.gameWs || this.gameWs.readyState !== WebSocket.OPEN) {
+        this.$message.warning('未连接房间推送，请稍候再试')
+        return
+      }
+      if (t.length > 200) {
+        this.$message.warning('单条最多 200 字')
+        return
+      }
+      try {
+        this.gameWs.send(JSON.stringify({
+          _ws: 'chatSend',
+          nickname: this.user.nickname,
+          text: t
+        }))
+        this.chatInputDraft = ''
+      } catch (e) {
+        console.error('发送聊天失败', e)
+        this.$message.error('发送失败')
+      }
     },
 
     applyRoomFromServer(room) {
@@ -705,10 +1302,18 @@ export default {
       this.pot = room.pot
       this.pots = room.pots || []
       this.currentBetToCall = room.currentBetToCall
+      this.lastRaiseIncrement =
+        room.lastRaiseIncrement != null ? room.lastRaiseIncrement : this.bigBlind
       this.actIndex = room.currentActorIndex
       this.spectators = room.spectators || []
       var list = room.waitNextHand || []
       this.nextHandReady = !!(this.user && list.indexOf(this.user.nickname) !== -1)
+      this.$nextTick(function () {
+        this.syncActionCountdown()
+        if (this.isMyTurn && this.raiseAmount < this.minRaise) {
+          this.raiseAmount = this.minRaise
+        }
+      }.bind(this))
     },
 
     // ---- 拉取房间状态 ----
@@ -916,19 +1521,20 @@ export default {
       }
     },
 
-    // ---- 房主神器：打开/关闭 ----
-    openOwnerToolPanel() {
+    // ---- 房主神器：底栏入口与底部抽屉 ----
+    openOwnerHubSheet() {
       this.ownerToolType = 'transfer'
       this.ownerActionTarget = ''
-      this.showOwnerToolModal = true
+      this.showOwnerHubSheet = true
       this.demoBotAddedTip = ''
       this.maniacBotAddedTip = ''
       this.tagBotAddedTip = ''
       this.sharkBotAddedTip = ''
+      this.llmBotAddedTip = ''
     },
 
-    closeOwnerToolPanel() {
-      this.showOwnerToolModal = false
+    closeOwnerHubPanel() {
+      this.showOwnerHubSheet = false
       this.ownerActionTarget = ''
     },
 
@@ -964,7 +1570,7 @@ export default {
           this.$message.success('已将房主移交给 ' + dpDisplayNickname(this.ownerActionTarget))
         }
         await this.loadGame()
-        this.closeOwnerToolPanel()
+        this.closeOwnerHubPanel()
       } catch (err) {
         this.$message.error('网络错误: ' + err.message)
       }
@@ -994,7 +1600,7 @@ export default {
           this.$message.success('已将 [' + dpDisplayNickname(this.ownerActionTarget) + '] 踢至观众席')
         }
         await this.loadGame()
-        this.closeOwnerToolPanel()
+        this.closeOwnerHubPanel()
       } catch (err) {
         this.$message.error('网络错误: ' + err.message)
       }
@@ -1137,7 +1743,7 @@ export default {
       }
       clearInterval(this.pollTimer)
       clearInterval(this.heartbeatTimer)
-      this.$router.push('/home')
+      this.navigateHomeIfNeeded()
     },
 
     // ---- 观众：报名在下一局加入 ----
@@ -1229,20 +1835,43 @@ export default {
     },
 
     /**
+     * 圆桌极角（弧度）：与 getPlayerRoundTableStyle 一致，供座位聊天气泡左右侧向使用。
+     */
+    getRoundTableSeatTheta(displayIdx, total) {
+      if (!total) return 0
+      var seated = this.viewerSeatedAtTable
+      if (seated) {
+        return Math.PI + (2 * Math.PI * displayIdx) / total
+      }
+      return -Math.PI / 2 + (2 * Math.PI * displayIdx) / total
+    },
+
+    /**
+     * 座位聊天气泡锚点：桌左半圈从卡片左侧向外伸，右半圈从右侧伸，避免多人时被「上方」邻座挡住；
+     * 中间带（含正上、正下）仍用正上方。
+     */
+    getSeatChatBubbleSide(displayIdx, total) {
+      if (!total) return 'top'
+      /* 纯观众视角座位角度与入座不同，统一用上方气泡，避免「正上」座位被划到左侧 */
+      if (!this.viewerSeatedAtTable) return 'top'
+      var theta = this.getRoundTableSeatTheta(displayIdx, total)
+      var rx = 46
+      var cx = 50
+      var x = cx + Math.sin(theta) * rx
+      if (x < 38) return 'left'
+      if (x > 62) return 'right'
+      return 'top'
+    },
+
+    /**
      * 圆桌座位：θ=0 为 12 点方向。入座时 displayIdx=0 固定为本人（6 点），全体按座位数整圈均分，
      * 避免旧版「对手只在 θ∈(0,π)」导致 sinθ>0、全部挤在桌面右半圈的问题。
      */
     getPlayerRoundTableStyle(displayIdx, total) {
       if (!total) return {}
-      var seated = this.viewerSeatedAtTable
-      var theta
-      if (seated) {
-        theta = Math.PI + (2 * Math.PI * displayIdx) / total
-      } else {
-        theta = -Math.PI / 2 + (2 * Math.PI * displayIdx) / total
-      }
-      var rx = 41
-      var ry = 36
+      var theta = this.getRoundTableSeatTheta(displayIdx, total)
+      var rx = 46
+      var ry = 41
       var cx = 50
       var cy = 44
       var x = cx + Math.sin(theta) * rx
@@ -1267,7 +1896,7 @@ export default {
     getPlayerBoxStyle(p, i) {
       var s = {
         background: 'var(--dp-player-card-bg)',
-        padding: '12px',
+        padding: '10px',
         borderRadius: '10px',
         border: '2px solid transparent',
         transition: 'all 0.2s'
@@ -1312,23 +1941,58 @@ export default {
       return s
     },
 
+    /**
+     * 是否处于「有人要下注」阶段且当前座位有效（与后端 currentActorIndex 对齐）。
+     */
+    actionCountdownShouldRun() {
+      if (!this.playing) return false
+      var st = this.stage
+      if (st === 'showdown' || st === 'settled') return false
+      var i = this.actIndex
+      var list = this.players
+      if (i < 0 || !list || i >= list.length) return false
+      var p = list[i]
+      if (!p || p.leftThisHand || p.fold) return false
+      return true
+    },
+
+    actionCountdownSessionKey() {
+      return String(this.playing) + '|' + this.stage + '|' + this.actIndex + '|' + this.currentHandSeed
+    },
+
+    /**
+     * 任意玩家行动时全场共用同一段 30s 本地倒计时；换行动者/新一手才重置。
+     * 轮询拉取同一状态时不会反复把秒数打回 30。
+     */
+    syncActionCountdown() {
+      if (!this.actionCountdownShouldRun()) {
+        this.stopCountdown()
+        this._actionCountdownKey = null
+        return
+      }
+      var key = this.actionCountdownSessionKey()
+      if (this._actionCountdownKey === key) return
+      this._actionCountdownKey = key
+      this.startCountdown()
+    },
+
     startCountdown() {
-      this.stopCountdown(); // 先清除旧的
-      this.timeLeft = 30;
-      this.actionTimer = setInterval(() => {
-        if (this.timeLeft > 0) {
-          this.timeLeft--;
+      this.stopCountdown()
+      this.timeLeft = 30
+      var self = this
+      this.actionTimer = setInterval(function () {
+        if (self.timeLeft > 0) {
+          self.timeLeft--
         } else {
-          this.stopCountdown();
-          // 这里可以加个逻辑，比如时间到了自动弃牌：this.doFold();
+          self.stopCountdown()
         }
-      }, 1000);
+      }, 1000)
     },
 
     stopCountdown() {
       if (this.actionTimer) {
-        clearInterval(this.actionTimer);
-        this.actionTimer = null;
+        clearInterval(this.actionTimer)
+        this.actionTimer = null
       }
     },
 
