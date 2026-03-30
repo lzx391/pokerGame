@@ -16,7 +16,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 /**
  * 将 {@link DpNpcSharkObservedHandHistory.ObservedHandRecord} 写入表 dp_observed_hand_history，
  * 并对非机器人玩家写入 dp_observed_hand_participant（user_id 优先来自 dpUserId，否则按昵称查 dp_user；均可无则仅存昵称快照）。
@@ -153,7 +154,7 @@ public class DpHandHistoryPersistService {
         //8. NetChipsChange对象：负责记录净盈亏
         static Payload from(DpNpcSharkObservedHandHistory.ObservedHandRecord rec) {
             Payload p = new Payload();
-            p.seatsAtStart = new java.util.ArrayList<>();
+            p.seatsAtStart = new ArrayList<>();
             for (DpNpcSharkObservedHandHistory.SeatAtHandStart s : rec.seatsAtStart) {
                 SeatDto d = new SeatDto();
                 d.seatIndex = s.seatIndex;
@@ -162,14 +163,14 @@ public class DpHandHistoryPersistService {
                 d.chipsAfterBlinds = s.chipsAfterBlinds;
                 p.seatsAtStart.add(d);
             }
-            p.boardsByStreet = new java.util.ArrayList<>();
+            p.boardsByStreet = new ArrayList<>();
             for (DpNpcSharkObservedHandHistory.StreetBoard b : rec.boardsByStreet) {
                 BoardDto d = new BoardDto();
                 d.stage = b.stage;
-                d.communityCards = new java.util.ArrayList<>(b.communityCards);
+                d.communityCards = new ArrayList<>(b.communityCards);
                 p.boardsByStreet.add(d);
             }
-            p.actions = new java.util.ArrayList<>();
+            p.actions = new ArrayList<>();
             for (DpNpcSharkObservedHandHistory.ActionRecord a : rec.actions) {
                 ActionDto d = new ActionDto();
                 d.tsMs = a.tsMs;
@@ -183,15 +184,15 @@ public class DpHandHistoryPersistService {
                 d.potBefore = a.potBefore;
                 p.actions.add(d);
             }
-            p.potsBeforeSettlement = new java.util.ArrayList<>();
+            p.potsBeforeSettlement = new ArrayList<>();
             for (DpNpcSharkObservedHandHistory.PotSnapshot pot : rec.potsBeforeSettlement) {
                 PotDto d = new PotDto();
                 d.amount = pot.amount;
-                d.eligibleNicknames = new java.util.ArrayList<>(pot.eligibleNicknames);
+                d.eligibleNicknames = new ArrayList<>(pot.eligibleNicknames);
                 p.potsBeforeSettlement.add(d);
             }
-            p.holeCardsAtEnd = new java.util.LinkedHashMap<>(rec.holeCardsAtEnd);
-            p.netChipsChange = new java.util.LinkedHashMap<>(rec.netChipsChange);
+            p.holeCardsAtEnd = new LinkedHashMap<>(rec.holeCardsAtEnd);
+            p.netChipsChange = new LinkedHashMap<>(rec.netChipsChange);
             return p;
         }
     }

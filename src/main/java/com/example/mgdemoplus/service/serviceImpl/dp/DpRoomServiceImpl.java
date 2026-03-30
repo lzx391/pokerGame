@@ -738,6 +738,7 @@ public class DpRoomServiceImpl {
 
         // Shark 专用逐街动作日志：为新一手初始化（只在桌上存在 BOT_Shark 时启用）
         DpNpcSharkHandActionLog.beginHand(r);
+        //开始一手牌谱的记录
         DpNpcSharkObservedHandHistory.beginHand(r);
 
         r.setDeck(newDeck());
@@ -813,6 +814,7 @@ public class DpRoomServiceImpl {
         r.setCurrentActorIndex((did + 3) % ps.size());//翻前从大盲的下一个开始行动
         r.setLastActionTime(System.currentTimeMillis());//方便计时间用
         // Shark 在场时：固定本手座位/盲注后筹码，并记 preflop 公共牌空快照
+        //标记手准备
         DpNpcSharkObservedHandHistory.markHandReadyAfterBlinds(r);
         sharkOpponentMemoryService.hydrateAllOpponentsForNewHand(r);
         return true;
@@ -1191,6 +1193,7 @@ public class DpRoomServiceImpl {
                 //settle阶段会自动把大家的准备状态设置为false
                 p.setReady(false);
             }
+            //每局结算的时候将牌谱归档，并存入数据库
             DpNpcSharkObservedHandHistory.ObservedHandRecord archivedEarly = DpNpcSharkObservedHandHistory.finalizeHand(r);
             if (archivedEarly != null) {
                 observedHandPersistService.save(archivedEarly, r);
