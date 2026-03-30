@@ -6,6 +6,7 @@ import java.util.Map;
  * 单条牌谱详情（payload 为解析后的 JSON 对象；他人底牌已在服务端脱敏）。
  */
 public class DpHandHistoryDetailDTO {
+    //本类的作用是：将dp_observed_hand_history表中的数据转换为DTO对象
     private Long handHistoryId;
     private String roomId;
     private Long handSeed;

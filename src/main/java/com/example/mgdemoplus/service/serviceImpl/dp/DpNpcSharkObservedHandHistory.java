@@ -21,6 +21,27 @@ import java.util.concurrent.ConcurrentHashMap;
  * 本类将结束的整手归档到环形缓冲，不依赖当手临时列表。</p>
  */
 final class DpNpcSharkObservedHandHistory {
+    //本模块分为以下模块：
+    //1. ActionType枚举：负责记录行动类型
+    //2. ActionRecord类：负责记录行动
+    //3. StreetBoard类：负责记录公共牌
+    //4. SeatAtHandStart类：负责记录座位
+    //5. PotSnapshot类：负责记录池
+    //6. ObservedHandRecord类：负责记录牌谱
+    //7. Key类：负责记录房间id和手种子
+    //8. HandBuilder类：负责记录牌谱
+    //9. BUILDERS类：负责记录牌谱
+    //10. ARCHIVE类：负责记录牌谱
+    //11. isEnabledForRoom方法：负责判断是否启用
+    //12. isSharkAtTable方法：负责判断是否坐Shark
+    //13. getRecentHands方法：负责获取最近的手
+    //14. beginHand方法：负责开始手
+    //15. markHandReadyAfterBlinds方法：负责标记手准备
+    //16. recordBoardState方法：负责记录公共牌
+    //17. recordBlind方法：负责记录盲注
+    //18. recordFold方法：负责记录弃牌
+    //19. recordBetLikeAction方法：负责记录行动
+    //20. capturePotsBeforeClear方法：负责记录池
     private DpNpcSharkObservedHandHistory() {
     }
 

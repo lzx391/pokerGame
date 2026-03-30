@@ -2864,7 +2864,7 @@ public final class DpNpcEngine {
                 String stage = room.getCurrentStage();
                 /// 翻前行动决策
                 if ("preflop".equals(stage)) {
-                    BotAction pre = DpNpcPreflopStrategy.decideForShark(
+                    BotAction pre = DpNpcSharkPreflopStrategy.decideForShark(
                             room,
                             bot,
                             position,

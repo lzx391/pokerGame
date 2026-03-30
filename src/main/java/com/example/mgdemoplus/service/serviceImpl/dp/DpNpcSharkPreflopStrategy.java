@@ -18,8 +18,8 @@ import java.util.Random;
  *   <li>上层：把人数/位置/码量/松紧/情绪等因素算成 rangeLevel（1~8），映射成可玩的 HandGroup 阈值</li>
  * </ul>
  */
-final class DpNpcPreflopStrategy {
-    private DpNpcPreflopStrategy() {
+final class DpNpcSharkPreflopStrategy {
+    private DpNpcSharkPreflopStrategy() {
     }
 
     private static final Map<String, Integer> RANK = new HashMap<>();
