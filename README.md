@@ -95,6 +95,7 @@
 - **前端**：登录可用 `GET /dpUser/loginProfile` 拿到 `userId`；**创建房间 / 加入房间 / 观众「下一局加入」** 可带可选 `userId`（与昵称须与 `dp_user` 一致才采纳），界面只展示昵称。
 - **历史查询**：有 `user_id` 时按 id 查；无则按 `nickname_snapshot`（需注意改名后旧昵称仍留在历史快照）。
 - **列表接口（分页，无 PageHelper）**：`GET /dpHandHistory/list?nickname=必填&userId=可选&page=1&pageSize=10` → 返回 `DpHandHistoryPageDTO`（`total`、`page`、`pageSize`、`records`）；`pageSize` 默认 10、最大 100。仅含 **存在参与者行** 的牌谱。
+- **详情接口（2026-03-30）**：`GET /dpHandHistory/detail?handHistoryId=必填&nickname=必填&userId=可选` → `DpHandHistoryDetailDTO`（表头字段 + `payload` 为 `payload_json` 解析对象）。仅 **参与者** 可读；`holeCardsAtEnd` 为归档全量洞牌。前端 `HandHistoryDetail` 各街表格末列按 **弃牌时机** 决定是否展示底牌，**结算** 页展示终局公共牌 + 摊牌底牌（已弃牌不展示）。
 
 ### Docker 部署
 

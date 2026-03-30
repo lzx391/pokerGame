@@ -77,4 +77,31 @@ public interface DpHandHistoryQueryMapper {
             WHERE p.nickname_snapshot = #{nickname}
             """)
     long countForNicknameOnly(@Param("nickname") String nickname);
+
+    /**
+     * 当前用户是否可查看该手牌谱（与列表接口同一套 userId / 昵称规则）。
+     */
+    @Select("""
+            SELECT COUNT(*)
+            FROM dp_observed_hand_participant p
+            WHERE p.hand_history_id = #{handHistoryId}
+              AND (p.user_id = #{userId}
+                   OR (p.nickname_snapshot = #{nickname} AND p.user_id IS NULL))
+            """)
+    long countParticipantForHandWithUserId(
+            @Param("handHistoryId") long handHistoryId,
+            @Param("userId") int userId,
+            @Param("nickname") String nickname
+    );
+
+    @Select("""
+            SELECT COUNT(*)
+            FROM dp_observed_hand_participant p
+            WHERE p.hand_history_id = #{handHistoryId}
+              AND p.nickname_snapshot = #{nickname}
+            """)
+    long countParticipantForHandNicknameOnly(
+            @Param("handHistoryId") long handHistoryId,
+            @Param("nickname") String nickname
+    );
 }

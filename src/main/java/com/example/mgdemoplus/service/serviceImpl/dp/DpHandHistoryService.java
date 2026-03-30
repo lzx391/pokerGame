@@ -1,14 +1,20 @@
 package com.example.mgdemoplus.service.serviceImpl.dp;
 
+import com.example.mgdemoplus.dto.DpHandHistoryDetailDTO;
 import com.example.mgdemoplus.dto.DpHandHistoryListItemDTO;
 import com.example.mgdemoplus.dto.DpHandHistoryPageDTO;
+import com.example.mgdemoplus.entity.dp.DpObservedHandHistory;
 import com.example.mgdemoplus.entity.dp.DpUser;
 import com.example.mgdemoplus.mapper.dp.DpHandHistoryQueryMapper;
+import com.example.mgdemoplus.mapper.dp.DpObservedHandHistoryMapper;
 import com.example.mgdemoplus.mapper.dp.DpUserMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class DpHandHistoryService {
@@ -18,10 +24,19 @@ public class DpHandHistoryService {
 
     private final DpHandHistoryQueryMapper queryMapper;
     private final DpUserMapper dpUserMapper;
+    private final DpObservedHandHistoryMapper observedHandHistoryMapper;
+    private final ObjectMapper objectMapper;
 
-    public DpHandHistoryService(DpHandHistoryQueryMapper queryMapper, DpUserMapper dpUserMapper) {
+    public DpHandHistoryService(
+            DpHandHistoryQueryMapper queryMapper,
+            DpUserMapper dpUserMapper,
+            DpObservedHandHistoryMapper observedHandHistoryMapper,
+            ObjectMapper objectMapper
+    ) {
         this.queryMapper = queryMapper;
         this.dpUserMapper = dpUserMapper;
+        this.observedHandHistoryMapper = observedHandHistoryMapper;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -66,6 +81,59 @@ public class DpHandHistoryService {
                 ? Collections.emptyList()
                 : queryMapper.listForNicknameOnly(nickname, offset, size);
         out.setRecords(records);
+        return out;
+    }
+
+    /**
+     * 单条牌谱详情：仅当当前用户在参与者表中关联该手时可读；
+     * payload 含完整 holeCardsAtEnd（服务端归档），前端按街与弃牌时机决定展示。
+     */
+    public DpHandHistoryDetailDTO getDetail(long handHistoryId, Integer userId, String nickname) {
+        if (nickname == null || nickname.isEmpty()) {
+            return null;
+        }
+        if (userId != null) {
+            DpUser u = dpUserMapper.selectById(userId);
+            if (u == null || !nickname.equals(u.getNickname())) {
+                return null;
+            }
+            if (queryMapper.countParticipantForHandWithUserId(handHistoryId, userId, nickname) == 0) {
+                return null;
+            }
+        } else {
+            if (queryMapper.countParticipantForHandNicknameOnly(handHistoryId, nickname) == 0) {
+                return null;
+            }
+        }
+
+        DpObservedHandHistory row = observedHandHistoryMapper.selectById(handHistoryId);
+        if (row == null) {
+            return null;
+        }
+
+        Map<String, Object> payload;
+        try {
+            payload = objectMapper.readValue(
+                    row.getPayloadJson(),
+                    new TypeReference<Map<String, Object>>() {
+                    }
+            );
+        } catch (Exception e) {
+            return null;
+        }
+
+        DpHandHistoryDetailDTO out = new DpHandHistoryDetailDTO();
+        out.setHandHistoryId(row.getId());
+        out.setRoomId(row.getRoomId());
+        out.setHandSeed(row.getHandSeed());
+        out.setStartedAtMs(row.getStartedAtMs());
+        out.setEndedAtMs(row.getEndedAtMs());
+        out.setSmallBlindChips(row.getSmallBlindChips());
+        out.setBigBlindChips(row.getBigBlindChips());
+        out.setDealerNickname(row.getDealerNickname());
+        out.setMainPotBeforeSettlement(row.getMainPotBeforeSettlement());
+        out.setPayloadVersion(row.getPayloadVersion());
+        out.setPayload(payload);
         return out;
     }
 }
