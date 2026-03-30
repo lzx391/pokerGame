@@ -739,7 +739,7 @@ public class DpRoomServiceImpl {
         // Shark 专用逐街动作日志：为新一手初始化（只在桌上存在 BOT_Shark 时启用）
         DpNpcSharkHandActionLog.beginHand(r);
         //开始一手牌谱的记录
-        DpNpcSharkObservedHandHistory.beginHand(r);
+        DpHandHistoryObserved.beginHand(r);
 
         r.setDeck(newDeck());
         r.setCommunityCards(new ArrayList<>());
@@ -794,7 +794,7 @@ public class DpRoomServiceImpl {
             ps.get(sb).setBet(DpRoom.getSBChips());
             ps.get(sb).setTotalBet(DpRoom.getSBChips());      // 记入累计下注
             DpNpcSharkHandActionLog.recordBlind(r, ps.get(sb).getNickname(), true, DpRoom.getSBChips(), potBeforeSb);
-            DpNpcSharkObservedHandHistory.recordBlind(r, ps.get(sb).getNickname(), true, DpRoom.getSBChips(), potBeforeSb);
+            DpHandHistoryObserved.recordBlind(r, ps.get(sb).getNickname(), true, DpRoom.getSBChips(), potBeforeSb);
 
             ps.get(bb).setBlind(2);
             int potBeforeBb = r.getPot() + DpRoom.getSBChips();
@@ -802,7 +802,7 @@ public class DpRoomServiceImpl {
             ps.get(bb).setBet(DpRoom.getBBChips());
             ps.get(bb).setTotalBet(DpRoom.getBBChips());     // 记入累计下注
             DpNpcSharkHandActionLog.recordBlind(r, ps.get(bb).getNickname(), false, DpRoom.getBBChips(), potBeforeBb);
-            DpNpcSharkObservedHandHistory.recordBlind(r, ps.get(bb).getNickname(), false, DpRoom.getBBChips(), potBeforeBb);
+            DpHandHistoryObserved.recordBlind(r, ps.get(bb).getNickname(), false, DpRoom.getBBChips(), potBeforeBb);
 
             r.setCurrentBetToCall(DpRoom.getBBChips());
             r.setPot(DpRoom.getBBChips() + DpRoom.getSBChips());                    // 大小盲计入底池
@@ -815,7 +815,7 @@ public class DpRoomServiceImpl {
         r.setLastActionTime(System.currentTimeMillis());//方便计时间用
         // Shark 在场时：固定本手座位/盲注后筹码，并记 preflop 公共牌空快照
         //标记手准备
-        DpNpcSharkObservedHandHistory.markHandReadyAfterBlinds(r);
+        DpHandHistoryObserved.markHandReadyAfterBlinds(r);
         sharkOpponentMemoryService.hydrateAllOpponentsForNewHand(r);
         return true;
     }
@@ -971,7 +971,7 @@ public class DpRoomServiceImpl {
 
         // Shark 专用逐街动作日志（只在桌上存在 BOT_Shark 时启用）
         DpNpcSharkHandActionLog.recordBetLikeAction(r, p, amount, betToCallBefore, actorBetBefore, potBefore, becameAllIn, isRaise);
-        DpNpcSharkObservedHandHistory.recordBetLikeAction(r, p, amount, betToCallBefore, actorBetBefore, potBefore, becameAllIn, isRaise);
+        DpHandHistoryObserved.recordBetLikeAction(r, p, amount, betToCallBefore, actorBetBefore, potBefore, becameAllIn, isRaise);
 
         moveToNextValidActor(r);
         autoAdvanceIfRoundFinished(r);
@@ -988,7 +988,7 @@ public class DpRoomServiceImpl {
         p.setFold(true);
         // Shark 专用逐街动作日志（只在桌上存在 BOT_Shark 时启用）
         DpNpcSharkHandActionLog.recordFold(r, p, r.getPot());
-        DpNpcSharkObservedHandHistory.recordFold(r, p, r.getPot());
+        DpHandHistoryObserved.recordFold(r, p, r.getPot());
         moveToNextValidActor(r);  // 统一用新方法，不再用旧的 nextActor
         autoAdvanceIfRoundFinished(r);
         return true;
@@ -1037,17 +1037,17 @@ public class DpRoomServiceImpl {
                 r.getCommunityCards().add(deck.remove(0));
                 r.getCommunityCards().add(deck.remove(0));
                 r.setCurrentStage("flop");
-                DpNpcSharkObservedHandHistory.recordBoardState(r);
+                DpHandHistoryObserved.recordBoardState(r);
                 break;
             case "flop":
                 r.getCommunityCards().add(deck.remove(0));
                 r.setCurrentStage("turn");
-                DpNpcSharkObservedHandHistory.recordBoardState(r);
+                DpHandHistoryObserved.recordBoardState(r);
                 break;
             case "turn":
                 r.getCommunityCards().add(deck.remove(0));
                 r.setCurrentStage("river");
-                DpNpcSharkObservedHandHistory.recordBoardState(r);
+                DpHandHistoryObserved.recordBoardState(r);
                 break;
             case "river":
                 r.setCurrentStage("showdown");
@@ -1194,7 +1194,7 @@ public class DpRoomServiceImpl {
                 p.setReady(false);
             }
             //每局结算的时候将牌谱归档，并存入数据库
-            DpNpcSharkObservedHandHistory.ObservedHandRecord archivedEarly = DpNpcSharkObservedHandHistory.finalizeHand(r);
+            DpHandHistoryObserved.ObservedHandRecord archivedEarly = DpHandHistoryObserved.finalizeHand(r);
             if (archivedEarly != null) {
                 observedHandPersistService.save(archivedEarly, r);
             }
@@ -1280,7 +1280,7 @@ public class DpRoomServiceImpl {
         applyWinStreakAfterHand(r, streakWinnerNicknames);
 
         // Shark 在场：结算分配前快照底池结构（随后会清空 pots）
-        DpNpcSharkObservedHandHistory.capturePotsBeforeClear(r);
+        DpHandHistoryObserved.capturePotsBeforeClear(r);
 
         r.setPot(0);
         r.setPots(new ArrayList<>());
@@ -1536,7 +1536,7 @@ public class DpRoomServiceImpl {
         // Shark 学习实验：基于本手统计结果更新“长期记忆参数”（只在 BOT_Shark 决策里读取）
         // 注意：LearningLab 内部会读取本手动作日志做 shove 频率等统计，因此必须先学习、后清理日志。
         // 完整牌谱归档（仅 Shark 在座时）：须在 LearningLab 之前，以便后者仍可读 ActionLog
-        DpNpcSharkObservedHandHistory.ObservedHandRecord archived = DpNpcSharkObservedHandHistory.finalizeHand(r);
+        DpHandHistoryObserved.ObservedHandRecord archived = DpHandHistoryObserved.finalizeHand(r);
         if (archived != null) {
             observedHandPersistService.save(archived, r);
         }
