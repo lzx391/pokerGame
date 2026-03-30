@@ -1,7 +1,9 @@
 package com.example.mgdemoplus.controller.dp;
 
+import com.example.mgdemoplus.dto.DpHandHistoryDetailDTO;
 import com.example.mgdemoplus.dto.DpHandHistoryPageDTO;
 import com.example.mgdemoplus.service.serviceImpl.dp.DpHandHistoryService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -33,5 +35,21 @@ public class DpHandHistoryController {
             @RequestParam(defaultValue = "10") int pageSize
     ) {
         return handHistoryService.listMyHandsPage(userId, nickname, page, pageSize);
+    }
+
+    /**
+     * 单条牌谱回放数据（payload）；仅参与者可读，他人洞牌已脱敏。
+     */
+    @GetMapping("/detail")
+    public ResponseEntity<DpHandHistoryDetailDTO> detail(
+            @RequestParam long handHistoryId,
+            @RequestParam String nickname,
+            @RequestParam(required = false) Integer userId
+    ) {
+        DpHandHistoryDetailDTO dto = handHistoryService.getDetail(handHistoryId, userId, nickname);
+        if (dto == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(dto);
     }
 }

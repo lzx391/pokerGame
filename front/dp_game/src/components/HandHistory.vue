@@ -31,6 +31,7 @@
                 <th>本手盈亏</th>
                 <!-- <th>座位</th> -->
                 <th>角色</th>
+                <th>操作</th>
               </tr>
             </thead>
             <tbody>
@@ -41,6 +42,15 @@
                 <td :class="netClass(r.netChips)">{{ r.netChips }}</td>
                 <!-- <td>{{ r.seatIndex }}</td> -->
                 <td>{{ roleLabel(r) }}</td>
+                <td>
+                  <button
+                    type="button"
+                    class="hand-history-table__detail-btn"
+                    @click="goDetail(r.handHistoryId)"
+                  >
+                    查看详情
+                  </button>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -109,6 +119,10 @@ export default {
     },
     goBack() {
       this.$router.push('/home')
+    },
+    goDetail(handHistoryId) {
+      if (handHistoryId == null || handHistoryId === '') return
+      this.$router.push('/hand-history/detail/' + encodeURIComponent(String(handHistoryId)))
     },
     formatTime(ms) {
       if (ms == null || ms === '') return '—'
@@ -276,5 +290,18 @@ export default {
 .hand-history-page__pager-info {
   font-size: 14px;
   color: #606266;
+}
+.hand-history-table__detail-btn {
+  padding: 4px 10px;
+  border: 1px solid #dcdfe6;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  color: #409eff;
+}
+.hand-history-table__detail-btn:hover {
+  border-color: #409eff;
+  background: #ecf5ff;
 }
 </style>
