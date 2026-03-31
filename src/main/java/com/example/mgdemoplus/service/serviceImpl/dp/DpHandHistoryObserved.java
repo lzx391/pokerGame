@@ -382,7 +382,7 @@ final class DpHandHistoryObserved {
     //8. blindPostedChipsForSeat方法：负责记录盲注
     static ObservedHandRecord finalizeHand(DpRoom room) {//归档牌局，并挂到最近的手列表中限400手
       if(room.getPlayers().size()<=1){
-    System.out.println("场上只有一个玩家，不落库保存");
+    // System.out.println("场上只有一个玩家，不落库保存");
         return null;//如果场上只有1个玩家，则不记录牌谱
       }
         if (!isEnabledForRoom(room)) {

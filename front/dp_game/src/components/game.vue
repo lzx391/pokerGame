@@ -352,6 +352,12 @@
         @close="showSpectatorModal = false"
     />
 
+    <game-hand-history-modal
+        :visible="showHandHistoryModal"
+        :game-ui-theme="gameUiTheme"
+        @close="showHandHistoryModal = false"
+    />
+
     <div
         v-if="showMobileHandSheet && heroDockRow"
         class="dp-game-sheet-mask dp-game-sheet-mask--bottom"
@@ -531,6 +537,7 @@ import GamePlayerCard from './GamePlayerCard.vue'
 import GameTopBar from './GameTopBar.vue'
 import GameHandRankModal from './GameHandRankModal.vue'
 import GameSpectatorModal from './GameSpectatorModal.vue'
+import GameHandHistoryModal from './GameHandHistoryModal.vue'
 import GameOwnerToolModal from './GameOwnerToolModal.vue'
 import GameCommunityCards from './GameCommunityCards.vue'
 import GameActionPanel from './GameActionPanel.vue'
@@ -550,6 +557,7 @@ export default {
     GameTopBar,
     GameHandRankModal,
     GameSpectatorModal,
+    GameHandHistoryModal,
     GameOwnerToolModal,
     GameCommunityCards,
     GameActionPanel,
@@ -618,6 +626,7 @@ export default {
       // 牌型说明弹窗
       showHandRankModal: false,
       showSpectatorModal: false,
+      showHandHistoryModal: false,
       // 房主踢人/移交房主弹窗
       showOwnerHubSheet: false,
       ownerToolType: 'transfer',  // 'transfer' | 'kick'
@@ -1742,7 +1751,7 @@ export default {
     },
 
     openHandHistory() {
-      this.$router.push('/hand-history')
+      this.showHandHistoryModal = true
     },
 
     // ---- 退出 ----

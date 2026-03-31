@@ -1,8 +1,10 @@
 <template>
-  <div class="hand-history-page">
+  <div class="hand-history-page" :class="{ 'hand-history-page--embedded': embedded }">
     <div class="hand-history-page__header">
       <h1>历史对局</h1>
-      <button type="button" class="hand-history-page__back" @click="goBack">返回大厅</button>
+      <button type="button" class="hand-history-page__back" @click="goBack">
+        {{ embedded ? '关闭' : '返回大厅' }}
+      </button>
     </div>
 
     <div v-if="user && user.nickname" class="hand-history-page__user">
@@ -82,6 +84,10 @@
 <script>
 export default {
   name: 'HandHistory',
+  props: {
+    /** 嵌入对局弹层：不整页跳转，通过事件关闭 / 打开详情 */
+    embedded: { type: Boolean, default: false }
+  },
   data() {
     return {
       user: null,
@@ -107,7 +113,11 @@ export default {
       this.user = null
     }
     if (!this.user || !this.user.nickname) {
-      this.$router.replace('/login')
+      if (this.embedded) {
+        this.$emit('close')
+      } else {
+        this.$router.replace('/login')
+      }
       return
     }
     this.fetchList(1)
@@ -118,11 +128,19 @@ export default {
       this.fetchList(p)
     },
     goBack() {
-      this.$router.push('/home')
+      if (this.embedded) {
+        this.$emit('close')
+      } else {
+        this.$router.push('/home')
+      }
     },
     goDetail(handHistoryId) {
       if (handHistoryId == null || handHistoryId === '') return
-      this.$router.push('/hand-history/detail/' + encodeURIComponent(String(handHistoryId)))
+      if (this.embedded) {
+        this.$emit('view-detail', handHistoryId)
+      } else {
+        this.$router.push('/hand-history/detail/' + encodeURIComponent(String(handHistoryId)))
+      }
     },
     formatTime(ms) {
       if (ms == null || ms === '') return '—'
@@ -303,5 +321,78 @@ export default {
 .hand-history-table__detail-btn:hover {
   border-color: #409eff;
   background: #ecf5ff;
+}
+
+/* 对局弹层内：跟随 .dp-game-root 的 data-dp-game-theme / --dp-* */
+.hand-history-page--embedded {
+  font-family: var(--dp-font-ui, inherit);
+  color: var(--dp-text-primary, #303133);
+}
+.hand-history-page--embedded .hand-history-page__header h1 {
+  color: var(--dp-text-primary, #303133);
+}
+.hand-history-page--embedded .hand-history-page__back {
+  border-color: var(--dp-input-border, #dcdfe6);
+  background: var(--dp-btn-ghost-bg, #fff);
+  color: var(--dp-text-primary, #303133);
+}
+.hand-history-page--embedded .hand-history-page__back:hover {
+  border-color: var(--dp-accent, #409eff);
+  color: var(--dp-accent, #409eff);
+}
+.hand-history-page--embedded .hand-history-page__user {
+  color: var(--dp-text-secondary, #606266);
+}
+.hand-history-page--embedded .hand-history-page__status {
+  color: var(--dp-text-muted, #909399);
+}
+.hand-history-page--embedded .hand-history-page__error {
+  color: var(--dp-danger, #f56c6c);
+}
+.hand-history-page--embedded .hand-history-page__empty {
+  color: var(--dp-text-secondary, #606266);
+}
+.hand-history-page--embedded .hand-history-page__empty code {
+  background: var(--dp-subpanel-bg, #f4f4f5);
+  color: var(--dp-text-primary, #303133);
+  border: 1px solid var(--dp-subpanel-border, transparent);
+}
+.hand-history-page--embedded .hand-history-table th,
+.hand-history-page--embedded .hand-history-table td {
+  border-color: var(--dp-subpanel-border, #ebeef5);
+}
+.hand-history-page--embedded .hand-history-table th {
+  background: var(--dp-subpanel-bg, #f5f7fa);
+  color: var(--dp-text-secondary, #606266);
+}
+.hand-history-page--embedded .hand-history-table__net--win {
+  color: var(--dp-success, #67c23a);
+}
+.hand-history-page--embedded .hand-history-table__net--lose {
+  color: var(--dp-danger, #f56c6c);
+}
+.hand-history-page--embedded .hand-history-page__meta {
+  color: var(--dp-text-secondary, #606266);
+}
+.hand-history-page--embedded .hand-history-page__pager-btn {
+  border-color: var(--dp-input-border, #dcdfe6);
+  background: var(--dp-btn-ghost-bg, #fff);
+  color: var(--dp-text-primary, #303133);
+}
+.hand-history-page--embedded .hand-history-page__pager-btn:hover:not(:disabled) {
+  border-color: var(--dp-accent, #409eff);
+  color: var(--dp-accent, #409eff);
+}
+.hand-history-page--embedded .hand-history-page__pager-info {
+  color: var(--dp-text-secondary, #606266);
+}
+.hand-history-page--embedded .hand-history-table__detail-btn {
+  border-color: var(--dp-input-border, #dcdfe6);
+  background: var(--dp-subpanel-bg, #fff);
+  color: var(--dp-accent, #409eff);
+}
+.hand-history-page--embedded .hand-history-table__detail-btn:hover {
+  border-color: var(--dp-accent, #409eff);
+  background: var(--dp-subpanel-bg, #ecf5ff);
 }
 </style>

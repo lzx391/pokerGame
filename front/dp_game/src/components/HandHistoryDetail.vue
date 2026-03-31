@@ -1,5 +1,5 @@
 <template>
-  <div class="hand-detail-page">
+  <div class="hand-detail-page" :class="{ 'hand-detail-page--embedded': embedded }">
     <div class="hand-detail-page__shell">
       <header class="hand-detail-page__hero">
         <button type="button" class="hand-detail-page__back" @click="goBack">
@@ -234,7 +234,9 @@ export default {
     handHistoryId: {
       type: [String, Number],
       required: true
-    }
+    },
+    /** 为 true 时「返回列表」交给父组件（如对局内弹层），不跳转路由 */
+    embedded: { type: Boolean, default: false }
   },
   data() {
     return {
@@ -420,7 +422,11 @@ export default {
       this.user = null
     }
     if (!this.user || !this.user.nickname) {
-      this.$router.replace('/login')
+      if (this.embedded) {
+        this.$emit('back')
+      } else {
+        this.$router.replace('/login')
+      }
       return
     }
     this.fetchDetail()
@@ -439,7 +445,11 @@ export default {
       return ''
     },
     goBack() {
-      this.$router.push('/hand-history')
+      if (this.embedded) {
+        this.$emit('back')
+      } else {
+        this.$router.push('/hand-history')
+      }
     },
     formatTime(ms) {
       if (ms == null || ms === '') return '—'
@@ -988,6 +998,152 @@ export default {
 
 .hand-detail-table__net--lose {
   color: #dc2626;
+}
+
+/* 对局弹层内：与 .dp-game-root 主题 --dp-* 对齐 */
+.hand-detail-page--embedded {
+  font-family: var(--dp-font-ui, inherit);
+  --hd-bg: var(--dp-game-bg, #f0f2f5);
+  --hd-surface: var(--dp-panel-bg, #ffffff);
+  --hd-text: var(--dp-text-primary, #1a2332);
+  --hd-muted: var(--dp-text-secondary, #5c6b7e);
+  --hd-accent: var(--dp-accent, #1e6b55);
+  --hd-tab-active: var(--dp-accent, #0f6b4f);
+  --hd-felt: linear-gradient(145deg, #0d3d2e 0%, #0f4a36 40%, #0a3024 100%);
+  --hd-felt-border: rgba(255, 255, 255, 0.08);
+  --hd-chip-border: var(--dp-panel-border, rgba(26, 35, 50, 0.06));
+  padding: clamp(12px, 3vw, 20px) clamp(10px, 2vw, 18px) 28px;
+}
+
+.hand-detail-page--embedded .hand-detail-page__back {
+  background: var(--dp-subpanel-bg, rgba(255, 255, 255, 0.85));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 0 0 1px var(--dp-panel-border, rgba(26, 35, 50, 0.06));
+  color: var(--hd-text);
+}
+
+.hand-detail-page--embedded .hand-detail-page__back:hover {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--dp-accent, #1890ff);
+  color: var(--dp-accent);
+}
+
+.hand-detail-page--embedded .hand-detail-page__state {
+  box-shadow: var(--dp-panel-shadow, 0 2px 12px rgba(26, 35, 50, 0.06));
+  border: 1px solid var(--dp-panel-border, transparent);
+}
+
+.hand-detail-page--embedded .hand-detail-page__state--error {
+  color: var(--dp-danger, #c45656);
+  border-color: rgba(255, 82, 82, 0.35);
+  background: var(--dp-subpanel-bg, #fff);
+}
+
+.hand-detail-page--embedded .hand-detail-page__spinner {
+  border-color: var(--dp-subpanel-border, #e0e6ee);
+  border-top-color: var(--dp-accent, #1e6b55);
+}
+
+.hand-detail-page--embedded .hand-detail-page__meta-k {
+  color: var(--dp-text-muted, #8b98a8);
+}
+
+.hand-detail-page--embedded .hand-detail-page__meta-chip {
+  background: var(--hd-surface);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--hd-chip-border);
+}
+
+.hand-detail-page--embedded .hand-detail-page__tabs {
+  background: var(--dp-subpanel-bg, rgba(255, 255, 255, 0.65));
+  border-color: var(--dp-panel-border, rgba(26, 35, 50, 0.07));
+}
+
+.hand-detail-page--embedded .hand-detail-page__tab--active {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+}
+
+.hand-detail-page--embedded .hand-detail-page__panel {
+  box-shadow: var(--dp-panel-shadow, 0 4px 24px rgba(26, 35, 50, 0.07)), 0 0 0 1px var(--dp-panel-border, rgba(26, 35, 50, 0.04));
+}
+
+.hand-detail-page--embedded .hand-detail-page__board-felt {
+  border-color: rgba(0, 0, 0, 0.25);
+}
+
+.hand-detail-page--embedded .hand-detail-page__empty-block {
+  background: var(--dp-subpanel-bg, #f6f8fb);
+  color: var(--hd-muted);
+  border-color: var(--dp-input-border, #d5dde8);
+}
+
+.hand-detail-page--embedded .hand-detail-page__folded-label {
+  color: var(--dp-text-muted, #8b98a8);
+  background: var(--dp-subpanel-bg, #f0f3f7);
+}
+
+.hand-detail-page--embedded .hand-detail-page__no-holes {
+  color: var(--dp-text-muted, #a8b4c4);
+}
+
+.hand-detail-page--embedded .hand-detail-page__subh::before {
+  background: linear-gradient(180deg, var(--dp-accent, #1e8a6a), var(--dp-success, #0f5c45));
+}
+
+.hand-detail-page--embedded .hand-detail-page__pot-item {
+  background: var(--dp-subpanel-bg, #f6f8fb);
+  border-color: var(--dp-subpanel-border, #e8edf4);
+}
+
+.hand-detail-page--embedded .hand-detail-table {
+  border-color: var(--dp-subpanel-border, #e8edf4);
+}
+
+.hand-detail-page--embedded .hand-detail-table th,
+.hand-detail-page--embedded .hand-detail-table td {
+  border-bottom-color: var(--dp-subpanel-border, #eef1f6);
+}
+
+.hand-detail-page--embedded .hand-detail-table tbody tr:nth-child(even) {
+  background: var(--dp-subpanel-bg, #fafbfd);
+}
+
+.hand-detail-page--embedded .hand-detail-table tbody tr:hover {
+  background: var(--dp-subpanel-bg, #f3f7fb);
+  box-shadow: inset 0 0 0 1px var(--dp-panel-border, transparent);
+}
+
+.hand-detail-page--embedded .hand-detail-table th {
+  background: var(--dp-subpanel-bg, #f0f4f8);
+  color: var(--dp-text-secondary, #4a5568);
+}
+
+.hand-detail-page--embedded .hand-detail-table__cell-actions {
+  color: var(--hd-text);
+}
+
+.hand-detail-page--embedded .hand-detail-page__role-tag--dealer {
+  color: var(--dp-warning, #b45309);
+  background: var(--dp-subpanel-bg, #fff7ed);
+  border: 1px solid var(--dp-panel-border, #fed7aa);
+}
+
+.hand-detail-page--embedded .hand-detail-page__role-tag--sb {
+  color: var(--dp-accent, #1d4ed8);
+  background: var(--dp-subpanel-bg, #eff6ff);
+  border: 1px solid var(--dp-panel-border, #bfdbfe);
+}
+
+.hand-detail-page--embedded .hand-detail-page__role-tag--bb {
+  color: var(--dp-owner-purple-fg, #6d28d9);
+  background: var(--dp-subpanel-bg, #f5f3ff);
+  border: 1px solid var(--dp-panel-border, #ddd6fe);
+}
+
+.hand-detail-page--embedded .hand-detail-table__net--win {
+  color: var(--dp-success, #15803d);
+}
+
+.hand-detail-page--embedded .hand-detail-table__net--lose {
+  color: var(--dp-danger, #dc2626);
 }
 
 @media (max-width: 520px) {
