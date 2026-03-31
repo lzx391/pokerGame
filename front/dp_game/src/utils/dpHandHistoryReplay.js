@@ -5,11 +5,11 @@
 export const STREET_ORDER = ['preflop', 'flop', 'turn', 'river']
 
 export const STREET_TABS = [
-  { key: 'preflop', label: '翻前' },
-  { key: 'flop', label: '翻后' },
-  { key: 'turn', label: '转' },
-  { key: 'river', label: '河' },
-  { key: 'settlement', label: '结算' }
+  { key: 'preflop', label: 'preflop' },
+  { key: 'flop', label: 'flop' },
+  { key: 'turn', label: 'turn' },
+  { key: 'river', label: 'river' },
+  { key: 'settlement', label: 'settlement' }
 ]
 
 /**
