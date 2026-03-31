@@ -1009,6 +1009,7 @@ export default {
   --hd-muted: var(--dp-text-secondary, #5c6b7e);
   --hd-accent: var(--dp-accent, #1e6b55);
   --hd-tab-active: var(--dp-accent, #0f6b4f);
+  /* 公共牌底板在下方 .hand-detail-page__board-felt 中覆盖为与圆桌台呢一致的 --dp-table-felt-* */
   --hd-felt: linear-gradient(145deg, #0d3d2e 0%, #0f4a36 40%, #0a3024 100%);
   --hd-felt-border: rgba(255, 255, 255, 0.08);
   --hd-chip-border: var(--dp-panel-border, rgba(26, 35, 50, 0.06));
@@ -1065,8 +1066,41 @@ export default {
   box-shadow: var(--dp-panel-shadow, 0 4px 24px rgba(26, 35, 50, 0.07)), 0 0 0 1px var(--dp-panel-border, rgba(26, 35, 50, 0.04));
 }
 
+/* 与 dp-game-shell.css 圆桌 .dp-game-table__felt 同源：随主题 --dp-table-felt-* / --dp-panel-bg 变化 */
 .hand-detail-page--embedded .hand-detail-page__board-felt {
-  border-color: rgba(0, 0, 0, 0.25);
+  isolation: isolate;
+  background:
+    radial-gradient(
+      ellipse 55% 50% at 50% 52%,
+      color-mix(in srgb, var(--dp-table-felt-spot, var(--dp-success)) 14%, var(--dp-panel-bg)) 0%,
+      color-mix(in srgb, var(--dp-panel-bg) 88%, var(--dp-table-felt-depth, #0a1620)) 72%,
+      color-mix(in srgb, var(--dp-text-primary) 8%, var(--dp-panel-bg)) 100%
+    );
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, var(--dp-accent) 22%, transparent),
+    var(--dp-table-felt-inset-bottom, inset 0 -12px 36px rgba(0, 0, 0, 0.22)),
+    var(--dp-table-felt-drop-shadow, 0 10px 28px rgba(0, 0, 0, 0.18));
+  border: 1px solid var(--dp-panel-border);
+}
+
+.hand-detail-page--embedded .hand-detail-page__board-felt::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--dp-table-felt-texture);
+  opacity: var(--dp-table-felt-texture-opacity);
+}
+
+.hand-detail-page--embedded .hand-detail-page__board-felt > * {
+  position: relative;
+  z-index: 1;
+}
+
+.hand-detail-page--embedded .hand-detail-page__board-empty {
+  color: color-mix(in srgb, var(--dp-text-primary) 52%, transparent);
 }
 
 .hand-detail-page--embedded .hand-detail-page__empty-block {
