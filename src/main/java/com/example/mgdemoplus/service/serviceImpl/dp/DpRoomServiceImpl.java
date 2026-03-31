@@ -1549,7 +1549,7 @@ public class DpRoomServiceImpl {
         // 结算完成后，先清理本手中已离开的“僵尸位”玩家
         List<DpPlayer> currentPlayers = r.getPlayers();
         if (currentPlayers != null && !currentPlayers.isEmpty()) {
-            currentPlayers.removeIf(DpPlayer::isLeftThisHand);
+            currentPlayers.removeIf(DpPlayer::isLeftThisHand);//这里双冒号的作用是调用DpPlayer类中的isLeftThisHand方法
         }
 
         // 进入“结算完成，等待准备下一局”阶段，并开始 30 秒准备倒计时

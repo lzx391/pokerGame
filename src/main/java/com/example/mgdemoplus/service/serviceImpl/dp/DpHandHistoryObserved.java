@@ -198,14 +198,14 @@ final class DpHandHistoryObserved {
     }
 
     private static final class HandBuilder {
-        long startedAtMs = System.currentTimeMillis();
-        String dealerNickname = "";
-        final List<SeatAtHandStart> seatsAtStart = new ArrayList<>();
-        final List<StreetBoard> boardsByStreet = new ArrayList<>();
-        final List<ActionRecord> actions = new ArrayList<>();
-        List<PotSnapshot> potsBeforeSettlement = List.of();
-        int mainPotTotalBeforeSettlement;
-        final Map<String, Integer> chipsAfterBlinds = new HashMap<>();
+        long startedAtMs = System.currentTimeMillis();//开始时间
+        String dealerNickname = "";//庄家
+        final List<SeatAtHandStart> seatsAtStart = new ArrayList<>();//座位
+        final List<StreetBoard> boardsByStreet = new ArrayList<>();//公共牌
+        final List<ActionRecord> actions = new ArrayList<>();//行动
+        List<PotSnapshot> potsBeforeSettlement = List.of();//池
+        int mainPotTotalBeforeSettlement;//主池
+        final Map<String, Integer> chipsAfterBlinds = new HashMap<>();//筹码
     }
 
     private static final ConcurrentHashMap<Key, HandBuilder> BUILDERS = new ConcurrentHashMap<>();
@@ -381,6 +381,10 @@ final class DpHandHistoryObserved {
     //7. append方法：负责记录行动
     //8. blindPostedChipsForSeat方法：负责记录盲注
     static ObservedHandRecord finalizeHand(DpRoom room) {//归档牌局，并挂到最近的手列表中限400手
+      if(room.getPlayers().size()<=1){
+    System.out.println("场上只有一个玩家，不落库保存");
+        return null;//如果场上只有1个玩家，则不记录牌谱
+      }
         if (!isEnabledForRoom(room)) {
             return null;
         }
