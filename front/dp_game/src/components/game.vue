@@ -48,7 +48,7 @@
           <div class="dp-game-table__center-stack">
             <div
                 v-if="showTableActionTimer"
-                class="dp-game-table-action-timer"
+                class="dp-game-table-action-timer dp-game-table-action-timer--compact"
                 :class="[
                   'dp-game-table-action-timer--' + tableActionTimerUrgency,
                   { 'dp-game-table-action-timer--rich': !ecoMode }
@@ -84,7 +84,7 @@
             title="弃牌堆（庄家侧）"
             aria-label="弃牌堆"
         />
-        <!-- 庄 / 盲 / 连胜标贴在台面上（向桌心偏移），不叠在玩家卡片上 -->
+        <!-- 庄 / 盲 / 连胜标贴在台面上（略向桌心偏移）；窄屏减小偏移以免与公共牌重合 -->
         <div
             v-for="(row, displayIdx) in playersDisplayOrder"
             :key="'felt-' + (row.player.leftThisHand ? 'offline-' + row.seatIndex : row.player.nickname)"
@@ -117,11 +117,14 @@
             v-for="(row, displayIdx) in playersDisplayOrder"
             :key="(row.player.leftThisHand ? 'offline-' + row.seatIndex : row.player.nickname)"
             class="dp-game-table__seat"
-            :class="{ 'dp-game-table__seat--empty': viewerSeatedAtTable && displayIdx === 0 }"
+            :class="{
+              'dp-game-table__seat--empty':
+                viewerSeatedAtTable && displayIdx === 0 && heroHoleDealIntroDone
+            }"
             :style="getPlayerRoundTableStyle(displayIdx, playersDisplayOrder.length)"
         >
           <game-player-card
-              v-if="!(viewerSeatedAtTable && displayIdx === 0)"
+              v-if="!(viewerSeatedAtTable && displayIdx === 0) || showHeroSeatOnTable"
               :player="row.player"
               :seat-index="row.seatIndex"
               :box-style="getPlayerBoxStyle(row.player, row.seatIndex)"
@@ -139,6 +142,7 @@
               :showdown-hand-leaders="showdownHandLeaderNicknames"
               :seat-chat-text="seatChatTextFor(row.player.nickname)"
               :seat-chat-side="getSeatChatBubbleSide(displayIdx, playersDisplayOrder.length)"
+              @hole-deal-intro-complete="heroHoleDealIntroDone = true"
               @card-click="onPlayerCardClick"
           />
         </div>
@@ -178,9 +182,10 @@
           aria-label="房主操作"
       >
         <button
-            v-if="heroDockRow"
+            v-if="heroDockRow && showHeroViewHandButton"
             type="button"
             class="dp-game-hero-action-row__owner-btn dp-game-hero-action-row__owner-btn--hand"
+            data-dp-hero-deal-target
             @click="showMobileHandSheet = true"
         >
           查看手牌
@@ -194,7 +199,7 @@
         </button>
       </div>
       <div
-          v-if="heroDockRow"
+          v-if="heroDockRow && showBottomHeroDock"
           class="dp-game-hero-dock"
           :class="{ 'dp-game-hero-dock--hand-reveal': stage === 'showdown' || stage === 'settled' }"
       >
@@ -222,7 +227,9 @@
       <!-- 右侧槽位固定：轮到本人显示面板，否则用主题底「盖住」占位，并与左侧手牌区等高 -->
       <div
           class="dp-game-inline-action-slot"
-          :class="{ 'dp-game-inline-action-slot--solo': !heroDockRow }"
+          :class="{
+            'dp-game-inline-action-slot--solo': !heroDockRow || !showBottomHeroDock
+          }"
       >
         <game-action-panel
             v-if="isMyTurn || inSettledStage"
@@ -285,9 +292,10 @@
           aria-label="房主操作"
       >
         <button
-            v-if="heroDockRow"
+            v-if="heroDockRow && showHeroViewHandButton"
             type="button"
             class="dp-game-mobile-hero-bar__btn"
+            data-dp-hero-deal-target
             @click="showMobileHandSheet = true"
         >
           查看手牌
@@ -301,9 +309,10 @@
         </button>
       </div>
       <button
-          v-if="heroDockRow && !isOwner"
+          v-if="heroDockRow && !isOwner && showHeroViewHandButton"
           type="button"
           class="dp-game-mobile-hero-bar__btn"
+          data-dp-hero-deal-target
           @click="showMobileHandSheet = true"
       >
         查看手牌
@@ -719,6 +728,8 @@ export default {
       /** 窄屏：底部弹层查看手牌 / 行动 */
       showMobileHandSheet: false,
       showMobileActionSheet: false,
+      /** 翻牌前底牌飞入结束后为 true，用于显示「查看手牌」；新一手随 currentHandSeed 清零 */
+      heroHoleDealIntroDone: false,
 
       /** 是否处于浏览器全屏（整页对局根节点） */
       isFullscreen: false,
@@ -940,6 +951,28 @@ export default {
     /** 窄屏底栏占位：避免固定底栏挡住聊天与房主区 */
     mobileHeroDockActive() {
       return !!(this.heroDockRow || this.isMyTurn || this.inSettledStage || this.isOwner)
+    },
+    /** 发牌飞入阶段隐藏「查看手牌」，结束后或进入翻牌圈后显示 */
+    showHeroViewHandButton() {
+      if (!this.heroDockRow) return false
+      if (this.stage !== 'preflop') return true
+      return this.heroHoleDealIntroDone
+    },
+    /**
+     * 翻牌前发牌动画：本人与旁人一样在圆桌 6 点方向显示紧凑座位牌。
+     */
+    showHeroSeatOnTable() {
+      return (
+        this.viewerSeatedAtTable
+        && this.stage === 'preflop'
+        && !this.heroHoleDealIntroDone
+      )
+    },
+    /**
+     * 翻牌前整街不显示屏幕下方内联手牌区；发牌在桌上完成，看牌用「查看手牌」。
+     */
+    showBottomHeroDock() {
+      return this.heroDockRow && this.stage !== 'preflop'
     }
   },
 
@@ -970,11 +1003,15 @@ export default {
       this.syncActionCountdown()
     },
     currentHandSeed() {
+      this.heroHoleDealIntroDone = false
       this.syncActionCountdown()
     },
     // 监听阶段变化，用于控制结算后准备阶段的倒计时
     stage(newVal) {
       this.syncActionCountdown()
+      if (newVal !== 'preflop') {
+        this.heroHoleDealIntroDone = true
+      }
       if (newVal === 'settled') {
         this.startReadyCountdown()
       } else {
@@ -2153,7 +2190,7 @@ export default {
      * 避免旧版「对手只在 θ∈(0,π)」导致 sinθ>0、全部挤在桌面右半圈的问题。
      */
     /**
-     * 座位向桌心（50%,44%）靠拢，用于台呢上的庄/盲标；inward 越大越靠公共牌区。
+     * 座位向桌心（50%,44%）靠拢，用于台呢上的庄/盲标；inward 越大越靠公共牌区（易与中央牌重叠）。
      */
     nudgeSeatTowardTableCenter(displayIdx, total, inward) {
       var base = this.getPlayerRoundTableStyle(displayIdx, total)
@@ -2169,10 +2206,27 @@ export default {
       }
     },
     getSeatFeltMarkerRoundTableStyle(displayIdx, total) {
-      return this.nudgeSeatTowardTableCenter(displayIdx, total, 0.38)
+      /* 与座位手牌区略分开，但勿大幅靠桌心——手机端易与公共牌区重合 */
+      var inward = 0.34
+      if (typeof window !== 'undefined') {
+        var w = window.innerWidth
+        if (w <= 600) inward = 0.16
+        else if (w <= 900) inward = 0.24
+      }
+      return this.nudgeSeatTowardTableCenter(displayIdx, total, inward)
     },
-    /** 弃牌堆锚点：庄位旁台呢上（略靠桌心，避免与公共牌区完全重叠） */
+    /**
+     * 弃牌堆锚点：下注阶段随庄位；摊牌/结算挪到桌面一侧，避免占正中央与公共牌区抢视觉。
+     */
     getMuckPileRoundTableStyle() {
+      var st = this.stage
+      if (st === 'showdown' || st === 'settled') {
+        return {
+          left: '81%',
+          top: '56%',
+          transform: 'translate(-50%, -50%)'
+        }
+      }
       var n = this.playersDisplayOrder.length
       var d = this.dealerDisplayIndex
       if (n === 0 || d < 0) {
