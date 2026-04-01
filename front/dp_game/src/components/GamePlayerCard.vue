@@ -429,6 +429,25 @@ export default {
         setTimeout(kick, 200)
       }
     },
+    /**
+     * 手牌常比 currentHandSeed 晚一拍下发；仅 handDealKey 不会再次触发 tryStart，导致飞牌从未启动。
+     */
+    'player.holeCards': {
+      deep: true,
+      handler() {
+        if (this.skipHoleDealAnimation) return
+        if (!this.player.holeCards || this.player.holeCards.length === 0) return
+        if (this.stage !== 'preflop') return
+        if (this.holeDealIntroDone) return
+        var self = this
+        function kick() {
+          self.tryStartHoleDealFly()
+        }
+        this.$nextTick(kick)
+        setTimeout(kick, 60)
+        setTimeout(kick, 200)
+      }
+    },
     stage(val) {
       if (val !== 'preflop') this.holeDealIntroDone = true
     },
@@ -494,6 +513,17 @@ export default {
         return false
       }
       if (!this.compact) return true
+      /**
+       * 本人：圆桌紧凑位或内联手牌区 — 翻牌前仅在手牌飞入阶段展示桌上牌；
+       * 结束后收起（桌上与下方一致），翻牌前看牌用外层「查看手牌」；翻牌后下方内联区常驻。
+       * 抽屉内 skipHoleDealAnimation 会把 introDone 置 true，不得按 intro 隐藏，否则翻牌前弹层里看不到牌。
+       */
+      if ((this.heroHandDock || this.rivalMini) && this.isMe) {
+        if (this.heroHandDock && this.skipHoleDealAnimation) return true
+        if (this.stage === 'showdown' || this.stage === 'settled') return true
+        if (this.stage === 'preflop') return !this.holeDealIntroDone
+        return this.showHoleCardsRevealed
+      }
       if (this.showHoleCardsRevealed) return true
       if (this.stage === 'preflop') return !this.holeDealIntroDone
       return false
@@ -665,9 +695,21 @@ export default {
       })
     },
     finishHoleDealIntroIfNeeded() {
+      /* 翻牌前尚无 holeCards 时不得结束 intro，否则父级会收起 6 点座位，飞牌永远不播 */
+      if (this.stage === 'preflop' && this.compact) {
+        var hc0 = this.player.holeCards
+        if (!hc0 || hc0.length === 0) return
+      }
       this.clearHoleIntroTimer()
-      if (this.stage === 'preflop' && this.compact && !this.showHoleCardsRevealed) {
+      if (this.stage !== 'preflop' || !this.compact) return
+      var before = this.holeDealIntroDone
+      if (!this.showHoleCardsRevealed) {
         this.holeDealIntroDone = true
+      } else if (this.isMe && (this.heroHandDock || this.rivalMini)) {
+        this.holeDealIntroDone = true
+      }
+      if (!before && this.holeDealIntroDone && this.isMe && (this.heroHandDock || this.rivalMini)) {
+        this.$emit('hole-deal-intro-complete')
       }
     },
     /** 最后一手牌飞入起点时间 + 飞入/翻面余量（与人数、张数相关） */
