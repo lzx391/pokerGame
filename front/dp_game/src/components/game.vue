@@ -1504,7 +1504,7 @@ export default {
       this.playing = room.playing
       this.currentHandSeed = room.currentHandSeed != null ? room.currentHandSeed : 0
       this.stage = room.currentStage
-      this.syncSettlementMusic()
+      // this.syncSettlementMusic()
       this.communityCards = room.communityCards || []
       this.syncCommunityCardsFlipState(room.communityCards || [])
       this.pot = room.pot
@@ -1527,24 +1527,24 @@ export default {
     /**
      * 摊牌/准备下一局阶段播放结算 BGM；进入新一手（preflop）或非结算街时停止。
      */
-    syncSettlementMusic() {
-      if (!this.playing) {
-        stopSettlementMusic()
-        this.syncRoomBgmAudio()
-        return
-      }
-      var st = this.stage
-      var seed = this.currentHandSeed
-      if (st === 'showdown' || st === 'settled') {
-        if (this._settlementMusicStartedForHand !== seed) {
-          this._settlementMusicStartedForHand = seed
-          playSettlementMusic()
-        }
-      } else {
-        stopSettlementMusic()
-      }
-      this.syncRoomBgmAudio()
-    },
+    // syncSettlementMusic() {
+    //   if (!this.playing) {
+    //     stopSettlementMusic()
+    //     this.syncRoomBgmAudio()
+    //     return
+    //   }
+    //   var st = this.stage
+    //   var seed = this.currentHandSeed
+    //   if (st === 'showdown' || st === 'settled') {
+    //     if (this._settlementMusicStartedForHand !== seed) {
+    //       this._settlementMusicStartedForHand = seed
+    //       playSettlementMusic()
+    //     }
+    //   } else {
+    //     stopSettlementMusic()
+    //   }
+    //   this.syncRoomBgmAudio()
+    // },
 
     // ---- 拉取房间状态 ----
     async loadGame() {

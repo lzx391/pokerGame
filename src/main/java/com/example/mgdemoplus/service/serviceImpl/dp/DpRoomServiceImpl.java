@@ -1279,7 +1279,7 @@ public class DpRoomServiceImpl {
 
         applyWinStreakAfterHand(r, streakWinnerNicknames);
 
-        // Shark 在场：结算分配前快照底池结构（随后会清空 pots）
+        // 结算分配前快照底池结构（随后会清空 pots）
         DpHandHistoryObserved.capturePotsBeforeClear(r);
 
         r.setPot(0);
