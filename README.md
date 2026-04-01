@@ -102,10 +102,17 @@
 - **牌谱详情页 UI（2026-03-30）**：`HandHistoryDetail.vue` 使用浅灰渐变底、卡片式元信息、分段街导航（胶囊底 + 高亮当前街）、深绿「台呢」公共牌区与斑马纹表格；庄/小盲/大盲标签分色；边池以卡片列表展示。牌面仍复用 `dp-poker-cards.css`，详情页内关闭扫光动画以免干扰阅读。
 - **牌谱本手盈亏（2026-03-30）**：`DpNpcSharkObservedHandHistory#finalizeHand` 原先用「盲注后筹码」作基准，未把已下盲注算进本手盈亏（例如仅输掉大盲时显示 0）。修复为「盲注前」基准：`beforeHand = chipsAfterBlinds + 该座位小盲/大盲额`，`net = 终局筹码 - beforeHand`。历史库里已写入的 `payload_json` / `net_chips` 不会自动重算，仅新产生的牌谱正确。
 
+### 曲库 BGM（2026-04-01）
+
+- **表**：在 `school_db` 执行 `src/main/resources/db/dp_music_track.sql` 建表 `dp_music_track`。
+- **文件目录**：默认 `P:/javaworkspace/DPGameFiles/music/`（`mgdemoplus.music.file-location`），HTTP 映射 `/music/**`；Docker 可用环境变量 `MGDEMOPLUS_MUSIC_FILE_LOCATION`（见 `docker-compose.yml`）。
+- **接口**：`POST /dpMusic/upload`（multipart：`file` 必填；可选 `displayName`、`sortOrder`、`userId`）写入磁盘并入库；`GET /dpMusic/list` 返回已上架曲目（供对局音乐盒拉列表）。
+- **前端**：登录后大厅点「曲库上传」进入 `/#/music-upload`，可试听已入库曲目（开发环境经 `/dev-api` 代理访问 `/music/...`）。
+
 ### Docker 部署
 
 - **详细说明**（Git 与打包关系、`WebConfig` / 驱动 / 前端生产地址、DBeaver 连接串等）：见 [docs/DOCKER.md](docs/DOCKER.md)。
 - **一键（MySQL + 应用）**：仓库根目录执行 `docker compose up --build`，浏览器打开 `http://localhost:8088`（前端为 hash 路由，形如 `/#/login`）。默认 MySQL root 密码为 `mgdemo_root`，可通过环境变量 `MYSQL_ROOT_PASSWORD` 修改。容器内 MySQL 对 **宿主机** 映射为 **`localhost:3307`**（避免与本机已占用的 **3306** 冲突）；应用容器仍通过内部网络访问 `mysql:3306`。
 - **仅构建后端镜像**：`docker build -t mgdemoplus .`，运行示例：  
   `docker run -p 8088:8088 -e SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/school_db?useSSL=false -e SPRING_DATASOURCE_USERNAME=root -e SPRING_DATASOURCE_PASSWORD=你的密码 -e MGDEMOPLUS_IMAGES_FILE_LOCATION=file:/data/mgdemo-files/ -v 本机目录:/data/mgdemo-files mgdemoplus`
-- **说明**：`Dockerfile` 会编译 `front/dp_game` 并把 `dist` 打进 jar 的 `static`，与 API、WebSocket 同端口；`/images/**` 上传文件目录在容器内默认为 `/data/mgdemo-files`（compose 已映射到 `./docker-data/uploads`）。首次使用需在 `school_db` 中建好业务表；可将初始化 `.sql` 放入 `./docker-data/mysql-init`（仅 MySQL 第一次初始化数据卷时执行）。**勿把含真实密钥的 `application.properties` 依赖进镜像**；LLM 等密钥请用环境变量 `ARK_API_KEY`、`ARK_ENDPOINT_ID` 等在 compose 中注入。
+- **说明**：`Dockerfile` 会编译 `front/dp_game` 并把 `dist` 打进 jar 的 `static`，与 API、WebSocket 同端口；本机开发默认上传目录为 `P:/javaworkspace/DPGameFiles/`（配置项 `mgdemoplus.images.file-location`）。`/images/**` 在容器内默认为 `/data/mgdemo-files`（compose 已映射到 `./docker-data/uploads`）。首次使用需在 `school_db` 中建好业务表；可将初始化 `.sql` 放入 `./docker-data/mysql-init`（仅 MySQL 第一次初始化数据卷时执行）。**勿把含真实密钥的 `application.properties` 依赖进镜像**；LLM 等密钥请用环境变量 `ARK_API_KEY`、`ARK_ENDPOINT_ID` 等在 compose 中注入。

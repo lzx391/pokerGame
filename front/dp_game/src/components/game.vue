@@ -545,6 +545,7 @@ import GameOwnerPanel from './GameOwnerPanel.vue'
 import { HAND_RANK_REFERENCE } from '../constants/dpGameHandRankReference'
 import { pickShowdownLeaderNicknames } from '../utils/dpGameHandRank'
 import { dpDisplayNickname } from '../utils/dpDisplayNickname'
+import { playSettlementMusic, stopSettlementMusic } from '../utils/dpGameSettlementMusic'
 
 export default {
   provide() {
@@ -657,7 +658,10 @@ export default {
       /** 是否处于浏览器全屏（整页对局根节点） */
       isFullscreen: false,
       /** 无 Fullscreen API 时的铺满视口回退（常见于部分 iOS WebView） */
-      pseudoFullscreen: false
+      pseudoFullscreen: false,
+
+      /** 本手是否已触发结算 BGM（与 currentHandSeed 对齐，避免轮询重复 play） */
+      _settlementMusicStartedForHand: null
     }
   },
 
@@ -960,6 +964,7 @@ export default {
   },
 
   beforeDestroy() {
+    stopSettlementMusic()
     this.clearBodyDpGameTheme()
     if (this._dpFsChange) {
       document.removeEventListener('fullscreenchange', this._dpFsChange)
@@ -1323,6 +1328,7 @@ export default {
       this.playing = room.playing
       this.currentHandSeed = room.currentHandSeed != null ? room.currentHandSeed : 0
       this.stage = room.currentStage
+      this.syncSettlementMusic()
       this.communityCards = room.communityCards || []
       this.syncCommunityCardsFlipState(room.communityCards || [])
       this.pot = room.pot
@@ -1340,6 +1346,26 @@ export default {
           this.raiseAmount = this.minRaise
         }
       }.bind(this))
+    },
+
+    /**
+     * 摊牌/准备下一局阶段播放结算 BGM；进入新一手（preflop）或非结算街时停止。
+     */
+    syncSettlementMusic() {
+      if (!this.playing) {
+        stopSettlementMusic()
+        return
+      }
+      var st = this.stage
+      var seed = this.currentHandSeed
+      if (st === 'showdown' || st === 'settled') {
+        if (this._settlementMusicStartedForHand !== seed) {
+          this._settlementMusicStartedForHand = seed
+          playSettlementMusic()
+        }
+      } else {
+        stopSettlementMusic()
+      }
     },
 
     // ---- 拉取房间状态 ----

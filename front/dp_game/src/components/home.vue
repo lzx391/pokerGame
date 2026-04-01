@@ -10,6 +10,7 @@
     <div class="btns">
       <button @click="createRoom">创建房间</button>
       <button type="button" class="hand-history-btn" @click="goHandHistory">历史对局</button>
+      <button type="button" class="hand-history-btn" @click="goMusicUpload">曲库上传</button>
     </div>
 
     <div class="room-list">
@@ -57,6 +58,9 @@ export default {
     },
     goHandHistory() {
       this.$router.push('/hand-history')
+    },
+    goMusicUpload() {
+      this.$router.push('/music-upload')
     },
     async getRooms() {
       try {

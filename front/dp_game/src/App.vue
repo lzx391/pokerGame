@@ -30,7 +30,7 @@ export default {
     /** 大厅只需内容高度，避免整页强制 100vh 造成「下面一大块空白」的观感 */
     isLobbyRoute() {
       const p = this.$route.path
-      return p === '/home' || p.startsWith('/hand-history')
+      return p === '/home' || p.startsWith('/hand-history') || p === '/music-upload'
     }
   }
 }

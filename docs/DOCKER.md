@@ -14,10 +14,10 @@
 
 ### 1. `WebConfig.java`：图片静态目录可配置
 
-原先 `/images/**` 写死为本机路径 `file:P:/javaworkspace/MGDemoPlusFiles/`，在 Linux 或 Docker 容器里不可用。
+原先 `/images/**` 写死为本机路径 `file:P:/javaworkspace/DPGameFiles/`（现由配置项统一），在 Linux 或 Docker 容器里不可用。
 
 - **配置项**：`mgdemoplus.images.file-location`
-- **默认**：仍为 `file:P:/javaworkspace/MGDemoPlusFiles/`（本机 Windows 开发习惯不变）
+- **默认**：仍为 `file:P:/javaworkspace/DPGameFiles/`（本机 Windows 开发）
 - **Docker**：在 `docker-compose.yml` 里通过环境变量 **`MGDEMOPLUS_IMAGES_FILE_LOCATION=file:/data/mgdemo-files/`** 覆盖，并与卷 `./docker-data/uploads` 对应
 
 未配置 `file:` 前缀时，代码会自动补上并保证末尾 `/`。
