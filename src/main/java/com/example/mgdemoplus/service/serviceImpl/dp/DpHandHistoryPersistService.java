@@ -11,11 +11,14 @@ import com.example.mgdemoplus.mapper.dp.DpUserMapper;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 /**
@@ -137,12 +140,12 @@ public class DpHandHistoryPersistService {
      */
     //所谓的DTO就是数据传输对象，这里是为了将DpNpcSharkObservedHandHistory.ObservedHandRecord转换为Payload对象
     private static final class Payload {
-        public java.util.List<SeatDto> seatsAtStart;
-        public java.util.List<BoardDto> boardsByStreet;
-        public java.util.List<ActionDto> actions;
-        public java.util.List<PotDto> potsBeforeSettlement;
-        public java.util.Map<String, java.util.List<String>> holeCardsAtEnd;
-        public java.util.Map<String, Integer> netChipsChange;
+        public List<SeatDto> seatsAtStart;
+        public List<BoardDto> boardsByStreet;
+        public List<ActionDto> actions;
+        public List<PotDto> potsBeforeSettlement;
+        public Map<String, List<String>> holeCardsAtEnd;
+        public Map<String, Integer> netChipsChange;
         //已学习，本模块代码精讲如下：
         //1. from方法：将DpNpcSharkObservedHandHistory.ObservedHandRecord转换为Payload对象
         //2. Payload对象：负责记录座位，公共牌，行动，池，洞牌，净盈亏
@@ -206,7 +209,7 @@ public class DpHandHistoryPersistService {
 
     private static final class BoardDto {
         public String stage;
-        public java.util.List<String> communityCards;
+        public List<String> communityCards;
     }
 
     private static final class ActionDto {
@@ -223,6 +226,6 @@ public class DpHandHistoryPersistService {
 
     private static final class PotDto {
         public int amount;
-        public java.util.List<String> eligibleNicknames;
+        public List<String> eligibleNicknames;
     }
 }
