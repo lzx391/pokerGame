@@ -28,6 +28,7 @@
         @show-spectators="showSpectatorModal = true"
         @toggle-fullscreen="toggleDpFullscreen"
         @open-hand-history="openHandHistory"
+        @open-music-box="showMusicBoxModal = true"
         @exit="exitGame"
         @ready-next-hand="readyNextHand"
     />
@@ -358,6 +359,24 @@
         @close="showHandHistoryModal = false"
     />
 
+    <game-music-box-modal
+        :visible="showMusicBoxModal"
+        :game-ui-theme="gameUiTheme"
+        :tracks="musicTracks"
+        :list-loading="musicTracksLoading"
+        :list-error="musicTracksError"
+        :room-music="roomMusicState"
+        @close="showMusicBoxModal = false"
+        @sync="sendRoomMusicSync"
+    />
+
+    <audio
+        ref="roomBgm"
+        class="dp-room-bgm"
+        preload="none"
+        aria-hidden="true"
+    />
+
     <div
         v-if="showMobileHandSheet && heroDockRow"
         class="dp-game-sheet-mask dp-game-sheet-mask--bottom"
@@ -546,6 +565,8 @@ import { HAND_RANK_REFERENCE } from '../constants/dpGameHandRankReference'
 import { pickShowdownLeaderNicknames } from '../utils/dpGameHandRank'
 import { dpDisplayNickname } from '../utils/dpDisplayNickname'
 import { playSettlementMusic, stopSettlementMusic } from '../utils/dpGameSettlementMusic'
+import { musicFileSrc } from '../utils/dpGameMusicUrl'
+import GameMusicBoxModal from './GameMusicBoxModal.vue'
 
 export default {
   provide() {
@@ -559,6 +580,7 @@ export default {
     GameHandRankModal,
     GameSpectatorModal,
     GameHandHistoryModal,
+    GameMusicBoxModal,
     GameOwnerToolModal,
     GameCommunityCards,
     GameActionPanel,
@@ -628,6 +650,13 @@ export default {
       showHandRankModal: false,
       showSpectatorModal: false,
       showHandHistoryModal: false,
+      showMusicBoxModal: false,
+      musicTracks: [],
+      musicTracksLoading: false,
+      musicTracksError: '',
+      /** 最近一次 {@code _ws:roomMusic}，供音乐盒 UI 与 {@link #syncRoomBgmAudio} 使用 */
+      roomMusicState: null,
+      _lastRoomBgmUrl: '',
       // 房主踢人/移交房主弹窗
       showOwnerHubSheet: false,
       ownerToolType: 'transfer',  // 'transfer' | 'kick'
@@ -906,6 +935,10 @@ export default {
         this.stopReadyCountdown()
         this.showMobileActionSheet = false
       }
+      var self = this
+      this.$nextTick(function () {
+        self.syncRoomBgmAudio()
+      })
     },
     isOwner(v) {
       if (!v) this.showOwnerHubSheet = false
@@ -929,6 +962,8 @@ export default {
     this.loadGame().then(function () {
       this.connectGameWs()
     }.bind(this))
+
+    this.loadMusicTracks()
 
     // 未连上 WS 时 1 秒轮询兜底；握手过程中 readyState===CONNECTING 也要停掉，否则会连着打一串 getNowRoom
     this.pollTimer = setInterval(function () {
@@ -964,6 +999,13 @@ export default {
   },
 
   beforeDestroy() {
+    try {
+      var bgm = this.$refs.roomBgm
+      if (bgm) {
+        bgm.pause()
+        bgm.removeAttribute('src')
+      }
+    } catch (e) { /* ignore */ }
     stopSettlementMusic()
     this.clearBodyDpGameTheme()
     if (this._dpFsChange) {
@@ -1221,6 +1263,10 @@ export default {
               self.pushRoomChatFromServer(data)
               return
             }
+            if (data._ws === 'roomMusic') {
+              self.applyRoomMusicMessage(data)
+              return
+            }
             self.applyRoomFromServer(data)
           } catch (e) {
             console.error('WebSocket 消息解析失败', e)
@@ -1251,6 +1297,15 @@ export default {
     handleRoomClosedFromServer() {
       if (this._dpRoomClosedHandled) return
       this._dpRoomClosedHandled = true
+      this.roomMusicState = null
+      this._lastRoomBgmUrl = ''
+      try {
+        var bgm = this.$refs.roomBgm
+        if (bgm) {
+          bgm.pause()
+          bgm.removeAttribute('src')
+        }
+      } catch (e) { /* ignore */ }
       var self = this
       this.disconnectGameWs()
       if (this.pollTimer) clearInterval(this.pollTimer)
@@ -1274,6 +1329,102 @@ export default {
       if (!nickname) return ''
       var m = this.seatChatTextByNick
       return (m && m[nickname]) ? m[nickname] : ''
+    },
+
+    applyRoomMusicMessage(data) {
+      if (!data || data._ws !== 'roomMusic') return
+      this.roomMusicState = {
+        action: data.action,
+        trackId: data.trackId,
+        webPath: data.webPath,
+        displayName: data.displayName,
+        byNickname: data.byNickname,
+        serverTime: data.serverTime
+      }
+      var self = this
+      this.$nextTick(function () {
+        self.syncRoomBgmAudio()
+      })
+    },
+
+    /**
+     * 根据 {@link #roomMusicState} 与当前阶段驱动隐藏 {@code <audio>}；摊牌/结算时暂停以免与结算 BGM 叠播。
+     */
+    syncRoomBgmAudio() {
+      var el = this.$refs.roomBgm
+      if (!el) return
+      var st = this.stage
+      if (st === 'showdown' || st === 'settled') {
+        try {
+          el.pause()
+        } catch (e) { /* ignore */ }
+        return
+      }
+      var m = this.roomMusicState
+      if (!m || !m.action) return
+      var a = m.action
+      if (a === 'stop') {
+        try {
+          el.pause()
+          el.currentTime = 0
+          el.removeAttribute('src')
+        } catch (e) { /* ignore */ }
+        this._lastRoomBgmUrl = ''
+        return
+      }
+      if (a === 'pause') {
+        try {
+          el.pause()
+        } catch (e) { /* ignore */ }
+        return
+      }
+      if (a !== 'play' || !m.webPath) return
+      var url = musicFileSrc(m.webPath)
+      if (this._lastRoomBgmUrl !== url) {
+        this._lastRoomBgmUrl = url
+        el.src = url
+      }
+      var p = el.play()
+      if (p && typeof p.then === 'function') {
+        p.catch(function () { /* 未与页面交互时部分浏览器会拒绝自动播放 */ })
+      }
+    },
+
+    sendRoomMusicSync(payload) {
+      if (!this.user) return
+      if (!this.gameWs || this.gameWs.readyState !== WebSocket.OPEN) {
+        this.$message.warning('未连接房间推送，请稍候再试')
+        return
+      }
+      var body = {
+        _ws: 'roomMusicSync',
+        nickname: this.user.nickname,
+        action: payload.action,
+        trackId: payload.trackId != null ? payload.trackId : 0,
+        webPath: payload.webPath || '',
+        displayName: payload.displayName || ''
+      }
+      try {
+        this.gameWs.send(JSON.stringify(body))
+      } catch (e) {
+        console.error('roomMusicSync', e)
+        this.$message.error('发送失败')
+      }
+    },
+
+    async loadMusicTracks() {
+      this.musicTracksLoading = true
+      this.musicTracksError = ''
+      try {
+        var res = await this.$http.get('/dpMusic/list')
+        this.musicTracks = Array.isArray(res.data) ? res.data : []
+      } catch (e) {
+        console.error('dpMusic/list', e)
+        this.musicTracksError = '曲库列表加载失败，请确认后端与 dp_music_track 已就绪。'
+        this.musicTracks = []
+      } finally {
+        this.musicTracksLoading = false
+      }
     },
 
     pushRoomChatFromServer(data) {
@@ -1354,6 +1505,7 @@ export default {
     syncSettlementMusic() {
       if (!this.playing) {
         stopSettlementMusic()
+        this.syncRoomBgmAudio()
         return
       }
       var st = this.stage
@@ -1366,6 +1518,7 @@ export default {
       } else {
         stopSettlementMusic()
       }
+      this.syncRoomBgmAudio()
     },
 
     // ---- 拉取房间状态 ----

@@ -109,6 +109,7 @@
 - **文件目录**：默认 `P:/javaworkspace/DPGameFiles/music/`（`mgdemoplus.music.file-location`），HTTP 映射 `/music/**`；Docker 可用环境变量 `MGDEMOPLUS_MUSIC_FILE_LOCATION`（见 `docker-compose.yml`）。
 - **接口**：`POST /dpMusic/upload`（multipart：`file` 必填；可选 `displayName`、`sortOrder`、`userId`）写入磁盘并入库；`GET /dpMusic/list` 返回已上架曲目（供对局音乐盒拉列表）。
 - **前端**：登录后大厅点「曲库上传」进入 `/#/music-upload`，可试听已入库曲目（开发环境经 `/dev-api` 代理访问 `/music/...`）。
+- **对局音乐盒（2026-04-01）**：对局页顶栏「音乐盒」打开曲库列表；**播放/暂停/停止** 经 **同一房间 WebSocket** 广播，服务端校验发送者昵称属于本桌玩家或观众后，向该房间所有连接推送 `{"_ws":"roomMusic",...}`（并记住最后一帧，**新进入房间者**在首包房间快照后会再收到一帧音乐状态）。摊牌/结算阶段自动暂停曲库 BGM，避免与既有结算短 BGM 叠播；离开结算后若状态仍为 `play` 会恢复播放。客户端上行：`{"_ws":"roomMusicSync","nickname":"…","action":"play|pause|stop","trackId":…,"webPath":"/music/…","displayName":"…"}`（`play` 时 `trackId`/`webPath` 必填；路径须为 `/music/` 下安全文件名）。
 
 ### Docker 部署
 

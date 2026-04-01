@@ -2662,3 +2662,12 @@
 .dp-game-room-chat__send:active {
   opacity: 0.9;
 }
+
+/* 房间曲库 BGM：隐藏播放器，由 game.vue 控制 */
+.dp-room-bgm {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}

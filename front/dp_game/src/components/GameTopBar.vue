@@ -75,6 +75,13 @@
           历史对局
         </button>
         <button
+            type="button"
+            class="dp-btn dp-top-bar__btn dp-top-bar__btn--ghost"
+            @click="$emit('open-music-box')"
+        >
+          音乐盒
+        </button>
+        <button
             v-if="spectatorCount > 0"
             type="button"
             class="dp-btn dp-btn--cyan dp-top-bar__btn"

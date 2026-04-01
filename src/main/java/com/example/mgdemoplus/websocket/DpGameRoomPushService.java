@@ -17,6 +17,7 @@ import org.springframework.web.socket.WebSocketSession;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -36,12 +37,18 @@ public class DpGameRoomPushService {
     private static final int CHAT_MAX_LEN = 200;
     private static final long CHAT_MIN_INTERVAL_MS = 1_200L;
 
+    /** 房间 BGM：最后一次广播的 JSON，新连接触发第二条消息（与房间快照去重无关） */
+    private static final long MUSIC_SYNC_MIN_INTERVAL_MS = 400L;
+    private static final int MUSIC_DISPLAY_NAME_MAX = 120;
+
     private final ObjectMapper objectMapper;
     private final DpRoomServiceImpl roomService;
 
     private final Map<String, Set<WebSocketSession>> roomSessions = new ConcurrentHashMap<>();
     /** 上次已成功广播的房间 JSON；与本次序列化结果相同则不再下发，节省流量。 */
     private final Map<String, String> lastBroadcastPayload = new ConcurrentHashMap<>();
+    /** 房间曲库播放状态：供新订阅者连接后补发一帧（与 {@link #broadcastIfSubscribed} 去重无关）。 */
+    private final Map<String, String> lastRoomMusicJson = new ConcurrentHashMap<>();
 
     public DpGameRoomPushService(ObjectMapper objectMapper, @Lazy DpRoomServiceImpl roomService) {
         this.objectMapper = objectMapper;
@@ -62,12 +69,16 @@ public class DpGameRoomPushService {
         if (set.isEmpty()) {
             roomSessions.remove(roomId);
             lastBroadcastPayload.remove(roomId);
+            lastRoomMusicJson.remove(roomId);
         }
     }
 
     /**
-     * 处理客户端经同一 WS 连接发来的文本：目前仅支持 {@code {"_ws":"chatSend","nickname":"…","text":"…"}}。
-     * 校验发送者昵称须为当前房间玩家或观众后，向该房间所有订阅者广播 {@code _ws=chat}（不参与房间快照去重）。
+     * 处理客户端经同一 WS 连接发来的文本：
+     * <ul>
+     * <li>{@code {"_ws":"chatSend",...}} → 房间聊天</li>
+     * <li>{@code {"_ws":"roomMusicSync",...}} → 曲库 BGM 同步（不参与房间快照去重）</li>
+     * </ul>
      */
     public void handleClientTextMessage(WebSocketSession session, String payload) {
         if (payload == null || payload.isEmpty()) {
@@ -80,9 +91,20 @@ public class DpGameRoomPushService {
             log.debug("WS client text not JSON: {}", payload);
             return;
         }
-        if (!root.has("_ws") || !"chatSend".equals(root.get("_ws").asText())) {
+        if (!root.has("_ws")) {
             return;
         }
+        String ws = root.get("_ws").asText("");
+        if ("chatSend".equals(ws)) {
+            handleChatSend(session, root);
+            return;
+        }
+        if ("roomMusicSync".equals(ws)) {
+            handleRoomMusicSync(session, root);
+        }
+    }
+
+    private void handleChatSend(WebSocketSession session, JsonNode root) {
         Object ridObj = session.getAttributes().get("roomId");
         if (!(ridObj instanceof String)) {
             return;
@@ -119,6 +141,88 @@ public class DpGameRoomPushService {
         } catch (Exception e) {
             log.warn("chat broadcast failed roomId={}", roomId, e);
         }
+    }
+
+    /**
+     * 客户端 {@code roomMusicSync}：校验昵称在房间内后广播 {@code _ws=roomMusic}，并记下最后状态供新连接补发。
+     */
+    private void handleRoomMusicSync(WebSocketSession session, JsonNode root) {
+        Object ridObj = session.getAttributes().get("roomId");
+        if (!(ridObj instanceof String)) {
+            return;
+        }
+        String roomId = (String) ridObj;
+        String nickname = root.path("nickname").asText("").trim();
+        String action = root.path("action").asText("").trim().toLowerCase(Locale.ROOT);
+        if (nickname.isEmpty()) {
+            return;
+        }
+        if (!"play".equals(action) && !"pause".equals(action) && !"stop".equals(action)) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        Long lastMs = (Long) session.getAttributes().get("_musicSyncLastMs");
+        if (lastMs != null && now - lastMs < MUSIC_SYNC_MIN_INTERVAL_MS) {
+            return;
+        }
+        DpRoom room = roomService.getAllRooms(roomId);
+        if (room == null || !isNicknameInRoom(room, nickname)) {
+            return;
+        }
+
+        long trackId = root.path("trackId").asLong(0L);
+        String webPath = root.path("webPath").asText("").trim();
+        String displayName = root.path("displayName").asText("").trim();
+        if (displayName.length() > MUSIC_DISPLAY_NAME_MAX) {
+            displayName = displayName.substring(0, MUSIC_DISPLAY_NAME_MAX);
+        }
+
+        if ("play".equals(action)) {
+            if (trackId <= 0L || webPath.isEmpty() || !isSafeMusicWebPath(webPath)) {
+                return;
+            }
+        } else {
+            if (!webPath.isEmpty() && !isSafeMusicWebPath(webPath)) {
+                return;
+            }
+        }
+
+        session.getAttributes().put("_musicSyncLastMs", now);
+        try {
+            ObjectNode out = objectMapper.createObjectNode();
+            out.put("_ws", "roomMusic");
+            out.put("action", action);
+            out.put("byNickname", nickname);
+            out.put("serverTime", now);
+            if (trackId > 0L) {
+                out.put("trackId", trackId);
+            }
+            if (!webPath.isEmpty()) {
+                out.put("webPath", webPath);
+            }
+            if (!displayName.isEmpty()) {
+                out.put("displayName", displayName);
+            }
+            String json = objectMapper.writeValueAsString(out);
+            lastRoomMusicJson.put(roomId, json);
+            broadcastRawJsonToRoom(roomId, json);
+        } catch (Exception e) {
+            log.warn("room music broadcast failed roomId={}", roomId, e);
+        }
+    }
+
+    private static boolean isSafeMusicWebPath(String path) {
+        if (path == null || path.isEmpty()) {
+            return false;
+        }
+        if (path.contains("..") || path.indexOf('\\') >= 0) {
+            return false;
+        }
+        if (!path.startsWith("/music/")) {
+            return false;
+        }
+        String rest = path.substring("/music/".length());
+        return rest.length() > 0 && rest.matches("[a-zA-Z0-9._-]+");
     }
 
     private static boolean isNicknameInRoom(DpRoom room, String nickname) {
@@ -180,6 +284,12 @@ public class DpGameRoomPushService {
             synchronized (session) {
                 session.sendMessage(new TextMessage(json));
             }
+            String music = lastRoomMusicJson.get(roomId);
+            if (music != null && !music.isEmpty()) {
+                synchronized (session) {
+                    session.sendMessage(new TextMessage(music));
+                }
+            }
         } catch (Exception e) {
             log.warn("WebSocket initial snapshot failed roomId={}", roomId, e);
         }
@@ -201,6 +311,7 @@ public class DpGameRoomPushService {
             if (r != null) {
                 String prev = lastBroadcastPayload.get(roomId);
                 if (json.equals(prev)) {
+                    // System.out.println("本次不广播，因为房间数据没有变化");
                     log.debug("WS broadcast skip (payload unchanged) roomId={}", roomId);
                     return;
                 }
@@ -235,6 +346,7 @@ public class DpGameRoomPushService {
                 }
             }
             if (r != null) {
+                //如果房间数据不为空，则将房间数据序列化成JSON字符串，然后存储到lastBroadcastPayload中
                 lastBroadcastPayload.put(roomId, json);
             }
             if (r == null) {
