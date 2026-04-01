@@ -354,6 +354,22 @@
   z-index: 1;
 }
 
+/* 圆桌本人空位上的连胜标：略缩小，减轻与台呢抢视线 */
+.win-streak-badge--table {
+  font-size: 10px;
+  padding: 2px 7px 2px 5px;
+  gap: 2px;
+  animation: win-streak-badge-gradient 3s ease infinite;
+}
+
+.win-streak-badge--table .win-streak-badge__emoji {
+  font-size: 10px;
+}
+
+.win-streak-badge--table .win-streak-badge__text {
+  font-size: 10px;
+}
+
 @keyframes win-streak-badge-gradient {
   0%,
   100% {

@@ -666,6 +666,27 @@
   overflow: visible;
 }
 
+/* 本人圆桌空位：庄 / 盲 / 连胜标贴在靠桌心一侧（6 点方向略向上） */
+.dp-game-hero-seat-badges {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -100%);
+  margin-top: -10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  max-width: min(42vw, 200px);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.dp-game-hero-seat-badges .dp-player-card__badge {
+  pointer-events: auto;
+}
+
 @media (min-width: 480px) {
   .dp-game-table__seat {
     max-width: min(200px, 40vw);
@@ -1167,6 +1188,27 @@
 .dp-player-card__name-me {
   color: var(--dp-accent);
   font-weight: 800;
+}
+
+.dp-player-card__fold-inline {
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--dp-danger);
+  white-space: nowrap;
+}
+
+.dp-player-card--hand-dock .dp-player-card__head--hand-dock-only {
+  margin-bottom: 6px;
+}
+
+.dp-player-card--hand-dock .dp-player-card__hole-row--hand-dock {
+  margin-bottom: 6px;
+  justify-content: flex-start;
+}
+
+.dp-player-card--hand-dock .dp-player-card__hand-rank {
+  margin-top: 4px;
 }
 
 .dp-player-card__status {
@@ -2060,6 +2102,56 @@
   color: var(--dp-warning);
   font-weight: bold;
   margin-bottom: 10px;
+}
+
+.dp-action-panel__stack-pair {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 12px;
+  margin-bottom: 10px;
+}
+
+.dp-action-panel__stack-pair--settled {
+  margin-bottom: 8px;
+}
+
+.dp-action-panel__stack-pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  background: var(--dp-subpanel-bg);
+  border: 1px solid var(--dp-subpanel-border);
+  color: var(--dp-text-secondary);
+}
+
+.dp-action-panel__stack-pill strong {
+  font-weight: 800;
+  font-family: ui-monospace, 'Cascadia Code', monospace;
+  color: var(--dp-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.dp-action-panel__bet-pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  border: 2px solid var(--dp-danger);
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--dp-danger) 22%, var(--dp-panel-bg)) 0%,
+    color-mix(in srgb, var(--dp-pot) 12%, var(--dp-panel-bg)) 100%
+  );
+  color: var(--dp-pot);
+  font-variant-numeric: tabular-nums;
 }
 
 .dp-action-panel__meta {

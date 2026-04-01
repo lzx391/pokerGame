@@ -89,6 +89,27 @@
             :class="{ 'dp-game-table__seat--empty': viewerSeatedAtTable && displayIdx === 0 }"
             :style="getPlayerRoundTableStyle(displayIdx, playersDisplayOrder.length)"
         >
+          <div
+              v-if="viewerSeatedAtTable && displayIdx === 0 && row.player && !row.player.leftThisHand"
+              class="dp-game-hero-seat-badges"
+              aria-label="我的座位标记"
+          >
+            <span
+                v-if="row.player.dealer"
+                class="dp-player-card__badge dp-player-card__badge--dealer"
+                data-dp-dealer-anchor="true"
+            >D</span>
+            <span v-if="row.player.blind === 1" class="dp-player-card__badge dp-player-card__badge--sb">SB</span>
+            <span v-if="row.player.blind === 2" class="dp-player-card__badge dp-player-card__badge--bb">BB</span>
+            <span
+                v-if="(row.player.winStreak || 0) >= 2"
+                class="win-streak-badge win-streak-badge--table"
+                :title="'已连续赢下 ' + (row.player.winStreak || 0) + ' 手'"
+            >
+              <span class="win-streak-badge__emoji" aria-hidden="true">🔥</span>
+              <span class="win-streak-badge__text">{{ row.player.winStreak }}连胜</span>
+            </span>
+          </div>
           <game-player-card
               v-if="!(viewerSeatedAtTable && displayIdx === 0)"
               :player="row.player"
@@ -182,6 +203,7 @@
             :hole-deal-seat-order="holeDealOrderFromDealer(heroDockRow.seatIndex)"
             :hole-deal-player-count="holeDealPlayerCountForAnim"
             :rival-mini="false"
+            :hero-hand-dock="true"
             :showdown-hand-leaders="showdownHandLeaderNicknames"
             :seat-chat-text="seatChatTextFor(heroDockRow.player.nickname)"
             @card-click="onPlayerCardClick"
@@ -417,9 +439,11 @@
                 :hole-deal-seat-order="holeDealOrderFromDealer(heroDockRow.seatIndex)"
                 :hole-deal-player-count="holeDealPlayerCountForAnim"
                 :rival-mini="false"
+                :hero-hand-dock="true"
                 :showdown-hand-leaders="showdownHandLeaderNicknames"
                 :seat-chat-text="seatChatTextFor(heroDockRow.player.nickname)"
                 :skip-hole-deal-animation="true"
+                :deal-reveal-stagger-sec="0.22"
                 @card-click="onPlayerCardClick"
             />
           </div>
@@ -1979,20 +2003,28 @@ export default {
 
     /**
      * 同步公共牌翻转状态：新牌先背面，再依次翻转；翻完后再允许显示牌型
+     *
+     * 注意：房间状态会高频推送（约 1s）。若每次推送都清掉「翻完」定时器，而公共牌张数未变（numNew===0），
+     * 将不会重新设定时器，导致 communityCardsFlipComplete 长期为 false，成牌牌型区可卡住数秒～十余秒。
+     * 因此仅在公共牌变少（新一手）或新增公共牌（numNew>0）时取消并重设定时器。
      */
     syncCommunityCardsFlipState(newCards) {
-      if (this.communityCardsFlipCompleteTimer) {
-        clearTimeout(this.communityCardsFlipCompleteTimer)
-        this.communityCardsFlipCompleteTimer = null
-      }
       var prevLen = this.communityCardsFlipState.length
       if (newCards.length < prevLen) {
+        if (this.communityCardsFlipCompleteTimer) {
+          clearTimeout(this.communityCardsFlipCompleteTimer)
+          this.communityCardsFlipCompleteTimer = null
+        }
         this.communityCardsFlipState = []
         this.communityCardsFlipComplete = false
         prevLen = 0
       }
       var numNew = newCards.length - prevLen
       if (numNew > 0) {
+        if (this.communityCardsFlipCompleteTimer) {
+          clearTimeout(this.communityCardsFlipCompleteTimer)
+          this.communityCardsFlipCompleteTimer = null
+        }
         this.communityCardsFlipComplete = false
       }
       for (var i = this.communityCardsFlipState.length; i < newCards.length; i++) {

@@ -14,8 +14,9 @@
         </div>
         <span class="dp-action-panel__settled-count-label">准备倒计时</span>
       </div>
-      <div class="dp-action-panel__settled-chips">
-        当前积分：<strong>{{ myChips }}</strong>
+      <div class="dp-action-panel__stack-pair dp-action-panel__stack-pair--settled" aria-label="后手与本轮下注">
+        <span class="dp-action-panel__stack-pill">后手 <strong>{{ myChips }}</strong></span>
+        <span class="dp-action-panel__bet-pill">本轮 {{ myBet }}</span>
       </div>
       <div class="dp-action-panel__settled-actions">
         <button
@@ -42,6 +43,10 @@
     <template v-else>
       <div class="dp-action-panel__turn">
         轮到你行动了（30秒超时自动弃牌）
+      </div>
+      <div class="dp-action-panel__stack-pair" aria-label="后手与本轮下注">
+        <span class="dp-action-panel__stack-pill">后手 {{ myChips }}</span>
+        <span class="dp-action-panel__bet-pill">本轮 {{ myBet }}</span>
       </div>
       <div class="dp-action-panel__meta">
         当前跟注额: {{ currentBetToCall }} | 你已下注: {{ myBet }} | 还需跟: {{ callAmount }}
