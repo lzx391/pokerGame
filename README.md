@@ -3,6 +3,7 @@
 ### DP游戏文档链接
 
 - [DP游戏详细文档（规则、接口、开发与维护）](docs/DPGAME.md)
+- [DP 曲库：`webPath`、磁盘目录与试听代理流程](docs/DpMusicWebPath.md)
 
 ### 游戏对局 WebSocket（无 Redis）
 

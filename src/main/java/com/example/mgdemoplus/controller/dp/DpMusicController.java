@@ -37,6 +37,12 @@ public class DpMusicController {
     @Value("${mgdemoplus.music.file-location:file:P:/javaworkspace/DPGameFiles/music/}")
     private String musicFileLocation;
 
+    /**
+     * 将文件路径转换为物理路径
+     * 
+     * @param fileLocation
+     * @return
+     */
     private static String toPhysicalDir(String fileLocation) {
         if (fileLocation == null || fileLocation.isBlank()) {
             return "P:/javaworkspace/DPGameFiles/music/";
@@ -51,6 +57,12 @@ public class DpMusicController {
         return s;
     }
 
+    /**
+     * 获取文件扩展名
+     * 
+     * @param originalFilename
+     * @return
+     */
     private static String extensionOf(String originalFilename) {
         if (originalFilename == null || originalFilename.isEmpty()) {
             return "";
@@ -60,6 +72,28 @@ public class DpMusicController {
             return "";
         }
         return originalFilename.substring(dot).toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * 去掉文件扩展名
+     * 
+     * @param name
+     * @return
+     */
+    private static String stripExtension(String name) {
+        if (name == null || name.isEmpty()) {
+            return "未命名";
+        }
+        String base = name.replace('\\', '/');
+        int slash = base.lastIndexOf('/');
+        if (slash >= 0) {
+            base = base.substring(slash + 1);
+        }
+        int dot = base.lastIndexOf('.');
+        if (dot > 0) {
+            base = base.substring(0, dot);
+        }
+        return base.isEmpty() ? "未命名" : base;
     }
 
     /**
@@ -74,6 +108,12 @@ public class DpMusicController {
         if (file == null || file.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "请选择文件"));
         }
+        /**
+         * 检查文件扩展名
+         * 
+         * @param file
+         * @return
+         */
         String ext = extensionOf(file.getOriginalFilename());
         if (!ALLOWED_EXT.contains(ext)) {
             return ResponseEntity.badRequest().body(Map.of("error", "仅支持 mp3、m4a、wav、ogg、flac"));
@@ -109,22 +149,6 @@ public class DpMusicController {
         ok.put("displayName", title);
         ok.put("sortOrder", order);
         return ResponseEntity.ok(ok);
-    }
-
-    private static String stripExtension(String name) {
-        if (name == null || name.isEmpty()) {
-            return "未命名";
-        }
-        String base = name.replace('\\', '/');
-        int slash = base.lastIndexOf('/');
-        if (slash >= 0) {
-            base = base.substring(slash + 1);
-        }
-        int dot = base.lastIndexOf('.');
-        if (dot > 0) {
-            base = base.substring(0, dot);
-        }
-        return base.isEmpty() ? "未命名" : base;
     }
 
     @GetMapping("/list")
