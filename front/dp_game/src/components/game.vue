@@ -789,12 +789,13 @@ export default {
       return this.currentBetToCall + this.lastRaiseIncrementEffective
     },
     /**
-     * 本轮至少再下多少筹码：临时关闭标准最小再加注，只要比跟注多 1（或无人跟注压力时至少 1）即可抬升，与后端 DpRoomServiceImpl 注释掉的校验一致。
+     * 本轮至少再下多少筹码：临时关闭标准最小再加注，只要比跟注多 1 即可抬升；无人跟注压力时至少一个大盲（与常见 NL 开池一致）。
      */
     minRaise() {
       var call = this.callAmount
       if (!isFinite(call) || call < 0) call = 0
-      var fullMin = call > 0 ? call + 1 : 1
+      var bb = Number(this.bigBlind) || 10
+      var fullMin = call > 0 ? call + 1 : bb
       var cap = Math.min(fullMin, this.myChips)
       return Math.max(1, cap)
     },
