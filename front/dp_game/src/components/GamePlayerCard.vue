@@ -12,7 +12,6 @@
         stage === 'showdown' && !player.leftThisHand
     }"
     :style="cardBoxStyle"
-    v-bind="dealerAnchorAttrs"
     @click="onClick"
   >
     <div
@@ -22,24 +21,6 @@
         role="status"
     >
       {{ seatChatText }}
-    </div>
-    <div
-        v-if="!heroHandDock"
-        class="dp-player-card__badges"
-        :class="{ 'dp-player-card__badges--rival': rivalMini }"
-    >
-      <span v-if="player.dealer" class="dp-player-card__badge dp-player-card__badge--dealer">D</span>
-      <span v-if="player.blind === 1" class="dp-player-card__badge dp-player-card__badge--sb">SB</span>
-      <span v-if="player.blind === 2" class="dp-player-card__badge dp-player-card__badge--bb">BB</span>
-      <span
-        v-if="!player.leftThisHand && (player.winStreak || 0) >= 2"
-        class="win-streak-badge"
-        :class="{ 'win-streak-badge--rival': rivalMini }"
-        :title="'已连续赢下 ' + (player.winStreak || 0) + ' 手'"
-      >
-        <span class="win-streak-badge__emoji" aria-hidden="true">🔥</span>
-        <span class="win-streak-badge__text">{{ player.winStreak }}连胜</span>
-      </span>
     </div>
 
     <!-- 他人简化卡片：昵称 + 筹码/本轮 + 必要徽标 -->
@@ -593,12 +574,6 @@ export default {
         return fromServer
       }
       return []
-    },
-    /** 供公共牌飞入动画定位庄位（D）发牌起点（本人手牌精简时改绑圆桌空位徽标） */
-    dealerAnchorAttrs() {
-      if (this.heroHandDock) return {}
-      if (this.player.leftThisHand || !this.player.dealer) return {}
-      return { 'data-dp-dealer-anchor': 'true' }
     },
     /** 弃牌幽灵动画：手牌张数（用于 v-for 1..n） */
     ghostHoleLen() {
