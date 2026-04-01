@@ -681,6 +681,8 @@ export default {
       /** 最近一次 {@code _ws:roomMusic}，供音乐盒 UI 与 {@link #syncRoomBgmAudio} 使用 */
       roomMusicState: null,
       _lastRoomBgmUrl: '',
+      /** 最近一次曲目 webPath；pause/stop 若未带 webPath 时用其补全，避免服务端广播丢字段后无法继续 */
+      _lastRoomMusicWebPath: '',
       // 房主踢人/移交房主弹窗
       showOwnerHubSheet: false,
       ownerToolType: 'transfer',  // 'transfer' | 'kick'
@@ -1324,6 +1326,7 @@ export default {
       this._dpRoomClosedHandled = true
       this.roomMusicState = null
       this._lastRoomBgmUrl = ''
+      this._lastRoomMusicWebPath = ''
       try {
         var bgm = this.$refs.roomBgm
         if (bgm) {
@@ -1366,6 +1369,8 @@ export default {
         byNickname: data.byNickname,
         serverTime: data.serverTime
       }
+      var wp = data.webPath != null ? String(data.webPath).trim() : ''
+      if (wp) this._lastRoomMusicWebPath = wp
       var self = this
       this.$nextTick(function () {
         self.syncRoomBgmAudio()
@@ -1395,6 +1400,7 @@ export default {
           el.removeAttribute('src')
         } catch (e) { /* ignore */ }
         this._lastRoomBgmUrl = ''
+        this._lastRoomMusicWebPath = ''
         return
       }
       if (a === 'pause') {
@@ -1421,13 +1427,27 @@ export default {
         this.$message.warning('未连接房间推送，请稍候再试')
         return
       }
+      var action = payload.action
+      var webPath = (payload.webPath != null ? String(payload.webPath) : '').trim()
+      var displayName = (payload.displayName != null ? String(payload.displayName) : '').trim()
+      if ((action === 'pause' || action === 'stop') && !webPath) {
+        var rm = this.roomMusicState
+        webPath = (rm && rm.webPath) ? String(rm.webPath).trim() : ''
+        if (!webPath) webPath = (this._lastRoomMusicWebPath || '').trim()
+        if (!displayName && rm && rm.displayName) {
+          displayName = String(rm.displayName).trim()
+        }
+      }
+      if (action === 'play' && webPath) {
+        this._lastRoomMusicWebPath = webPath
+      }
       var body = {
         _ws: 'roomMusicSync',
         nickname: this.user.nickname,
-        action: payload.action,
+        action: action,
         trackId: payload.trackId != null ? payload.trackId : 0,
-        webPath: payload.webPath || '',
-        displayName: payload.displayName || ''
+        webPath: webPath,
+        displayName: displayName
       }
       try {
         this.gameWs.send(JSON.stringify(body))
