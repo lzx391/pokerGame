@@ -142,6 +142,10 @@ final class DpHandHistoryObserved {
         public final List<StreetBoard> boardsByStreet;
         public final List<ActionRecord> actions;
         public final List<PotSnapshot> potsBeforeSettlement;
+        /**
+         * 结算前「有效」底池总额：仅含至少两名玩家有资格赢取的那几层池之和。
+         * 短码全下后深码多出的边池（仅一人有资格）不计入，避免统计虚高（例如 A=20、B=40 全下时有效为 40 而非总筹码 60）。
+         */
         public final int mainPotTotalBeforeSettlement;
         public final Map<String, List<String>> holeCardsAtEnd;
         public final Map<String, Integer> netChipsChange;
@@ -348,7 +352,7 @@ final class DpHandHistoryObserved {
     }
 
     /** 在筹码分配前调用：复制主池与边池结构 */
-    static void capturePotsBeforeClear(DpRoom room) {
+    static void capturePotsBeforeClear(DpRoom room) {//由HandBuilder类接收
         if (!isEnabledForRoom(room)) return;
         Key k = new Key(room.getRoomId(), room.getCurrentHandSeed());
         HandBuilder b = BUILDERS.get(k);
@@ -418,6 +422,9 @@ final class DpHandHistoryObserved {
             }
         }
 
+        int effectiveMainPotTotal = effectiveMainPotTotalBeforeSettlement(
+                b.potsBeforeSettlement, b.mainPotTotalBeforeSettlement);
+
         ObservedHandRecord rec = new ObservedHandRecord(
                 room.getRoomId(),
                 room.getCurrentHandSeed(),
@@ -430,7 +437,7 @@ final class DpHandHistoryObserved {
                 b.boardsByStreet,
                 b.actions,
                 b.potsBeforeSettlement,
-                b.mainPotTotalBeforeSettlement,
+                effectiveMainPotTotal,
                 holes,
                 net
         );
@@ -463,6 +470,26 @@ final class DpHandHistoryObserved {
      * 本手开局时该座位已下盲注（与 {@link DpRoomServiceImpl#newHand} 中 SB/BB 一致）；
      * 用于把「盲注后筹码」还原为「盲注前筹码」，使 net 表示本手相对发牌前的净变化。
      */
+    /**
+     * 与 {@link DpRoomServiceImpl#calculatePots} 分层一致：仅一人有资格赢取的池为深码多出的无效竞争部分，不计入。
+     */
+    private static int effectiveMainPotTotalBeforeSettlement(List<PotSnapshot> pots, int totalPotFallback) {
+        if (pots == null || pots.isEmpty()) {
+            return totalPotFallback;
+        }
+        int sum = 0;
+        for (PotSnapshot pot : pots) {
+            if (pot == null) {
+                continue;
+            }
+            List<String> el = pot.eligibleNicknames;
+            if (el != null && el.size() >= 2) {
+                sum += pot.amount;
+            }
+        }
+        return sum > 0 ? sum : totalPotFallback;
+    }
+
     private static int blindPostedChipsForSeat(List<SeatAtHandStart> seatsAtStart, String nickname) {
         if (seatsAtStart == null || nickname == null) {
             return 0;
