@@ -74,13 +74,44 @@
                 :community-cards="communityCards"
                 :flip-state="communityCardsFlipState"
             />
-            <div
-                class="dp-game-muck-pile"
-                data-dp-muck-anchor="true"
-                title="弃牌堆"
-                aria-label="弃牌堆"
-            />
           </div>
+        </div>
+        <!-- 弃牌堆随庄位绕桌，发牌/弃牌动画均以此为中心（与桌面盲注标分离） -->
+        <div
+            class="dp-game-muck-pile dp-game-muck-pile--orbit"
+            data-dp-muck-anchor="true"
+            :style="getMuckPileRoundTableStyle()"
+            title="弃牌堆（庄家侧）"
+            aria-label="弃牌堆"
+        />
+        <!-- 庄 / 盲 / 连胜标贴在台面上（向桌心偏移），不叠在玩家卡片上 -->
+        <div
+            v-for="(row, displayIdx) in playersDisplayOrder"
+            :key="'felt-' + (row.player.leftThisHand ? 'offline-' + row.seatIndex : row.player.nickname)"
+            class="dp-game-table__felt-markers"
+            :style="getSeatFeltMarkerRoundTableStyle(displayIdx, playersDisplayOrder.length)"
+            aria-hidden="true"
+        >
+          <span
+              v-if="row.player.dealer"
+              class="dp-player-card__badge dp-player-card__badge--dealer"
+          >D</span>
+          <span
+              v-if="row.player.blind === 1"
+              class="dp-player-card__badge dp-player-card__badge--sb"
+          >SB</span>
+          <span
+              v-if="row.player.blind === 2"
+              class="dp-player-card__badge dp-player-card__badge--bb"
+          >BB</span>
+          <span
+              v-if="!row.player.leftThisHand && (row.player.winStreak || 0) >= 2"
+              class="win-streak-badge win-streak-badge--table"
+              :title="'已连续赢下 ' + (row.player.winStreak || 0) + ' 手'"
+          >
+            <span class="win-streak-badge__emoji" aria-hidden="true">🔥</span>
+            <span class="win-streak-badge__text">{{ row.player.winStreak }}连胜</span>
+          </span>
         </div>
         <div
             v-for="(row, displayIdx) in playersDisplayOrder"
@@ -89,27 +120,6 @@
             :class="{ 'dp-game-table__seat--empty': viewerSeatedAtTable && displayIdx === 0 }"
             :style="getPlayerRoundTableStyle(displayIdx, playersDisplayOrder.length)"
         >
-          <div
-              v-if="viewerSeatedAtTable && displayIdx === 0 && row.player && !row.player.leftThisHand"
-              class="dp-game-hero-seat-badges"
-              aria-label="我的座位标记"
-          >
-            <span
-                v-if="row.player.dealer"
-                class="dp-player-card__badge dp-player-card__badge--dealer"
-                data-dp-dealer-anchor="true"
-            >D</span>
-            <span v-if="row.player.blind === 1" class="dp-player-card__badge dp-player-card__badge--sb">SB</span>
-            <span v-if="row.player.blind === 2" class="dp-player-card__badge dp-player-card__badge--bb">BB</span>
-            <span
-                v-if="(row.player.winStreak || 0) >= 2"
-                class="win-streak-badge win-streak-badge--table"
-                :title="'已连续赢下 ' + (row.player.winStreak || 0) + ' 手'"
-            >
-              <span class="win-streak-badge__emoji" aria-hidden="true">🔥</span>
-              <span class="win-streak-badge__text">{{ row.player.winStreak }}连胜</span>
-            </span>
-          </div>
           <game-player-card
               v-if="!(viewerSeatedAtTable && displayIdx === 0)"
               :player="row.player"
@@ -859,6 +869,15 @@ export default {
       var order = this.playersDisplayOrder
       if (!order || !order.length) return null
       return order[0]
+    },
+    /** 本机视角圆桌上的庄位 display 下标（用于弃牌堆绕桌） */
+    dealerDisplayIndex() {
+      var order = this.playersDisplayOrder
+      if (!order || !order.length) return -1
+      for (var i = 0; i < order.length; i++) {
+        if (order[i].player && order[i].player.dealer) return i
+      }
+      return -1
     },
     /**
      * 摊牌 / 准备下一局阶段桌上牌力最高者昵称列表（含踢脚比较；平局时并列者全部列出）。
@@ -2133,6 +2152,39 @@ export default {
      * 圆桌座位：θ=0 为 12 点方向。入座时 displayIdx=0 固定为本人（6 点），全体按座位数整圈均分，
      * 避免旧版「对手只在 θ∈(0,π)」导致 sinθ>0、全部挤在桌面右半圈的问题。
      */
+    /**
+     * 座位向桌心（50%,44%）靠拢，用于台呢上的庄/盲标；inward 越大越靠公共牌区。
+     */
+    nudgeSeatTowardTableCenter(displayIdx, total, inward) {
+      var base = this.getPlayerRoundTableStyle(displayIdx, total)
+      var x = parseFloat(base.left)
+      var y = parseFloat(base.top)
+      if (!isFinite(x) || !isFinite(y)) return {}
+      var nx = x + (50 - x) * inward
+      var ny = y + (44 - y) * inward
+      return {
+        left: nx + '%',
+        top: ny + '%',
+        transform: 'translate(-50%, -50%)'
+      }
+    },
+    getSeatFeltMarkerRoundTableStyle(displayIdx, total) {
+      return this.nudgeSeatTowardTableCenter(displayIdx, total, 0.38)
+    },
+    /** 弃牌堆锚点：庄位旁台呢上（略靠桌心，避免与公共牌区完全重叠） */
+    getMuckPileRoundTableStyle() {
+      var n = this.playersDisplayOrder.length
+      var d = this.dealerDisplayIndex
+      if (n === 0 || d < 0) {
+        return {
+          left: '50%',
+          top: '44%',
+          transform: 'translate(-50%, -50%)'
+        }
+      }
+      return this.nudgeSeatTowardTableCenter(d, n, 0.26)
+    },
+
     getPlayerRoundTableStyle(displayIdx, total) {
       if (!total) return {}
       var theta = this.getRoundTableSeatTheta(displayIdx, total)
