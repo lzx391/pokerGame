@@ -7,14 +7,14 @@ import java.time.LocalDateTime;
  */
 public class DpMusicTrack {
     private Long id;
-    private String storedFilename;
-    private String displayName;
-    private String webPath;
-    private Integer sortOrder;
-    private Boolean enabled;
-    private Integer uploaderUserId;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private String storedFilename;//磁盘文件名（建议含 uuid 前缀，避免重名）
+    private String displayName;//界面展示标题
+    private String webPath;//浏览器访问路径，如 /music/xxx.mp3
+    private Integer sortOrder;//列表排序，越大越靠前或反之由业务约定
+    private Boolean enabled;//1=上架 0=下架（不删文件）
+    private Integer uploaderUserId;//可选：上传人 dp_user.id
+    private LocalDateTime createdAt;//入库时间
+    private LocalDateTime updatedAt;//最后修改时间
 
     public Long getId() {
         return id;

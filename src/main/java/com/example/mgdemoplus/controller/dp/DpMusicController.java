@@ -1,7 +1,8 @@
 package com.example.mgdemoplus.controller.dp;
 
 import com.example.mgdemoplus.entity.dp.DpMusicTrack;
-import com.example.mgdemoplus.mapper.dp.DpMusicTrackMapper;
+import com.example.mgdemoplus.service.DpMusicService;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -32,8 +33,7 @@ public class DpMusicController {
     private static final Set<String> ALLOWED_EXT = Set.of(".mp3", ".m4a", ".wav", ".ogg", ".flac");
 
     @Autowired
-    private DpMusicTrackMapper dpMusicTrackMapper;
-
+    private DpMusicService dpMusicService;
     @Value("${mgdemoplus.music.file-location:file:P:/javaworkspace/DPGameFiles/music/}")
     private String musicFileLocation;
 
@@ -101,7 +101,7 @@ public class DpMusicController {
         row.setSortOrder(order);
         row.setUploaderUserId(userId);
 
-        dpMusicTrackMapper.insert(row);
+        dpMusicService.insert(row);
 
         Map<String, Object> ok = new HashMap<>();
         ok.put("id", row.getId());
@@ -129,6 +129,6 @@ public class DpMusicController {
 
     @GetMapping("/list")
     public List<DpMusicTrack> list() {
-        return dpMusicTrackMapper.listEnabled();
+        return dpMusicService.listEnabled();
     }
 }
