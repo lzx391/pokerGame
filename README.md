@@ -25,7 +25,7 @@
 - **推送节奏**：与后端原有 1 秒定时任务对齐，仅当该房间 **至少有一个 WebSocket 订阅者** 时才序列化；**与上次成功下发的 JSON 相同则不再往客户端发**，减少流量（`DpGameRoomPushService` 内去重；`lastHeartBeat` 不参与 JSON，避免机器人心跳刷新把内容“刷变”）。
 - **房间聊天（短时气泡）**：与同一 WS 连接收发；**每人只在对应座位卡片上方显示一条**，新发顶掉旧文案；**有手牌/行动底栏时输入栏与该栏同一行**；观众消息在操作区上方条带展示；协议见 `docs/WEBSOCKET.md`。
 - **行动面板布局（2026-03-25）**：窄屏采用常见扑克客户端结构：**第一行** 倒计时 + 跟注/过牌 + 加注额 +「加注」；**第二行** 全宽两列 **All-In | 弃牌**（约 44px 触控高），避免横滑把弃牌挡在屏外或安全区外。**宽屏（≥680px）** 两行并为一行，底行两钮仍跟在主控件右侧，主区可横向滑动。
-- **标准 NL 最小加注 + 操作区（2026-03-25）**：后端 `DpRoom.lastRaiseIncrement` 与 `DpRoomServiceImpl.bet` 校验：再加注总注须 ≥ `currentBetToCall + lastRaiseIncrement`（**不足最小加注的全下**仍允许；**短全下**不抬高最小增量）。每新街重置增量为大盲。前端 `GameActionPanel` 展示「最少抬到的总注」、**⅓～1½ 池**快捷按钮与**滑动条**（筹码量取「跟注 + round((底池+跟注)×比例)」的近似，与常见线上桌一致）。说明见 `docs/DPGAME.md`。
+- **标准 NL 最小加注 + 操作区（2026-03-25）**：后端 `DpRoom.lastRaiseIncrement` 与 `DpRoomServiceImpl.bet` 校验：再加注总注须 ≥ `currentBetToCall + lastRaiseIncrement`（**不足最小加注的全下**仍允许；**短全下**不抬高最小增量）。每新街重置增量为大盲。前端 `GameActionPanel` 展示「最少抬到的总注」、**⅓～1½ 池**快捷按钮与**滑动条**（筹码量取「跟注 + round((底池+跟注)×比例)」的近似，与常见线上桌一致）。说明见 `docs/DPGAME.md`。**2026-04-01**：无人跟注时合法加注总注下限为 **一个大盲**（不再出现 1 筹码开池）；底池比例与输入/滑条对齐到 **小盲整数倍**（比例结果先算再向下取档，若低于最小加注则取不低于最小加注的最小小盲倍数）。
 - **相关代码**：`DpGameRoomPushService`、`DpGameRoomWebSocketHandler`、`WebSocketGameRoomConfig`；`DpRoomServiceImpl` 定时循环末尾调用 `broadcastIfSubscribed`。
 
 ### NPC / AI（给不懂代码的人看的）
