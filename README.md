@@ -102,6 +102,7 @@
 - **详情接口（2026-03-30）**：`GET /dpHandHistory/detail?handHistoryId=必填&nickname=必填&userId=可选` → `DpHandHistoryDetailDTO`（表头字段 + `payload` 为 `payload_json` 解析对象）。仅 **参与者** 可读；`holeCardsAtEnd` 为归档全量洞牌。前端 `HandHistoryDetail`：**本人**始终可看自己的底牌（含自己弃牌后）；**他人**弃牌则不展示其底牌，未弃牌仍按街展示。**结算** 页另有终局公共牌。
 - **牌谱详情页 UI（2026-03-30）**：`HandHistoryDetail.vue` 使用浅灰渐变底、卡片式元信息、分段街导航（胶囊底 + 高亮当前街）、深绿「台呢」公共牌区与斑马纹表格；庄/小盲/大盲标签分色；边池以卡片列表展示。牌面仍复用 `dp-poker-cards.css`，详情页内关闭扫光动画以免干扰阅读。
 - **牌谱本手盈亏（2026-03-30）**：`DpNpcSharkObservedHandHistory#finalizeHand` 原先用「盲注后筹码」作基准，未把已下盲注算进本手盈亏（例如仅输掉大盲时显示 0）。修复为「盲注前」基准：`beforeHand = chipsAfterBlinds + 该座位小盲/大盲额`，`net = 终局筹码 - beforeHand`。历史库里已写入的 `payload_json` / `net_chips` 不会自动重算，仅新产生的牌谱正确。
+- **牌谱主池统计（2026-04-01）**：入库字段 `mainPotBeforeSettlement` 使用「有效底池」——对结算前各分层池，仅累加 **至少两名玩家有资格赢取** 的池金额；短码全下后深码多出的单边池不计，避免虚高（例如 A=20、B=40 全下时有效为 40 而非双方总筹码 60）。`potsBeforeSettlement` 仍保留完整分层供详情展示。
 
 ### 曲库 BGM（2026-04-01）
 
