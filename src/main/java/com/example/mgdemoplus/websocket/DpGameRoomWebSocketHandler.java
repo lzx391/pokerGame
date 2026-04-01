@@ -45,7 +45,11 @@ public class DpGameRoomWebSocketHandler extends TextWebSocketHandler {
             pushService.unregister((String) rid, session);
         }
     }
-
+/**
+ * 处理客户端发送的文本消息
+ * @param session
+ * @param message
+ */
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
         pushService.handleClientTextMessage(session, message.getPayload());

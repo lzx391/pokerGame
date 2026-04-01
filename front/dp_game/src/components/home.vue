@@ -9,6 +9,8 @@
     </div>
     <div class="btns">
       <button @click="createRoom">创建房间</button>
+      <button type="button" class="hand-history-btn" @click="goHandHistory">历史对局</button>
+      <button type="button" class="hand-history-btn" @click="goMusicUpload">曲库上传</button>
     </div>
 
     <div class="room-list">
@@ -54,6 +56,12 @@ export default {
       localStorage.removeItem('userInfo')
       this.$router.push('/')
     },
+    goHandHistory() {
+      this.$router.push('/hand-history')
+    },
+    goMusicUpload() {
+      this.$router.push('/music-upload')
+    },
     async getRooms() {
       try {
         if (!this.roomDtos.length) this.roomsLoading = true
@@ -70,15 +78,19 @@ export default {
       }
     },
     async createRoom() {
-      const res = await this.$http.post('/dpRoom/createRoom', null, {
-        params: { nickname: this.user.nickname }
-      })
+      const params = { nickname: this.user.nickname }
+      if (this.user.userId != null && this.user.userId !== '') {
+        params.userId = this.user.userId
+      }
+      const res = await this.$http.post('/dpRoom/createRoom', null, { params })
       this.$router.push('/room/' + res.data.roomId)
     },
     async joinRoom(roomId) {
-      await this.$http.post('/dpRoom/joinRoom', null, {
-        params: { roomId, nickname: this.user.nickname }
-      })
+      const params = { roomId, nickname: this.user.nickname }
+      if (this.user.userId != null && this.user.userId !== '') {
+        params.userId = this.user.userId
+      }
+      await this.$http.post('/dpRoom/joinRoom', null, { params })
       this.$router.push('/room/' + roomId)
     }
   }
@@ -89,7 +101,9 @@ export default {
 .home{max-width:600px;margin:0 auto;padding:20px}
 .home-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
 .user-info{display:flex;align-items:center;gap:10px;font-size:14px;color:#666}
-.btns{text-align:center;margin-bottom:20px}
+.btns{text-align:center;margin-bottom:20px;display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center}
+.hand-history-btn{background:#fff;color:#409eff;border:1px solid #409eff;border-radius:4px;cursor:pointer;padding:8px 14px;font-size:14px}
+.hand-history-btn:hover{background:#ecf5ff}
 .room-list{margin-top:20px;text-align:left}
 .room-list h3{text-align:center}
 .room-list__hint{margin:16px 0;padding:12px;color:#909399;font-size:14px;line-height:1.5}

@@ -5,16 +5,16 @@ package com.example.mgdemoplus.entity.dp;
  */
 public class DpObservedHandHistory {
     private Long id;
-    private String roomId;
-    private Long handSeed;
-    private Long startedAtMs;
-    private Long endedAtMs;
-    private Integer smallBlindChips;
-    private Integer bigBlindChips;
-    private String dealerNickname;
-    private Integer mainPotBeforeSettlement;
-    private Integer payloadVersion;
-    private String payloadJson;
+    private String roomId;//房间ID
+    private Long handSeed;//手牌种子
+    private Long startedAtMs;//开始时间
+    private Long endedAtMs;//结束时间
+    private Integer smallBlindChips;//小盲注
+    private Integer bigBlindChips;//大盲注
+    private String dealerNickname;//庄家昵称
+    private Integer mainPotBeforeSettlement;//结算前主池
+    private Integer payloadVersion;//负载版本
+    private String payloadJson;//负载数据
 
     public Long getId() {
         return id;

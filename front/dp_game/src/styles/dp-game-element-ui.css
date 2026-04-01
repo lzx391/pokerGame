@@ -1,0 +1,131 @@
+/**
+ * Element UI 默认挂到 body，需依赖 body[data-dp-game-theme] 上的 --dp-*（由 game.vue 同步）。
+ * 覆盖 MessageBox / Message / 遮罩 / 弹层内按钮，与暗黑哥特等主题一致。
+ */
+
+body[data-dp-game-theme] {
+  font-family: var(--dp-font-ui, sans-serif);
+}
+
+body[data-dp-game-theme] .v-modal {
+  background: rgba(0, 0, 0, 0.52);
+}
+
+body[data-dp-game-theme] .el-message-box {
+  background: var(--dp-panel-bg);
+  border: 1px solid var(--dp-panel-border);
+  box-shadow: var(--dp-panel-shadow);
+  color: var(--dp-text-primary);
+}
+
+body[data-dp-game-theme] .el-message-box__header {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--dp-panel-border);
+}
+
+body[data-dp-game-theme] .el-message-box__title {
+  color: var(--dp-text-primary);
+}
+
+body[data-dp-game-theme] .el-message-box__headerbtn .el-message-box__close {
+  color: var(--dp-text-muted);
+}
+
+body[data-dp-game-theme] .el-message-box__headerbtn .el-message-box__close:hover {
+  color: var(--dp-text-primary);
+}
+
+body[data-dp-game-theme] .el-message-box__content {
+  color: var(--dp-text-primary);
+}
+
+body[data-dp-game-theme] .el-message-box__message {
+  color: var(--dp-text-primary);
+}
+
+body[data-dp-game-theme] .el-message-box__message p {
+  color: inherit;
+}
+
+body[data-dp-game-theme] .el-message-box__btns .el-button--default {
+  background: var(--dp-btn-ghost-bg);
+  border-color: var(--dp-btn-ghost-border);
+  color: var(--dp-btn-ghost-fg);
+}
+
+body[data-dp-game-theme] .el-message-box__btns .el-button--default:hover,
+body[data-dp-game-theme] .el-message-box__btns .el-button--default:focus {
+  background: color-mix(in srgb, var(--dp-btn-ghost-bg) 88%, var(--dp-accent) 12%);
+  border-color: var(--dp-btn-ghost-border);
+  color: var(--dp-btn-ghost-fg);
+}
+
+body[data-dp-game-theme] .el-message-box__btns .el-button--primary {
+  background: var(--dp-btn-primary-bg);
+  border-color: transparent;
+  color: var(--dp-btn-primary-fg);
+}
+
+body[data-dp-game-theme] .el-message-box__btns .el-button--primary:hover,
+body[data-dp-game-theme] .el-message-box__btns .el-button--primary:focus {
+  filter: brightness(1.06);
+  color: var(--dp-btn-primary-fg);
+}
+
+/* 全局提示条：与面板同系，避免默认白底 */
+body[data-dp-game-theme] .el-message {
+  min-width: 280px;
+  background: var(--dp-panel-bg);
+  border: 1px solid var(--dp-panel-border);
+  box-shadow: var(--dp-panel-shadow);
+  color: var(--dp-text-primary);
+}
+
+body[data-dp-game-theme] .el-message .el-message__content {
+  color: var(--dp-text-primary);
+}
+
+body[data-dp-game-theme] .el-message--success {
+  background: color-mix(in srgb, var(--dp-panel-bg) 88%, var(--dp-success) 12%);
+  border-color: color-mix(in srgb, var(--dp-panel-border) 70%, var(--dp-success) 30%);
+}
+
+body[data-dp-game-theme] .el-message--warning {
+  background: color-mix(in srgb, var(--dp-panel-bg) 88%, var(--dp-warning) 12%);
+  border-color: color-mix(in srgb, var(--dp-panel-border) 70%, var(--dp-warning) 30%);
+}
+
+body[data-dp-game-theme] .el-message--error {
+  background: color-mix(in srgb, var(--dp-panel-bg) 88%, var(--dp-danger) 12%);
+  border-color: color-mix(in srgb, var(--dp-panel-border) 70%, var(--dp-danger) 30%);
+}
+
+body[data-dp-game-theme] .el-message--info {
+  background: color-mix(in srgb, var(--dp-panel-bg) 90%, var(--dp-accent) 10%);
+  border-color: var(--dp-panel-border);
+}
+
+body[data-dp-game-theme] .el-message .el-icon-success {
+  color: var(--dp-success);
+}
+
+body[data-dp-game-theme] .el-message .el-icon-warning {
+  color: var(--dp-warning);
+}
+
+body[data-dp-game-theme] .el-message .el-icon-error {
+  color: var(--dp-danger);
+}
+
+body[data-dp-game-theme] .el-message .el-icon-info {
+  color: var(--dp-accent);
+}
+
+/* $alert 等可能用到 */
+body[data-dp-game-theme] .el-message-box__status {
+  color: var(--dp-accent);
+}
+
+body[data-dp-game-theme] .el-message-box__status + .el-message-box__message {
+  padding-left: 36px;
+}

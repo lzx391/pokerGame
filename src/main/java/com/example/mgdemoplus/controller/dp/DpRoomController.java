@@ -20,8 +20,9 @@ public class DpRoomController {
     // 注意：不要在 Controller 里再建 roomMap，所有数据操作都走 Service
 
     @PostMapping("/createRoom")
-    public DpRoom createRoom(@RequestParam String nickname) {
-        return dpRoomService.createRoom(nickname);
+    public DpRoom createRoom(@RequestParam String nickname,
+                             @RequestParam(required = false) Integer userId) {
+        return dpRoomService.createRoom(nickname, userId);
     }
 
     @GetMapping("/getNowRoom")
@@ -30,8 +31,9 @@ public class DpRoomController {
     }
 
     @PostMapping("/joinRoom")
-    public String joinRoom(@RequestParam String roomId, @RequestParam String nickname) {
-        return dpRoomService.joinRoom(roomId, nickname);
+    public String joinRoom(@RequestParam String roomId, @RequestParam String nickname,
+                           @RequestParam(required = false) Integer userId) {
+        return dpRoomService.joinRoom(roomId, nickname, userId);
     }
 /**
  * 该房间内玩家是否能准备成功的接口
@@ -89,8 +91,9 @@ public class DpRoomController {
      * 观战玩家：标记在下一局加入对局
      */
     @PostMapping("/readyNextHand")
-    public String readyNextHand(@RequestParam String roomId, @RequestParam String nickname) {
-        return dpRoomService.readyNextHand(roomId, nickname) ? "ok" : "人数已满";
+    public String readyNextHand(@RequestParam String roomId, @RequestParam String nickname,
+                                @RequestParam(required = false) Integer userId) {
+        return dpRoomService.readyNextHand(roomId, nickname, userId) ? "ok" : "人数已满";
     }
 
     /**

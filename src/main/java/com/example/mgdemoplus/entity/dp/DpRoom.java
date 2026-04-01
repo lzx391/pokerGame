@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class DpRoom {
     private String roomId;
@@ -64,6 +65,27 @@ public class DpRoom {
      * 由服务层在 newHand 时生成。
      */
     private long currentHandSeed;
+
+    /**
+     * 昵称 → dp_user.id，由进房/预约下一局等接口在传入 userId 且校验通过后写入；
+     * 用于下一局从 wait 列表拉人上桌时补全 {@link DpPlayer#setDpUserId}，不参与房间 JSON。
+     */
+    private final ConcurrentHashMap<String, Integer> registeredDpUserIdByNickname = new ConcurrentHashMap<>();
+
+    public void putRegisteredDpUserId(String nickname, Integer dpUserId) {
+        if (nickname == null || nickname.isEmpty() || dpUserId == null) {
+            return;
+        }
+        registeredDpUserIdByNickname.put(nickname, dpUserId);
+    }
+
+    public Integer getRegisteredDpUserId(String nickname) {
+        if (nickname == null) {
+            return null;
+        }
+        return registeredDpUserIdByNickname.get(nickname);
+    }
+
     // getter & setter
     public String getRoomId() { return roomId; }
     public void setRoomId(String roomId) { this.roomId = roomId; }

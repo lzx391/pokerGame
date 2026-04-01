@@ -7,7 +7,9 @@ export const GAME_UI_THEMES = [
   { id: 'midnight', label: '午夜蓝调' },
   { id: 'forest', label: '森荫秘境' },
   { id: 'sunset', label: '落日熔金' },
-  { id: 'ink', label: '水墨宣纸' }
+  { id: 'ink', label: '水墨宣纸' },
+  { id: 'strawberry', label: '草莓软糖' },
+  { id: 'cotton', label: '棉花糖云' }
 ]
 
 export const GAME_UI_THEME_IDS = GAME_UI_THEMES.map(function (t) {

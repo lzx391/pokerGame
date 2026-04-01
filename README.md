@@ -3,6 +3,7 @@
 ### DP游戏文档链接
 
 - [DP游戏详细文档（规则、接口、开发与维护）](docs/DPGAME.md)
+- [DP 曲库：`webPath`、磁盘目录与试听代理流程](docs/DpMusicWebPath.md)
 
 ### 游戏对局 WebSocket（无 Redis）
 
@@ -10,12 +11,16 @@
 - **对局页座位列表（2026-03-23）**：`game.vue` 中玩家网格按 **本机视角** 旋转展示——**自己的座位固定排在第一行**，其余人保持原有相对顺序；`seatIndex` 与后端一致，行动高亮与庄位动画不受影响。说明见 `docs/RoomUi.md`。
 - **对局页全宽（2026-03-23）**：原先 `#app` 全局 `padding` + `.dp-game-root` `max-width:800px` 居中，宽屏两侧会露出浅灰底。现登录/注册区 `padding` 仅加在 `.app-container`，对局根节点横向 `width:100%` 铺满视口。
 - **原生全屏 + 弹窗（2026-03-23）**：手机/浏览器对 `gameRoot` 做 **Fullscreen API** 时，只有全屏子树会渲染；Element UI 的 `$confirm` / `$message` 默认挂在 `body` 上会看不见。`game.vue` 在原生全屏状态下把这些层移入 `.dp-game-root`（伪全屏不涉及 API，不受影响）。
-- **节能模式（2026-03-23）**：对局页 `game.vue` 主题行可勾选 **节能模式**（偏好存 `localStorage` 键 `dp_game_eco_mode`），不依赖手机/电脑判断；开启后根节点带 `data-dp-eco-mode="true"`，由 `dp-game-eco-mode.css` 关闭扫光、飞入、毛玻璃模糊等，并与系统「减少动态效果」一样让 `GamePlayerCard` / `GameCommunityCards` 跳过发牌/弃牌位移动画逻辑。
+- **对局主题（2026-03-29）**：在 `front/dp_game/src/constants/dpGameThemes.js` 登记主题 id 与中文名；在 `dp-game-themes.css` 为 `.dp-game-root[data-dp-game-theme='…']` 写同一套 `--dp-*` 变量即可。**组件绑定与新增主题自检问卷**见 [front/dp_game/docs/THEME_BINDING_README.md](front/dp_game/docs/THEME_BINDING_README.md)。新增 **草莓软糖**（`strawberry`）、**棉花糖云**（`cotton`）粉嫩童话系；与 **节能模式** 正交——节能由 `data-dp-eco-mode` + `dp-game-eco-mode.css` 统一降级动画/毛玻璃，不按主题重复写两套。**圆桌台呢**颜色在 `dp-game-shell.css` 中由 `--dp-table-felt-depth` / `--dp-table-felt-spot` 等与面板混色；默认混 `#0a1620` 做暗边，浅色童话主题在 `dp-game-themes.css` 中覆盖为粉/紫系，避免桌面发灰黑。**Element UI 与 body 主题（2026-03-29）**：`$confirm` / `$message` / `MessageBox` 等默认挂在 `body` 上，无法继承 `.dp-game-root` 的 `--dp-*`。对局页 `game.vue` 在 `created` / `watch gameUiTheme` 时把 `data-dp-game-theme` 同步到 `document.body`，`dp-game-themes.css` 中每个主题选择器为 `.dp-game-root[…], body[…]` 双写变量；`dp-game-element-ui.css` 覆盖 `.el-message-box`、`.el-message`、`.v-modal` 及弹窗内按钮。离开对局 `beforeDestroy` 时移除 body 上的属性。
+
+**牌背 / 手牌灰底 / 弃牌堆**：与暗黑哥特一样走「全局变量」——在 `.dp-game-root` 上定义 `--dp-card-back-*`、`--dp-muck-*` 等（`dp-game-shell.css` 默认值 + `strawberry`/`cotton` 在 `dp-game-themes.css` 覆盖），`dp-poker-cards.css` / `dp-game-community-cards.css` 引用变量；`--dp-panel-bg` / `--dp-player-card-bg` 须保持**可被 color-mix 的纯色**，勿用渐变。
+- **节能模式（2026-03-23）**：对局页 `game.vue` 主题行可勾选 **节能模式**（偏好存 `localStorage` 键 `dp_game_eco_mode`），不依赖手机/电脑判断；开启后根节点带 `data-dp-eco-mode="true"`，由 `dp-game-eco-mode.css` 关闭扫光、飞入、毛玻璃模糊等，并与系统「减少动态效果」一样让 `GamePlayerCard` / `GameCommunityCards` 跳过发牌/弃牌位移动画逻辑。**2026-03-26**：摊牌时手牌区若本地算「最佳五张」（`dpGameHandRank.js`），同一组 7 张牌曾被牌型名、说明、`pickShowdownLeader` 等重复评估；已对评估结果做缓存，减轻主线程压力（节能模式帧率更低时此前更容易感觉「算一会儿」）。**同日**：翻后成牌的 **牌型名**（`handRankName`）与 **说明**（`handRankDetail`）改由 `DpRoomServiceImpl#getAllRooms` 与 `bestHandCards` 一并填充（`DpUtilHandEvaluator`），前端 `GamePlayerCard` 优先展示接口字段、缺省时仍用本地 `dpGameHandRank` 兜底。
 - **桌面行动倒计时（2026-03-25）**：下注街（非摊牌/结算）时，圆桌中央公共牌上方显示 **当前行动者昵称 + 30 秒圆环倒计时**，观众与对手都能看见；与下方操作区 `GameActionPanel` 内倒计时共用同一 `timeLeft`，换行动者或新一手才重置，轮询/推送重复同一状态不会把秒数打回 30。**关闭节能模式** 时台呢区有额外静态质感（围边与明暗层次），倒计时条为毛玻璃 + 最后几秒脉冲提示。
 - **牌面 UI（2026-03-22）**：`dp-poker-cards.css`、`dp-game-community-cards.css` 中为扑克牌提供渐变高光、金边阴影、周期性扫光（牌型说明弹窗内小牌会关闭扫光以免干扰阅读）；公共牌会先 **从桌面下方飞入公共区**（`GameCommunityCards`），再依次翻转；`game.vue` 里翻牌 `setTimeout` 的前置时间（约 520ms）与飞入时长对齐，`communityCardsFlipComplete` 仍按最后一翻 + 翻转时长计算；系统开启「减少动态效果」时会跳过飞入并降级其它动画。**2026-03-25**：牌型说明、观众席等居中弹窗使用 `dp-game-modals.css` 的 `--dp-panel-*` / `--dp-text-*` 与底栏抽屉一致的标题栏与关闭钮，随对局主题切换外观。**2026-03-26**：庄位锚点绑在本人内联手牌区时，窄屏/全屏下该区域被 `display:none`，`getBoundingClientRect` 为 0 会误把发牌起点当成视口左上角；`front/dp_game/src/utils/dpGameDealerAnchor.js` 在锚点不可见时回退为 **视口底部居中略偏上**（本人视角），`GamePlayerCard` / `GameCommunityCards` 共用。
 - **摊牌与弃牌动画（2026-03-23）**：摊牌/结算阶段他人手牌 **同时翻开**（不再沿用首圈发牌的座位错开延迟）；弃牌时手牌飞向桌面中心 **弃牌堆小图标**（`data-dp-muck-anchor`），动画结束后该座位手牌区收起；**他人紧凑位**在底牌行已隐藏（翻后）弃牌时，从座位底部 **临时两张背面** 飞出完成同一动画。
-- **对局布局（2026-03-23）**：圆桌区域按视口 **自适应**（`dvh` / `clamp` 等），**不再提供浏览器全屏按钮**；入座玩家 **本人完整卡片在圆桌下方**，桌上该方位仅保留空锚点。**2026-03-25**：本人手牌区与 **右侧固定槽位** 并排（`dp-game-hero-action-row`）：两列 **等高**（flex `stretch`）；轮到本人显示 `GameActionPanel`，否则右侧为与主题底相同的 **占位块**（`dp-game-action-slot-cover`）盖住空槽；宽度 ≤360px 时改为上下叠放以免误触。**2026-03-25（晚）**：**房间聊天输入**与手牌区、行动槽 **同一行**（宽屏在 `dp-game-hero-action-row` 最左；窄屏/全屏与底栏「查看手牌」「行动」同一条固定栏）；纯观众等无底栏时聊天仍在原独立条。**顶栏**：`GameTopBar` **单行 + 横滑**（左信息、右设置与按钮）；`.dp-game-root` **上边距仅 `env(safe-area-inset-top)`**（无刘海为 0），整块对局贴屏幕上沿；旁观时「下一局加入对局」等与同排按钮一起排列。**查看手牌抽屉**：与桌上发牌动画解耦，手牌 **瞬时展示**（无逐张翻）。确认类操作仍用 Element UI 的 `$confirm` / `$alert`，避免原生对话框干扰流程。
+- **对局布局（2026-03-23）**：圆桌区域按视口 **自适应**（`dvh` / `clamp` 等），**不再提供浏览器全屏按钮**；入座玩家 **本人完整卡片在圆桌下方**，桌上该方位仅保留空锚点。**2026-03-25**：本人手牌区与 **右侧固定槽位** 并排（`dp-game-hero-action-row`）：两列 **等高**（flex `stretch`）；轮到本人显示 `GameActionPanel`，否则右侧为与主题底相同的 **占位块**（`dp-game-action-slot-cover`）盖住空槽；宽度 ≤360px 时改为上下叠放以免误触。**2026-03-25（晚）**：**房间聊天输入**与手牌区、行动槽 **同一行**（宽屏在 `dp-game-hero-action-row` 最左；窄屏/全屏与底栏「查看手牌」「行动」同一条固定栏）；纯观众等无底栏时聊天仍在原独立条。**顶栏**：`GameTopBar` **单行 + 横滑**（左信息、右设置与按钮）；`.dp-game-root` **上边距仅 `env(safe-area-inset-top)`**（无刘海为 0）。有刘海时根节点会在顶部留出安全区空白，顶栏若随文档流下移会与「摊牌赢家牌区」等贴顶元素不齐；**2026-03-26**：`dp-game-shell.css` 对 `.dp-top-bar` 使用 **负 `margin-top` 抵消根节点 `padding-top`，并把 `safe-area-inset-top` 加回顶栏自身 `padding-top`**，使顶栏背景与屏顶对齐、文字仍在安全区内。**勿**给顶栏加过高 **`z-index`** 盖住座位牌。**同日（紧凑）**：窄屏与矮视口横屏下收紧顶栏与圆桌间距等。**同日（横屏大屏机）**：部分手机横屏宽度 **>900px**（如 Pro Max），原先 `(max-width:900px)` 的紧凑样式不生效，顶栏仍为大内边距；已改为 **`max-width:1024px` + `max-height:560px`**，并减小顶栏上下 `padding`、行 `gap`、圆桌与顶栏间距，使牌桌上移、底部座位区更易一屏见全。**同日（修正）**：`getPlayerRoundTableStyle` 在 **≤600px** 对上侧座位加大 **`top` 下移**（`cos` 分档），避免上家被顶栏挡住；**撤销**窄屏/全屏下「圆桌 `order:-1` 置顶」——恢复 **顶栏 → 圆桌 → 底区** 顺序，避免桌面段与顶栏叠在同一视窗逻辑里。旁观时「下一局加入对局」等与同排按钮一起排列。**查看手牌抽屉**：与桌上发牌动画解耦，手牌 **瞬时展示**（无逐张翻）。确认类操作仍用 Element UI 的 `$confirm` / `$alert`，避免原生对话框干扰流程。
 - **地址**：`ws://<后端主机>:<端口>/ws/dp-game?roomId=房间号`（本地开发前端里默认连 `ws://localhost:8088`）。
+- **对局内历史对局（2026-03-31）**：顶栏「历史对局」打开居中弹层（`GameHandHistoryModal`），复用 `HandHistory` / `HandHistoryDetail` 的 `embedded` 模式，不离开 `/game/:roomId`；弹层与嵌入页使用对局当前 `data-dp-game-theme` 的 `--dp-*` 变量（与顶栏主题一致）；大厅独立路由 `/hand-history` 仍为原样浅色整页样式。
 - **数据**：每条消息 JSON 与 `GET /dpRoom/getNowRoom` 一致；房间不存在时推送 `{"_ws":"roomClosed"}`。
 - **推送节奏**：与后端原有 1 秒定时任务对齐，仅当该房间 **至少有一个 WebSocket 订阅者** 时才序列化；**与上次成功下发的 JSON 相同则不再往客户端发**，减少流量（`DpGameRoomPushService` 内去重；`lastHeartBeat` 不参与 JSON，避免机器人心跳刷新把内容“刷变”）。
 - **房间聊天（短时气泡）**：与同一 WS 连接收发；**每人只在对应座位卡片上方显示一条**，新发顶掉旧文案；**有手牌/行动底栏时输入栏与该栏同一行**；观众消息在操作区上方条带展示；协议见 `docs/WEBSOCKET.md`。
@@ -78,12 +83,33 @@
 - **做什么**：昵称 `BOT_LLM` 仅在 `DpRoomServiceImpl` 定时器里走 `DpLlmNpcDecisionService`，与普通规则 NPC 分离；接口 `POST /dpRoom/addLlmBot?roomId=...` 可预约下一局上桌。
 - **代码位置**：`npc/LlmNpc.java`、`DpLlmNpcDecisionService.java`、`DpNpcEngine.buildLlmNpcGameSnapshot` 等。
 - **密钥与接入点怎么配（二选一，配置文件优先）**：
-  1. **`application.properties`**（已预留项，适合本机开发）：`dp.llm.ark.api-key=`、`dp.llm.ark.endpoint-id=`（可选 `dp.llm.ark.base-url=`）。**不要把填了真密钥的文件提交到 Git。**
-  2. **系统环境变量**：`ARK_API_KEY`、`ARK_ENDPOINT_ID`（可选 `ARK_BASE_URL`）。  
+  1. **`application.properties`**（已预留项，适合本机开发）：`dp.llm.ark.api-key=`、`dp.llm.ark.endpoint-id=`（可选 `dp.llm.ark.base-url=`、`dp.llm.ark.reasoning-effort=`、`dp.llm.ark.thinking-type=`）。**不要把填了真密钥的文件提交到 Git。**
+  2. **系统环境变量**：`ARK_API_KEY`、`ARK_ENDPOINT_ID`（可选 `ARK_BASE_URL`、`ARK_REASONING_EFFORT`、`ARK_THINKING_TYPE`）。
+- **响应偏慢（深度思考 / 推理）**：方舟文档里两层独立控制：① `thinking.type`（`enabled` / `disabled` / `auto`）——是否走深度思考、是否返回思维链；若接入点为 Seed 等且**不传**，服务端对许多型号**默认为 `enabled`**，会明显变慢。② `reasoning_effort`（`minimal`～`high`）——在允许思考时调节思维链长度。**注意**：`thinking.type=disabled` 与部分 `reasoning_effort` 组合会被方舟拒绝（如 `low + disabled` → HTTP 400）。`LlmNpc` 在 `disabled` 时会自动不传 `reasoning_effort`，避免该错误；若需显式调推理强度，请用 `enabled`/`auto` 或去掉 `thinking-type` 让服务端默认。  
      - Windows：**设置 → 系统 → 关于 → 高级系统设置 → 环境变量**（用户或系统变量里新建）。  
      - 仅当前 PowerShell 会话：`$env:ARK_API_KEY="你的key"`、`$env:ARK_ENDPOINT_ID="ep-..."`。  
      - IntelliJ：**Run → Edit Configurations → 你的 Spring Boot → Environment variables**。
 - **对局摘要**：`DpUtilSmartContext` 由 `buildLlmNpcGameSnapshot` 与房间状态一起打成 `LlmNpcGameContext` 再发给模型。
+
+### 牌谱与用户关联（2026-03-30）
+
+- **落库思路（牌谱 / 参与者 / Shark 记忆表）**：[docs/DP_PERSISTENCE_README.md](docs/DP_PERSISTENCE_README.md)。
+- **表**：`src/main/resources/db/dp_observed_hand_participant.sql`（多对多拆解；**不设数据库外键**）。需在已有 `dp_observed_hand_history` 的库上执行建表。
+- **user_id**：列上**可为 NULL**；接口参数 **`userId` 仍可选**。入库时优先用内存 `dpUserId`，否则按 **昵称** 查 `dp_user`（昵称全局唯一时可补全）；仍无账号则只存 `nickname_snapshot`。机器人不占行。
+- **前端**：登录可用 `GET /dpUser/loginProfile` 拿到 `userId`；**创建房间 / 加入房间 / 观众「下一局加入」** 可带可选 `userId`（与昵称须与 `dp_user` 一致才采纳），界面只展示昵称。
+- **历史查询**：有 `user_id` 时按 id 查；无则按 `nickname_snapshot`（需注意改名后旧昵称仍留在历史快照）。
+- **列表接口（分页，无 PageHelper）**：`GET /dpHandHistory/list?nickname=必填&userId=可选&page=1&pageSize=10` → 返回 `DpHandHistoryPageDTO`（`total`、`page`、`pageSize`、`records`）；`pageSize` 默认 10、最大 100。仅含 **存在参与者行** 的牌谱。
+- **详情接口（2026-03-30）**：`GET /dpHandHistory/detail?handHistoryId=必填&nickname=必填&userId=可选` → `DpHandHistoryDetailDTO`（表头字段 + `payload` 为 `payload_json` 解析对象）。仅 **参与者** 可读；`holeCardsAtEnd` 为归档全量洞牌。前端 `HandHistoryDetail`：**本人**始终可看自己的底牌（含自己弃牌后）；**他人**弃牌则不展示其底牌，未弃牌仍按街展示。**结算** 页另有终局公共牌。
+- **牌谱详情页 UI（2026-03-30）**：`HandHistoryDetail.vue` 使用浅灰渐变底、卡片式元信息、分段街导航（胶囊底 + 高亮当前街）、深绿「台呢」公共牌区与斑马纹表格；庄/小盲/大盲标签分色；边池以卡片列表展示。牌面仍复用 `dp-poker-cards.css`，详情页内关闭扫光动画以免干扰阅读。
+- **牌谱本手盈亏（2026-03-30）**：`DpNpcSharkObservedHandHistory#finalizeHand` 原先用「盲注后筹码」作基准，未把已下盲注算进本手盈亏（例如仅输掉大盲时显示 0）。修复为「盲注前」基准：`beforeHand = chipsAfterBlinds + 该座位小盲/大盲额`，`net = 终局筹码 - beforeHand`。历史库里已写入的 `payload_json` / `net_chips` 不会自动重算，仅新产生的牌谱正确。
+
+### 曲库 BGM（2026-04-01）
+
+- **表**：在 `school_db` 执行 `src/main/resources/db/dp_music_track.sql` 建表 `dp_music_track`。
+- **文件目录**：默认 `P:/javaworkspace/DPGameFiles/music/`（`mgdemoplus.music.file-location`），HTTP 映射 `/music/**`；Docker 可用环境变量 `MGDEMOPLUS_MUSIC_FILE_LOCATION`（见 `docker-compose.yml`）。
+- **接口**：`POST /dpMusic/upload`（multipart：`file` 必填；可选 `displayName`、`sortOrder`、`userId`）写入磁盘并入库；`GET /dpMusic/list` 返回已上架曲目（供对局音乐盒拉列表）。
+- **前端**：登录后大厅点「曲库上传」进入 `/#/music-upload`，可试听已入库曲目（开发环境经 `/dev-api` 代理访问 `/music/...`）。
+- **对局音乐盒（2026-04-01）**：对局页顶栏「音乐盒」打开曲库列表；**播放/暂停/停止** 经 **同一房间 WebSocket** 广播，服务端校验发送者昵称属于本桌玩家或观众后，向该房间所有连接推送 `{"_ws":"roomMusic",...}`（并记住最后一帧，**新进入房间者**在首包房间快照后会再收到一帧音乐状态）。摊牌/结算阶段自动暂停曲库 BGM，避免与既有结算短 BGM 叠播；离开结算后若状态仍为 `play` 会恢复播放。客户端上行：`{"_ws":"roomMusicSync","nickname":"…","action":"play|pause|stop","trackId":…,"webPath":"/music/…","displayName":"…"}`（`play` 时 `trackId`/`webPath` 必填；路径须为 `/music/` 下安全文件名）。
 
 ### Docker 部署
 
@@ -91,4 +117,4 @@
 - **一键（MySQL + 应用）**：仓库根目录执行 `docker compose up --build`，浏览器打开 `http://localhost:8088`（前端为 hash 路由，形如 `/#/login`）。默认 MySQL root 密码为 `mgdemo_root`，可通过环境变量 `MYSQL_ROOT_PASSWORD` 修改。容器内 MySQL 对 **宿主机** 映射为 **`localhost:3307`**（避免与本机已占用的 **3306** 冲突）；应用容器仍通过内部网络访问 `mysql:3306`。
 - **仅构建后端镜像**：`docker build -t mgdemoplus .`，运行示例：  
   `docker run -p 8088:8088 -e SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/school_db?useSSL=false -e SPRING_DATASOURCE_USERNAME=root -e SPRING_DATASOURCE_PASSWORD=你的密码 -e MGDEMOPLUS_IMAGES_FILE_LOCATION=file:/data/mgdemo-files/ -v 本机目录:/data/mgdemo-files mgdemoplus`
-- **说明**：`Dockerfile` 会编译 `front/dp_game` 并把 `dist` 打进 jar 的 `static`，与 API、WebSocket 同端口；`/images/**` 上传文件目录在容器内默认为 `/data/mgdemo-files`（compose 已映射到 `./docker-data/uploads`）。首次使用需在 `school_db` 中建好业务表；可将初始化 `.sql` 放入 `./docker-data/mysql-init`（仅 MySQL 第一次初始化数据卷时执行）。**勿把含真实密钥的 `application.properties` 依赖进镜像**；LLM 等密钥请用环境变量 `ARK_API_KEY`、`ARK_ENDPOINT_ID` 等在 compose 中注入。
+- **说明**：`Dockerfile` 会编译 `front/dp_game` 并把 `dist` 打进 jar 的 `static`，与 API、WebSocket 同端口；本机开发默认上传目录为 `P:/javaworkspace/DPGameFiles/`（配置项 `mgdemoplus.images.file-location`）。`/images/**` 在容器内默认为 `/data/mgdemo-files`（compose 已映射到 `./docker-data/uploads`）。首次使用需在 `school_db` 中建好业务表；可将初始化 `.sql` 放入 `./docker-data/mysql-init`（仅 MySQL 第一次初始化数据卷时执行）。**勿把含真实密钥的 `application.properties` 依赖进镜像**；LLM 等密钥请用环境变量 `ARK_API_KEY`、`ARK_ENDPOINT_ID` 等在 compose 中注入。

@@ -127,13 +127,13 @@
           class="dp-player-card__rank-pill"
           :class="showHandRankAsOpen ? 'dp-player-card__rank-pill--open' : 'dp-player-card__rank-pill--showdown'"
         >
-          {{ getHandRank(player.holeCards, communityCards) }}
+          {{ displayHandRankName }}
         </span>
         <div
           v-if="showShowdownLeaderDetail && showHandRankFiveCardRow.length !== 5"
           class="dp-player-card__rank-detail"
         >
-          {{ getHandRankDetail(player.holeCards, communityCards) }}
+          {{ displayHandRankDetail }}
         </div>
         <div
           v-if="showHandRankFiveCardRow.length === 5"
@@ -238,13 +238,13 @@
           class="dp-player-card__rank-pill"
           :class="showHandRankAsOpen ? 'dp-player-card__rank-pill--open' : 'dp-player-card__rank-pill--showdown'"
         >
-          {{ getHandRank(player.holeCards, communityCards) }}
+          {{ displayHandRankName }}
         </span>
         <div
           v-if="showShowdownLeaderDetail && showHandRankFiveCardRow.length !== 5"
           class="dp-player-card__rank-detail"
         >
-          {{ getHandRankDetail(player.holeCards, communityCards) }}
+          {{ displayHandRankDetail }}
         </div>
         <div
           v-if="showHandRankFiveCardRow.length === 5"
@@ -389,11 +389,12 @@ export default {
         s.padding = '7px 9px'
         s.borderRadius = '8px'
       }
-      /* 摊牌 / 准备下一局：半透明 + 描边，减轻遮挡中央公共牌 */
+      /* 摊牌 / 准备下一局：与页面底混色半透明 + 描边，减轻遮挡中央公共牌。
+       * 第二色用 var(--dp-game-bg) 而非 transparent：浅色童话主题下「26%+透明」会与底图融成一片，像没渲染座位卡。 */
       if ((this.stage === 'showdown' || this.stage === 'settled') && !this.player.leftThisHand) {
         var base = s.background || 'var(--dp-player-card-bg)'
-        var pct = this.rivalMini ? '20%' : '26%'
-        s.background = 'color-mix(in srgb, ' + base + ' ' + pct + ', transparent)'
+        var pct = this.rivalMini ? '48%' : '58%'
+        s.background = 'color-mix(in srgb, ' + base + ' ' + pct + ', var(--dp-game-bg))'
         s.boxShadow =
           (s.boxShadow ? s.boxShadow + ', ' : '') + 'inset 0 0 0 1px rgba(100, 100, 100, 0.22)'
       }
@@ -452,6 +453,20 @@ export default {
       return this.isMe
         || (this.isOwner && this.ownerRevealAll && this.player.holeCards && this.player.holeCards.length > 0)
     },
+    /** 牌型名称：优先服务端 `handRankName`（翻后与 bestHandCards 同批下发），缺省时本地兜底 */
+    displayHandRankName() {
+      if (this.player.leftThisHand) return ''
+      var n = this.player.handRankName
+      if (n != null && String(n).trim() !== '') return String(n).trim()
+      return getHandRank(this.player.holeCards, this.communityCards)
+    },
+    /** 成牌说明：优先服务端 `handRankDetail`，缺省时本地兜底 */
+    displayHandRankDetail() {
+      if (this.player.leftThisHand) return ''
+      var d = this.player.handRankDetail
+      if (d != null && String(d).trim() !== '') return String(d).trim()
+      return getHandRankDetail(this.player.holeCards, this.communityCards)
+    },
     /** 摊牌或准备下一局：牌力最高者（含平局并列）展示精确五张（与本人 bestHand 同款） */
     showShowdownLeaderDetail() {
       var leaders = this.showdownHandLeaders
@@ -494,8 +509,6 @@ export default {
   methods: {
     getCardClass,
     getCardDisplay,
-    getHandRank,
-    getHandRankDetail,
     prefersReducedMotion() {
       if (this.dpGameView && this.dpGameView.ecoMode) return true
       if (typeof window === 'undefined' || !window.matchMedia) return false

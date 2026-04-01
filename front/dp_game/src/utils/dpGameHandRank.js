@@ -320,15 +320,44 @@ function findBestFiveWithCombo(parsedSeven) {
   return { ev: bestEv, combo: bestCombo }
 }
 
+/** 与 hole/board 如何切分无关，同一组 7 张牌成牌结果唯一，用于去重多次评估 */
+function bestHandCacheKey(holeCards, communityCards) {
+  if (!holeCards || !communityCards) return ''
+  var ids = holeCards.concat(communityCards)
+  if (ids.length < 5) return ''
+  ids.sort()
+  return ids.join('|')
+}
+
+/** 摊牌阶段同一手牌会被 getHandRank / getHandRankDetail / getBestFiveCardIds / pickShowdownLeader 重复计算，缓存避免主线程堆积 */
+var BEST_HAND_CACHE = new Map()
+var BEST_HAND_CACHE_MAX = 96
+
+function getCachedBestFiveResult(holeCards, communityCards) {
+  var key = bestHandCacheKey(holeCards, communityCards)
+  if (!key) return null
+  if (BEST_HAND_CACHE.has(key)) {
+    return BEST_HAND_CACHE.get(key)
+  }
+  var parsed = parseHoleAndBoard(holeCards, communityCards)
+  if (!parsed) return null
+  var result = findBestFiveWithCombo(parsed)
+  if (BEST_HAND_CACHE.size >= BEST_HAND_CACHE_MAX) {
+    var first = BEST_HAND_CACHE.keys().next().value
+    if (first !== undefined) BEST_HAND_CACHE.delete(first)
+  }
+  BEST_HAND_CACHE.set(key, result)
+  return result
+}
+
 /**
  * @param holeCards - 玩家手牌
  * @param communityCards - 公共牌
  * @returns {{ name: string, detailText: string, compareKey: number[] } | null}
  */
 export function getBestHandEvaluation(holeCards, communityCards) {
-  var parsed = parseHoleAndBoard(holeCards, communityCards)
-  if (!parsed) return null
-  return findBestFiveWithCombo(parsed).ev
+  var r = getCachedBestFiveResult(holeCards, communityCards)
+  return r && r.ev ? r.ev : null
 }
 
 /**
@@ -338,11 +367,9 @@ export function getBestHandEvaluation(holeCards, communityCards) {
  * @returns {string[]}
  */
 export function getBestFiveCardIds(holeCards, communityCards) {
-  var parsed = parseHoleAndBoard(holeCards, communityCards)
-  if (!parsed) return []
-  var combo = findBestFiveWithCombo(parsed).combo
-  if (!combo) return []
-  return combo.map(function (x) {
+  var r = getCachedBestFiveResult(holeCards, communityCards)
+  if (!r || !r.combo) return []
+  return r.combo.map(function (x) {
     return x.id
   })
 }

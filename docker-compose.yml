@@ -34,6 +34,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-mgdemo_root}
       SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
       MGDEMOPLUS_IMAGES_FILE_LOCATION: file:/data/mgdemo-files/
+      MGDEMOPLUS_MUSIC_FILE_LOCATION: file:/data/mgdemo-files/music/
       # 可选：大模型 NPC（勿把密钥写进镜像，用环境变量覆盖）
       # ARK_API_KEY: ""
       # ARK_ENDPOINT_ID: ""
