@@ -1180,6 +1180,45 @@ public class DpRoomServiceImpl {
     // ========== 游戏尾声：结算与下一局准备 ==========
 
     /**
+     * 按当前 {@link DpPlayer#getChips()} 计算场上（未本手离席）筹码最高者昵称列表，写入房间供前端座位光效。
+     * 仅在 autoSettle 末尾调用，第一局开局前列表为空，避免「全员同分并列第一」误亮。
+     */
+    private void refreshChipLeaderNicknames(DpRoom r) {
+        if (r == null) {
+            return;
+        }
+        List<String> leaders = new ArrayList<>();
+        List<DpPlayer> players = r.getPlayers();
+        if (players == null || players.isEmpty()) {
+            r.setChipLeaderNicknames(leaders);
+            return;
+        }
+        int max = Integer.MIN_VALUE;
+        for (DpPlayer p : players) {
+            if (p == null || p.isLeftThisHand()) {
+                continue;
+            }
+            int c = p.getChips();
+            if (c > max) {
+                max = c;
+            }
+        }
+        if (max == Integer.MIN_VALUE) {
+            r.setChipLeaderNicknames(leaders);
+            return;
+        }
+        for (DpPlayer p : players) {
+            if (p == null || p.isLeftThisHand()) {
+                continue;
+            }
+            if (p.getChips() == max) {
+                leaders.add(p.getNickname());
+            }
+        }
+        r.setChipLeaderNicknames(leaders);
+    }
+
+    /**
      * 自动结算当前房间：为每个池按牌力选出赢家并分配筹码，然后进入结算完成/准备下一局阶段。
      */
     private void autoSettle(DpRoom r) {
@@ -1199,6 +1238,7 @@ public class DpRoomServiceImpl {
                 observedHandPersistService.save(archivedEarly, r);
             }
             DpNpcSharkHandActionLog.clearHand(r);
+            refreshChipLeaderNicknames(r);
             return;
         }
 
@@ -1551,6 +1591,8 @@ public class DpRoomServiceImpl {
         if (currentPlayers != null && !currentPlayers.isEmpty()) {
             currentPlayers.removeIf(DpPlayer::isLeftThisHand);//这里双冒号的作用是调用DpPlayer类中的isLeftThisHand方法
         }
+
+        refreshChipLeaderNicknames(r);
 
         // 进入“结算完成，等待准备下一局”阶段，并开始 30 秒准备倒计时
         r.setCurrentStage("settled");

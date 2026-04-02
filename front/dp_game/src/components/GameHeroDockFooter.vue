@@ -6,6 +6,7 @@
         aria-label="本人手牌与操作"
     >
       <game-room-chat-bar
+          v-if="vm.viewerSeatedAtTable"
           :value="vm.chatInputDraft"
           variant="hero"
           @input="$store.commit('dpGame/SET_CHAT_DRAFT', $event)"
@@ -104,6 +105,7 @@
         aria-label="手牌与行动"
     >
       <game-room-chat-bar
+          v-if="vm.viewerSeatedAtTable"
           :value="vm.chatInputDraft"
           variant="mobile"
           @input="$store.commit('dpGame/SET_CHAT_DRAFT', $event)"
@@ -161,7 +163,7 @@
     </div>
 
     <div
-        v-if="!vm.mobileHeroDockActive && !vm.isOwner"
+        v-if="vm.viewerSeatedAtTable && !vm.mobileHeroDockActive && !vm.isOwner"
         class="dp-game-action-hud"
         aria-label="房间聊天"
     >

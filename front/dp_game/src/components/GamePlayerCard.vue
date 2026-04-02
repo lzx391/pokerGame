@@ -3,7 +3,7 @@
     class="dp-player-card"
     :class="{
       'player-card--win-streak':
-        !heroHandDock && !player.leftThisHand && (player.winStreak || 0) >= 2,
+        !heroHandDock && !player.leftThisHand && fieldChipLeader,
       'dp-player-card--compact': compact,
       'dp-player-card--rival-mini': rivalMini,
       'dp-player-card--hand-dock': heroHandDock,
@@ -390,9 +390,13 @@ export default {
      */
     dealRevealStaggerSec: { type: Number, default: 0 },
     /**
-     * 本人内联手牌区：仅昵称 + 底牌 + 牌型；后手/本轮与庄盲连胜标由外层承担。
+     * 本人内联手牌区：仅昵称 + 底牌 + 牌型；后手/本轮与庄盲标由外层承担。
      */
-    heroHandDock: { type: Boolean, default: false }
+    heroHandDock: { type: Boolean, default: false },
+    /**
+     * 圆桌等外层传入：当前是否为「场上筹码最多」之一（并列则多人 true），用于底牌区光效。
+     */
+    fieldChipLeader: { type: Boolean, default: false }
   },
   data() {
     return {
