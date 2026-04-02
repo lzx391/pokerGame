@@ -2,11 +2,11 @@
 
 .community-cards-row {
   display: flex;
-  gap: 8px;
+  gap: var(--dp-card-community-row-gap, 8px);
   justify-content: center;
-  margin: 20px 0;
+  margin: var(--dp-card-community-row-margin-y, 20px) 0;
   overflow: visible;
-  min-height: 62px;
+  min-height: var(--dp-card-base-height, 62px);
 }
 
 /* 自庄位（D，data-dp-dealer-anchor）或默认自下方飞向公共位；--deal-from-x/y 为相对各牌槽的偏移(px) */
@@ -37,8 +37,8 @@
 
 .card-flip-wrapper {
   perspective: 880px;
-  width: 44px;
-  height: 62px;
+  width: var(--dp-card-base-width, 44px);
+  height: var(--dp-card-base-height, 62px);
   filter: var(--dp-card-drop-shadow);
 }
 
@@ -88,7 +88,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: var(--dp-card-base-radius, 6px);
 }
 
 /* 牌背：暗纹 + 中心徽章感（颜色由 .dp-game-root 上 --dp-card-back-* 随主题切换） */
@@ -100,7 +100,7 @@
     var(--dp-card-back-base);
   color: var(--dp-card-back-fg);
   font-weight: 900;
-  font-size: 20px;
+  font-size: var(--dp-card-community-back-font-size, 20px);
   text-shadow: var(--dp-card-back-text-shadow);
   border: 1px solid var(--dp-card-back-border);
   box-shadow: var(--dp-card-back-shadow-idle);

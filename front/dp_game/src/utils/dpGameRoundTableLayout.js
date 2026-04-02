@@ -106,6 +106,20 @@ export function seatFeltMarkerRoundTableStyle(displayIdx, total, viewerSeatedAtT
   return nudgeSeatTowardTableCenter(displayIdx, total, inward, viewerSeatedAtTable, stage)
 }
 
+/**
+ * 桌面行动倒计时圆环：沿「桌心 ↔ 座位」射线，比台呢标（D/SB/BB）更靠桌心，避免压住标与玩家卡。
+ * inward 须大于 seatFeltMarkerRoundTableStyle，使顺序为：桌心 → 计时器 → 标 → 玩家卡。
+ */
+export function actionTimerOrbitRoundTableStyle(displayIdx, total, viewerSeatedAtTable, stage) {
+  var inward = 0.56
+  if (typeof window !== 'undefined') {
+    var w = window.innerWidth
+    if (w <= 600) inward = 0.32
+    else if (w <= 900) inward = 0.44
+  }
+  return nudgeSeatTowardTableCenter(displayIdx, total, inward, viewerSeatedAtTable, stage)
+}
+
 export function muckPileRoundTableStyle(stage, playersDisplayOrderLength, dealerDisplayIndex, viewerSeatedAtTable) {
   if (stage === 'showdown' || stage === 'settled') {
     return {

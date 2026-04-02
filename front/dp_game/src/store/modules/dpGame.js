@@ -59,7 +59,9 @@ function initialState() {
     showMobileHandSheet: false,
     showMobileActionSheet: false,
     heroHoleDealIntroDone: false,
-    _settlementMusicStartedForHand: null
+    _settlementMusicStartedForHand: null,
+    /** 后端 autoSettle 后写入的「场上筹码并列最高」昵称，未结算过为空 */
+    chipLeaderNicknames: []
   }
 }
 
@@ -268,6 +270,7 @@ export default {
       var list = room.waitNextHand || []
       var nick = state.user && state.user.nickname
       state.nextHandReady = !!(nick && list.indexOf(nick) !== -1)
+      state.chipLeaderNicknames = room.chipLeaderNicknames || []
     },
     SET_LOADING: function (state, v) {
       state.loading = !!v

@@ -1,14 +1,14 @@
 /* 扑克牌 — 华丽质感 + 动画（公共牌、手牌、牌型说明共用） */
 .card-base {
-  width: 44px;
-  height: 62px;
-  border-radius: 6px;
+  width: var(--dp-card-base-width, 44px);
+  height: var(--dp-card-base-height, 62px);
+  border-radius: var(--dp-card-base-radius, 6px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: #f5f5f5;
   font-weight: 800;
-  font-size: 18px;
+  font-size: var(--dp-card-base-font-size, 18px);
   font-family: 'Garamond', 'Georgia', serif;
   text-shadow:
     0 1px 0 rgba(0, 0, 0, 0.45),
@@ -265,7 +265,7 @@
   filter: none;
 }
 
-/* 连胜玩家卡片 */
+/* 场上筹码最多（可并列）玩家底牌区光效；类名历史原因仍叫 win-streak */
 .player-card--win-streak {
   position: relative;
   overflow: visible;
