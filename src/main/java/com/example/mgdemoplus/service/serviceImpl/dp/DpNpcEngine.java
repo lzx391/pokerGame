@@ -2834,14 +2834,14 @@ public final class DpNpcEngine {
                 if (room != null && room.getCommunityCards() != null && !room.getCommunityCards().isEmpty()) {
                     boardStr = String.join(",", room.getCommunityCards());
                 }
-                System.out.println("[SHARK][room=" + rid + "] ENGINE ENTER bot=" + bn
-                        + " stage=" + stg
-                        + " callAmount=" + callAmount
-                        + " curBTC=" + (room != null ? room.getCurrentBetToCall() : -1)
-                        + " botBet=" + (bot != null ? bot.getBet() : -1)
-                        + " pot=" + (room != null ? room.getPot() : -1)
-                        + " hole=" + holeStr
-                        + " board=" + boardStr);
+                // System.out.println("[SHARK][room=" + rid + "] ENGINE ENTER bot=" + bn
+                //         + " stage=" + stg
+                //         + " callAmount=" + callAmount
+                //         + " curBTC=" + (room != null ? room.getCurrentBetToCall() : -1)
+                //         + " botBet=" + (bot != null ? bot.getBet() : -1)
+                //         + " pot=" + (room != null ? room.getPot() : -1)
+                //         + " hole=" + holeStr
+                //         + " board=" + boardStr);
 
                 // 额外打印一条“桌面快照”：所有在局内对手的关键状态，便于离线分析 Shark 决策是否合理。
                 if (room != null && room.getPlayers() != null) {
@@ -2857,7 +2857,7 @@ public final class DpNpcEngine {
                                 .append(", left=").append(p.isLeftThisHand())
                                 .append("}");
                     }
-                    System.out.println(sb.toString());
+                    // System.out.println(sb.toString());
                 }
                 BoardDanger bd = boardDanger;
                 SimpleStrength st = strength;

@@ -293,17 +293,32 @@ public class DpRoomServiceImpl {
         int size = r.getPlayers().size();//玩家数量
         int startIdx = r.getCurrentActorIndex();//当前行动者下标
         //这里是检测本轮剩两个玩家时，当前玩家弃牌之后，应该直接推进，而不是等另一个玩家点一下过牌
-        int stillNotFoldCount = 0;//本轮还剩未弃牌的玩家数量
-        for(DpPlayer p : r.getPlayers()){
-            if(!p.isLeftThisHand() && !p.isFold()&&!p.isActed()){
-                stillNotFoldCount++;
-            }
-        }
-        if(stillNotFoldCount == 1){
-            System.out.println("走弃牌直接结算逻辑");
+        //方法一：
+        if(countPlayersStillInHand(r)==1){
+            // System.out.println("走弃牌直接结算逻辑");
             r.setCurrentActorIndex(-1);
             return;
         }
+        //方法二：
+        // int outGameCount = 0;//算僵尸牌和弃牌者数量
+        // for(DpPlayer p : r.getPlayers()){
+        //     if(p.isLeftThisHand() || p.isFold()){
+        //         outGameCount++;
+        //     }
+        // }
+        
+        // if(outGameCount+1==r.getPlayers().size()){//如果差一个，就走直接弃牌逻辑，这里先算不合法的数量，因为算合法的数量会造成正常对局最后一个玩家不能行动
+        //     System.out.println("走弃牌直接结算逻辑");
+        //     System.out.println("僵尸和弃牌者数量为:"+outGameCount);
+        //     r.setCurrentActorIndex(-1);
+        //     return;
+        // }
+        //方法三：
+        // if(isOnlyOnePlayerStillInHandAndNotActedAndFold(r)){
+        //     System.out.println("走弃牌直接结算逻辑");
+        //     r.setCurrentActorIndex(-1);
+        //     return;
+        // }
         for (int i = 1; i <= size; i++) {//循环玩家数量
             int nextIdx = (startIdx + i) % size;
             DpPlayer nextP = r.getPlayers().get(nextIdx);//下一个玩家
@@ -1080,6 +1095,7 @@ public class DpRoomServiceImpl {
 
         // 否则按正常逻辑找下一位行动者
         int newIndex = findFirstActorAfterDealer(r);
+        //原来剩最后一个人手动连推
         int stillInCount = countPlayersStillInHand(r);
         //弃牌剩一个人时，直接收池
         if (newIndex >= 0 && stillInCount <= 1) {
@@ -1111,7 +1127,19 @@ public class DpRoomServiceImpl {
         }
         return count;
     }
-
+    //这个是倒数第二个人弃牌之后直接触发连推的逻辑
+    private int countPlayersStillInHandAndNotActed(DpRoom r) {
+        //这里是规避两个人玩的时候出现逻辑错误
+        if (r == null || r.getPlayers() == null || r.getPlayers().size() <= 2) return 0;
+        int count = 0;
+        for (DpPlayer p : r.getPlayers()) {
+            if (!p.isLeftThisHand() && !p.isFold()&&!p.isActed()) count++;
+        }
+        return count;
+    }
+    private boolean isOnlyOnePlayerStillInHandAndNotActedAndFold(DpRoom r) {
+        return countPlayersStillInHandAndNotActed(r) == 1;
+    }
     /**
      * 判断后续街是否已经不可能再出现新的下注：
      * - 仍在本手牌中的玩家中，非 all-in 的人数 <= 1。
