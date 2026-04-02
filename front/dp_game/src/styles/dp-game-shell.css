@@ -155,6 +155,55 @@
 }
 
 /*
+ * 宽屏：与窄屏同一套「根视口封顶 + 仅主区滚」，避免摊牌/结算时 12 点方向座位被裁切且 scrollTop 不可为负；
+ * 圆桌在主区内 margin:auto 垂直居中，减少「中间空、上下挤」的失调感。
+ */
+@media (min-width: 901px) {
+  .dp-game-root {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+    max-height: 100dvh;
+    max-height: 100svh;
+    overflow: hidden;
+  }
+
+  .dp-game-root > .dp-game-layout {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .dp-game-root .dp-game-layout__main {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .dp-game-root .dp-game-layout__main > .dp-game-table {
+    flex: 0 1 auto;
+    min-height: min-content;
+    width: 100%;
+    margin-top: auto;
+    margin-bottom: auto;
+  }
+}
+
+/* 摊牌/结算：主区顶留白，避免座位上沿牌型/最佳五张被 overflow 裁切（负向滚动不可用） */
+.dp-game-root[data-dp-stage='showdown'] .dp-game-layout__main,
+.dp-game-root[data-dp-stage='settled'] .dp-game-layout__main {
+  padding-top: clamp(16px, 4.2vw, 52px);
+  scroll-padding-top: clamp(16px, 4.2vw, 52px);
+}
+
+/*
  * 全屏 / 伪全屏：根节点固定视口高度且自身不滚；滚动发生在 .dp-game-layout__main 内，
  * 底栏在 footer 占文档流，不再 position:fixed，从结构上避免挡座位。
  */
@@ -221,6 +270,25 @@
   flex-direction: column;
   margin-top: 4px;
   margin-bottom: 6px;
+}
+
+/* 宽屏全屏：主区已 flex，圆桌用 auto 边距垂直居中（覆盖上一段固定 margin，避免与 ≥901px 布局冲突） */
+@media (min-width: 901px) {
+  .dp-game-root:fullscreen .dp-game-layout__main > .dp-game-table,
+  .dp-game-root:-webkit-full-screen .dp-game-layout__main > .dp-game-table,
+  .dp-game-root.dp-game-root--layout-fs .dp-game-layout__main > .dp-game-table,
+  .dp-game-root.dp-game-root--pseudo-fs .dp-game-layout__main > .dp-game-table {
+    margin-top: auto;
+    margin-bottom: auto;
+  }
+
+  .dp-game-root:fullscreen .dp-game-layout__main,
+  .dp-game-root:-webkit-full-screen .dp-game-layout__main,
+  .dp-game-root.dp-game-root--layout-fs .dp-game-layout__main,
+  .dp-game-root.dp-game-root--pseudo-fs .dp-game-layout__main {
+    display: flex;
+    flex-direction: column;
+  }
 }
 
 .dp-game-root:fullscreen .dp-game-table__layout,
