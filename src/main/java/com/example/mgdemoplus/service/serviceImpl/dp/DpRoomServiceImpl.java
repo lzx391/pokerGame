@@ -290,19 +290,30 @@ public class DpRoomServiceImpl {
      * 跳过：已弃牌、已全下、已行动且下注已跟齐 的玩家
      */
     private void moveToNextValidActor(DpRoom r) {
-        int size = r.getPlayers().size();
-        int startIdx = r.getCurrentActorIndex();
-
-        for (int i = 1; i <= size; i++) {
+        int size = r.getPlayers().size();//玩家数量
+        int startIdx = r.getCurrentActorIndex();//当前行动者下标
+        //这里是检测本轮剩两个玩家时，当前玩家弃牌之后，应该直接推进，而不是等另一个玩家点一下过牌
+        int stillNotFoldCount = 0;//本轮还剩未弃牌的玩家数量
+        for(DpPlayer p : r.getPlayers()){
+            if(!p.isLeftThisHand() && !p.isFold()&&!p.isActed()){
+                stillNotFoldCount++;
+            }
+        }
+        if(stillNotFoldCount == 1){
+            System.out.println("走弃牌直接结算逻辑");
+            r.setCurrentActorIndex(-1);
+            return;
+        }
+        for (int i = 1; i <= size; i++) {//循环玩家数量
             int nextIdx = (startIdx + i) % size;
-            DpPlayer nextP = r.getPlayers().get(nextIdx);
+            DpPlayer nextP = r.getPlayers().get(nextIdx);//下一个玩家
 
             // 跳过已离线位；没弃牌、没全下、且（还没行动 或 下注不够）
             if (nextP.isLeftThisHand()) continue;
-            if (!nextP.isFold() && !nextP.isAllIn()
-                    && (!nextP.isActed() || nextP.getBet() < r.getCurrentBetToCall())) {
-                r.setCurrentActorIndex(nextIdx);
-                r.setLastActionTime(System.currentTimeMillis());
+            if (!nextP.isFold() && !nextP.isAllIn()//没弃牌、没全下
+                    && (!nextP.isActed() || nextP.getBet() < r.getCurrentBetToCall())) {//没行动或下注不够
+                r.setCurrentActorIndex(nextIdx);//设置下一个玩家为当前行动者
+                r.setLastActionTime(System.currentTimeMillis());//设置上次行动时间
                 return;
             }
         }
@@ -985,7 +996,7 @@ public class DpRoomServiceImpl {
         DpPlayer p = r.getPlayers().get(r.getCurrentActorIndex());
         if (!p.getNickname().equals(nickname) || p.isFold()) return false;
 
-        p.setFold(true);
+        p.setFold(true);//弃牌的人没设置行动状态，只有bet的人才设置
         // Shark 专用逐街动作日志（只在桌上存在 BOT_Shark 时启用）
         DpNpcSharkHandActionLog.recordFold(r, p, r.getPot());
         DpHandHistoryObserved.recordFold(r, p, r.getPot());
@@ -1060,7 +1071,7 @@ public class DpRoomServiceImpl {
                 return false;
         }
 
-        // 非 showdown 阶段，优先判断后续是否还可能有新的下注
+        // 非 showdown 阶段，优先判断后续是否还可能有新的下注，检测全员或剩一人没有All in
         if (noFurtherBettingPossible(r)) {
             // 已经不可能再出现新的下注：不设置行动者，让外层循环自动连推到摊牌
             r.setCurrentActorIndex(-1);
@@ -1070,11 +1081,13 @@ public class DpRoomServiceImpl {
         // 否则按正常逻辑找下一位行动者
         int newIndex = findFirstActorAfterDealer(r);
         int stillInCount = countPlayersStillInHand(r);
+        //弃牌剩一个人时，直接收池
         if (newIndex >= 0 && stillInCount <= 1) {
             // 只剩一人未弃牌，等价于直接收池
             r.setCurrentActorIndex(-1);
             return true;
         }
+        //正常推进
         if (newIndex >= 0) {
             r.setCurrentActorIndex(newIndex);
             r.setLastActionTime(System.currentTimeMillis());

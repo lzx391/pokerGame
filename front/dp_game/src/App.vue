@@ -1,5 +1,5 @@
 <template>
-  <div id="app" :class="{ 'app--lobby': isLobbyRoute }">
+  <div id="app" :class="{ 'app--lobby': isLobbyRoute, 'app--dp-game': isGameRoute }">
     <!-- 登录 / 注册 页面：带有导航和盒子布局 -->
     <div v-if="isAuthPage" class="app-container">
       <h1 class="app-title">DP GAME</h1>
@@ -13,7 +13,7 @@
     </div>
 
     <!-- 其他路由：全屏展示，不显示登录 / 注册按钮 -->
-    <div v-else class="full-page" :class="{ 'full-page--lobby': isLobbyRoute }">
+    <div v-else class="full-page" :class="{ 'full-page--lobby': isLobbyRoute, 'full-page--dp-game': isGameRoute }">
       <router-view></router-view>
     </div>
   </div>
@@ -31,6 +31,10 @@ export default {
     isLobbyRoute() {
       const p = this.$route.path
       return p === '/home' || p.startsWith('/hand-history') || p === '/music-upload'
+    },
+    /** 对局页：铺满视口、与 .dp-game-root 组成 flex 链，减少底部露灰/白边 */
+    isGameRoute() {
+      return this.$route.path.startsWith('/game')
     }
   }
 }
@@ -145,5 +149,28 @@ body {
 
 .full-page--lobby {
   min-height: 0;
+}
+
+/* 对局：#app 与全屏容器拉满动态视口，子级 .dp-game-root flex:1 避免平板/安全区下露浅灰底 */
+#app.app--dp-game {
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  display: flex;
+  flex-direction: column;
+}
+
+.full-page--dp-game {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+}
+
+.full-page--dp-game > .dp-game-root {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
 }
 </style>

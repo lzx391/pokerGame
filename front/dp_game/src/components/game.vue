@@ -9,6 +9,7 @@
       }"
       :data-dp-game-theme="gameUiTheme"
       :data-dp-eco-mode="ecoMode ? 'true' : 'false'"
+      :data-dp-stage="stage"
   >
     <!-- 新布局：顶栏 | 主区(仅此滚动圆桌) | 底栏(文档流占位，不再 position:fixed 遮挡桌面) -->
     <div class="dp-game-layout">
