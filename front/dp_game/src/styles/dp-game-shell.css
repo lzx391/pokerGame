@@ -185,6 +185,9 @@
     -webkit-overflow-scrolling: touch;
     display: flex;
     flex-direction: column;
+    /* 大屏：圆桌整体上移易贴顶栏，主区顶内边距拉开与顶栏距离（与摊牌/结算的 data-dp-stage 顶留白叠加时后者特异性更高） */
+    padding-top: clamp(80px, 3.2vmin, 1000px);
+    /* scroll-padding-top: clamp(14px, 2.8vmin, 32px); */
   }
 
   .dp-game-root .dp-game-layout__main > .dp-game-table {
@@ -199,7 +202,7 @@
 /* 摊牌/结算：主区顶留白，避免座位上沿牌型/最佳五张被 overflow 裁切（负向滚动不可用） */
 .dp-game-root[data-dp-stage='showdown'] .dp-game-layout__main,
 .dp-game-root[data-dp-stage='settled'] .dp-game-layout__main {
-  padding-top: clamp(16px, 4.2vw, 52px);
+  padding-top: clamp(98px, 4.2vw, 160px);
   scroll-padding-top: clamp(16px, 4.2vw, 52px);
 }
 

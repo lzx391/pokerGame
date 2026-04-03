@@ -241,10 +241,10 @@ public class DpLlmNpcDecisionService {
         System.out.println(userPrompt);
         try {
             //把大模型key id 提示词 信息包输入进去
-            String raw = llmNpc.chat(LLM_SYSTEM_PROMPT, userPrompt);
+            String raw = llmNpc.chat(LLM_SYSTEM_PROMPT, userPrompt);//这里是真正与大模型平台交互的地方
             System.out.println("======== [BOT_LLM] 模型返回原文 ========");
             System.out.println(raw == null ? "(null)" : raw);
-            DpNpcEngine.BotAction parsed = parseModelReply(raw);
+            DpNpcEngine.BotAction parsed = parseModelReply(raw);//解析
             if (parsed == null && raw != null && !raw.isBlank()) {
                 System.out.println("[BOT_LLM] 提示：模型有正文但 JSON 未解析成动作，主线程将打印【本地决策】");
             }

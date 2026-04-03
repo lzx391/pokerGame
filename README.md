@@ -3,6 +3,7 @@
 ### DP游戏文档链接
 
 - [DP游戏详细文档（规则、接口、开发与维护）](docs/DPGAME.md)
+- [对局页布局调参（顶栏 / 圆桌 / 底栏间距，`dp-game-shell.css`）](front/dp_game/docs/GAME_LAYOUT_TUNING_README.md)
 - [DP 曲库：`webPath`、磁盘目录与试听代理流程](docs/DpMusicWebPath.md)
 
 ### 游戏对局 WebSocket（无 Redis）
