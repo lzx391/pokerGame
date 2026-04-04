@@ -11,6 +11,8 @@ import com.example.mgdemoplus.mapper.dp.DpUserMapper;
 import com.example.mgdemoplus.service.DpHandHistoryService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
@@ -41,7 +43,7 @@ public class DpHandHistoryServiceImpl implements DpHandHistoryService{
         this.objectMapper = objectMapper;
     }
     /**
-     * 两人共同参与过的对局：在数据库里用同一手牌上两条参与者 JOIN（等价于交集），再 COUNT + LIMIT 分页。
+     * 两人共同参与过的对局：同一手牌上两条参与者 JOIN；分页由 PageHelper + PageInfo（总条数 + 当前页）。
      * 列表行取「当前用户」一侧的座位与净筹码（与 /list 一致）。
      */
     public DpHandHistoryPageDTO checkUserAndOtherPlayerHandHistoryList(
@@ -64,8 +66,6 @@ public class DpHandHistoryServiceImpl implements DpHandHistoryService{
             return out;
         }
 
-        int offset = (out.getPage() - 1) * size;
-
         if (userId != null) {
             DpUser u = dpUserMapper.selectById(userId);
             if (u == null || !nickname.equals(u.getNickname())) {
@@ -73,29 +73,20 @@ public class DpHandHistoryServiceImpl implements DpHandHistoryService{
                 out.setRecords(Collections.emptyList());
                 return out;
             }
-            long total;
-            List<DpHandHistoryListItemDTO> records;
-            if (otherUserId != null) {
-                total = queryMapper.countCommonHandsBothUserIds(userId, nickname, otherUserId, otherNickname);
-                records = total == 0
-                        ? Collections.emptyList()
-                        : queryMapper.listCommonHandsBothUserIds(userId, nickname, otherUserId, otherNickname, offset, size);
-            } else {
-                total = queryMapper.countCommonHandsCurrentUserIdOtherNickname(userId, nickname, otherNickname);
-                records = total == 0
-                        ? Collections.emptyList()
-                        : queryMapper.listCommonHandsCurrentUserIdOtherNickname(userId, nickname, otherNickname, offset, size);
-            }
-            out.setTotal(total);
+            PageHelper.startPage(out.getPage(), size);
+            List<DpHandHistoryListItemDTO> records = otherUserId != null
+                    ? queryMapper.listCommonHandsBothUserIds(userId, nickname, otherUserId, otherNickname)
+                    : queryMapper.listCommonHandsCurrentUserIdOtherNickname(userId, nickname, otherNickname);
+            PageInfo<DpHandHistoryListItemDTO> pageInfo = new PageInfo<>(records);
+            out.setTotal(pageInfo.getTotal());
             out.setRecords(records);
             return out;
         }
 
-        long total = queryMapper.countCommonHandsNicknameOnly(nickname, otherNickname);
-        List<DpHandHistoryListItemDTO> records = total == 0
-                ? Collections.emptyList()
-                : queryMapper.listCommonHandsNicknameOnly(nickname, otherNickname, offset, size);
-        out.setTotal(total);
+        PageHelper.startPage(out.getPage(), size);
+        List<DpHandHistoryListItemDTO> records = queryMapper.listCommonHandsNicknameOnly(nickname, otherNickname);
+        PageInfo<DpHandHistoryListItemDTO> pageInfo = new PageInfo<>(records);
+        out.setTotal(pageInfo.getTotal());
         out.setRecords(records);
         return out;
     }
@@ -124,8 +115,6 @@ public class DpHandHistoryServiceImpl implements DpHandHistoryService{
             out.setRecords(Collections.emptyList());
             return out;
         }
-//计算偏移量
-        int offset = (out.getPage() - 1) * size;//略过多少页的大小
 
         if (userId != null) {
             DpUser u = dpUserMapper.selectById(userId);
@@ -134,21 +123,18 @@ public class DpHandHistoryServiceImpl implements DpHandHistoryService{
                 out.setRecords(Collections.emptyList());
                 return out;
             }
-            //算一共有多少条记录，从偏移基准那里开始
-            long total = queryMapper.countForUserWithId(userId, nickname);
-            out.setTotal(total);//如果没记录就是空列表，有记录就查一下
-            List<DpHandHistoryListItemDTO> records = total == 0
-                    ? Collections.emptyList()
-                    : queryMapper.listForUserWithId(userId, nickname, offset, size);
+            PageHelper.startPage(out.getPage(), size);
+            List<DpHandHistoryListItemDTO> records = queryMapper.listForUserWithId(userId, nickname);
+            PageInfo<DpHandHistoryListItemDTO> pageInfo = new PageInfo<>(records);
+            out.setTotal(pageInfo.getTotal());
             out.setRecords(records);
             return out;
         }
 
-        long total = queryMapper.countForNicknameOnly(nickname);
-        out.setTotal(total);
-        List<DpHandHistoryListItemDTO> records = total == 0
-                ? Collections.emptyList()
-                : queryMapper.listForNicknameOnly(nickname, offset, size);
+        PageHelper.startPage(out.getPage(), size);//这里是计算偏移，代替limit
+        List<DpHandHistoryListItemDTO> records = queryMapper.listForNicknameOnly(nickname);
+        PageInfo<DpHandHistoryListItemDTO> pageInfo = new PageInfo<>(records);
+        out.setTotal(pageInfo.getTotal());//算出总条数
         out.setRecords(records);
         return out;
     }

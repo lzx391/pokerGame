@@ -21,7 +21,7 @@ public class DpHandHistoryController {
     }
 
     /**
-     * 我参与过的对局摘要分页（参与者表 JOIN 牌谱主表；无 PageHelper，使用 COUNT + LIMIT）。
+     * 我参与过的对局摘要分页（参与者表 JOIN 牌谱主表；PageHelper 分页，总条数见 PageInfo）。
      *
      * @param nickname 必填，与登录一致
      * @param userId   可选；若传则须与 dp_user 中该 id 的昵称一致

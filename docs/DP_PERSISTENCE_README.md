@@ -195,5 +195,7 @@
 - 由房间服务类的**autoSettle**方法开始->DpNpcSharkObservedHandHistory.finalizeHand处理->DpNpcSharkObservedHandHistory.ObservedHandRecord类->
 **DpNpcObservedHandHistoryPersistService**负责对局信息落库和更新用户对局关联表，存对局信息的时候用的是json形式，先把DpNpcSharkObservedHandHistory.ObservedHandRecord类转化成playload类，然后playload->json格式->**用DpObservedHandParticipant**和**DpObservedHandHistory**作为最终落库的实体  
 ## 以下是对finalizeHand方法的剖析  
-首先**DpNpcSharkObservedHandHistory**这个类整个就是负责监控各个行动并写入内存的，里面有很多方法分别在开始，翻前行动前，翻前行动后的bet fold 等方法插眼，最后finalizeHand打包信息，并挂到近几手的内存对局队列中。
+首先**DpNpcSharkObservedHandHistory**这个类整个就是负责监控各个行动并写入内存的，里面有很多方法分别在开始，翻前行动前，翻前行动后的bet fold 等方法插眼，最后finalizeHand打包信息，并挂到近几手的内存对局队列中。  
+## 4月4日加入了分页插件  
+分页插件用法，首先在pom文件引入插件依赖，在application配置文件配置，在服务类调用mapper层之前，把页码和页数输入插件方法，会自动计算偏移并代替limit的sql，最后PageInfo<DpHandHistoryListItemDTO> pageInfo = new PageInfo<>(records);是负责获取总数，页码，页中记录数等信息
 
