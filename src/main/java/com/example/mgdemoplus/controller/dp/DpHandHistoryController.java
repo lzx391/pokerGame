@@ -2,7 +2,8 @@ package com.example.mgdemoplus.controller.dp;
 
 import com.example.mgdemoplus.dto.DpHandHistoryDetailDTO;
 import com.example.mgdemoplus.dto.DpHandHistoryPageDTO;
-import com.example.mgdemoplus.service.serviceImpl.dp.DpHandHistoryService;
+import com.example.mgdemoplus.service.DpHandHistoryService;
+// import com.example.mgdemoplus.service.serviceImpl.dp.DpHandHistoryServiceImpl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -13,8 +14,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/dpHandHistory")
 public class DpHandHistoryController {
 
+    // private final DpHandHistoryServiceImpl handHistoryService;
     private final DpHandHistoryService handHistoryService;
-
     public DpHandHistoryController(DpHandHistoryService handHistoryService) {
         this.handHistoryService = handHistoryService;
     }
@@ -36,7 +37,8 @@ public class DpHandHistoryController {
     ) {
         return handHistoryService.listMyHandsPage(userId, nickname, page, pageSize);
     }
-
+    
+    
     /**
      * 单条牌谱回放数据（payload）；仅参与者可读，他人洞牌已脱敏。
      */
@@ -51,5 +53,17 @@ public class DpHandHistoryController {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(dto);
+    }
+    
+    @GetMapping("/checkUserAndOtherPlayerHandHistoryList")
+    public DpHandHistoryPageDTO checkUserAndOtherPlayerHandHistoryList(
+        @RequestParam String nickname,
+        @RequestParam(required = false) Integer userId,
+        @RequestParam String otherNickname,
+        @RequestParam(required = false) Integer otherUserId,
+        @RequestParam(defaultValue = "1") int page,
+        @RequestParam(defaultValue = "10") int pageSize
+    ) {
+        return handHistoryService.checkUserAndOtherPlayerHandHistoryList(userId,otherNickname, nickname, otherUserId,page, pageSize);
     }
 }

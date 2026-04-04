@@ -111,4 +111,133 @@ public interface DpHandHistoryQueryMapper {
             @Param("handHistoryId") long handHistoryId,
             @Param("nickname") String nickname
     );
+
+    /**
+     * 双方仅按昵称快照：同一 hand 上同时存在两人的参与者行。
+     */
+    @Select("""
+            SELECT COUNT(DISTINCT h.id)
+            FROM dp_observed_hand_history h
+            INNER JOIN dp_observed_hand_participant p ON p.hand_history_id = h.id
+                AND p.nickname_snapshot = #{nickname}
+            INNER JOIN dp_observed_hand_participant o ON o.hand_history_id = h.id
+                AND o.nickname_snapshot = #{otherNickname}
+            """)
+    long countCommonHandsNicknameOnly(
+            @Param("nickname") String nickname,
+            @Param("otherNickname") String otherNickname
+    );
+
+    @Select("""
+            SELECT h.id AS handHistoryId, h.room_id AS roomId, h.hand_seed AS handSeed,
+                   h.started_at_ms AS startedAtMs, h.ended_at_ms AS endedAtMs,
+                   h.small_blind_chips AS smallBlindChips, h.big_blind_chips AS bigBlindChips,
+                   h.dealer_nickname AS dealerNickname,
+                   h.main_pot_before_settlement AS mainPotBeforeSettlement,
+                   p.seat_index AS seatIndex, p.is_dealer AS dealer, p.blind_pos AS blindPos,
+                   p.net_chips AS netChips
+            FROM dp_observed_hand_history h
+            INNER JOIN dp_observed_hand_participant p ON p.hand_history_id = h.id
+                AND p.nickname_snapshot = #{nickname}
+            INNER JOIN dp_observed_hand_participant o ON o.hand_history_id = h.id
+                AND o.nickname_snapshot = #{otherNickname}
+            ORDER BY h.ended_at_ms DESC
+            LIMIT #{offset}, #{pageSize}
+            """)
+    List<DpHandHistoryListItemDTO> listCommonHandsNicknameOnly(
+            @Param("nickname") String nickname,
+            @Param("otherNickname") String otherNickname,
+            @Param("offset") int offset,
+            @Param("pageSize") int pageSize
+    );
+
+    /**
+     * 当前用户按 userId/昵称规则；对方仅按昵称快照。
+     */
+    @Select("""
+            SELECT COUNT(DISTINCT h.id)
+            FROM dp_observed_hand_history h
+            INNER JOIN dp_observed_hand_participant p ON p.hand_history_id = h.id
+                AND (p.user_id = #{userId}
+                     OR (p.nickname_snapshot = #{nickname} AND p.user_id IS NULL))
+            INNER JOIN dp_observed_hand_participant o ON o.hand_history_id = h.id
+                AND o.nickname_snapshot = #{otherNickname}
+            """)
+    long countCommonHandsCurrentUserIdOtherNickname(
+            @Param("userId") int userId,
+            @Param("nickname") String nickname,
+            @Param("otherNickname") String otherNickname
+    );
+
+    @Select("""
+            SELECT h.id AS handHistoryId, h.room_id AS roomId, h.hand_seed AS handSeed,
+                   h.started_at_ms AS startedAtMs, h.ended_at_ms AS endedAtMs,
+                   h.small_blind_chips AS smallBlindChips, h.big_blind_chips AS bigBlindChips,
+                   h.dealer_nickname AS dealerNickname,
+                   h.main_pot_before_settlement AS mainPotBeforeSettlement,
+                   p.seat_index AS seatIndex, p.is_dealer AS dealer, p.blind_pos AS blindPos,
+                   p.net_chips AS netChips
+            FROM dp_observed_hand_history h
+            INNER JOIN dp_observed_hand_participant p ON p.hand_history_id = h.id
+                AND (p.user_id = #{userId}
+                     OR (p.nickname_snapshot = #{nickname} AND p.user_id IS NULL))
+            INNER JOIN dp_observed_hand_participant o ON o.hand_history_id = h.id
+                AND o.nickname_snapshot = #{otherNickname}
+            ORDER BY h.ended_at_ms DESC
+            LIMIT #{offset}, #{pageSize}
+            """)
+    List<DpHandHistoryListItemDTO> listCommonHandsCurrentUserIdOtherNickname(
+            @Param("userId") int userId,
+            @Param("nickname") String nickname,
+            @Param("otherNickname") String otherNickname,
+            @Param("offset") int offset,
+            @Param("pageSize") int pageSize
+    );
+
+    /**
+     * 双方均按 userId/昵称规则（与列表权限一致）。
+     */
+    @Select("""
+            SELECT COUNT(DISTINCT h.id)
+            FROM dp_observed_hand_history h
+            INNER JOIN dp_observed_hand_participant p ON p.hand_history_id = h.id
+                AND (p.user_id = #{userId}
+                     OR (p.nickname_snapshot = #{nickname} AND p.user_id IS NULL))
+            INNER JOIN dp_observed_hand_participant o ON o.hand_history_id = h.id
+                AND (o.user_id = #{otherUserId}
+                     OR (o.nickname_snapshot = #{otherNickname} AND o.user_id IS NULL))
+            """)
+    long countCommonHandsBothUserIds(
+            @Param("userId") int userId,
+            @Param("nickname") String nickname,
+            @Param("otherUserId") int otherUserId,
+            @Param("otherNickname") String otherNickname
+    );
+
+    @Select("""
+            SELECT h.id AS handHistoryId, h.room_id AS roomId, h.hand_seed AS handSeed,
+                   h.started_at_ms AS startedAtMs, h.ended_at_ms AS endedAtMs,
+                   h.small_blind_chips AS smallBlindChips, h.big_blind_chips AS bigBlindChips,
+                   h.dealer_nickname AS dealerNickname,
+                   h.main_pot_before_settlement AS mainPotBeforeSettlement,
+                   p.seat_index AS seatIndex, p.is_dealer AS dealer, p.blind_pos AS blindPos,
+                   p.net_chips AS netChips
+            FROM dp_observed_hand_history h
+            INNER JOIN dp_observed_hand_participant p ON p.hand_history_id = h.id
+                AND (p.user_id = #{userId}
+                     OR (p.nickname_snapshot = #{nickname} AND p.user_id IS NULL))
+            INNER JOIN dp_observed_hand_participant o ON o.hand_history_id = h.id
+                AND (o.user_id = #{otherUserId}
+                     OR (o.nickname_snapshot = #{otherNickname} AND o.user_id IS NULL))
+            ORDER BY h.ended_at_ms DESC
+            LIMIT #{offset}, #{pageSize}
+            """)
+    List<DpHandHistoryListItemDTO> listCommonHandsBothUserIds(
+            @Param("userId") int userId,
+            @Param("nickname") String nickname,
+            @Param("otherUserId") int otherUserId,
+            @Param("otherNickname") String otherNickname,
+            @Param("offset") int offset,
+            @Param("pageSize") int pageSize
+    );
 }

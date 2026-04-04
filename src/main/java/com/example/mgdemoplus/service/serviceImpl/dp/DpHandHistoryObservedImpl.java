@@ -20,7 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>与 {@link DpNpcSharkHandActionLog} 并行：ActionLog 仍仅在桌上有 Shark 时启用；
  * 本类将结束的整手归档到环形缓冲，不依赖当手临时列表。</p>
  */
-final class DpHandHistoryObserved {
+final class DpHandHistoryObservedImpl {
     //本模块分为以下模块：
     //1. ActionType枚举：负责记录行动类型
     //2. ActionRecord类：负责记录行动
@@ -42,7 +42,7 @@ final class DpHandHistoryObserved {
     //18. recordFold方法：负责记录弃牌
     //19. recordBetLikeAction方法：负责记录行动
     //20. capturePotsBeforeClear方法：负责记录池
-    private DpHandHistoryObserved() {
+    private DpHandHistoryObservedImpl() {
     }
 
     /** 每房间最多保留的已完成手数（内存上限） */
