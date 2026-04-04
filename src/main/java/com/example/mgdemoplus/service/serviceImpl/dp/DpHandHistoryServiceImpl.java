@@ -8,6 +8,7 @@ import com.example.mgdemoplus.entity.dp.DpUser;
 import com.example.mgdemoplus.mapper.dp.DpHandHistoryQueryMapper;
 import com.example.mgdemoplus.mapper.dp.DpObservedHandHistoryMapper;
 import com.example.mgdemoplus.mapper.dp.DpUserMapper;
+import com.example.mgdemoplus.service.DpHandHistoryService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
@@ -17,7 +18,7 @@ import java.util.List;
 import java.util.Map;
 //这个服务类是负责前端查询返回的
 @Service
-public class DpHandHistoryService {
+public class DpHandHistoryServiceImpl implements DpHandHistoryService{
 
     private static final int DEFAULT_PAGE_SIZE = 10;
     private static final int MAX_PAGE_SIZE = 100;
@@ -28,7 +29,7 @@ public class DpHandHistoryService {
     //这里是为了将payload_json字段转换为Map<String, Object>对象
     private final ObjectMapper objectMapper;
 
-    public DpHandHistoryService(
+    public DpHandHistoryServiceImpl(
             DpHandHistoryQueryMapper queryMapper,
             DpUserMapper dpUserMapper,
             DpObservedHandHistoryMapper observedHandHistoryMapper,
@@ -39,7 +40,65 @@ public class DpHandHistoryService {
         this.observedHandHistoryMapper = observedHandHistoryMapper;
         this.objectMapper = objectMapper;
     }
+    /**
+     * 两人共同参与过的对局：在数据库里用同一手牌上两条参与者 JOIN（等价于交集），再 COUNT + LIMIT 分页。
+     * 列表行取「当前用户」一侧的座位与净筹码（与 /list 一致）。
+     */
+    public DpHandHistoryPageDTO checkUserAndOtherPlayerHandHistoryList(
+            Integer userId,
+            String otherNickname,
+            String nickname,
+            Integer otherUserId,
+            int page,
+            int pageSize
+    ) {
+        DpHandHistoryPageDTO out = new DpHandHistoryPageDTO();
+        out.setPage(Math.max(page, 1));
+        int size = pageSize > 0 ? pageSize : DEFAULT_PAGE_SIZE;
+        size = Math.min(size, MAX_PAGE_SIZE);
+        out.setPageSize(size);
 
+        if (nickname == null || nickname.isEmpty() || otherNickname == null || otherNickname.isEmpty()) {
+            out.setTotal(0);
+            out.setRecords(Collections.emptyList());
+            return out;
+        }
+
+        int offset = (out.getPage() - 1) * size;
+
+        if (userId != null) {
+            DpUser u = dpUserMapper.selectById(userId);
+            if (u == null || !nickname.equals(u.getNickname())) {
+                out.setTotal(0);
+                out.setRecords(Collections.emptyList());
+                return out;
+            }
+            long total;
+            List<DpHandHistoryListItemDTO> records;
+            if (otherUserId != null) {
+                total = queryMapper.countCommonHandsBothUserIds(userId, nickname, otherUserId, otherNickname);
+                records = total == 0
+                        ? Collections.emptyList()
+                        : queryMapper.listCommonHandsBothUserIds(userId, nickname, otherUserId, otherNickname, offset, size);
+            } else {
+                total = queryMapper.countCommonHandsCurrentUserIdOtherNickname(userId, nickname, otherNickname);
+                records = total == 0
+                        ? Collections.emptyList()
+                        : queryMapper.listCommonHandsCurrentUserIdOtherNickname(userId, nickname, otherNickname, offset, size);
+            }
+            out.setTotal(total);
+            out.setRecords(records);
+            return out;
+        }
+
+        long total = queryMapper.countCommonHandsNicknameOnly(nickname, otherNickname);
+        List<DpHandHistoryListItemDTO> records = total == 0
+                ? Collections.emptyList()
+                : queryMapper.listCommonHandsNicknameOnly(nickname, otherNickname, offset, size);
+        out.setTotal(total);
+        out.setRecords(records);
+        return out;
+    }
     /**
      * 当前登录用户（昵称必传；userId 若传须与 dp_user 中昵称一致）。
      *
@@ -55,9 +114,9 @@ public class DpHandHistoryService {
     //7. return out：返回DpHandHistoryPageDTO对象
     public DpHandHistoryPageDTO listMyHandsPage(Integer userId, String nickname, int page, int pageSize) {
         DpHandHistoryPageDTO out = new DpHandHistoryPageDTO();
-        out.setPage(Math.max(page, 1));
-        int size = pageSize > 0 ? pageSize : DEFAULT_PAGE_SIZE;
-        size = Math.min(size, MAX_PAGE_SIZE);
+        out.setPage(Math.max(page, 1));//方便分页查询
+        int size = pageSize > 0 ? pageSize : DEFAULT_PAGE_SIZE;//默认10条一页
+        size = Math.min(size, MAX_PAGE_SIZE);//最多100条一页
         out.setPageSize(size);
 
         if (nickname == null || nickname.isEmpty()) {
@@ -65,8 +124,8 @@ public class DpHandHistoryService {
             out.setRecords(Collections.emptyList());
             return out;
         }
-
-        int offset = (out.getPage() - 1) * size;
+//计算偏移量
+        int offset = (out.getPage() - 1) * size;//略过多少页的大小
 
         if (userId != null) {
             DpUser u = dpUserMapper.selectById(userId);
@@ -75,8 +134,9 @@ public class DpHandHistoryService {
                 out.setRecords(Collections.emptyList());
                 return out;
             }
+            //算一共有多少条记录，从偏移基准那里开始
             long total = queryMapper.countForUserWithId(userId, nickname);
-            out.setTotal(total);
+            out.setTotal(total);//如果没记录就是空列表，有记录就查一下
             List<DpHandHistoryListItemDTO> records = total == 0
                     ? Collections.emptyList()
                     : queryMapper.listForUserWithId(userId, nickname, offset, size);
@@ -122,6 +182,7 @@ public class DpHandHistoryService {
     //22. out.setPayload(payload)：设置payload
     //23. return out：返回DpHandHistoryDetailDTO对象
     public DpHandHistoryDetailDTO getDetail(long handHistoryId, Integer userId, String nickname) {
+
         if (nickname == null || nickname.isEmpty()) {
             return null;
         }
@@ -174,4 +235,5 @@ public class DpHandHistoryService {
         out.setPayload(payload);
         return out;
     }
+   
 }
