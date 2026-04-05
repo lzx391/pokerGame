@@ -1,8 +1,9 @@
-package com.example.mgdemoplus.service.serviceImpl;
+package com.example.mgdemoplus.service.serviceImpl.demo;
 
-import com.example.mgdemoplus.entity.Student;
-import com.example.mgdemoplus.mapper.StudentMapper;
-import com.example.mgdemoplus.service.StudentService;
+import com.example.mgdemoplus.entity.demo.Student;
+import com.example.mgdemoplus.mapper.demo.StudentMapper;
+import com.example.mgdemoplus.service.demo.StudentService;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 

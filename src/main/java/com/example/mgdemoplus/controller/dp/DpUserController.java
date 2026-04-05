@@ -1,7 +1,7 @@
 package com.example.mgdemoplus.controller.dp;
 
 import com.example.mgdemoplus.entity.dp.DpUser;
-import com.example.mgdemoplus.service.DpUserService;
+import com.example.mgdemoplus.service.dp.DpUserService;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;

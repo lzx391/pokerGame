@@ -1,7 +1,8 @@
-package com.example.mgdemoplus.controller;
+package com.example.mgdemoplus.controller.demo;
 
-import com.example.mgdemoplus.entity.Movie;
-import com.example.mgdemoplus.service.MovieService;
+import com.example.mgdemoplus.entity.demo.Movie;
+import com.example.mgdemoplus.service.demo.MovieService;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

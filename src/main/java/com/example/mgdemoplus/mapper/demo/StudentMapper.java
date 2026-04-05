@@ -1,8 +1,9 @@
-package com.example.mgdemoplus.mapper;
+package com.example.mgdemoplus.mapper.demo;
 
-import com.example.mgdemoplus.entity.Student;
 import org.apache.ibatis.annotations.*;
 import org.springframework.web.bind.annotation.DeleteMapping;
+
+import com.example.mgdemoplus.entity.demo.Student;
 
 import java.util.List;
 

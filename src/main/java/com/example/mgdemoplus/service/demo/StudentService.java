@@ -1,7 +1,8 @@
-package com.example.mgdemoplus.service;
+package com.example.mgdemoplus.service.demo;
 
-import com.example.mgdemoplus.entity.Student;
 import org.springframework.web.bind.annotation.RequestBody;
+
+import com.example.mgdemoplus.entity.demo.Student;
 
 import java.util.List;
 

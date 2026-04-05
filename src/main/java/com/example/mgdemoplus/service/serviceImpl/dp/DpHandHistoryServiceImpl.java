@@ -8,7 +8,7 @@ import com.example.mgdemoplus.entity.dp.DpUser;
 import com.example.mgdemoplus.mapper.dp.DpHandHistoryQueryMapper;
 import com.example.mgdemoplus.mapper.dp.DpObservedHandHistoryMapper;
 import com.example.mgdemoplus.mapper.dp.DpUserMapper;
-import com.example.mgdemoplus.service.DpHandHistoryService;
+import com.example.mgdemoplus.service.dp.DpHandHistoryService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.pagehelper.PageHelper;

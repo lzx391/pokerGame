@@ -1,7 +1,8 @@
-package com.example.mgdemoplus.service.serviceImpl;
+package com.example.mgdemoplus.service.serviceImpl.demo;
 
-import com.example.mgdemoplus.mapper.UploadMapper;
-import com.example.mgdemoplus.service.UploadService;
+import com.example.mgdemoplus.mapper.demo.UploadMapper;
+import com.example.mgdemoplus.service.demo.UploadService;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
