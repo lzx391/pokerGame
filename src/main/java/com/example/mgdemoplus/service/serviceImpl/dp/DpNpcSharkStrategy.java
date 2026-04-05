@@ -2,11 +2,12 @@ package com.example.mgdemoplus.service.serviceImpl.dp;
 
 import com.example.mgdemoplus.entity.dp.DpPlayer;
 import com.example.mgdemoplus.entity.dp.DpRoom;
+import com.example.mgdemoplus.utils.dp.DpUtilSmartContext;
 import com.example.mgdemoplus.entity.dp.DpPlayerStats;
 
-import java.util.Random;
+import static com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator.SimpleStrength;
 
-import static com.example.mgdemoplus.service.serviceImpl.dp.DpUtilHandEvaluator.SimpleStrength;
+import java.util.Random;
 
 /**
  * 单独拆出来的 Shark 决策逻辑（只负责 SHARK 分支）。
