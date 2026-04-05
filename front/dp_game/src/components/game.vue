@@ -114,6 +114,7 @@ import GameDpGameSheets from './GameDpGameSheets.vue'
 import dpGameFullscreenMixin from '../mixins/dpGameFullscreenMixin'
 import dpGameActionCountdownMixin from '../mixins/dpGameActionCountdownMixin'
 import { dpGamePlayerBoxStyle } from '../utils/dpGamePlayerBoxStyle'
+import { ensureDpUserIdInStorage } from '../utils/dpEnsureUserId'
 import { mapState, mapGetters } from 'vuex'
 
 export default {
@@ -222,39 +223,55 @@ export default {
     this.$store.commit('dpGame/SET_SESSION', { roomId: this.$route.params.roomId })
     this.syncBodyDpGameTheme()
 
-    var raw = localStorage.getItem('userInfo')
-    if (!raw) {
-      this.$message.error('登录信息丢失，请重新登录')
-      this.$router.push('/login')
-      return
-    }
-    this.$store.commit('dpGame/SET_SESSION', { user: JSON.parse(raw) })
+    var self = this
+    ;(async function () {
+      var raw = localStorage.getItem('userInfo')
+      if (!raw) {
+        self.$message.error('登录信息丢失，请重新登录')
+        self.$router.push('/login')
+        return
+      }
+      var user = await ensureDpUserIdInStorage(self.$http)
+      if (!user || !user.nickname) {
+        self.$message.error('登录信息丢失，请重新登录')
+        self.$router.push('/login')
+        return
+      }
+      var uid = Number(user.userId)
+      if (isNaN(uid) || uid <= 0) {
+        self.$message.error('登录信息不完整，请重新登录以同步账号 ID')
+        self.$router.push('/login')
+        return
+      }
+      user.userId = uid
+      self.$store.commit('dpGame/SET_SESSION', { user: user })
 
-    // 先 HTTP 拉一次，再建立 WebSocket（推送与定时器同 1s 节奏）
-    this.loadGame().then(function () {
-      this.connectGameWs()
-    }.bind(this))
+      // 先 HTTP 拉一次，再建立 WebSocket（推送与定时器同 1s 节奏）
+      self.loadGame().then(function () {
+        self.connectGameWs()
+      })
 
-    this.loadMusicTracks()
+      self.loadMusicTracks()
 
-    // 未连上 WS 时 1 秒轮询兜底；握手过程中 readyState===CONNECTING 也要停掉，否则会连着打一串 getNowRoom
-    this.pollTimer = setInterval(function () {
-      if (this.loading) return
-      if (this.gameWsConnected) return
-      if (this.gameWs && this.gameWs.readyState === WebSocket.CONNECTING) return
-      this.loadGame()
-    }.bind(this), 1000)
+      // 未连上 WS 时 1 秒轮询兜底；握手过程中 readyState===CONNECTING 也要停掉，否则会连着打一串 getNowRoom
+      self.pollTimer = setInterval(function () {
+        if (self.loading) return
+        if (self.gameWsConnected) return
+        if (self.gameWs && self.gameWs.readyState === WebSocket.CONNECTING) return
+        self.loadGame()
+      }, 1000)
 
-    // 已连上 WS 时低频 HTTP 兜底（防止长连异常而界面停滞）
-    this.backupPollTimer = setInterval(function () {
-      if (!this.loading && this.gameWsConnected) this.loadGame()
-    }.bind(this), 15000)
+      // 已连上 WS 时低频 HTTP 兜底（防止长连异常而界面停滞）
+      self.backupPollTimer = setInterval(function () {
+        if (!self.loading && self.gameWsConnected) self.loadGame()
+      }, 15000)
 
-    // 5秒独立心跳（和 loadGame 解耦，loadGame 失败不影响心跳）
-    this.sendHeartbeat()
-    this.heartbeatTimer = setInterval(function () {
-      this.sendHeartbeat()
-    }.bind(this), 5000)
+      // 5秒独立心跳（和 loadGame 解耦，loadGame 失败不影响心跳）
+      self.sendHeartbeat()
+      self.heartbeatTimer = setInterval(function () {
+        self.sendHeartbeat()
+      }, 5000)
+    })()
   },
 
   beforeDestroy() {

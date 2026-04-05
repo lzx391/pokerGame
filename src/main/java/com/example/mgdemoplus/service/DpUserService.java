@@ -13,4 +13,5 @@ public interface DpUserService {
      * 登录成功返回用户实体（含 id）；失败返回 null。不用于返回给前端的密码字段由调用方忽略。
      */
     DpUser loginUserOrNull(String nickname, String password);
+    String updateUserInfo(DpUser dpUser);
 }

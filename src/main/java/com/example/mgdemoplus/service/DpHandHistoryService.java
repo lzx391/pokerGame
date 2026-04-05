@@ -4,15 +4,14 @@ import com.example.mgdemoplus.dto.DpHandHistoryDetailDTO;
 import com.example.mgdemoplus.dto.DpHandHistoryPageDTO;
 
 public interface DpHandHistoryService {
-    public DpHandHistoryPageDTO checkUserAndOtherPlayerHandHistoryList(
-        Integer userId,
-        String otherNickname,
-        String nickname,
-        Integer otherUserId,
-        int page,
-        int pageSize
-);
-public DpHandHistoryPageDTO listMyHandsPage(Integer userId, String nickname, int page, int pageSize);
+    DpHandHistoryPageDTO checkUserAndOtherPlayerHandHistoryList(
+            Integer userId,
+            Integer otherUserId,
+            int page,
+            int pageSize
+    );
 
-public DpHandHistoryDetailDTO getDetail(long handHistoryId, Integer userId, String nickname);
+    DpHandHistoryPageDTO listMyHandsPage(Integer userId, int page, int pageSize);
+
+    DpHandHistoryDetailDTO getDetail(long handHistoryId, Integer userId);
 } 
