@@ -2,7 +2,8 @@ package com.example.mgdemoplus.controller.dp;
 
 import com.example.mgdemoplus.dto.DpHandHistoryDetailDTO;
 import com.example.mgdemoplus.dto.DpHandHistoryPageDTO;
-import com.example.mgdemoplus.service.DpHandHistoryService;
+import com.example.mgdemoplus.service.dp.DpHandHistoryService;
+
 // import com.example.mgdemoplus.service.serviceImpl.dp.DpHandHistoryServiceImpl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;

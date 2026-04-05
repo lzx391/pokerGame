@@ -1,8 +1,9 @@
-package com.example.mgdemoplus.mapper;
+package com.example.mgdemoplus.mapper.demo;
 
-import com.example.mgdemoplus.entity.Movie;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
+
+import com.example.mgdemoplus.entity.demo.Movie;
 
 import java.util.List;
 

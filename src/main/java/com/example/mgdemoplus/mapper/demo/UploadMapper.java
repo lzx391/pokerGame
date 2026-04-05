@@ -1,4 +1,4 @@
-package com.example.mgdemoplus.mapper;
+package com.example.mgdemoplus.mapper.demo;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Update;

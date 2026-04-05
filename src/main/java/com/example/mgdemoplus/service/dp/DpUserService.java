@@ -1,4 +1,4 @@
-package com.example.mgdemoplus.service;
+package com.example.mgdemoplus.service.dp;
 
 import com.example.mgdemoplus.entity.dp.DpUser;
 

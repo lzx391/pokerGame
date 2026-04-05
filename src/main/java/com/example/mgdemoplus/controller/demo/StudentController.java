@@ -1,7 +1,8 @@
-package com.example.mgdemoplus.controller;
+package com.example.mgdemoplus.controller.demo;
 
-import com.example.mgdemoplus.entity.Student;
-import com.example.mgdemoplus.service.StudentService;
+import com.example.mgdemoplus.entity.demo.Student;
+import com.example.mgdemoplus.service.demo.StudentService;
+
 import org.apache.ibatis.annotations.Update;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
