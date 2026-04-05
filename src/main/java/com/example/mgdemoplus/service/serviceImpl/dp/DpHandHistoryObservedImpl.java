@@ -1,8 +1,17 @@
 package com.example.mgdemoplus.service.serviceImpl.dp;
 
+import com.example.mgdemoplus.dto.DpObservedHandActionRecordDTO;
+import com.example.mgdemoplus.dto.DpObservedHandActionType;
+import com.example.mgdemoplus.dto.DpObservedHandRecordDTO;
+import com.example.mgdemoplus.dto.DpObservedPotSnapshotDTO;
+import com.example.mgdemoplus.dto.DpObservedSeatAtHandStartDTO;
+import com.example.mgdemoplus.dto.DpObservedStreetBoardDTO;
 import com.example.mgdemoplus.entity.dp.DpPlayer;
 import com.example.mgdemoplus.entity.dp.DpPot;
 import com.example.mgdemoplus.entity.dp.DpRoom;
+import com.example.mgdemoplus.service.dp.DpHandHistoryObservedService;
+
+import org.springframework.stereotype.Service;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -20,14 +29,15 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>与 {@link DpNpcSharkHandActionLog} 并行：ActionLog 仍仅在桌上有 Shark 时启用；
  * 本类将结束的整手归档到环形缓冲，不依赖当手临时列表。</p>
  */
-public final class DpHandHistoryObservedImpl {
+@Service
+public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedService{
     //本模块分为以下模块：
-    //1. ActionType枚举：负责记录行动类型
-    //2. ActionRecord类：负责记录行动
-    //3. StreetBoard类：负责记录公共牌
-    //4. SeatAtHandStart类：负责记录座位
-    //5. PotSnapshot类：负责记录池
-    //6. ObservedHandRecord类：负责记录牌谱
+    //1. DpObservedHandActionType枚举：负责记录行动类型
+    //2. DpObservedHandActionRecordDTO类：负责记录行动
+    //3. DpObservedStreetBoardDTO类：负责记录公共牌
+    //4. DpObservedSeatAtHandStartDTO类：负责记录座位
+    //5. DpObservedPotSnapshotDTO类：负责记录池
+    //6. DpObservedHandRecordDTO类：负责记录牌谱
     //7. Key类：负责记录房间id和手种子
     //8. HandBuilder类：负责记录牌谱
     //9. BUILDERS类：负责记录牌谱
@@ -42,137 +52,11 @@ public final class DpHandHistoryObservedImpl {
     //18. recordFold方法：负责记录弃牌
     //19. recordBetLikeAction方法：负责记录行动
     //20. capturePotsBeforeClear方法：负责记录池
-    private DpHandHistoryObservedImpl() {
+    public DpHandHistoryObservedImpl() {
     }
 
     /** 每房间最多保留的已完成手数（内存上限） */
     private static final int MAX_COMPLETED_HANDS_PER_ROOM = 400;
-
-    public enum ActionType {
-        POST_BLIND_SB,
-        POST_BLIND_BB,
-        CHECK,
-        CALL,
-        BET,
-        RAISE,
-        ALL_IN,
-        FOLD
-    }
-
-    /** 单条行动（含弃牌、过牌、跟注、加注等） */
-    public static final class ActionRecord {
-        public final long tsMs;
-        public final String stage;
-        public final String actorNickname;
-        public final ActionType type;
-        public final int amount;
-        public final int betToCallBefore;
-        public final int actorBetBefore;
-        public final int raiseLevelAfter;
-        public final int potBefore;
-
-        public ActionRecord(long tsMs, String stage, String actorNickname, ActionType type,
-                            int amount, int betToCallBefore, int actorBetBefore,
-                            int raiseLevelAfter, int potBefore) {
-            this.tsMs = tsMs;
-            this.stage = stage == null ? "" : stage;
-            this.actorNickname = actorNickname == null ? "" : actorNickname;
-            this.type = type;
-            this.amount = amount;
-            this.betToCallBefore = betToCallBefore;
-            this.actorBetBefore = actorBetBefore;
-            this.raiseLevelAfter = raiseLevelAfter;
-            this.potBefore = potBefore;
-        }
-    }
-
-    /** 某一街的公共牌快照 */
-    public static final class StreetBoard {
-        public final String stage;
-        public final List<String> communityCards;
-
-        public StreetBoard(String stage, List<String> communityCards) {
-            this.stage = stage == null ? "" : stage;
-            this.communityCards = communityCards == null
-                    ? List.of()
-                    : List.copyOf(communityCards);
-        }
-    }
-
-    /** 盲注后、行动开始前每位玩家在桌状态（含座位序） */
-    public static final class SeatAtHandStart {
-        public final int seatIndex;
-        public final String nickname;
-        public final int blind; // 0 无 1 SB 2 BB
-        public final int chipsAfterBlinds;
-
-        public SeatAtHandStart(int seatIndex, String nickname, int blind, int chipsAfterBlinds) {
-            this.seatIndex = seatIndex;
-            this.nickname = nickname == null ? "" : nickname;
-            this.blind = blind;
-            this.chipsAfterBlinds = chipsAfterBlinds;
-        }
-    }
-
-    /** 结算前某一池（主池/边池） */
-    public static final class PotSnapshot {
-        public final int amount;
-        public final List<String> eligibleNicknames;
-
-        public PotSnapshot(int amount, List<String> eligibleNicknames) {
-            this.amount = amount;
-            this.eligibleNicknames = eligibleNicknames == null
-                    ? List.of()
-                    : List.copyOf(eligibleNicknames);
-        }
-    }
-
-    /**
-     * 一手结束后的完整观测记录（服务端视角：含未摊牌者底牌，便于 AI 离线分析；勿直接下发客户端）。
-     */
-    public static final class ObservedHandRecord {
-        public final String roomId;
-        public final long handSeed;
-        public final long startedAtMs;
-        public final long endedAtMs;
-        public final int smallBlindChips;
-        public final int bigBlindChips;
-        public final String dealerNickname;
-        public final List<SeatAtHandStart> seatsAtStart;
-        public final List<StreetBoard> boardsByStreet;
-        public final List<ActionRecord> actions;
-        public final List<PotSnapshot> potsBeforeSettlement;
-        /**
-         * 结算前「有效」底池总额：仅含至少两名玩家有资格赢取的那几层池之和。
-         * 短码全下后深码多出的边池（仅一人有资格）不计入，避免统计虚高（例如 A=20、B=40 全下时有效为 40 而非总筹码 60）。
-         */
-        public final int mainPotTotalBeforeSettlement;
-        public final Map<String, List<String>> holeCardsAtEnd;
-        public final Map<String, Integer> netChipsChange;
-
-        ObservedHandRecord(String roomId, long handSeed, long startedAtMs, long endedAtMs,
-                           int smallBlindChips, int bigBlindChips, String dealerNickname,
-                           List<SeatAtHandStart> seatsAtStart, List<StreetBoard> boardsByStreet,
-                           List<ActionRecord> actions, List<PotSnapshot> potsBeforeSettlement,
-                           int mainPotTotalBeforeSettlement,
-                           Map<String, List<String>> holeCardsAtEnd,
-                           Map<String, Integer> netChipsChange) {
-            this.roomId = roomId == null ? "" : roomId;
-            this.handSeed = handSeed;
-            this.startedAtMs = startedAtMs;
-            this.endedAtMs = endedAtMs;
-            this.smallBlindChips = smallBlindChips;
-            this.bigBlindChips = bigBlindChips;
-            this.dealerNickname = dealerNickname == null ? "" : dealerNickname;
-            this.seatsAtStart = List.copyOf(seatsAtStart);
-            this.boardsByStreet = List.copyOf(boardsByStreet);
-            this.actions = List.copyOf(actions);
-            this.potsBeforeSettlement = List.copyOf(potsBeforeSettlement);
-            this.mainPotTotalBeforeSettlement = mainPotTotalBeforeSettlement;
-            this.holeCardsAtEnd = Map.copyOf(holeCardsAtEnd);
-            this.netChipsChange = Map.copyOf(netChipsChange);
-        }
-    }
 
     private static final class Key {
         final String roomId;
@@ -204,16 +88,16 @@ public final class DpHandHistoryObservedImpl {
     private static final class HandBuilder {
         long startedAtMs = System.currentTimeMillis();//开始时间
         String dealerNickname = "";//庄家
-        final List<SeatAtHandStart> seatsAtStart = new ArrayList<>();//座位
-        final List<StreetBoard> boardsByStreet = new ArrayList<>();//公共牌
-        final List<ActionRecord> actions = new ArrayList<>();//行动
-        List<PotSnapshot> potsBeforeSettlement = List.of();//池
+        final List<DpObservedSeatAtHandStartDTO> seatsAtStart = new ArrayList<>();//座位
+        final List<DpObservedStreetBoardDTO> boardsByStreet = new ArrayList<>();//公共牌
+        final List<DpObservedHandActionRecordDTO> actions = new ArrayList<>();//行动
+        List<DpObservedPotSnapshotDTO> potsBeforeSettlement = List.of();//池
         int mainPotTotalBeforeSettlement;//主池
         final Map<String, Integer> chipsAfterBlinds = new HashMap<>();//筹码
     }
 
     private static final ConcurrentHashMap<Key, HandBuilder> BUILDERS = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<String, ArrayDeque<ObservedHandRecord>> ARCHIVE = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, ArrayDeque<DpObservedHandRecordDTO>> ARCHIVE = new ConcurrentHashMap<>();
 
     /**
      * 是否为本桌记牌谱：有人上桌即开启（不再要求必须有 Shark）。
@@ -251,24 +135,24 @@ public final class DpHandHistoryObservedImpl {
     /**
      * 读取某房间最近若干手完整观测记录（时间顺序：旧 → 新）。
      */
-    public static List<ObservedHandRecord> getRecentHands(String roomId, int maxHands) {
+    public static List<DpObservedHandRecordDTO> getRecentHands(String roomId, int maxHands) {
         if (roomId == null || maxHands <= 0) {
             return List.of();
         }
-        ArrayDeque<ObservedHandRecord> q = ARCHIVE.get(roomId);
+        ArrayDeque<DpObservedHandRecordDTO> q = ARCHIVE.get(roomId);
         if (q == null || q.isEmpty()) {
             return List.of();
         }
         synchronized (q) {
             int n = Math.min(maxHands, q.size());
-            List<ObservedHandRecord> all = new ArrayList<>(q);
+            List<DpObservedHandRecordDTO> all = new ArrayList<>(q);
             int from = all.size() - n;
             return Collections.unmodifiableList(new ArrayList<>(all.subList(from, all.size())));
         }
     }
 //这里是开始一手牌谱的记录
 //已学习
-    static void beginHand(DpRoom room) {
+    public void beginHand(DpRoom room) {
         if (!isEnabledForRoom(room)) return;
         Key k = new Key(room.getRoomId(), room.getCurrentHandSeed());
         HandBuilder b = new HandBuilder();
@@ -281,7 +165,7 @@ public final class DpHandHistoryObservedImpl {
      * 发牌与下盲结束后调用：固定座位序、盲注后筹码，并记一条 preflop 空_board。
      */
     //已学习，本模块代码精讲如下：翻前行动前快照
-    static void markHandReadyAfterBlinds(DpRoom room) {
+   public  void markHandReadyAfterBlinds(DpRoom room) {
         if (!isEnabledForRoom(room)) return;
         Key k = new Key(room.getRoomId(), room.getCurrentHandSeed());
         HandBuilder b = BUILDERS.get(k);
@@ -292,18 +176,18 @@ public final class DpHandHistoryObservedImpl {
             for (int i = 0; i < ps.size(); i++) {
                 DpPlayer p = ps.get(i);
                 if (p == null) continue;
-                b.seatsAtStart.add(new SeatAtHandStart(i, p.getNickname(), p.getBlind(), p.getChips()));
+                b.seatsAtStart.add(new DpObservedSeatAtHandStartDTO(i, p.getNickname(), p.getBlind(), p.getChips()));
                 b.chipsAfterBlinds.put(p.getNickname(), p.getChips());
                 if (p.isDealer()) {
                     b.dealerNickname = p.getNickname() == null ? "" : p.getNickname();
                 }
             }
         }
-        b.boardsByStreet.add(new StreetBoard("preflop", room.getCommunityCards() == null
+        b.boardsByStreet.add(new DpObservedStreetBoardDTO("preflop", room.getCommunityCards() == null
                 ? List.of() : new ArrayList<>(room.getCommunityCards())));
     }
 //之后行动记录用
-    static void recordBoardState(DpRoom room) {
+   public  void recordBoardState(DpRoom room) {
         if (!isEnabledForRoom(room)) return;
         Key k = new Key(room.getRoomId(), room.getCurrentHandSeed());
         HandBuilder b = BUILDERS.get(k);
@@ -313,46 +197,46 @@ public final class DpHandHistoryObservedImpl {
         List<String> cc = room.getCommunityCards() == null
                 ? List.of()
                 : new ArrayList<>(room.getCommunityCards());
-        b.boardsByStreet.add(new StreetBoard(st, cc));
+        b.boardsByStreet.add(new DpObservedStreetBoardDTO(st, cc));
     }
 
-    static void recordBlind(DpRoom room, String nickname, boolean isSb, int amount, int potBefore) {
+   public  void recordBlind(DpRoom room, String nickname, boolean isSb, int amount, int potBefore) {
         if (!isEnabledForRoom(room)) return;
-        ActionType t = isSb ? ActionType.POST_BLIND_SB : ActionType.POST_BLIND_BB;
-        append(room, new ActionRecord(System.currentTimeMillis(), "preflop", nickname, t, amount,
+        DpObservedHandActionType t = isSb ? DpObservedHandActionType.POST_BLIND_SB : DpObservedHandActionType.POST_BLIND_BB;
+        append(room, new DpObservedHandActionRecordDTO(System.currentTimeMillis(), "preflop", nickname, t, amount,
                 0, 0, room.getRaiseLevel(), potBefore));
     }
 
-    static void recordFold(DpRoom room, DpPlayer actor, int potBefore) {
+  public   void recordFold(DpRoom room, DpPlayer actor, int potBefore) {
         if (!isEnabledForRoom(room)) return;
         if (actor == null) return;
-        append(room, new ActionRecord(System.currentTimeMillis(), room.getCurrentStage(),
-                actor.getNickname(), ActionType.FOLD, 0,
+        append(room, new DpObservedHandActionRecordDTO(System.currentTimeMillis(), room.getCurrentStage(),
+                actor.getNickname(), DpObservedHandActionType.FOLD, 0,
                 room.getCurrentBetToCall(), actor.getBet(), room.getRaiseLevel(), potBefore));
     }
 
-    static void recordBetLikeAction(DpRoom room, DpPlayer actor, int amount,
+   public  void recordBetLikeAction(DpRoom room, DpPlayer actor, int amount,
                                     int betToCallBefore, int actorBetBefore, int potBefore,
                                     boolean becameAllIn, boolean isRaise) {
         if (!isEnabledForRoom(room)) return;
         if (actor == null) return;
-        ActionType t;
+        DpObservedHandActionType t;
         if (amount <= 0) {
-            t = (betToCallBefore <= actorBetBefore) ? ActionType.CHECK : ActionType.CALL;
+            t = (betToCallBefore <= actorBetBefore) ? DpObservedHandActionType.CHECK : DpObservedHandActionType.CALL;
         } else if (becameAllIn) {
-            t = ActionType.ALL_IN;
+            t = DpObservedHandActionType.ALL_IN;
         } else if (isRaise) {
-            t = ActionType.RAISE;
+            t = DpObservedHandActionType.RAISE;
         } else {
-            t = (betToCallBefore <= actorBetBefore) ? ActionType.BET : ActionType.CALL;
+            t = (betToCallBefore <= actorBetBefore) ? DpObservedHandActionType.BET : DpObservedHandActionType.CALL;
         }
-        append(room, new ActionRecord(System.currentTimeMillis(), room.getCurrentStage(),
+        append(room, new DpObservedHandActionRecordDTO(System.currentTimeMillis(), room.getCurrentStage(),
                 actor.getNickname(), t, amount, betToCallBefore, actorBetBefore,
                 room.getRaiseLevel(), potBefore));
     }
 
     /** 在筹码分配前调用：复制主池与边池结构 */
-    static void capturePotsBeforeClear(DpRoom room) {//由HandBuilder类接收
+  public   void capturePotsBeforeClear(DpRoom room) {//由HandBuilder类接收
         if (!isEnabledForRoom(room)) return;
         Key k = new Key(room.getRoomId(), room.getCurrentHandSeed());
         HandBuilder b = BUILDERS.get(k);
@@ -363,13 +247,22 @@ public final class DpHandHistoryObservedImpl {
             b.potsBeforeSettlement = List.of();
             return;
         }
-        List<PotSnapshot> snap = new ArrayList<>();
+        List<DpObservedPotSnapshotDTO> snap = new ArrayList<>();
         for (DpPot pot : pots) {
             if (pot == null) continue;
-            snap.add(new PotSnapshot(pot.getAmount(),
+            snap.add(new DpObservedPotSnapshotDTO(pot.getAmount(),
                     pot.getEligiblePlayers() == null ? List.of() : new ArrayList<>(pot.getEligiblePlayers())));
         }
         b.potsBeforeSettlement = snap;
+    }
+
+    /**
+     * 丢弃本手未归档的构建数据（与 {@link com.example.mgdemoplus.service.serviceImpl.dp.DpNpcSharkHandActionLog#clearHand} 对称）。
+     */
+    @Override
+    public void clearHand(DpRoom room) {
+        if (room == null) return;
+        BUILDERS.remove(new Key(room.getRoomId(), room.getCurrentHandSeed()));
     }
 
     /**
@@ -384,7 +277,7 @@ public final class DpHandHistoryObservedImpl {
     //6. ARCHIVE类：负责记录牌谱
     //7. append方法：负责记录行动
     //8. blindPostedChipsForSeat方法：负责记录盲注
-    static ObservedHandRecord finalizeHand(DpRoom room) {//归档牌局，并挂到最近的手列表中限400手
+   public DpObservedHandRecordDTO finalizeHand(DpRoom room) {//归档牌局，并挂到最近的手列表中限400手
       if(room.getPlayers().size()<=1){
     // System.out.println("场上只有一个玩家，不落库保存");
         return null;//如果场上只有1个玩家，则不记录牌谱
@@ -425,7 +318,7 @@ public final class DpHandHistoryObservedImpl {
         int effectiveMainPotTotal = effectiveMainPotTotalBeforeSettlement(
                 b.potsBeforeSettlement, b.mainPotTotalBeforeSettlement);
 
-        ObservedHandRecord rec = new ObservedHandRecord(
+        DpObservedHandRecordDTO rec = new DpObservedHandRecordDTO(
                 room.getRoomId(),
                 room.getCurrentHandSeed(),
                 b.startedAtMs,
@@ -444,7 +337,7 @@ public final class DpHandHistoryObservedImpl {
 //所以这个队列是干啥的？是用来存储牌谱的，最多保存400手
 
         ARCHIVE.compute(room.getRoomId(), (rid, deque) -> {
-            ArrayDeque<ObservedHandRecord> q = deque == null ? new ArrayDeque<>() : deque;
+            ArrayDeque<DpObservedHandRecordDTO> q = deque == null ? new ArrayDeque<>() : deque;
             synchronized (q) {
                 q.addLast(rec);
                 while (q.size() > MAX_COMPLETED_HANDS_PER_ROOM) {
@@ -456,7 +349,7 @@ public final class DpHandHistoryObservedImpl {
         return rec;
     }
 //已学习，记录行动用的方法
-    private static void append(DpRoom room, ActionRecord e) {
+    private static void append(DpRoom room, DpObservedHandActionRecordDTO e) {
         Key k = new Key(room.getRoomId(), room.getCurrentHandSeed());
         HandBuilder b = BUILDERS.computeIfAbsent(k, kk -> {
             HandBuilder nb = new HandBuilder();
@@ -473,12 +366,12 @@ public final class DpHandHistoryObservedImpl {
     /**
      * 与 {@link DpRoomServiceImpl#calculatePots} 分层一致：仅一人有资格赢取的池为深码多出的无效竞争部分，不计入。
      */
-    private static int effectiveMainPotTotalBeforeSettlement(List<PotSnapshot> pots, int totalPotFallback) {
+    private static int effectiveMainPotTotalBeforeSettlement(List<DpObservedPotSnapshotDTO> pots, int totalPotFallback) {
         if (pots == null || pots.isEmpty()) {
             return totalPotFallback;
         }
         int sum = 0;
-        for (PotSnapshot pot : pots) {
+        for (DpObservedPotSnapshotDTO pot : pots) {
             if (pot == null) {
                 continue;
             }
@@ -490,11 +383,11 @@ public final class DpHandHistoryObservedImpl {
         return sum > 0 ? sum : totalPotFallback;
     }
 
-    private static int blindPostedChipsForSeat(List<SeatAtHandStart> seatsAtStart, String nickname) {
+    private static int blindPostedChipsForSeat(List<DpObservedSeatAtHandStartDTO> seatsAtStart, String nickname) {
         if (seatsAtStart == null || nickname == null) {
             return 0;
         }
-        for (SeatAtHandStart s : seatsAtStart) {
+        for (DpObservedSeatAtHandStartDTO s : seatsAtStart) {
             if (s == null) {
                 continue;
             }
