@@ -8,6 +8,7 @@ import com.example.mgdemoplus.entity.dp.DpUser;
 import com.example.mgdemoplus.mapper.dp.DpObservedHandHistoryMapper;
 import com.example.mgdemoplus.mapper.dp.DpObservedHandParticipantMapper;
 import com.example.mgdemoplus.mapper.dp.DpUserMapper;
+import com.example.mgdemoplus.service.dp.DpHandHistoryPersistService;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,7 +29,7 @@ import java.util.LinkedHashMap;
  */
 //这个服务类是负责将DpNpcSharkObservedHandHistory.ObservedHandRecord写入dp_observed_hand_history表和dp_observed_hand_participant表的
 @Service
-public class DpHandHistoryPersistServiceImpl {
+public class DpHandHistoryPersistServiceImpl implements DpHandHistoryPersistService {
     //本类分为以下模块：
     //1. save方法：将DpNpcSharkObservedHandHistory.ObservedHandRecord写入dp_observed_hand_history表
     //2. insertParticipants方法：将非机器人玩家写入dp_observed_hand_participant表
