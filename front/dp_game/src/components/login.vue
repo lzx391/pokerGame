@@ -22,6 +22,8 @@
 </template>
 
 <script>
+import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
+
 export default {
   data() {
     return {
@@ -30,7 +32,7 @@ export default {
       password: ""
     };
   },
-  created() {
+  async created() {
     const raw = localStorage.getItem("userInfo");
     if (!raw) {
       return;
@@ -40,7 +42,7 @@ export default {
       if (user && user.nickname && user.password) {
         this.nickname = user.nickname;
         this.password = user.password;
-        // 本地已有登录信息；无 userId 时仍可进主页，进房时可再登录以写入牌谱关联
+        await ensureDpUserIdInStorage(this.$http);
         this.$router.push("/home");
       }
     } catch (e) {

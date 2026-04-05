@@ -39,4 +39,11 @@ public class DpUserServiceImpl implements DpUserService {
     public DpUser loginUserOrNull(String nickname, String password) {
         return dpUserMapper.loginUser(nickname, password);
     }
+    
+    public String updateUserInfo(DpUser dpUser) {
+        if(dpUserMapper.updateUserInfo(dpUser)==1){
+            return "更新成功";
+        }
+        return "更新失败";
+    }
 }

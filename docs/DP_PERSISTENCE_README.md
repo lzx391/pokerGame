@@ -153,8 +153,8 @@
 
 根目录 `readme.md` 中已有摘要：
 
-- 列表：`GET /dpHandHistory/list?nickname=…` —— 依赖参与者表中有行。
-- 详情：`GET /dpHandHistory/detail?handHistoryId=…&nickname=…` —— 校验参与者后读主表 `payload_json`。
+- 列表：`GET /dpHandHistory/list?userId=…` —— 参与者表按 `user_id` 命中。
+- 详情：`GET /dpHandHistory/detail?handHistoryId=…&userId=…` —— 校验该 `user_id` 参与该手后读主表 `payload_json`。
 
 实现类在 `DpHandHistoryService` / 相关 Controller，不在此赘述字段。
 

@@ -82,6 +82,8 @@
 </template>
 
 <script>
+import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
+
 export default {
   name: 'HandHistory',
   props: {
@@ -105,7 +107,7 @@ export default {
       return Math.max(1, Math.ceil(this.total / this.pageSize))
     }
   },
-  created() {
+  async created() {
     try {
       const raw = localStorage.getItem('userInfo')
       this.user = raw ? JSON.parse(raw) : null
@@ -120,6 +122,17 @@ export default {
       }
       return
     }
+    this.user = (await ensureDpUserIdInStorage(this.$http)) || this.user
+    var uid = Number(this.user && this.user.userId)
+    if (!this.user || isNaN(uid) || uid <= 0) {
+      if (this.embedded) {
+        this.$emit('close')
+      } else {
+        this.$router.replace('/login')
+      }
+      return
+    }
+    this.user.userId = uid
     this.fetchList(1)
   },
   methods: {
@@ -168,12 +181,9 @@ export default {
       this.loadError = ''
       try {
         var params = {
-          nickname: this.user.nickname,
+          userId: Number(this.user.userId),
           page: p,
           pageSize: this.pageSize
-        }
-        if (this.user.userId != null && this.user.userId !== '') {
-          params.userId = this.user.userId
         }
         var res = await this.$http.get('/dpHandHistory/list', { params: params })
         var data = res.data || {}

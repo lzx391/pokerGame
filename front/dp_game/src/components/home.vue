@@ -27,6 +27,8 @@
 </template>
 
 <script>
+import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
+
 export default {
   data() {
     return {
@@ -36,8 +38,14 @@ export default {
       roomsError: ''
     }
   },
-  created() {
-    this.user = JSON.parse(localStorage.getItem('userInfo'))
+  async created() {
+    try {
+      await ensureDpUserIdInStorage(this.$http)
+      var raw = localStorage.getItem('userInfo')
+      this.user = raw ? JSON.parse(raw) : {}
+    } catch (e) {
+      this.user = {}
+    }
     this.getRooms();
     // 2. 使用箭头函数确保 this 指向，并保存定时器引用
     this.timer = setInterval(() => {

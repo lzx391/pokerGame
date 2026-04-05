@@ -4,6 +4,7 @@ import com.example.mgdemoplus.entity.dp.DpUser;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 @Mapper
 public interface DpUserMapper {
@@ -15,4 +16,6 @@ public interface DpUserMapper {
     public DpUser loginUser(String nickname,String password);
     @Select("SELECT * from dp_user where nickname= #{nickname}" )
     public DpUser selectByNickname(String nickname);
+    @Update("UPDATE dp_user SET nickname = #{nickname},password = #{password} WHERE id = #{id}")
+    public int updateUserInfo(DpUser dpUser);
 }
