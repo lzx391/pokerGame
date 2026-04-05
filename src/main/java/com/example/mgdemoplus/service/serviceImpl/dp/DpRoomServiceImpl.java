@@ -7,6 +7,7 @@ import com.example.mgdemoplus.entity.dp.DpRoom;
 import com.example.mgdemoplus.entity.dp.DpPlayerStats;
 import com.example.mgdemoplus.entity.dp.DpUser;
 import com.example.mgdemoplus.mapper.dp.DpUserMapper;
+import com.example.mgdemoplus.service.dp.DpHandHistoryPersistService;
 import com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator;
 import com.example.mgdemoplus.websocket.DpGameRoomPushService;
 import org.springframework.stereotype.Service;
@@ -18,7 +19,7 @@ import java.util.stream.Collectors;
 @Service
 public class DpRoomServiceImpl {
     private final Map<String, DpRoom> roomMap = new ConcurrentHashMap<>();
-    private final DpHandHistoryPersistServiceImpl observedHandPersistService;
+    private final DpHandHistoryPersistService observedHandPersistService;
     private final DpNpcSharkOpponentMemoryService sharkOpponentMemoryService;
     private final DpLlmNpcDecisionService llmNpcDecisionService;
     private final DpGameRoomPushService gameRoomPushService;
