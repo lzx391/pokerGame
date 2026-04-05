@@ -4,14 +4,16 @@ import com.example.mgdemoplus.entity.dp.DpPlayer;
 import com.example.mgdemoplus.entity.dp.DpRoom;
 import com.example.mgdemoplus.entity.dp.DpPlayerStats;
 import com.example.mgdemoplus.service.serviceImpl.dp.npc.LlmNpcGameContext;
+import com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator;
+import com.example.mgdemoplus.utils.dp.DpUtilSmartContext;
+
+import static com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator.CARD_RANK_MAP;
+import static com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator.SimpleStrength;
+import static com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator.evaluateBestHand;
+import static com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator.getRankFromCard;
+import static com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator.toSimpleStrength;
 
 import java.util.*;
-
-import static com.example.mgdemoplus.service.serviceImpl.dp.DpUtilHandEvaluator.CARD_RANK_MAP;
-import static com.example.mgdemoplus.service.serviceImpl.dp.DpUtilHandEvaluator.SimpleStrength;
-import static com.example.mgdemoplus.service.serviceImpl.dp.DpUtilHandEvaluator.getRankFromCard;
-import static com.example.mgdemoplus.service.serviceImpl.dp.DpUtilHandEvaluator.toSimpleStrength;
-import static com.example.mgdemoplus.service.serviceImpl.dp.DpUtilHandEvaluator.evaluateBestHand;
 
 /**
  * 德扑 NPC 行为模块。
@@ -930,7 +932,7 @@ public final class DpNpcEngine {
     /**
      * 对手整体牌范围强度（不是具体牌）。
      */
-    enum VillainRangeTier {
+    public enum VillainRangeTier {
         NIT,        // 极紧
         TIGHT,      // 稍紧
         BALANCED,   // 正常
@@ -941,7 +943,7 @@ public final class DpNpcEngine {
     /**
      * 当前一轮动作的可信度：是价值下注还是诈唬的概率感知。
      */
-    enum ActionCredibility {
+    public enum ActionCredibility {
         HIGH,
         MEDIUM,
         LOW
@@ -1737,7 +1739,7 @@ public final class DpNpcEngine {
     /**
      * multi-way 牌局中每个对手的简要信息，仅供 Shark/TAG 在多人底池下做更细的决策调整。
      */
-    static class MultiwayVillainInfo {
+    public static class MultiwayVillainInfo {
         final String nickname;
         final boolean behindHero;
         final double stackBB;
@@ -1761,7 +1763,7 @@ public final class DpNpcEngine {
      * 针对某个主要对手的简单 counter-strategy 建议：
      * 由该玩家最近若干手的行为统计推导，不追求 GTO，只用于微调 Shark/TAG 的整体倾向。
      */
-    static class CounterStrategyProfile {
+    public static class CounterStrategyProfile {
         /**
          * 是否适合对该玩家做更多 thin value（例如：他 limp/宽范围明显偏多）。
          * 调用方：true 时可略微增加中等牌的 value bet 频率与下注尺度。
@@ -1899,7 +1901,7 @@ public final class DpNpcEngine {
      * 本手牌场上其他未弃牌玩家的筹码分布（后手 stack 视角）。
      * 用于区分短码（short stack）和深码（deep stack），指导 SHARK 调整下注压力。
      */
-    static class StackContext {
+    public static class StackContext {
         final int minStack;
         final int maxStack;
         final int avgStack;
