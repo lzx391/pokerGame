@@ -2,6 +2,7 @@
 
 ### DP游戏文档链接
 
+- [JSON、Map、序列化/反序列化与接口数据（备忘）](docs/README-json-map-serialization.md)
 - [DP游戏详细文档（规则、接口、开发与维护）](docs/DPGAME.md)
 - [DP NPC 引擎笔记（Fish/Maniac/TAG 与 Shark 分册）](docs/ai/npc-engine/README.md)
 - [对局页布局调参（顶栏 / 圆桌 / 底栏间距，`dp-game-shell.css`）](front/dp_game/docs/GAME_LAYOUT_TUNING_README.md)
