@@ -64,6 +64,21 @@ public class ResultUtil {
         return result;
     }
     
+    public static ResultUtil repeatUsername() {
+        ResultUtil result = new ResultUtil();
+        result.setSuccess(false);
+        result.setCode(ResultCode.REPEAT_USERNAME);
+        result.setMessage("用户名重复");
+        return result;
+    }
+
+    public static ResultUtil sensitiveUsername() {
+        ResultUtil result = new ResultUtil();
+        result.setSuccess(false);
+        result.setCode(ResultCode.SENSITIVE_USERNAME);
+        result.setMessage("敏感词汇");
+        return result;
+    }
     public ResultUtil data(String key, Object value) {
         this.data.put(key, value);
         return this;

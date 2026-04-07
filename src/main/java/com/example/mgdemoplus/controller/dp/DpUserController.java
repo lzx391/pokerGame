@@ -20,14 +20,14 @@ public class DpUserController {
     DpUserService dpUserService;
 
     @PostMapping("/registerUser")
-    public String registerUser(@RequestBody DpUser dpUser) {
+    public ResultUtil registerUser(@RequestBody DpUser dpUser) {
+        
         if (dpUserService.registerUser(dpUser) == 1) {
-            return "注册成功";
+            return ResultUtil.ok().data("message", "注册成功");
         } else if (dpUserService.registerUser(dpUser) == 2) {
-            return "注册失败:用户名含有“海金”";
+            return ResultUtil.sensitiveUsername();
         }
-        System.out.println("用户名重复");
-        return "注册失败:用户名重复";
+        return ResultUtil.repeatUsername();
     }
 
     @GetMapping("/loginUser")
