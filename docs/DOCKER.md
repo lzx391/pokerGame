@@ -57,7 +57,22 @@ jdbc:mysql://localhost:3307/school_db?useSSL=false&allowPublicKeyRetrieval=true&
 
 ## 数据库初始化与后续变更
 
-- **首次**：`school_db` 可能无业务表，需自行执行 DDL/转储或把初始化 SQL 放入 `docker-data/mysql-init/`（仅**数据卷首次为空**时执行）。
+- **首次**：Compose 里 MySQL 使用命名卷 `mysql_data`。若该卷**从未初始化过**，镜像会执行 `docker-data/mysql-init/00-school_db.sql`，并按顺序 `SOURCE` 仓库内 `src/main/resources/db/*.sql`，在 `school_db` 中建表。
+- **`docker-entrypoint-initdb.d` 只跑一次**：仅在数据目录**空**（MySQL 第一次初始化）时执行。若你以前已经跑过 MySQL 容器，**删表、删库、DROP DATABASE** 都不会再触发 init；要复现「第一次能不能建表」，必须**删掉整个 MySQL 数据卷**，让下次启动从零初始化。
+
+### 想清空数据卷、重新验证「首次建表」
+
+在仓库根目录执行（会**删除该卷内所有 MySQL 数据**，包括 `school_db` 里已有数据）：
+
+```bash
+docker compose down -v
+docker compose up --build
+```
+
+`-v` 会移除 compose 声明的卷（含 `mysql_data`）。下次 `up` 时 MySQL 会重新初始化并再次执行 init SQL。
+
+若你**不想删卷**、只想清空某库里的表，可连 `localhost:3307` 手工 `DROP TABLE` / 重建库——**那只相当于清理数据**，**不会**再跑一遍 `mysql-init`；要验证 init 脚本，仍须 `down -v`。
+
 - **后续表结构变更**：建议在仓库中维护**增量 SQL**（如 `db/migrations/`），成员 pull 后在本地对 Docker 库（3307）或本机库执行；勿依赖向 `mysql-init` 增文件来更新已有数据卷（不会再次自动执行）。
 
 更简要的入口说明见仓库根目录 `README.md` 中的「Docker 部署」小节。
