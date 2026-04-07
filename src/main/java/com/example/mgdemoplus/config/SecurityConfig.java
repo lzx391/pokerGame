@@ -38,14 +38,14 @@ public class SecurityConfig {
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter(RequestMatcher jwtPublicPathsMatcher,
-                                                           ObjectMapper objectMapper) {
+            ObjectMapper objectMapper) {
         return new JwtAuthenticationFilter(jwtPublicPathsMatcher, objectMapper);
     }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
-                                                   JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
-                                                   JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
+            JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
+            JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
