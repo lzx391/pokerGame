@@ -2,7 +2,7 @@
 # 使用：在项目根目录执行  docker compose up --build
 # 浏览器访问：http://localhost:8088  （路由为 hash，地址形如 /#/login）
 #
-# 数据库：首次需自行在 school_db 中建表（或把 SQL 挂到 ./docker-data/mysql-init）
+# 数据库：首次启动自动在 school_db 中建表（./docker-data/mysql-init + src/main/resources/db）
 # 图片上传目录：./docker-data/uploads 映射到容器内 /data/mgdemo-files
 
 services:
@@ -17,6 +17,8 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
       - ./docker-data/mysql-init:/docker-entrypoint-initdb.d:ro
+      # 与 00-school_db.sql 中 SOURCE 路径一致，避免重复拷贝建表 SQL
+      - ./src/main/resources/db:/docker-schema:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" || exit 1"]
       interval: 5s

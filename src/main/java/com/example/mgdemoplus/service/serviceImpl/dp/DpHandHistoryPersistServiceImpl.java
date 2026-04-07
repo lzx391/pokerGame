@@ -58,6 +58,7 @@ public class DpHandHistoryPersistServiceImpl implements DpHandHistoryPersistServ
             DpUserMapper dpUserMapper,
             ObjectMapper objectMapper
     ) {
+        //解释一下这里this是干啥的：this是指向当前服务类实例的引用，通过this可以访问当前服务类实例的属性和方法
         this.mapper = mapper;
         this.participantMapper = participantMapper;
         this.dpUserMapper = dpUserMapper;
