@@ -67,6 +67,12 @@ public class DpRoom {
     private long currentHandSeed;
 
     /**
+     * 最近一次 {@code autoSettle} 后，场上筹码并列最高的玩家昵称（未结算过为空列表）。
+     * 供前端座位底牌光效使用，不持久化。
+     */
+    private List<String> chipLeaderNicknames = new ArrayList<>();
+
+    /**
      * 昵称 → dp_user.id，由进房/预约下一局等接口在传入 userId 且校验通过后写入；
      * 用于下一局从 wait 列表拉人上桌时补全 {@link DpPlayer#setDpUserId}，不参与房间 JSON。
      */
@@ -149,5 +155,13 @@ public class DpRoom {
 
     public void setCurrentHandSeed(long currentHandSeed) {
         this.currentHandSeed = currentHandSeed;
+    }
+
+    public List<String> getChipLeaderNicknames() {
+        return chipLeaderNicknames;
+    }
+
+    public void setChipLeaderNicknames(List<String> chipLeaderNicknames) {
+        this.chipLeaderNicknames = chipLeaderNicknames != null ? chipLeaderNicknames : new ArrayList<>();
     }
 }

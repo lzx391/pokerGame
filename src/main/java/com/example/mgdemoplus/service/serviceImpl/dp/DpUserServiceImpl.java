@@ -2,7 +2,8 @@ package com.example.mgdemoplus.service.serviceImpl.dp;
 
 import com.example.mgdemoplus.entity.dp.DpUser;
 import com.example.mgdemoplus.mapper.dp.DpUserMapper;
-import com.example.mgdemoplus.service.DpUserService;
+import com.example.mgdemoplus.service.dp.DpUserService;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -38,5 +39,12 @@ public class DpUserServiceImpl implements DpUserService {
     @Override
     public DpUser loginUserOrNull(String nickname, String password) {
         return dpUserMapper.loginUser(nickname, password);
+    }
+    
+    public String updateUserInfo(DpUser dpUser) {
+        if(dpUserMapper.updateUserInfo(dpUser)==1){
+            return "更新成功";
+        }
+        return "更新失败";
     }
 }

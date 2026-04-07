@@ -125,7 +125,7 @@ public final class LlmNpc {
     /**
      * system 一条 + 多轮 user/assistant（用于多轮对话）；roles 仅支持 user / assistant。
      */
-    public String chatMessages(String systemPrompt, List<ChatMessage> messages)
+    public String chatMessages(String systemPrompt, List<ChatMessage> messages)//含多轮对话
             throws IOException, InterruptedException {
         if (!isConfigured()) {
             throw new IllegalStateException(
@@ -165,8 +165,8 @@ public final class LlmNpc {
             node.put("content", m.content());
         }
 
-        String json = objectMapper.writeValueAsString(body);
-        HttpRequest request = HttpRequest.newBuilder()
+        String json = objectMapper.writeValueAsString(body);//把body转换成json字符串
+        HttpRequest request = HttpRequest.newBuilder()//构建请求
                 .uri(URI.create(baseUrl))
                 .timeout(Duration.ofSeconds(120))
                 .header("Content-Type", "application/json; charset=utf-8")

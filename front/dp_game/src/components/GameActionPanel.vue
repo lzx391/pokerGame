@@ -14,8 +14,9 @@
         </div>
         <span class="dp-action-panel__settled-count-label">准备倒计时</span>
       </div>
-      <div class="dp-action-panel__settled-chips">
-        当前积分：<strong>{{ myChips }}</strong>
+      <div class="dp-action-panel__stack-pair dp-action-panel__stack-pair--settled" aria-label="后手与本轮下注">
+        <span class="dp-action-panel__stack-pill">后手 <strong>{{ myChips }}</strong></span>
+        <span class="dp-action-panel__bet-pill">本轮 {{ myBet }}</span>
       </div>
       <div class="dp-action-panel__settled-actions">
         <button
@@ -42,6 +43,10 @@
     <template v-else>
       <div class="dp-action-panel__turn">
         轮到你行动了（30秒超时自动弃牌）
+      </div>
+      <div class="dp-action-panel__stack-pair" aria-label="后手与本轮下注">
+        <span class="dp-action-panel__stack-pill">后手 {{ myChips }}</span>
+        <span class="dp-action-panel__bet-pill">本轮 {{ myBet }}</span>
       </div>
       <div class="dp-action-panel__meta">
         当前跟注额: {{ currentBetToCall }} | 你已下注: {{ myBet }} | 还需跟: {{ callAmount }}
@@ -79,7 +84,7 @@
             class="dp-raise-slider"
             :min="minRaise"
             :max="sliderMax"
-            :step="1"
+            :step="snapChipUnit"
             :value="sliderValue"
             @input="onSliderInput($event.target.value)"
         >
@@ -109,6 +114,7 @@
                 :value="raiseAmount"
                 :min="minRaise"
                 :max="myChips"
+                :step="snapChipUnit"
                 @input="onRaiseInput($event.target.value)"
             >
             <button type="button" class="dp-btn--ghost-sm" @click="bumpRaise(-bigBlind)">
@@ -165,6 +171,14 @@ export default {
     raiseAmount: { type: Number, default: 0 }
   },
   computed: {
+    /** 对齐用的小盲单位：prop 无效时用大盲/2，避免退化成 1 导致 23 等无法吸到 5 的倍数 */
+    snapChipUnit() {
+      var sb = Number(this.smallBlind)
+      if (isFinite(sb) && sb >= 1) return Math.floor(sb)
+      var bb = Number(this.bigBlind)
+      if (isFinite(bb) && bb >= 2) return Math.max(1, Math.floor(bb / 2))
+      return 1
+    },
     sliderMax() {
       return Math.max(this.minRaise, this.myChips)
     },
@@ -192,15 +206,30 @@ export default {
     clampEmit(n) {
       var lo = this.minRaise
       var hi = this.myChips
+      n = this.snapBetToSmallBlindMultiple(n)
       if (n < lo) n = lo
       if (n > hi) n = hi
       this.$emit('update:raiseAmount', n)
+    },
+    /**
+     * 总下注额对齐到小盲倍数：先向下取整档；若低于合法最小加注则取「≥minRaise 的最小小盲倍数」。
+     */
+    snapBetToSmallBlindMultiple(total) {
+      var sb = this.snapChipUnit
+      var t = Number(total)
+      if (!isFinite(t)) return this.minRaise
+      var down = Math.floor(t / sb) * sb
+      var lo = Number(this.minRaise)
+      if (!isFinite(lo) || lo < 1) lo = 1
+      if (down >= lo) return down
+      return Math.ceil(lo / sb) * sb
     },
     setPotFrac(frac) {
       var pot = Number(this.pot) || 0
       var call = Math.max(0, Number(this.callAmount) || 0)
       var base = pot + call
-      var extra = Math.round(base * frac)
+      // 与「向下吸到小盲倍数」一致：比例部分先向下取整，再交给 clamp 对齐
+      var extra = Math.floor(base * frac)
       var want = call + extra
       this.clampEmit(want)
     }

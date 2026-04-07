@@ -344,14 +344,14 @@ final class DpNpcSharkLearningLab {
             // 用最近 10 手的“弱摊牌比例”作为稳定信号（并输出调试分解，方便确认过滤是否生效）
             DpPlayerStats.ShowdownWeakStats weakStats = s.getRecentShowdownWeakStats(10);
             double weakRatio = weakStats.ratio();
-            dbg(room, "onHandSettled villain=" + name
-                    + " sample=" + s.getSampleCount()
-                    + " weakRatio(10)=" + String.format("%.3f", weakRatio)
-                    + " weakSample=" + weakStats.sample
-                    + " weakCnt=" + weakStats.weakCount
-                    + " skipBoard=" + weakStats.skippedBoardDominant
-                    + " VPIP=" + String.format("%.3f", s.getOverallParticipationRate())
-                    + " PFR=" + String.format("%.3f", s.getOverallRaiseRate()));
+            // dbg(room, "onHandSettled villain=" + name
+            //         + " sample=" + s.getSampleCount()
+            //         + " weakRatio(10)=" + String.format("%.3f", weakRatio)
+            //         + " weakSample=" + weakStats.sample
+            //         + " weakCnt=" + weakStats.weakCount
+            //         + " skipBoard=" + weakStats.skippedBoardDominant
+            //         + " VPIP=" + String.format("%.3f", s.getOverallParticipationRate())
+            //         + " PFR=" + String.format("%.3f", s.getOverallRaiseRate()));
 
             // === 基于 ActionLog 的“在压力下的弃牌曲线”作为主信号 ===
             String vk = nk(name);
@@ -576,22 +576,22 @@ final class DpNpcSharkLearningLab {
             double prefR = getPreferredBluffBetPot(name, "river", 0.55);
             turnBigFold = computeFoldRate(name, "turn", SizeBucket.BIG);
             riverBigFold = computeFoldRate(name, "river", SizeBucket.BIG);
-            dbg(room, "updated villain=" + name
-                    + " foldAdj=" + String.format("%.3f", next)
-                    + " bc=" + String.format("%.3f", bcNext)
-                    + " sz=" + String.format("%.3f", szNext)
-                    + " bf(f/t/r)=" + String.format("%.3f", BLUFF_FIRE_BOOST_FLOP.getOrDefault(vk, 0.0)) + "/"
-                    + String.format("%.3f", BLUFF_FIRE_BOOST_TURN.getOrDefault(vk, 0.0)) + "/"
-                    + String.format("%.3f", BLUFF_FIRE_BOOST_RIVER.getOrDefault(vk, 0.0))
-                    + " vr(f/t/r)=" + String.format("%.3f", VALUE_RAISE_BOOST_FLOP.getOrDefault(vk, 0.0)) + "/"
-                    + String.format("%.3f", VALUE_RAISE_BOOST_TURN.getOrDefault(vk, 0.0)) + "/"
-                    + String.format("%.3f", VALUE_RAISE_BOOST_RIVER.getOrDefault(vk, 0.0))
-                    + " turnBigFold=" + String.format("%.3f", turnBigFold < 0 ?  -1.0 : turnBigFold)
-                    + " riverBigFold=" + String.format("%.3f", riverBigFold < 0 ? -1.0 : riverBigFold)
-                    + " prefSize(f/t/r)=" + String.format("%.2f", prefF) + "/" + String.format("%.2f", prefT) + "/" + String.format("%.2f", prefR)
-                    + " bfs=" + String.format("%.3f", BLUFF_FREQ_SCALE.getOrDefault(vk, 1.0))
-                    + " foldRateAll=" + (foldRateAll < 0 ? "-1" : String.format("%.3f", foldRateAll)));
-        }
+        //     dbg(room, "updated villain=" + name
+        //             + " foldAdj=" + String.format("%.3f", next)
+        //             + " bc=" + String.format("%.3f", bcNext)
+        //             + " sz=" + String.format("%.3f", szNext)
+        //             + " bf(f/t/r)=" + String.format("%.3f", BLUFF_FIRE_BOOST_FLOP.getOrDefault(vk, 0.0)) + "/"
+        //             + String.format("%.3f", BLUFF_FIRE_BOOST_TURN.getOrDefault(vk, 0.0)) + "/"
+        //             + String.format("%.3f", BLUFF_FIRE_BOOST_RIVER.getOrDefault(vk, 0.0))
+        //             + " vr(f/t/r)=" + String.format("%.3f", VALUE_RAISE_BOOST_FLOP.getOrDefault(vk, 0.0)) + "/"
+        //             + String.format("%.3f", VALUE_RAISE_BOOST_TURN.getOrDefault(vk, 0.0)) + "/"
+        //             + String.format("%.3f", VALUE_RAISE_BOOST_RIVER.getOrDefault(vk, 0.0))
+        //             + " turnBigFold=" + String.format("%.3f", turnBigFold < 0 ?  -1.0 : turnBigFold)
+        //             + " riverBigFold=" + String.format("%.3f", riverBigFold < 0 ? -1.0 : riverBigFold)
+        //             + " prefSize(f/t/r)=" + String.format("%.2f", prefF) + "/" + String.format("%.2f", prefT) + "/" + String.format("%.2f", prefR)
+        //             + " bfs=" + String.format("%.3f", BLUFF_FREQ_SCALE.getOrDefault(vk, 1.0))
+        //             + " foldRateAll=" + (foldRateAll < 0 ? "-1" : String.format("%.3f", foldRateAll)));
+         }
     }
 
     private static void updateFoldBucketsFromActionLog(DpRoom room) {

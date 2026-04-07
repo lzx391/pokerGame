@@ -227,6 +227,7 @@ import {
   finalCommunityCards,
   playerRoleTagsByNickname
 } from '@/utils/dpHandHistoryReplay.js'
+import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
 
 export default {
   name: 'HandHistoryDetail',
@@ -414,7 +415,7 @@ export default {
       this.fetchDetail()
     }
   },
-  created() {
+  async created() {
     try {
       const raw = localStorage.getItem('userInfo')
       this.user = raw ? JSON.parse(raw) : null
@@ -429,6 +430,17 @@ export default {
       }
       return
     }
+    this.user = (await ensureDpUserIdInStorage(this.$http)) || this.user
+    var uid = Number(this.user && this.user.userId)
+    if (!this.user || isNaN(uid) || uid <= 0) {
+      if (this.embedded) {
+        this.$emit('back')
+      } else {
+        this.$router.replace('/login')
+      }
+      return
+    }
+    this.user.userId = uid
     this.fetchDetail()
   },
   methods: {
@@ -492,10 +504,7 @@ export default {
       try {
         var params = {
           handHistoryId: id,
-          nickname: this.user.nickname
-        }
-        if (this.user.userId != null && this.user.userId !== '') {
-          params.userId = this.user.userId
+          userId: Number(this.user.userId)
         }
         var res = await this.$http.get('/dpHandHistory/detail', { params: params })
         this.detail = res.data || null

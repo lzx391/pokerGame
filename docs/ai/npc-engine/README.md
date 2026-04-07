@@ -1,31 +1,29 @@
-## DpNpcEngine.java 拆分阅读版（给 Claude/LLM 看的）
+# DP 德州扑克 · NPC 引擎笔记（整理版）
 
-你现在的 `DpNpcEngine.java` 约 **3456 行**，直接整文件发给模型不方便。
-这里我按“模块”把关键代码片段复制出来，分成多个小文件，你可以只发你关心的那一块。
+本目录是后端 **规则型 NPC**（`BOT_Fish` / `BOT_Maniac` / `BOT_Tag` / `BOT_Shark`）的实现说明。  
+游戏整体协议与房间流程仍以仓库根目录下的 `docs/DPGAME.md` 为准；这里只讲 **AI 决策与相关类**。
 
-### 怎么选你要发哪几份？
+**不在本目录展开的内容**
 
-- **只看 Shark（最推荐）**：
-  - `part04_shark_postflop.md`（Shark 翻后决策主流程：fold/call/raise 规则与日志）
-  - `part03_context_thinkdelay_entry.md`（入口、思考时间、SmartContext 构建）
-  - `part02_profiles_strength_preflop.md`（牌力评估、牌面干湿、翻前分类/翻前决策）
+- **大模型机器人 `BOT_LLM`**：走 `DpLlmNpcDecisionService`，与普通 NPC 分流；说明见根目录 `README.md` 的「大模型 NPC」小节。
+- **前端如何加机器人**：仍以 `DPGAME.md` 与房主接口为准。
 
-- **想理解“数据怎么被收集成 SmartContext”**：
-  - `part03_context_thinkdelay_entry.md`
+---
 
-- **想理解“翻前怎么开池/3bet/短码全下”**：
-  - `part02_profiles_strength_preflop.md`
+## 阅读顺序
 
-- **想对比 TAG vs SHARK**：
-  - `part05_tag_strategy.md`
-  - `part04_shark_postflop.md`
+| 文件 | 内容 |
+|------|------|
+| [01_overview_and_entry.md](01_overview_and_entry.md) | 分类（普通 vs Shark）、调用链、核心类一览 |
+| [02_normal_npc_implementation.md](02_normal_npc_implementation.md) | 普通 NPC（Fish / Maniac / TAG）从入口到分支的逐步流程 |
+| [03_normal_npc_modules.md](03_normal_npc_modules.md) | 普通 NPC 共用模块：`DpUtilHandEvaluator`、`StyleProfile`、思考延迟等 |
+| [04_shark_implementation.md](04_shark_implementation.md) | Shark 翻前 → 翻后 HandPlan → 决策委托的逐步流程 |
+| [05_shark_modules.md](05_shark_modules.md) | Shark 专属类：`DpNpcSharkPreflopStrategy`、`DpNpcSharkStrategy`、剥削剧本、学习旋钮、持久化 |
 
-### 文件列表
+---
 
-- `part01_config_and_types.md`：配置与核心类型（SharkConfig、BotAction、位置/难度/风格等枚举、HandPlan 初始化片段）
-- `part02_profiles_strength_preflop.md`：风格/难度参数表、牌力评估、牌面干湿判断、翻前手牌分类与翻前决策入口
-- `part03_context_thinkdelay_entry.md`：对手画像/统计、SmartContext 构建、思考时间、`decideActionIfReady` 入口
-- `part04_shark_postflop.md`：`case SHARK` 翻后决策主体（fold 概率合成、c-bet、call/raise、commit threshold、river overbet/block 等）
-- `part05_tag_strategy.md`：`case TAG`（更紧的翻前、更简单的翻后）与文件结尾
-- `part06_shark_learning_lab.md`：Shark 动态学习实验（旋钮参数）+ 逐街动作日志（只影响 BOT_Shark）
+## 代码主路径（速查）
 
+- **引擎入口**：`com.example.mgdemoplus.service.serviceImpl.dp.DpNpcEngine`
+- **房间调用**：`DpRoomServiceImpl` 定时任务里 `DpNpcEngine.isBotPlayer` → `decideActionIfReady` → 根据 `BotAction` 调 `bet` / `fold`
+- **牌力评估**：`com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator`（注意：历史文档里的 `DpHandEvaluator` 名称已统一为该类）

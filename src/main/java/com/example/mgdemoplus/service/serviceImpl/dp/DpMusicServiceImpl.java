@@ -1,7 +1,7 @@
 package com.example.mgdemoplus.service.serviceImpl.dp;
 
 import com.example.mgdemoplus.mapper.dp.DpMusicTrackMapper;
-import com.example.mgdemoplus.service.DpMusicService;
+import com.example.mgdemoplus.service.dp.DpMusicService;
 import com.example.mgdemoplus.entity.dp.DpMusicTrack;
 
 import org.springframework.beans.factory.annotation.Autowired;

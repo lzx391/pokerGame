@@ -72,6 +72,14 @@
   );
   --dp-card-frame-gold: rgba(212, 175, 55, 0.28);
   --dp-card-frame-outer: rgba(0, 0, 0, 0.35);
+  /* 扑克牌尺寸（主题可单独覆盖） */
+  --dp-card-base-width: 38px;
+  --dp-card-base-height: 54px;
+  --dp-card-base-font-size: 15px;
+  --dp-card-base-radius: 5px;
+  --dp-card-community-back-font-size: 17px;
+  --dp-card-community-row-gap: 6px;
+  --dp-card-community-row-margin-y: 16px;
   --dp-table-felt-texture: none;
   --dp-table-felt-texture-opacity: 0;
   --dp-muck-tint: #2a2a2a;
@@ -86,63 +94,216 @@
   }
 }
 
-/* 对局主列：固定顺序为 顶栏 → 圆桌 → 底区，避免窄屏圆桌置顶后与顶栏/座位叠在一起 */
-.dp-game-page-flex {
+/* ========== 对局页骨架：顶栏 | 主区(仅圆桌滚动) | 底栏(文档流，不盖桌面) ========== */
+.dp-game-layout {
   display: flex;
   flex-direction: column;
   width: 100%;
   box-sizing: border-box;
+  min-height: 0;
 }
 
-.dp-game-page-seg {
+.dp-game-layout__header {
+  flex-shrink: 0;
   width: 100%;
   box-sizing: border-box;
 }
 
-@media (max-width: 600px) {
-  /* 固定底栏（聊天+手牌+行动同一行）时给页面底部留白 */
-  .dp-game-root--mobile-hero-dock {
-    padding-bottom: max(76px, calc(16px + env(safe-area-inset-bottom, 0px) + 56px));
+/* 圆桌区：全屏/伪全屏时由父链给高度，仅此区域纵向滚动 */
+.dp-game-layout__main {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: visible;
+}
+
+.dp-game-layout__footer {
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 手机 / 小屏平板：与全屏同一套「根封顶 + 仅主区滚」，底栏在视口下沿占位，不盖桌面 */
+@media (max-width: 900px) {
+  .dp-game-root {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+    max-height: 100dvh;
+    max-height: 100svh;
+    overflow: hidden;
+  }
+
+  .dp-game-root > .dp-game-layout {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .dp-game-root .dp-game-layout__main {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 }
 
-.dp-game-root--layout-fs.dp-game-root--mobile-hero-dock,
-.dp-game-root:fullscreen.dp-game-root--mobile-hero-dock,
-.dp-game-root:-webkit-full-screen.dp-game-root--mobile-hero-dock {
-  padding-bottom: max(76px, calc(16px + env(safe-area-inset-bottom, 0px) + 56px));
+/*
+ * 宽屏：与窄屏同一套「根视口封顶 + 仅主区滚」，避免摊牌/结算时 12 点方向座位被裁切且 scrollTop 不可为负；
+ * 圆桌在主区内 margin:auto 垂直居中，减少「中间空、上下挤」的失调感。
+ */
+@media (min-width: 901px) {
+  .dp-game-root {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+    max-height: 100dvh;
+    max-height: 100svh;
+    overflow: hidden;
+  }
+
+  .dp-game-root > .dp-game-layout {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .dp-game-root .dp-game-layout__main {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
+    /* 大屏：圆桌整体上移易贴顶栏，主区顶内边距拉开与顶栏距离（与摊牌/结算的 data-dp-stage 顶留白叠加时后者特异性更高） */
+    padding-top: clamp(80px, 3.2vmin, 1000px);
+    /* scroll-padding-top: clamp(14px, 2.8vmin, 32px); */
+  }
+
+  .dp-game-root .dp-game-layout__main > .dp-game-table {
+    flex: 0 1 auto;
+    min-height: min-content;
+    width: 100%;
+    margin-top: auto;
+    margin-bottom: auto;
+  }
 }
 
-/* 全屏 / 伪全屏：原生 :fullscreen 与 .dp-game-root--layout-fs 共用圆桌自适应 */
+/* 摊牌/结算：主区顶留白，避免座位上沿牌型/最佳五张被 overflow 裁切（负向滚动不可用） */
+.dp-game-root[data-dp-stage='showdown'] .dp-game-layout__main,
+.dp-game-root[data-dp-stage='settled'] .dp-game-layout__main {
+  padding-top: clamp(98px, 4.2vw, 160px);
+  scroll-padding-top: clamp(16px, 4.2vw, 52px);
+}
+
+/*
+ * 全屏 / 伪全屏：根节点固定视口高度且自身不滚；滚动发生在 .dp-game-layout__main 内，
+ * 底栏在 footer 占文档流，不再 position:fixed，从结构上避免挡座位。
+ */
 .dp-game-root:fullscreen,
-.dp-game-root:-webkit-full-screen {
+.dp-game-root:-webkit-full-screen,
+.dp-game-root.dp-game-root--layout-fs,
+.dp-game-root.dp-game-root--pseudo-fs {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  max-height: 100svh;
+  min-height: 0;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  overflow: hidden;
+}
+
+.dp-game-root:fullscreen > .dp-game-layout,
+.dp-game-root:-webkit-full-screen > .dp-game-layout,
+.dp-game-root.dp-game-root--layout-fs > .dp-game-layout,
+.dp-game-root.dp-game-root--pseudo-fs > .dp-game-layout {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dp-game-root:fullscreen .dp-game-layout__main,
+.dp-game-root:-webkit-full-screen .dp-game-layout__main,
+.dp-game-root.dp-game-root--layout-fs .dp-game-layout__main,
+.dp-game-root.dp-game-root--pseudo-fs .dp-game-layout__main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
 
-/* 无 Fullscreen API 时铺满视口；z-index 低于 Element 弹层，避免挡住确认框 */
+/* 无 Fullscreen API：文档流铺满视口（勿 fixed+bottom:0 钉死高度，否则与 body 锁滚动叠加后手机无法整页下滑） */
 .dp-game-root.dp-game-root--pseudo-fs {
-  position: fixed;
-  left: 0;
-  right: 0;
-  top: 0;
-  bottom: 0;
+  position: relative;
   width: 100%;
   max-width: 100%;
   margin: 0;
   min-height: 100%;
   min-height: 100dvh;
+  min-height: -webkit-fill-available;
   z-index: 1990;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+}
+
+.dp-game-root:fullscreen .dp-game-table,
+.dp-game-root:-webkit-full-screen .dp-game-table,
+.dp-game-root.dp-game-root--layout-fs .dp-game-table,
+.dp-game-root.dp-game-root--pseudo-fs .dp-game-table {
+  /* 勿 flex-grow + min-height:0：会把圆桌压进一屏并配合 __layout 的 max-height:100% 裁切底部座位 */
+  flex: 0 1 auto;
+  min-height: min-content;
+  display: flex;
+  flex-direction: column;
+  margin-top: 4px;
+  margin-bottom: 6px;
+}
+
+/* 宽屏全屏：主区已 flex，圆桌用 auto 边距垂直居中（覆盖上一段固定 margin，避免与 ≥901px 布局冲突） */
+@media (min-width: 901px) {
+  .dp-game-root:fullscreen .dp-game-layout__main > .dp-game-table,
+  .dp-game-root:-webkit-full-screen .dp-game-layout__main > .dp-game-table,
+  .dp-game-root.dp-game-root--layout-fs .dp-game-layout__main > .dp-game-table,
+  .dp-game-root.dp-game-root--pseudo-fs .dp-game-layout__main > .dp-game-table {
+    margin-top: auto;
+    margin-bottom: auto;
+  }
+
+  .dp-game-root:fullscreen .dp-game-layout__main,
+  .dp-game-root:-webkit-full-screen .dp-game-layout__main,
+  .dp-game-root.dp-game-root--layout-fs .dp-game-layout__main,
+  .dp-game-root.dp-game-root--pseudo-fs .dp-game-layout__main {
+    display: flex;
+    flex-direction: column;
+  }
 }
 
 .dp-game-root:fullscreen .dp-game-table__layout,
 .dp-game-root:-webkit-full-screen .dp-game-table__layout,
-.dp-game-root.dp-game-root--layout-fs .dp-game-table__layout {
+.dp-game-root.dp-game-root--layout-fs .dp-game-table__layout,
+.dp-game-root.dp-game-root--pseudo-fs .dp-game-table__layout {
   max-width: min(920px, 100%);
   width: 100%;
-  /* 全屏时手牌/行动改底栏抽屉，不再为内联操作区预留 ~200px */
-  min-height: clamp(280px, min(92vw, calc(100dvh - 120px)), 640px);
+  flex: 0 1 auto;
+  min-height: min-content;
+  max-height: none;
+  /* 圆桌区高度交给 min-height(clamp) + 内容；全屏/窄屏下在 .dp-game-layout__main 内上下滑 */
 }
 
 .dp-game-root:fullscreen .dp-game-table__felt,
@@ -157,27 +318,20 @@
   max-width: min(340px, 88vw);
 }
 
+/* 窄屏全屏：底部座位略低于台呢盒时留一点下内边距（根节点已可滚，不必过大以免「多出一块」） */
+@media (max-width: 600px) {
+  .dp-game-root:fullscreen .dp-game-table__layout,
+  .dp-game-root:-webkit-full-screen .dp-game-table__layout,
+  .dp-game-root.dp-game-root--layout-fs .dp-game-table__layout,
+  .dp-game-root.dp-game-root--pseudo-fs .dp-game-table__layout {
+    padding-bottom: max(28px, min(12vw, 72px));
+  }
+}
+
 .dp-game-root:fullscreen .dp-game-hero-action-row,
 .dp-game-root:-webkit-full-screen .dp-game-hero-action-row,
 .dp-game-root.dp-game-root--layout-fs .dp-game-hero-action-row {
   max-width: min(900px, 100%);
-}
-
-@media (max-width: 600px) {
-  .dp-game-root:fullscreen .dp-game-table__layout,
-  .dp-game-root:-webkit-full-screen .dp-game-table__layout,
-  .dp-game-root.dp-game-root--layout-fs .dp-game-table__layout {
-    min-height: clamp(260px, min(94vw, calc(100dvh - 100px)), 520px);
-  }
-}
-
-/* 含大屏手机横屏（宽常 >900px，如 Pro Max），否则顶栏仍用大内边距、桌面被挤到屏外 */
-@media (max-width: 1024px) and (max-height: 560px) {
-  .dp-game-root:fullscreen .dp-game-table__layout,
-  .dp-game-root:-webkit-full-screen .dp-game-table__layout,
-  .dp-game-root.dp-game-root--layout-fs .dp-game-table__layout {
-    min-height: min(78vw, calc(100dvh - 72px));
-  }
 }
 
 .dp-game-theme-row {
@@ -326,12 +480,6 @@
     gap: 8px;
   }
 
-  .dp-game-root:fullscreen .dp-game-table__layout,
-  .dp-game-root:-webkit-full-screen .dp-game-table__layout,
-  .dp-game-root.dp-game-root--layout-fs .dp-game-table__layout {
-    min-height: clamp(236px, min(86vw, calc(100dvh - 228px)), 540px);
-  }
-
   .dp-game-root:fullscreen .dp-game-hero-action-row,
   .dp-game-root:-webkit-full-screen .dp-game-hero-action-row,
   .dp-game-root.dp-game-root--layout-fs .dp-game-hero-action-row {
@@ -374,6 +522,24 @@
     var(--dp-table-felt-inset-bottom, inset 0 -12px 36px rgba(0, 0, 0, 0.22)),
     var(--dp-table-felt-drop-shadow, 0 10px 28px rgba(0, 0, 0, 0.18));
   border: 1px solid var(--dp-panel-border);
+}
+
+/* 圆桌分区射线：公共牌区内沿 → 台呢外沿（与 dpGameRoundTableLayout 座位角一致），各主题用 --dp-accent */
+.dp-game-table__seat-rays {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+  display: block;
+}
+
+.dp-game-table__seat-rays line {
+  stroke: color-mix(in srgb, var(--dp-accent) 38%, transparent);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
 }
 
 /* 棉花糖/草莓等：台呢上叠一层柔光纹理（与哥特深色台呢同源机制） */
@@ -427,38 +593,45 @@
   opacity: 0.85;
 }
 
-/* 桌面中央：当前行动者 + 倒计时（全场可见） */
+/* 桌面行动倒计时：公共牌上方，胶囊条 + 圆环（--compact 整体缩小，少占纵向空间） */
 .dp-game-table-action-timer {
   width: 100%;
   display: flex;
   justify-content: center;
-  margin-bottom: 4px;
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+
+.dp-game-table-action-timer--compact .dp-game-table-action-timer__inner {
+  gap: 6px;
+  padding: 3px 8px 3px 5px;
+  max-width: min(260px, 92vw);
 }
 
 .dp-game-table-action-timer__inner {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 14px 6px 8px;
+  gap: 8px;
+  padding: 5px 12px 5px 6px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--dp-panel-bg) 92%, transparent);
   border: 1px solid color-mix(in srgb, var(--dp-accent) 28%, var(--dp-panel-border));
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.1);
 }
 
 .dp-game-table-action-timer--rich .dp-game-table-action-timer__inner {
   background: color-mix(in srgb, var(--dp-panel-bg) 82%, transparent);
   box-shadow:
-    0 4px 22px rgba(0, 0, 0, 0.14),
-    inset 0 1px 0 color-mix(in srgb, var(--dp-text-primary) 8%, transparent);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+    0 2px 14px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 color-mix(in srgb, var(--dp-text-primary) 6%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .dp-game-table-action-timer__ring {
   position: relative;
-  width: 44px;
-  height: 44px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   flex-shrink: 0;
   display: flex;
@@ -470,22 +643,31 @@
     var(--dp-table-ring-active, var(--dp-accent)) calc(var(--dp-table-timer-pct, 1) * 360deg),
     color-mix(in srgb, var(--dp-text-muted) 38%, transparent) 0
   );
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.dp-game-table-action-timer--compact .dp-game-table-action-timer__ring {
+  width: 26px;
+  height: 26px;
 }
 
 .dp-game-table-action-timer__ring::before {
   content: '';
   position: absolute;
-  inset: 5px;
+  inset: 4px;
   border-radius: 50%;
   background: var(--dp-panel-bg);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
+.dp-game-table-action-timer--compact .dp-game-table-action-timer__ring::before {
+  inset: 3.5px;
+}
+
 .dp-game-table-action-timer__sec {
   position: relative;
   z-index: 1;
-  font-size: 17px;
+  font-size: 12px;
   font-weight: 800;
   font-family: 'Arial Black', 'Segoe UI', sans-serif;
   line-height: 1;
@@ -493,26 +675,30 @@
   font-variant-numeric: tabular-nums;
 }
 
+.dp-game-table-action-timer--compact .dp-game-table-action-timer__sec {
+  font-size: 11px;
+}
+
 .dp-game-table-action-timer__meta {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 1px;
+  gap: 0;
   min-width: 0;
 }
 
 .dp-game-table-action-timer__who {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--dp-text-primary);
-  max-width: 160px;
+  max-width: 118px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .dp-game-table-action-timer__hint {
-  font-size: 11px;
+  font-size: 9px;
   color: var(--dp-text-secondary);
   letter-spacing: 0.02em;
 }
@@ -529,13 +715,13 @@
   0%,
   100% {
     box-shadow:
-      0 4px 22px rgba(0, 0, 0, 0.14),
+      0 2px 14px rgba(0, 0, 0, 0.12),
       0 0 0 1px color-mix(in srgb, var(--dp-danger) 35%, transparent);
   }
   50% {
     box-shadow:
-      0 4px 26px rgba(255, 82, 82, 0.2),
-      0 0 0 2px color-mix(in srgb, var(--dp-danger) 55%, transparent);
+      0 2px 16px rgba(255, 82, 82, 0.18),
+      0 0 0 2px color-mix(in srgb, var(--dp-danger) 48%, transparent);
   }
 }
 
@@ -543,33 +729,52 @@
   animation: dp-table-action-timer-pulse 1.1s ease-in-out infinite;
 }
 
-/* 宽屏：中央行动计时器略缩小，少占桌面中心、与公共牌错开 */
+/* 随座位轨道倒计时：仅圆环，贴在台呢标（庄/盲）同基准点左侧 */
+.dp-game-table-action-timer--orbit {
+  position: absolute;
+  width: auto;
+  max-width: none;
+  margin: 0;
+  pointer-events: none;
+}
+
+.dp-game-table-action-timer--orbit.dp-game-table-action-timer--ring-only .dp-game-table-action-timer__inner--ring-only {
+  padding: 0;
+  gap: 0;
+  max-width: none;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
 @media (min-width: 768px) {
-  .dp-game-table-action-timer__inner {
-    gap: 8px;
-    padding: 4px 10px 4px 6px;
+  .dp-game-table-action-timer--compact .dp-game-table-action-timer__inner {
+    gap: 5px;
+    padding: 3px 8px 3px 4px;
   }
 
-  .dp-game-table-action-timer__ring {
-    width: 36px;
-    height: 36px;
+  .dp-game-table-action-timer--compact .dp-game-table-action-timer__ring {
+    width: 24px;
+    height: 24px;
   }
 
-  .dp-game-table-action-timer__ring::before {
-    inset: 4px;
+  .dp-game-table-action-timer--compact .dp-game-table-action-timer__ring::before {
+    inset: 3px;
   }
 
-  .dp-game-table-action-timer__sec {
-    font-size: 14px;
+  .dp-game-table-action-timer--compact .dp-game-table-action-timer__sec {
+    font-size: 10px;
   }
 
   .dp-game-table-action-timer__who {
-    font-size: 12px;
-    max-width: 140px;
+    font-size: 10px;
+    max-width: 108px;
   }
 
   .dp-game-table-action-timer__hint {
-    font-size: 10px;
+    font-size: 8px;
   }
 }
 
@@ -590,7 +795,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   width: 100%;
   pointer-events: none;
 }
@@ -637,6 +842,26 @@
   transform: rotate(6deg);
 }
 
+/* 弃牌堆绕庄位：绝对定位在 dp-game-table__layout 内，与中央公共牌区分开 */
+.dp-game-muck-pile--orbit {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* 庄/盲/连胜标贴在台呢上（略向桌心偏移，具体比例由 game.vue 内联样式控制） */
+.dp-game-table__felt-markers {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  max-width: min(36vw, 168px);
+  pointer-events: none;
+}
+
 .dp-game-table__center .community-cards-row {
   margin: 0;
   flex-wrap: wrap;
@@ -664,6 +889,27 @@
   min-width: 0 !important;
   pointer-events: none;
   overflow: visible;
+}
+
+/* 本人圆桌空位：庄 / 盲 / 连胜标贴在靠桌心一侧（6 点方向略向上） */
+.dp-game-hero-seat-badges {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -100%);
+  margin-top: -10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  max-width: min(42vw, 200px);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.dp-game-hero-seat-badges .dp-player-card__badge {
+  pointer-events: auto;
 }
 
 @media (min-width: 480px) {
@@ -695,7 +941,7 @@
   display: none !important;
 }
 
-/* 底栏：默认隐藏；≤600px 或 全屏/伪全屏时显示 */
+/* 底栏：默认隐藏；≤600px 或 全屏/伪全屏时显示。随 footer 文档流排在圆桌下方，不再 fixed 盖桌面 */
 .dp-game-mobile-hero-bar {
   display: none;
   box-sizing: border-box;
@@ -709,11 +955,12 @@
     align-items: stretch;
     justify-content: center;
     gap: 8px;
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 88;
+    position: relative;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    z-index: 6;
+    width: 100%;
     padding: 8px max(10px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px));
     background: linear-gradient(to top, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.2) 60%, transparent);
     pointer-events: none;
@@ -729,11 +976,12 @@
   align-items: stretch;
   justify-content: center;
   gap: 8px;
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 88;
+  position: relative;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  z-index: 6;
+  width: 100%;
   padding: 8px max(10px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px));
   background: linear-gradient(to top, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.2) 60%, transparent);
   pointer-events: none;
@@ -1167,6 +1415,27 @@
 .dp-player-card__name-me {
   color: var(--dp-accent);
   font-weight: 800;
+}
+
+.dp-player-card__fold-inline {
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--dp-danger);
+  white-space: nowrap;
+}
+
+.dp-player-card--hand-dock .dp-player-card__head--hand-dock-only {
+  margin-bottom: 6px;
+}
+
+.dp-player-card--hand-dock .dp-player-card__hole-row--hand-dock {
+  margin-bottom: 6px;
+  justify-content: flex-start;
+}
+
+.dp-player-card--hand-dock .dp-player-card__hand-rank {
+  margin-top: 4px;
 }
 
 .dp-player-card__status {
@@ -2060,6 +2329,56 @@
   color: var(--dp-warning);
   font-weight: bold;
   margin-bottom: 10px;
+}
+
+.dp-action-panel__stack-pair {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 12px;
+  margin-bottom: 10px;
+}
+
+.dp-action-panel__stack-pair--settled {
+  margin-bottom: 8px;
+}
+
+.dp-action-panel__stack-pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  background: var(--dp-subpanel-bg);
+  border: 1px solid var(--dp-subpanel-border);
+  color: var(--dp-text-secondary);
+}
+
+.dp-action-panel__stack-pill strong {
+  font-weight: 800;
+  font-family: ui-monospace, 'Cascadia Code', monospace;
+  color: var(--dp-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.dp-action-panel__bet-pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  border: 2px solid var(--dp-danger);
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--dp-danger) 22%, var(--dp-panel-bg)) 0%,
+    color-mix(in srgb, var(--dp-pot) 12%, var(--dp-panel-bg)) 100%
+  );
+  color: var(--dp-pot);
+  font-variant-numeric: tabular-nums;
 }
 
 .dp-action-panel__meta {

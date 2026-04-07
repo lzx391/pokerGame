@@ -50,9 +50,9 @@
               type="button"
               class="dp-btn dp-top-bar__btn dp-top-bar__btn--ghost"
               :disabled="!canControl || !hasCurrentTrack"
-              @click="emitPause"
+              @click="onPauseOrResume"
           >
-            暂停
+            {{ pauseOrResumeLabel }}
           </button>
           <button
               type="button"
@@ -88,6 +88,12 @@ export default {
       var m = this.roomMusic
       return !!(m && m.webPath)
     },
+    /** 已暂停时再点同一按钮应恢复播放，而不是重复发 pause（会丢 webPath，像被停掉一样） */
+    pauseOrResumeLabel () {
+      var m = this.roomMusic
+      if (m && m.action === 'pause' && this.hasCurrentTrack) return '继续'
+      return '暂停'
+    },
     statusLine () {
       var m = this.roomMusic
       if (!m || !m.action) return ''
@@ -115,6 +121,14 @@ export default {
         displayName: (t.displayName && String(t.displayName).trim()) || ('曲目 ' + t.id)
       })
     },
+    onPauseOrResume () {
+      var m = this.roomMusic
+      if (m && m.action === 'pause' && m.webPath) {
+        this.emitResume()
+        return
+      }
+      this.emitPause()
+    },
     emitPause () {
       var m = this.roomMusic
       this.$emit('sync', {
@@ -122,6 +136,17 @@ export default {
         trackId: m && m.trackId != null ? m.trackId : 0,
         webPath: (m && m.webPath) || '',
         displayName: (m && m.displayName) || ''
+      })
+    },
+    emitResume () {
+      var m = this.roomMusic
+      if (!m || !m.webPath) return
+      var name = (m.displayName && String(m.displayName).trim()) || ''
+      this.$emit('sync', {
+        action: 'play',
+        trackId: m.trackId != null ? m.trackId : 0,
+        webPath: m.webPath,
+        displayName: name || ('曲目 ' + (m.trackId || ''))
       })
     },
     emitStop () {
