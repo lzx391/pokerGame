@@ -3,10 +3,15 @@ package com.example.mgdemoplus.controller.dp;
 import com.example.mgdemoplus.dto.DpRoomDTO;
 import com.example.mgdemoplus.entity.dp.DpRoom;
 import com.example.mgdemoplus.service.serviceImpl.dp.DpRoomServiceImpl;
+import com.example.mgdemoplus.utils.JwtUtil;
+import com.example.mgdemoplus.utils.ResultUtil;
+
+import io.jsonwebtoken.Claims;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 
 
@@ -34,6 +39,37 @@ public class DpRoomController {
     public String joinRoom(@RequestParam String roomId, @RequestParam String nickname,
                            @RequestParam(required = false) Integer userId) {
         return dpRoomService.joinRoom(roomId, nickname, userId);
+    }
+    /**
+     * 与 {@link #joinRoom} 业务相同，但要求登录态：请求头携带
+     * {@code Authorization: Bearer} + 登录时 {@code /dpUser/loginProfile} 返回的 token，
+     * JWT 中的 subject（昵称）须与参数 {@code nickname} 一致。
+     */
+    @PostMapping("/joinRoom2")
+    public ResultUtil joinRoom2(HttpServletRequest request,
+                                @RequestParam String roomId,
+                                @RequestParam String nickname,
+                                @RequestParam(required = false) Integer userId) {
+        String token = JwtUtil.stripBearerToken(request.getHeader("Authorization"));
+        if (token == null) {
+            return ResultUtil.error().data("message", "未登录：请在请求头添加 Authorization: Bearer <token>");
+        }
+        String tokenNickname;
+        try {
+            Claims claims = JwtUtil.verifyToken(token);
+            tokenNickname = claims.getSubject();
+        } catch (Exception e) {
+            return ResultUtil.error().data("message", "token 无效或已过期");
+        }
+        if (tokenNickname == null || !tokenNickname.equals(nickname)) {
+            return ResultUtil.error().data("message", "token 与当前昵称不一致");
+        }
+
+        String outcome = dpRoomService.joinRoom(roomId, nickname, userId);
+        if ("ok".equals(outcome) || "游戏已开始".equals(outcome)) {
+            return ResultUtil.ok().data("message", outcome);
+        }
+        return ResultUtil.error().data("message", outcome);
     }
 /**
  * 该房间内玩家是否能准备成功的接口

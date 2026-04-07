@@ -105,7 +105,8 @@
 - **落库思路（牌谱 / 参与者 / Shark 记忆表）**：[docs/DP_PERSISTENCE_README.md](docs/DP_PERSISTENCE_README.md)。
 - **表**：`src/main/resources/db/dp_observed_hand_participant.sql`（多对多拆解；**不设数据库外键**）。需在已有 `dp_observed_hand_history` 的库上执行建表。
 - **user_id**：列上**可为 NULL**；入库时优先用内存 `dpUserId`，否则按 **昵称** 查 `dp_user`（昵称全局唯一时可补全）；仍无账号则只存 `nickname_snapshot`。机器人不占行。
-- **前端**：登录可用 `GET /dpUser/loginProfile` 拿到 `userId` 并写入 `localStorage`；**创建房间 / 加入房间 / 观众「下一局加入」** 可带可选 `userId`（与昵称须与 `dp_user` 一致才采纳），界面只展示昵称。
+- **前端**：`GET /dpUser/loginProfile`、`POST /dpUser/registerUser` 返回统一 `ResultUtil`（`success` / `code` / `message` / `data`）；登录成功时 `data` 含 `userId`、`nickname`、`token`。前端用 `userId` 写入 `localStorage`；**创建房间 / 加入房间 / 观众「下一局加入」** 可带可选 `userId`（与昵称须与 `dp_user` 一致才采纳），界面只展示昵称。
+- **加入房间带 JWT（小范围试点，2026-04-07）**：`POST /dpRoom/joinRoom2` 与 `joinRoom` 参数相同，但**必须**带请求头 `Authorization: Bearer <loginProfile 返回的 token>`；服务端用 `JwtUtil` 校验后要求 JWT 的 subject（昵称）与表单参数 `nickname` 一致，再执行原加入逻辑；成功 `success=true`，`data.message` 为 `ok` 或 `游戏已开始`；未带 token、token 过期或与昵称不符时 `success=false`，`data.message` 为原因。大厅页「加入」已改调 `joinRoom2` 并自动带 `Bearer`；旧缓存仅有 `userId` 无 `token` 时，`ensureDpUserIdInStorage` 会静默再调一次 `loginProfile` 补全 `token`。
 - **历史查询（列表/详情）**：仅按 **`userId`**（`dp_user.id` + 参与者表 `user_id`）；不再支持仅昵称查询。
 - **列表接口（分页，PageHelper）**：`GET /dpHandHistory/list?userId=必填&page=1&pageSize=10` → 仅按参与者表 `user_id`；`pageSize` 默认 10、最大 100。前端在打开历史页/对局页前用 `GET /dpUser/loginProfile` 把 `userId` 写入 `localStorage`（兼容旧缓存仅有昵称密码的情况）。
 - **详情接口**：`GET /dpHandHistory/detail?handHistoryId=必填&userId=必填` → `DpHandHistoryDetailDTO`。仅 **参与者（该 user_id）** 可读。前端 `HandHistoryDetail`：**本人**始终可看自己的底牌（含自己弃牌后）；**他人**弃牌则不展示其底牌，未弃牌仍按街展示。**结算** 页另有终局公共牌。

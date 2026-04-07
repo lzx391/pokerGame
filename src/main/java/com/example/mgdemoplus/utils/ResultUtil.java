@@ -42,8 +42,7 @@ public class ResultUtil {
     public void setData(Map<String, Object> data) {
         this.data = data;
     }
-//这里为啥要把构造方法私有呢？因为要保证ResultVO的单例性，为啥只能弄一个实例呢？因为ResultVO是一个工具类，不需要多个实例
-
+//这里为啥要把构造方法私有呢，是为了限制ResultUtil的实例化，只能通过static方法来获取实例
     private ResultUtil() {
 
     }
@@ -79,10 +78,12 @@ public class ResultUtil {
         result.setMessage("敏感词汇");
         return result;
     }
+    //这个是动态的添加数据，比如：return ResultUtil.ok().data("message", "注册成功");
     public ResultUtil data(String key, Object value) {
         this.data.put(key, value);
         return this;
     }
+    //这个是直接赋值一个map，比如：return ResultUtil.ok().data(Map<String, Object> data);
     public ResultUtil data(Map<String, Object> data) {
         this.setData(data);
         return this;

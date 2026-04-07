@@ -33,7 +33,7 @@ public class JwtUtil {
     private static final long EXPIRATION_TIME = 1000 * 60; // 1 minute
     public static String generateToken(String username) {
         Date now = new Date();
-        Date expiration = new Date(now.getTime() + 10 * EXPIRATION_TIME);//十分钟期限
+        Date expiration = new Date(now.getTime() + 24 * 60 * EXPIRATION_TIME);//十分钟期限
         return Jwts.builder()
                 .header().add("type", "JWT").and()
                 .subject(username)
@@ -49,6 +49,24 @@ public class JwtUtil {
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+    }
+
+    /**
+     * 从 HTTP {@code Authorization} 头解析 Bearer token。
+     * 约定：{@code Authorization} 值为 {@code Bearer } 前缀加 JWT（前缀大小写不敏感）。
+     *
+     * @return 纯 JWT 字符串；缺失或非 Bearer 时返回 {@code null}
+     */
+    public static String stripBearerToken(String authorizationHeader) {
+        if (authorizationHeader == null || authorizationHeader.isBlank()) {
+            return null;
+        }
+        String s = authorizationHeader.trim();
+        if (s.length() < 8 || !s.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            return null;
+        }
+        String t = s.substring(7).trim();
+        return t.isEmpty() ? null : t;
     }
 }
 

@@ -468,6 +468,7 @@ public class DpRoomServiceImpl {
 
 
     public String joinRoom(String roomId, String nickname, Integer userId) {
+        
         DpRoom r = roomMap.get(roomId);
         if (r == null) return "房间不存在";
         if (r.isPlaying()) {

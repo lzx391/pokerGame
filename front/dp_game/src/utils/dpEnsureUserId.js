@@ -1,3 +1,5 @@
+import { dpResultSuccess, dpResultData } from './dpApiResult'
+
 /**
  * 用本地缓存的昵称+密码请求 loginProfile，把 userId 写回 localStorage。
  * 解决旧版 userInfo 仅有昵称/密码、未带 userId 时牌谱等接口无法按账号 ID 查询的问题。
@@ -27,6 +29,23 @@ export async function ensureDpUserIdInStorage(http) {
     var n = Number(existing)
     if (!isNaN(n) && n > 0) {
       user.userId = n
+      if (!user.token) {
+        try {
+          var resTok = await http.get('/dpUser/loginProfile', {
+            params: { nickname: user.nickname, password: user.password }
+          })
+          var bodyTok = resTok && resTok.data
+          if (dpResultSuccess(bodyTok)) {
+            var payTok = dpResultData(bodyTok)
+            if (payTok && payTok.token) {
+              user.token = payTok.token
+              localStorage.setItem('userInfo', JSON.stringify(user))
+            }
+          }
+        } catch (e) {
+          console.error('ensureDpUserIdInStorage token', e)
+        }
+      }
       return user
     }
   }
@@ -35,11 +54,15 @@ export async function ensureDpUserIdInStorage(http) {
     var res = await http.get('/dpUser/loginProfile', {
       params: { nickname: user.nickname, password: user.password }
     })
-    var d = res && res.data
-    if (d && d.ok === true && d.userId != null) {
-      user.userId = Number(d.userId)
-      localStorage.setItem('userInfo', JSON.stringify(user))
-      return user
+    var body = res && res.data
+    if (dpResultSuccess(body)) {
+      var payload = dpResultData(body)
+      if (payload && payload.userId != null) {
+        user.userId = Number(payload.userId)
+        if (payload.token) user.token = payload.token
+        localStorage.setItem('userInfo', JSON.stringify(user))
+        return user
+      }
     }
   } catch (e) {
     console.error('ensureDpUserIdInStorage', e)
