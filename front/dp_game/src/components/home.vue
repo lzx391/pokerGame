@@ -30,6 +30,7 @@
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
 import { dpResultSuccess, dpResultMessage } from '@/utils/dpApiResult'
 
+
 export default {
   data() {
     return {
@@ -99,11 +100,7 @@ export default {
       if (this.user.userId != null && this.user.userId !== '') {
         params.userId = this.user.userId
       }
-      const headers = {}
-      if (this.user.token) {
-        headers.Authorization = 'Bearer ' + this.user.token
-      }
-      const res = await this.$http.post('/dpRoom/joinRoom2', null, { params, headers })
+      const res = await this.$http.post('/dpRoom/joinRoom2', null, { params })
       const body = res.data
       if (!dpResultSuccess(body)) {
         alert(dpResultMessage(body))
