@@ -2,10 +2,14 @@
 
 ### DP游戏文档链接
 
+- [JSON、Map、序列化/反序列化与接口数据（备忘）](docs/README-json-map-serialization.md)
 - [DP游戏详细文档（规则、接口、开发与维护）](docs/DPGAME.md)
 - [DP NPC 引擎笔记（Fish/Maniac/TAG 与 Shark 分册）](docs/ai/npc-engine/README.md)
 - [对局页布局调参（顶栏 / 圆桌 / 底栏间距，`dp-game-shell.css`）](front/dp_game/docs/GAME_LAYOUT_TUNING_README.md)
 - [DP 曲库：`webPath`、磁盘目录与试听代理流程](docs/DpMusicWebPath.md)
+- [DP 用户密码：前后端分工、校验方式、找回密码现状](docs/DpUserPassword.md)
+- [Java：对象引用、`roomMap` 与浅拷贝 / 深拷贝（备忘）](docs/Java对象引用与浅拷贝深拷贝备忘.md)
+- [WebSocket：对局页长连接、后端 Handler/PushService 与前端 `game.vue` 串接说明](docs/WEBSOCKET.md)
 
 ### 游戏对局 WebSocket（无 Redis）
 
@@ -104,7 +108,11 @@
 - **落库思路（牌谱 / 参与者 / Shark 记忆表）**：[docs/DP_PERSISTENCE_README.md](docs/DP_PERSISTENCE_README.md)。
 - **表**：`src/main/resources/db/dp_observed_hand_participant.sql`（多对多拆解；**不设数据库外键**）。需在已有 `dp_observed_hand_history` 的库上执行建表。
 - **user_id**：列上**可为 NULL**；入库时优先用内存 `dpUserId`，否则按 **昵称** 查 `dp_user`（昵称全局唯一时可补全）；仍无账号则只存 `nickname_snapshot`。机器人不占行。
-- **前端**：登录可用 `GET /dpUser/loginProfile` 拿到 `userId` 并写入 `localStorage`；**创建房间 / 加入房间 / 观众「下一局加入」** 可带可选 `userId`（与昵称须与 `dp_user` 一致才采纳），界面只展示昵称。
+- **前端**：`GET /dpUser/loginProfile`、`POST /dpUser/registerUser` 返回统一 `ResultUtil`（`success` / `code` / `message` / `data`）；登录成功时 `data` 含 `userId`、`nickname`、`token`。前端用 `userId` 写入 `localStorage`；**创建房间 / 加入房间 / 观众「下一局加入」** 可带可选 `userId`（与昵称须与 `dp_user` 一致才采纳），界面只展示昵称。
+- **JWT 全局鉴权（2026-04-07）**：引入 `spring-boot-starter-security`，`SecurityConfig` + `JwtAuthenticationFilter` 对除白名单外的请求要求 `Authorization: Bearer`；未登录返回 HTTP 401 JSON。白名单含：登录/注册、`/ws/**`、静态资源、`GET /dpRoom/getNowRoom`、`GET /dpRoom/getAllRooms2`、`GET /dpMusic/list`（旁观/分享链接与曲库列表）；详见 [docs/JWT.md](docs/JWT.md)。前端 `main.js` axios 拦截器自动带 token（登录/注册请求除外）。
+- **用户密码加密（2026-04-07）**：`DpUserServiceImpl` 在 `registerUser`、`loginUser`、`loginProfile`（经 `loginUserOrNull`）与 `updateUserInfo` 中统一经 **`CryptoUtil.md5HexUtf8`** 使用 **MD5(UTF-8)** 处理密码，数据库 `dp_user.password` 存储 32 位小写 MD5 字符串。**前端传明文、后端摘要**；校验与找回密码说明见 [docs/DpUserPassword.md](docs/DpUserPassword.md)。
+- **会话令牌**：`JwtUtil` 使用 **JWT**，签名算法为 **HMAC-SHA256**（JJWT 默认与 `Keys.hmacShaKeyFor` 一致）；与口令摘要工具类分离。
+- **加入房间（JWT）**：`POST /dpRoom/joinRoom2` 在全局鉴权通过后校验 `SecurityContext` 中昵称与参数 `nickname` 一致；大厅「加入」走该接口。旧 `POST /dpRoom/joinRoom` 同样需带 token。旧缓存仅有 `userId` 无 `token` 时，`ensureDpUserIdInStorage` 会再调 `loginProfile` 补 `token`。
 - **历史查询（列表/详情）**：仅按 **`userId`**（`dp_user.id` + 参与者表 `user_id`）；不再支持仅昵称查询。
 - **列表接口（分页，PageHelper）**：`GET /dpHandHistory/list?userId=必填&page=1&pageSize=10` → 仅按参与者表 `user_id`；`pageSize` 默认 10、最大 100。前端在打开历史页/对局页前用 `GET /dpUser/loginProfile` 把 `userId` 写入 `localStorage`（兼容旧缓存仅有昵称密码的情况）。
 - **详情接口**：`GET /dpHandHistory/detail?handHistoryId=必填&userId=必填` → `DpHandHistoryDetailDTO`。仅 **参与者（该 user_id）** 可读。前端 `HandHistoryDetail`：**本人**始终可看自己的底牌（含自己弃牌后）；**他人**弃牌则不展示其底牌，未弃牌仍按街展示。**结算** 页另有终局公共牌。

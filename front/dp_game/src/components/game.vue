@@ -346,6 +346,7 @@ export default {
       // 开发服：走 /dp-ws → vue 代理转成后端 /ws（避免与 webpack HMR 的 /ws 冲突）
       var path = process.env.NODE_ENV === 'development' ? '/dp-ws/dp-game' : '/ws/dp-game'
       var url = this.gameWsBaseUrl() + path + '?roomId=' + encodeURIComponent(this.roomId)
+        + '&nickname=' + encodeURIComponent(this.user.nickname)
       try {
         var ws = new WebSocket(url)
         this.gameWs = ws
@@ -634,7 +635,7 @@ export default {
       this.$store.commit('dpGame/SET_LOADING', true)
       try {
         var res = await this.$http.get('/dpRoom/getNowRoom', {
-          params: {roomId: this.roomId}
+          params: {roomId: this.roomId, nickname: this.user ? this.user.nickname : ''}
         })
         var room = res.data
         if (!room) {

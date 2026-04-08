@@ -12,6 +12,7 @@ import com.example.mgdemoplus.dto.DpObservedHandRecordDTO;
 import com.example.mgdemoplus.service.dp.DpHandHistoryPersistService;
 import com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator;
 import com.example.mgdemoplus.websocket.DpGameRoomPushService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -27,6 +28,7 @@ public class DpRoomServiceImpl {
     private final DpGameRoomPushService gameRoomPushService;
     private final DpUserMapper dpUserMapper;
     private final DpHandHistoryObservedService observedHandService;
+    private final ObjectMapper objectMapper;
 
     // 统一从 NPC 引擎中获取机器人昵称，避免散落魔法字符串
     private static final String DEMO_BOT_NICKNAME = DpNpcEngine.DEMO_BOT_NICKNAME;   // BOT_Fish
@@ -40,7 +42,8 @@ public class DpRoomServiceImpl {
             DpLlmNpcDecisionService llmNpcDecisionService,
             DpGameRoomPushService gameRoomPushService,
             DpUserMapper dpUserMapper,
-            DpHandHistoryObservedService observedHandService
+            DpHandHistoryObservedService observedHandService,
+            ObjectMapper objectMapper
     ) {
         this.observedHandPersistService = observedHandPersistService;
         this.sharkOpponentMemoryService = sharkOpponentMemoryService;
@@ -48,6 +51,7 @@ public class DpRoomServiceImpl {
         this.gameRoomPushService = gameRoomPushService;
         this.dpUserMapper = dpUserMapper;
         this.observedHandService = observedHandService;
+        this.objectMapper = objectMapper;
         // 心跳清理 + 超时行动
         new Timer().scheduleAtFixedRate(new TimerTask() {
             @Override
@@ -466,8 +470,80 @@ public class DpRoomServiceImpl {
         return r;
     }
 
+    /**
+     * 对外接口与 WebSocket 推送使用：在完整房间状态上按观看者身份隐藏他人底牌及相关推导字段，不修改内存中的房间实体。
+     *
+     * @param viewerNickname 当前连接者的昵称；null 或空则视为未认领身份，不展示任何玩家的真实底牌。
+     */
+    public DpRoom getRoomSnapshotForViewer(String roomId, String viewerNickname) {
+        DpRoom live = getAllRooms(roomId);
+        if (live == null) {
+            return null;
+        }
+        return snapshotForViewerFromLive(live, viewerNickname);
+    }
+
+    /**
+     * 在已调用 {@link #getAllRooms(String)} 得到的实体上生成对外快照，避免同一推送周期内重复计算 bestHand。
+     */
+    public DpRoom snapshotForViewerFromLive(DpRoom live, String viewerNickname) {
+        if (live == null) {
+            return null;
+        }
+        DpRoom copy = deepCopyRoomForSnapshot(live);
+        sanitizeHoleCardsForViewer(copy, viewerNickname);
+        return copy;
+    }
+/**
+ * 深拷贝房间对象，避免修改原始对象
+ */
+    private DpRoom deepCopyRoomForSnapshot(DpRoom live) {
+        try {
+            return objectMapper.readValue(objectMapper.writeValueAsBytes(live), DpRoom.class);
+        } catch (Exception e) {
+            throw new IllegalStateException("room snapshot copy failed", e);
+        }
+    }
+
+    /**
+     * 仅保留「本人」或「已摊牌公开」的他人底牌；并清空由他人底牌推导的 bestHand / 牌型说明，避免间接泄露。
+     */
+    private static void sanitizeHoleCardsForViewer(DpRoom room, String viewerNickname) {
+        if (room == null || room.getPlayers() == null) {
+            return;
+        }
+        String v = viewerNickname == null ? "" : viewerNickname.trim();
+        String stage = room.getCurrentStage();
+        int nonFoldIn = 0;
+        for (DpPlayer x : room.getPlayers()) {
+            if (x != null && !x.isLeftThisHand() && !x.isFold()) {
+                nonFoldIn++;
+            }
+        }
+        boolean multiWayShowdown = nonFoldIn >= 2;
+        boolean revealOthers =
+                ("showdown".equals(stage) && multiWayShowdown)
+                        || ("settled".equals(stage) && room.isLastHandHoleCardsPublic() && multiWayShowdown);
+
+        for (DpPlayer p : room.getPlayers()) {
+            if (p == null) {
+                continue;
+            }
+            if (!v.isEmpty() && v.equals(p.getNickname())) {
+                continue;
+            }
+            boolean showCards = revealOthers && !p.isFold();
+            if (!showCards) {
+                p.setHoleCards(Collections.emptyList());
+                p.setBestHandCards(Collections.emptyList());
+                p.setHandRankName("");
+                p.setHandRankDetail("");
+            }
+        }
+    }
 
     public String joinRoom(String roomId, String nickname, Integer userId) {
+        
         DpRoom r = roomMap.get(roomId);
         if (r == null) return "房间不存在";
         if (r.isPlaying()) {
@@ -757,6 +833,7 @@ public class DpRoomServiceImpl {
     public boolean newHand(String roomId) {
         DpRoom r = roomMap.get(roomId);
         if (r == null || !r.isPlaying()) return false;
+        r.setLastHandHoleCardsPublic(false);
 
         // 把上一局观战并标记“下一局加入”的玩家，加入到本局的玩家列表中，并更新观众列表
 // 检测是否有积分不足的玩家，清理到观众厅，都在getAllCanPlayer方法里
@@ -798,7 +875,6 @@ public class DpRoomServiceImpl {
             p.setNpcHandPlanMaxBarrels(0);
             p.setNpcHandPlanAggression(0.0);
             p.setNpcHandPlanTargetVillain(null);
-            System.out.println(p.getNickname()+"的手牌是："+r.getDeck().get(0)+"和"+r.getDeck().get(1));
             p.setHoleCards(Arrays.asList(r.getDeck().remove(0), r.getDeck().remove(0)));
         }
         //留着上一把遗留下来的按钮以便确认下一把的按钮
@@ -1272,8 +1348,11 @@ public class DpRoomServiceImpl {
     private void autoSettle(DpRoom r) {
         if (r == null || !r.isPlaying()) return;
 
+        final boolean lastHandPublic = countPlayersStillInHand(r) >= 2;
+
         // 没有任何下注，直接标记为结算完成
         if (r.getPot() <= 0 && (r.getPots() == null || r.getPots().isEmpty())) {
+            r.setLastHandHoleCardsPublic(false);
             r.setCurrentStage("settled");
             r.setReadyDeadline(System.currentTimeMillis() + 30_000L);
             for (DpPlayer p : r.getPlayers()) {
@@ -1645,6 +1724,7 @@ public class DpRoomServiceImpl {
         refreshChipLeaderNicknames(r);
 
         // 进入“结算完成，等待准备下一局”阶段，并开始 30 秒准备倒计时
+        r.setLastHandHoleCardsPublic(lastHandPublic);
         r.setCurrentStage("settled");
         r.setReadyDeadline(System.currentTimeMillis() + 30_000L);
         for (DpPlayer p : r.getPlayers()) {

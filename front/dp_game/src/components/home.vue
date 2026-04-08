@@ -28,6 +28,8 @@
 
 <script>
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
+import { dpResultSuccess, dpResultMessage } from '@/utils/dpApiResult'
+
 
 export default {
   data() {
@@ -98,7 +100,12 @@ export default {
       if (this.user.userId != null && this.user.userId !== '') {
         params.userId = this.user.userId
       }
-      await this.$http.post('/dpRoom/joinRoom', null, { params })
+      const res = await this.$http.post('/dpRoom/joinRoom2', null, { params })
+      const body = res.data
+      if (!dpResultSuccess(body)) {
+        alert(dpResultMessage(body))
+        return
+      }
       this.$router.push('/room/' + roomId)
     }
   }

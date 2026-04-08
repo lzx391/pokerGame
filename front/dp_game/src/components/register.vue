@@ -31,6 +31,8 @@
 </template>
 
 <script>
+import { dpResultSuccess, dpResultData, dpResultMessage } from '@/utils/dpApiResult'
+
 export default {
   data() {
     return {
@@ -58,12 +60,14 @@ export default {
       this.$http.post("/dpUser/registerUser", this.form)
         .then(res => {
           console.log("注册结果：", res.data);
-          alert(res.data); // 弹出后端返回的“注册成功”或“注册失败”
-          
-          // 预留：注册成功后可跳转到登录页
-          if (res.data === "注册成功") {
-            this.$router.push("/login"); // 路由跳转回登录页
-            // 若想跳转到html：window.location.href = "login.html"
+          var d = res.data;
+          if (dpResultSuccess(d)) {
+            var inner = dpResultData(d) || {};
+            var msg = inner.message != null ? String(inner.message) : '注册成功';
+            alert(msg);
+            this.$router.push("/login");
+          } else {
+            alert(dpResultMessage(d));
           }
         })
         .catch(err => {

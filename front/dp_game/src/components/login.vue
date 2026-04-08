@@ -23,6 +23,7 @@
 
 <script>
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
+import { dpResultSuccess, dpResultData, dpResultMessage } from '@/utils/dpApiResult'
 
 export default {
   data() {
@@ -64,26 +65,25 @@ export default {
     nickname: this.nickname,
     password: this.password
   }
-}).then(res => {                  
+}).then(res => {
   console.log("登录结果：", res.data);
-  
-  // ============== 修复点：必须判断登录成功才允许进主页 ==============
+
   var d = res.data;
-  if (d && d.ok === true) {
+  if (dpResultSuccess(d)) {
+    var payload = dpResultData(d) || {};
     alert("登录成功！");
-    // 保存用户信息（userId 仅用于请求参数，界面仍只展示昵称）
-    localStorage.setItem("userInfo", JSON.stringify({
-      nickname: d.nickname || this.nickname,
+    var row = {
+      nickname: payload.nickname || this.nickname,
       password: this.password,
-      userId: d.userId
-    }));
-    // 只有成功才跳转
+      userId: payload.userId
+    };
+    if (payload.token) row.token = payload.token;
+    localStorage.setItem("userInfo", JSON.stringify(row));
     this.$router.push("/home");
   } else {
-    // 登录失败：提示 + 不跳转 + 不存信息
-    alert("登录失败：" + (d && d.message ? d.message : '请检查账号密码'));
+    alert("登录失败：" + dpResultMessage(d));
   }
-  
+
 }).catch(err => {
   console.error("请求失败", err);
   alert("登录请求异常，请重试");
