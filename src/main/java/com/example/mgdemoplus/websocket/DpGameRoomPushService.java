@@ -276,7 +276,7 @@ public class DpGameRoomPushService {
     public void sendInitialSnapshot(WebSocketSession session, String roomId) {
         try {
             String nick = (String) session.getAttributes().get("viewerNickname");
-            DpRoom r = roomService.getRoomSnapshotForViewer(roomId, nick);
+            DpRoom r = roomService.getRoomSnapshotForViewer(roomId, nick);//通过房间id和昵称实现处理
             if (r == null) {
                 synchronized (session) {
                     session.sendMessage(new TextMessage(ROOM_CLOSED));
@@ -312,7 +312,7 @@ public class DpGameRoomPushService {
         }
         try {
             DpRoom live = roomService.getAllRooms(roomId);
-            Set<WebSocketSession> set = roomSessions.get(roomId);
+            Set<WebSocketSession> set = roomSessions.get(roomId);//这里是通过房间id获取所有订阅者的会话
             if (set == null || set.isEmpty()) {
                 return;
             }
