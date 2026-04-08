@@ -8,6 +8,8 @@
 - [对局页布局调参（顶栏 / 圆桌 / 底栏间距，`dp-game-shell.css`）](front/dp_game/docs/GAME_LAYOUT_TUNING_README.md)
 - [DP 曲库：`webPath`、磁盘目录与试听代理流程](docs/DpMusicWebPath.md)
 - [DP 用户密码：前后端分工、校验方式、找回密码现状](docs/DpUserPassword.md)
+- [Java：对象引用、`roomMap` 与浅拷贝 / 深拷贝（备忘）](docs/Java对象引用与浅拷贝深拷贝备忘.md)
+- [WebSocket：对局页长连接、后端 Handler/PushService 与前端 `game.vue` 串接说明](docs/WEBSOCKET.md)
 
 ### 游戏对局 WebSocket（无 Redis）
 

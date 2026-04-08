@@ -32,6 +32,10 @@ public class DpGameRoomWebSocketHandler extends TextWebSocketHandler {
         }
         //已学习，将roomId存入session的attributes中
         session.getAttributes().put("roomId", roomId);
+        String nickname = resolveNickname(session);
+        if (nickname != null && !nickname.isEmpty()) {
+            session.getAttributes().put("viewerNickname", nickname);
+        }
         //已学习，调用websocket的pushService.register(roomId, session)注册房间订阅者
         pushService.register(roomId, session);
         //已学习，调用websocket的pushService.sendInitialSnapshot(session, roomId)发送初始房间数据给订阅者
@@ -54,7 +58,11 @@ public class DpGameRoomWebSocketHandler extends TextWebSocketHandler {
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
         pushService.handleClientTextMessage(session, message.getPayload());
     }
-
+/**
+ * 解析房间ID
+ * @param session
+ * @return
+ */
     private static String resolveRoomId(WebSocketSession session) {
         URI uri = session.getUri();
         if (uri == null) {
@@ -66,5 +74,23 @@ public class DpGameRoomWebSocketHandler extends TextWebSocketHandler {
             return null;
         }
         return ids.get(0);
+    }
+//解析昵称
+/**
+ * 解析昵称
+ * @param session
+ * @return
+ */
+    private static String resolveNickname(WebSocketSession session) {
+        URI uri = session.getUri();
+        if (uri == null) {
+            return null;
+        }
+        Map<String, List<String>> params = UriComponentsBuilder.fromUri(uri).build().getQueryParams();
+        List<String> n = params.get("nickname");
+        if (n == null || n.isEmpty()) {
+            return null;
+        }
+        return n.get(0).trim();
     }
 }

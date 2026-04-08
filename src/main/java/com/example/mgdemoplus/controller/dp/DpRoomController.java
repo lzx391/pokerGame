@@ -29,8 +29,9 @@ public class DpRoomController {
     }
 
     @GetMapping("/getNowRoom")
-    public DpRoom getAllRooms(@RequestParam String roomId) {
-        return dpRoomService.getAllRooms(roomId);
+    public DpRoom getNowRoom(@RequestParam String roomId,
+                             @RequestParam(required = false) String nickname) {
+        return dpRoomService.getRoomSnapshotForViewer(roomId, nickname);
     }
 
     @PostMapping("/joinRoom")

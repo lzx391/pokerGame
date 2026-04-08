@@ -1,5 +1,7 @@
 package com.example.mgdemoplus.entity.dp;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -73,6 +75,12 @@ public class DpRoom {
     private List<String> chipLeaderNicknames = new ArrayList<>();
 
     /**
+     * 上一手进入结算时是否至少两名未弃牌玩家参与比牌（摊牌公开底牌）。
+     * 单人收池时为 false，用于对外 JSON 时隐藏赢家底牌，避免“未摊牌却被看见”。
+     */
+    private boolean lastHandHoleCardsPublic = false;
+
+    /**
      * 昵称 → dp_user.id，由进房/预约下一局等接口在传入 userId 且校验通过后写入；
      * 用于下一局从 wait 列表拉人上桌时补全 {@link DpPlayer#setDpUserId}，不参与房间 JSON。
      */
@@ -107,6 +115,8 @@ public class DpRoom {
     public void setCurrentStage(String currentStage) { this.currentStage = currentStage; }
     public List<String> getCommunityCards() { return communityCards; }
     public void setCommunityCards(List<String> communityCards) { this.communityCards = communityCards; }
+    /** 剩余牌序不得下发给客户端，否则可推算未发公共牌与他人底牌。 */
+    @JsonIgnore
     public List<String> getDeck() { return deck; }
     public void setDeck(List<String> deck) { this.deck = deck; }
     public int getPot() { return pot; }
@@ -163,5 +173,13 @@ public class DpRoom {
 
     public void setChipLeaderNicknames(List<String> chipLeaderNicknames) {
         this.chipLeaderNicknames = chipLeaderNicknames != null ? chipLeaderNicknames : new ArrayList<>();
+    }
+
+    public boolean isLastHandHoleCardsPublic() {
+        return lastHandHoleCardsPublic;
+    }
+
+    public void setLastHandHoleCardsPublic(boolean lastHandHoleCardsPublic) {
+        this.lastHandHoleCardsPublic = lastHandHoleCardsPublic;
     }
 }

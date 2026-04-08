@@ -44,23 +44,26 @@ public class DpGameRoomPushService {
     private final ObjectMapper objectMapper;
     private final DpRoomServiceImpl roomService;
 
+//Map<String, Set<WebSocketSession>> roomSessions = new ConcurrentHashMap<>(); 的作用是：存储房间ID和订阅者的映射关系，每个房间ID对应一个订阅者集合，集合中存储的是WebSocketSession对象，用于标识每个订阅者的连接会话。
     private final Map<String, Set<WebSocketSession>> roomSessions = new ConcurrentHashMap<>();
-    /** 上次已成功广播的房间 JSON；与本次序列化结果相同则不再下发，节省流量。 */
-    private final Map<String, String> lastBroadcastPayload = new ConcurrentHashMap<>();
+    /** 每个连接上次已成功下发的房间快照 JSON（按观看者过滤后）；相同则不再下发。 */
+    private final Map<WebSocketSession, String> lastBroadcastPayloadBySession = new ConcurrentHashMap<>();
     /** 房间曲库播放状态：供新订阅者连接后补发一帧（与 {@link #broadcastIfSubscribed} 去重无关）。 */
     private final Map<String, String> lastRoomMusicJson = new ConcurrentHashMap<>();
 
+    // lazy注解的作用是？在Spring容器初始化时，不立即创建对象，而是在需要时创建对象，这样可以避免循环依赖
     public DpGameRoomPushService(ObjectMapper objectMapper, @Lazy DpRoomServiceImpl roomService) {
         this.objectMapper = objectMapper;
         this.roomService = roomService;
     }
 
     public void register(String roomId, WebSocketSession session) {
-        //已学习，注册房间订阅者
+        // 已学习，注册房间订阅者
         roomSessions.computeIfAbsent(roomId, k -> ConcurrentHashMap.newKeySet()).add(session);
     }
 
     public void unregister(String roomId, WebSocketSession session) {
+        lastBroadcastPayloadBySession.remove(session);
         Set<WebSocketSession> set = roomSessions.get(roomId);
         if (set == null) {
             return;
@@ -68,7 +71,6 @@ public class DpGameRoomPushService {
         set.remove(session);
         if (set.isEmpty()) {
             roomSessions.remove(roomId);
-            lastBroadcastPayload.remove(roomId);
             lastRoomMusicJson.remove(roomId);
         }
     }
@@ -263,15 +265,18 @@ public class DpGameRoomPushService {
             }
         }
     }
-//已学习，判断房间是否有订阅者，如果房间有订阅者，则返回true，如果房间没有订阅者，则返回false
+
+    // 已学习，判断房间是否有订阅者，如果房间有订阅者，则返回true，如果房间没有订阅者，则返回false
     public boolean hasSubscribers(String roomId) {
         Set<WebSocketSession> set = roomSessions.get(roomId);
         return set != null && !set.isEmpty();
     }
-//已学习，发送初始房间数据给订阅者
+
+    // 已学习，发送初始房间数据给订阅者
     public void sendInitialSnapshot(WebSocketSession session, String roomId) {
         try {
-            DpRoom r = roomService.getAllRooms(roomId);
+            String nick = (String) session.getAttributes().get("viewerNickname");
+            DpRoom r = roomService.getRoomSnapshotForViewer(roomId, nick);
             if (r == null) {
                 synchronized (session) {
                     session.sendMessage(new TextMessage(ROOM_CLOSED));
@@ -279,8 +284,9 @@ public class DpGameRoomPushService {
                 }
                 return;
             }
+            //将房间数据序列化成JSON字符串
             String json = objectMapper.writeValueAsString(r);
-            lastBroadcastPayload.put(roomId, json);
+            lastBroadcastPayloadBySession.put(session, json);
             synchronized (session) {
                 session.sendMessage(new TextMessage(json));
             }
@@ -294,50 +300,50 @@ public class DpGameRoomPushService {
             log.warn("WebSocket initial snapshot failed roomId={}", roomId, e);
         }
     }
-//已学习，调用服务层的roomService.getAllRooms(roomId)获取房间数据，然后序列化成JSON字符串，然后广播给所有订阅者
+
+    // 已学习，调用服务层的roomService.getAllRooms(roomId)获取房间数据，然后序列化成JSON字符串，然后广播给所有订阅者
     /**
      * 在 {@link DpRoomServiceImpl} 的定时任务中调用：仅当有订阅者时序列化；若与上次推送内容相同则不下发。
      */
     public void broadcastIfSubscribed(String roomId) {
-        //如果房间没有订阅者，则返回，如果房间有订阅者，则获取房间数据，然后序列化成JSON字符串，然后广播给所有订阅者
+        // 如果房间没有订阅者，则返回，如果房间有订阅者，则获取房间数据，然后序列化成JSON字符串，然后广播给所有订阅者
         if (!hasSubscribers(roomId)) {
             return;
         }
         try {
-            //正式返回房间数据给所有订阅者
-            DpRoom r = roomService.getAllRooms(roomId);
-            String json = r == null ? ROOM_CLOSED : objectMapper.writeValueAsString(r);
-            //如果房间数据不为空，则获取上次已成功广播的房间 JSON，如果与本次序列化结果相同则不下发
-            if (r != null) {
-                String prev = lastBroadcastPayload.get(roomId);
-                if (json.equals(prev)) {
-                    // System.out.println("本次不广播，因为房间数据没有变化");
-                    log.debug("WS broadcast skip (payload unchanged) roomId={}", roomId);
-                    return;
-                }
-            } else {
-                lastBroadcastPayload.remove(roomId);
-            }
+            DpRoom live = roomService.getAllRooms(roomId);
             Set<WebSocketSession> set = roomSessions.get(roomId);
             if (set == null || set.isEmpty()) {
-                
                 return;
             }
-            //遍历所有订阅者，如果订阅者不打开，则移除订阅者
             for (WebSocketSession s : new ArrayList<>(set)) {
-                //如果session不打开，则移除session
                 if (!s.isOpen()) {
                     set.remove(s);
+                    lastBroadcastPayloadBySession.remove(s);
+                    continue;
+                }
+                String nick = (String) s.getAttributes().get("viewerNickname");
+                String json;
+                if (live == null) {
+                    json = ROOM_CLOSED;
+                } else {
+                    DpRoom view = roomService.snapshotForViewerFromLive(live, nick);
+                    json = objectMapper.writeValueAsString(view);
+                }
+                String prev = lastBroadcastPayloadBySession.get(s);
+                if (json.equals(prev)) {
+                    log.debug("WS broadcast skip (payload unchanged) roomId={}", roomId);
                     continue;
                 }
                 try {
                     synchronized (s) {
-                        // System.out.println("成功推送");
                         s.sendMessage(new TextMessage(json));
                     }
+                    lastBroadcastPayloadBySession.put(s, json);
                 } catch (IOException e) {
                     log.debug("WebSocket send failed, closing session", e);
                     set.remove(s);
+                    lastBroadcastPayloadBySession.remove(s);
                     try {
                         s.close();
                     } catch (IOException ignored) {
@@ -345,11 +351,7 @@ public class DpGameRoomPushService {
                     }
                 }
             }
-            if (r != null) {
-                //如果房间数据不为空，则将房间数据序列化成JSON字符串，然后存储到lastBroadcastPayload中
-                lastBroadcastPayload.put(roomId, json);
-            }
-            if (r == null) {
+            if (live == null) {
                 for (WebSocketSession s : new ArrayList<>(set)) {
                     try {
                         s.close(CloseStatus.GOING_AWAY);
