@@ -67,7 +67,8 @@ public class DpUserController {
     }
 
     @PutMapping("/updateUserInfo")
-    public String updateUserInfo(@RequestBody DpUser dpUser) {
-        return dpUserService.updateUserInfo(dpUser);
+    public ResultUtil updateUserInfo(@RequestBody DpUser dpUser) {
+        
+        return ResultUtil.ok().data("message", dpUserService.updateUserInfo(dpUser));
     }
 }

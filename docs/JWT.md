@@ -20,4 +20,4 @@
 
 ## 迭代说明
 
-密码哈希（BCrypt 等）与「整包 Spring Security 表单登录」属后续迭代；当前仅做 **JWT + 过滤器链** 的全局应用。
+口令存储为 **MD5 摘要**（`CryptoUtil`），与「Spring Security 表单登录 / BCrypt」不同路；当前为 **JWT + 过滤器链** 的全局应用。口令流程说明见 [DpUserPassword.md](./DpUserPassword.md)。
