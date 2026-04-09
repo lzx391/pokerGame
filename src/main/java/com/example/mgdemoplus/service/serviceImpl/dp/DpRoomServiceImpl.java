@@ -521,6 +521,7 @@ public class DpRoomServiceImpl {
             }
         }
         boolean multiWayShowdown = nonFoldIn >= 2;
+        //结算摊牌阶段可以摊牌公开底牌
         boolean revealOthers =
                 ("showdown".equals(stage) && multiWayShowdown)
                         || ("settled".equals(stage) && room.isLastHandHoleCardsPublic() && multiWayShowdown);
@@ -529,11 +530,12 @@ public class DpRoomServiceImpl {
             if (p == null) {
                 continue;
             }
+            //略过本人
             if (!v.isEmpty() && v.equals(p.getNickname())) {
                 continue;
             }
             boolean showCards = revealOthers && !p.isFold();
-            if (!showCards) {
+            if (!showCards&& !v.equals(room.getOwner())) {
                 p.setHoleCards(Collections.emptyList());
                 p.setBestHandCards(Collections.emptyList());
                 p.setHandRankName("");
