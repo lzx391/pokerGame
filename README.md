@@ -2,6 +2,7 @@
 
 ### DP游戏文档链接
 
+- [后端面试题清单（结合本仓库技术栈）](docs/BACKEND_INTERVIEW_QUESTIONS.md)
 - [JSON、Map、序列化/反序列化与接口数据（备忘）](docs/README-json-map-serialization.md)
 - [DP游戏详细文档（规则、接口、开发与维护）](docs/DPGAME.md)
 - [DP NPC 引擎笔记（Fish/Maniac/TAG 与 Shark 分册）](docs/ai/npc-engine/README.md)
@@ -134,6 +135,7 @@
 - **环境变量覆盖**（部署时常用）：`SPRING_DATA_REDIS_HOST`、`SPRING_DATA_REDIS_PORT`、`SPRING_DATA_REDIS_PASSWORD`。
 - **在代码里用**：Spring 会自动装配 **`StringRedisTemplate`**、**`RedisTemplate`**、**`RedisConnectionFactory`**，按需 `@Autowired` 或构造器注入即可（例如 `stringRedisTemplate.opsForValue().set("k","v")`）。
 - **本机小实验（跑起后端即可）**：`RedisLabController` 提供 **`/demo/redis/*`**（已加入 JWT 白名单，浏览器可直接访问）。例：`GET http://localhost:8088/demo/redis/ping`；存取见 `RedisLabController` 注释。键会自动加前缀 `mgdemo:lab:`。
+- **曲库列表缓存**：`DpRedisListCacheService` 将 **`GET /dpMusic/list`** 的 JSON 缓存在 Redis（键 `mgdemo:cache:dpMusic:listEnabled`），默认 TTL `mgdemoplus.cache.music-list-ttl-seconds`（默认 300）；**曲库上传成功**后删键以便立刻回源。大厅 **`GET /dpRoom/getAllRooms2`** 仍直接读内存 `roomMap`，不经 Redis。Redis 异常时曲库列表自动回源，不阻断接口。
 - **说明**：当前对局 **WebSocket 与房间状态仍在单机内存**；若要多实例共房间或跨机广播，需在业务层自行用 Redis（Pub/Sub、缓存会话映射等）扩展，见 `docs/WEBSOCKET.md` 中「多实例」相关段落。
 
 ### Docker 部署
