@@ -132,7 +132,7 @@
 ### Redis 接入
 
 - **依赖**：已加入 `spring-boot-starter-data-redis`（客户端为 **Lettuce**），连接参数在 **`application.properties`** 的 `spring.data.redis.*`（默认 `127.0.0.1:6379`、库 `0`）。
-- **环境变量覆盖**（部署时常用）：`SPRING_DATA_REDIS_HOST`、`SPRING_DATA_REDIS_PORT`、`SPRING_DATA_REDIS_PASSWORD`。
+- **环境变量覆盖**（部署时常用）：`SPRING_DATA_REDIS_HOST`、`SPRING_DATA_REDIS_PORT`、`SPRING_DATA_REDIS_PASSWORD`。**`docker compose`** 已包含 **Redis** 服务，应用容器内指向 `redis:6379`，默认口令与 compose 中 **`REDIS_PASSWORD`**（默认 `mgdemo_redis`）一致；宿主机调试 Redis 用 **`localhost:6380`**（见 [docs/DOCKER.md](docs/DOCKER.md)）。
 - **在代码里用**：Spring 会自动装配 **`StringRedisTemplate`**、**`RedisTemplate`**、**`RedisConnectionFactory`**，按需 `@Autowired` 或构造器注入即可（例如 `stringRedisTemplate.opsForValue().set("k","v")`）。
 - **本机小实验（跑起后端即可）**：`RedisLabController` 提供 **`/demo/redis/*`**（已加入 JWT 白名单，浏览器可直接访问）。例：`GET http://localhost:8088/demo/redis/ping`；存取见 `RedisLabController` 注释。键会自动加前缀 `mgdemo:lab:`。
 - **曲库列表缓存**：`DpRedisListCacheService` 将 **`GET /dpMusic/list`** 的 JSON 缓存在 Redis（键 `mgdemo:cache:dpMusic:listEnabled`），默认 TTL `mgdemoplus.cache.music-list-ttl-seconds`（默认 300）；**曲库上传成功**后删键以便立刻回源。大厅 **`GET /dpRoom/getAllRooms2`** 仍直接读内存 `roomMap`，不经 Redis。Redis 异常时曲库列表自动回源，不阻断接口。
@@ -141,7 +141,7 @@
 ### Docker 部署
 
 - **详细说明**（Git 与打包关系、`WebConfig` / 驱动 / 前端生产地址、DBeaver 连接串等）：见 [docs/DOCKER.md](docs/DOCKER.md)。
-- **一键（MySQL + 应用）**：仓库根目录执行 `docker compose up --build`，浏览器打开 `http://localhost:8088`（前端为 hash 路由，形如 `/#/login`）。默认 MySQL root 密码为 `mgdemo_root`，可通过环境变量 `MYSQL_ROOT_PASSWORD` 修改。容器内 MySQL 对 **宿主机** 映射为 **`localhost:3307`**（避免与本机已占用的 **3306** 冲突）；应用容器仍通过内部网络访问 `mysql:3306`。
+- **一键（MySQL + Redis + 应用）**：仓库根目录执行 `docker compose up --build`，浏览器打开 `http://localhost:8088`（前端为 hash 路由，形如 `/#/login`）。默认 MySQL root 密码为 `mgdemo_root`，可通过环境变量 `MYSQL_ROOT_PASSWORD` 修改。容器内 MySQL 对 **宿主机** 映射为 **`localhost:3307`**（避免与本机已占用的 **3306** 冲突）；应用容器仍通过内部网络访问 `mysql:3306`。**Redis**：Compose 内服务名 `redis`，数据卷 `redis_data`；默认口令 **`mgdemo_redis`**（可用环境变量 **`REDIS_PASSWORD`** 覆盖，须与 `SPRING_DATA_REDIS_PASSWORD` 一致）。宿主机连接容器内 Redis 用 **`localhost:6380`**（映射到容器 6379，避免与本机独立 Redis 的 6379 冲突）。仅 `docker run` 单容器时需自行提供 Redis 或设置 `SPRING_DATA_REDIS_*` 指向已有实例。
 - **仅构建后端镜像**：`docker build -t mgdemoplus .`，运行示例：  
   `docker run -p 8088:8088 -e SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/school_db?useSSL=false -e SPRING_DATASOURCE_USERNAME=root -e SPRING_DATASOURCE_PASSWORD=你的密码 -e MGDEMOPLUS_IMAGES_FILE_LOCATION=file:/data/mgdemo-files/ -v 本机目录:/data/mgdemo-files mgdemoplus`
 - **说明**：`Dockerfile` 会编译 `front/dp_game` 并把 `dist` 打进 jar 的 `static`，与 API、WebSocket 同端口；本机开发默认上传目录为 `P:/javaworkspace/DPGameFiles/`（配置项 `mgdemoplus.images.file-location`）。`/images/**` 在容器内默认为 `/data/mgdemo-files`（compose 已映射到 `./docker-data/uploads`）。**数据库表**：`docker compose` 首次创建 MySQL 数据卷时，会自动执行 `docker-data/mysql-init/00-school_db.sql`，并按顺序 `SOURCE` 仓库内 `src/main/resources/db/*.sql` 在 `school_db` 中建表（若你已有旧的 `mysql_data` 卷且当时未建表，需 `docker compose down -v` 清空卷后重建，或手工在库里执行这些 SQL）。**勿把含真实密钥的 `application.properties` 依赖进镜像**；LLM 等密钥请用环境变量 `ARK_API_KEY`、`ARK_ENDPOINT_ID` 等在 compose 中注入。

@@ -44,6 +44,13 @@
 | 应用访问 | 浏览器 `http://localhost:8088`（hash 路由如 `/#/login`） |
 | 容器内 MySQL 映射到本机 | **`localhost:3307`**（避免与本机 3306 冲突） |
 | 默认 root 密码 | **`mgdemo_root`**（与 `docker-compose.yml` 中 `MYSQL_ROOT_PASSWORD` 默认值一致；勿与 `application.properties` 里本机 `123456` 混淆） |
+| Redis（Compose 内） | 应用经 **`redis:6379`** 连接；数据持久化卷 **`redis_data`**（AOF）。宿主机调试：**`localhost:6380`** → 容器 6379，避免占满本机常见端口 **6379** |
+| Redis 口令 | 默认 **`mgdemo_redis`**；与本机 `application.properties` 里的 `ruoyi123` 不同。可用环境变量 **`REDIS_PASSWORD`** 覆盖（`redis` 服务与 `app` 的 `SPRING_DATA_REDIS_PASSWORD` 需一致） |
+
+### Redis（Docker 与本地开发的区别）
+
+- **Compose 启动时**：`app` 服务已设置 `SPRING_DATA_REDIS_HOST=redis`、`SPRING_DATA_REDIS_PORT=6379` 及口令，**无需**在容器里改 `application.properties`。
+- **本机直接跑 Spring Boot**（不用 Compose）：仍连 **`127.0.0.1:6379`**，口令与 `application.properties` 中 **`spring.data.redis.password`** 一致（当前示例为 `ruoyi123`）；若本机未装 Redis，可只起 Compose 里的 **`redis`** 服务：`docker compose up -d redis`，再用 **`localhost:6380`** 需在 `application.properties` 里把端口改为 `6380`（或改用与 Compose 相同的口令并连 6380）。
 
 ### DBeaver / JDBC 连接 Docker 内 MySQL 示例
 

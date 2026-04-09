@@ -1,9 +1,10 @@
-# MGDemoPlus：MySQL + 后端（内置 dp_game 前端静态资源）
+# MGDemoPlus：MySQL + Redis + 后端（内置 dp_game 前端静态资源）
 # 使用：在项目根目录执行  docker compose up --build
 # 浏览器访问：http://localhost:8088  （路由为 hash，地址形如 /#/login）
 #
 # 数据库：首次启动自动在 school_db 中建表（./docker-data/mysql-init + src/main/resources/db）
 # 图片上传目录：./docker-data/uploads 映射到容器内 /data/mgdemo-files
+# Redis：应用经内部网络连接 redis:6379；宿主机调试可用 localhost:6380（避免占满本机 6379）
 
 services:
   mysql:
@@ -26,6 +27,21 @@ services:
       retries: 30
       start_period: 20s
 
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-mgdemo_redis}
+    ports:
+      # 宿主机 6380 → 容器 6379，与本机独立安装的 Redis（常见 6379）错开
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-mgdemo_redis}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
   app:
     build: .
     ports:
@@ -37,6 +53,9 @@ services:
       SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
       MGDEMOPLUS_IMAGES_FILE_LOCATION: file:/data/mgdemo-files/
       MGDEMOPLUS_MUSIC_FILE_LOCATION: file:/data/mgdemo-files/music/
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: "6379"
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:-mgdemo_redis}
       # 可选：大模型 NPC（勿把密钥写进镜像，用环境变量覆盖）
       # ARK_API_KEY: ""
       # ARK_ENDPOINT_ID: ""
@@ -45,6 +64,9 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+      redis:
+        condition: service_healthy
 
 volumes:
   mysql_data:
+  redis_data:
