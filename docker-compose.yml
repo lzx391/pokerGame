@@ -1,6 +1,8 @@
 # MGDemoPlus：MySQL + Redis + 后端（内置 dp_game 前端静态资源）
 # 使用：在项目根目录执行  docker compose up --build
-# 浏览器访问：http://localhost:8088  （路由为 hash，地址形如 /#/login）
+# 浏览器访问：
+#   - 经 Nginx：http://localhost  （推荐，见 docs/NGINX.md）
+#   - 直连应用：http://localhost:8088  （路由为 hash，地址形如 /#/login）
 #
 # 数据库：首次启动自动在 school_db 中建表（./docker-data/mysql-init + src/main/resources/db）
 # 图片上传目录：./docker-data/uploads 映射到容器内 /data/mgdemo-files
@@ -42,8 +44,18 @@ services:
       retries: 5
       start_period: 5s
 
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+
   app:
     build: .
+    # 仍映射 8088 便于本机直连调试；对外只走 Nginx 时可注释掉下面一行
     ports:
       - "8088:8088"
     environment:

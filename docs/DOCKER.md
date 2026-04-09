@@ -77,9 +77,14 @@ docker compose up --build
 ```
 
 `-v` 会移除 compose 声明的卷（含 `mysql_data`）。下次 `up` 时 MySQL 会重新初始化并再次执行 init SQL。
-
+本地开发只起mysql和redis的服务  
+```bash
+docker compose up -d mysql redis
+```
 若你**不想删卷**、只想清空某库里的表，可连 `localhost:3307` 手工 `DROP TABLE` / 重建库——**那只相当于清理数据**，**不会**再跑一遍 `mysql-init`；要验证 init 脚本，仍须 `down -v`。
 
 - **后续表结构变更**：建议在仓库中维护**增量 SQL**（如 `db/migrations/`），成员 pull 后在本地对 Docker 库（3307）或本机库执行；勿依赖向 `mysql-init` 增文件来更新已有数据卷（不会再次自动执行）。
 
 更简要的入口说明见仓库根目录 `README.md` 中的「Docker 部署」小节。
+--- 
+很简单的道理，说白了就是打包镜像的时候看docker compose配置呗，不看yml的，虽然yml写的3307，但docker配置写的3306，而docker服务在本地开发的时候映射出来是3307，在容器内部是3306，所以反而能连上，开发运维两不耽误
