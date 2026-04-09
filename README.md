@@ -128,6 +128,14 @@
 - **前端**：登录后大厅点「曲库上传」进入 `/#/music-upload`，可试听已入库曲目（开发环境经 `/dev-api` 代理访问 `/music/...`）。
 - **对局音乐盒（2026-04-01）**：对局页顶栏「音乐盒」打开曲库列表；**播放/暂停/停止** 经 **同一房间 WebSocket** 广播，服务端校验发送者昵称属于本桌玩家或观众后，向该房间所有连接推送 `{"_ws":"roomMusic",...}`（并记住最后一帧，**新进入房间者**在首包房间快照后会再收到一帧音乐状态）。摊牌/结算阶段自动暂停曲库 BGM，避免与既有结算短 BGM 叠播；离开结算后若状态仍为 `play` 会恢复播放。客户端上行：`{"_ws":"roomMusicSync","nickname":"…","action":"play|pause|stop","trackId":…,"webPath":"/music/…","displayName":"…"}`（`play` 时 `trackId`/`webPath` 必填；路径须为 `/music/` 下安全文件名）。
 
+### Redis 接入
+
+- **依赖**：已加入 `spring-boot-starter-data-redis`（客户端为 **Lettuce**），连接参数在 **`application.properties`** 的 `spring.data.redis.*`（默认 `127.0.0.1:6379`、库 `0`）。
+- **环境变量覆盖**（部署时常用）：`SPRING_DATA_REDIS_HOST`、`SPRING_DATA_REDIS_PORT`、`SPRING_DATA_REDIS_PASSWORD`。
+- **在代码里用**：Spring 会自动装配 **`StringRedisTemplate`**、**`RedisTemplate`**、**`RedisConnectionFactory`**，按需 `@Autowired` 或构造器注入即可（例如 `stringRedisTemplate.opsForValue().set("k","v")`）。
+- **本机小实验（跑起后端即可）**：`RedisLabController` 提供 **`/demo/redis/*`**（已加入 JWT 白名单，浏览器可直接访问）。例：`GET http://localhost:8088/demo/redis/ping`；存取见 `RedisLabController` 注释。键会自动加前缀 `mgdemo:lab:`。
+- **说明**：当前对局 **WebSocket 与房间状态仍在单机内存**；若要多实例共房间或跨机广播，需在业务层自行用 Redis（Pub/Sub、缓存会话映射等）扩展，见 `docs/WEBSOCKET.md` 中「多实例」相关段落。
+
 ### Docker 部署
 
 - **详细说明**（Git 与打包关系、`WebConfig` / 驱动 / 前端生产地址、DBeaver 连接串等）：见 [docs/DOCKER.md](docs/DOCKER.md)。
