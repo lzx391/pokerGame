@@ -2,6 +2,7 @@
 
 ### DP游戏文档链接
 
+- [后端面试题清单（结合本仓库技术栈）](docs/BACKEND_INTERVIEW_QUESTIONS.md)
 - [JSON、Map、序列化/反序列化与接口数据（备忘）](docs/README-json-map-serialization.md)
 - [DP游戏详细文档（规则、接口、开发与维护）](docs/DPGAME.md)
 - [DP NPC 引擎笔记（Fish/Maniac/TAG 与 Shark 分册）](docs/ai/npc-engine/README.md)
@@ -109,7 +110,7 @@
 - **表**：`src/main/resources/db/dp_observed_hand_participant.sql`（多对多拆解；**不设数据库外键**）。需在已有 `dp_observed_hand_history` 的库上执行建表。
 - **user_id**：列上**可为 NULL**；入库时优先用内存 `dpUserId`，否则按 **昵称** 查 `dp_user`（昵称全局唯一时可补全）；仍无账号则只存 `nickname_snapshot`。机器人不占行。
 - **前端**：`GET /dpUser/loginProfile`、`POST /dpUser/registerUser` 返回统一 `ResultUtil`（`success` / `code` / `message` / `data`）；登录成功时 `data` 含 `userId`、`nickname`、`token`。前端用 `userId` 写入 `localStorage`；**创建房间 / 加入房间 / 观众「下一局加入」** 可带可选 `userId`（与昵称须与 `dp_user` 一致才采纳），界面只展示昵称。
-- **JWT 全局鉴权（2026-04-07）**：引入 `spring-boot-starter-security`，`SecurityConfig` + `JwtAuthenticationFilter` 对除白名单外的请求要求 `Authorization: Bearer`；未登录返回 HTTP 401 JSON。白名单含：登录/注册、`/ws/**`、静态资源、`GET /dpRoom/getNowRoom`、`GET /dpRoom/getAllRooms2`、`GET /dpMusic/list`（旁观/分享链接与曲库列表）；详见 [docs/JWT.md](docs/JWT.md)。前端 `main.js` axios 拦截器自动带 token（登录/注册请求除外）。
+- **JWT 全局鉴权（2026-04-07）**：引入 `spring-boot-starter-security`，`SecurityConfig` + `JwtAuthenticationFilter` 对除白名单外的请求要求 `Authorization: Bearer`；未登录返回 HTTP 401 JSON。白名单含：登录/注册、`/ws/**`、静态资源、`GET /dpRoom/getNowRoom`、`GET /dpRoom/getAllRooms2`、`GET /dpMusic/list`（旁观/分享链接与曲库列表）；详见 [docs/JWT.md](docs/JWT.md)。前端 `main.js`：axios **请求**拦截器自动带 token（登录/注册请求除外）；**响应**拦截器对 HTTP 401 弹窗提示、清 `userInfo` 并跳转登录页。
 - **用户密码加密（2026-04-07）**：`DpUserServiceImpl` 在 `registerUser`、`loginUser`、`loginProfile`（经 `loginUserOrNull`）与 `updateUserInfo` 中统一经 **`CryptoUtil.md5HexUtf8`** 使用 **MD5(UTF-8)** 处理密码，数据库 `dp_user.password` 存储 32 位小写 MD5 字符串。**前端传明文、后端摘要**；校验与找回密码说明见 [docs/DpUserPassword.md](docs/DpUserPassword.md)。
 - **会话令牌**：`JwtUtil` 使用 **JWT**，签名算法为 **HMAC-SHA256**（JJWT 默认与 `Keys.hmacShaKeyFor` 一致）；与口令摘要工具类分离。
 - **加入房间（JWT）**：`POST /dpRoom/joinRoom2` 在全局鉴权通过后校验 `SecurityContext` 中昵称与参数 `nickname` 一致；大厅「加入」走该接口。旧 `POST /dpRoom/joinRoom` 同样需带 token。旧缓存仅有 `userId` 无 `token` 时，`ensureDpUserIdInStorage` 会再调 `loginProfile` 补 `token`。
@@ -128,10 +129,27 @@
 - **前端**：登录后大厅点「曲库上传」进入 `/#/music-upload`，可试听已入库曲目（开发环境经 `/dev-api` 代理访问 `/music/...`）。
 - **对局音乐盒（2026-04-01）**：对局页顶栏「音乐盒」打开曲库列表；**播放/暂停/停止** 经 **同一房间 WebSocket** 广播，服务端校验发送者昵称属于本桌玩家或观众后，向该房间所有连接推送 `{"_ws":"roomMusic",...}`（并记住最后一帧，**新进入房间者**在首包房间快照后会再收到一帧音乐状态）。摊牌/结算阶段自动暂停曲库 BGM，避免与既有结算短 BGM 叠播；离开结算后若状态仍为 `play` 会恢复播放。客户端上行：`{"_ws":"roomMusicSync","nickname":"…","action":"play|pause|stop","trackId":…,"webPath":"/music/…","displayName":"…"}`（`play` 时 `trackId`/`webPath` 必填；路径须为 `/music/` 下安全文件名）。
 
+### Redis 接入
+
+- **依赖**：已加入 `spring-boot-starter-data-redis`（客户端为 **Lettuce**），连接参数在 **`application.properties`** 的 `spring.data.redis.*`（默认 `127.0.0.1:6379`、库 `0`）。
+- **环境变量覆盖**（部署时常用）：`SPRING_DATA_REDIS_HOST`、`SPRING_DATA_REDIS_PORT`、`SPRING_DATA_REDIS_PASSWORD`。**`docker compose`** 已包含 **Redis** 服务，应用容器内指向 `redis:6379`，默认口令与 compose 中 **`REDIS_PASSWORD`**（默认 `mgdemo_redis`）一致；宿主机调试 Redis 用 **`localhost:6380`**（见 [docs/DOCKER.md](docs/DOCKER.md)）。
+- **在代码里用**：Spring 会自动装配 **`StringRedisTemplate`**、**`RedisTemplate`**、**`RedisConnectionFactory`**，按需 `@Autowired` 或构造器注入即可（例如 `stringRedisTemplate.opsForValue().set("k","v")`）。
+- **本机小实验（跑起后端即可）**：`RedisLabController` 提供 **`/demo/redis/*`**（已加入 JWT 白名单，浏览器可直接访问）。例：`GET http://localhost:8088/demo/redis/ping`；存取见 `RedisLabController` 注释。键会自动加前缀 `mgdemo:lab:`。
+- **曲库列表缓存**：`DpRedisListCacheService` 将 **`GET /dpMusic/list`** 的 JSON 缓存在 Redis（键 `mgdemo:cache:dpMusic:listEnabled`），默认 TTL `mgdemoplus.cache.music-list-ttl-seconds`（默认 300）；**曲库上传成功**后删键以便立刻回源。大厅 **`GET /dpRoom/getAllRooms2`** 仍直接读内存 `roomMap`，不经 Redis。Redis 异常时曲库列表自动回源，不阻断接口。
+- **说明**：当前对局 **WebSocket 与房间状态仍在单机内存**；若要多实例共房间或跨机广播，需在业务层自行用 Redis（Pub/Sub、缓存会话映射等）扩展，见 `docs/WEBSOCKET.md` 中「多实例」相关段落。
+
 ### Docker 部署
 
+- **云服务器要「全套」和本机一致**：用 **`git clone`** 拉**整个仓库**（含 `docker-compose.yml`、初始化 SQL 等），再执行 `docker compose up -d --build`；**Docker Hub 不能代替 Git 拉代码**。步骤与说明见 [docs/DOCKER.md](docs/DOCKER.md) 中的「云服务器和本机一样「全套」」。
+- **仅拉镜像、不 clone 仓库**：使用 **`docker-compose.hub.yml`**，并预先在 Hub 上推送 **`dpgame`、`dpgame-mysql`、`dpgame-nginx`** 三镜像（见 [docs/DOCKER.md](docs/DOCKER.md)「仅镜像部署」）；服务器上只需该 YAML + `docker compose -f docker-compose.hub.yml pull` 与 `docker compose -f docker-compose.hub.yml up -d`（**不要**加 `--build`）。
+- **Docker Hub：什么时候推镜像、什么时候用 `docker-compose.hub.yml`（速览）**
+  - **什么时候要推到 Hub**：在**有完整源码**的机器上，只要你改了需要打进镜像的内容（根目录 **`Dockerfile`**、**`Dockerfile.mysql`**、**`Dockerfile.nginx`**、应用或前端代码、`docker/nginx` 配置、初始化 SQL 等），并希望**另一台只拉镜像、不拉 Git 的机器**跑新版本，就需要在该机器上 **重新构建并推送** 对应镜像（通常三个一起推，保证版本一致）。
+  - **怎么推**：先执行 **`docker login`**。Windows 在仓库根目录运行 **`.\build-push-hub.ps1`**（可用 **`-Tag v1.0.1`** 等自定义标签）；Linux / macOS 用 [docs/DOCKER.md](docs/DOCKER.md)「仅镜像部署」里与 `REG` / `TAG` 对应的 **`docker build`** / **`docker push`** 命令。部署端 `.env` 里的 **`IMAGE_TAG`**（或 compose 默认值）须与本次推送的**标签一致**。
+  - **什么时候在服务器上用 `docker-compose.hub.yml`**：目标环境**不** `git clone` 仓库、只安装 Docker 与 Compose、**只从 Hub 拉镜像**部署时，把 **`docker-compose.hub.yml`** 放到任意目录（可从本仓库拷贝或下载单文件），同目录可选 **`.env`** 配置 `DOCKER_REGISTRY`、`IMAGE_TAG`、`MYSQL_ROOT_PASSWORD`、`REDIS_PASSWORD` 等，再 **`pull` + `up -d`**。编排里只有 **`image:`**，没有 **`build:`**，因此服务器上**不需要**源码目录。
+  - **和默认 `docker-compose.yml` 的区别**：默认文件在**仓库根目录**用 **`build:`** 本地构建并常挂载 `./docker-data`、SQL 等；**Hub 方式**把配置和 SQL 已打进镜像，适合「只拷一个 YAML 就部署」。
 - **详细说明**（Git 与打包关系、`WebConfig` / 驱动 / 前端生产地址、DBeaver 连接串等）：见 [docs/DOCKER.md](docs/DOCKER.md)。
-- **一键（MySQL + 应用）**：仓库根目录执行 `docker compose up --build`，浏览器打开 `http://localhost:8088`（前端为 hash 路由，形如 `/#/login`）。默认 MySQL root 密码为 `mgdemo_root`，可通过环境变量 `MYSQL_ROOT_PASSWORD` 修改。容器内 MySQL 对 **宿主机** 映射为 **`localhost:3307`**（避免与本机已占用的 **3306** 冲突）；应用容器仍通过内部网络访问 `mysql:3306`。
+- **Nginx 反向代理**（Compose 内 `nginx` 服务、80 端口、WebSocket 转发）：见 [docs/NGINX.md](docs/NGINX.md)。
+- **一键（MySQL + Redis + 应用 + Nginx）**：仓库根目录执行 `docker compose up --build`；浏览器可打开 **`http://localhost`**（经 Nginx）或 **`http://localhost:8088`**（直连应用；前端为 hash 路由，形如 `/#/login`）。默认 MySQL root 密码为 `mgdemo_root`，可通过环境变量 `MYSQL_ROOT_PASSWORD` 修改。容器内 MySQL 对 **宿主机** 映射为 **`localhost:3307`**（避免与本机已占用的 **3306** 冲突）；应用容器仍通过内部网络访问 `mysql:3306`。**Redis**：Compose 内服务名 `redis`，数据卷 `redis_data`；默认口令 **`mgdemo_redis`**（可用环境变量 **`REDIS_PASSWORD`** 覆盖，须与 `SPRING_DATA_REDIS_PASSWORD` 一致）。宿主机连接容器内 Redis 用 **`localhost:6380`**（映射到容器 6379，避免与本机独立 Redis 的 6379 冲突）。仅 `docker run` 单容器时需自行提供 Redis 或设置 `SPRING_DATA_REDIS_*` 指向已有实例。
 - **仅构建后端镜像**：`docker build -t mgdemoplus .`，运行示例：  
   `docker run -p 8088:8088 -e SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/school_db?useSSL=false -e SPRING_DATASOURCE_USERNAME=root -e SPRING_DATASOURCE_PASSWORD=你的密码 -e MGDEMOPLUS_IMAGES_FILE_LOCATION=file:/data/mgdemo-files/ -v 本机目录:/data/mgdemo-files mgdemoplus`
 - **说明**：`Dockerfile` 会编译 `front/dp_game` 并把 `dist` 打进 jar 的 `static`，与 API、WebSocket 同端口；本机开发默认上传目录为 `P:/javaworkspace/DPGameFiles/`（配置项 `mgdemoplus.images.file-location`）。`/images/**` 在容器内默认为 `/data/mgdemo-files`（compose 已映射到 `./docker-data/uploads`）。**数据库表**：`docker compose` 首次创建 MySQL 数据卷时，会自动执行 `docker-data/mysql-init/00-school_db.sql`，并按顺序 `SOURCE` 仓库内 `src/main/resources/db/*.sql` 在 `school_db` 中建表（若你已有旧的 `mysql_data` 卷且当时未建表，需 `docker compose down -v` 清空卷后重建，或手工在库里执行这些 SQL）。**勿把含真实密钥的 `application.properties` 依赖进镜像**；LLM 等密钥请用环境变量 `ARK_API_KEY`、`ARK_ENDPOINT_ID` 等在 compose 中注入。

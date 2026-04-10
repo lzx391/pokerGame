@@ -31,8 +31,7 @@ public class DpNpcSharkOpponentMemoryService {
 
     public DpNpcSharkOpponentMemoryService(
             DpSharkOpponentProfileMapper mapper,
-            ObjectMapper objectMapper
-    ) {
+            ObjectMapper objectMapper) {
         this.mapper = mapper;
         this.objectMapper = objectMapper;
     }
@@ -77,8 +76,8 @@ public class DpNpcSharkOpponentMemoryService {
                 sp.recentHands = new ArrayList<>(stats.getRecentHands());
 
                 String statsJson = objectMapper.writeValueAsString(sp);
-                DpNpcSharkLearningLab.LearnedPersistSnapshot learned =
-                        DpNpcSharkLearningLab.exportLearnedSnapshot(name);
+                DpNpcSharkLearningLab.LearnedPersistSnapshot learned = DpNpcSharkLearningLab
+                        .exportLearnedSnapshot(name);
                 String learnedJson = objectMapper.writeValueAsString(learned);
 
                 DpSharkOpponentProfile row = new DpSharkOpponentProfile();
@@ -128,14 +127,12 @@ public class DpNpcSharkOpponentMemoryService {
                         sp.totalShowdown,
                         sp.foldAdjustmentAgainstHero,
                         sp.recentHands,
-                        STATS_HAND_WINDOW
-                );
+                        STATS_HAND_WINDOW);
                 statsMap.put(nickname, stats);
             }
             if (row.getLearnedJson() != null && !row.getLearnedJson().isBlank()) {
-                DpNpcSharkLearningLab.LearnedPersistSnapshot learned =
-                        objectMapper.readValue(row.getLearnedJson(),
-                                DpNpcSharkLearningLab.LearnedPersistSnapshot.class);
+                DpNpcSharkLearningLab.LearnedPersistSnapshot learned = objectMapper.readValue(row.getLearnedJson(),
+                        DpNpcSharkLearningLab.LearnedPersistSnapshot.class);
                 DpNpcSharkLearningLab.importLearnedSnapshot(nickname, learned);
             }
         } catch (Exception e) {

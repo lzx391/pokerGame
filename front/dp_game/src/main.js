@@ -3,7 +3,7 @@ import App from './App.vue'
 import axios from 'axios'
 import router from './router'
 import store from './store'
-import ElementUI from 'element-ui'
+import ElementUI, { Message } from 'element-ui'
 import 'element-ui/lib/theme-chalk/index.css';
 Vue.config.productionTip = false
 Vue.use(ElementUI);
@@ -29,6 +29,37 @@ axios.interceptors.request.use(function (config) {
   }
   return config
 })
+
+// 与后端 Spring Security 401（JwtAuthenticationEntryPoint / JwtAuthenticationFilter）对齐：全局提示并回登录页
+var handling401 = false
+axios.interceptors.response.use(
+  function (response) {
+    return response
+  },
+  function (error) {
+    var status = error.response && error.response.status
+    if (status === 401) {
+      if (!handling401) {
+        handling401 = true
+        try {
+          localStorage.removeItem('userInfo')
+        } catch (e) {
+          /* ignore */
+        }
+        var data = error.response && error.response.data
+        var msg = (data && (data.message || data.msg)) || '未登录或登录已失效，请重新登录'
+        Message.error(msg)
+        if (router.currentRoute.path !== '/login') {
+          router.replace('/login')
+        }
+        setTimeout(function () {
+          handling401 = false
+        }, 800)
+      }
+    }
+    return Promise.reject(error)
+  }
+)
 
 Vue.prototype.$http =axios
 new Vue({

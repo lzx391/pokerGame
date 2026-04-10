@@ -16,7 +16,10 @@
 
 ## 前端
 
-`front/dp_game/src/main.js` 中 axios 请求拦截器：除 `loginProfile`、`registerUser` 外，自动从 `localStorage.userInfo.token` 带上 `Authorization: Bearer`。
+`front/dp_game/src/main.js` 中 axios：
+
+- **请求**拦截器：除 `loginProfile`、`registerUser` 外，自动从 `localStorage.userInfo.token` 带上 `Authorization: Bearer`。
+- **响应**拦截器：收到 **HTTP 401** 时用 Element `Message.error` 展示后端 `message`（或默认「未登录或登录已失效」），清除 `localStorage.userInfo`，并 `router.replace('/login')`（已在登录页则不再跳转），与后端 JSON 约定一致。
 
 ## 迭代说明
 

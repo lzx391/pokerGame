@@ -17,9 +17,14 @@ RUN mvn -q -DskipTests package
 # --- 运行 ---
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
-RUN groupadd -r spring && useradd -r -g spring spring
+RUN groupadd -r spring && useradd -r -g spring spring \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends gosu \
+  && rm -rf /var/lib/apt/lists/*
 COPY --from=backend /app/target/*.jar app.jar
-RUN chown spring:spring app.jar
-USER spring
+COPY docker/docker-entrypoint-app.sh /docker-entrypoint-app.sh
+# Windows 检出常为 CRLF；shebang 若含 \r 会报 exec … no such file or directory
+RUN sed -i 's/\r$//' /docker-entrypoint-app.sh \
+  && chown spring:spring app.jar && chmod +x /docker-entrypoint-app.sh
 EXPOSE 8088
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["/docker-entrypoint-app.sh"]

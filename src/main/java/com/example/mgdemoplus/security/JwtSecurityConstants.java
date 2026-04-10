@@ -24,5 +24,7 @@ public final class JwtSecurityConstants {
             "/dpRoom/getNowRoom",
             "/dpRoom/getAllRooms2",
             "/dpMusic/list",
+            // Redis 本地实验接口（仅学习用；上线前可删或改需登录）
+            "/demo/redis/**",
     };
 }
