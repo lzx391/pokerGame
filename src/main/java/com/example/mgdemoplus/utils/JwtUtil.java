@@ -33,7 +33,7 @@ public class JwtUtil {
     private static final long EXPIRATION_TIME = 1000 * 60; // 1 minute
     public static String generateToken(String username) {
         Date now = new Date();
-        Date expiration = new Date(now.getTime() + 24 * 60 * EXPIRATION_TIME);//十分钟期限
+        Date expiration = new Date(now.getTime() + 24 *60 * EXPIRATION_TIME);//单位分钟期限
         return Jwts.builder()
                 .header().add("type", "JWT").and()
                 .subject(username)
