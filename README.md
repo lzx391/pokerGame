@@ -140,6 +140,13 @@
 
 ### Docker 部署
 
+- **云服务器要「全套」和本机一致**：用 **`git clone`** 拉**整个仓库**（含 `docker-compose.yml`、初始化 SQL 等），再执行 `docker compose up -d --build`；**Docker Hub 不能代替 Git 拉代码**。步骤与说明见 [docs/DOCKER.md](docs/DOCKER.md) 中的「云服务器和本机一样「全套」」。
+- **仅拉镜像、不 clone 仓库**：使用 **`docker-compose.hub.yml`**，并预先在 Hub 上推送 **`dpgame`、`dpgame-mysql`、`dpgame-nginx`** 三镜像（见 [docs/DOCKER.md](docs/DOCKER.md)「仅镜像部署」）；服务器上只需该 YAML + `docker compose -f docker-compose.hub.yml pull` 与 `docker compose -f docker-compose.hub.yml up -d`（**不要**加 `--build`）。
+- **Docker Hub：什么时候推镜像、什么时候用 `docker-compose.hub.yml`（速览）**
+  - **什么时候要推到 Hub**：在**有完整源码**的机器上，只要你改了需要打进镜像的内容（根目录 **`Dockerfile`**、**`Dockerfile.mysql`**、**`Dockerfile.nginx`**、应用或前端代码、`docker/nginx` 配置、初始化 SQL 等），并希望**另一台只拉镜像、不拉 Git 的机器**跑新版本，就需要在该机器上 **重新构建并推送** 对应镜像（通常三个一起推，保证版本一致）。
+  - **怎么推**：先执行 **`docker login`**。Windows 在仓库根目录运行 **`.\build-push-hub.ps1`**（可用 **`-Tag v1.0.1`** 等自定义标签）；Linux / macOS 用 [docs/DOCKER.md](docs/DOCKER.md)「仅镜像部署」里与 `REG` / `TAG` 对应的 **`docker build`** / **`docker push`** 命令。部署端 `.env` 里的 **`IMAGE_TAG`**（或 compose 默认值）须与本次推送的**标签一致**。
+  - **什么时候在服务器上用 `docker-compose.hub.yml`**：目标环境**不** `git clone` 仓库、只安装 Docker 与 Compose、**只从 Hub 拉镜像**部署时，把 **`docker-compose.hub.yml`** 放到任意目录（可从本仓库拷贝或下载单文件），同目录可选 **`.env`** 配置 `DOCKER_REGISTRY`、`IMAGE_TAG`、`MYSQL_ROOT_PASSWORD`、`REDIS_PASSWORD` 等，再 **`pull` + `up -d`**。编排里只有 **`image:`**，没有 **`build:`**，因此服务器上**不需要**源码目录。
+  - **和默认 `docker-compose.yml` 的区别**：默认文件在**仓库根目录**用 **`build:`** 本地构建并常挂载 `./docker-data`、SQL 等；**Hub 方式**把配置和 SQL 已打进镜像，适合「只拷一个 YAML 就部署」。
 - **详细说明**（Git 与打包关系、`WebConfig` / 驱动 / 前端生产地址、DBeaver 连接串等）：见 [docs/DOCKER.md](docs/DOCKER.md)。
 - **Nginx 反向代理**（Compose 内 `nginx` 服务、80 端口、WebSocket 转发）：见 [docs/NGINX.md](docs/NGINX.md)。
 - **一键（MySQL + Redis + 应用 + Nginx）**：仓库根目录执行 `docker compose up --build`；浏览器可打开 **`http://localhost`**（经 Nginx）或 **`http://localhost:8088`**（直连应用；前端为 hash 路由，形如 `/#/login`）。默认 MySQL root 密码为 `mgdemo_root`，可通过环境变量 `MYSQL_ROOT_PASSWORD` 修改。容器内 MySQL 对 **宿主机** 映射为 **`localhost:3307`**（避免与本机已占用的 **3306** 冲突）；应用容器仍通过内部网络访问 `mysql:3306`。**Redis**：Compose 内服务名 `redis`，数据卷 `redis_data`；默认口令 **`mgdemo_redis`**（可用环境变量 **`REDIS_PASSWORD`** 覆盖，须与 `SPRING_DATA_REDIS_PASSWORD` 一致）。宿主机连接容器内 Redis 用 **`localhost:6380`**（映射到容器 6379，避免与本机独立 Redis 的 6379 冲突）。仅 `docker run` 单容器时需自行提供 Redis 或设置 `SPRING_DATA_REDIS_*` 指向已有实例。

@@ -7,6 +7,74 @@
 
 镜像默认只存在本机；若要用「别人只拉镜像不拉代码」，需要另行使用镜像仓库（本说明不展开）。
 
+## 云服务器和本机一样「全套」：用 Git 拉仓库（不是 Docker Hub）
+
+**Docker Hub 只存镜像，不存完整代码仓库**（没有 `docker-compose.yml`、数据库初始化脚本、`docker/nginx` 等）。  
+要「和本机一样」一次起 **MySQL + Redis + 应用 + Nginx**，正确做法是：
+
+1. 用 **`git push`** 把**整个项目**推到 Gitee/GitHub。
+2. 云服务器装好 Docker（含 `docker compose`）后，**`git clone`** 仓库到某个目录，进入**仓库根目录**，执行：  
+   `docker compose up -d --build`
+
+**和 Hub 的关系**：若你希望**服务器上不 clone 仓库、只拉镜像**，见下方 **「仅镜像部署」**（需先把 `dpgame-mysql`、`dpgame-nginx` 与应用镜像一并推到 Hub，并用 `docker-compose.hub.yml`）。
+
+**示例（仓库名、分支以你实际为准）：**
+
+```bash
+git clone -b testUI https://gitee.com/SILVERSWOED/spring-boot-demo.git
+cd spring-boot-demo
+docker compose up -d --build
+```
+
+浏览器访问 `http://服务器公网IP`（若放行 **80** 且走 Nginx）或 **8088**（若映射了应用端口）；云厂商**安全组**需放行对应端口。
+
+---
+
+## 仅镜像部署（不 clone 仓库）
+
+思路：**建表 SQL 打进 MySQL 镜像**（`Dockerfile.mysql`），**Nginx 配置打进 Nginx 镜像**（`Dockerfile.nginx`），应用仍用 **`Dockerfile` 构建的 `dpgame` 镜像**。编排用 **`docker-compose.hub.yml`**：只有 `image:`，无 `build:`，无 `./docker-data`、`./src/...` 等宿主机挂载。
+
+**服务器上仍需有「这一份」YAML**（从 U 盘拷贝、浏览器下载、或 `wget` Gitee 原始文件均可），不是 Git 专属；**不需要**整份源码目录。
+
+### 1. 在有源码的机器上构建并推送（版本号与 `IMAGE_TAG` 一致，例 `v1.0.0`）
+
+```bash
+cd /path/to/MGDemoPlus
+export REG=1933886418
+export TAG=v1.0.0
+
+docker build -t $REG/dpgame:$TAG .
+docker build -f Dockerfile.mysql -t $REG/dpgame-mysql:$TAG .
+docker build -f Dockerfile.nginx -t $REG/dpgame-nginx:$TAG .
+
+docker login
+docker push $REG/dpgame:$TAG
+docker push $REG/dpgame-mysql:$TAG
+docker push $REG/dpgame-nginx:$TAG
+```
+
+**Windows（PowerShell）**：仓库根目录先执行一次 **`docker login`**，再运行 **`.\build-push-hub.ps1`**（等同上表三次 build + 三次 push）。可选改版本： **`.\build-push-hub.ps1 -Tag v1.0.1`**（须与 `docker-compose.hub.yml` 里 `IMAGE_TAG` 一致）。
+
+### 2. 云服务器（只装 Docker / Compose）
+
+将 **`docker-compose.hub.yml`** 放到任意目录（或从 Gitee Raw 下载同文件），然后：
+
+```bash
+docker login
+docker compose -f docker-compose.hub.yml pull
+docker compose -f docker-compose.hub.yml up -d
+```
+
+**不要**加 `--build`（镜像已在 Hub）。可选：同目录放 `.env` 设置 `DOCKER_REGISTRY`、`IMAGE_TAG`、`MYSQL_ROOT_PASSWORD`、`REDIS_PASSWORD`。  
+**本机 Windows 若 `http://localhost/` 打不开**：常见为 **80 端口被 IIS 等占用**；在 `.env` 中加 **`NGINX_HTTP_PORT=8080`**，再 `compose up`，用 **`http://localhost:8080/`** 访问 Nginx。
+
+### 3. 表结构变更后
+
+若 `src/main/resources/db/` 下 SQL 有增改，需**重新构建并推送 `dpgame-mysql` 镜像**；已有 MySQL 数据卷不会自动重跑 init，需自行迁移或 `docker compose down -v` 清空 `mysql_data`（**会删库**）。
+
+### 4. 上传目录权限（持久方案）
+
+应用进程以 **`spring` 用户**运行；命名卷挂到 **`/data/mgdemo-files`** 时默认属主常为 **root**，曲库上传会因无法创建 `music` 子目录而失败。根目录 **`Dockerfile`** 使用 **`docker/docker-entrypoint-app.sh`**：启动 Java 前以 root 执行 `mkdir -p /data/mgdemo-files/music` 与 `chown -R spring:spring /data/mgdemo-files`，再通过 **`gosu`** 降权启动 `java -jar`。更新应用镜像后需 **重新 build / push `dpgame`** 才会生效。
 
 ---
 
