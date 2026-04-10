@@ -155,4 +155,14 @@ docker compose up -d mysql redis
 
 更简要的入口说明见仓库根目录 `README.md` 中的「Docker 部署」小节。
 --- 
-很简单的道理，说白了就是打包镜像的时候看docker compose配置呗，不看yml的，虽然yml写的3307，但docker配置写的3306，而docker服务在本地开发的时候映射出来是3307，在容器内部是3306，所以反而能连上，开发运维两不耽误
+对开发环境配置文件连3307打包之后依然正常运行的解释
+的道理，说白了就是打包镜像的时候看docker compose配置呗，不看yml的，虽然yml写的3307，但docker配置写的3306，而docker服务在本地开发的时候映射出来是3307，在容器内部是3306，所以反而能连上，开发运维两不耽误
+---
+
+### 小结：`docker-compose.yml` 与 `docker-compose.hub.yml`
+
+- **开发常用 `docker-compose.yml`**：可本地 `build` 应用；MySQL 初始化脚本、上传目录等通过 **`./docker-data`、`./src/...`** 等绑定挂载引用仓库内文件，改起来直观。MySQL 等业务数据仍落在 Compose 声明的**命名卷**（如 `mysql_data`）里，并不等同于「所有数据都在 `docker-data` 文件夹」。
+- **仅镜像部署用 `docker-compose.hub.yml`**：不在服务器上 `build`，只拉 Hub 上的 **`dpgame`、`dpgame-mysql`、`dpgame-nginx`**；MySQL、Redis、上传目录等用**命名卷**持久化，**数据在服务器本机**由 Docker 管理。镜像从 Hub 拉取；**卷内数据不会上传到 Hub**。
+- **为何要三个镜像**：若只推送应用镜像，新机器上没有仓库里的建表 SQL 与 Nginx 配置；用 **`Dockerfile.mysql` / `Dockerfile.nginx`** 把二者打进镜像后，才能在**不 clone 仓库**的情况下 `pull` 并跑通整套服务。
+---
+build的时候，dockerignore说的不算，只有Dockerfile里写入的才真正打包到镜像里，这就是为啥要单门打包mysql和nginx才能完整的跑起来
