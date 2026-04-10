@@ -56,8 +56,8 @@ services:
   app:
     build: .
     # 仍映射 8088 便于本机直连调试；对外只走 Nginx 时可注释掉下面一行
-    ports:
-      - "8088:8088"
+    # ports:
+    #   - "8088:8088"
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/school_db?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=utf8
       SPRING_DATASOURCE_USERNAME: root
