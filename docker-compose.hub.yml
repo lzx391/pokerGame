@@ -10,7 +10,7 @@
 
 services:
   mysql:
-    image: ${DOCKER_REGISTRY:-1933886418}/dpgame-mysql:${IMAGE_TAG:-v1.0.0}
+    image: ${DOCKER_REGISTRY:-1933886418}/dpgame-mysql:${IMAGE_TAG:-v1.0.1}
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-mgdemo_root}
       MYSQL_DATABASE: school_db
@@ -40,14 +40,14 @@ services:
       start_period: 5s
 
   nginx:
-    image: ${DOCKER_REGISTRY:-1933886418}/dpgame-nginx:${IMAGE_TAG:-v1.0.0}
+    image: ${DOCKER_REGISTRY:-1933886418}/dpgame-nginx:${IMAGE_TAG:-v1.0.1}
     ports:
       - "${NGINX_HTTP_PORT:-80}:80"
     depends_on:
       - app
 
   app:
-    image: ${DOCKER_REGISTRY:-1933886418}/dpgame:${IMAGE_TAG:-v1.0.0}
+    image: ${DOCKER_REGISTRY:-1933886418}/dpgame:${IMAGE_TAG:-v1.0.1}
     ports:
       - "8088:8088"
     environment:
