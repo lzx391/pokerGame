@@ -16,13 +16,17 @@ public class DpRedisLoginCacheServiceImpl implements DpRedisLoginCacheService {
     @Autowired
     private  StringRedisTemplate stringRedisTemplate;
 
-    @Override
     public void setLoginJti(String nickname, String jti) {
         stringRedisTemplate.opsForValue().set(REDIS_LOGIN_JTI_KEY_PREFIX + nickname, jti);
     }
 
-    @Override
     public String getLoginJti(String nickname) {
         return stringRedisTemplate.opsForValue().get(REDIS_LOGIN_JTI_KEY_PREFIX + nickname);
+    }
+    /**
+     * 踢人服务需要删除redis中的jti
+     */
+    public void removeLoginJti(String nickname) {
+        stringRedisTemplate.delete(REDIS_LOGIN_JTI_KEY_PREFIX + nickname);
     }
 }

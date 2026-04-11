@@ -52,6 +52,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             if (publicPaths.matches(request)) {
+                /**
+                 * 白名单路径不强制登录；白名单上若带合法 token 仍会写入身份，便于后续扩展。
+                 */
                 applyTokenIfPresentAndValid(request);
                 filterChain.doFilter(request, response);
                 return;
