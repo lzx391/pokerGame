@@ -12,7 +12,7 @@ public class DpRedisLoginCacheServiceImpl implements DpRedisLoginCacheService {
      * 登录后在 Redis 中存放当前会话 jti 的 key 前缀，需与过滤器读取一致：
      * {@code prefix + nickname}。
      */
-    public static final String REDIS_LOGIN_JTI_KEY_PREFIX = "mgdemo:cache:login:";
+    static final String REDIS_LOGIN_JTI_KEY_PREFIX = "mgdemo:cache:login:";
     @Autowired
     private  StringRedisTemplate stringRedisTemplate;
 

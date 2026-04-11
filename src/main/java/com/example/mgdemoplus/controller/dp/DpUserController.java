@@ -15,6 +15,9 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+
 
 @RestController
 @RequestMapping("/dpUser")
@@ -65,7 +68,7 @@ public class DpUserController {
     public ResultUtil loginProfile(@RequestParam String nickname, @RequestParam String password) {
         DpUser u = dpUserService.loginUserOrNull(nickname, password);
         if (u == null) {
-            return ResultUtil.error().data("message", "用户名不存在");
+            return ResultUtil.error().data("message", "用户名不存在或密码错误");
         }
         //token载荷有昵称和jti,jti是随机生成的uuid，到时候踢人用
         String jti = UUID.randomUUID().toString();
@@ -74,9 +77,12 @@ public class DpUserController {
         return ResultUtil.ok().data("userId", u.getId()).data("nickname", u.getNickname()).data("token", token);
     }
 
+  
     @PutMapping("/updateUserInfo")
-    public ResultUtil updateUserInfo(@RequestBody DpUser dpUser) {
+    public ResultUtil updateUserInfo(@RequestBody DpUser dpUser,String oldPassword) {
+        //TODO: process POST request
         
-        return ResultUtil.ok().data("message", dpUserService.updateUserInfo(dpUser));
+        return ResultUtil.ok().data("message", dpUserService.updateUserInfo(dpUser,oldPassword));
     }
+    
 }
