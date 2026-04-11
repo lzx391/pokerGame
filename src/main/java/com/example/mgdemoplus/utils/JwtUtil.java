@@ -30,13 +30,19 @@ public class JwtUtil {
      * JJWT 0.11+ 会按 Base64 解码该字符串，32 个 Base64 字符解出来只有 24 字节 → 192 位，会报 WeakKeyException。
      */
     private static final SecretKey SECRET_KEY = Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
-    private static final long EXPIRATION_TIME = 1000 * 60; // 1 minute
-    public static String generateToken(String username) {
+    public static final long EXPIRATION_TIME = 1000 * 60; // 1 minute
+    /** 与 {@link #generateToken} 中 {@code expiration} 一致，供 Redis 会话 jti 设置 TTL（秒）。 */
+    public static long tokenTtlSeconds() {
+        return (24L * 60 * EXPIRATION_TIME) / 1000;
+    }
+
+    public static String generateToken(String username,String jti) {
         Date now = new Date();
         Date expiration = new Date(now.getTime() + 24 *60 * EXPIRATION_TIME);//单位分钟期限
         return Jwts.builder()
                 .header().add("type", "JWT").and()
                 .subject(username)
+                .id(jti)
                 .issuedAt(now)
                 .expiration(expiration)
                 .signWith(SECRET_KEY)

@@ -1,15 +1,18 @@
 package com.example.mgdemoplus.controller.dp;
 
 import com.example.mgdemoplus.entity.dp.DpUser;
+import com.example.mgdemoplus.security.JwtSecurityConstants;
+import com.example.mgdemoplus.service.dp.DpRedisLoginCacheService;
 import com.example.mgdemoplus.service.dp.DpUserService;
 import com.example.mgdemoplus.utils.JwtUtil;
 import com.example.mgdemoplus.utils.ResultUtil;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -18,7 +21,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 public class DpUserController {
     @Autowired
     DpUserService dpUserService;
-
+    @Autowired
+    StringRedisTemplate stringRedisTemplate;
+    @Autowired
+    DpRedisLoginCacheService dpRedisLoginCacheService;
     @PostMapping("/registerUser")
     public ResultUtil registerUser(@RequestBody DpUser dpUser) {
         
@@ -61,8 +67,10 @@ public class DpUserController {
         if (u == null) {
             return ResultUtil.error().data("message", "用户名不存在");
         }
-        String token = JwtUtil.generateToken(u.getNickname());
-
+        //token载荷有昵称和jti,jti是随机生成的uuid，到时候踢人用
+        String jti = UUID.randomUUID().toString();
+        String token = JwtUtil.generateToken(u.getNickname(), jti);
+        dpRedisLoginCacheService.setLoginJti(u.getNickname(), jti);
         return ResultUtil.ok().data("userId", u.getId()).data("nickname", u.getNickname()).data("token", token);
     }
 

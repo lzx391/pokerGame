@@ -1,5 +1,6 @@
 package com.example.mgdemoplus.security;
 
+import com.example.mgdemoplus.service.dp.DpRedisLoginCacheService;
 import com.example.mgdemoplus.utils.JwtUtil;
 import com.example.mgdemoplus.utils.ResultCode;
 
@@ -7,6 +8,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.jsonwebtoken.Claims;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -32,7 +35,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final RequestMatcher publicPaths;
     private final ObjectMapper objectMapper;
-
+    @Autowired
+    private  DpRedisLoginCacheService dpRedisLoginCacheService;
     public JwtAuthenticationFilter(RequestMatcher publicPaths, ObjectMapper objectMapper) {
         this.publicPaths = publicPaths;
         this.objectMapper = objectMapper;
@@ -61,7 +65,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             try {
                 Claims claims = JwtUtil.verifyToken(token);
                 String subject = claims.getSubject();
-                if (subject != null && !subject.isBlank()) {
+                String jti = claims.getId();
+                String cach_jti = dpRedisLoginCacheService.getLoginJti(subject);
+                if (subject != null && !subject.isBlank() && cach_jti != null && !cach_jti.isBlank() && cach_jti.equals(jti)) {
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(subject, null, null);
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
