@@ -75,6 +75,7 @@ services:
       ARK_BASE_URL: ${ARK_BASE_URL:-}
       ARK_REASONING_EFFORT: ${ARK_REASONING_EFFORT:-}
       ARK_THINKING_TYPE: ${ARK_THINKING_TYPE:-}
+      MGDEMOPLUS_CACHE_MUSIC_LIST_TTL_SECONDS: ${MGDEMOPLUS_CACHE_MUSIC_LIST_TTL_SECONDS:-300}
     volumes:
       - ./docker-data/uploads:/data/mgdemo-files
     depends_on:

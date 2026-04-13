@@ -6,7 +6,10 @@
 #
 # 浏览器：http://服务器IP/  或直连应用 http://服务器IP:8088/
 # 本机 Windows 若 80 被占用（IIS 等），可在同目录 .env 写 NGINX_HTTP_PORT=8080，用 http://localhost:8080/ 访问 Nginx。
-# 环境变量：DOCKER_REGISTRY（默认 1933886418）、IMAGE_TAG（默认 v1.0.0）、MYSQL_ROOT_PASSWORD、REDIS_PASSWORD、NGINX_HTTP_PORT（默认 80）
+# 同目录 .env 可设（未写则用冒号后默认）：
+#   DOCKER_REGISTRY、IMAGE_TAG、MYSQL_ROOT_PASSWORD、REDIS_PASSWORD、NGINX_HTTP_PORT、APP_HOST_PORT
+#   JWT_SECRET、ARK_*、MGDEMOPLUS_CACHE_MUSIC_LIST_TTL_SECONDS
+# app 内 JDBC/Redis 主机在文件里写死为 mysql/redis；勿指望用 .env 的 SPRING_DATASOURCE_URL 改容器内连库（仅本机 java 直跑时有效）。
 
 services:
   mysql:
@@ -49,7 +52,7 @@ services:
   app:
     image: ${DOCKER_REGISTRY:-1933886418}/dpgame:${IMAGE_TAG:-v1.0.1}
     ports:
-      - "8088:8088"
+      - "${APP_HOST_PORT:-8088}:8088"
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/school_db?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=utf8
       SPRING_DATASOURCE_USERNAME: root
@@ -66,6 +69,7 @@ services:
       ARK_BASE_URL: ${ARK_BASE_URL:-}
       ARK_REASONING_EFFORT: ${ARK_REASONING_EFFORT:-}
       ARK_THINKING_TYPE: ${ARK_THINKING_TYPE:-}
+      MGDEMOPLUS_CACHE_MUSIC_LIST_TTL_SECONDS: ${MGDEMOPLUS_CACHE_MUSIC_LIST_TTL_SECONDS:-300}
     volumes:
       - mgdemo_uploads:/data/mgdemo-files
     depends_on:
