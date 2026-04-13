@@ -1,5 +1,12 @@
 ## MGDemoPlus
 
+### 环境变量（`.env`）
+
+- 仓库根目录提供 **`.env.example`**：列出 Docker Compose 与本机运行时常用变量（MySQL / Redis / JWT / 方舟 LLM 等）。复制为 **`.env`** 后按需填写；**`.env` 已被 Git 忽略**，不要提交含真实密码的文件。
+- **`docker compose`** 会自动读取与 `docker-compose.yml` 同目录的 `.env`，用于镜像标签、口令及可选的 `JWT_SECRET`、`ARK_*` 等注入应用容器。
+- **本机直接跑 Spring Boot**（IDEA / `mvn spring-boot:run`）：`MgDemoPlusApplication` 在启动前会加载**当前工作目录**下的 `.env`（依赖 `dotenv-java`），与 Docker 行为对齐；请把运行工作目录设为**仓库根目录**，否则找不到文件。若已在系统或 IDE 里配置了同名环境变量，以环境变量为准。
+- **默认值**：数据库、Redis、上传路径、方舟等已在 **`application.properties`** 里用 `${环境变量:默认值}` 写好；不配 `.env` 也能按默认值启动。要覆盖时写根目录 `.env` 或 IDE 环境变量，变量名见 **`.env.example`**。
+
 ### DP游戏文档链接
 
 - [后端面试题清单（结合本仓库技术栈）](docs/BACKEND_INTERVIEW_QUESTIONS.md)

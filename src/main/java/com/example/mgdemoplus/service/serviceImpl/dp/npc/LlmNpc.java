@@ -1,5 +1,6 @@
 package com.example.mgdemoplus.service.serviceImpl.dp.npc;
 
+import com.example.mgdemoplus.utils.EnvHelper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -53,11 +54,11 @@ public final class LlmNpc {
      */
     public LlmNpc() {
         this(
-                trimToNull(System.getenv("ARK_API_KEY")),
-                trimToNull(System.getenv("ARK_ENDPOINT_ID")),
-                trimToNull(System.getenv("ARK_BASE_URL")),
-                trimToNull(System.getenv("ARK_REASONING_EFFORT")),
-                trimToNull(System.getenv("ARK_THINKING_TYPE")));
+                trimToNull(EnvHelper.getenvOrProperty("ARK_API_KEY")),
+                trimToNull(EnvHelper.getenvOrProperty("ARK_ENDPOINT_ID")),
+                trimToNull(EnvHelper.getenvOrProperty("ARK_BASE_URL")),
+                trimToNull(EnvHelper.getenvOrProperty("ARK_REASONING_EFFORT")),
+                trimToNull(EnvHelper.getenvOrProperty("ARK_THINKING_TYPE")));
     }
 
     public LlmNpc(String apiKey, String endpointModelId, String baseUrl) {

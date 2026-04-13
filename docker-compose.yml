@@ -68,9 +68,13 @@ services:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: "6379"
       SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:-mgdemo_redis}
-      # 可选：大模型 NPC（勿把密钥写进镜像，用环境变量覆盖）
-      # ARK_API_KEY: ""
-      # ARK_ENDPOINT_ID: ""
+      # 可选：JWT / 大模型 NPC（由同目录 .env 注入，勿把真密钥写进仓库）
+      JWT_SECRET: ${JWT_SECRET:-}
+      ARK_API_KEY: ${ARK_API_KEY:-}
+      ARK_ENDPOINT_ID: ${ARK_ENDPOINT_ID:-}
+      ARK_BASE_URL: ${ARK_BASE_URL:-}
+      ARK_REASONING_EFFORT: ${ARK_REASONING_EFFORT:-}
+      ARK_THINKING_TYPE: ${ARK_THINKING_TYPE:-}
     volumes:
       - ./docker-data/uploads:/data/mgdemo-files
     depends_on:

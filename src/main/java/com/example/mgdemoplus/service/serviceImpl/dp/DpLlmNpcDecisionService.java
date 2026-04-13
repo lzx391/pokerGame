@@ -4,6 +4,7 @@ import com.example.mgdemoplus.entity.dp.DpPlayer;
 import com.example.mgdemoplus.entity.dp.DpRoom;
 import com.example.mgdemoplus.service.serviceImpl.dp.npc.LlmNpc;
 import com.example.mgdemoplus.service.serviceImpl.dp.npc.LlmNpcGameContext;
+import com.example.mgdemoplus.utils.EnvHelper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
@@ -68,7 +69,7 @@ public class DpLlmNpcDecisionService {
     }
 
     private static String env(String name) {
-        String v = System.getenv(name);
+        String v = EnvHelper.getenvOrProperty(name);
         return v == null ? "" : v.trim();
     }
 

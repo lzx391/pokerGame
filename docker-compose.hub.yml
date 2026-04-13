@@ -60,6 +60,12 @@ services:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: "6379"
       SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:-mgdemo_redis}
+      JWT_SECRET: ${JWT_SECRET:-}
+      ARK_API_KEY: ${ARK_API_KEY:-}
+      ARK_ENDPOINT_ID: ${ARK_ENDPOINT_ID:-}
+      ARK_BASE_URL: ${ARK_BASE_URL:-}
+      ARK_REASONING_EFFORT: ${ARK_REASONING_EFFORT:-}
+      ARK_THINKING_TYPE: ${ARK_THINKING_TYPE:-}
     volumes:
       - mgdemo_uploads:/data/mgdemo-files
     depends_on:

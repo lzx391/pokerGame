@@ -65,7 +65,7 @@ docker compose -f docker-compose.hub.yml pull
 docker compose -f docker-compose.hub.yml up -d
 ```
 
-**不要**加 `--build`（镜像已在 Hub）。可选：同目录放 `.env` 设置 `DOCKER_REGISTRY`、`IMAGE_TAG`、`MYSQL_ROOT_PASSWORD`、`REDIS_PASSWORD`。  
+**不要**加 `--build`（镜像已在 Hub）。可选：同目录放 `.env` 设置 `DOCKER_REGISTRY`、`IMAGE_TAG`、`MYSQL_ROOT_PASSWORD`、`REDIS_PASSWORD` 等；变量说明见仓库根目录 **`.env.example`**（可复制为 `.env` 再改值）。  
 **本机 Windows 若 `http://localhost/` 打不开**：常见为 **80 端口被 IIS 等占用**；在 `.env` 中加 **`NGINX_HTTP_PORT=8080`**，再 `compose up`，用 **`http://localhost:8080/`** 访问 Nginx。
 
 ### 3. 表结构变更后
@@ -165,4 +165,5 @@ docker compose up -d mysql redis
 - **仅镜像部署用 `docker-compose.hub.yml`**：不在服务器上 `build`，只拉 Hub 上的 **`dpgame`、`dpgame-mysql`、`dpgame-nginx`**；MySQL、Redis、上传目录等用**命名卷**持久化，**数据在服务器本机**由 Docker 管理。镜像从 Hub 拉取；**卷内数据不会上传到 Hub**。
 - **为何要三个镜像**：若只推送应用镜像，新机器上没有仓库里的建表 SQL 与 Nginx 配置；用 **`Dockerfile.mysql` / `Dockerfile.nginx`** 把二者打进镜像后，才能在**不 clone 仓库**的情况下 `pull` 并跑通整套服务。
 ---
-build的时候，dockerignore说的不算，只有Dockerfile里写入的才真正打包到镜像里，这就是为啥要单门打包mysql和nginx才能完整的跑起来
+build的时候，dockerignore说的不算，只有Dockerfile里写入的才真正打包到镜像里，当你看docker-compose.hub.yml文件时会发现每个XX前面都会有一个image配置，redis用的是官方image,而mysql和nginx是需要自己定制的，所以单开了两个镜像，这就是为啥要单门打包mysql和nginx才能完整的跑起来  
+总结一下就是Dockerfile只是项目代码，不全，没有redis，mysql,nginx配置，redis不需要定制，mysql和nginx需要再补上配置，所以要单独再打包俩镜像

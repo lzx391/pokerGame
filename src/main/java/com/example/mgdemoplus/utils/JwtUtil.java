@@ -18,18 +18,24 @@ import java.util.Date;
 
 
 public class JwtUtil {
-    /** 32 个 ASCII 字符 = 32 字节 = 256 位，满足 HS256 */
-    private static final String SECRET = "abcdefghhgfedcbaabcdefghhgfedcba";
     /**
-     * 必须用 Keys 从字节生成 SecretKey。若把 String 直接传给 signWith(alg, String)，
+     * HS256 需要至少 256 位密钥。优先使用环境变量 {@code JWT_SECRET}（UTF-8 编码后至少 32 字节），
+     * 未设置或过短时使用下方仅适用于本地开发的默认值；生产环境务必设置 {@code JWT_SECRET}，勿提交到 Git。
+     */
+    private static final String DEV_FALLBACK_SECRET = "abcdefghhgfedcbaabcdefghhgfedcba";
 
-     * JJWT 0.11+ 会按 Base64 解码该字符串，32 个 Base64 字符解出来只有 24 字节 → 192 位，会报 WeakKeyException。
-     */
-    /**
-     * 从字节生成 SecretKey。若把 String 直接传给 signWith(alg, String)，
-     * JJWT 0.11+ 会按 Base64 解码该字符串，32 个 Base64 字符解出来只有 24 字节 → 192 位，会报 WeakKeyException。
-     */
-    private static final SecretKey SECRET_KEY = Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
+    private static SecretKey buildHmacSha256Key() {
+        String fromEnv = EnvHelper.getenvOrProperty("JWT_SECRET");
+        String raw = (fromEnv != null && !fromEnv.isBlank()) ? fromEnv.trim() : DEV_FALLBACK_SECRET;
+        byte[] utf8 = raw.getBytes(StandardCharsets.UTF_8);
+        if (utf8.length < 32) {
+            raw = DEV_FALLBACK_SECRET;
+            utf8 = raw.getBytes(StandardCharsets.UTF_8);
+        }
+        return Keys.hmacShaKeyFor(utf8);
+    }
+
+    private static final SecretKey SECRET_KEY = buildHmacSha256Key();
     public static final long EXPIRATION_TIME = 1000 * 60; // 1 minute
     /** 与 {@link #generateToken} 中 {@code expiration} 一致，供 Redis 会话 jti 设置 TTL（秒）。 */
     public static long tokenTtlSeconds() {
