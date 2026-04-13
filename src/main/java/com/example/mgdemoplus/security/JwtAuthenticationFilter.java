@@ -1,7 +1,6 @@
 package com.example.mgdemoplus.security;
 
 import com.example.mgdemoplus.service.dp.DpRedisLoginCacheService;
-import com.example.mgdemoplus.utils.JwtUtil;
 import com.example.mgdemoplus.utils.ResultCode;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,11 +34,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final RequestMatcher publicPaths;
     private final ObjectMapper objectMapper;
+    private final JwtTokenService jwtTokenService;
     @Autowired
-    private  DpRedisLoginCacheService dpRedisLoginCacheService;
-    public JwtAuthenticationFilter(RequestMatcher publicPaths, ObjectMapper objectMapper) {
+    private DpRedisLoginCacheService dpRedisLoginCacheService;
+
+    public JwtAuthenticationFilter(RequestMatcher publicPaths, ObjectMapper objectMapper, JwtTokenService jwtTokenService) {
         this.publicPaths = publicPaths;
         this.objectMapper = objectMapper;
+        this.jwtTokenService = jwtTokenService;
     }
 
     @Override
@@ -60,13 +62,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 return;
             }
 
-            String token = JwtUtil.stripBearerToken(request.getHeader("Authorization"));
+            String token = jwtTokenService.stripBearerToken(request.getHeader("Authorization"));
             if (token == null) {
                 filterChain.doFilter(request, response);
                 return;
             }
             try {
-                Claims claims = JwtUtil.verifyToken(token);
+                Claims claims = jwtTokenService.verifyToken(token);
                 String subject = claims.getSubject();
                 String jti = claims.getId();
                 String cach_jti = dpRedisLoginCacheService.getLoginJti(subject);
@@ -87,12 +89,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private void applyTokenIfPresentAndValid(HttpServletRequest request) {
-        String token = JwtUtil.stripBearerToken(request.getHeader("Authorization"));
+        String token = jwtTokenService.stripBearerToken(request.getHeader("Authorization"));
         if (token == null) {
             return;
         }
         try {
-            Claims claims = JwtUtil.verifyToken(token);
+            Claims claims = jwtTokenService.verifyToken(token);
             String subject = claims.getSubject();
             if (subject != null && !subject.isBlank()) {
                 UsernamePasswordAuthenticationToken authentication =

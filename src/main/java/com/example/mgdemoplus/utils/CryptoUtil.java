@@ -11,7 +11,7 @@ import java.security.SecureRandom;
 import java.util.Base64;
 
 /**
- * 摘要、HMAC、Base64、随机串等常用密码学工具（与 {@link JwtUtil} 会话 JWT 分离）。
+ * 摘要、HMAC、Base64、随机串等常用密码学工具（与 {@link com.example.mgdemoplus.security.JwtTokenService} 会话 JWT 分离）。
  * <p>
  * <b>选用指引（按需调用即可）：</b>
  * </p>

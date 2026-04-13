@@ -3,11 +3,11 @@ package com.example.mgdemoplus.config;
 import io.github.cdimascio.dotenv.Dotenv;
 
 /**
- * 本机开发：在 Spring 启动前读取<strong>当前工作目录</strong>下的 {@code .env}，写入 {@link System#setProperty}，
- * 仅当 {@link System#getenv(String)} 尚未设置同名变量时生效，避免覆盖机器 / IDE 里已配置的环境变量。
+ * 在 {@link com.example.mgdemoplus.MgDemoPlusApplication#main} 里、Spring 启动前读取仓库根目录 {@code .env}，
+ * 写入 {@link System#setProperty}（仅当 {@link System#getenv(String)} 尚未设置同名变量时）。
+ * Spring 解析 {@code application.properties} 与 {@code @Value} 时会用到这些属性。
  * <p>
- * Docker：由 {@code docker compose} 自行读取同目录 {@code .env} 并注入容器进程环境，一般<strong>不会</strong>执行本类；
- * 若镜像内未带 {@code .env} 文件，也不影响（{@code ignoreIfMissing}）。
+ * Docker：由 {@code docker compose} 读宿主机的 {@code .env} 并注入容器环境，一般不在容器内执行本类。
  */
 public final class LocalDotenvLoader {
 
@@ -34,7 +34,7 @@ public final class LocalDotenvLoader {
                 System.setProperty(key, val);
             });
         } catch (Exception ignored) {
-            // 格式异常或无权读文件：沿用 application.properties / 系统环境变量
+            // 无文件或解析失败：沿用 application.properties
         }
     }
 }

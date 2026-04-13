@@ -4,7 +4,6 @@ import com.example.mgdemoplus.entity.dp.DpPlayer;
 import com.example.mgdemoplus.entity.dp.DpRoom;
 import com.example.mgdemoplus.service.serviceImpl.dp.npc.LlmNpc;
 import com.example.mgdemoplus.service.serviceImpl.dp.npc.LlmNpcGameContext;
-import com.example.mgdemoplus.utils.EnvHelper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
@@ -55,11 +54,11 @@ public class DpLlmNpcDecisionService {
             @Value("${dp.llm.ark.base-url:}") String propBaseUrl,
             @Value("${dp.llm.ark.reasoning-effort:}") String propReasoningEffort,
             @Value("${dp.llm.ark.thinking-type:}") String propThinkingType) {
-        String apiKey = firstNonBlank(propApiKey, env("ARK_API_KEY"));
-        String endpointId = firstNonBlank(propEndpointId, env("ARK_ENDPOINT_ID"));
-        String baseUrl = firstNonBlank(propBaseUrl, env("ARK_BASE_URL"));
-        String reasoningEffort = firstNonBlank(propReasoningEffort, env("ARK_REASONING_EFFORT"));
-        String thinkingType = firstNonBlank(propThinkingType, env("ARK_THINKING_TYPE"));
+        String apiKey = trimToNull(propApiKey);
+        String endpointId = trimToNull(propEndpointId);
+        String baseUrl = propBaseUrl != null ? propBaseUrl.trim() : "";
+        String reasoningEffort = propReasoningEffort != null ? propReasoningEffort.trim() : "";
+        String thinkingType = propThinkingType != null ? propThinkingType.trim() : "";
         this.llmNpc = new LlmNpc(
                 apiKey,
                 endpointId,
@@ -68,17 +67,11 @@ public class DpLlmNpcDecisionService {
                 thinkingType.isEmpty() ? null : thinkingType);
     }
 
-    private static String env(String name) {
-        String v = EnvHelper.getenvOrProperty(name);
-        return v == null ? "" : v.trim();
-    }
-
-    /** 配置文件优先，否则用环境变量。 */
-    private static String firstNonBlank(String prop, String envVal) {
-        if (prop != null && !prop.isBlank()) {
-            return prop.trim();
+    private static String trimToNull(String s) {
+        if (s == null || s.isBlank()) {
+            return null;
         }
-        return envVal != null && !envVal.isBlank() ? envVal.trim() : "";
+        return s.trim();
     }
 //已学习，检查快照是否有效的类和方法
     private record LlmActionTicket(

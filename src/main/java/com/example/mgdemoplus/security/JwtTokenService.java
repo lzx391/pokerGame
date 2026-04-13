@@ -1,63 +1,57 @@
-package com.example.mgdemoplus.utils;
-
-
+package com.example.mgdemoplus.security;
 
 import io.jsonwebtoken.Claims;
-
 import io.jsonwebtoken.Jwts;
-
 import io.jsonwebtoken.security.Keys;
-
-
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
-
 import java.nio.charset.StandardCharsets;
-
 import java.util.Date;
 
+/**
+ * JWT 签发与校验；密钥仅来自配置 {@code mgdemoplus.jwt.secret}（可由环境变量 {@code JWT_SECRET} 经 application.properties 映射）。
+ */
+@Component
+public class JwtTokenService {
 
-public class JwtUtil {
-    /**
-     * HS256 需要至少 256 位密钥。优先使用环境变量 {@code JWT_SECRET}（UTF-8 编码后至少 32 字节），
-     * 未设置或过短时使用下方仅适用于本地开发的默认值；生产环境务必设置 {@code JWT_SECRET}，勿提交到 Git。
-     */
+    private static final long EXPIRATION_TIME = 1000 * 60L;
     private static final String DEV_FALLBACK_SECRET = "abcdefghhgfedcbaabcdefghhgfedcba";
 
-    private static SecretKey buildHmacSha256Key() {
-        String fromEnv = EnvHelper.getenvOrProperty("JWT_SECRET");
-        String raw = (fromEnv != null && !fromEnv.isBlank()) ? fromEnv.trim() : DEV_FALLBACK_SECRET;
+    private final SecretKey secretKey;
+
+    public JwtTokenService(@Value("${mgdemoplus.jwt.secret}") String rawSecret) {
+        String raw = rawSecret != null ? rawSecret.trim() : "";
         byte[] utf8 = raw.getBytes(StandardCharsets.UTF_8);
         if (utf8.length < 32) {
             raw = DEV_FALLBACK_SECRET;
             utf8 = raw.getBytes(StandardCharsets.UTF_8);
         }
-        return Keys.hmacShaKeyFor(utf8);
+        this.secretKey = Keys.hmacShaKeyFor(utf8);
     }
 
-    private static final SecretKey SECRET_KEY = buildHmacSha256Key();
-    public static final long EXPIRATION_TIME = 1000 * 60; // 1 minute
-    /** 与 {@link #generateToken} 中 {@code expiration} 一致，供 Redis 会话 jti 设置 TTL（秒）。 */
-    public static long tokenTtlSeconds() {
+    /** 与 {@link #generateToken} 中过期时间一致，供 Redis 会话 jti TTL（秒）。 */
+    public long tokenTtlSeconds() {
         return (24L * 60 * EXPIRATION_TIME) / 1000;
     }
 
-    public static String generateToken(String username,String jti) {
+    public String generateToken(String username, String jti) {
         Date now = new Date();
-        Date expiration = new Date(now.getTime() + 24 *60 * EXPIRATION_TIME);//单位分钟期限
+        Date expiration = new Date(now.getTime() + 24 * 60 * EXPIRATION_TIME);
         return Jwts.builder()
                 .header().add("type", "JWT").and()
                 .subject(username)
                 .id(jti)
                 .issuedAt(now)
                 .expiration(expiration)
-                .signWith(SECRET_KEY)
+                .signWith(secretKey)
                 .compact();
     }
 
-    public static Claims verifyToken(String token) {
+    public Claims verifyToken(String token) {
         return Jwts.parser()
-                .verifyWith(SECRET_KEY)
+                .verifyWith(secretKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
@@ -65,11 +59,10 @@ public class JwtUtil {
 
     /**
      * 从 HTTP {@code Authorization} 头解析 Bearer token。
-     * 约定：{@code Authorization} 值为 {@code Bearer } 前缀加 JWT（前缀大小写不敏感）。
      *
      * @return 纯 JWT 字符串；缺失或非 Bearer 时返回 {@code null}
      */
-    public static String stripBearerToken(String authorizationHeader) {
+    public String stripBearerToken(String authorizationHeader) {
         if (authorizationHeader == null || authorizationHeader.isBlank()) {
             return null;
         }
@@ -81,5 +74,3 @@ public class JwtUtil {
         return t.isEmpty() ? null : t;
     }
 }
-
-

@@ -2,9 +2,9 @@ package com.example.mgdemoplus.controller.dp;
 
 import com.example.mgdemoplus.entity.dp.DpUser;
 import com.example.mgdemoplus.security.JwtSecurityConstants;
+import com.example.mgdemoplus.security.JwtTokenService;
 import com.example.mgdemoplus.service.dp.DpRedisLoginCacheService;
 import com.example.mgdemoplus.service.dp.DpUserService;
-import com.example.mgdemoplus.utils.JwtUtil;
 import com.example.mgdemoplus.utils.ResultUtil;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +28,8 @@ public class DpUserController {
     StringRedisTemplate stringRedisTemplate;
     @Autowired
     DpRedisLoginCacheService dpRedisLoginCacheService;
+    @Autowired
+    JwtTokenService jwtTokenService;
     @PostMapping("/registerUser")
     public ResultUtil registerUser(@RequestBody DpUser dpUser) {
         
@@ -72,7 +74,7 @@ public class DpUserController {
         }
         //token载荷有昵称和jti,jti是随机生成的uuid，到时候踢人用
         String jti = UUID.randomUUID().toString();
-        String token = JwtUtil.generateToken(u.getNickname(), jti);
+        String token = jwtTokenService.generateToken(u.getNickname(), jti);
         dpRedisLoginCacheService.setLoginJti(u.getNickname(), jti);
         return ResultUtil.ok().data("userId", u.getId()).data("nickname", u.getNickname()).data("token", token);
     }

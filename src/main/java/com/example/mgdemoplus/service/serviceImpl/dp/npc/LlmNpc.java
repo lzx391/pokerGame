@@ -1,6 +1,5 @@
 package com.example.mgdemoplus.service.serviceImpl.dp.npc;
 
-import com.example.mgdemoplus.utils.EnvHelper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -47,19 +46,6 @@ public final class LlmNpc {
     private final String thinkingType;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
-
-    /**
-     * 从环境变量读取 {@code ARK_API_KEY}、{@code ARK_ENDPOINT_ID}，可选
-     * {@code ARK_BASE_URL}、{@code ARK_REASONING_EFFORT}、{@code ARK_THINKING_TYPE}。
-     */
-    public LlmNpc() {
-        this(
-                trimToNull(EnvHelper.getenvOrProperty("ARK_API_KEY")),
-                trimToNull(EnvHelper.getenvOrProperty("ARK_ENDPOINT_ID")),
-                trimToNull(EnvHelper.getenvOrProperty("ARK_BASE_URL")),
-                trimToNull(EnvHelper.getenvOrProperty("ARK_REASONING_EFFORT")),
-                trimToNull(EnvHelper.getenvOrProperty("ARK_THINKING_TYPE")));
-    }
 
     public LlmNpc(String apiKey, String endpointModelId, String baseUrl) {
         this(apiKey, endpointModelId, baseUrl, null, null);
