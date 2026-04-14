@@ -1093,8 +1093,8 @@ public class DpRoomServiceImpl {
             // 短全下（按原 NL 规则够不着最小总注）仍不刷新增量；其余抬升一律按实际增量写入，避免关闭校验后增量与局面脱节
             boolean shortAllInBelowLegacyMin = becameAllIn && totalBet < minTotalLegacy;
             if (!shortAllInBelowLegacyMin) {
-                r.setLastRaiseIncrement(increment);
-            }
+                r.setLastRaiseIncrement(increment);//不是就设置新的增量，是的话按旧的来
+            }//所谓短全下就是比如最小加注是40，但是用户all in了也够不到这个完整的mini-raise,比如它的增量只是20，那么后面的人继续按最小加注是40来算，忽略这个all in者的增量
         }
 
         boolean isRaise = totalBet > betToCallBefore;
