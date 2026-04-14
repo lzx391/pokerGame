@@ -1092,15 +1092,22 @@ public final class DpNpcEngine {
         ));
     }
 
-    public static boolean isBotPlayer(DpPlayer p) {
-        if (p == null)
+    /** 与 {@link #isBotPlayer(DpPlayer)} 一致，仅按昵称判断（观众席只有昵称无 DpPlayer）。 */
+    public static boolean isBotNickname(String name) {
+        if (name == null) {
             return false;
-        String name = p.getNickname();
+        }
         return DEMO_BOT_NICKNAME.equals(name)
                 || MANIAC_BOT_NICKNAME.equals(name)
                 || SHARK_BOT_NICKNAME.equals(name)
                 || TAG_BOT_NICKNAME.equals(name)
                 || LLM_BOT_NICKNAME.equals(name);
+    }
+
+    public static boolean isBotPlayer(DpPlayer p) {
+        if (p == null)
+            return false;
+        return isBotNickname(p.getNickname());
     }
 
     public static BotType getBotTypeByNickname(String nickname) {

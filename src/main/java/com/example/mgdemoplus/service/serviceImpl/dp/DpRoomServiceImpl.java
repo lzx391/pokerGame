@@ -226,23 +226,41 @@ public class DpRoomServiceImpl {
     // ========== 顺位移交房主操作 =========
     public void giveOwner(String roomId, String ownerNickname) {
         DpRoom room = roomMap.get(roomId);
-        int size = 0;
+        if (room == null) {
+            return;
+        }
+        int tableHumans = 0;
         for (DpPlayer getActivePlayer : room.getPlayers()) {
             if (!getActivePlayer.isLeftThisHand() && !DpNpcEngine.isBotPlayer(getActivePlayer)) {
-                size += 1;//如果有活人就加一个
+                tableHumans += 1;
                 System.out.println("退出按钮检测：" + getActivePlayer.getNickname() + "是活人");
             }
         }
-        if (size == 0) {
+        int spectatorHumans = 0;
+        List<String> spectators = getNewSpectators(room);
+        for (String nick : spectators) {
+            if (!DpNpcEngine.isBotNickname(nick)) {
+                spectatorHumans += 1;
+            }
+        }
+        if (tableHumans + spectatorHumans == 0) {
             System.out.println("giveOwner：没有活人了");
             roomMap.remove(roomId);
-        } else {
-            for (DpPlayer candidate : room.getPlayers()) {//非本人也非僵尸
-                if (!candidate.getNickname().equals(ownerNickname) && !candidate.isLeftThisHand() && !DpNpcEngine.isBotPlayer(candidate)) {
-                    room.setOwner(candidate.getNickname());
-                    System.out.println("giveOwner：房间 " + room.getRoomId() + " 房主易位给: " + candidate.getNickname());
-                    break;
-                }
+            return;
+        }
+        // 优先桌上真人，其次观众席真人（避免只剩观众时误删房或无人接任）
+        for (DpPlayer candidate : room.getPlayers()) {
+            if (!candidate.getNickname().equals(ownerNickname) && !candidate.isLeftThisHand() && !DpNpcEngine.isBotPlayer(candidate)) {
+                room.setOwner(candidate.getNickname());
+                System.out.println("giveOwner：房间 " + room.getRoomId() + " 房主易位给: " + candidate.getNickname());
+                return;
+            }
+        }
+        for (String specNick : spectators) {
+            if (!specNick.equals(ownerNickname) && !DpNpcEngine.isBotNickname(specNick)) {
+                room.setOwner(specNick);
+                System.out.println("giveOwner：房间 " + room.getRoomId() + " 房主易位给观众: " + specNick);
+                return;
             }
         }
     }
