@@ -51,12 +51,10 @@
       <div class="dp-action-panel__meta">
         当前跟注额: {{ currentBetToCall }} | 你已下注: {{ myBet }} | 还需跟: {{ callAmount }}
       </div>
-      <!-- 标准最小再加注已临时关闭，避免与 NPC 未同步时误导；恢复时取消注释即可
       <div class="dp-action-panel__raise-hint">
-        合法加注至少抬到总注 <strong>{{ minTotalToRaise }}</strong>
+        <!-- 合法加注至少抬到总注 <strong>{{ minTotalToRaise }}</strong> -->
         <span class="dp-action-panel__raise-hint-sub">（本圈最小增量 {{ lastRaiseIncrement }}）</span>
       </div>
-      -->
 
       <div class="dp-action-panel__presets" aria-label="按底池比例快捷加注">
         <button type="button" class="dp-btn--pot-preset" @click="setPotFrac(1 / 3)">
@@ -73,6 +71,15 @@
         </button>
         <button type="button" class="dp-btn--pot-preset" @click="setPotFrac(1.5)">
           1½池
+        </button>
+        <button
+            type="button"
+            class="dp-btn--pot-preset dp-btn--mini-raise"
+            :disabled="myChips < 1"
+            :title="'本注至少 ' + minRaise + '（总注到 ' + minTotalToRaise + '）'"
+            @click="applyMiniRaise"
+        >
+          最小加注 {{ minRaise }}
         </button>
       </div>
 
@@ -232,6 +239,9 @@ export default {
       var extra = Math.floor(base * frac)
       var want = call + extra
       this.clampEmit(want)
+    },
+    applyMiniRaise() {
+      this.clampEmit(this.minRaise)
     }
   }
 }

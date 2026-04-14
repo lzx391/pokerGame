@@ -122,9 +122,9 @@ export default {
     minRaise: function (state, getters) {
       var call = getters.callAmount
       if (!isFinite(call) || call < 0) call = 0
-      var bb = Number(getters.bigBlind) || 10
-      var fullMin = call > 0 ? call + 1 : bb
-      var cap = Math.min(fullMin, getters.myChips)
+      var inc = getters.lastRaiseIncrementEffective
+      var need = call + inc
+      var cap = Math.min(need, getters.myChips)
       return Math.max(1, cap)
     },
     allPotsHaveWinners: function (state) {

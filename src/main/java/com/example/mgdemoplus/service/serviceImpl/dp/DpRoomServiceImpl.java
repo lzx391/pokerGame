@@ -116,6 +116,9 @@ public class DpRoomServiceImpl {
                                     case RAISE:
                                     case ALL_IN: {
                                         int amount = Math.max(0, action.getAmount());
+                                        if (action.getType() == DpNpcEngine.BotActionType.RAISE) {
+                                            amount = clampRaiseAmountForLegal(room, p, amount);
+                                        }
                                         bet(roomId, p.getNickname(), amount);
                                         break;
                                     }
@@ -1014,6 +1017,29 @@ public class DpRoomServiceImpl {
         return -1;
     }
 
+    /**
+     * NPC 加注额兜底：抬到合法最小再加注（若后手不足则全下）。
+     */
+    private static int clampRaiseAmountForLegal(DpRoom r, DpPlayer p, int amount) {
+        int chips = p.getChips();
+        if (amount > chips) {
+            amount = chips;
+        }
+        int totalBet = p.getBet() + amount;
+        int ctc = r.getCurrentBetToCall();
+        if (totalBet <= ctc) {
+            return amount;
+        }
+        int minAdd = r.minChipsToLegalRaise(p);
+        if (amount >= minAdd) {
+            return amount;
+        }
+        if (chips <= minAdd) {
+            return chips;
+        }
+        return minAdd;
+    }
+
     public boolean bet(String roomId, String nickname, int amount) {
         DpRoom r = roomMap.get(roomId);
         if (r == null || !r.isPlaying()) return false;
@@ -1040,18 +1066,17 @@ public class DpRoomServiceImpl {
         int totalBet = p.getBet() + amount;
         int prevBetToCall = r.getCurrentBetToCall();
 
-        // ---- 标准 NL 最小再加注（临时关闭：与 NPC 侧最小加注未对齐时先不拦真人；恢复时取消下面注释并改回增量更新分支）----
         if (totalBet < prevBetToCall) {
             if (amount < chipsBefore) {
                 return false;
             }
+        } else if (totalBet > prevBetToCall) {
+            int inc = Math.max(r.getLastRaiseIncrement(), DpRoom.getBBChips());
+            int minTotal = prevBetToCall + inc;
+            if (totalBet < minTotal && amount < chipsBefore) {
+                return false;
+            }
         }
-        // else if (totalBet > prevBetToCall) {
-        //     int minTotal = prevBetToCall + r.getLastRaiseIncrement();
-        //     if (totalBet < minTotal && amount < chipsBefore) {
-        //         return false;
-        //     }
-        // }
 
         if (totalBet > prevBetToCall) {
             // 出现了更高的一档下注：如果之前没有有效下注，则视为 open，否则视为一次 re-raise
@@ -1064,7 +1089,7 @@ public class DpRoomServiceImpl {
             r.setRaiseLevel(currentLevel);
             r.setCurrentBetToCall(totalBet);
             int increment = totalBet - prevBetToCall;
-            int minTotalLegacy = prevBetToCall + r.getLastRaiseIncrement();
+            int minTotalLegacy = prevBetToCall + Math.max(r.getLastRaiseIncrement(), DpRoom.getBBChips());
             // 短全下（按原 NL 规则够不着最小总注）仍不刷新增量；其余抬升一律按实际增量写入，避免关闭校验后增量与局面脱节
             boolean shortAllInBelowLegacyMin = becameAllIn && totalBet < minTotalLegacy;
             if (!shortAllInBelowLegacyMin) {

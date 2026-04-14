@@ -182,4 +182,18 @@ public class DpRoom {
     public void setLastHandHoleCardsPublic(boolean lastHandHoleCardsPublic) {
         this.lastHandHoleCardsPublic = lastHandHoleCardsPublic;
     }
+
+    /**
+     * 本 action 要构成合法加注（非短全下）时，玩家至少需要再下的筹码数。
+     * 开池（当前无人下注）时等价于至少补到一个大盲的本轮投入。
+     */
+    public int minChipsToLegalRaise(DpPlayer p) {
+        if (p == null) {
+            return 0;
+        }
+        int bb = getBBChips();
+        int call = Math.max(0, currentBetToCall - p.getBet());
+        int inc = lastRaiseIncrement > 0 ? lastRaiseIncrement : bb;
+        return Math.max(0, call + inc);
+    }
 }

@@ -669,7 +669,9 @@ export default {
     // ---- 加注 ----
     async doRaise() {
       if (this.raiseAmount < this.minRaise) {
-        this.$message.warning('加注额不能低于 ' + this.minRaise)
+        this.$message.warning(
+          '加注额不能低于 ' + this.minRaise + '（总注至少到 ' + this.minTotalToRaise + '）'
+        )
         return
       }
       if (this.raiseAmount > this.myChips) {
