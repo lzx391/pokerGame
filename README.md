@@ -1,5 +1,9 @@
 ## MGDemoPlus
 
+### 中文概览
+
+- 面向阅读与快速上手的短版说明（项目特性、技术栈、目录结构、文档索引）见 **[README.ch.md](README.ch.md)**。
+
 ### 环境变量（`.env`）
 
 - 仓库根目录提供 **`.env.example`**：列出 Docker Compose 与本机运行时常用变量（MySQL / Redis / JWT / 方舟 LLM 等）。复制为 **`.env`** 后按需填写；**`.env` 已被 Git 忽略**，不要提交含真实密码的文件。

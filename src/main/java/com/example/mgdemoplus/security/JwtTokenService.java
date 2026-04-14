@@ -11,12 +11,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 /**
- * JWT 签发与校验；密钥仅来自配置 {@code mgdemoplus.jwt.secret}（可由环境变量 {@code JWT_SECRET} 经 application.properties 映射）。
+ * JWT 签发与校验；密钥仅来自配置 {@code mgdemoplus.jwt.secret}（可由环境变量 {@code JWT_SECRET} 经
+ * application.properties 映射）。
  */
 @Component
 public class JwtTokenService {
-
-    private static final long EXPIRATION_TIME = 1000 * 60L;
+    @Value("${mgdemoplus.jwt.expiration.time}")
+    private long EXPIRATION_TIME;
     private static final String DEV_FALLBACK_SECRET = "abcdefghhgfedcbaabcdefghhgfedcba";
 
     private final SecretKey secretKey;
@@ -33,12 +34,13 @@ public class JwtTokenService {
 
     /** 与 {@link #generateToken} 中过期时间一致，供 Redis 会话 jti TTL（秒）。 */
     public long tokenTtlSeconds() {
-        return (24L * 60 * EXPIRATION_TIME) / 1000;
+        // return (24L * 60 * EXPIRATION_TIME) / 1000;
+        return EXPIRATION_TIME / 1000;
     }
 
     public String generateToken(String username, String jti) {
         Date now = new Date();
-        Date expiration = new Date(now.getTime() + 24 * 60 * EXPIRATION_TIME);
+        Date expiration = new Date(now.getTime() + EXPIRATION_TIME);
         return Jwts.builder()
                 .header().add("type", "JWT").and()
                 .subject(username)

@@ -1,9 +1,12 @@
  package com.example.mgdemoplus.service.cache;
 
+import java.util.concurrent.TimeUnit;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import com.example.mgdemoplus.security.JwtTokenService;
 import com.example.mgdemoplus.service.dp.DpRedisLoginCacheService;
 @Service
 public class DpRedisLoginCacheServiceImpl implements DpRedisLoginCacheService {
@@ -15,9 +18,10 @@ public class DpRedisLoginCacheServiceImpl implements DpRedisLoginCacheService {
     static final String REDIS_LOGIN_JTI_KEY_PREFIX = "mgdemo:cache:login:";
     @Autowired
     private  StringRedisTemplate stringRedisTemplate;
-
+    @Autowired
+    private JwtTokenService jwtTokenService;
     public void setLoginJti(String nickname, String jti) {
-        stringRedisTemplate.opsForValue().set(REDIS_LOGIN_JTI_KEY_PREFIX + nickname, jti);
+        stringRedisTemplate.opsForValue().set(REDIS_LOGIN_JTI_KEY_PREFIX + nickname, jti,jwtTokenService.tokenTtlSeconds(),TimeUnit.SECONDS);
     }
 
     public String getLoginJti(String nickname) {
