@@ -99,6 +99,8 @@ npm run dev
 
 开发环境代理与接口前缀以项目内 `vue.config.js` 为准（常见为 `**/dev-api**` 转发到后端）。
 
+**大厅与对局 UI 主题**：游戏大厅（`/home`）、房间内（`/room/:id`）、曲库上传（`/music-upload`）、历史对局列表与详情与对局页共用同一套主题选项与本地持久化键；**登录 / 注册**在 `App.vue` 中同样可选择主题（`dp-auth-shell.css`）。`document.body[data-dp-game-theme]` 由 `main.js` 在路由与主题变更时统一维护，以便 Element UI 弹层配色一致。说明见 `front/dp_game/docs/THEME_BINDING_README.md` 第 6～7 节。
+
 ---
 
 ## 仓库结构（概览）

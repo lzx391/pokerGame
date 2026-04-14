@@ -1,10 +1,27 @@
 <template>
-  <div class="hand-history-page" :class="{ 'hand-history-page--embedded': embedded }">
+  <div
+    :class="{ 'dp-game-root': !embedded }"
+    :data-dp-game-theme="embedded ? undefined : gameUiTheme"
+  >
+  <div class="hand-history-page hand-history-page--dp">
     <div class="hand-history-page__header">
       <h1>历史对局</h1>
-      <button type="button" class="hand-history-page__back" @click="goBack">
-        {{ embedded ? '关闭' : '返回大厅' }}
-      </button>
+      <div class="hand-history-page__header-actions">
+        <div v-if="!embedded" class="dp-game-theme-row hand-history-page__theme-row">
+          <span class="dp-game-theme-row__label">界面主题</span>
+          <select
+            class="dp-game-theme-select"
+            aria-label="选择界面主题"
+            :value="gameUiTheme"
+            @change="onLobbyThemeChange($event.target.value)"
+          >
+            <option v-for="t in gameThemeOptions" :key="t.id" :value="t.id">{{ t.label }}</option>
+          </select>
+        </div>
+        <button type="button" class="hand-history-page__back" @click="goBack">
+          {{ embedded ? '关闭' : '返回大厅' }}
+        </button>
+      </div>
     </div>
 
     <div v-if="user && user.nickname" class="hand-history-page__user">
@@ -79,13 +96,18 @@
       </template>
     </template>
   </div>
+  </div>
 </template>
 
 <script>
+import '@/styles/dp-game-themes.css'
+import '@/styles/dp-lobby-shell.css'
+import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
 
 export default {
   name: 'HandHistory',
+  mixins: [dpLobbyThemeMixin],
   props: {
     /** 嵌入对局弹层：不整页跳转，通过事件关闭 / 打开详情 */
     embedded: { type: Boolean, default: false }
@@ -212,10 +234,20 @@ export default {
 }
 .hand-history-page__header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.hand-history-page__header-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+.hand-history-page__theme-row {
+  justify-content: flex-end;
 }
 .hand-history-page__header h1 {
   margin: 0;
@@ -334,74 +366,74 @@ export default {
 }
 
 /* 对局弹层内：跟随 .dp-game-root 的 data-dp-game-theme / --dp-* */
-.hand-history-page--embedded {
+.hand-history-page--dp {
   font-family: var(--dp-font-ui, inherit);
   color: var(--dp-text-primary, #303133);
 }
-.hand-history-page--embedded .hand-history-page__header h1 {
+.hand-history-page--dp .hand-history-page__header h1 {
   color: var(--dp-text-primary, #303133);
 }
-.hand-history-page--embedded .hand-history-page__back {
+.hand-history-page--dp .hand-history-page__back {
   border-color: var(--dp-input-border, #dcdfe6);
   background: var(--dp-btn-ghost-bg, #fff);
   color: var(--dp-text-primary, #303133);
 }
-.hand-history-page--embedded .hand-history-page__back:hover {
+.hand-history-page--dp .hand-history-page__back:hover {
   border-color: var(--dp-accent, #409eff);
   color: var(--dp-accent, #409eff);
 }
-.hand-history-page--embedded .hand-history-page__user {
+.hand-history-page--dp .hand-history-page__user {
   color: var(--dp-text-secondary, #606266);
 }
-.hand-history-page--embedded .hand-history-page__status {
+.hand-history-page--dp .hand-history-page__status {
   color: var(--dp-text-muted, #909399);
 }
-.hand-history-page--embedded .hand-history-page__error {
+.hand-history-page--dp .hand-history-page__error {
   color: var(--dp-danger, #f56c6c);
 }
-.hand-history-page--embedded .hand-history-page__empty {
+.hand-history-page--dp .hand-history-page__empty {
   color: var(--dp-text-secondary, #606266);
 }
-.hand-history-page--embedded .hand-history-page__empty code {
+.hand-history-page--dp .hand-history-page__empty code {
   background: var(--dp-subpanel-bg, #f4f4f5);
   color: var(--dp-text-primary, #303133);
   border: 1px solid var(--dp-subpanel-border, transparent);
 }
-.hand-history-page--embedded .hand-history-table th,
-.hand-history-page--embedded .hand-history-table td {
+.hand-history-page--dp .hand-history-table th,
+.hand-history-page--dp .hand-history-table td {
   border-color: var(--dp-subpanel-border, #ebeef5);
 }
-.hand-history-page--embedded .hand-history-table th {
+.hand-history-page--dp .hand-history-table th {
   background: var(--dp-subpanel-bg, #f5f7fa);
   color: var(--dp-text-secondary, #606266);
 }
-.hand-history-page--embedded .hand-history-table__net--win {
+.hand-history-page--dp .hand-history-table__net--win {
   color: var(--dp-success, #67c23a);
 }
-.hand-history-page--embedded .hand-history-table__net--lose {
+.hand-history-page--dp .hand-history-table__net--lose {
   color: var(--dp-danger, #f56c6c);
 }
-.hand-history-page--embedded .hand-history-page__meta {
+.hand-history-page--dp .hand-history-page__meta {
   color: var(--dp-text-secondary, #606266);
 }
-.hand-history-page--embedded .hand-history-page__pager-btn {
+.hand-history-page--dp .hand-history-page__pager-btn {
   border-color: var(--dp-input-border, #dcdfe6);
   background: var(--dp-btn-ghost-bg, #fff);
   color: var(--dp-text-primary, #303133);
 }
-.hand-history-page--embedded .hand-history-page__pager-btn:hover:not(:disabled) {
+.hand-history-page--dp .hand-history-page__pager-btn:hover:not(:disabled) {
   border-color: var(--dp-accent, #409eff);
   color: var(--dp-accent, #409eff);
 }
-.hand-history-page--embedded .hand-history-page__pager-info {
+.hand-history-page--dp .hand-history-page__pager-info {
   color: var(--dp-text-secondary, #606266);
 }
-.hand-history-page--embedded .hand-history-table__detail-btn {
+.hand-history-page--dp .hand-history-table__detail-btn {
   border-color: var(--dp-input-border, #dcdfe6);
   background: var(--dp-subpanel-bg, #fff);
   color: var(--dp-accent, #409eff);
 }
-.hand-history-page--embedded .hand-history-table__detail-btn:hover {
+.hand-history-page--dp .hand-history-table__detail-btn:hover {
   border-color: var(--dp-accent, #409eff);
   background: var(--dp-subpanel-bg, #ecf5ff);
 }

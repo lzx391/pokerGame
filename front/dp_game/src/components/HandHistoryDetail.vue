@@ -1,11 +1,29 @@
 <template>
-  <div class="hand-detail-page" :class="{ 'hand-detail-page--embedded': embedded }">
+  <div
+    class="hand-detail-page-root"
+    :class="{ 'dp-game-root': !embedded }"
+    :data-dp-game-theme="!embedded ? gameUiTheme : undefined"
+  >
+  <div class="hand-detail-page hand-detail-page--embedded">
     <div class="hand-detail-page__shell">
       <header class="hand-detail-page__hero">
-        <button type="button" class="hand-detail-page__back" @click="goBack">
-          <span class="hand-detail-page__back-icon" aria-hidden="true">←</span>
-          返回列表
-        </button>
+        <div class="hand-detail-page__hero-top">
+          <button type="button" class="hand-detail-page__back" @click="goBack">
+            <span class="hand-detail-page__back-icon" aria-hidden="true">←</span>
+            返回列表
+          </button>
+          <div v-if="!embedded" class="dp-game-theme-row hand-detail-page__theme-row">
+            <span class="dp-game-theme-row__label">界面主题</span>
+            <select
+              class="dp-game-theme-select"
+              aria-label="选择界面主题"
+              :value="gameUiTheme"
+              @change="onLobbyThemeChange($event.target.value)"
+            >
+              <option v-for="t in gameThemeOptions" :key="t.id" :value="t.id">{{ t.label }}</option>
+            </select>
+          </div>
+        </div>
         <div class="hand-detail-page__hero-text">
           <h1 class="hand-detail-page__title">牌谱详情</h1>
           <p class="hand-detail-page__subtitle">按街复盘行动与公共牌，结算页查看盈亏与边池。</p>
@@ -209,9 +227,13 @@
       </template>
     </div>
   </div>
+  </div>
 </template>
 
 <script>
+import '@/styles/dp-game-themes.css'
+import '@/styles/dp-lobby-shell.css'
+import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import '@/styles/dp-poker-cards.css'
 import { getCardClass, getCardDisplay } from '@/utils/dpGameCardVisual'
 import {
@@ -231,6 +253,7 @@ import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
 
 export default {
   name: 'HandHistoryDetail',
+  mixins: [dpLobbyThemeMixin],
   props: {
     handHistoryId: {
       type: [String, Number],
@@ -550,6 +573,20 @@ export default {
   align-items: flex-start;
   gap: 14px;
   margin-bottom: 20px;
+}
+
+.hand-detail-page__hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.hand-detail-page__theme-row {
+  justify-content: flex-end;
+  margin-bottom: 0;
 }
 
 .hand-detail-page__back {

@@ -110,9 +110,29 @@ shell / modals / cards / community-cards / element-ui 覆盖层
 |------|------|
 | 主题列表常量 | `front/dp_game/src/constants/dpGameThemes.js` |
 | localStorage 读写 | `front/dp_game/src/utils/dpGameTheme.js` |
-| 根节点与 body 同步 | `front/dp_game/src/components/game.vue`（`data`、`watch`、`syncBodyDpGameTheme`） |
+| `body[data-dp-game-theme]` 统一同步 | `front/dp_game/src/main.js` + `front/dp_game/src/utils/dpBodyGameTheme.js` |
+| 登录/注册页样式 | `front/dp_game/src/styles/dp-auth-shell.css`（`#app.app--auth`） |
 | 顶栏主题下拉 | `front/dp_game/src/components/GameTopBar.vue` |
 | 变量定义 | `front/dp_game/src/styles/dp-game-themes.css` |
+
+---
+
+## 7. 大厅与子页（`home` / `room` / 曲库 / 历史对局）与登录注册
+
+与对局页共用 **`GAME_UI_THEMES`**、`readGameTheme` / `writeGameTheme`（经 Vuex `SET_GAME_UI_THEME`）及 **`dp-game-themes.css`** 中的 `--dp-*` 变量。
+
+| 页面 / 组件 | 根节点 | body 同步 | 说明 |
+|-------------|--------|-----------|------|
+| 登录 / 注册（`App.vue` `app--auth`） | 无单独 `.dp-game-root`，靠 **`body[data-dp-game-theme]`** 继承变量 | 是（`dpBodyGameTheme` 含 `/login`、`/register`、`/`） | 顶栏主题下拉在 `App.vue`；样式 **`dp-auth-shell.css`**。 |
+| `home.vue` | `.dp-game-root` + `:data-dp-game-theme` | 是（`dpLobbyThemeMixin`） | 顶栏含主题下拉；快捷入口与房间列表用 `dp-lobby-shell.css` 面板与按钮类。 |
+| `room.vue` | 同上 | 是 | 创建/加入房间后的等待页；含主题下拉。 |
+| `MusicUpload.vue` | 同上 | 是 | Element 覆盖见全局 `dp-game-element-ui.css`（`main.js` 引入），表单/表格/上传随 `--dp-*`。 |
+| `HandHistory.vue` | 独立路由时包一层 `.dp-game-root`；`embedded` 为 true 时不包根、**不同步 body** | 仅独立路由 | 列表样式用 `.hand-history-page--dp` + `--dp-*`（与对局弹层内列表一致）。 |
+| `HandHistoryDetail.vue` | 独立路由时包 `.dp-game-root`；嵌入时不同步 body | 仅独立路由 | 牌谱详情独立页含主题下拉；`--embedded` 主题块仍负责变量着色。 |
+
+大厅子页仍用 **`front/dp_game/src/mixins/dpLobbyThemeMixin.js`** 映射 `gameUiTheme` / `onLobbyThemeChange`。**`document.body[data-dp-game-theme]`** 由 **`front/dp_game/src/main.js`** 里 `router.afterEach`、`router.onReady` 与 `store.subscribe('dpGame/SET_GAME_UI_THEME')` 调用 **`front/dp_game/src/utils/dpBodyGameTheme.js`** 统一设置；**勿**在组件 `beforeDestroy` 里 `removeAttribute`，否则 SPA 在大厅子页之间跳转会短暂丢失 body 主题并诱发半屏灰底、滚动异常。
+
+大厅专用控件与布局见 **`front/dp_game/src/styles/dp-lobby-shell.css`**（含 `.dp-game-root` 根布局与 `#app.app--lobby` 重置，避免整份引入 `dp-game-shell.css`）；**`main.js` 已全局引入** `dp-game-themes.css` 与 `dp-lobby-shell.css`，保证首屏与路由切换时变量与布局一致。
 
 ---
 
