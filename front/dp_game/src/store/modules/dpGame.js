@@ -1,7 +1,7 @@
 import Vue from 'vue'
 import { HAND_RANK_REFERENCE } from '../../constants/dpGameHandRankReference'
 import { pickShowdownLeaderNicknames } from '../../utils/dpGameHandRank'
-import { dpDisplayNickname } from '../../utils/dpDisplayNickname'
+import { dpDisplayNickname, isDpBotNickname } from '../../utils/dpDisplayNickname'
 import { readGameTheme, writeGameTheme } from '../../utils/dpGameTheme'
 import { readEcoMode, writeEcoMode } from '../../utils/dpGameEcoMode'
 import { GAME_UI_THEMES } from '../../constants/dpGameThemes'
@@ -143,6 +143,28 @@ export default {
       return state.stage === 'settled' && !!getters.myPlayer && !getters.myPlayer.leftThisHand
     },
     ownerActionPlayers: function (state) {
+      if (state.ownerToolType === 'transfer') {
+        var owner = state.owner
+        var out = []
+        var seen = {}
+        var players = state.players || []
+        for (var i = 0; i < players.length; i++) {
+          var p = players[i]
+          if (!p || p.leftThisHand || p.nickname === owner) continue
+          if (isDpBotNickname(p.nickname)) continue
+          out.push(p)
+          seen[p.nickname] = true
+        }
+        var specs = state.spectators || []
+        for (var j = 0; j < specs.length; j++) {
+          var nick = specs[j]
+          if (!nick || nick === owner || seen[nick]) continue
+          if (isDpBotNickname(nick)) continue
+          out.push({ nickname: nick })
+          seen[nick] = true
+        }
+        return out
+      }
       return state.players.filter(function (p) {
         return !p.leftThisHand && p.nickname !== state.owner
       })
@@ -368,7 +390,12 @@ export default {
       state.ownerActionTarget = ''
     },
     SET_OWNER_TOOL: function (state, payload) {
-      if (payload.ownerToolType !== undefined) state.ownerToolType = payload.ownerToolType
+      if (payload.ownerToolType !== undefined) {
+        state.ownerToolType = payload.ownerToolType
+        if (payload.ownerActionTarget === undefined) {
+          state.ownerActionTarget = ''
+        }
+      }
       if (payload.ownerActionTarget !== undefined) state.ownerActionTarget = payload.ownerActionTarget
     },
     SET_BOT_STATE: function (state, payload) {

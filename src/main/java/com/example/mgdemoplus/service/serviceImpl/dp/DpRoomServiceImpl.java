@@ -207,13 +207,20 @@ public class DpRoomServiceImpl {
         // 只有当前房主可以发起移交
         if (!fromNickname.equals(r.getOwner())) return false;
         if (fromNickname.equals(toNickname)) return false;
+        if (DpNpcEngine.isBotNickname(toNickname)) return false;
 
-        // 目标玩家必须在当前房间、且不是本手已离开的僵尸位
+        // 目标：在座且本手未退的真人，或观众席中的真人（与 giveOwner 一致）
         boolean found = false;
         for (DpPlayer p : r.getPlayers()) {
-            if (p.getNickname().equals(toNickname) && !p.isLeftThisHand()) {
+            if (p.getNickname().equals(toNickname) && !p.isLeftThisHand() && !DpNpcEngine.isBotPlayer(p)) {
                 found = true;
                 break;
+            }
+        }
+        if (!found) {
+            List<String> spectators = r.getSpectators();
+            if (spectators != null && spectators.contains(toNickname)) {
+                found = true;
             }
         }
         if (!found) return false;
