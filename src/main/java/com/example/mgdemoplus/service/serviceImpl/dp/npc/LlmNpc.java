@@ -47,19 +47,6 @@ public final class LlmNpc {
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
 
-    /**
-     * 从环境变量读取 {@code ARK_API_KEY}、{@code ARK_ENDPOINT_ID}，可选
-     * {@code ARK_BASE_URL}、{@code ARK_REASONING_EFFORT}、{@code ARK_THINKING_TYPE}。
-     */
-    public LlmNpc() {
-        this(
-                trimToNull(System.getenv("ARK_API_KEY")),
-                trimToNull(System.getenv("ARK_ENDPOINT_ID")),
-                trimToNull(System.getenv("ARK_BASE_URL")),
-                trimToNull(System.getenv("ARK_REASONING_EFFORT")),
-                trimToNull(System.getenv("ARK_THINKING_TYPE")));
-    }
-
     public LlmNpc(String apiKey, String endpointModelId, String baseUrl) {
         this(apiKey, endpointModelId, baseUrl, null, null);
     }

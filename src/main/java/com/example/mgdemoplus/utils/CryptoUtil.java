@@ -1,5 +1,7 @@
 package com.example.mgdemoplus.utils;
 
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
@@ -9,12 +11,12 @@ import java.security.SecureRandom;
 import java.util.Base64;
 
 /**
- * 摘要、HMAC、Base64、随机串等常用密码学工具（与 {@link JwtUtil} 会话 JWT 分离）。
+ * 摘要、HMAC、Base64、随机串等常用密码学工具（与 {@link com.example.mgdemoplus.security.JwtTokenService} 会话 JWT 分离）。
  * <p>
  * <b>选用指引（按需调用即可）：</b>
  * </p>
  * <ul>
- *   <li><b>用户口令落库（当前业务）</b>：{@link #md5HexUtf8(String)} — 与 {@code dp_user.password} 约定一致。</li>
+ *   <li><b>用户口令落库</b>：{@link #bcryptEncode(String)} / {@link #bcryptMatches(String, String)} — 存库约 60 字符，{@code VARCHAR(64)} 足够。</li>
  *   <li><b>文件/内容指纹、非口令场景</b>：{@link #sha256HexUtf8(String)} 或 {@link #sha512HexUtf8(String)} — 比 MD5 更适合作校验和。</li>
  *   <li><b>接口签名、防篡改</b>：{@link #hmacSha256Hex(String, String)} — 需双方共持密钥。</li>
  *   <li><b>二进制安全传输/存储（非加密）</b>：{@link #base64Encode(byte[])} / {@link #base64Decode(String)}。</li>
@@ -24,6 +26,9 @@ import java.util.Base64;
 public final class CryptoUtil {
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
+    /** 默认强度 10，与 Spring Security 默认一致；线程安全可静态复用。 */
+    private static final BCryptPasswordEncoder BCRYPT = new BCryptPasswordEncoder();
 
     private CryptoUtil() {
     }
@@ -35,8 +40,7 @@ public final class CryptoUtil {
     /**
      * <b>MD5(UTF-8)</b>，输出 32 位小写十六进制。
      * <p>
-     * <b>用途</b>：本项目用户密码入库字段与历史数据约定。<br>
-     * <b>注意</b>：MD5 已不推荐用于新系统的口令存储；新需求可评估 {@link #sha256HexUtf8(String)} 或 bcrypt 等。
+     * <b>用途</b>：兼容旧接口、简单指纹等；<b>口令存储请用</b> {@link #bcryptEncode(String)}。
      * </p>
      *
      * @param plainText 明文；{@code null} 按空串
@@ -46,9 +50,30 @@ public final class CryptoUtil {
     }
 
     /**
+     * <b>bcrypt</b> 单向哈希，用于注册/改密落库；每次调用盐不同，输出约 <b>60</b> 字符。
+     *
+     * @param plainText 明文；{@code null} 按空串
+     */
+    public static String bcryptEncode(String plainText) {
+        String raw = plainText == null ? "" : plainText;
+        return BCRYPT.encode(raw);
+    }
+
+    /**
+     * 校验明文是否与库中 bcrypt 哈希一致。
+     */
+    public static boolean bcryptMatches(String plainText, String bcryptHash) {
+        if (bcryptHash == null || bcryptHash.isEmpty()) {
+            return false;
+        }
+        String raw = plainText == null ? "" : plainText;
+        return BCRYPT.matches(raw, bcryptHash);
+    }
+
+    /**
      * <b>SHA-256(UTF-8)</b>，输出 64 位小写十六进制。
      * <p>
-     * <b>用途</b>：内容校验、指纹、日志防篡改键；<b>不要</b>与当前 {@code dp_user.password}（MD5）混用除非做迁移。
+     * <b>用途</b>：内容校验、指纹、日志防篡改键等。
      * </p>
      *
      * @param plainText 明文；{@code null} 按空串

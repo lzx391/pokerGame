@@ -1,8 +1,8 @@
 # JWT 说明（MGDemoPlus）
 
-## JwtUtil
+## JwtTokenService
 
-负责生成 token、从 `Authorization` 头剥离 Bearer、校验签名与过期时间；`subject` 为登录用户昵称（与 `DpUserController#loginProfile` 一致）。
+负责生成 token、从 `Authorization` 头剥离 Bearer、校验签名与过期时间；`subject` 为登录用户昵称（与 `DpUserController#loginProfile` 一致）。密钥来自配置项 **`mgdemoplus.jwt.secret`**（可由环境变量 **`JWT_SECRET`** 经 `application.properties` 映射）。
 
 ## 全局鉴权（Spring Security）
 

@@ -3,6 +3,13 @@ import App from './App.vue'
 import axios from 'axios'
 import router from './router'
 import store from './store'
+import { syncDpBodyGameTheme } from './utils/dpBodyGameTheme'
+/* 主题变量需先于 lobby-shell（body 背景用 var(--dp-game-bg)） */
+import './styles/dp-game-themes.css'
+/* 尽早加载：大厅 #app.app--lobby 与 .dp-game-root 布局 */
+import './styles/dp-lobby-shell.css'
+import './styles/dp-auth-shell.css'
+import './styles/dp-game-element-ui.css'
 import ElementUI, { Message } from 'element-ui'
 import 'element-ui/lib/theme-chalk/index.css';
 Vue.config.productionTip = false
@@ -62,6 +69,19 @@ axios.interceptors.response.use(
 )
 
 Vue.prototype.$http =axios
+
+router.afterEach(function () {
+  syncDpBodyGameTheme(store, router)
+})
+router.onReady(function () {
+  syncDpBodyGameTheme(store, router)
+})
+store.subscribe(function (mutation) {
+  if (mutation.type === 'dpGame/SET_GAME_UI_THEME') {
+    syncDpBodyGameTheme(store, router)
+  }
+})
+
 new Vue({
   store,
   render: h => h(App),

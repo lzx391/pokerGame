@@ -54,7 +54,7 @@
 
 ## 4. 和 JWT 的关系
 
-- **密码校验**：只在 **登录**（如 `loginProfile`）时用一次，成功后服务端签发 **JWT**（见 `JwtUtil`）。
+- **密码校验**：只在 **登录**（如 `loginProfile`）时用一次，成功后服务端签发 **JWT**（见 `JwtTokenService`）。
 - **之后请求**：浏览器带 **`Authorization: Bearer <token>`**，过滤器校验的是 **令牌签名与过期**，**不再每次传密码**。
 
 详见：[JWT.md](./JWT.md)。
@@ -73,6 +73,6 @@
 | 内容 | 位置 |
 |------|------|
 | MD5 摘要工具 | `src/main/java/.../utils/CryptoUtil.java` |
-| JWT 签发/校验 | `src/main/java/.../utils/JwtUtil.java` |
+| JWT 签发/校验 | `src/main/java/.../security/JwtTokenService.java` |
 | 登录发 token | `DpUserController#loginProfile` |
 | 全局鉴权 | `docs/JWT.md` |

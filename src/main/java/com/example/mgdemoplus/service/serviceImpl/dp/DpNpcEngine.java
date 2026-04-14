@@ -1092,15 +1092,22 @@ public final class DpNpcEngine {
         ));
     }
 
-    public static boolean isBotPlayer(DpPlayer p) {
-        if (p == null)
+    /** 与 {@link #isBotPlayer(DpPlayer)} 一致，仅按昵称判断（观众席只有昵称无 DpPlayer）。 */
+    public static boolean isBotNickname(String name) {
+        if (name == null) {
             return false;
-        String name = p.getNickname();
+        }
         return DEMO_BOT_NICKNAME.equals(name)
                 || MANIAC_BOT_NICKNAME.equals(name)
                 || SHARK_BOT_NICKNAME.equals(name)
                 || TAG_BOT_NICKNAME.equals(name)
                 || LLM_BOT_NICKNAME.equals(name);
+    }
+
+    public static boolean isBotPlayer(DpPlayer p) {
+        if (p == null)
+            return false;
+        return isBotNickname(p.getNickname());
     }
 
     public static BotType getBotTypeByNickname(String nickname) {
@@ -1540,8 +1547,8 @@ public final class DpNpcEngine {
             return null;
         }
 
-        int bb = DpRoom.getBBChips();
-        int sb = DpRoom.getSBChips();
+        int bb = room.getBigBlindChips();
+        int sb = room.getSmallBlindChips();
         if (bb <= 0) {
             return null;
         }
@@ -1965,9 +1972,9 @@ public final class DpNpcEngine {
      */
     private static StackContext analyzeStacks(DpRoom room, DpPlayer hero) {
         if (room == null || hero == null) {
-            return new StackContext(0, 0, 0, DpRoom.getBBChips());
+            return new StackContext(0, 0, 0, DpRoom.DEFAULT_BIG_BLIND_CHIPS);
         }
-        int bb = DpRoom.getBBChips();
+        int bb = room.getBigBlindChips();
         int min = Integer.MAX_VALUE;
         int max = 0;
         int sum = 0;
@@ -2401,7 +2408,7 @@ public final class DpNpcEngine {
         int tightBehind = 0;
         int deepBehind = 0;
         int shortBehind = 0;
-        int bb = DpRoom.getBBChips();
+        int bb = room.getBigBlindChips();
         List<DpPlayer> players = room.getPlayers();
         int heroIndex = players != null ? players.indexOf(hero) : -1;
         if (players != null && heroIndex >= 0) {
@@ -2578,8 +2585,8 @@ public final class DpNpcEngine {
                             random);
                     if (random.nextDouble() < bluffProb) {
                         int pot = room.getPot();
-                        int bb = DpRoom.getBBChips();
-                        int sb = DpRoom.getSBChips();
+                        int bb = room.getBigBlindChips();
+                        int sb = room.getSmallBlindChips();
                         double factor = 0.3; // 约 1/3 pot 的 c-bet bluff
                         int target = (int) Math.round(pot * factor);
                         int minBet = bb * 2;
@@ -2611,7 +2618,7 @@ public final class DpNpcEngine {
 
                 if (!"preflop".equals(stage) && chips > callAmount) {
                     int pot = room.getPot();
-                    int bb = DpRoom.getBBChips();
+                    int bb = room.getBigBlindChips();
                     // 基于“这一轮对抗的目标尺度”做阶梯式加注，而不是只比对手多几个 BB
                     double multi;
                     if (strength == SimpleStrength.STRONG || strength == SimpleStrength.MONSTER) {
@@ -2721,15 +2728,15 @@ public final class DpNpcEngine {
                     // 后位无人入池（简单近似：当前为 LATE 且底池仍接近起始盲注）时的偷盲：由 stealBlindFrequency 控制
                     if ("preflop".equals(stage)
                             && position == TablePosition.LATE
-                            && room.getPot() <= (DpRoom.getBBChips() + DpRoom.getSBChips())) { // 视为还没人真正入池
+                            && room.getPot() <= (room.getBigBlindChips() + room.getSmallBlindChips())) { // 视为还没人真正入池
                         double stealProb = stealBlindFrequency;
                         stealProb = applySoftNoise(
                                 Math.min(0.95, Math.max(0.0, stealProb)),
                                 SharkConfig.PROB_NOISE_DELTA,
                                 random);
                         if (random.nextDouble() < stealProb) {
-                            int bbPost = DpRoom.getBBChips();
-                            int sbPost = DpRoom.getSBChips();
+                            int bbPost = room.getBigBlindChips();
+                            int sbPost = room.getSmallBlindChips();
                             int openSizeBB = 3;
                             int raiseAmount = Math.min(chips, openSizeBB * bbPost);
                             if (sbPost > 0 && raiseAmount > 0) {
@@ -2779,7 +2786,7 @@ public final class DpNpcEngine {
                         }
                         int range = Math.max(1, maxMulti - minMulti + 1);
                         int multiplier = minMulti + random.nextInt(range);
-                        int raiseAmount = Math.min(chips, DpRoom.getBBChips() * multiplier);
+                        int raiseAmount = Math.min(chips, room.getBigBlindChips() * multiplier);
                         if (raiseAmount <= 0) {
                             return new BotAction(BotActionType.CALL_OR_CHECK, 0);
                         }
@@ -2836,7 +2843,7 @@ public final class DpNpcEngine {
                     }
                     int range2 = Math.max(1, maxMulti - minMulti + 1);
                     int multiplier2 = minMulti + random.nextInt(range2);
-                    int extra = DpRoom.getBBChips() * multiplier2;
+                    int extra = room.getBigBlindChips() * multiplier2;
                     int target = callAmount + extra;
                     int raiseAmount = Math.min(chips, target);
                     if (raiseAmount <= 0) {
@@ -2881,7 +2888,7 @@ public final class DpNpcEngine {
                         return new BotAction(BotActionType.FOLD, 0);
                     }
                     // 疯子型玩家：当底池已经被抬到较高水平时，容易“失去耐心”，直接一把梭哈
-                    int bb = DpRoom.getBBChips();
+                    int bb = room.getBigBlindChips();
                     if (bb > 0 && room.getPot() > bb * 20 && random.nextDouble() < 0.4) {
                         return new BotAction(BotActionType.ALL_IN, chips);
                     }
@@ -3067,12 +3074,12 @@ public final class DpNpcEngine {
                     }
                     // 强牌在有人 open 时更偏向 3bet，抢主动权
                     if (callAmount > 0 && (st == SimpleStrength.STRONG || st == SimpleStrength.MONSTER)) {
-                        int bbPre = DpRoom.getBBChips();
+                        int bbPre = room.getBigBlindChips();
                         int extraBB = (st == SimpleStrength.MONSTER) ? 4 : 3;
                         int extra = extraBB * bbPre;
                         int target = callAmount + extra;
                         int raiseAmount = Math.min(chips, target);
-                        int sbPre = DpRoom.getSBChips();
+                        int sbPre = room.getSmallBlindChips();
                         if (sbPre > 0 && raiseAmount > 0) {
                             int units = Math.max(1, Math.round(raiseAmount * 1.0f / sbPre));
                             raiseAmount = units * sbPre;
@@ -3152,8 +3159,8 @@ public final class DpNpcEngine {
                 // ==== 3) 免费看牌：强牌高频 value，MEDIUM 少量 thin value ====
                 if (callAmount == 0) {
                     int pot = room.getPot();
-                    int bbPost = DpRoom.getBBChips();
-                    int sbPost = DpRoom.getSBChips();
+                    int bbPost = room.getBigBlindChips();
+                    int sbPost = room.getSmallBlindChips();
 
                     double valueBetProb;
                     double factor;
@@ -3247,7 +3254,7 @@ public final class DpNpcEngine {
                     return new BotAction(BotActionType.CALL_OR_CHECK, 0);
                 }
 
-                int bb = DpRoom.getBBChips();
+                int bb = room.getBigBlindChips();
                 int extraMinBB;
                 int extraMaxBB;
                 if (st == SimpleStrength.MONSTER) {
@@ -3282,7 +3289,7 @@ public final class DpNpcEngine {
                     }
                 }
 
-                int sb = DpRoom.getSBChips();
+                int sb = room.getSmallBlindChips();
                 if (sb > 0 && raiseAmount > 0) {
                     int units = Math.max(1, Math.round(raiseAmount * 1.0f / sb));
                     raiseAmount = units * sb;

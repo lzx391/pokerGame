@@ -309,7 +309,7 @@ public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedSer
                 // 基准须为「下盲注前」筹码：chipsAfterBlinds 已是扣盲后，若直接作差会把已交的盲注从盈亏里漏掉
                 //（例如仅输掉大盲时显示 0 而非 -BB）。beforeHand = afterBlinds + 本手已下盲注额。
                 int afterBlinds = b.chipsAfterBlinds.getOrDefault(name, p.getChips());
-                int blindPostedThisHand = blindPostedChipsForSeat(b.seatsAtStart, name);
+                int blindPostedThisHand = blindPostedChipsForSeat(room, b.seatsAtStart, name);
                 int beforeHand = afterBlinds + blindPostedThisHand;
                 net.put(name, p.getChips() - beforeHand);
             }
@@ -323,8 +323,8 @@ public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedSer
                 room.getCurrentHandSeed(),
                 b.startedAtMs,
                 ended,
-                DpRoom.getSBChips(),
-                DpRoom.getBBChips(),
+                room.getSmallBlindChips(),
+                room.getBigBlindChips(),
                 b.dealerNickname,
                 b.seatsAtStart,
                 b.boardsByStreet,
@@ -383,8 +383,8 @@ public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedSer
         return sum > 0 ? sum : totalPotFallback;
     }
 
-    private static int blindPostedChipsForSeat(List<DpObservedSeatAtHandStartDTO> seatsAtStart, String nickname) {
-        if (seatsAtStart == null || nickname == null) {
+    private static int blindPostedChipsForSeat(DpRoom room, List<DpObservedSeatAtHandStartDTO> seatsAtStart, String nickname) {
+        if (room == null || seatsAtStart == null || nickname == null) {
             return 0;
         }
         for (DpObservedSeatAtHandStartDTO s : seatsAtStart) {
@@ -395,10 +395,10 @@ public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedSer
                 continue;
             }
             if (s.blind == 1) {
-                return DpRoom.getSBChips();
+                return room.getSmallBlindChips();
             }
             if (s.blind == 2) {
-                return DpRoom.getBBChips();
+                return room.getBigBlindChips();
             }
             return 0;
         }

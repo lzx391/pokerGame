@@ -1,5 +1,17 @@
 ## MGDemoPlus
 
+### 中文概览
+
+- 面向阅读与快速上手的短版说明（项目特性、技术栈、目录结构、文档索引）见 **[README.ch.md](README.ch.md)**。
+
+### 环境变量（`.env`）
+
+- 仓库根目录提供 **`.env.example`**：列出 Docker Compose 与本机运行时常用变量（MySQL / Redis / JWT / 方舟 LLM 等）。复制为 **`.env`** 后按需填写；**`.env` 已被 Git 忽略**，不要提交含真实密码的文件。
+- **`docker compose`** 会自动读取与 `docker-compose.yml` 同目录的 `.env`，用于镜像标签、口令及可选的 `JWT_SECRET`、`ARK_*` 等注入应用容器。
+- **本机直接跑 Spring Boot**（IDEA / `mvn spring-boot:run`）：**`MgDemoPlusApplication.main`** 在 **`SpringApplication.run` 之前**调用 **`LocalDotenvLoader.load()`**（`dotenv-java`），将根目录 **`.env`** 写入系统属性；请把运行工作目录设为**仓库根目录**，否则找不到文件。若已在系统或 IDE 里配置了同名环境变量，以环境变量为准。
+- **默认值**：数据库、Redis、上传路径、方舟等已在 **`application.properties`** 里用 `${环境变量:默认值}` 写好；不配 `.env` 也能按默认值启动。要覆盖时写根目录 `.env` 或 IDE 环境变量，变量名见 **`.env.example`**。
+- **详细说明**（`application.properties` 与 `.env`、JWT、方舟 LLM 的读取关系）：见 [docs/ENV_README.md](docs/ENV_README.md)。
+
 ### DP游戏文档链接
 
 - [后端面试题清单（结合本仓库技术栈）](docs/BACKEND_INTERVIEW_QUESTIONS.md)
@@ -22,7 +34,7 @@
 - **圆桌分区线、小牌面与轨道倒计时（2026-04-02）**：牌尺寸默认在 **`dp-game-shell.css`** 的 **`--dp-card-base-*`**（略小于早期 44×62）；**`GameRoundTable`** 内 **SVG 分区线**为「公共牌区内沿 → 台呢外沿」，中央无线；**行动倒计时** 默认 **`orbitActionTimer`**（仅圆环 + 秒数）：沿桌心—座位射线，用 **`actionTimerOrbitRoundTableStyle`** 比 **`seatFeltMarkerRoundTableStyle`** 更靠桌心，顺序为 **桌心 → 计时器 → 庄/盲标 → 玩家卡**。中央仅叠公共牌；射线描边用 **`--dp-accent`**。**同日（筹码王光效）**：**`DpRoom.chipLeaderNicknames`** 在 **`DpRoomServiceImpl#autoSettle`** 末尾按结算后筹码写入（并列最高全列入），经 WS/轮询进 **`dpGame` → `GameRoundTable`**；前端只比对昵称，**不在本地算最大筹码**。第一局开局前该列表为空，避免「全员同分」误亮。原 **连胜台呢标** 仍注释。
 - **对局页全宽（2026-03-23）**：原先 `#app` 全局 `padding` + `.dp-game-root` `max-width:800px` 居中，宽屏两侧会露出浅灰底。现登录/注册区 `padding` 仅加在 `.app-container`，对局根节点横向 `width:100%` 铺满视口。
 - **原生全屏 + 弹窗（2026-03-23）**：手机/浏览器对 `gameRoot` 做 **Fullscreen API** 时，只有全屏子树会渲染；Element UI 的 `$confirm` / `$message` 默认挂在 `body` 上会看不见。`game.vue` 在原生全屏状态下把这些层移入 `.dp-game-root`（伪全屏不涉及 API，不受影响）。
-- **对局主题（2026-03-29）**：在 `front/dp_game/src/constants/dpGameThemes.js` 登记主题 id 与中文名；在 `dp-game-themes.css` 为 `.dp-game-root[data-dp-game-theme='…']` 写同一套 `--dp-*` 变量即可。**组件绑定与新增主题自检问卷**见 [front/dp_game/docs/THEME_BINDING_README.md](front/dp_game/docs/THEME_BINDING_README.md)。新增 **草莓软糖**（`strawberry`）、**棉花糖云**（`cotton`）粉嫩童话系；与 **节能模式** 正交——节能由 `data-dp-eco-mode` + `dp-game-eco-mode.css` 统一降级动画/毛玻璃，不按主题重复写两套。**圆桌台呢**颜色在 `dp-game-shell.css` 中由 `--dp-table-felt-depth` / `--dp-table-felt-spot` 等与面板混色；默认混 `#0a1620` 做暗边，浅色童话主题在 `dp-game-themes.css` 中覆盖为粉/紫系，避免桌面发灰黑。**Element UI 与 body 主题（2026-03-29）**：`$confirm` / `$message` / `MessageBox` 等默认挂在 `body` 上，无法继承 `.dp-game-root` 的 `--dp-*`。对局页 `game.vue` 在 `created` / `watch gameUiTheme` 时把 `data-dp-game-theme` 同步到 `document.body`，`dp-game-themes.css` 中每个主题选择器为 `.dp-game-root[…], body[…]` 双写变量；`dp-game-element-ui.css` 覆盖 `.el-message-box`、`.el-message`、`.v-modal` 及弹窗内按钮。离开对局 `beforeDestroy` 时移除 body 上的属性。
+- **对局主题（2026-03-29）**：在 `front/dp_game/src/constants/dpGameThemes.js` 登记主题 id 与中文名；在 `dp-game-themes.css` 为 `.dp-game-root[data-dp-game-theme='…']` 写同一套 `--dp-*` 变量即可。**组件绑定与新增主题自检问卷**见 [front/dp_game/docs/THEME_BINDING_README.md](front/dp_game/docs/THEME_BINDING_README.md)。新增 **草莓甜心**（`strawberry`）、**绵云轻柔**（`cotton`）粉嫩童话系；与 **节能模式** 正交——节能由 `data-dp-eco-mode` + `dp-game-eco-mode.css` 统一降级动画/毛玻璃，不按主题重复写两套。**圆桌台呢**颜色在 `dp-game-shell.css` 中由 `--dp-table-felt-depth` / `--dp-table-felt-spot` 等与面板混色；默认混 `#0a1620` 做暗边，浅色童话主题在 `dp-game-themes.css` 中覆盖为粉/紫系，避免桌面发灰黑。**Element UI 与 body 主题（2026-03-29）**：`$confirm` / `$message` / `MessageBox` 等默认挂在 `body` 上，无法继承 `.dp-game-root` 的 `--dp-*`。对局页 `game.vue` 在 `created` / `watch gameUiTheme` 时把 `data-dp-game-theme` 同步到 `document.body`，`dp-game-themes.css` 中每个主题选择器为 `.dp-game-root[…], body[…]` 双写变量；`dp-game-element-ui.css` 覆盖 `.el-message-box`、`.el-message`、`.v-modal` 及弹窗内按钮。离开对局 `beforeDestroy` 时移除 body 上的属性。
 
 **牌背 / 手牌灰底 / 弃牌堆**：与暗黑哥特一样走「全局变量」——在 `.dp-game-root` 上定义 `--dp-card-back-*`、`--dp-muck-*` 等（`dp-game-shell.css` 默认值 + `strawberry`/`cotton` 在 `dp-game-themes.css` 覆盖），`dp-poker-cards.css` / `dp-game-community-cards.css` 引用变量；`--dp-panel-bg` / `--dp-player-card-bg` 须保持**可被 color-mix 的纯色**，勿用渐变。
 - **节能模式（2026-03-23）**：对局页 `game.vue` 主题行可勾选 **节能模式**（偏好存 `localStorage` 键 `dp_game_eco_mode`），不依赖手机/电脑判断；开启后根节点带 `data-dp-eco-mode="true"`，由 `dp-game-eco-mode.css` 关闭扫光、飞入、毛玻璃模糊等，并与系统「减少动态效果」一样让 `GamePlayerCard` / `GameCommunityCards` 跳过发牌/弃牌位移动画逻辑。**2026-03-26**：摊牌时手牌区若本地算「最佳五张」（`dpGameHandRank.js`），同一组 7 张牌曾被牌型名、说明、`pickShowdownLeader` 等重复评估；已对评估结果做缓存，减轻主线程压力（节能模式帧率更低时此前更容易感觉「算一会儿」）。**同日**：翻后成牌的 **牌型名**（`handRankName`）与 **说明**（`handRankDetail`）改由 `DpRoomServiceImpl#getAllRooms` 与 `bestHandCards` 一并填充（`DpUtilHandEvaluator`），前端 `GamePlayerCard` 优先展示接口字段、缺省时仍用本地 `dpGameHandRank` 兜底。
@@ -112,7 +124,7 @@
 - **前端**：`GET /dpUser/loginProfile`、`POST /dpUser/registerUser` 返回统一 `ResultUtil`（`success` / `code` / `message` / `data`）；登录成功时 `data` 含 `userId`、`nickname`、`token`。前端用 `userId` 写入 `localStorage`；**创建房间 / 加入房间 / 观众「下一局加入」** 可带可选 `userId`（与昵称须与 `dp_user` 一致才采纳），界面只展示昵称。
 - **JWT 全局鉴权（2026-04-07）**：引入 `spring-boot-starter-security`，`SecurityConfig` + `JwtAuthenticationFilter` 对除白名单外的请求要求 `Authorization: Bearer`；未登录返回 HTTP 401 JSON。白名单含：登录/注册、`/ws/**`、静态资源、`GET /dpRoom/getNowRoom`、`GET /dpRoom/getAllRooms2`、`GET /dpMusic/list`（旁观/分享链接与曲库列表）；详见 [docs/JWT.md](docs/JWT.md)。前端 `main.js`：axios **请求**拦截器自动带 token（登录/注册请求除外）；**响应**拦截器对 HTTP 401 弹窗提示、清 `userInfo` 并跳转登录页。
 - **用户密码加密（2026-04-07）**：`DpUserServiceImpl` 在 `registerUser`、`loginUser`、`loginProfile`（经 `loginUserOrNull`）与 `updateUserInfo` 中统一经 **`CryptoUtil.md5HexUtf8`** 使用 **MD5(UTF-8)** 处理密码，数据库 `dp_user.password` 存储 32 位小写 MD5 字符串。**前端传明文、后端摘要**；校验与找回密码说明见 [docs/DpUserPassword.md](docs/DpUserPassword.md)。
-- **会话令牌**：`JwtUtil` 使用 **JWT**，签名算法为 **HMAC-SHA256**（JJWT 默认与 `Keys.hmacShaKeyFor` 一致）；与口令摘要工具类分离。
+- **会话令牌**：`JwtTokenService` 使用 **JWT**，签名算法为 **HMAC-SHA256**（JJWT 默认与 `Keys.hmacShaKeyFor` 一致）；与口令摘要工具类分离。
 - **加入房间（JWT）**：`POST /dpRoom/joinRoom2` 在全局鉴权通过后校验 `SecurityContext` 中昵称与参数 `nickname` 一致；大厅「加入」走该接口。旧 `POST /dpRoom/joinRoom` 同样需带 token。旧缓存仅有 `userId` 无 `token` 时，`ensureDpUserIdInStorage` 会再调 `loginProfile` 补 `token`。
 - **历史查询（列表/详情）**：仅按 **`userId`**（`dp_user.id` + 参与者表 `user_id`）；不再支持仅昵称查询。
 - **列表接口（分页，PageHelper）**：`GET /dpHandHistory/list?userId=必填&page=1&pageSize=10` → 仅按参与者表 `user_id`；`pageSize` 默认 10、最大 100。前端在打开历史页/对局页前用 `GET /dpUser/loginProfile` 把 `userId` 写入 `localStorage`（兼容旧缓存仅有昵称密码的情况）。

@@ -116,6 +116,9 @@ public class DpRoomServiceImpl {
                                     case RAISE:
                                     case ALL_IN: {
                                         int amount = Math.max(0, action.getAmount());
+                                        if (action.getType() == DpNpcEngine.BotActionType.RAISE) {
+                                            amount = clampRaiseAmountForLegal(room, p, amount);
+                                        }
                                         bet(roomId, p.getNickname(), amount);
                                         break;
                                     }
@@ -142,11 +145,11 @@ public class DpRoomServiceImpl {
                         for (DpPlayer p : room.getPlayers()) {
                             if (!DpNpcEngine.isBotPlayer(p)) continue;
                             // 若筹码不足大盲，自动补码（内部已有阶段与筹码校验）
-                            if (p.getChips() < DpRoom.getBBChips()) {
+                            if (p.getChips() < room.getBigBlindChips()) {
                                 rebuy(room.getRoomId(), p.getNickname());
                             }
                             // 筹码充足时自动准备
-                            if (p.getChips() >= DpRoom.getBBChips() && !p.isReady()&& !(room.getPlayers().size()==1 && room.getWaitNextHand().isEmpty())) {//防止机器人空转，一直发牌准备循环，白白浪费资源
+                            if (p.getChips() >= room.getBigBlindChips() && !p.isReady()&& !(room.getPlayers().size()==1 && room.getWaitNextHand().isEmpty())) {//防止机器人空转，一直发牌准备循环，白白浪费资源
                                 //这里插入一个功能，当机器人行动之前，先看下场上玩家数是否为1且准备下一把是否为空，防止机器人空转，一直发牌准备循环，白白浪费资源
                                 p.setReady(true);
                                 botTouched = true;//有机器人准备状态被更新
@@ -204,13 +207,20 @@ public class DpRoomServiceImpl {
         // 只有当前房主可以发起移交
         if (!fromNickname.equals(r.getOwner())) return false;
         if (fromNickname.equals(toNickname)) return false;
+        if (DpNpcEngine.isBotNickname(toNickname)) return false;
 
-        // 目标玩家必须在当前房间、且不是本手已离开的僵尸位
+        // 目标：在座且本手未退的真人，或观众席中的真人（与 giveOwner 一致）
         boolean found = false;
         for (DpPlayer p : r.getPlayers()) {
-            if (p.getNickname().equals(toNickname) && !p.isLeftThisHand()) {
+            if (p.getNickname().equals(toNickname) && !p.isLeftThisHand() && !DpNpcEngine.isBotPlayer(p)) {
                 found = true;
                 break;
+            }
+        }
+        if (!found) {
+            List<String> spectators = r.getSpectators();
+            if (spectators != null && spectators.contains(toNickname)) {
+                found = true;
             }
         }
         if (!found) return false;
@@ -223,23 +233,41 @@ public class DpRoomServiceImpl {
     // ========== 顺位移交房主操作 =========
     public void giveOwner(String roomId, String ownerNickname) {
         DpRoom room = roomMap.get(roomId);
-        int size = 0;
+        if (room == null) {
+            return;
+        }
+        int tableHumans = 0;
         for (DpPlayer getActivePlayer : room.getPlayers()) {
             if (!getActivePlayer.isLeftThisHand() && !DpNpcEngine.isBotPlayer(getActivePlayer)) {
-                size += 1;//如果有活人就加一个
+                tableHumans += 1;
                 System.out.println("退出按钮检测：" + getActivePlayer.getNickname() + "是活人");
             }
         }
-        if (size == 0) {
+        int spectatorHumans = 0;
+        List<String> spectators = getNewSpectators(room);
+        for (String nick : spectators) {
+            if (!DpNpcEngine.isBotNickname(nick)) {
+                spectatorHumans += 1;
+            }
+        }
+        if (tableHumans + spectatorHumans == 0) {
             System.out.println("giveOwner：没有活人了");
             roomMap.remove(roomId);
-        } else {
-            for (DpPlayer candidate : room.getPlayers()) {//非本人也非僵尸
-                if (!candidate.getNickname().equals(ownerNickname) && !candidate.isLeftThisHand() && !DpNpcEngine.isBotPlayer(candidate)) {
-                    room.setOwner(candidate.getNickname());
-                    System.out.println("giveOwner：房间 " + room.getRoomId() + " 房主易位给: " + candidate.getNickname());
-                    break;
-                }
+            return;
+        }
+        // 优先桌上真人，其次观众席真人（避免只剩观众时误删房或无人接任）
+        for (DpPlayer candidate : room.getPlayers()) {
+            if (!candidate.getNickname().equals(ownerNickname) && !candidate.isLeftThisHand() && !DpNpcEngine.isBotPlayer(candidate)) {
+                room.setOwner(candidate.getNickname());
+                System.out.println("giveOwner：房间 " + room.getRoomId() + " 房主易位给: " + candidate.getNickname());
+                return;
+            }
+        }
+        for (String specNick : spectators) {
+            if (!specNick.equals(ownerNickname) && !DpNpcEngine.isBotNickname(specNick)) {
+                room.setOwner(specNick);
+                System.out.println("giveOwner：房间 " + room.getRoomId() + " 房主易位给观众: " + specNick);
+                return;
             }
         }
     }
@@ -389,14 +417,36 @@ public class DpRoomServiceImpl {
 
     // ========== 开局前：房间与准备 ==========
 
-    public DpRoom createRoom(String ownerNickname, Integer ownerUserId) {
+    public DpRoom createRoom(String ownerNickname, Integer ownerUserId,
+                             int smallBlindChips, int bigBlindChips, int startingStackBb, String roomPassword) {
         String id = UUID.randomUUID().toString().substring(0, 8);//随机生成的id?
         DpRoom r = new DpRoom();
         r.setRoomId(id);
         r.setOwner(ownerNickname);
+        int sb = Math.max(1, smallBlindChips);
+        int bb = Math.max(sb * 2, bigBlindChips);
+        if (sb > 1_000_000) {
+            sb = 1_000_000;
+        }
+        if (bb > 2_000_000) {
+            bb = 2_000_000;
+        }
+        if (bb < sb * 2) {
+            bb = sb * 2;
+        }
+        r.setSmallBlindChips(sb);
+        r.setBigBlindChips(bb);
+        int stackBb = Math.max(5, Math.min(100_000, startingStackBb));
+        r.setStartingStackBb(stackBb);
+        long startingLong = (long) bb * (long) stackBb;
+        int starting = startingLong > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) startingLong;
+        r.setStartingChips(starting);
+        r.setRoomPassword(roomPassword);
+
         DpPlayer p = new DpPlayer();
         p.setNickname(ownerNickname);
         p.setReady(true);
+        p.setChips(starting);
         Integer uid = resolveAndValidateUserId(ownerUserId, ownerNickname);
         if (uid != null) {
             p.setDpUserId(uid);
@@ -435,6 +485,10 @@ public class DpRoomServiceImpl {
                             .filter(p -> !p.isLeftThisHand())
                             .count();
                     dto.setPlayerSize(aliveSize);
+                    dto.setSmallBlindChips(room.getSmallBlindChips());
+                    dto.setBigBlindChips(room.getBigBlindChips());
+                    dto.setStartingStackBb(room.getStartingStackBb());
+                    dto.setPasswordProtected(room.isPasswordProtected());
                     return dto;
                 })
                 .collect(Collectors.toList());
@@ -544,10 +598,13 @@ public class DpRoomServiceImpl {
         }
     }
 
-    public String joinRoom(String roomId, String nickname, Integer userId) {
+    public String joinRoom(String roomId, String nickname, Integer userId, String roomPassword) {
         
         DpRoom r = roomMap.get(roomId);
         if (r == null) return "房间不存在";
+        if (!r.matchesRoomPassword(roomPassword)) {
+            return "密码错误";
+        }
         if (r.isPlaying()) {
             // 游戏中途进来：作为观众进入，记录到观众席名单
             // 为了保证“每次重新进入都是干净状态”，这里先确保不再保留上一轮的下一局预约状态
@@ -581,6 +638,7 @@ public class DpRoomServiceImpl {
         //添加新的玩家
         DpPlayer p = new DpPlayer();
         p.setNickname(nickname);
+        p.setChips(r.getStartingChips());
         Integer uid = resolveAndValidateUserId(userId, nickname);
         if (uid != null) {
             p.setDpUserId(uid);
@@ -686,7 +744,7 @@ public class DpRoomServiceImpl {
             for (DpPlayer p : r.getPlayers()) {
                 if (p.getNickname().equals(nickname)) {
                     // 筹码不足以支付一手牌的大盲时不能准备，需先补码
-                    if (p.getChips() < DpRoom.getBBChips()) {
+                    if (p.getChips() < r.getBigBlindChips()) {
                         return false;
                     }
                     p.setReady(!p.isReady());
@@ -712,7 +770,7 @@ public class DpRoomServiceImpl {
         int size1 = 0;
         //算所有场上有能力准备下一场的人数（筹码 ≥ 大盲）
         for (DpPlayer player : r.getPlayers()) {
-            if (player.getChips() >= DpRoom.getBBChips() && !DpNpcEngine.isBotPlayer(player)) {
+            if (player.getChips() >= r.getBigBlindChips() && !DpNpcEngine.isBotPlayer(player)) {
                 size += 1;
             }
         }
@@ -818,7 +876,7 @@ public class DpRoomServiceImpl {
         r.setCurrentBetToCall(0);
         r.setReadyDeadline(0L);
 //        for (DpPlayer p : r.getPlayers()) {
-//            p.setChips(DpRoom.getChips());
+//            p.setChips(r.getStartingChips());
 //            p.setFold(false);
 //            p.setBet(0);
 //            p.setTotalBet(0);
@@ -860,7 +918,7 @@ public class DpRoomServiceImpl {
         r.setPots(new ArrayList<>());
         r.setCurrentBetToCall(0);
         r.setRaiseLevel(0);
-        r.setLastRaiseIncrement(DpRoom.getBBChips());
+        r.setLastRaiseIncrement(r.getBigBlindChips());
         r.setReadyDeadline(0L);
         int did = 0;//庄家索引
         List<DpPlayer> ps = r.getPlayers();
@@ -901,25 +959,25 @@ public class DpRoomServiceImpl {
 
             ps.get(sb).setBlind(1);
             int potBeforeSb = r.getPot();
-            ps.get(sb).setChips(ps.get(sb).getChips() - DpRoom.getSBChips());
-            ps.get(sb).setBet(DpRoom.getSBChips());
-            ps.get(sb).setTotalBet(DpRoom.getSBChips());      // 记入累计下注
-            DpNpcSharkHandActionLog.recordBlind(r, ps.get(sb).getNickname(), true, DpRoom.getSBChips(), potBeforeSb);
-            observedHandService.recordBlind(r, ps.get(sb).getNickname(), true, DpRoom.getSBChips(), potBeforeSb);
+            ps.get(sb).setChips(ps.get(sb).getChips() - r.getSmallBlindChips());
+            ps.get(sb).setBet(r.getSmallBlindChips());
+            ps.get(sb).setTotalBet(r.getSmallBlindChips());      // 记入累计下注
+            DpNpcSharkHandActionLog.recordBlind(r, ps.get(sb).getNickname(), true, r.getSmallBlindChips(), potBeforeSb);
+            observedHandService.recordBlind(r, ps.get(sb).getNickname(), true, r.getSmallBlindChips(), potBeforeSb);
 
             ps.get(bb).setBlind(2);
-            int potBeforeBb = r.getPot() + DpRoom.getSBChips();
-            ps.get(bb).setChips(ps.get(bb).getChips() - DpRoom.getBBChips());
-            ps.get(bb).setBet(DpRoom.getBBChips());
-            ps.get(bb).setTotalBet(DpRoom.getBBChips());     // 记入累计下注
-            DpNpcSharkHandActionLog.recordBlind(r, ps.get(bb).getNickname(), false, DpRoom.getBBChips(), potBeforeBb);
-            observedHandService.recordBlind(r, ps.get(bb).getNickname(), false, DpRoom.getBBChips(), potBeforeBb);
+            int potBeforeBb = r.getPot() + r.getSmallBlindChips();
+            ps.get(bb).setChips(ps.get(bb).getChips() - r.getBigBlindChips());
+            ps.get(bb).setBet(r.getBigBlindChips());
+            ps.get(bb).setTotalBet(r.getBigBlindChips());     // 记入累计下注
+            DpNpcSharkHandActionLog.recordBlind(r, ps.get(bb).getNickname(), false, r.getBigBlindChips(), potBeforeBb);
+            observedHandService.recordBlind(r, ps.get(bb).getNickname(), false, r.getBigBlindChips(), potBeforeBb);
 
-            r.setCurrentBetToCall(DpRoom.getBBChips());
-            r.setPot(DpRoom.getBBChips() + DpRoom.getSBChips());                    // 大小盲计入底池
-            r.setLastRaiseIncrement(DpRoom.getBBChips());
+            r.setCurrentBetToCall(r.getBigBlindChips());
+            r.setPot(r.getBigBlindChips() + r.getSmallBlindChips());                    // 大小盲计入底池
+            r.setLastRaiseIncrement(r.getBigBlindChips());
         } else {
-            r.setLastRaiseIncrement(DpRoom.getBBChips());
+            r.setLastRaiseIncrement(r.getBigBlindChips());
         }
 
         r.setCurrentActorIndex((did + 3) % ps.size());//翻前从大盲的下一个开始行动
@@ -939,7 +997,7 @@ public class DpRoomServiceImpl {
         //防筹码不足
         List<DpPlayer> canPlay = new ArrayList<>();
         for (DpPlayer p : r.getPlayers()) {
-            if (p.getChips() < DpRoom.getBBChips()) {
+            if (p.getChips() < r.getBigBlindChips()) {
                 if (!spectators.contains(p.getNickname())) {
                     spectators.add(p.getNickname());
                 }
@@ -960,7 +1018,7 @@ public class DpRoomServiceImpl {
                     np.setDpUserId(regUid);
                 }
                 // 新加入的玩家带着默认筹码参与新一局
-                np.setChips(DpRoom.getChips());
+                np.setChips(r.getStartingChips());
                 np.setReady(true);
                 canPlay.add(np);//准备下一把的新人加入
 
@@ -1014,6 +1072,29 @@ public class DpRoomServiceImpl {
         return -1;
     }
 
+    /**
+     * NPC 加注额兜底：抬到合法最小再加注（若后手不足则全下）。
+     */
+    private static int clampRaiseAmountForLegal(DpRoom r, DpPlayer p, int amount) {
+        int chips = p.getChips();
+        if (amount > chips) {
+            amount = chips;
+        }
+        int totalBet = p.getBet() + amount;
+        int ctc = r.getCurrentBetToCall();
+        if (totalBet <= ctc) {
+            return amount;
+        }
+        int minAdd = r.minChipsToLegalRaise(p);
+        if (amount >= minAdd) {
+            return amount;
+        }
+        if (chips <= minAdd) {
+            return chips;
+        }
+        return minAdd;
+    }
+
     public boolean bet(String roomId, String nickname, int amount) {
         DpRoom r = roomMap.get(roomId);
         if (r == null || !r.isPlaying()) return false;
@@ -1040,18 +1121,17 @@ public class DpRoomServiceImpl {
         int totalBet = p.getBet() + amount;
         int prevBetToCall = r.getCurrentBetToCall();
 
-        // ---- 标准 NL 最小再加注（临时关闭：与 NPC 侧最小加注未对齐时先不拦真人；恢复时取消下面注释并改回增量更新分支）----
         if (totalBet < prevBetToCall) {
             if (amount < chipsBefore) {
                 return false;
             }
+        } else if (totalBet > prevBetToCall) {
+            int inc = Math.max(r.getLastRaiseIncrement(), r.getBigBlindChips());
+            int minTotal = prevBetToCall + inc;
+            if (totalBet < minTotal && amount < chipsBefore) {
+                return false;
+            }
         }
-        // else if (totalBet > prevBetToCall) {
-        //     int minTotal = prevBetToCall + r.getLastRaiseIncrement();
-        //     if (totalBet < minTotal && amount < chipsBefore) {
-        //         return false;
-        //     }
-        // }
 
         if (totalBet > prevBetToCall) {
             // 出现了更高的一档下注：如果之前没有有效下注，则视为 open，否则视为一次 re-raise
@@ -1064,12 +1144,12 @@ public class DpRoomServiceImpl {
             r.setRaiseLevel(currentLevel);
             r.setCurrentBetToCall(totalBet);
             int increment = totalBet - prevBetToCall;
-            int minTotalLegacy = prevBetToCall + r.getLastRaiseIncrement();
+            int minTotalLegacy = prevBetToCall + Math.max(r.getLastRaiseIncrement(), r.getBigBlindChips());
             // 短全下（按原 NL 规则够不着最小总注）仍不刷新增量；其余抬升一律按实际增量写入，避免关闭校验后增量与局面脱节
             boolean shortAllInBelowLegacyMin = becameAllIn && totalBet < minTotalLegacy;
             if (!shortAllInBelowLegacyMin) {
-                r.setLastRaiseIncrement(increment);
-            }
+                r.setLastRaiseIncrement(increment);//不是就设置新的增量，是的话按旧的来
+            }//所谓短全下就是比如最小加注是40，但是用户all in了也够不到这个完整的mini-raise,比如它的增量只是20，那么后面的人继续按最小加注是40来算，忽略这个all in者的增量
         }
 
         boolean isRaise = totalBet > betToCallBefore;
@@ -1139,7 +1219,7 @@ public class DpRoomServiceImpl {
         }
         r.setCurrentBetToCall(0);
         r.setRaiseLevel(0);
-        r.setLastRaiseIncrement(DpRoom.getBBChips());
+        r.setLastRaiseIncrement(r.getBigBlindChips());
 
         List<String> deck = r.getDeck();
         switch (r.getCurrentStage()) {
@@ -1461,7 +1541,7 @@ public class DpRoomServiceImpl {
 
         if (r.getPlayerStatsMap() != null) {
             Map<String, DpPlayerStats> statsMap = r.getPlayerStatsMap();
-            int bb = DpRoom.getBBChips();
+            int bb = r.getBigBlindChips();
             // 即使 Shark 没摊牌，也为“对 Shark 的精确 WEAK 摊牌统计”准备基准牌力：
             // Shark 知道自己手牌，结算时也能用最终公共牌计算“如果没弃牌会是什么牌力”，从而学习修正。
             final String sharkName = DpNpcEngine.SHARK_BOT_NICKNAME;
@@ -1573,9 +1653,9 @@ public class DpRoomServiceImpl {
                 if (participated && bb > 0) {
                     int blindChips = 0;
                     if (p.getBlind() == 1) {
-                        blindChips = DpRoom.getSBChips();
+                        blindChips = r.getSmallBlindChips();
                     } else if (p.getBlind() == 2) {
-                        blindChips = DpRoom.getBBChips();
+                        blindChips = r.getBigBlindChips();
                     }
                     // 视为“自愿入池”的最小投入：超过自身盲注部分的筹码
                     int voluntary = Math.max(0, totalBet - blindChips);
@@ -1687,7 +1767,7 @@ public class DpRoomServiceImpl {
             if (!DpNpcEngine.isBotPlayer(p)) {
                 continue;
             }
-            int initialChips = DpRoom.getChips();
+            int initialChips = r.getStartingChips();
             int diff = p.getChips() - initialChips;
             double moodDelta;
             if (diff > 0) {
@@ -1756,7 +1836,7 @@ public class DpRoomServiceImpl {
         }
         List<DpPlayer> afterChips = new ArrayList<>();
         for (DpPlayer p : players) {
-            if (p.getChips() < DpRoom.getBBChips()) {
+            if (p.getChips() < r.getBigBlindChips()) {
                 if (!spectators.contains(p.getNickname())) spectators.add(p.getNickname());
             } else {
                 afterChips.add(p);
@@ -1838,10 +1918,10 @@ public class DpRoomServiceImpl {
         for (DpPlayer p : r.getPlayers()) {
             if (p.getNickname().equals(nickname)) {
                 // 筹码充足（>=10）则不允许补码
-                if (p.getChips() >= DpRoom.getBBChips()) {
+                if (p.getChips() >= r.getBigBlindChips()) {
                     return false;
                 }
-                p.setChips(DpRoom.getChips());
+                p.setChips(r.getStartingChips());
                 return true;
             }
         }

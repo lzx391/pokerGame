@@ -1,6 +1,6 @@
 /**
- * Element UI 默认挂到 body，需依赖 body[data-dp-game-theme] 上的 --dp-*（由 game.vue 同步）。
- * 覆盖 MessageBox / Message / 遮罩 / 弹层内按钮，与暗黑哥特等主题一致。
+ * Element UI：Message/MessageBox 等挂 body；表单项、表格等在对局根/大厅内渲染，需统一用 --dp-* 覆盖 theme-chalk 默认浅色。
+ * 依赖 body[data-dp-game-theme]（main.js 中 dpBodyGameTheme 同步）与 dp-game-themes.css 变量。
  */
 
 body[data-dp-game-theme] {
@@ -128,4 +128,190 @@ body[data-dp-game-theme] .el-message-box__status {
 
 body[data-dp-game-theme] .el-message-box__status + .el-message-box__message {
   padding-left: 36px;
+}
+
+/* ---------- 表单 / 输入（曲库上传、后续管理页等） ---------- */
+body[data-dp-game-theme] .el-form-item__label {
+  color: var(--dp-text-secondary);
+}
+
+body[data-dp-game-theme] .el-input__inner,
+body[data-dp-game-theme] .el-textarea__inner {
+  background-color: var(--dp-input-bg);
+  border-color: var(--dp-input-border);
+  color: var(--dp-text-primary);
+}
+
+body[data-dp-game-theme] .el-input__inner:hover,
+body[data-dp-game-theme] .el-textarea__inner:hover {
+  border-color: var(--dp-accent);
+}
+
+body[data-dp-game-theme] .el-input__inner:focus,
+body[data-dp-game-theme] .el-textarea__inner:focus {
+  border-color: var(--dp-accent);
+}
+
+body[data-dp-game-theme] .el-input__inner::placeholder,
+body[data-dp-game-theme] .el-textarea__inner::placeholder {
+  color: var(--dp-text-muted);
+  opacity: 1;
+}
+
+body[data-dp-game-theme] .el-input.is-disabled .el-input__inner {
+  background-color: var(--dp-subpanel-bg);
+  border-color: var(--dp-input-border);
+  color: var(--dp-text-muted);
+}
+
+body[data-dp-game-theme] .el-input__count {
+  background: transparent;
+  color: var(--dp-text-muted);
+}
+
+/* 数字输入 */
+body[data-dp-game-theme] .el-input-number .el-input__inner {
+  background-color: var(--dp-input-bg);
+  border-color: var(--dp-input-border);
+  color: var(--dp-text-primary);
+}
+
+body[data-dp-game-theme] .el-input-number__decrease,
+body[data-dp-game-theme] .el-input-number__increase {
+  background: var(--dp-subpanel-bg);
+  border-color: var(--dp-input-border);
+  color: var(--dp-text-secondary);
+}
+
+body[data-dp-game-theme] .el-input-number__decrease:hover,
+body[data-dp-game-theme] .el-input-number__increase:hover {
+  color: var(--dp-accent);
+}
+
+body[data-dp-game-theme] .el-input-number__decrease.is-disabled,
+body[data-dp-game-theme] .el-input-number__increase.is-disabled {
+  color: var(--dp-text-muted);
+}
+
+/* 按钮（页面内） */
+body[data-dp-game-theme] .el-button--primary {
+  background-color: var(--dp-btn-primary-bg);
+  border-color: var(--dp-btn-primary-bg);
+  color: var(--dp-btn-primary-fg);
+}
+
+body[data-dp-game-theme] .el-button--primary:hover,
+body[data-dp-game-theme] .el-button--primary:focus {
+  background-color: var(--dp-btn-primary-bg);
+  border-color: var(--dp-btn-primary-bg);
+  color: var(--dp-btn-primary-fg);
+  filter: brightness(1.06);
+}
+
+body[data-dp-game-theme] .el-button--primary.is-disabled,
+body[data-dp-game-theme] .el-button--primary.is-disabled:hover {
+  opacity: 0.5;
+  filter: none;
+}
+
+body[data-dp-game-theme] .el-button--default {
+  background-color: var(--dp-btn-ghost-bg);
+  border-color: var(--dp-input-border);
+  color: var(--dp-text-primary);
+}
+
+body[data-dp-game-theme] .el-button--default:hover,
+body[data-dp-game-theme] .el-button--default:focus {
+  border-color: var(--dp-accent);
+  color: var(--dp-accent);
+}
+
+body[data-dp-game-theme] .el-button--text {
+  color: var(--dp-accent);
+}
+
+body[data-dp-game-theme] .el-button--text:hover,
+body[data-dp-game-theme] .el-button--text:focus {
+  color: var(--dp-accent);
+  opacity: 0.9;
+}
+
+/* ---------- 表格 ---------- */
+body[data-dp-game-theme] .el-table {
+  background-color: transparent;
+  color: var(--dp-text-primary);
+}
+
+body[data-dp-game-theme] .el-table::before {
+  background-color: var(--dp-subpanel-border);
+}
+
+body[data-dp-game-theme] .el-table th.el-table__cell {
+  background-color: var(--dp-subpanel-bg);
+  color: var(--dp-text-secondary);
+  border-bottom-color: var(--dp-subpanel-border);
+}
+
+body[data-dp-game-theme] .el-table td.el-table__cell {
+  border-bottom-color: var(--dp-subpanel-border);
+  background-color: var(--dp-panel-bg);
+  color: var(--dp-text-primary);
+}
+
+body[data-dp-game-theme] .el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background-color: var(--dp-subpanel-bg);
+}
+
+body[data-dp-game-theme] .el-table__body tr:hover > td.el-table__cell {
+  background-color: var(--dp-subpanel-bg) !important;
+}
+
+body[data-dp-game-theme] .el-table--border,
+body[data-dp-game-theme] .el-table--border::after,
+body[data-dp-game-theme] .el-table--group,
+body[data-dp-game-theme] .el-table--group::after,
+body[data-dp-game-theme] .el-table td.el-table__cell,
+body[data-dp-game-theme] .el-table th.el-table__cell {
+  border-color: var(--dp-subpanel-border);
+}
+
+body[data-dp-game-theme] .el-table__empty-text {
+  color: var(--dp-text-muted);
+}
+
+body[data-dp-game-theme] .el-table__fixed-right::before,
+body[data-dp-game-theme] .el-table__fixed::before {
+  background-color: var(--dp-subpanel-border);
+}
+
+/* ---------- 上传（拖拽） ---------- */
+body[data-dp-game-theme] .el-upload-dragger {
+  background-color: var(--dp-subpanel-bg);
+  border-color: var(--dp-input-border);
+}
+
+body[data-dp-game-theme] .el-upload-dragger:hover {
+  border-color: var(--dp-accent);
+}
+
+body[data-dp-game-theme] .el-upload-dragger .el-icon-upload {
+  color: var(--dp-accent);
+  margin: 40px 0 16px;
+}
+
+body[data-dp-game-theme] .el-upload__text {
+  color: var(--dp-text-secondary);
+}
+
+body[data-dp-game-theme] .el-upload__text em {
+  color: var(--dp-accent);
+  font-style: normal;
+}
+
+body[data-dp-game-theme] .el-upload-list__item-name {
+  color: var(--dp-text-primary);
+}
+
+body[data-dp-game-theme] .el-upload-list__item:hover {
+  background-color: var(--dp-subpanel-bg);
 }

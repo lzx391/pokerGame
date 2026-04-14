@@ -1,7 +1,7 @@
 import Vue from 'vue'
 import { HAND_RANK_REFERENCE } from '../../constants/dpGameHandRankReference'
 import { pickShowdownLeaderNicknames } from '../../utils/dpGameHandRank'
-import { dpDisplayNickname } from '../../utils/dpDisplayNickname'
+import { dpDisplayNickname, isDpBotNickname } from '../../utils/dpDisplayNickname'
 import { readGameTheme, writeGameTheme } from '../../utils/dpGameTheme'
 import { readEcoMode, writeEcoMode } from '../../utils/dpGameEcoMode'
 import { GAME_UI_THEMES } from '../../constants/dpGameThemes'
@@ -26,6 +26,9 @@ function initialState() {
     actIndex: -1,
     spectators: [],
     raiseAmount: 0,
+    smallBlindChips: 5,
+    bigBlindChips: 10,
+    startingStackBb: 50,
     selectedWinners: [],
     potWinners: {},
     nextHandReady: false,
@@ -105,11 +108,13 @@ export default {
     callAmount: function (state, getters) {
       return Math.max(0, state.currentBetToCall - getters.myBet)
     },
-    smallBlind: function () {
-      return 5
+    smallBlind: function (state) {
+      var v = Number(state.smallBlindChips)
+      return isFinite(v) && v >= 1 ? Math.floor(v) : 5
     },
-    bigBlind: function () {
-      return 10
+    bigBlind: function (state) {
+      var v = Number(state.bigBlindChips)
+      return isFinite(v) && v >= 1 ? Math.floor(v) : 10
     },
     lastRaiseIncrementEffective: function (state, getters) {
       var v = Number(state.lastRaiseIncrement)
@@ -122,9 +127,9 @@ export default {
     minRaise: function (state, getters) {
       var call = getters.callAmount
       if (!isFinite(call) || call < 0) call = 0
-      var bb = Number(getters.bigBlind) || 10
-      var fullMin = call > 0 ? call + 1 : bb
-      var cap = Math.min(fullMin, getters.myChips)
+      var inc = getters.lastRaiseIncrementEffective
+      var need = call + inc
+      var cap = Math.min(need, getters.myChips)
       return Math.max(1, cap)
     },
     allPotsHaveWinners: function (state) {
@@ -138,6 +143,28 @@ export default {
       return state.stage === 'settled' && !!getters.myPlayer && !getters.myPlayer.leftThisHand
     },
     ownerActionPlayers: function (state) {
+      if (state.ownerToolType === 'transfer') {
+        var owner = state.owner
+        var out = []
+        var seen = {}
+        var players = state.players || []
+        for (var i = 0; i < players.length; i++) {
+          var p = players[i]
+          if (!p || p.leftThisHand || p.nickname === owner) continue
+          if (isDpBotNickname(p.nickname)) continue
+          out.push(p)
+          seen[p.nickname] = true
+        }
+        var specs = state.spectators || []
+        for (var j = 0; j < specs.length; j++) {
+          var nick = specs[j]
+          if (!nick || nick === owner || seen[nick]) continue
+          if (isDpBotNickname(nick)) continue
+          out.push({ nickname: nick })
+          seen[nick] = true
+        }
+        return out
+      }
       return state.players.filter(function (p) {
         return !p.leftThisHand && p.nickname !== state.owner
       })
@@ -257,6 +284,9 @@ export default {
       state.owner = room.owner
       state.players = room.players || []
       state.playing = room.playing
+      if (room.smallBlindChips != null) state.smallBlindChips = room.smallBlindChips
+      if (room.bigBlindChips != null) state.bigBlindChips = room.bigBlindChips
+      if (room.startingStackBb != null) state.startingStackBb = room.startingStackBb
       state.currentHandSeed = room.currentHandSeed != null ? room.currentHandSeed : 0
       state.stage = room.currentStage
       state.communityCards = room.communityCards || []
@@ -360,7 +390,12 @@ export default {
       state.ownerActionTarget = ''
     },
     SET_OWNER_TOOL: function (state, payload) {
-      if (payload.ownerToolType !== undefined) state.ownerToolType = payload.ownerToolType
+      if (payload.ownerToolType !== undefined) {
+        state.ownerToolType = payload.ownerToolType
+        if (payload.ownerActionTarget === undefined) {
+          state.ownerActionTarget = ''
+        }
+      }
       if (payload.ownerActionTarget !== undefined) state.ownerActionTarget = payload.ownerActionTarget
     },
     SET_BOT_STATE: function (state, payload) {

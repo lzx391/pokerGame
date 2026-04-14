@@ -1,12 +1,14 @@
 package com.example.mgdemoplus.security;
 
-import com.example.mgdemoplus.utils.JwtUtil;
+import com.example.mgdemoplus.service.dp.DpRedisLoginCacheService;
 import com.example.mgdemoplus.utils.ResultCode;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.jsonwebtoken.Claims;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -32,10 +34,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final RequestMatcher publicPaths;
     private final ObjectMapper objectMapper;
+    private final JwtTokenService jwtTokenService;
+    @Autowired
+    private DpRedisLoginCacheService dpRedisLoginCacheService;
 
-    public JwtAuthenticationFilter(RequestMatcher publicPaths, ObjectMapper objectMapper) {
+    public JwtAuthenticationFilter(RequestMatcher publicPaths, ObjectMapper objectMapper, JwtTokenService jwtTokenService) {
         this.publicPaths = publicPaths;
         this.objectMapper = objectMapper;
+        this.jwtTokenService = jwtTokenService;
     }
 
     @Override
@@ -48,20 +54,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             if (publicPaths.matches(request)) {
+                /**
+                 * 白名单路径不强制登录；白名单上若带合法 token 仍会写入身份，便于后续扩展。
+                 */
                 applyTokenIfPresentAndValid(request);
                 filterChain.doFilter(request, response);
                 return;
             }
 
-            String token = JwtUtil.stripBearerToken(request.getHeader("Authorization"));
+            String token = jwtTokenService.stripBearerToken(request.getHeader("Authorization"));
             if (token == null) {
                 filterChain.doFilter(request, response);
                 return;
             }
             try {
-                Claims claims = JwtUtil.verifyToken(token);
+                Claims claims = jwtTokenService.verifyToken(token);
                 String subject = claims.getSubject();
-                if (subject != null && !subject.isBlank()) {
+                String jti = claims.getId();
+                String cach_jti = dpRedisLoginCacheService.getLoginJti(subject);
+                if (subject != null && !subject.isBlank() && cach_jti != null && !cach_jti.isBlank() && cach_jti.equals(jti)) {
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(subject, null, null);
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
@@ -78,12 +89,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private void applyTokenIfPresentAndValid(HttpServletRequest request) {
-        String token = JwtUtil.stripBearerToken(request.getHeader("Authorization"));
+        String token = jwtTokenService.stripBearerToken(request.getHeader("Authorization"));
         if (token == null) {
             return;
         }
         try {
-            Claims claims = JwtUtil.verifyToken(token);
+            Claims claims = jwtTokenService.verifyToken(token);
             String subject = claims.getSubject();
             if (subject != null && !subject.isBlank()) {
                 UsernamePasswordAuthenticationToken authentication =

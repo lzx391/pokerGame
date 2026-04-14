@@ -35,10 +35,28 @@ public class DpRoom {
      * 有人把档位从 prevCall 抬到 totalBet 时，更新为 (totalBet - prevCall)。
      */
     private int lastRaiseIncrement = 0;
-    private static final int CHIPS =500;//全局筹码设置
-    private static final int SB_CHIPS =5;//小盲筹码设置
-    private static final int BB_CHIPS =10;//大盲筹码设置
 
+    /** 默认小盲/大盲（与旧版全局常量一致）；建房时可覆盖。 */
+    public static final int DEFAULT_SMALL_BLIND_CHIPS = 5;
+    public static final int DEFAULT_BIG_BLIND_CHIPS = 10;
+    /** 默认每人带入深度（用大盲计）：{@code startingChips = bigBlindChips × startingStackBb} */
+    public static final int DEFAULT_STARTING_STACK_BB = 50;
+
+    /** 本桌小盲/大盲；逻辑与下注校验均使用实例值，不再使用静态全局盲注。 */
+    private int smallBlindChips = DEFAULT_SMALL_BLIND_CHIPS;
+    private int bigBlindChips = DEFAULT_BIG_BLIND_CHIPS;
+    /**
+     * 每人初始/补码对应的「大盲倍数」：实际筹码 = {@code bigBlindChips × startingStackBb}，写入 {@link #startingChips}。
+     */
+    private int startingStackBb = DEFAULT_STARTING_STACK_BB;
+    /**
+     * 上桌与补码时的目标筹码（整数），等于 {@code bigBlindChips × startingStackBb}（建房时计算）。
+     */
+    private int startingChips = DEFAULT_BIG_BLIND_CHIPS * DEFAULT_STARTING_STACK_BB;
+    /**
+     * 进房密码（仅内存）；空或 null 表示不设密码。不下发 JSON。
+     */
+    private String roomPassword = "";
 
     // 行动顺序
     private int lastDealerIndex =0;
@@ -139,9 +157,63 @@ public class DpRoom {
     public long getReadyDeadline() { return readyDeadline; }
     public void setReadyDeadline(long readyDeadline) { this.readyDeadline = readyDeadline; }
     public static int getHeartTimeout() { return HEART_TIMEOUT; }
-    public static int getChips() { return CHIPS; }
-    public static int getSBChips() { return SB_CHIPS; }
-    public static int getBBChips() { return BB_CHIPS; }
+
+    public int getSmallBlindChips() {
+        return smallBlindChips;
+    }
+
+    public void setSmallBlindChips(int smallBlindChips) {
+        this.smallBlindChips = smallBlindChips;
+    }
+
+    public int getBigBlindChips() {
+        return bigBlindChips;
+    }
+
+    public void setBigBlindChips(int bigBlindChips) {
+        this.bigBlindChips = bigBlindChips;
+    }
+
+    public int getStartingChips() {
+        return startingChips;
+    }
+
+    public void setStartingChips(int startingChips) {
+        this.startingChips = startingChips;
+    }
+
+    public int getStartingStackBb() {
+        return startingStackBb;
+    }
+
+    public void setStartingStackBb(int startingStackBb) {
+        this.startingStackBb = startingStackBb;
+    }
+
+    public boolean isPasswordProtected() {
+        return roomPassword != null && !roomPassword.isEmpty();
+    }
+
+    /** 入参比对用；不序列化给客户端。 */
+    @JsonIgnore
+    public String getRoomPassword() {
+        return roomPassword;
+    }
+
+    public void setRoomPassword(String roomPassword) {
+        this.roomPassword = roomPassword == null ? "" : roomPassword.trim();
+    }
+
+    /** 加入房间时校验；未设密码时恒为 true。 */
+    public boolean matchesRoomPassword(String attempt) {
+        if (!isPasswordProtected()) {
+            return true;
+        }
+        if (attempt == null) {
+            return false;
+        }
+        return roomPassword.equals(attempt.trim());
+    }
 
     public int getLastDealerIndex() {
         return lastDealerIndex;
@@ -181,5 +253,19 @@ public class DpRoom {
 
     public void setLastHandHoleCardsPublic(boolean lastHandHoleCardsPublic) {
         this.lastHandHoleCardsPublic = lastHandHoleCardsPublic;
+    }
+
+    /**
+     * 本 action 要构成合法加注（非短全下）时，玩家至少需要再下的筹码数。
+     * 开池（当前无人下注）时等价于至少补到一个大盲的本轮投入。
+     */
+    public int minChipsToLegalRaise(DpPlayer p) {
+        if (p == null) {
+            return 0;
+        }
+        int bb = bigBlindChips;
+        int call = Math.max(0, currentBetToCall - p.getBet());
+        int inc = lastRaiseIncrement > 0 ? lastRaiseIncrement : bb;
+        return Math.max(0, call + inc);
     }
 }

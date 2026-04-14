@@ -69,7 +69,7 @@
    - 提示：无 Cookie Session、Bearer Token；若未来有 Cookie 登录需再评估。
 
 3. **JWT 结构（Header/Payload/Signature）与签名算法本项目用的什么？**  
-   - 提示：`JwtUtil`、HMAC-SHA256；密钥长度与存放（配置/环境变量）。
+   - 提示：`JwtTokenService`、HMAC-SHA256；密钥长度与存放（配置/环境变量）。
 
 4. **白名单路径为什么要单独维护？举几个本项目的 `permitAll` 例子并说明原因。**  
    - 提示：`JwtSecurityConstants.PERMIT_ALL`：登录注册、`/ws/**` 握手、部分房间只读接口方便分享链接与旁观等。

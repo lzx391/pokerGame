@@ -1,5 +1,6 @@
 package com.example.mgdemoplus;
 
+import com.example.mgdemoplus.config.LocalDotenvLoader;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -38,6 +39,7 @@ public class MgDemoPlusApplication {
     };
 
     public static void main(String[] args) {
+        LocalDotenvLoader.load();
         SpringApplication app = new SpringApplication(MgDemoPlusApplication.class);
         app.setBanner((environment, sourceClass, out) -> {
             for (String line : DPGAME_BANNER) {

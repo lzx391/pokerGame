@@ -3,6 +3,7 @@ package com.example.mgdemoplus.config;
 import com.example.mgdemoplus.security.JwtAuthenticationEntryPoint;
 import com.example.mgdemoplus.security.JwtAuthenticationFilter;
 import com.example.mgdemoplus.security.JwtSecurityConstants;
+import com.example.mgdemoplus.security.JwtTokenService;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -38,8 +39,9 @@ public class SecurityConfig {
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter(RequestMatcher jwtPublicPathsMatcher,
-            ObjectMapper objectMapper) {
-        return new JwtAuthenticationFilter(jwtPublicPathsMatcher, objectMapper);
+            ObjectMapper objectMapper,
+            JwtTokenService jwtTokenService) {
+        return new JwtAuthenticationFilter(jwtPublicPathsMatcher, objectMapper, jwtTokenService);
     }
 
     @Bean

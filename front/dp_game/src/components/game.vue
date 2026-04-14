@@ -100,7 +100,6 @@
 import '../styles/dp-game-themes.css'
 import '../styles/dp-game-shell.css'
 import '../styles/dp-game-modals.css'
-import '../styles/dp-game-element-ui.css'
 import '../styles/dp-game-eco-mode.css'
 import GameTopBar from './GameTopBar.vue'
 import { holeDealOrderFromDealer as holeDealOrderFromDealerUtil } from '../utils/dpGameRoundTableLayout'
@@ -172,9 +171,6 @@ export default {
   },
 
   watch: {
-    gameUiTheme: function () {
-      this.syncBodyDpGameTheme()
-    },
     isMyTurn: function (v) {
       if (v) this.$store.commit('dpGame/SET_RAISE_AMOUNT', this.minRaise)
       else this.$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileActionSheet: false })
@@ -221,7 +217,6 @@ export default {
   created() {
     this._seatChatTimers = Object.create(null)
     this.$store.commit('dpGame/SET_SESSION', { roomId: this.$route.params.roomId })
-    this.syncBodyDpGameTheme()
 
     var self = this
     ;(async function () {
@@ -283,7 +278,6 @@ export default {
       }
     } catch (e) { /* ignore */ }
     stopSettlementMusic()
-    this.clearBodyDpGameTheme()
     this.disconnectGameWs()
     if (this.pollTimer) clearInterval(this.pollTimer)
     if (this.backupPollTimer) clearInterval(this.backupPollTimer)
@@ -301,18 +295,6 @@ export default {
   },
 
   methods: {
-    /** 将当前界面主题同步到 document.body，使挂在 body 上的 Element MessageBox / Message / v-modal 继承 --dp-* */
-    syncBodyDpGameTheme() {
-      try {
-        document.body.setAttribute('data-dp-game-theme', this.gameUiTheme || 'default')
-      } catch (e) { /* ignore */ }
-    },
-    clearBodyDpGameTheme() {
-      try {
-        document.body.removeAttribute('data-dp-game-theme')
-      } catch (e) { /* ignore */ }
-    },
-
     /**
      * 离开房间时多处可能同时触发跳转（WS roomClosed + 轮询 getNowRoom 为空、热更新等）；
      * Vue Router 3 对重复 push 同一地址会抛 NavigationDuplicated，需吞掉或跳过。
@@ -687,7 +669,9 @@ export default {
     // ---- 加注 ----
     async doRaise() {
       if (this.raiseAmount < this.minRaise) {
-        this.$message.warning('加注额不能低于 ' + this.minRaise)
+        this.$message.warning(
+          '加注额不能低于 ' + this.minRaise + '（总注至少到 ' + this.minTotalToRaise + '）'
+        )
         return
       }
       if (this.raiseAmount > this.myChips) {
