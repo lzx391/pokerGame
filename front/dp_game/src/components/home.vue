@@ -25,7 +25,7 @@
       <section class="dp-lobby-panel home-actions">
         <h3 class="dp-lobby-panel__title home-actions__title">快捷入口</h3>
         <div class="btns">
-          <button type="button" class="dp-btn dp-btn--primary" @click="createRoom">创建房间</button>
+          <button type="button" class="dp-btn dp-btn--primary" @click="goCreateRoom">创建房间</button>
           <button type="button" class="dp-btn dp-btn--ghost" @click="goHandHistory">历史对局</button>
           <button type="button" class="dp-btn dp-btn--ghost" @click="goMusicUpload">曲库上传</button>
         </div>
@@ -38,8 +38,14 @@
         <p v-else-if="!roomDtos.length" class="room-list__hint">暂无房间，可先点「创建房间」开一桌。</p>
         <div v-else class="room-list__items">
           <div class="room-item" v-for="roomDto in roomDtos" :key="roomDto.roomId">
-            <span class="room-item__text">房间 {{ roomDto.roomId }} ({{ roomDto.playerSize }}人)</span>
-            <button type="button" class="dp-btn dp-btn--primary room-item__join" @click="joinRoom(roomDto.roomId)">加入</button>
+            <span class="room-item__text">
+              房间 {{ roomDto.roomId }} ({{ roomDto.playerSize }}人)
+              <span v-if="roomDto.smallBlindChips != null && roomDto.bigBlindChips != null" class="room-item__blinds">
+                · 盲 {{ roomDto.smallBlindChips }}/{{ roomDto.bigBlindChips }}<template v-if="roomDto.startingStackBb"> · {{ roomDto.startingStackBb }}BB</template>
+              </span>
+              <span v-if="roomDto.passwordProtected" class="room-item__lock" title="需要密码">🔒</span>
+            </span>
+            <button type="button" class="dp-btn dp-btn--primary room-item__join" @click="joinRoom(roomDto)">加入</button>
           </div>
         </div>
       </section>
@@ -95,6 +101,9 @@ export default {
     goMusicUpload() {
       this.$router.push('/music-upload')
     },
+    goCreateRoom() {
+      this.$router.push('/create-room')
+    },
     async getRooms() {
       try {
         if (!this.roomDtos.length) this.roomsLoading = true
@@ -110,16 +119,20 @@ export default {
         this.roomsLoading = false
       }
     },
-    async createRoom() {
-      const params = { nickname: this.user.nickname }
-      if (this.user.userId != null && this.user.userId !== '') {
-        params.userId = this.user.userId
+    async joinRoom(roomDto) {
+      const roomId = typeof roomDto === 'string' ? roomDto : roomDto.roomId
+      let roomPassword = ''
+      if (roomDto && roomDto.passwordProtected) {
+        roomPassword = window.prompt('请输入房间密码') || ''
+        if (!roomPassword.trim()) {
+          alert('需要输入密码才能加入')
+          return
+        }
       }
-      const res = await this.$http.post('/dpRoom/createRoom', null, { params })
-      this.$router.push('/room/' + res.data.roomId)
-    },
-    async joinRoom(roomId) {
       const params = { roomId, nickname: this.user.nickname }
+      if (roomPassword) {
+        params.roomPassword = roomPassword.trim()
+      }
       if (this.user.userId != null && this.user.userId !== '') {
         params.userId = this.user.userId
       }
@@ -215,6 +228,15 @@ export default {
 .room-item__text {
   color: var(--dp-text-primary);
   font-size: 14px;
+  line-height: 1.4;
+}
+.room-item__blinds {
+  color: var(--dp-text-muted);
+  font-size: 13px;
+}
+.room-item__lock {
+  margin-left: 4px;
+  font-size: 13px;
 }
 .room-item__join {
   flex-shrink: 0;

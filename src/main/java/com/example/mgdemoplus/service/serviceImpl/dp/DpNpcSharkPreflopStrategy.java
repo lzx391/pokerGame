@@ -77,8 +77,8 @@ final class DpNpcSharkPreflopStrategy {
         if (!"preflop".equals(room.getCurrentStage())) {
             return null;
         }
-        int bb = DpRoom.getBBChips();
-        int sb = DpRoom.getSBChips();
+        int bb = room.getBigBlindChips();
+        int sb = room.getSmallBlindChips();
         if (bb <= 0) {
             return null;
         }

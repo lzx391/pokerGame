@@ -24,8 +24,12 @@ public class DpRoomController {
 
     @PostMapping("/createRoom")
     public DpRoom createRoom(@RequestParam String nickname,
-                             @RequestParam(required = false) Integer userId) {
-        return dpRoomService.createRoom(nickname, userId);
+                             @RequestParam(required = false) Integer userId,
+                             @RequestParam(required = false, defaultValue = "5") int smallBlindChips,
+                             @RequestParam(required = false, defaultValue = "10") int bigBlindChips,
+                             @RequestParam(required = false, defaultValue = "50") int startingStackBb,
+                             @RequestParam(required = false) String roomPassword) {
+        return dpRoomService.createRoom(nickname, userId, smallBlindChips, bigBlindChips, startingStackBb, roomPassword);
     }
 
     @GetMapping("/getNowRoom")
@@ -36,8 +40,9 @@ public class DpRoomController {
 
     @PostMapping("/joinRoom")
     public String joinRoom(@RequestParam String roomId, @RequestParam String nickname,
-                           @RequestParam(required = false) Integer userId) {
-        return dpRoomService.joinRoom(roomId, nickname, userId);
+                           @RequestParam(required = false) Integer userId,
+                           @RequestParam(required = false) String roomPassword) {
+        return dpRoomService.joinRoom(roomId, nickname, userId, roomPassword);
     }
     /**
      * 与 {@link #joinRoom} 业务相同；鉴权由全局 {@link com.example.mgdemoplus.security.JwtAuthenticationFilter} 完成，
@@ -46,14 +51,15 @@ public class DpRoomController {
     @PostMapping("/joinRoom2")
     public ResultUtil joinRoom2(@RequestParam String roomId,
                                 @RequestParam String nickname,
-                                @RequestParam(required = false) Integer userId) {
+                                @RequestParam(required = false) Integer userId,
+                                @RequestParam(required = false) String roomPassword) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String jwtNickname = auth != null ? auth.getName() : null;
         if (jwtNickname == null || !jwtNickname.equals(nickname)) {
             return ResultUtil.error().data("message", "token 与当前昵称不一致");
         }
 
-        String outcome = dpRoomService.joinRoom(roomId, nickname, userId);
+        String outcome = dpRoomService.joinRoom(roomId, nickname, userId, roomPassword);
         if ("ok".equals(outcome) || "游戏已开始".equals(outcome)) {
             return ResultUtil.ok().data("message", outcome);
         }

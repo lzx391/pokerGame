@@ -8,6 +8,7 @@ export function syncDpBodyGameTheme(store, router) {
     var path = r ? r.path : ''
     var lobbyLike =
       path === '/home' ||
+      path === '/create-room' ||
       path.startsWith('/hand-history') ||
       path === '/music-upload' ||
       path.startsWith('/room/')

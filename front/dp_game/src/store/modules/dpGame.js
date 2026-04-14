@@ -26,6 +26,9 @@ function initialState() {
     actIndex: -1,
     spectators: [],
     raiseAmount: 0,
+    smallBlindChips: 5,
+    bigBlindChips: 10,
+    startingStackBb: 50,
     selectedWinners: [],
     potWinners: {},
     nextHandReady: false,
@@ -105,11 +108,13 @@ export default {
     callAmount: function (state, getters) {
       return Math.max(0, state.currentBetToCall - getters.myBet)
     },
-    smallBlind: function () {
-      return 5
+    smallBlind: function (state) {
+      var v = Number(state.smallBlindChips)
+      return isFinite(v) && v >= 1 ? Math.floor(v) : 5
     },
-    bigBlind: function () {
-      return 10
+    bigBlind: function (state) {
+      var v = Number(state.bigBlindChips)
+      return isFinite(v) && v >= 1 ? Math.floor(v) : 10
     },
     lastRaiseIncrementEffective: function (state, getters) {
       var v = Number(state.lastRaiseIncrement)
@@ -257,6 +262,9 @@ export default {
       state.owner = room.owner
       state.players = room.players || []
       state.playing = room.playing
+      if (room.smallBlindChips != null) state.smallBlindChips = room.smallBlindChips
+      if (room.bigBlindChips != null) state.bigBlindChips = room.bigBlindChips
+      if (room.startingStackBb != null) state.startingStackBb = room.startingStackBb
       state.currentHandSeed = room.currentHandSeed != null ? room.currentHandSeed : 0
       state.stage = room.currentStage
       state.communityCards = room.communityCards || []

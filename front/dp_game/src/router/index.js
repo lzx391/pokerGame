@@ -33,6 +33,7 @@
 // export default router
 // 意思是导出路由供其他文件引用
 import Home from '@/components/home.vue'
+import CreateRoom from '@/components/CreateRoom.vue'
 import Login from '@/components/login.vue'
 import Register from '@/components/register.vue'
 import Room from '@/components/room.vue'
@@ -52,6 +53,7 @@ export default new Router({
     { path: '/login', component: Login },
     { path: '/register', component: Register },
     { path: '/home', component: Home },
+    { path: '/create-room', component: CreateRoom },
     { path: '/hand-history', component: HandHistory },
     {
       path: '/hand-history/detail/:handHistoryId',

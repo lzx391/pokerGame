@@ -462,8 +462,8 @@ final class DpNpcSharkStrategy {
                             + " cred=" + credibility
                             + " callRatio=" + String.format("%.3f", callRatio));
                     // 直接复用“callAmount>0 时的加注额计算”逻辑（避免被 callProb 吞掉）
-                    int sb = DpRoom.getSBChips();
-                    int bb = DpRoom.getBBChips();
+                    int sb = room.getSmallBlindChips();
+                    int bb = room.getBigBlindChips();
 
                     int strengthFactor;
                     if (st == SimpleStrength.STRONG || st == SimpleStrength.MONSTER) {
@@ -573,7 +573,7 @@ final class DpNpcSharkStrategy {
                         double sizing = DpNpcSharkLearningLab.getAdjust(room, bot, aggressor).sizingFactor;
                         int scaled = (int) Math.round(raiseAmount * sizing);
                         if (scaled < raiseAmount) {
-                            int minExtra = DpRoom.getBBChips() * 2;
+                            int minExtra = room.getBigBlindChips() * 2;
                             int minRaise = callAmount + minExtra;
                             if (scaled < minRaise)
                                 scaled = minRaise;
@@ -710,7 +710,7 @@ final class DpNpcSharkStrategy {
                             + " allowOverride=" + allowOverride
                             + " bluffFire=" + String.format("%.3f", bluffFire)
                             + " pot=" + room.getPot());
-                    int sb = DpRoom.getSBChips();
+                    int sb = room.getSmallBlindChips();
                     int pot = room.getPot();
                     double baseFactor;
                     if (st == SimpleStrength.STRONG || st == SimpleStrength.MONSTER) {
@@ -757,7 +757,7 @@ final class DpNpcSharkStrategy {
                     }
 
                     int target = (int) Math.round(Math.max(1, pot) * sizeFactor);
-                    int bb = DpRoom.getBBChips();
+                    int bb = room.getBigBlindChips();
                     int minBet = bb * 2;
                     if (target < minBet)
                         target = minBet;
@@ -797,7 +797,7 @@ final class DpNpcSharkStrategy {
         }
 
         if (st == SimpleStrength.WEAK && callAmount > 0) {
-            int bbForBluff = DpRoom.getBBChips();
+            int bbForBluff = room.getBigBlindChips();
             int villainStack = aggressor != null ? aggressor.getChips() : 0;
             double villainBB = bbForBluff > 0 ? villainStack * 1.0 / bbForBluff : 0.0;
             if (villainBB > DpNpcEngine.SharkConfig.DEEP_STACK_MIN_BB
@@ -878,8 +878,8 @@ final class DpNpcSharkStrategy {
                 // HandPlan 已用尽进攻额度或为 GIVE_UP：不再主动加注，只考虑跟注/过牌
                 return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
             }
-            int sb = DpRoom.getSBChips();
-            int bb = DpRoom.getBBChips();
+            int sb = room.getSmallBlindChips();
+            int bb = room.getBigBlindChips();
             int raiseAmount;
             if (callAmount == 0) {
                 int pot = room.getPot();
@@ -1064,7 +1064,7 @@ final class DpNpcSharkStrategy {
                 int scaled = (int) Math.round(raiseAmount * sizing);
                 if (scaled < raiseAmount && callAmount > 0) {
                     // 有成本时不把加注缩到不像加注：至少比跟注多 2BB
-                    int minExtra = DpRoom.getBBChips() * 2;
+                    int minExtra = room.getBigBlindChips() * 2;
                     int minRaise = callAmount + minExtra;
                     if (scaled < minRaise)
                         scaled = minRaise;
@@ -1106,11 +1106,11 @@ final class DpNpcSharkStrategy {
                 && st == SimpleStrength.MEDIUM
                 && chips > 0
                 && random.nextDouble() < DpNpcEngine.SharkConfig.RIVER_BLOCK_PROB) {
-            int sb = DpRoom.getSBChips();
+            int sb = room.getSmallBlindChips();
             int pot = room.getPot();
             double factor = DpNpcEngine.SharkConfig.RIVER_BLOCK_FACTOR;
             int target = (int) Math.round(pot * factor);
-            int bb = DpRoom.getBBChips();
+            int bb = room.getBigBlindChips();
             int minBet = bb * 2;
             if (target < minBet) {
                 target = minBet;

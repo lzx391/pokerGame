@@ -17,6 +17,13 @@
         <h1 class="room-panel__title">房间内</h1>
         <p class="room-panel__line">房间号：<strong>{{ roomId }}</strong></p>
         <p class="room-panel__line">房主：{{ displayNickname(room?.owner) }}</p>
+        <p v-if="room && room.smallBlindChips != null && room.bigBlindChips != null" class="room-panel__line">
+          盲注：{{ room.smallBlindChips }} / {{ room.bigBlindChips }}（小盲 / 大盲）
+        </p>
+        <p v-if="room && room.startingStackBb != null" class="room-panel__line">
+          每人初始：{{ room.startingStackBb }}BB（{{ room.startingChips != null ? room.startingChips : '—' }} 筹码）
+        </p>
+        <p v-if="room && room.passwordProtected" class="room-panel__line">进房需密码（从大厅加入者需输入）</p>
 
         <h3 class="room-panel__subheading">玩家列表</h3>
         <div class="player" v-for="p in room?.players" :key="p.nickname">

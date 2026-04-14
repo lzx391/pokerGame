@@ -270,7 +270,7 @@ public class DpLlmNpcDecisionService {
 //已学习，构建喂给AI的信息包
     private String buildUserPrompt(DpRoom room, DpPlayer bot, LlmNpcGameContext ctx) {
         StringBuilder sb = new StringBuilder(1024);
-        sb.append("M BB=").append(DpRoom.getBBChips()).append(" SB=").append(DpRoom.getSBChips())
+        sb.append("M BB=").append(room.getBigBlindChips()).append(" SB=").append(room.getSmallBlindChips())
                 .append(" rl=").append(room.getRaiseLevel()).append('\n');
         sb.append("T ").append(compactTable(room, bot)).append('\n');
         if (ctx != null) {
@@ -382,7 +382,7 @@ public class DpLlmNpcDecisionService {
                 return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.ALL_IN, chips);
             }
             int newTotal = bot.getBet() + add;
-            int bb = Math.max(1, DpRoom.getBBChips());
+            int bb = Math.max(1, room.getBigBlindChips());
             int minTotal = room.getCurrentBetToCall() + bb;
             if (newTotal <= room.getCurrentBetToCall()) {
                 newTotal = minTotal;
