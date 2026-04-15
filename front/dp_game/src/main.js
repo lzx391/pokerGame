@@ -3,6 +3,7 @@ import App from './App.vue'
 import axios from 'axios'
 import router from './router'
 import store from './store'
+import { getRoomNodeContext, dpRoomAxiosPrefixFromWsRoute } from '@/utils/dpRoomNodeContext'
 import { syncDpBodyGameTheme } from './utils/dpBodyGameTheme'
 /* 主题变量需先于 lobby-shell（body 背景用 var(--dp-game-bg)） */
 import './styles/dp-game-themes.css'
@@ -14,7 +15,7 @@ import ElementUI, { Message } from 'element-ui'
 import 'element-ui/lib/theme-chalk/index.css';
 Vue.config.productionTip = false
 Vue.use(ElementUI);
-// 开发：走 vue 代理 /dev-api；生产（含 Docker 同域静态资源）：直接请求当前站点根路径
+// 开发经 Nginx 同域 /dev-api（见 docker/nginx/README-dp-dev-two-jvm.md）；生产为站点根路径
 axios.defaults.baseURL = process.env.NODE_ENV === 'production' ? '' : '/dev-api'
 
 axios.interceptors.request.use(function (config) {
@@ -33,6 +34,24 @@ axios.interceptors.request.use(function (config) {
     }
   } catch (e) {
     /* ignore */
+  }
+  return config
+})
+
+// 进房后：按 lookup 写入的 wsRoute 选 Nginx 前缀 /dev-api 或 /b-api（须与 dp.game.public-ws-url 中 dp-ws / dp-ws-b 一致）
+axios.interceptors.request.use(function (config) {
+  var url = config.url || ''
+  if (url.indexOf('/dpRoom/') === 0) {
+    if (url.indexOf('/dpRoom/publicRooms') === 0
+        || url.indexOf('/dpRoom/lookupRoom') === 0
+        || url.indexOf('/dpRoom/createRoom') === 0) {
+      return config
+    }
+    var ctx = getRoomNodeContext()
+    if (ctx && ctx.wsRoute) {
+      config.baseURL = dpRoomAxiosPrefixFromWsRoute(ctx.wsRoute)
+      config.url = url
+    }
   }
   return config
 })

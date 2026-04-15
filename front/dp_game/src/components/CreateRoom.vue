@@ -67,6 +67,7 @@ import '@/styles/dp-game-themes.css'
 import '@/styles/dp-lobby-shell.css'
 import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
+import { fetchAndApplyRoomNodeLookup } from '@/utils/dpRoomNodeContext'
 
 export default {
   name: 'CreateRoom',
@@ -114,7 +115,11 @@ export default {
           params.userId = this.user.userId
         }
         const res = await this.$http.post('/dpRoom/createRoom', null, { params })
-        this.$router.replace('/room/' + res.data.roomId)
+        var rid = res.data && res.data.roomId
+        if (rid) {
+          await fetchAndApplyRoomNodeLookup(this.$http, rid)
+        }
+        this.$router.replace('/room/' + rid)
       } catch (e) {
         console.error('createRoom', e)
         alert('创建失败，请检查网络或后端是否已启动')

@@ -9,6 +9,10 @@ public class DpRoomDTO {
     /** 每人初始筹码对应的大盲倍数（如 50 表示 50BB 带入） */
     private int startingStackBb;
     private boolean passwordProtected;
+    /** 跨节点：直连该房间所在实例的 WebSocket 完整 URL（方案二）；仅本机列表时可为空 */
+    private String wsRoute;
+    /** 游戏实例 ID，与注册表一致 */
+    private String shardId;
 
     @Override
     public String toString() {
@@ -73,6 +77,22 @@ public class DpRoomDTO {
 
     public void setPasswordProtected(boolean passwordProtected) {
         this.passwordProtected = passwordProtected;
+    }
+
+    public String getWsRoute() {
+        return wsRoute;
+    }
+
+    public void setWsRoute(String wsRoute) {
+        this.wsRoute = wsRoute;
+    }
+
+    public String getShardId() {
+        return shardId;
+    }
+
+    public void setShardId(String shardId) {
+        this.shardId = shardId;
     }
 }
 

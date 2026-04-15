@@ -138,7 +138,7 @@
 - **表**：在 `school_db` 执行 `src/main/resources/db/dp_music_track.sql` 建表 `dp_music_track`。
 - **文件目录**：默认 `P:/javaworkspace/DPGameFiles/music/`（`mgdemoplus.music.file-location`），HTTP 映射 `/music/**`；Docker 可用环境变量 `MGDEMOPLUS_MUSIC_FILE_LOCATION`（见 `docker-compose.yml`）。
 - **接口**：`POST /dpMusic/upload`（multipart：`file` 必填；可选 `displayName`、`sortOrder`、`userId`）写入磁盘并入库；`GET /dpMusic/list` 返回已上架曲目（供对局音乐盒拉列表）。
-- **前端**：登录后大厅点「曲库上传」进入 `/#/music-upload`，可试听已入库曲目（开发环境经 `/dev-api` 代理访问 `/music/...`）。
+- **前端**：登录后大厅点「曲库上传」进入 `/#/music-upload`，可试听已入库曲目（开发环境经 Nginx **`/dev-api`** 访问 `/music/...`，见 `docker/nginx/README-dp-dev-two-jvm.md`）。
 - **对局音乐盒（2026-04-01）**：对局页顶栏「音乐盒」打开曲库列表；**播放/暂停/停止** 经 **同一房间 WebSocket** 广播，服务端校验发送者昵称属于本桌玩家或观众后，向该房间所有连接推送 `{"_ws":"roomMusic",...}`（并记住最后一帧，**新进入房间者**在首包房间快照后会再收到一帧音乐状态）。摊牌/结算阶段自动暂停曲库 BGM，避免与既有结算短 BGM 叠播；离开结算后若状态仍为 `play` 会恢复播放。客户端上行：`{"_ws":"roomMusicSync","nickname":"…","action":"play|pause|stop","trackId":…,"webPath":"/music/…","displayName":"…"}`（`play` 时 `trackId`/`webPath` 必填；路径须为 `/music/` 下安全文件名）。
 
 ### Redis 接入
@@ -148,7 +148,7 @@
 - **在代码里用**：Spring 会自动装配 **`StringRedisTemplate`**、**`RedisTemplate`**、**`RedisConnectionFactory`**，按需 `@Autowired` 或构造器注入即可（例如 `stringRedisTemplate.opsForValue().set("k","v")`）。
 - **本机小实验（跑起后端即可）**：`RedisLabController` 提供 **`/demo/redis/*`**（已加入 JWT 白名单，浏览器可直接访问）。例：`GET http://localhost:8088/demo/redis/ping`；存取见 `RedisLabController` 注释。键会自动加前缀 `mgdemo:lab:`。
 - **曲库列表缓存**：`DpRedisListCacheService` 将 **`GET /dpMusic/list`** 的 JSON 缓存在 Redis（键 `mgdemo:cache:dpMusic:listEnabled`），默认 TTL `mgdemoplus.cache.music-list-ttl-seconds`（默认 300）；**曲库上传成功**后删键以便立刻回源。大厅 **`GET /dpRoom/getAllRooms2`** 仍直接读内存 `roomMap`，不经 Redis。Redis 异常时曲库列表自动回源，不阻断接口。
-- **说明**：当前对局 **WebSocket 与房间状态仍在单机内存**；若要多实例共房间或跨机广播，需在业务层自行用 Redis（Pub/Sub、缓存会话映射等）扩展，见 `docs/WEBSOCKET.md` 中「多实例」相关段落。
+- **说明**：对局 **WebSocket 与房间状态在建房 JVM 内存**；多实例时请 **`lookupRoom`** 直连 **`wsRoute`**，见 `docs/WEBSOCKET.md`。
 
 ### Docker 部署
 

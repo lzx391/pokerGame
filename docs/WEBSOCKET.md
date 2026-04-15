@@ -108,24 +108,21 @@
 
 ---
 
-## 9. 开发环境为什么要 `/dp-ws` 代理？
+## 9. 开发环境：为什么用 Nginx 上的 `/dp-ws`，而不是直连 Vue 端口？
 
-用 `npm run dev` 时，Vue 开发服务器会为 **热更新（HMR）** 自己也开 WebSocket，配置里常挂在 **`/ws`**。
+用 `npm run dev` 时，devServer 会为 **HMR** 占用 **`/ws`**。若游戏长连也走同源 **`/ws/dp-game`**，容易与热更新 **撞路径**。
 
-若游戏 WebSocket 也走 **`/ws/...`**，会和热更新 **抢路径**，表现为长连连不上或立刻断。
+本仓库约定：**开发时用 Docker Nginx 同域转发**（`docker/nginx/README-dp-dev-two-jvm.md`），浏览器只打开 **`http://127.0.0.1:8880/`**（示例端口），由 Nginx 把 **`/dp-ws/**` 转到后端 **`/ws/**`**，并把 **`/dev-api` / `/b-api`** 转到对应 JVM。`front/dp_game/vue.config.js` **不配** API/WebSocket 代理。
 
-因此：
-
-- **`front/dp_game/vue.config.js`** 增加 **`/dp-ws`** 代理（`ws: true`），`pathRewrite` 到后端的 **`/ws`**。  
-- 前端开发环境连接 **`/dp-ws/dp-game`**，生产环境 **`/ws/dp-game`**（与页面同源）。
+后端 **`dp.game.public-ws-url`** 须写成与 Nginx 一致，例如 `ws://127.0.0.1:8880/dp-ws/dp-game`（第二实例可用 `.../dp-ws-b/dp-game`）。`game.vue` 用 lookup 下发的 **`wsRoute`** 建连。
 
 ---
 
 ## 10. 生产部署要点
 
-- 前端与 API **同域**时，页面用 **`ws://` / `wss://` + 当前 host + `/ws/dp-game`**（`game.vue` 已按是否 HTTPS 切换 **`wss`**）。  
+- 前端与 API **同域**时，页面用 **`ws://` / `wss://` + 当前 host + `/ws/dp-game`**（或由网关约定的前缀）；`game.vue` 以 lookup 的 **wsRoute** 为准。  
 - 若前面有 **Nginx 反代**：需为 WebSocket 配置 **Upgrade**（`proxy_http_version 1.1`、`Upgrade` / `Connection`、`proxy_read_timeout` 等），否则长连接易失败。  
-- **多实例**：当前连接与广播均在 **单机内存**；扩多台应用机时需 **跨节点广播**（如 Redis Pub/Sub），否则同房间用户连在不同机器上会收不到推送。
+- **多实例**：对局状态在 **建房 JVM**；客户端应 **`lookupRoom`** 后连返回的 **wsRoute**，与 HTTP 的 **`/dev-api` 或 `/b-api`** 对齐（见 `dpRoomNodeContext.js`）。
 
 ---
 
@@ -133,7 +130,7 @@
 
 - **MDN**：浏览器 **`WebSocket`** API。  
 - **Spring**：`spring-boot-starter-websocket`、`WebSocketConfigurer`、`TextWebSocketHandler`。  
-- **进阶**：SockJS / STOMP；多实例 **Redis Pub/Sub** 或消息队列。
+- **进阶**：SockJS / STOMP；多实例 **lookup + 同域 wsRoute**（本仓库默认，见 `dpRoomNodeContext.js`）。
 
 ---
 

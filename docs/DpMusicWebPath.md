@@ -58,27 +58,24 @@ Spring 在 **`WebConfig#addResourceHandlers`** 中注册：
 
 ### 4.2 为何开发环境要 `/dev-api`
 
-本地前端跑在 **Vue devServer**（如 `localhost:8080`），后端在 **Spring**（如 `localhost:8088`）。  
-`axios` 的 `baseURL` 设为 `/dev-api`，由 **`vue.config.js` 的 `devServer.proxy`** 把请求转到后端并 **去掉** `/dev-api` 前缀。
+`axios` 的 `baseURL` 在开发态为 **`/dev-api`**（见 `main.js`）。本仓库推荐：**用 Nginx 同域转发**（`docker/nginx/README-dp-dev-two-jvm.md`），浏览器访问 **`http://127.0.0.1:8880/`**（示例），由 **Nginx** 把 **`/dev-api/`** 转到 **`http://127.0.0.1:8088/`** 并去掉前缀；**不在 `vue.config.js` 配代理**。
 
 因此：
 
-- 列表/上传：`GET/POST /dev-api/dpMusic/...` → 转发为 `http://后端:8088/dpMusic/...`
-- 试听：`GET /dev-api/music/...` → 转发为 `http://后端:8088/music/...` → 命中 **ResourceHandler**
-
-配置见：`front/dp_game/vue.config.js`、`front/dp_game/src/main.js`。
+- 列表/上传：`GET/POST /dev-api/dpMusic/...` → Nginx → `http://127.0.0.1:8088/dpMusic/...`
+- 试听：`GET /dev-api/music/...` → Nginx → `http://127.0.0.1:8088/music/...` → **ResourceHandler**
 
 ---
 
-## 5. 端到端流程（开发环境示意）
+## 5. 端到端流程（开发环境示意，经 Nginx）
 
 ```text
 数据库 web_path: /music/a.mp3
 
 MusicUpload.vue  audioSrc("/music/a.mp3")
-    → 浏览器请求: http://localhost:8080/dev-api/music/a.mp3
-    → Vue 代理去掉 /dev-api
-    → http://localhost:8088/music/a.mp3
+    → 浏览器请求: http://127.0.0.1:8880/dev-api/music/a.mp3
+    → Nginx 转发到 8088
+    → http://127.0.0.1:8088/music/a.mp3
     → Spring ResourceHandler /music/** → 磁盘 .../music/a.mp3
     → 返回音频流，<audio> 播放
 ```
@@ -112,7 +109,7 @@ Docker 等环境见 `docker-compose.yml` 中的 `MGDEMOPLUS_MUSIC_FILE_LOCATION`
 | 文件 | 说明 |
 |------|------|
 | `front/dp_game/src/components/MusicUpload.vue` | 列表、`audioSrc`、试听 |
-| `front/dp_game/vue.config.js` | `/dev-api` 代理到后端 |
+| `docker/nginx/README-dp-dev-two-jvm.md` | 开发同域：`/dev-api` 由 Nginx 转发到 Spring |
 | `front/dp_game/src/main.js` | `axios.defaults.baseURL` |
 | `src/main/java/.../DpMusicController.java` | 上传、入库、`webPath` 生成 |
 | `src/main/java/.../config/WebConfig.java` | `/music/**` 静态映射 |

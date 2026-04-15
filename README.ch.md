@@ -9,7 +9,8 @@
 ### 游戏与对局
 
 - **标准 NL 规则**：盲注、街、最小加注、边池等逻辑在后端 `DpRoomServiceImpl` 等模块中实现；对局页通过轮询 + WebSocket 同步房间状态。
-- **多房间**：房间状态保存在进程内 `**ConcurrentHashMap`（`roomMap`）**；详见主文档中的 WebSocket 与房间说明。前端 **`/create-room`** 页设 **小盲/大盲**、**每人初始多少 BB**（筹码 = 大盲 × BB，补码同深度）与可选 **进房密码**（仅存内存，重启失效）；大厅 **`/home`** 仅列表与加入。
+- **多房间**：对局状态仍在进程内 `**ConcurrentHashMap`（`roomMap`）**；**房间注册**（`dp_room_registry` 表 + Redis 路由键）用于跨节点大厅列表与按房间号解析 **`wsRoute`（方案二：直连各实例 WebSocket）**。配置项 **`dp.game.shard-id`**、**`dp.game.public-ws-url`**（须含路径 `/ws/dp-game`，端口与 `server.port` 一致；FRP 填外网地址）。开放接口 **`GET /dpRoom/publicRooms`**、**`GET /dpRoom/lookupRoom?roomId=`**（免 JWT，与 `getAllRooms2` 相同策略）。建表脚本见 **`src/main/resources/sql/dp_room_registry.sql`**。前端 **`front/dp_game`**：大厅用 **`publicRooms`**；进房前写入 **`sessionStorage` 房间节点上下文**（`wsRoute`→HTTP 同源 `apiBase`），此后 **`/dpRoom/*`（除 publicRooms/lookupRoom）** 与 **WebSocket** 指向该房间所在实例；返回大厅会清空上下文。前端 **`/create-room`** 页设盲注与可选密码；建房成功后 **`lookupRoom`** 同步本机节点信息。
+- **多实例建房调度（可选）**：须 **`dp.game.cluster.enabled=true`**（如环境变量 `DP_GAME_CLUSTER_ENABLED=true`）。在 **`dp.game.cluster.node-http-bases[0]`、`[1]`、…**（各实例 HTTP 根，须含本机）中**随机**选一执行内存建房；若选到他机则由当前实例 **HTTP 转发**到 **`POST /dpRoom/createRoomRelay`**（**`X-Dp-Cluster-Token`** 与 **`internal-token`** 一致，并转发用户 JWT）。**勿**用单行逗号写死两个 URL（Spring 易只绑第一项，导致 shard 永远为本机）。默认 **`enabled=false`**。生产环境应对 relay 做内网隔离与强口令。
 - **实时推送**：游戏页 WebSocket 路径形如 `**/ws/dp-game?roomId=...`**；有订阅者时才序列化推送，并与上次 JSON 去重以省流量。
 - **牌谱**：观察到的对局可落库，支持按用户分页列表与详情（权限与底牌展示规则见 `docs` 下说明）。
 
@@ -27,7 +28,7 @@
 ### 其它功能
 
 - **曲库 BGM**：上传与列表接口，对局内可通过 WebSocket 同步播放状态（见主文档「曲库 BGM」）。
-- **Redis**：用于曲库列表缓存、演示用 `/demo/redis/`* 等；**房间与对局 WebSocket 默认不依赖 Redis 做共享状态**（多实例需自行扩展，见 [docs/WEBSOCKET.md](docs/WEBSOCKET.md)）。
+- **Redis**：用于曲库列表缓存、**房间路由缓存**（`dp:room:route:{roomId}`）、演示用 `/demo/redis/`* 等；多实例时**不设**跨机房间快照与 Pub/Sub，对局只在建房 JVM（说明见 [docs/DP_GAME_REDIS_CLUSTER.md](docs/DP_GAME_REDIS_CLUSTER.md)）；**WebSocket 会话不按 Redis 共享**（多实例直连方案见 [docs/WEBSOCKET.md](docs/WEBSOCKET.md)）。
 
 ---
 
@@ -97,7 +98,7 @@ npm install
 npm run dev
 ```
 
-开发环境代理与接口前缀以项目内 `vue.config.js` 为准（常见为 `**/dev-api**` 转发到后端）。
+开发时 API 前缀 **`/dev-api`**（及多 JVM 时 **`/b-api`**）由 **Nginx** 转发到 Spring，浏览器经 **`docker/nginx/README-dp-dev-two-jvm.md`** 一条命令起容器后访问 **:8880**，勿直连 Vue 端口以免跨域；`main.js` 中开发态 `axios.defaults.baseURL` 仍为 **`/dev-api`**。
 
 **大厅与对局 UI 主题**：游戏大厅（`/home`）、房间内（`/room/:id`）、曲库上传（`/music-upload`）、历史对局列表与详情与对局页共用同一套主题选项与本地持久化键；**登录 / 注册**在 `App.vue` 中同样可选择主题（`dp-auth-shell.css`）。`document.body[data-dp-game-theme]` 由 `main.js` 在路由与主题变更时统一维护，以便 Element UI 弹层配色一致。说明见 `front/dp_game/docs/THEME_BINDING_README.md` 第 6～7 节。
 

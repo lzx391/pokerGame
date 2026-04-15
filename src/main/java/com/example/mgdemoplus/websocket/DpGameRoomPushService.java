@@ -24,7 +24,8 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 游戏对局房间推送：单机内存维护 roomId → WebSocket 会话，不依赖 Redis。
+ * 游戏对局房间推送：本机内存维护 roomId → WebSocket 会话；对局状态只在持有该房的 JVM 上，
+ * 客户端应连 {@code dp.game.public-ws-url}（lookup / wsRoute）所指实例。
  */
 @Service
 public class DpGameRoomPushService {

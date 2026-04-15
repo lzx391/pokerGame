@@ -91,7 +91,7 @@ npm install
 npm run dev
 ```
 
-Use `vue.config.js` dev proxy (often **`/dev-api`**) to hit the API.
+During development, use **Nginx** at **`/dev-api`** (see **`docker/nginx/README-dp-dev-two-jvm.md`**); `vue.config.js` has **no** API proxy.
 
 ---
 

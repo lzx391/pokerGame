@@ -23,6 +23,8 @@ public final class JwtSecurityConstants {
             // 大厅列表、房间快照轮询：未登录可访问（分享链接、旁观）；其余 /dpRoom/** 需 JWT
             "/dpRoom/getNowRoom",
             "/dpRoom/getAllRooms2",
+            "/dpRoom/publicRooms",
+            "/dpRoom/lookupRoom",
             "/dpMusic/list",
             // Redis 本地实验接口（仅学习用；上线前可删或改需登录）
             "/demo/redis/**",

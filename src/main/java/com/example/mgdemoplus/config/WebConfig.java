@@ -1,11 +1,16 @@
 package com.example.mgdemoplus.config;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
+@EnableConfigurationProperties({
+        DpGameInstanceProperties.class,
+        DpGameClusterProperties.class
+})
 public class WebConfig implements WebMvcConfigurer {
 
     /** 本机默认 P: 盘；Docker 等环境用环境变量 MGDEMOPLUS_IMAGES_FILE_LOCATION 覆盖 */

@@ -59,6 +59,11 @@ import '@/styles/dp-lobby-shell.css'
 import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
 import { dpResultSuccess, dpResultMessage } from '@/utils/dpApiResult'
+import {
+  clearRoomNodeContext,
+  setRoomNodeFromWsRoute,
+  fetchAndApplyRoomNodeLookup
+} from '@/utils/dpRoomNodeContext'
 
 export default {
   mixins: [dpLobbyThemeMixin],
@@ -71,6 +76,7 @@ export default {
     }
   },
   async created() {
+    clearRoomNodeContext()
     try {
       await ensureDpUserIdInStorage(this.$http)
       var raw = localStorage.getItem('userInfo')
@@ -93,6 +99,7 @@ export default {
   methods: {
     logout() {
       localStorage.removeItem('userInfo')
+      clearRoomNodeContext()
       this.$router.push('/')
     },
     goHandHistory() {
@@ -108,7 +115,7 @@ export default {
       try {
         if (!this.roomDtos.length) this.roomsLoading = true
         this.roomsError = ''
-        const res = await this.$http.get('/dpRoom/getAllRooms2')
+        const res = await this.$http.get('/dpRoom/publicRooms')
         var list = res.data
         this.roomDtos = Array.isArray(list) ? list : []
       } catch (e) {
@@ -136,13 +143,35 @@ export default {
       if (this.user.userId != null && this.user.userId !== '') {
         params.userId = this.user.userId
       }
-      const res = await this.$http.post('/dpRoom/joinRoom2', null, { params })
-      const body = res.data
-      if (!dpResultSuccess(body)) {
-        alert(dpResultMessage(body))
+      try {
+        if (roomDto && roomDto.wsRoute) {
+          setRoomNodeFromWsRoute(roomDto.wsRoute)
+        } else {
+          var okLookup = await fetchAndApplyRoomNodeLookup(this.$http, roomId)
+          if (!okLookup) {
+            alert('无法解析房间所在节点，请稍后重试')
+            return
+          }
+        }
+      } catch (e) {
+        console.error('joinRoom node', e)
+        alert('无法连接房间路由，请稍后重试')
         return
       }
-      this.$router.push('/room/' + roomId)
+      try {
+        const res = await this.$http.post('/dpRoom/joinRoom2', null, { params })
+        const body = res.data
+        if (!dpResultSuccess(body)) {
+          clearRoomNodeContext()
+          alert(dpResultMessage(body))
+          return
+        }
+        this.$router.push('/room/' + roomId)
+      } catch (e) {
+        clearRoomNodeContext()
+        console.error('joinRoom2', e)
+        alert('加入房间失败，请检查网络')
+      }
     }
   }
 }

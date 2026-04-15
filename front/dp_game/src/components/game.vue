@@ -114,6 +114,11 @@ import dpGameFullscreenMixin from '../mixins/dpGameFullscreenMixin'
 import dpGameActionCountdownMixin from '../mixins/dpGameActionCountdownMixin'
 import { dpGamePlayerBoxStyle } from '../utils/dpGamePlayerBoxStyle'
 import { ensureDpUserIdInStorage } from '../utils/dpEnsureUserId'
+import {
+  ensureRoomNodeContextIfNeeded,
+  buildGameWebSocketUrl,
+  getRoomNodeContext
+} from '../utils/dpRoomNodeContext'
 import { mapState, mapGetters } from 'vuex'
 
 export default {
@@ -241,6 +246,8 @@ export default {
       user.userId = uid
       self.$store.commit('dpGame/SET_SESSION', { user: user })
 
+      await ensureRoomNodeContextIfNeeded(self.$http, self.$route.params.roomId)
+
       // 先 HTTP 拉一次，再建立 WebSocket（推送与定时器同 1s 节奏）
       self.loadGame().then(function () {
         self.connectGameWs()
@@ -318,17 +325,25 @@ export default {
     },
 
     gameWsBaseUrl() {
-      // 与页面同源；开发时游戏 WS 走 vue.config.js 的 /dp-ws → 后端 /ws
       var secure = window.location.protocol === 'https:'
       return (secure ? 'wss:' : 'ws:') + '//' + window.location.host
     },
 
     connectGameWs() {
       this.disconnectGameWs()
-      // 开发服：走 /dp-ws → vue 代理转成后端 /ws（避免与 webpack HMR 的 /ws 冲突）
-      var path = process.env.NODE_ENV === 'development' ? '/dp-ws/dp-game' : '/ws/dp-game'
-      var url = this.gameWsBaseUrl() + path + '?roomId=' + encodeURIComponent(this.roomId)
-        + '&nickname=' + encodeURIComponent(this.user.nickname)
+      var ctx = getRoomNodeContext()
+      var url
+      var tok = this.user && this.user.token ? String(this.user.token) : ''
+      if (ctx && ctx.wsRoute) {
+        url = buildGameWebSocketUrl(ctx.wsRoute, this.roomId, this.user.nickname, tok)
+      } else {
+        // 降级：与页面同源 /ws/dp-game（生产 jar+Nginx）；开发请经 lookup 写入 wsRoute（Nginx 上为 /dp-ws/ 等）
+        url = this.gameWsBaseUrl() + '/ws/dp-game?roomId=' + encodeURIComponent(this.roomId)
+          + '&nickname=' + encodeURIComponent(this.user.nickname)
+        if (tok) {
+          url += '&token=' + encodeURIComponent(tok)
+        }
+      }
       try {
         var ws = new WebSocket(url)
         this.gameWs = ws

@@ -54,6 +54,7 @@ import '@/styles/dp-game-themes.css'
 import '@/styles/dp-lobby-shell.css'
 import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import { dpDisplayNickname } from '../utils/dpDisplayNickname'
+import { ensureRoomNodeContextIfNeeded } from '@/utils/dpRoomNodeContext'
 
 export default {
   name: 'Room',
@@ -68,9 +69,10 @@ export default {
       heartbeatTimer: null
     }
   },
-  created() {
+  async created() {
     this.roomId = this.$route.params.roomId
     this.user = JSON.parse(localStorage.getItem('userInfo'))
+    await ensureRoomNodeContextIfNeeded(this.$http, this.roomId)
     this.fetchRoomInfo()
 
     this.timer = setInterval(this.fetchRoomInfo, 2000)

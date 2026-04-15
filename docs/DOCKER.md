@@ -97,7 +97,7 @@ docker compose -f docker-compose.hub.yml up -d
 
 ### 3. `front/dp_game/src/main.js`：生产环境 API 根路径
 
-- **开发**：`axios.defaults.baseURL` 仍为 `/dev-api`，由 `vue.config.js` 代理到后端。
+- **开发**：`axios.defaults.baseURL` 仍为 **`/dev-api`**；与后端之间由 **Nginx 同域转发**（见 `docker/nginx/README-dp-dev-two-jvm.md`），**不在** `vue.config.js` 配代理。
 - **生产 / Docker**：打包后由 Spring Boot 托管静态资源，与接口同域，故生产为 **`''`**（空字符串），请求直接发往当前站点根路径。
 
 ---
