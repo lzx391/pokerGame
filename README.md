@@ -7,7 +7,7 @@
 ### 环境变量（`.env`）
 
 - 仓库根目录提供 **`.env.example`**：列出 Docker Compose 与本机运行时常用变量（MySQL / Redis / JWT / 方舟 LLM 等）。复制为 **`.env`** 后按需填写；**`.env` 已被 Git 忽略**，不要提交含真实密码的文件。
-- **DP 大厅 `GET /dpRoom/publicRooms`**：支持 `page` / `pageSize` 分页，响应体为 `{ list, total, page, pageSize }`；列表查询使用 **PageHelper** + **PageInfo**（与历史对局分页一致），服务端按页 Redis 缓存（`mgdemoplus.cache.dp-room-public-rooms-ttl-seconds`，环境变量 `MGDEMOPLUS_CACHE_DP_ROOM_PUBLIC_ROOMS_TTL_SECONDS`）。前端双 JVM 开发可对**仅该接口**配置 `VUE_APP_LOBBY_API_BASES=/dev-api,/b-api`（逗号分隔，构建时注入），请求发出前随机选 API 前缀；未配置则仍用默认 `/dev-api`。
+- **DP 大厅 `GET /dpRoom/publicRooms`**：支持 `page` / `pageSize` 分页，响应体为 `{ list, total, page, pageSize }`；列表查询使用 **PageHelper** + **PageInfo**（与历史对局分页一致），服务端按页 Redis 缓存（`mgdemoplus.cache.dp-room-public-rooms-ttl-seconds`，环境变量 `MGDEMOPLUS_CACHE_DP_ROOM_PUBLIC_ROOMS_TTL_SECONDS`）。开发环境可对**仅该接口**配置 `VUE_APP_LOBBY_API_BASES`（逗号分隔）；不配则从 `VUE_APP_DP_DEV_WS_HTTP_MAP` 自动收集各前缀（含 `/c-api`）；两者皆无则仍用默认 `/dev-api`。`.env.development` 勿覆盖根目录 `.env` 里的大厅前缀。进房后 HTTP 前缀由 `VUE_APP_DP_DEV_WS_HTTP_MAP` 与 `wsRoute` 对齐（见 `front/dp_game/.env.example`）。
 - **`docker compose`** 会自动读取与 `docker-compose.yml` 同目录的 `.env`，用于镜像标签、口令及可选的 `JWT_SECRET`、`ARK_*` 等注入应用容器。
 - **本机直接跑 Spring Boot**（IDEA / `mvn spring-boot:run`）：**`MgDemoPlusApplication.main`** 在 **`SpringApplication.run` 之前**调用 **`LocalDotenvLoader.load()`**（`dotenv-java`），将根目录 **`.env`** 写入系统属性；请把运行工作目录设为**仓库根目录**，否则找不到文件。若已在系统或 IDE 里配置了同名环境变量，以环境变量为准。
 - **默认值**：数据库、Redis、上传路径、方舟等已在 **`application.properties`** 里用 `${环境变量:默认值}` 写好；不配 `.env` 也能按默认值启动。要覆盖时写根目录 `.env` 或 IDE 环境变量，变量名见 **`.env.example`**。

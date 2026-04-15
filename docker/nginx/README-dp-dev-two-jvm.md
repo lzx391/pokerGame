@@ -1,6 +1,6 @@
 # 双 JVM 开发：Docker Nginx 同域
 
-用 **一个浏览器入口（例如 `:8880`）** 同时访问 Vue、`/dev-api`（JVM A）、`/b-api`（JVM B）和两条 WebSocket 路径，避免跨域。  
+用 **一个浏览器入口（例如 `:8880`）** 同时访问 Vue、`/dev-api`（JVM A）、`/b-api`（JVM B），可选 **第三套** `/c-api`、`/dp-ws-c`（示例 **8090**），避免跨域。  
 房间状态仍在**各 JVM 内存**；跨节点靠 `**dp_room_registry` + Redis 路由** 与前端按 `lookupRoom` 返回的 `**wsRoute`** 选对 HTTP 前缀。
 
 ---
@@ -13,20 +13,22 @@
 | `/`                  | Vue devServer（默认宿主机 `8080`） | 页面                                   |
 | `/dev-api/` → `/`    | **8088**                    | 大厅默认 API、**未绑定房间节点时**的 `/dpRoom/*`   |
 | `/b-api/` → `/`      | **8089**                    | **绑定到 B 节点房间后**的 `/dpRoom/*`（除白名单接口） |
+| `/c-api/` → `/`      | **8090**（示例）              | 第三套 JVM，与 `VUE_APP_DP_DEV_WS_HTTP_MAP` 中 `/c-api` 对齐 |
 | `/dp-ws/` → `/ws/`   | **8088**                    | 游戏 WS，后端真实路径 `/ws/dp-game`           |
 | `/dp-ws-b/` → `/ws/` | **8089**                    | 同上，第二套 JVM                           |
+| `/dp-ws-c/` → `/ws/` | **8090**（示例）              | 同上，第三套 JVM                           |
 
 
-**要点：** `/dev-api` **永远只进 8088**；`/b-api` **永远只进 8089**。进房、`joinRoom2` 等必须打到**有房的那台**，否则内存里没有房间 → 「房间不存在」。
+**要点：** `/dev-api` **永远只进 8088**；`/b-api` **永远只进 8089**；`/c-api` **进 8090**（与 `dp-dev-two-jvm.example.conf` 中 `dp_jvm_c` 一致）。若只跑两台 JVM，可删掉 conf 里 `dp_jvm_c` 与 `/c-api/`、`/dp-ws-c/` 两段。进房、`joinRoom2` 等必须打到**有房的那台**，否则内存里没有房间 → 「房间不存在」。
 
 ---
 
 ## 前置
 
-1. **两个 Spring Boot**：例如 **8088**、**8089**；共用 **同一 MySQL、同一 Redis**（房间注册与路由缓存）。
-2. **集群建房（可选）**：`dp.game.cluster.enabled=true` 时，在 `node-http-bases[0]`、`[1]` 上随机选房；各实例 `**dp.game.cluster.internal-token`** 一致。两台都要能互相访问对方 HTTP（本机即 `127.0.0.1:8088` / `8089`）。
+1. **多个 Spring Boot**：例如 **8088**、**8089**、可选 **8090**；共用 **同一 MySQL、同一 Redis**（房间注册与路由缓存）。
+2. **集群建房（可选）**：`dp.game.cluster.enabled=true` 时，在 `node-http-bases[0]`、`[1]`、`[2]`（见 `application.properties`）上随机选房；各实例 `**dp.game.cluster.internal-token**` 一致。各实例须能互相 HTTP 访问（本机即 `127.0.0.1:8088` / `8089` / `8090`）。
 3. **前端**：`front/dp_game` 执行 `npm run dev`（端口与 conf 里 `vue_dev` 一致，常见 **8080**）。
-4. **浏览器**：通过 Nginx 打开（如 `**http://127.0.0.1:8880/`**），不要直接用 `:8080` 进前端，否则 API 不经 Nginx、易跨域或走错实例。
+4. **浏览器**：请经 **Nginx** 打开（如 `**http://127.0.0.1:8880/`**），否则 `/dev-api`、`/b-api`、`/c-api` 不会自动落到对应 JVM；直连 `:8080` 需自行给 devServer 配同等代理。**游戏 WebSocket** 建议经 Nginx 的 `/dp-ws*`。
 
 ---
 
@@ -39,19 +41,20 @@
 | --- | ------------- | ---------------------- | --------------------------------------------- |
 | A   | `8088`        | `local-1`              | `ws://127.0.0.1:8880/dp-ws/dp-game`           |
 | B   | `8089`        | `local-2`              | `ws://127.0.0.1:8880/dp-ws-b/dp-game`         |
+| C   | `8090`        | `local-3`              | `ws://127.0.0.1:8880/dp-ws-c/dp-game`         |
 
 
 **必须保证：`server.port` 与 URL 里「最终连到的那台」一致。** 不要出现「进程监听 8088，却把 `public-ws-url` 写成 `:8089`」——登记到库里的路由会错，客户端也会连错。
 
-若暂时 **直连端口**（如 `ws://127.0.0.1:8089/ws/dp-game`），前端开发环境可用 `**front/dp_game/.env.development`** 里 `**VUE_APP_DEV_JAVA_PORT_B=8089**`，按端口选中 `/b-api`（见 `dpRoomNodeContext.js`）。
+若暂时 **直连端口**（如 `ws://127.0.0.1:8089/ws/dp-game` / `8090`），前端在 `**front/dp_game/.env**` 的 `**VUE_APP_DP_DEV_WS_HTTP_MAP**` 里与 B 对称写 `**8089:/b-api**`、`**8090:/c-api**`（可与 `**dp-ws-b**` / `**dp-ws-c**` 同列），见 `**dpRoomNodeContext.js**`。
 
 ---
 
 ## 前端 axios 规则（简述）
 
-- **`GET /dpRoom/publicRooms`**（大厅分页列表）：不经「房间节点」上下文；**未配置** `VUE_APP_LOBBY_API_BASES` 时与 **`/dpRoom/lookupRoom`、`/dpRoom/createRoom`** 一样走默认 `**/dev-api**`。若构建时设置 **`VUE_APP_LOBBY_API_BASES=/dev-api,/b-api`**（逗号分隔），则**仅**该请求在发出前随机选其中一个前缀，便于双 JVM 下观察两台日志。
+- **`GET /dpRoom/publicRooms`**（大厅分页列表）：不经「房间节点」上下文；**未配置** `VUE_APP_LOBBY_API_BASES` 时，开发模式下会从 **`VUE_APP_DP_DEV_WS_HTTP_MAP`** 自动收集所有 HTTP 前缀（如 `/dev-api`、`/b-api`、`/c-api`）并随机选用；若显式配置了 `VUE_APP_LOBBY_API_BASES` 则以其为准。**勿**在 `.env.development` 里再写一份 `VUE_APP_LOBBY_API_BASES` 只含两台，否则会覆盖根目录 `.env` 里的 `/c-api`。若**未配置**上述两者，则与 **`/dpRoom/lookupRoom`、`/dpRoom/createRoom`** 一样走默认 `**/dev-api**`。
 - **`/dpRoom/lookupRoom`、`/dpRoom/createRoom`**：始终走默认 `**/dev-api**`（不经房间节点上下文）。
-- **进房后** `sessionStorage` 里会记下 `lookupRoom` 返回的 `**wsRoute`**；之后 `**/dpRoom/***`（除上述白名单）会按 `wsRoute` 选 `**/dev-api` 或 `/b-api**`，与上表一致。
+- **进房后** `sessionStorage` 里会记下 `lookupRoom` 返回的 `**wsRoute`**；之后 `**/dpRoom/***`（除上述白名单）会按 `wsRoute` 选与 Nginx 一致的前缀（`/dev-api`、`/b-api`、`/c-api`，见 `**VUE_APP_DP_DEV_WS_HTTP_MAP**`），与上表一致。
 
 ---
 
@@ -85,7 +88,7 @@ docker run --rm -d --name dp-nginx-dev -p 8880:80 `
 
 | 现象                                     | 常见原因                                                                                                                             |
 | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `joinRoom2` 报「房间不存在」，但 `lookupRoom` 正常 | HTTP 仍走了 `**/dev-api**`，请求打到 8088，房在 8089。检查 `**wsRoute**` 是否含 `**dp-ws-b**`，或 dev 下 `**VUE_APP_DEV_JAVA_PORT_B**` 是否与 B 实例端口一致。 |
+| `joinRoom2` 报「房间不存在」，但 `lookupRoom` 正常 | HTTP 仍走了 `**/dev-api**`，请求打到 8088，房在 8089。检查 `**wsRoute**` 是否含 `**dp-ws-b**`，或 `**VUE_APP_DP_DEV_WS_HTTP_MAP**` 是否含 `**8089:/b-api**`。 |
 | WebSocket 连不上                          | `DP_GAME_PUBLIC_WS_URL` 与 Nginx `**/dp-ws` / `/dp-ws-b**` 不一致，或端口与 `**server.port**` 不一致。                                        |
 | 大厅无房或 lookup 无数据                       | 未建 `**dp_room_registry` 表**、或 Redis/MySQL 与实例不一致。                                                                                |
 
@@ -99,3 +102,4 @@ $env:DP_GAME_PUBLIC_WS_URL = "ws://127.0.0.1:8088/ws/dp-game"
 mvn spring-boot:run
 ```
 
+后续扩展多实例，需要在后端配置文件，前端.env文件的map,nginx的配置文件注册，并**重启nginx**

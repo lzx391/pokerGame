@@ -1,6 +1,7 @@
 /**
  * 跨节点房间：用 lookup 返回的 {@code wsRoute} 连 WebSocket；HTTP 经 Nginx 同源前缀
- * {@link #dpRoomAxiosPrefixFromWsRoute}（/dev-api 或 /b-api）调对应 JVM。
+ * {@link #dpRoomAxiosPrefixFromWsRoute}（如 /dev-api、/b-api）调对应 JVM。
+ * 开发环境映射在 .env 用 {@code VUE_APP_DP_DEV_WS_HTTP_MAP}（B/C 与端口都写在这一行）。
  * 存 sessionStorage，刷新同标签页仍有效。
  */
 import { dpResultData, dpResultSuccess } from '@/utils/dpApiResult'
@@ -23,30 +24,126 @@ export function wsRouteToHttpBase(wsRoute) {
 }
 
 /**
- * Nginx 开发示例中第二套 JVM 走 {@code /dp-ws-b}，对应 HTTP 前缀为 {@code /b-api}，否则 {@code /dev-api}。
- * 若直连 {@code ws://127.0.0.1:8089/...}（不含 path 里的 dp-ws-b），仍须走 {@code /b-api}，否则同域下会误打
- * 只转发到 8088 的 {@code /dev-api}，出现 joinRoom2「房间不存在」。
- * 开发环境未配 {@code VUE_APP_DEV_JAVA_PORT_B} 时默认按 8089 作为 B 实例端口（与常见双 JVM 一致）。
+ * 开发环境：按 {@code wsRoute} 选与 Nginx 一致的 axios 前缀。
+ * 基础：{@code dp-ws}→/dev-api、{@code VUE_APP_DEV_JAVA_PORT}（默认 8088）→/dev-api。
+ * B/C 及更多：.env 里 {@code VUE_APP_DP_DEV_WS_HTTP_MAP}；未配置时内置与 8089 对称的第三套（{@code dp-ws-c}、{@code 8090}→/c-api）。只跑两台 JVM 时请用 env 覆盖为仅 B：{@code dp-ws-b:/b-api,8089:/b-api}。
+ * path 片段最长优先匹配；纯数字 key 为端口。
+ * 生产环境固定 {@code /dev-api}（由网关/部署约定）。
  * @param {string} wsRoute
- * @returns {string} "/dev-api" 或 "/b-api"
+ * @returns {string} 如 "/dev-api"、"/b-api"
  */
 export function dpRoomAxiosPrefixFromWsRoute(wsRoute) {
   if (!wsRoute || typeof wsRoute !== 'string') return '/dev-api'
-  if (wsRoute.indexOf('dp-ws-b') >= 0) return '/b-api'
   if (process.env.NODE_ENV !== 'development') {
     return '/dev-api'
   }
-  var portA = String(process.env.VUE_APP_DEV_JAVA_PORT || '8088').trim()
-  var portB = String(process.env.VUE_APP_DEV_JAVA_PORT_B || '8089').trim()
+  var routing = getDevWsHttpRouting()
+  var s = wsRoute.trim()
+  var pathKeys = routing.pathKeys
+  for (var i = 0; i < pathKeys.length; i++) {
+    var pk = pathKeys[i]
+    if (s.indexOf(pk) >= 0) {
+      return routing.pathRules.get(pk) || '/dev-api'
+    }
+  }
   try {
-    var u = new URL(wsRoute.trim())
+    var u = new URL(s)
     var p = String(u.port || '')
-    if (portB && p === portB) return '/b-api'
-    if (portA && p === portA) return '/dev-api'
+    if (p && routing.portRules.has(p)) {
+      return routing.portRules.get(p) || '/dev-api'
+    }
   } catch (e) {
     /* ignore */
   }
   return '/dev-api'
+}
+
+/**
+ * 解析逗号分隔的 key:value；纯数字 key 记入端口表，否则记入路径表。
+ * @param {string} raw
+ * @returns {{ pathRules: Map<string,string>, portRules: Map<string,string> }}
+ */
+function parseDpDevWsHttpMapSegment(raw) {
+  var pathRules = new Map()
+  var portRules = new Map()
+  if (!raw || typeof raw !== 'string') {
+    return { pathRules: pathRules, portRules: portRules }
+  }
+  raw.split(',').forEach(function (part) {
+    part = part.trim()
+    if (!part) return
+    var idx = part.indexOf(':')
+    if (idx <= 0) return
+    var key = part.slice(0, idx).trim()
+    var val = part.slice(idx + 1).trim()
+    if (!key || !val) return
+    if (/^\d+$/.test(key)) {
+      portRules.set(key, val)
+    } else {
+      pathRules.set(key, val)
+    }
+  })
+  return { pathRules: pathRules, portRules: portRules }
+}
+
+var _devWsHttpRouting = null
+
+/** 未配置 {@code VUE_APP_DP_DEV_WS_HTTP_MAP} 时：与 8089/B 对称带上 8090/C（path + 端口），与 Nginx dp-ws-b、dp-ws-c 及直连端口一致 */
+var DEFAULT_DP_DEV_WS_HTTP_MAP = 'dp-ws-b:/b-api,8089:/b-api,dp-ws-c:/c-api,8090:/c-api'
+
+/**
+ * 基础规则 + {@code VUE_APP_DP_DEV_WS_HTTP_MAP}（未设则等于常量 DEFAULT_DP_DEV_WS_HTTP_MAP）。
+ * path 匹配顺序：key 按长度降序。
+ */
+function getDevWsHttpRouting() {
+  if (_devWsHttpRouting) {
+    return _devWsHttpRouting
+  }
+  var pathRules = new Map()
+  var portRules = new Map()
+  pathRules.set('dp-ws', '/dev-api')
+  var portA = String(process.env.VUE_APP_DEV_JAVA_PORT || '8088').trim()
+  if (portA) portRules.set(portA, '/dev-api')
+
+  var raw = process.env.VUE_APP_DP_DEV_WS_HTTP_MAP
+  var mapStr =
+    raw && typeof raw === 'string' && raw.trim()
+      ? raw.trim()
+      : DEFAULT_DP_DEV_WS_HTTP_MAP
+  var parsed = parseDpDevWsHttpMapSegment(mapStr)
+  parsed.pathRules.forEach(function (v, k) {
+    pathRules.set(k, v)
+  })
+  parsed.portRules.forEach(function (v, k) {
+    portRules.set(k, v)
+  })
+
+  var pathKeys = Array.from(pathRules.keys()).sort(function (a, b) {
+    return b.length - a.length
+  })
+  _devWsHttpRouting = { pathRules: pathRules, portRules: portRules, pathKeys: pathKeys }
+  return _devWsHttpRouting
+}
+
+/**
+ * 开发环境：未配置 {@code VUE_APP_LOBBY_API_BASES} 时，从当前 ws→HTTP 映射表收集所有 axios 前缀（去重排序），
+ * 使大厅 {@code /dpRoom/publicRooms} 能随机打到含 /c-api 在内的各实例。
+ */
+export function getDpDevLobbyApiBases() {
+  if (process.env.NODE_ENV !== 'development') {
+    return []
+  }
+  var r = getDevWsHttpRouting()
+  var set = new Set()
+  r.pathRules.forEach(function (v) {
+    set.add(v)
+  })
+  r.portRules.forEach(function (v) {
+    set.add(v)
+  })
+  return Array.from(set).sort(function (a, b) {
+    return a.localeCompare(b)
+  })
 }
 
 export function getRoomNodeContext() {
