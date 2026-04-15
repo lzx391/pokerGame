@@ -116,8 +116,14 @@ export default {
         }
         const res = await this.$http.post('/dpRoom/createRoom', null, { params })
         var rid = res.data && res.data.roomId
-        if (rid) {
-          await fetchAndApplyRoomNodeLookup(this.$http, rid)
+        if (!rid) {
+          alert('创建响应异常，未返回房间号')
+          return
+        }
+        var okLookup = await fetchAndApplyRoomNodeLookup(this.$http, rid, { maxAttempts: 5, delayMs: 180 })
+        if (!okLookup) {
+          alert('房间已创建，但未能解析所在节点（lookup 失败）。请从大厅列表找到该房再点加入，或确认双 JVM 共用 MySQL/Redis。')
+          return
         }
         this.$router.replace('/room/' + rid)
       } catch (e) {

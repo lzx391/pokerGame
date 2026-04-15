@@ -1,6 +1,7 @@
 package com.example.mgdemoplus.service.dp;
 
 import com.example.mgdemoplus.config.DpGameInstanceProperties;
+import com.example.mgdemoplus.dto.DpPublicRoomsPageDTO;
 import com.example.mgdemoplus.dto.DpRoomDTO;
 import com.example.mgdemoplus.dto.DpRoomRoutePayload;
 import com.example.mgdemoplus.entity.dp.DpRoom;
@@ -9,9 +10,13 @@ import com.example.mgdemoplus.mapper.dp.DpRoomRegistryMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.Cursor;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -19,6 +24,15 @@ import java.util.stream.Collectors;
 
 /**
  * 房间注册：MySQL 持久化大厅列表，Redis 缓存按房间号路由（方案二：每节点 {@link DpGameInstanceProperties#getPublicWsUrl()}）。
+ * <p>
+ * 大厅分页缓存失效：凡会改变「大厅列表」所依赖的 {@code dp_room_registry} 行时，必须调用
+ * {@link #invalidatePublicRoomsPageCache()}（内部 revision + 删除分页 data 键）。集中入口：
+ * <ul>
+ *   <li>{@link #registerNewRoom} — 创建房间内存成功后插入注册表（{@code DpRoomServiceImpl#createRoom} 等）</li>
+ *   <li>{@link #syncFromRoom} — 人数/房主/盲注/是否游戏中/密码等变更（加入房间、开局、踢人、退房主移交、exit 等）</li>
+ *   <li>{@link #removeFromRegistry} — 关房并从大厅消失（无人接盘、房间销毁等）</li>
+ * </ul>
+ * 业务侧仅通过 {@link com.example.mgdemoplus.service.serviceImpl.dp.DpRoomServiceImpl} 调用上述三处，无旁路写表。
  */
 @Service
 public class DpRoomRegistryService {
@@ -27,21 +41,27 @@ public class DpRoomRegistryService {
     private static final String GAME_CODE_DP = "DP";
     private static final int DEFAULT_MAX_SEATS = 9;
     private static final String REDIS_ROUTE_PREFIX = "dp:room:route:";
+    /** 递增后使大厅分页缓存键空间切换，旧键自然过期 */
+    private static final String REDIS_PUBLIC_ROOMS_REV = "mgdemo:cache:dpRoom:publicRooms:rev";
+    private static final String REDIS_PUBLIC_ROOMS_DATA_PREFIX = "mgdemo:cache:dpRoom:publicRooms:data:";
 
     private final DpRoomRegistryMapper registryMapper;
     private final DpGameInstanceProperties gameInstanceProperties;
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
+    private final int publicRoomsCacheTtlSeconds;
 
     public DpRoomRegistryService(
             DpRoomRegistryMapper registryMapper,
             DpGameInstanceProperties gameInstanceProperties,
             StringRedisTemplate stringRedisTemplate,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            @Value("${mgdemoplus.cache.dp-room-public-rooms-ttl-seconds:20}") int publicRoomsCacheTtlSeconds) {
         this.registryMapper = registryMapper;
         this.gameInstanceProperties = gameInstanceProperties;
         this.stringRedisTemplate = stringRedisTemplate;
         this.objectMapper = objectMapper;
+        this.publicRoomsCacheTtlSeconds = Math.max(1, publicRoomsCacheTtlSeconds);
     }
 
     public void registerNewRoom(DpRoom room) {
@@ -52,11 +72,15 @@ public class DpRoomRegistryService {
             DpRoomRegistry row = buildRowFromRoom(room);
             registryMapper.insert(row);
             writeRedisRoute(row);
+            invalidatePublicRoomsPageCache();
         } catch (Exception e) {
             log.warn("dp_room_registry insert failed roomId={} (表未建或 DB 不可用时可忽略): {}", room.getRoomId(), e.getMessage());
         }
     }
-/** 从房间同步到注册表，更新房间状态 */
+
+    /**
+     * 从房间同步到注册表。UPDATE 未命中时：若尚无行则补 {@link #registerNewRoom}；若行已存在（含已关房），仍失效大厅缓存，避免列表滞留。
+     */
     public void syncFromRoom(DpRoom room) {
         if (room == null || room.getRoomId() == null) {
             return;
@@ -64,12 +88,19 @@ public class DpRoomRegistryService {
         try {
             DpRoomRegistry row = buildRowFromRoom(room);
             int n = registryMapper.updateSnapshot(row);
-            if (n <= 0) {
-                return;
-            }
-            DpRoomRegistry fresh = registryMapper.selectByRoomId(room.getRoomId());
-            if (fresh != null) {
-                writeRedisRoute(fresh);
+            if (n > 0) {
+                invalidatePublicRoomsPageCache();
+                DpRoomRegistry fresh = registryMapper.selectByRoomId(room.getRoomId());
+                if (fresh != null) {
+                    writeRedisRoute(fresh);
+                }
+            } else {
+                DpRoomRegistry existing = registryMapper.selectByRoomId(room.getRoomId());
+                if (existing == null) {
+                    registerNewRoom(room);
+                } else {
+                    invalidatePublicRoomsPageCache();
+                }
             }
         } catch (Exception e) {
             log.warn("dp_room_registry sync failed roomId={}: {}", room.getRoomId(), e.getMessage());
@@ -82,6 +113,7 @@ public class DpRoomRegistryService {
         }
         try {
             registryMapper.closeByRoomId(roomId);
+            invalidatePublicRoomsPageCache();
         } catch (Exception e) {
             log.warn("dp_room_registry close failed roomId={}: {}", roomId, e.getMessage());
         }
@@ -129,16 +161,100 @@ public class DpRoomRegistryService {
         }
     }
 
-    public List<DpRoomDTO> listPublicRoomsFromDb() {
+    /**
+     * 大厅分页：先尝试 Redis 整页缓存（按 revision + page + pageSize），失败或未命中则查 MySQL。
+     */
+    public DpPublicRoomsPageDTO listPublicRoomsPage(int page, int pageSize) {
+        int p = Math.max(1, page);
+        int ps = pageSize < 1 ? 20 : Math.min(100, pageSize);
+        long rev = currentPublicRoomsCacheRevision();
+        String cacheKey = REDIS_PUBLIC_ROOMS_DATA_PREFIX + rev + ":" + p + ":" + ps;
         try {
-            List<DpRoomRegistry> rows = registryMapper.selectActiveList();
-            if (rows == null || rows.isEmpty()) {
-                return Collections.emptyList();
+            String cached = stringRedisTemplate.opsForValue().get(cacheKey);
+            if (cached != null && !cached.isEmpty()) {
+                return objectMapper.readValue(cached, DpPublicRoomsPageDTO.class);
             }
-            return rows.stream().map(this::toDto).collect(Collectors.toList());
         } catch (Exception e) {
-            log.warn("dp_room_registry list failed: {}", e.getMessage());
-            return Collections.emptyList();
+            log.debug("public rooms cache read failed: {}", e.getMessage());
+        }
+
+        try {
+            long total = registryMapper.countActive();
+            int offset = (p - 1) * ps;
+            List<DpRoomRegistry> rows = registryMapper.selectActivePage(offset, ps);
+            List<DpRoomDTO> list = (rows == null || rows.isEmpty())
+                    ? Collections.emptyList()
+                    : rows.stream().map(this::toDto).collect(Collectors.toList());
+            DpPublicRoomsPageDTO dto = new DpPublicRoomsPageDTO();
+            dto.setList(list);
+            dto.setTotal(total);
+            dto.setPage(p);
+            dto.setPageSize(ps);
+            try {
+                String json = objectMapper.writeValueAsString(dto);
+                int ttl = Math.max(1, publicRoomsCacheTtlSeconds);
+                stringRedisTemplate.opsForValue().set(cacheKey, json, ttl, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                log.debug("public rooms cache write failed: {}", e.getMessage());
+            }
+            return dto;
+        } catch (Exception e) {
+            log.warn("dp_room_registry page query failed: {}", e.getMessage());
+            DpPublicRoomsPageDTO empty = new DpPublicRoomsPageDTO();
+            empty.setList(Collections.emptyList());
+            empty.setTotal(0);
+            empty.setPage(p);
+            empty.setPageSize(ps);
+            return empty;
+        }
+    }
+
+    private long currentPublicRoomsCacheRevision() {
+        try {
+            String s = stringRedisTemplate.opsForValue().get(REDIS_PUBLIC_ROOMS_REV);
+            if (s == null || s.isEmpty()) {
+                return 0L;
+            }
+            return Long.parseLong(s.trim());
+        } catch (Exception e) {
+            return 0L;
+        }
+    }
+
+    /**
+     * 大厅分页缓存失效：递增 revision（新读走新 key 空间）并 SCAN 删除 {@value #REDIS_PUBLIC_ROOMS_DATA_PREFIX}*，
+     * 避免旧页仅靠 TTL 才消失。revision 键本身不删。Redis 异常时仅打日志，不抛。
+     */
+    private void invalidatePublicRoomsPageCache() {
+        try {
+            stringRedisTemplate.opsForValue().increment(REDIS_PUBLIC_ROOMS_REV, 1L);
+        } catch (Exception e) {
+            log.debug("redis bump public rooms cache revision failed: {}", e.getMessage());
+        }
+        deletePublicRoomsDataCacheKeys();
+    }
+
+    private void deletePublicRoomsDataCacheKeys() {
+        try {
+            List<String> batch = new ArrayList<>();
+            ScanOptions options = ScanOptions.scanOptions()
+                    .match(REDIS_PUBLIC_ROOMS_DATA_PREFIX + "*")
+                    .count(200)
+                    .build();
+            try (Cursor<String> cursor = stringRedisTemplate.scan(options)) {
+                while (cursor.hasNext()) {
+                    batch.add(cursor.next());
+                    if (batch.size() >= 400) {
+                        stringRedisTemplate.delete(batch);
+                        batch.clear();
+                    }
+                }
+            }
+            if (!batch.isEmpty()) {
+                stringRedisTemplate.delete(batch);
+            }
+        } catch (Exception e) {
+            log.debug("redis scan delete public rooms page cache keys failed: {}", e.getMessage());
         }
     }
 

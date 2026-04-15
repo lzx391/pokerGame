@@ -18,6 +18,14 @@ Vue.use(ElementUI);
 // 开发经 Nginx 同域 /dev-api（见 docker/nginx/README-dp-dev-two-jvm.md）；生产为站点根路径
 axios.defaults.baseURL = process.env.NODE_ENV === 'production' ? '' : '/dev-api'
 
+/** 仅大厅列表：双 JVM 开发时随机落到 /dev-api 或 /b-api（逗号分隔，构建时读入 VUE_APP_LOBBY_API_BASES） */
+function parseLobbyApiBases () {
+  var raw = process.env.VUE_APP_LOBBY_API_BASES
+  if (!raw || typeof raw !== 'string') return []
+  return raw.split(',').map(function (s) { return s.trim() }).filter(Boolean)
+}
+var lobbyApiBases = parseLobbyApiBases()
+
 axios.interceptors.request.use(function (config) {
   var url = config.url || ''
   if (url.indexOf('/dpUser/loginProfile') !== -1 || url.indexOf('/dpUser/registerUser') !== -1) {
@@ -34,6 +42,15 @@ axios.interceptors.request.use(function (config) {
     }
   } catch (e) {
     /* ignore */
+  }
+  return config
+})
+
+// 仅 GET /dpRoom/publicRooms（含分页 query）：在配置 VUE_APP_LOBBY_API_BASES 时随机选 baseURL；须在「房间节点」拦截器之前执行
+axios.interceptors.request.use(function (config) {
+  var url = config.url || ''
+  if (url.indexOf('/dpRoom/publicRooms') === 0 && lobbyApiBases.length > 0) {
+    config.baseURL = lobbyApiBases[Math.floor(Math.random() * lobbyApiBases.length)]
   }
   return config
 })

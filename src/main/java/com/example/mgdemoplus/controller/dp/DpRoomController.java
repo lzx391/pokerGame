@@ -1,5 +1,6 @@
 package com.example.mgdemoplus.controller.dp;
 
+import com.example.mgdemoplus.dto.DpPublicRoomsPageDTO;
 import com.example.mgdemoplus.dto.DpRoomDTO;
 import com.example.mgdemoplus.entity.dp.DpRoom;
 import com.example.mgdemoplus.entity.dp.DpRoomRegistry;
@@ -223,11 +224,13 @@ public class DpRoomController {
     }
 
     /**
-     * 跨节点大厅：从 MySQL 读当前登记中的房间（各实例写入自己的 wsRoute/shardId）。
+     * 跨节点大厅：从 MySQL 分页读当前登记中的房间（各实例写入自己的 wsRoute/shardId）；带 Redis 整页缓存。
      */
     @GetMapping("/publicRooms")
-    public List<DpRoomDTO> publicRooms() {
-        return dpRoomRegistryService.listPublicRoomsFromDb();
+    public DpPublicRoomsPageDTO publicRooms(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        return dpRoomRegistryService.listPublicRoomsPage(page, pageSize);
     }
 
     /**
