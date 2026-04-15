@@ -227,13 +227,16 @@ public class DpRoomRegistryService {
      */
     private void invalidatePublicRoomsPageCache() {
         try {
+            //当有更新的时候，更新版本号，因为缓存键里有rev,所以更新后旧的房间数据全部失效，这时候删掉旧缓存，腾出空间写入新数据
             stringRedisTemplate.opsForValue().increment(REDIS_PUBLIC_ROOMS_REV, 1L);
         } catch (Exception e) {
             log.debug("redis bump public rooms cache revision failed: {}", e.getMessage());
         }
         deletePublicRoomsDataCacheKeys();
     }
-
+/*
+ * 删除大厅分页缓存
+ */
     private void deletePublicRoomsDataCacheKeys() {
         try {
             List<String> batch = new ArrayList<>();
