@@ -19,7 +19,6 @@ import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.List;
 
-
 @RestController
 @RequestMapping("/dpRoom")
 public class DpRoomController {
@@ -39,12 +38,12 @@ public class DpRoomController {
 
     @PostMapping("/createRoom")
     public DpRoom createRoom(@RequestParam String nickname,
-                             @RequestParam(required = false) Integer userId,
-                             @RequestParam(required = false, defaultValue = "5") int smallBlindChips,
-                             @RequestParam(required = false, defaultValue = "10") int bigBlindChips,
-                             @RequestParam(required = false, defaultValue = "50") int startingStackBb,
-                             @RequestParam(required = false) String roomPassword,
-                             HttpServletRequest request) {
+            @RequestParam(required = false) Integer userId,
+            @RequestParam(required = false, defaultValue = "5") int smallBlindChips,
+            @RequestParam(required = false, defaultValue = "10") int bigBlindChips,
+            @RequestParam(required = false, defaultValue = "50") int startingStackBb,
+            @RequestParam(required = false) String roomPassword,
+            HttpServletRequest request) {
         return dpRoomClusterPlacementService.createRoomDistributed(
                 nickname, userId, smallBlindChips, bigBlindChips, startingStackBb, roomPassword,
                 request.getHeader(HttpHeaders.AUTHORIZATION));
@@ -55,37 +54,39 @@ public class DpRoomController {
      */
     @PostMapping("/createRoomRelay")
     public DpRoom createRoomRelay(@RequestParam String nickname,
-                                  @RequestParam(required = false) Integer userId,
-                                  @RequestParam(required = false, defaultValue = "5") int smallBlindChips,
-                                  @RequestParam(required = false, defaultValue = "10") int bigBlindChips,
-                                  @RequestParam(required = false, defaultValue = "50") int startingStackBb,
-                                  @RequestParam(required = false) String roomPassword,
-                                  @RequestHeader(CLUSTER_TOKEN_HEADER) String clusterToken) {
+            @RequestParam(required = false) Integer userId,
+            @RequestParam(required = false, defaultValue = "5") int smallBlindChips,
+            @RequestParam(required = false, defaultValue = "10") int bigBlindChips,
+            @RequestParam(required = false, defaultValue = "50") int startingStackBb,
+            @RequestParam(required = false) String roomPassword,
+            @RequestHeader(CLUSTER_TOKEN_HEADER) String clusterToken) {
         return dpRoomClusterPlacementService.createRoomRelay(
                 nickname, userId, smallBlindChips, bigBlindChips, startingStackBb, roomPassword, clusterToken);
     }
 
     @GetMapping("/getNowRoom")
     public DpRoom getNowRoom(@RequestParam String roomId,
-                             @RequestParam(required = false) String nickname) {
+            @RequestParam(required = false) String nickname) {
         return dpRoomService.getRoomSnapshotForViewer(roomId, nickname);
     }
 
     @PostMapping("/joinRoom")
     public String joinRoom(@RequestParam String roomId, @RequestParam String nickname,
-                           @RequestParam(required = false) Integer userId,
-                           @RequestParam(required = false) String roomPassword) {
+            @RequestParam(required = false) Integer userId,
+            @RequestParam(required = false) String roomPassword) {
         return dpRoomService.joinRoom(roomId, nickname, userId, roomPassword);
     }
+
     /**
-     * 与 {@link #joinRoom} 业务相同；鉴权由全局 {@link com.example.mgdemoplus.security.JwtAuthenticationFilter} 完成，
+     * 与 {@link #joinRoom} 业务相同；鉴权由全局
+     * {@link com.example.mgdemoplus.security.JwtAuthenticationFilter} 完成，
      * 此处仅校验 JWT subject（昵称）与参数 {@code nickname} 一致。
      */
     @PostMapping("/joinRoom2")
     public ResultUtil joinRoom2(@RequestParam String roomId,
-                                @RequestParam String nickname,
-                                @RequestParam(required = false) Integer userId,
-                                @RequestParam(required = false) String roomPassword) {
+            @RequestParam String nickname,
+            @RequestParam(required = false) Integer userId,
+            @RequestParam(required = false) String roomPassword) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String jwtNickname = auth != null ? auth.getName() : null;
         if (jwtNickname == null || !jwtNickname.equals(nickname)) {
@@ -98,9 +99,10 @@ public class DpRoomController {
         }
         return ResultUtil.error().data("message", outcome);
     }
-/**
- * 该房间内玩家是否能准备成功的接口
- * */
+
+    /**
+     * 该房间内玩家是否能准备成功的接口
+     */
     @PostMapping("/toggleReady")
     public String toggleReady(@RequestParam String roomId, @RequestParam String nickname) {
         return dpRoomService.toggleReady(roomId, nickname) ? "ok" : "fail";
@@ -131,20 +133,23 @@ public class DpRoomController {
         return dpRoomService.fold(roomId, nickname) ? "ok" : "fail";
     }
 
-//    @PostMapping("/nextStage")
-//    public String nextStage(@RequestParam String roomId, @RequestParam String ownerNickname) {
-//        return dpRoomService.nextStage(roomId) ? "ok" : "fail";
-//    }
+    // @PostMapping("/nextStage")
+    // public String nextStage(@RequestParam String roomId, @RequestParam String
+    // ownerNickname) {
+    // return dpRoomService.nextStage(roomId) ? "ok" : "fail";
+    // }
 
     // 按池结算：参数格式 "0:Alice;1:Bob,Charlie"
-//    @PostMapping("/judgeWin")
-//    public String judgeWin(@RequestParam String roomId, @RequestParam String potWinners) {
-//        return dpRoomService.judgeWin(roomId, potWinners) ? "ok" : "fail";
-//    }
+    // @PostMapping("/judgeWin")
+    // public String judgeWin(@RequestParam String roomId, @RequestParam String
+    // potWinners) {
+    // return dpRoomService.judgeWin(roomId, potWinners) ? "ok" : "fail";
+    // }
     @PostMapping("/kickPlayer")
-    public String kickPlayer(@RequestParam String roomId,@RequestParam String nickname){
-       return dpRoomService.kickPlayer(roomId,nickname) ? "ok":"fail";
+    public String kickPlayer(@RequestParam String roomId, @RequestParam String nickname) {
+        return dpRoomService.kickPlayer(roomId, nickname) ? "ok" : "fail";
     }
+
     @PostMapping("/heartbeat")
     public void heartbeat(@RequestParam String roomId, @RequestParam String nickname) {
         dpRoomService.heartbeat(roomId, nickname);
@@ -155,7 +160,7 @@ public class DpRoomController {
      */
     @PostMapping("/readyNextHand")
     public String readyNextHand(@RequestParam String roomId, @RequestParam String nickname,
-                                @RequestParam(required = false) Integer userId) {
+            @RequestParam(required = false) Integer userId) {
         return dpRoomService.readyNextHand(roomId, nickname, userId) ? "ok" : "人数已满";
     }
 
@@ -214,10 +219,11 @@ public class DpRoomController {
      */
     @PostMapping("/transferOwner")
     public String transferOwner(@RequestParam String roomId,
-                                @RequestParam String fromNickname,
-                                @RequestParam String toNickname) {
+            @RequestParam String fromNickname,
+            @RequestParam String toNickname) {
         return dpRoomService.transferOwner(roomId, fromNickname, toNickname) ? "ok" : "fail";
     }
+
     @GetMapping("/getAllRooms2")
     public List<DpRoomDTO> getAllRooms2() {
         return dpRoomService.getAllRooms2();

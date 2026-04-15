@@ -3,7 +3,6 @@ package com.example.mgdemoplus.mapper.dp;
 import com.example.mgdemoplus.entity.dp.DpRoomRegistry;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
@@ -30,11 +29,9 @@ public interface DpRoomRegistryMapper {
             + "small_blind_chips, big_blind_chips, starting_stack_bb, created_at, updated_at, closed_at FROM dp_room_registry WHERE room_id = #{roomId}")
     DpRoomRegistry selectByRoomId(String roomId);
 
-    @Select("SELECT COUNT(*) FROM dp_room_registry WHERE status IN (0, 1) AND closed_at IS NULL")
-    long countActive();
-
+    // 不含 LIMIT，由 PageHelper 分页；总条数见 PageInfo（与 DpHandHistoryQueryMapper 一致）。
     @Select("SELECT id, room_id, game_code, shard_id, ws_route, status, has_password, max_seats, player_count, spectator_count, owner_nickname, "
             + "small_blind_chips, big_blind_chips, starting_stack_bb, created_at, updated_at, closed_at FROM dp_room_registry WHERE status IN (0, 1) AND closed_at IS NULL "
-            + "ORDER BY updated_at DESC LIMIT #{limit} OFFSET #{offset}")
-    List<DpRoomRegistry> selectActivePage(@Param("offset") int offset, @Param("limit") int limit);
+            + "ORDER BY updated_at DESC")
+    List<DpRoomRegistry> selectActiveForPublicHall();
 }

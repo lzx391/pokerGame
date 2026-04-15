@@ -8,6 +8,8 @@ import com.example.mgdemoplus.entity.dp.DpRoom;
 import com.example.mgdemoplus.entity.dp.DpRoomRegistry;
 import com.example.mgdemoplus.mapper.dp.DpRoomRegistryMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -179,9 +181,10 @@ public class DpRoomRegistryService {
         }
 
         try {
-            long total = registryMapper.countActive();
-            int offset = (p - 1) * ps;
-            List<DpRoomRegistry> rows = registryMapper.selectActivePage(offset, ps);
+            PageHelper.startPage(p, ps);
+            List<DpRoomRegistry> rows = registryMapper.selectActiveForPublicHall();
+            PageInfo<DpRoomRegistry> pageInfo = new PageInfo<>(rows);
+            long total = pageInfo.getTotal();
             List<DpRoomDTO> list = (rows == null || rows.isEmpty())
                     ? Collections.emptyList()
                     : rows.stream().map(this::toDto).collect(Collectors.toList());
