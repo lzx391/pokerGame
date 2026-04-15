@@ -1025,7 +1025,7 @@ public class DpRoomServiceImpl {
         //标记手准备
         observedHandService.markHandReadyAfterBlinds(r);
         sharkOpponentMemoryService.hydrateAllOpponentsForNewHand(r);
-        dpRoomRegistryService.syncFromRoom(r);
+        // dpRoomRegistryService.syncFromRoom(r);
         return true;
     }
 
