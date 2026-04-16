@@ -1,0 +1,407 @@
+package com.example.mgdemoplus.service.serviceImpl.dp;
+
+import com.example.mgdemoplus.dto.DpObservedHandActionRecordDTO;
+import com.example.mgdemoplus.dto.DpObservedHandActionType;
+import com.example.mgdemoplus.dto.DpObservedHandRecordDTO;
+import com.example.mgdemoplus.dto.DpObservedPotSnapshotDTO;
+import com.example.mgdemoplus.dto.DpObservedSeatAtHandStartDTO;
+import com.example.mgdemoplus.dto.DpObservedStreetBoardDTO;
+import com.example.mgdemoplus.entity.dp.DpPlayer;
+import com.example.mgdemoplus.entity.dp.DpPot;
+import com.example.mgdemoplus.entity.dp.DpRoom;
+import com.example.mgdemoplus.service.dp.DpHandHistoryObservedService;
+
+import org.springframework.stereotype.Service;
+
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * 本桌有玩家时即记录完整牌谱（与是否坐 Shark 无关），供入库与回放。
+ * Shark 专用逻辑见 {@link #isSharkAtTable(DpRoom)}（对手记忆等仍仅在桌上有 Shark 时启用）。
+ *
+ * <p>与 {@link DpNpcSharkHandActionLog} 并行：ActionLog 仍仅在桌上有 Shark 时启用；
+ * 本类将结束的整手归档到环形缓冲，不依赖当手临时列表。</p>
+ */
+@Service
+public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedService{
+    //本模块分为以下模块：
+    //1. DpObservedHandActionType枚举：负责记录行动类型
+    //2. DpObservedHandActionRecordDTO类：负责记录行动
+    //3. DpObservedStreetBoardDTO类：负责记录公共牌
+    //4. DpObservedSeatAtHandStartDTO类：负责记录座位
+    //5. DpObservedPotSnapshotDTO类：负责记录池
+    //6. DpObservedHandRecordDTO类：负责记录牌谱
+    //7. Key类：负责记录房间id和手种子
+    //8. HandBuilder类：负责记录牌谱
+    //9. BUILDERS类：负责记录牌谱
+    //10. ARCHIVE类：负责记录牌谱
+    //11. isEnabledForRoom方法：负责判断是否启用
+    //12. isSharkAtTable方法：负责判断是否坐Shark
+    //13. getRecentHands方法：负责获取最近的手
+    //14. beginHand方法：负责开始手
+    //15. markHandReadyAfterBlinds方法：负责标记手准备
+    //16. recordBoardState方法：负责记录公共牌
+    //17. recordBlind方法：负责记录盲注
+    //18. recordFold方法：负责记录弃牌
+    //19. recordBetLikeAction方法：负责记录行动
+    //20. capturePotsBeforeClear方法：负责记录池
+    public DpHandHistoryObservedImpl() {
+    }
+
+    /** 每房间最多保留的已完成手数（内存上限） */
+    private static final int MAX_COMPLETED_HANDS_PER_ROOM = 400;
+
+    private static final class Key {
+        final String roomId;
+        final long handSeed;
+
+        Key(String roomId, long handSeed) {
+            this.roomId = roomId == null ? "" : roomId;
+            this.handSeed = handSeed;
+        }
+/**
+ * 已学习，本模块代码精讲如下：
+ * 1. equals方法：负责判断两个Key对象是否相等
+ * 2. hashCode方法：负责计算Key对象的哈希值
+ */
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            Key key = (Key) o;
+            return handSeed == key.handSeed && Objects.equals(roomId, key.roomId);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(roomId, handSeed);
+        }
+    }
+
+    private static final class HandBuilder {
+        long startedAtMs = System.currentTimeMillis();//开始时间
+        String dealerNickname = "";//庄家
+        final List<DpObservedSeatAtHandStartDTO> seatsAtStart = new ArrayList<>();//座位
+        final List<DpObservedStreetBoardDTO> boardsByStreet = new ArrayList<>();//公共牌
+        final List<DpObservedHandActionRecordDTO> actions = new ArrayList<>();//行动
+        List<DpObservedPotSnapshotDTO> potsBeforeSettlement = List.of();//池
+        int mainPotTotalBeforeSettlement;//主池
+        final Map<String, Integer> chipsAfterBlinds = new HashMap<>();//筹码
+    }
+
+    private static final ConcurrentHashMap<Key, HandBuilder> BUILDERS = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, ArrayDeque<DpObservedHandRecordDTO>> ARCHIVE = new ConcurrentHashMap<>();
+
+    /**
+     * 是否为本桌记牌谱：有人上桌即开启（不再要求必须有 Shark）。
+     */
+    static boolean isEnabledForRoom(DpRoom room) {
+        if (room == null || room.getPlayers() == null) {
+            return false;
+        }
+        for (DpPlayer p : room.getPlayers()) {
+            if (p != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 桌上是否有 BOT_Shark（仅 {@link DpNpcSharkOpponentMemoryService} 等 Shark 专用逻辑使用）。
+     */
+    static boolean isSharkAtTable(DpRoom room) {
+        if (room == null || room.getPlayers() == null) {
+            return false;
+        }
+        for (DpPlayer p : room.getPlayers()) {
+            if (p == null) {
+                continue;
+            }
+            if (DpNpcEngine.SHARK_BOT_NICKNAME.equals(p.getNickname())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 读取某房间最近若干手完整观测记录（时间顺序：旧 → 新）。
+     */
+    public static List<DpObservedHandRecordDTO> getRecentHands(String roomId, int maxHands) {
+        if (roomId == null || maxHands <= 0) {
+            return List.of();
+        }
+        ArrayDeque<DpObservedHandRecordDTO> q = ARCHIVE.get(roomId);
+        if (q == null || q.isEmpty()) {
+            return List.of();
+        }
+        synchronized (q) {
+            int n = Math.min(maxHands, q.size());
+            List<DpObservedHandRecordDTO> all = new ArrayList<>(q);
+            int from = all.size() - n;
+            return Collections.unmodifiableList(new ArrayList<>(all.subList(from, all.size())));
+        }
+    }
+//这里是开始一手牌谱的记录
+//已学习
+    public void beginHand(DpRoom room) {
+        if (!isEnabledForRoom(room)) return;
+        Key k = new Key(room.getRoomId(), room.getCurrentHandSeed());
+        HandBuilder b = new HandBuilder();
+        b.startedAtMs = System.currentTimeMillis();
+        //将手种子和房间id作为键，将HandBuilder对象作为值，存入BUILDERS中
+        BUILDERS.put(k, b);//BUILDERS是一个ConcurrentHashMap，用于存储手种子和房间id作为键，HandBuilder对象作为值
+    }
+
+    /**
+     * 发牌与下盲结束后调用：固定座位序、盲注后筹码，并记一条 preflop 空_board。
+     */
+    //已学习，本模块代码精讲如下：翻前行动前快照
+   public  void markHandReadyAfterBlinds(DpRoom room) {
+        if (!isEnabledForRoom(room)) return;
+        Key k = new Key(room.getRoomId(), room.getCurrentHandSeed());
+        HandBuilder b = BUILDERS.get(k);
+        if (b == null) return;
+
+        List<DpPlayer> ps = room.getPlayers();
+        if (ps != null) {
+            for (int i = 0; i < ps.size(); i++) {
+                DpPlayer p = ps.get(i);
+                if (p == null) continue;
+                b.seatsAtStart.add(new DpObservedSeatAtHandStartDTO(i, p.getNickname(), p.getBlind(), p.getChips()));
+                b.chipsAfterBlinds.put(p.getNickname(), p.getChips());
+                if (p.isDealer()) {
+                    b.dealerNickname = p.getNickname() == null ? "" : p.getNickname();
+                }
+            }
+        }
+        b.boardsByStreet.add(new DpObservedStreetBoardDTO("preflop", room.getCommunityCards() == null
+                ? List.of() : new ArrayList<>(room.getCommunityCards())));
+    }
+//之后行动记录用
+   public  void recordBoardState(DpRoom room) {
+        if (!isEnabledForRoom(room)) return;
+        Key k = new Key(room.getRoomId(), room.getCurrentHandSeed());
+        HandBuilder b = BUILDERS.get(k);
+        if (b == null) return;
+        String st = room.getCurrentStage() == null ? "" : room.getCurrentStage();
+        if ("showdown".equals(st) || "settled".equals(st)) return;
+        List<String> cc = room.getCommunityCards() == null
+                ? List.of()
+                : new ArrayList<>(room.getCommunityCards());
+        b.boardsByStreet.add(new DpObservedStreetBoardDTO(st, cc));
+    }
+
+   public  void recordBlind(DpRoom room, String nickname, boolean isSb, int amount, int potBefore) {
+        if (!isEnabledForRoom(room)) return;
+        DpObservedHandActionType t = isSb ? DpObservedHandActionType.POST_BLIND_SB : DpObservedHandActionType.POST_BLIND_BB;
+        append(room, new DpObservedHandActionRecordDTO(System.currentTimeMillis(), "preflop", nickname, t, amount,
+                0, 0, room.getRaiseLevel(), potBefore));
+    }
+
+  public   void recordFold(DpRoom room, DpPlayer actor, int potBefore) {
+        if (!isEnabledForRoom(room)) return;
+        if (actor == null) return;
+        append(room, new DpObservedHandActionRecordDTO(System.currentTimeMillis(), room.getCurrentStage(),
+                actor.getNickname(), DpObservedHandActionType.FOLD, 0,
+                room.getCurrentBetToCall(), actor.getBet(), room.getRaiseLevel(), potBefore));
+    }
+
+   public  void recordBetLikeAction(DpRoom room, DpPlayer actor, int amount,
+                                    int betToCallBefore, int actorBetBefore, int potBefore,
+                                    boolean becameAllIn, boolean isRaise) {
+        if (!isEnabledForRoom(room)) return;
+        if (actor == null) return;
+        DpObservedHandActionType t;
+        if (amount <= 0) {
+            t = (betToCallBefore <= actorBetBefore) ? DpObservedHandActionType.CHECK : DpObservedHandActionType.CALL;
+        } else if (becameAllIn) {
+            t = DpObservedHandActionType.ALL_IN;
+        } else if (isRaise) {
+            t = DpObservedHandActionType.RAISE;
+        } else {
+            t = (betToCallBefore <= actorBetBefore) ? DpObservedHandActionType.BET : DpObservedHandActionType.CALL;
+        }
+        append(room, new DpObservedHandActionRecordDTO(System.currentTimeMillis(), room.getCurrentStage(),
+                actor.getNickname(), t, amount, betToCallBefore, actorBetBefore,
+                room.getRaiseLevel(), potBefore));
+    }
+
+    /** 在筹码分配前调用：复制主池与边池结构 */
+  public   void capturePotsBeforeClear(DpRoom room) {//由HandBuilder类接收
+        if (!isEnabledForRoom(room)) return;
+        Key k = new Key(room.getRoomId(), room.getCurrentHandSeed());
+        HandBuilder b = BUILDERS.get(k);
+        if (b == null) return;
+        b.mainPotTotalBeforeSettlement = room.getPot();
+        List<DpPot> pots = room.getPots();
+        if (pots == null || pots.isEmpty()) {
+            b.potsBeforeSettlement = List.of();
+            return;
+        }
+        List<DpObservedPotSnapshotDTO> snap = new ArrayList<>();
+        for (DpPot pot : pots) {
+            if (pot == null) continue;
+            snap.add(new DpObservedPotSnapshotDTO(pot.getAmount(),
+                    pot.getEligiblePlayers() == null ? List.of() : new ArrayList<>(pot.getEligiblePlayers())));
+        }
+        b.potsBeforeSettlement = snap;
+    }
+
+    /**
+     * 丢弃本手未归档的构建数据（与 {@link com.example.mgdemoplus.service.serviceImpl.dp.DpNpcSharkHandActionLog#clearHand} 对称）。
+     */
+    @Override
+    public void clearHand(DpRoom room) {
+        if (room == null) return;
+        BUILDERS.remove(new Key(room.getRoomId(), room.getCurrentHandSeed()));
+    }
+
+    /**
+     * @return 若本手已归档则返回记录（供入库）；未启用或无构建数据则 null
+     */
+    //已学习，本模块代码精讲如下：
+    //1. finalizeHand方法：负责将牌谱归档
+    //2. isEnabledForRoom方法：负责判断是否启用
+    //3. Key类：负责记录房间id和手种子
+    //4. HandBuilder类：负责记录牌谱
+    //5. BUILDERS类：负责记录牌谱
+    //6. ARCHIVE类：负责记录牌谱
+    //7. append方法：负责记录行动
+    //8. blindPostedChipsForSeat方法：负责记录盲注
+   public DpObservedHandRecordDTO finalizeHand(DpRoom room) {//归档牌局，并挂到最近的手列表中限400手
+      if(room.getPlayers().size()<=1){
+    // System.out.println("场上只有一个玩家，不落库保存");
+        return null;//如果场上只有1个玩家，则不记录牌谱
+      }
+        if (!isEnabledForRoom(room)) {
+            return null;
+        }
+        Key k = new Key(room.getRoomId(), room.getCurrentHandSeed());
+        HandBuilder b = BUILDERS.remove(k);
+        if (b == null) {
+            return null;
+        }
+
+        long ended = System.currentTimeMillis();
+        Map<String, List<String>> holes = new HashMap<>();
+        Map<String, Integer> net = new HashMap<>();
+        List<DpPlayer> ps = room.getPlayers();
+        if (ps != null) {
+            for (DpPlayer p : ps) {
+                if (p == null) continue;
+                String name = p.getNickname();
+                if (name == null) continue;
+                List<String> hc = p.getHoleCards();
+                if (hc != null && !hc.isEmpty()) {
+                    holes.put(name, List.copyOf(hc));
+                } else {
+                    holes.put(name, List.of());
+                }
+                // 基准须为「下盲注前」筹码：chipsAfterBlinds 已是扣盲后，若直接作差会把已交的盲注从盈亏里漏掉
+                //（例如仅输掉大盲时显示 0 而非 -BB）。beforeHand = afterBlinds + 本手已下盲注额。
+                int afterBlinds = b.chipsAfterBlinds.getOrDefault(name, p.getChips());
+                int blindPostedThisHand = blindPostedChipsForSeat(room, b.seatsAtStart, name);
+                int beforeHand = afterBlinds + blindPostedThisHand;
+                net.put(name, p.getChips() - beforeHand);
+            }
+        }
+
+        int effectiveMainPotTotal = effectiveMainPotTotalBeforeSettlement(
+                b.potsBeforeSettlement, b.mainPotTotalBeforeSettlement);
+
+        DpObservedHandRecordDTO rec = new DpObservedHandRecordDTO(
+                room.getRoomId(),
+                room.getCurrentHandSeed(),
+                b.startedAtMs,
+                ended,
+                room.getSmallBlindChips(),
+                room.getBigBlindChips(),
+                b.dealerNickname,
+                b.seatsAtStart,
+                b.boardsByStreet,
+                b.actions,
+                b.potsBeforeSettlement,
+                effectiveMainPotTotal,
+                holes,
+                net
+        );
+//所以这个队列是干啥的？是用来存储牌谱的，最多保存400手
+
+        ARCHIVE.compute(room.getRoomId(), (rid, deque) -> {
+            ArrayDeque<DpObservedHandRecordDTO> q = deque == null ? new ArrayDeque<>() : deque;
+            synchronized (q) {
+                q.addLast(rec);
+                while (q.size() > MAX_COMPLETED_HANDS_PER_ROOM) {
+                    q.removeFirst();
+                }
+            }
+            return q;
+        });
+        return rec;
+    }
+//已学习，记录行动用的方法
+    private static void append(DpRoom room, DpObservedHandActionRecordDTO e) {
+        Key k = new Key(room.getRoomId(), room.getCurrentHandSeed());
+        HandBuilder b = BUILDERS.computeIfAbsent(k, kk -> {
+            HandBuilder nb = new HandBuilder();
+            nb.startedAtMs = System.currentTimeMillis();
+            return nb;
+        });
+        b.actions.add(e);
+    }
+
+    /**
+     * 本手开局时该座位已下盲注（与 {@link DpRoomServiceImpl#newHand} 中 SB/BB 一致）；
+     * 用于把「盲注后筹码」还原为「盲注前筹码」，使 net 表示本手相对发牌前的净变化。
+     */
+    /**
+     * 与 {@link DpRoomServiceImpl#calculatePots} 分层一致：仅一人有资格赢取的池为深码多出的无效竞争部分，不计入。
+     */
+    private static int effectiveMainPotTotalBeforeSettlement(List<DpObservedPotSnapshotDTO> pots, int totalPotFallback) {
+        if (pots == null || pots.isEmpty()) {
+            return totalPotFallback;
+        }
+        int sum = 0;
+        for (DpObservedPotSnapshotDTO pot : pots) {
+            if (pot == null) {
+                continue;
+            }
+            List<String> el = pot.eligibleNicknames;
+            if (el != null && el.size() >= 2) {
+                sum += pot.amount;
+            }
+        }
+        return sum > 0 ? sum : totalPotFallback;
+    }
+
+    private static int blindPostedChipsForSeat(DpRoom room, List<DpObservedSeatAtHandStartDTO> seatsAtStart, String nickname) {
+        if (room == null || seatsAtStart == null || nickname == null) {
+            return 0;
+        }
+        for (DpObservedSeatAtHandStartDTO s : seatsAtStart) {
+            if (s == null) {
+                continue;
+            }
+            if (!nickname.equals(s.nickname)) {
+                continue;
+            }
+            if (s.blind == 1) {
+                return room.getSmallBlindChips();
+            }
+            if (s.blind == 2) {
+                return room.getBigBlindChips();
+            }
+            return 0;
+        }
+        return 0;
+    }
+}

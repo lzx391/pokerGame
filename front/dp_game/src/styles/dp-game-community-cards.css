@@ -2,11 +2,11 @@
 
 .community-cards-row {
   display: flex;
-  gap: 8px;
+  gap: var(--dp-card-community-row-gap, 8px);
   justify-content: center;
-  margin: 20px 0;
+  margin: var(--dp-card-community-row-margin-y, 20px) 0;
   overflow: visible;
-  min-height: 62px;
+  min-height: var(--dp-card-base-height, 62px);
 }
 
 /* 自庄位（D，data-dp-dealer-anchor）或默认自下方飞向公共位；--deal-from-x/y 为相对各牌槽的偏移(px) */
@@ -37,9 +37,9 @@
 
 .card-flip-wrapper {
   perspective: 880px;
-  width: 44px;
-  height: 62px;
-  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.35));
+  width: var(--dp-card-base-width, 44px);
+  height: var(--dp-card-base-height, 62px);
+  filter: var(--dp-card-drop-shadow);
 }
 
 .card-flip-inner {
@@ -88,37 +88,22 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: var(--dp-card-base-radius, 6px);
 }
 
-/* 牌背：暗纹 + 中心徽章感 */
+/* 牌背：暗纹 + 中心徽章感（颜色由 .dp-game-root 上 --dp-card-back-* 随主题切换） */
 .card-flip-inner .card-back {
   background:
-    radial-gradient(circle at 50% 45%, rgba(255, 255, 255, 0.12) 0%, transparent 42%),
-    repeating-linear-gradient(
-      45deg,
-      rgba(0, 0, 0, 0.07) 0px,
-      rgba(0, 0, 0, 0.07) 2px,
-      transparent 2px,
-      transparent 6px
-    ),
-    repeating-linear-gradient(
-      -45deg,
-      rgba(255, 255, 255, 0.04) 0px,
-      rgba(255, 255, 255, 0.04) 1px,
-      transparent 1px,
-      transparent 7px
-    ),
-    linear-gradient(155deg, #6a6a6a 0%, #4a4a4a 40%, #2d2d2d 100%);
-  color: #c9c9c9;
+    var(--dp-card-back-highlight),
+    var(--dp-card-back-pattern-1),
+    var(--dp-card-back-pattern-2),
+    var(--dp-card-back-base);
+  color: var(--dp-card-back-fg);
   font-weight: 900;
-  font-size: 20px;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(212, 175, 55, 0.35);
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
-    inset 0 -6px 16px rgba(0, 0, 0, 0.35),
-    0 2px 8px rgba(0, 0, 0, 0.4);
+  font-size: var(--dp-card-community-back-font-size, 20px);
+  text-shadow: var(--dp-card-back-text-shadow);
+  border: 1px solid var(--dp-card-back-border);
+  box-shadow: var(--dp-card-back-shadow-idle);
   z-index: 2;
   animation: card-back-breathe 3.2s ease-in-out infinite;
 }
@@ -127,23 +112,16 @@
   0%,
   100% {
     filter: brightness(1);
-    box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.08),
-      inset 0 -6px 16px rgba(0, 0, 0, 0.35),
-      0 2px 8px rgba(0, 0, 0, 0.4);
+    box-shadow: var(--dp-card-back-shadow-idle);
   }
   50% {
     filter: brightness(1.06);
-    box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.12),
-      inset 0 -6px 18px rgba(0, 0, 0, 0.38),
-      0 2px 12px rgba(0, 0, 0, 0.45),
-      0 0 14px rgba(212, 175, 55, 0.12);
+    box-shadow: var(--dp-card-back-shadow-mid);
   }
 }
 
 .card-flip-inner .card-back::before {
-  border-color: rgba(212, 175, 55, 0.2);
+  border-color: var(--dp-card-back-border-inner);
 }
 
 /* 牌背已有暗纹呼吸，关闭通用扫光避免叠影 */
@@ -197,6 +175,6 @@
   }
 
   .card-flip-wrapper {
-    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.25));
+    filter: var(--dp-card-drop-shadow);
   }
 }

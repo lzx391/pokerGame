@@ -3,7 +3,7 @@
       v-if="embedded || visible"
       :class="embedded ? 'game-owner-tool-embedded-root' : 'hand-rank-modal-mask'"
       @click="embedded ? null : $emit('close')"
-  >
+  > 
     <div
         :class="embedded ? 'game-owner-tool-embedded' : 'hand-rank-modal hand-rank-modal--legacy'"
         @click.stop
@@ -19,7 +19,12 @@
       <div v-else class="game-owner-tool-embedded__title">房间管理 · 机器人与踢人</div>
 
       <div style="margin-bottom:12px; font-size:13px; color:#666;">
-        仅显示当前在本局中的玩家（不含房主与僵尸位）。
+        <template v-if="ownerToolType === 'transfer'">
+          移交对象：桌上本局真人（不含僵尸位）与观众席真人；不含机器人与房主。
+        </template>
+        <template v-else>
+          踢人仅针对本局在座玩家（不含房主与僵尸位）。
+        </template>
       </div>
 
       <div style="margin-bottom:12px; padding:8px; border-radius:6px; background:#fff7e6; border:1px dashed #ffa940;">
@@ -123,7 +128,7 @@
       </div>
 
       <div style="margin-bottom:10px; font-size:13px; color:#333;">
-        <span v-if="ownerToolType === 'transfer'">选择一名玩家成为新的房主：</span>
+        <span v-if="ownerToolType === 'transfer'">选择桌上玩家或观众成为新房主：</span>
         <span v-else>选择一名玩家踢出本局并移至观众席：</span>
       </div>
 

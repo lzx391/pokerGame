@@ -2,26 +2,33 @@ package com.example.mgdemoplus.service.serviceImpl.dp;
 
 import com.example.mgdemoplus.entity.dp.DpPlayer;
 import com.example.mgdemoplus.entity.dp.DpRoom;
+import com.example.mgdemoplus.utils.dp.DpUtilSmartContext;
 import com.example.mgdemoplus.entity.dp.DpPlayerStats;
 
-import java.util.Random;
+import static com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator.SimpleStrength;
 
-import static com.example.mgdemoplus.service.serviceImpl.dp.DpUtilHandEvaluator.SimpleStrength;
+import java.util.Random;
 
 /**
  * 单独拆出来的 Shark 决策逻辑（只负责 SHARK 分支）。
  *
- * <p>目标：减少 {@link DpNpcEngine} 的体积，让你把“Shark 大脑”单文件发给 LLM 更省 token。</p>
+ * <p>
+ * 目标：减少 {@link DpNpcEngine} 的体积，让你把“Shark 大脑”单文件发给 LLM 更省 token。
+ * </p>
  *
- * <p>说明：这里不改变任何策略逻辑，只是从 DpNpcEngine 的 case SHARK 中搬运出来。</p>
+ * <p>
+ * 说明：这里不改变任何策略逻辑，只是从 DpNpcEngine 的 case SHARK 中搬运出来。
+ * </p>
  */
 final class DpNpcSharkStrategy {
     private DpNpcSharkStrategy() {
     }
 
     private static void dbg(DpRoom room, DpNpcEngine.BotType type, DpPlayer bot, String msg) {
-        if (type != DpNpcEngine.BotType.SHARK) return;
-        if (bot == null) return;
+        if (type != DpNpcEngine.BotType.SHARK)
+            return;
+        if (bot == null)
+            return;
         String rid = room != null ? room.getRoomId() : "-";
         System.out.println("[SHARK][room=" + rid + "] " + msg);
     }
@@ -40,8 +47,7 @@ final class DpNpcSharkStrategy {
             Random random,
             double mood,
             double callStation,
-            double checkRaiseFear
-    ) {
+            double checkRaiseFear) {
         DpNpcEngine.BoardDanger bd = boardDanger;
         SimpleStrength st = strength;
         String stage = room.getCurrentStage();
@@ -53,9 +59,12 @@ final class DpNpcSharkStrategy {
         // Shark 翻后细化：公共牌主导时，降低“自信牌力”，避免把 board 强误当自己强
         boolean boardDominant = DpNpcEngine.isBoardDominantBestHand(room, bot);
         if (boardDominant) {
-            if (st == SimpleStrength.MONSTER) st = SimpleStrength.STRONG;
-            else if (st == SimpleStrength.STRONG) st = SimpleStrength.MEDIUM;
-            else if (st == SimpleStrength.MEDIUM) st = SimpleStrength.MEDIUM; // 保持
+            if (st == SimpleStrength.MONSTER)
+                st = SimpleStrength.STRONG;
+            else if (st == SimpleStrength.STRONG)
+                st = SimpleStrength.MEDIUM;
+            else if (st == SimpleStrength.MEDIUM)
+                st = SimpleStrength.MEDIUM; // 保持
         }
 
         dbg(room, type, bot, "ENTER stage=" + stage
@@ -77,8 +86,7 @@ final class DpNpcSharkStrategy {
                 stage,
                 callAmount,
                 difficulty,
-                random
-        );
+                random);
 
         // 在 flop 首次行动时为 Shark 初始化整手 HandPlan
         DpNpcEngine.initHandPlanIfNeededForPostflop(
@@ -89,8 +97,7 @@ final class DpNpcSharkStrategy {
                 bd,
                 position,
                 ctx,
-                random
-        );
+                random);
 
         // turn/river：如果牌力明显升级，修复“前一街打了但后两街全 check”的过度保守
         DpNpcEngine.updateHandPlanForLaterStreetIfNeeded(
@@ -99,13 +106,13 @@ final class DpNpcSharkStrategy {
                 type,
                 st,
                 bd,
-                ctx
-        );
+                ctx);
 
         DpNpcEngine.StackContext stackCtx = ctx.stackCtx;
         int activeVillains = ctx.activeVillains;
         DpNpcEngine.CounterStrategyProfile counter = ctx.counterStrategy;
-        // 情报：recentHands 推出的 counter（与跟注站剧本互补——跟注站走 CALLING_STATION + bfs；bluffLess 针对「进攻线很实」）
+        // 情报：recentHands 推出的 counter（与跟注站剧本互补——跟注站走 CALLING_STATION + bfs；bluffLess
+        // 针对「进攻线很实」）
         final double countBluffScale = (counter != null && counter.bluffLess) ? 0.70 : 1.0;
         final boolean thinVsVillain = counter != null && counter.moreThinValue;
 
@@ -150,8 +157,10 @@ final class DpNpcSharkStrategy {
             // 深码 + 弱/中牌：整体减少愿意投入的总筹码比例
             sharkCommitFactor *= 0.85;
         }
-        if (sharkCommitFactor < 0.15) sharkCommitFactor = 0.15;
-        if (sharkCommitFactor > 0.98) sharkCommitFactor = 0.98;
+        if (sharkCommitFactor < 0.15)
+            sharkCommitFactor = 0.15;
+        if (sharkCommitFactor > 0.98)
+            sharkCommitFactor = 0.98;
         final double sharkCommitThreshold = sharkTotalStack * sharkCommitFactor;
 
         double baseFold = 0.0;
@@ -212,11 +221,17 @@ final class DpNpcSharkStrategy {
                 + " tier=" + villainTier
                 + " cred=" + credibility
                 + " showdownBluff=" + String.format("%.3f", showdownBluffiness)
-                + " foldAdjLearn=" + (learnedVsAggressor != null ? String.format("%.3f", learnedVsAggressor.foldAdjustment) : "0.000")
-                + " bfTurn=" + (learnedVsAggressor != null ? String.format("%.3f", learnedVsAggressor.bluffFireBoostTurn) : "0.000")
-                + " bfRiver=" + (learnedVsAggressor != null ? String.format("%.3f", learnedVsAggressor.bluffFireBoostRiver) : "0.000")
-                + " vrTurn=" + (learnedVsAggressor != null ? String.format("%.3f", learnedVsAggressor.valueRaiseBoostTurn) : "0.000")
-                + " vrRiver=" + (learnedVsAggressor != null ? String.format("%.3f", learnedVsAggressor.valueRaiseBoostRiver) : "0.000")
+                + " foldAdjLearn="
+                + (learnedVsAggressor != null ? String.format("%.3f", learnedVsAggressor.foldAdjustment) : "0.000")
+                + " bfTurn="
+                + (learnedVsAggressor != null ? String.format("%.3f", learnedVsAggressor.bluffFireBoostTurn) : "0.000")
+                + " bfRiver="
+                + (learnedVsAggressor != null ? String.format("%.3f", learnedVsAggressor.bluffFireBoostRiver) : "0.000")
+                + " vrTurn="
+                + (learnedVsAggressor != null ? String.format("%.3f", learnedVsAggressor.valueRaiseBoostTurn) : "0.000")
+                + " vrRiver="
+                + (learnedVsAggressor != null ? String.format("%.3f", learnedVsAggressor.valueRaiseBoostRiver)
+                        : "0.000")
                 + " bfs=" + String.format("%.3f", bfs));
 
         // 仅在有跟注额时根据对手风格调整弃牌率（免费看牌时不因“石头型”而弃牌）
@@ -337,7 +352,8 @@ final class DpNpcSharkStrategy {
 
         // ===== 面对下注压力时的“先决定要不要加注”入口 =====
         // 之前这里很容易被 callProb 提前吞掉，导致你观感上几乎看不到翻后加注。
-        if (callAmount > 0 && chips > callAmount && ("flop".equals(stage) || "turn".equals(stage) || "river".equals(stage))) {
+        if (callAmount > 0 && chips > callAmount
+                && ("flop".equals(stage) || "turn".equals(stage) || "river".equals(stage))) {
             DpNpcEngine.HandPlanType plan = DpNpcEngine.getHandPlanType(bot);
             boolean skipByPlan = DpNpcEngine.shouldSkipAggressiveActionByPlan(bot, stage);
             // value 加注不应被 GIVE_UP 轻易压死：强牌面对可榨取对象允许更积极
@@ -417,8 +433,10 @@ final class DpNpcSharkStrategy {
                 }
 
                 // 多人底池更少反击；湿牌面更少“随便抬”
-                if (activeVillains >= 3) raiseProb *= 0.75;
-                if (bd == DpNpcEngine.BoardDanger.WET && st != SimpleStrength.MONSTER) raiseProb *= 0.85;
+                if (activeVillains >= 3)
+                    raiseProb *= 0.75;
+                if (bd == DpNpcEngine.BoardDanger.WET && st != SimpleStrength.MONSTER)
+                    raiseProb *= 0.85;
 
                 // 计划软约束：若计划“不该进攻”，把 raiseProb 压低（但不为 0，让算法还能试探/发挥）
                 if (skipByPlan && !allowValueOverride) {
@@ -431,8 +449,10 @@ final class DpNpcSharkStrategy {
 
                 // 心情与噪声
                 raiseProb += mood * 0.03;
-                if (raiseProb < 0.02) raiseProb = 0.02;
-                if (raiseProb > 0.92) raiseProb = 0.92;
+                if (raiseProb < 0.02)
+                    raiseProb = 0.02;
+                if (raiseProb > 0.92)
+                    raiseProb = 0.92;
                 raiseProb = DpNpcEngine.applySoftNoise(raiseProb, DpNpcEngine.SharkConfig.PROB_NOISE_DELTA, random);
 
                 if (random.nextDouble() < raiseProb) {
@@ -442,8 +462,8 @@ final class DpNpcSharkStrategy {
                             + " cred=" + credibility
                             + " callRatio=" + String.format("%.3f", callRatio));
                     // 直接复用“callAmount>0 时的加注额计算”逻辑（避免被 callProb 吞掉）
-                    int sb = DpRoom.getSBChips();
-                    int bb = DpRoom.getBBChips();
+                    int sb = room.getSmallBlindChips();
+                    int bb = room.getBigBlindChips();
 
                     int strengthFactor;
                     if (st == SimpleStrength.STRONG || st == SimpleStrength.MONSTER) {
@@ -553,11 +573,13 @@ final class DpNpcSharkStrategy {
                         double sizing = DpNpcSharkLearningLab.getAdjust(room, bot, aggressor).sizingFactor;
                         int scaled = (int) Math.round(raiseAmount * sizing);
                         if (scaled < raiseAmount) {
-                            int minExtra = DpRoom.getBBChips() * 2;
+                            int minExtra = room.getBigBlindChips() * 2;
                             int minRaise = callAmount + minExtra;
-                            if (scaled < minRaise) scaled = minRaise;
+                            if (scaled < minRaise)
+                                scaled = minRaise;
                         }
-                        if (scaled > chips) scaled = chips;
+                        if (scaled > chips)
+                            scaled = chips;
                         if (sb > 0 && scaled > 0) {
                             int units = Math.max(1, Math.round(scaled * 1.0f / sb));
                             scaled = units * sb;
@@ -591,7 +613,7 @@ final class DpNpcSharkStrategy {
             if (learnedVsAggressor != null) {
                 bluffFire = "flop".equals(stage) ? learnedVsAggressor.bluffFireBoostFlop
                         : "turn".equals(stage) ? learnedVsAggressor.bluffFireBoostTurn
-                        : learnedVsAggressor.bluffFireBoostRiver;
+                                : learnedVsAggressor.bluffFireBoostRiver;
             }
             boolean allowOverride = (plan == DpNpcEngine.HandPlanType.GIVE_UP)
                     && (("flop".equals(stage) || "turn".equals(stage)))
@@ -610,18 +632,26 @@ final class DpNpcSharkStrategy {
             if (!hardBlock) {
                 // 基础下注频率：强牌更高；弱牌也给一定 stab 空间（尤其对 tight / 一枪流）
                 double betProb;
-                if (st == SimpleStrength.MONSTER) betProb = 0.91;
-                else if (st == SimpleStrength.STRONG) betProb = 0.79;
-                else if (st == SimpleStrength.MEDIUM) betProb = 0.51;
-                else betProb = 0.17;
+                if (st == SimpleStrength.MONSTER)
+                    betProb = 0.91;
+                else if (st == SimpleStrength.STRONG)
+                    betProb = 0.79;
+                else if (st == SimpleStrength.MEDIUM)
+                    betProb = 0.51;
+                else
+                    betProb = 0.17;
 
                 // 牌面与人数：湿牌/多人减少无谓开枪
-                if (bd == DpNpcEngine.BoardDanger.WET) betProb *= 0.85;
-                if (activeVillains >= 3) betProb *= 0.70;
+                if (bd == DpNpcEngine.BoardDanger.WET)
+                    betProb *= 0.85;
+                if (activeVillains >= 3)
+                    betProb *= 0.70;
 
                 // 位置：晚位更敢
-                if (position == DpNpcEngine.TablePosition.LATE) betProb += 0.06;
-                if (position == DpNpcEngine.TablePosition.EARLY) betProb -= 0.04;
+                if (position == DpNpcEngine.TablePosition.LATE)
+                    betProb += 0.06;
+                if (position == DpNpcEngine.TablePosition.EARLY)
+                    betProb -= 0.04;
 
                 // HandPlan aggression（之前一直没被真正用起来）
                 double planAgg = bot.getNpcHandPlanAggression();
@@ -667,8 +697,10 @@ final class DpNpcSharkStrategy {
                     }
                 }
 
-                if (betProb < 0.05) betProb = 0.05;
-                if (betProb > 0.92) betProb = 0.92;
+                if (betProb < 0.05)
+                    betProb = 0.05;
+                if (betProb > 0.92)
+                    betProb = 0.92;
                 betProb = DpNpcEngine.applySoftNoise(betProb, DpNpcEngine.SharkConfig.PROB_NOISE_DELTA, random);
 
                 if (random.nextDouble() < betProb) {
@@ -678,7 +710,7 @@ final class DpNpcSharkStrategy {
                             + " allowOverride=" + allowOverride
                             + " bluffFire=" + String.format("%.3f", bluffFire)
                             + " pot=" + room.getPot());
-                    int sb = DpRoom.getSBChips();
+                    int sb = room.getSmallBlindChips();
                     int pot = room.getPot();
                     double baseFactor;
                     if (st == SimpleStrength.STRONG || st == SimpleStrength.MONSTER) {
@@ -695,29 +727,40 @@ final class DpNpcSharkStrategy {
                     double sizeFactor = baseFactor * randomFactor;
 
                     // 诈唬/偷的尺度：用分桶探索结果来“摸边界”
-                    if (learnedVsAggressor != null && aggressor != null && (st == SimpleStrength.WEAK || st == SimpleStrength.MEDIUM)) {
+                    if (learnedVsAggressor != null && aggressor != null
+                            && (st == SimpleStrength.WEAK || st == SimpleStrength.MEDIUM)) {
                         norm = Math.max(0.10, DpNpcEngine.SharkConfig.LEARN_BOOST_NORM);
                         double eps = 0.05 + 0.10 * (bluffFire / norm);
-                        if (eps < 0.03) eps = 0.03;
-                        if (eps > 0.20) eps = 0.20;
-                        if (difficulty == DpNpcEngine.NpcDifficulty.PRO) eps *= 1.00;
-                        else if (difficulty == DpNpcEngine.NpcDifficulty.HARD) eps *= 0.90;
-                        else if (difficulty == DpNpcEngine.NpcDifficulty.MEDIUM) eps *= 0.80;
-                        else eps *= 0.70;
+                        if (eps < 0.03)
+                            eps = 0.03;
+                        if (eps > 0.20)
+                            eps = 0.20;
+                        if (difficulty == DpNpcEngine.NpcDifficulty.PRO)
+                            eps *= 1.00;
+                        else if (difficulty == DpNpcEngine.NpcDifficulty.HARD)
+                            eps *= 0.90;
+                        else if (difficulty == DpNpcEngine.NpcDifficulty.MEDIUM)
+                            eps *= 0.80;
+                        else
+                            eps *= 0.70;
 
                         double fallback = "flop".equals(stage) ? 0.45 : ("turn".equals(stage) ? 0.55 : 0.55);
-                        double pref = DpNpcSharkLearningLab.pickBluffBetPotFactorWithExplore(room, aggressor, stage, random, fallback, eps);
+                        double pref = DpNpcSharkLearningLab.pickBluffBetPotFactorWithExplore(room, aggressor, stage,
+                                random, fallback, eps);
                         double norm2 = Math.max(0.10, DpNpcEngine.SharkConfig.LEARN_BOOST_NORM);
                         double alpha = 0.50 * (bluffFire / norm2) * countBluffScale; // 0~0.50，对大注实牌对手收敛探索尺度
-                        if (alpha < 0) alpha = 0;
-                        if (alpha > 0.50) alpha = 0.50;
+                        if (alpha < 0)
+                            alpha = 0;
+                        if (alpha > 0.50)
+                            alpha = 0.50;
                         sizeFactor = sizeFactor * (1.0 - alpha) + pref * alpha;
                     }
 
                     int target = (int) Math.round(Math.max(1, pot) * sizeFactor);
-                    int bb = DpRoom.getBBChips();
+                    int bb = room.getBigBlindChips();
                     int minBet = bb * 2;
-                    if (target < minBet) target = minBet;
+                    if (target < minBet)
+                        target = minBet;
                     int raiseAmount = Math.min(chips, target);
                     if (sb > 0 && raiseAmount > 0) {
                         int units = Math.max(1, Math.round(raiseAmount * 1.0f / sb));
@@ -754,10 +797,11 @@ final class DpNpcSharkStrategy {
         }
 
         if (st == SimpleStrength.WEAK && callAmount > 0) {
-            int bbForBluff = DpRoom.getBBChips();
+            int bbForBluff = room.getBigBlindChips();
             int villainStack = aggressor != null ? aggressor.getChips() : 0;
             double villainBB = bbForBluff > 0 ? villainStack * 1.0 / bbForBluff : 0.0;
-            if (villainBB > DpNpcEngine.SharkConfig.DEEP_STACK_MIN_BB && stackCtx.avgStackBB > DpNpcEngine.SharkConfig.DEEP_TABLE_AVG_BB) {
+            if (villainBB > DpNpcEngine.SharkConfig.DEEP_STACK_MIN_BB
+                    && stackCtx.avgStackBB > DpNpcEngine.SharkConfig.DEEP_TABLE_AVG_BB) {
                 callProb += 0.10;
             }
             if (villainBB > 0 && villainBB <= DpNpcEngine.SharkConfig.SHORT_STACK_BB) {
@@ -765,7 +809,8 @@ final class DpNpcSharkStrategy {
             }
         }
 
-        if (position == DpNpcEngine.TablePosition.EARLY && bd == DpNpcEngine.BoardDanger.WET && st == SimpleStrength.WEAK) {
+        if (position == DpNpcEngine.TablePosition.EARLY && bd == DpNpcEngine.BoardDanger.WET
+                && st == SimpleStrength.WEAK) {
             if (callAmount > 0) {
                 callProb -= 0.08;
             }
@@ -816,8 +861,10 @@ final class DpNpcSharkStrategy {
             }
         }
 
-        if (callProb < 0.08) callProb = 0.08;
-        if (callProb > 0.92) callProb = 0.92;
+        if (callProb < 0.08)
+            callProb = 0.08;
+        if (callProb > 0.92)
+            callProb = 0.92;
         callProb = DpNpcEngine.applySoftNoise(callProb, DpNpcEngine.SharkConfig.PROB_NOISE_DELTA, random);
         if (r < Math.max(0.1, Math.min(0.9, callProb))) {
             dbg(room, type, bot, "DECIDE CALL_OR_CHECK callProb=" + String.format("%.3f", callProb)
@@ -831,8 +878,8 @@ final class DpNpcSharkStrategy {
                 // HandPlan 已用尽进攻额度或为 GIVE_UP：不再主动加注，只考虑跟注/过牌
                 return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
             }
-            int sb = DpRoom.getSBChips();
-            int bb = DpRoom.getBBChips();
+            int sb = room.getSmallBlindChips();
+            int bb = room.getBigBlindChips();
             int raiseAmount;
             if (callAmount == 0) {
                 int pot = room.getPot();
@@ -855,17 +902,21 @@ final class DpNpcSharkStrategy {
                         && ("flop".equals(stage) || "turn".equals(stage) || "river".equals(stage))) {
                     double bluffFire = "flop".equals(stage) ? learnedVsAggressor.bluffFireBoostFlop
                             : "turn".equals(stage) ? learnedVsAggressor.bluffFireBoostTurn
-                            : learnedVsAggressor.bluffFireBoostRiver;
+                                    : learnedVsAggressor.bluffFireBoostRiver;
                     // alpha 越高，越像“有意识试探这个人的边界”
                     double norm = Math.max(0.10, DpNpcEngine.SharkConfig.LEARN_BOOST_NORM);
                     double alpha = 0.45 * (bluffFire / norm); // 0~0.45
-                    if (alpha < 0) alpha = 0;
-                    if (alpha > 0.45) alpha = 0.45;
+                    if (alpha < 0)
+                        alpha = 0;
+                    if (alpha > 0.45)
+                        alpha = 0.45;
 
                     double norm2 = Math.max(0.10, DpNpcEngine.SharkConfig.LEARN_BOOST_NORM);
                     double eps = 0.05 + 0.10 * (bluffFire / norm2); // 约 0.05~0.15
-                    if (eps < 0.03) eps = 0.03;
-                    if (eps > 0.20) eps = 0.20;
+                    if (eps < 0.03)
+                        eps = 0.03;
+                    if (eps > 0.20)
+                        eps = 0.20;
                     if (difficulty == DpNpcEngine.NpcDifficulty.PRO) {
                         eps *= 1.00;
                     } else if (difficulty == DpNpcEngine.NpcDifficulty.HARD) {
@@ -877,8 +928,7 @@ final class DpNpcSharkStrategy {
                     }
                     double fallback = "flop".equals(stage) ? 0.45 : ("turn".equals(stage) ? 0.55 : 0.55);
                     double pref = DpNpcSharkLearningLab.pickBluffBetPotFactorWithExplore(
-                            room, aggressor, stage, random, fallback, eps
-                    );
+                            room, aggressor, stage, random, fallback, eps);
                     factor = factor * (1.0 - alpha) + pref * alpha;
                 }
 
@@ -1014,11 +1064,13 @@ final class DpNpcSharkStrategy {
                 int scaled = (int) Math.round(raiseAmount * sizing);
                 if (scaled < raiseAmount && callAmount > 0) {
                     // 有成本时不把加注缩到不像加注：至少比跟注多 2BB
-                    int minExtra = DpRoom.getBBChips() * 2;
+                    int minExtra = room.getBigBlindChips() * 2;
                     int minRaise = callAmount + minExtra;
-                    if (scaled < minRaise) scaled = minRaise;
+                    if (scaled < minRaise)
+                        scaled = minRaise;
                 }
-                if (scaled > chips) scaled = chips;
+                if (scaled > chips)
+                    scaled = chips;
                 if (sb > 0 && scaled > 0) {
                     int units = Math.max(1, Math.round(scaled * 1.0f / sb));
                     scaled = units * sb;
@@ -1054,11 +1106,11 @@ final class DpNpcSharkStrategy {
                 && st == SimpleStrength.MEDIUM
                 && chips > 0
                 && random.nextDouble() < DpNpcEngine.SharkConfig.RIVER_BLOCK_PROB) {
-            int sb = DpRoom.getSBChips();
+            int sb = room.getSmallBlindChips();
             int pot = room.getPot();
             double factor = DpNpcEngine.SharkConfig.RIVER_BLOCK_FACTOR;
             int target = (int) Math.round(pot * factor);
-            int bb = DpRoom.getBBChips();
+            int bb = room.getBigBlindChips();
             int minBet = bb * 2;
             if (target < minBet) {
                 target = minBet;
@@ -1078,4 +1130,3 @@ final class DpNpcSharkStrategy {
         return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
     }
 }
-

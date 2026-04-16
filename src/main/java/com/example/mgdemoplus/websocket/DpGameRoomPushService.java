@@ -17,6 +17,7 @@ import org.springframework.web.socket.WebSocketSession;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -36,24 +37,33 @@ public class DpGameRoomPushService {
     private static final int CHAT_MAX_LEN = 200;
     private static final long CHAT_MIN_INTERVAL_MS = 1_200L;
 
+    /** 房间 BGM：最后一次广播的 JSON，新连接触发第二条消息（与房间快照去重无关） */
+    private static final long MUSIC_SYNC_MIN_INTERVAL_MS = 400L;
+    private static final int MUSIC_DISPLAY_NAME_MAX = 120;
+
     private final ObjectMapper objectMapper;
     private final DpRoomServiceImpl roomService;
 
+//Map<String, Set<WebSocketSession>> roomSessions = new ConcurrentHashMap<>(); 的作用是：存储房间ID和订阅者的映射关系，每个房间ID对应一个订阅者集合，集合中存储的是WebSocketSession对象，用于标识每个订阅者的连接会话。
     private final Map<String, Set<WebSocketSession>> roomSessions = new ConcurrentHashMap<>();
-    /** 上次已成功广播的房间 JSON；与本次序列化结果相同则不再下发，节省流量。 */
-    private final Map<String, String> lastBroadcastPayload = new ConcurrentHashMap<>();
+    /** 每个连接上次已成功下发的房间快照 JSON（按观看者过滤后）；相同则不再下发。 */
+    private final Map<WebSocketSession, String> lastBroadcastPayloadBySession = new ConcurrentHashMap<>();
+    /** 房间曲库播放状态：供新订阅者连接后补发一帧（与 {@link #broadcastIfSubscribed} 去重无关）。 */
+    private final Map<String, String> lastRoomMusicJson = new ConcurrentHashMap<>();
 
+    // lazy注解的作用是？在Spring容器初始化时，不立即创建对象，而是在需要时创建对象，这样可以避免循环依赖
     public DpGameRoomPushService(ObjectMapper objectMapper, @Lazy DpRoomServiceImpl roomService) {
         this.objectMapper = objectMapper;
         this.roomService = roomService;
     }
 
     public void register(String roomId, WebSocketSession session) {
-        //已学习，注册房间订阅者
+        // 已学习，注册房间订阅者
         roomSessions.computeIfAbsent(roomId, k -> ConcurrentHashMap.newKeySet()).add(session);
     }
 
     public void unregister(String roomId, WebSocketSession session) {
+        lastBroadcastPayloadBySession.remove(session);
         Set<WebSocketSession> set = roomSessions.get(roomId);
         if (set == null) {
             return;
@@ -61,13 +71,16 @@ public class DpGameRoomPushService {
         set.remove(session);
         if (set.isEmpty()) {
             roomSessions.remove(roomId);
-            lastBroadcastPayload.remove(roomId);
+            lastRoomMusicJson.remove(roomId);
         }
     }
 
     /**
-     * 处理客户端经同一 WS 连接发来的文本：目前仅支持 {@code {"_ws":"chatSend","nickname":"…","text":"…"}}。
-     * 校验发送者昵称须为当前房间玩家或观众后，向该房间所有订阅者广播 {@code _ws=chat}（不参与房间快照去重）。
+     * 处理客户端经同一 WS 连接发来的文本：
+     * <ul>
+     * <li>{@code {"_ws":"chatSend",...}} → 房间聊天</li>
+     * <li>{@code {"_ws":"roomMusicSync",...}} → 曲库 BGM 同步（不参与房间快照去重）</li>
+     * </ul>
      */
     public void handleClientTextMessage(WebSocketSession session, String payload) {
         if (payload == null || payload.isEmpty()) {
@@ -80,9 +93,20 @@ public class DpGameRoomPushService {
             log.debug("WS client text not JSON: {}", payload);
             return;
         }
-        if (!root.has("_ws") || !"chatSend".equals(root.get("_ws").asText())) {
+        if (!root.has("_ws")) {
             return;
         }
+        String ws = root.get("_ws").asText("");
+        if ("chatSend".equals(ws)) {
+            handleChatSend(session, root);
+            return;
+        }
+        if ("roomMusicSync".equals(ws)) {
+            handleRoomMusicSync(session, root);
+        }
+    }
+
+    private void handleChatSend(WebSocketSession session, JsonNode root) {
         Object ridObj = session.getAttributes().get("roomId");
         if (!(ridObj instanceof String)) {
             return;
@@ -119,6 +143,88 @@ public class DpGameRoomPushService {
         } catch (Exception e) {
             log.warn("chat broadcast failed roomId={}", roomId, e);
         }
+    }
+
+    /**
+     * 客户端 {@code roomMusicSync}：校验昵称在房间内后广播 {@code _ws=roomMusic}，并记下最后状态供新连接补发。
+     */
+    private void handleRoomMusicSync(WebSocketSession session, JsonNode root) {
+        Object ridObj = session.getAttributes().get("roomId");
+        if (!(ridObj instanceof String)) {
+            return;
+        }
+        String roomId = (String) ridObj;
+        String nickname = root.path("nickname").asText("").trim();
+        String action = root.path("action").asText("").trim().toLowerCase(Locale.ROOT);
+        if (nickname.isEmpty()) {
+            return;
+        }
+        if (!"play".equals(action) && !"pause".equals(action) && !"stop".equals(action)) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        Long lastMs = (Long) session.getAttributes().get("_musicSyncLastMs");
+        if (lastMs != null && now - lastMs < MUSIC_SYNC_MIN_INTERVAL_MS) {
+            return;
+        }
+        DpRoom room = roomService.getAllRooms(roomId);
+        if (room == null || !isNicknameInRoom(room, nickname)) {
+            return;
+        }
+
+        long trackId = root.path("trackId").asLong(0L);
+        String webPath = root.path("webPath").asText("").trim();
+        String displayName = root.path("displayName").asText("").trim();
+        if (displayName.length() > MUSIC_DISPLAY_NAME_MAX) {
+            displayName = displayName.substring(0, MUSIC_DISPLAY_NAME_MAX);
+        }
+
+        if ("play".equals(action)) {
+            if (trackId <= 0L || webPath.isEmpty() || !isSafeMusicWebPath(webPath)) {
+                return;
+            }
+        } else {
+            if (!webPath.isEmpty() && !isSafeMusicWebPath(webPath)) {
+                return;
+            }
+        }
+
+        session.getAttributes().put("_musicSyncLastMs", now);
+        try {
+            ObjectNode out = objectMapper.createObjectNode();
+            out.put("_ws", "roomMusic");
+            out.put("action", action);
+            out.put("byNickname", nickname);
+            out.put("serverTime", now);
+            if (trackId > 0L) {
+                out.put("trackId", trackId);
+            }
+            if (!webPath.isEmpty()) {
+                out.put("webPath", webPath);
+            }
+            if (!displayName.isEmpty()) {
+                out.put("displayName", displayName);
+            }
+            String json = objectMapper.writeValueAsString(out);
+            lastRoomMusicJson.put(roomId, json);
+            broadcastRawJsonToRoom(roomId, json);
+        } catch (Exception e) {
+            log.warn("room music broadcast failed roomId={}", roomId, e);
+        }
+    }
+
+    private static boolean isSafeMusicWebPath(String path) {
+        if (path == null || path.isEmpty()) {
+            return false;
+        }
+        if (path.contains("..") || path.indexOf('\\') >= 0) {
+            return false;
+        }
+        if (!path.startsWith("/music/")) {
+            return false;
+        }
+        String rest = path.substring("/music/".length());
+        return rest.length() > 0 && rest.matches("[a-zA-Z0-9._-]+");
     }
 
     private static boolean isNicknameInRoom(DpRoom room, String nickname) {
@@ -159,15 +265,18 @@ public class DpGameRoomPushService {
             }
         }
     }
-//已学习，判断房间是否有订阅者，如果房间有订阅者，则返回true，如果房间没有订阅者，则返回false
+
+    // 已学习，判断房间是否有订阅者，如果房间有订阅者，则返回true，如果房间没有订阅者，则返回false
     public boolean hasSubscribers(String roomId) {
         Set<WebSocketSession> set = roomSessions.get(roomId);
         return set != null && !set.isEmpty();
     }
-//已学习，发送初始房间数据给订阅者
+
+    // 已学习，发送初始房间数据给订阅者
     public void sendInitialSnapshot(WebSocketSession session, String roomId) {
         try {
-            DpRoom r = roomService.getAllRooms(roomId);
+            String nick = (String) session.getAttributes().get("viewerNickname");
+            DpRoom r = roomService.getRoomSnapshotForViewer(roomId, nick);//通过房间id和昵称实现处理
             if (r == null) {
                 synchronized (session) {
                     session.sendMessage(new TextMessage(ROOM_CLOSED));
@@ -175,58 +284,66 @@ public class DpGameRoomPushService {
                 }
                 return;
             }
+            //将房间数据序列化成JSON字符串
             String json = objectMapper.writeValueAsString(r);
-            lastBroadcastPayload.put(roomId, json);
+            lastBroadcastPayloadBySession.put(session, json);
             synchronized (session) {
                 session.sendMessage(new TextMessage(json));
+            }
+            String music = lastRoomMusicJson.get(roomId);
+            if (music != null && !music.isEmpty()) {
+                synchronized (session) {
+                    session.sendMessage(new TextMessage(music));
+                }
             }
         } catch (Exception e) {
             log.warn("WebSocket initial snapshot failed roomId={}", roomId, e);
         }
     }
-//已学习，调用服务层的roomService.getAllRooms(roomId)获取房间数据，然后序列化成JSON字符串，然后广播给所有订阅者
+
+    // 已学习，调用服务层的roomService.getAllRooms(roomId)获取房间数据，然后序列化成JSON字符串，然后广播给所有订阅者
     /**
      * 在 {@link DpRoomServiceImpl} 的定时任务中调用：仅当有订阅者时序列化；若与上次推送内容相同则不下发。
      */
     public void broadcastIfSubscribed(String roomId) {
-        //如果房间没有订阅者，则返回，如果房间有订阅者，则获取房间数据，然后序列化成JSON字符串，然后广播给所有订阅者
+        // 如果房间没有订阅者，则返回，如果房间有订阅者，则获取房间数据，然后序列化成JSON字符串，然后广播给所有订阅者
         if (!hasSubscribers(roomId)) {
             return;
         }
         try {
-            //正式返回房间数据给所有订阅者
-            DpRoom r = roomService.getAllRooms(roomId);
-            String json = r == null ? ROOM_CLOSED : objectMapper.writeValueAsString(r);
-            //如果房间数据不为空，则获取上次已成功广播的房间 JSON，如果与本次序列化结果相同则不下发
-            if (r != null) {
-                String prev = lastBroadcastPayload.get(roomId);
-                if (json.equals(prev)) {
-                    log.debug("WS broadcast skip (payload unchanged) roomId={}", roomId);
-                    return;
-                }
-            } else {
-                lastBroadcastPayload.remove(roomId);
-            }
-            Set<WebSocketSession> set = roomSessions.get(roomId);
+            DpRoom live = roomService.getAllRooms(roomId);
+            Set<WebSocketSession> set = roomSessions.get(roomId);//这里是通过房间id获取所有订阅者的会话
             if (set == null || set.isEmpty()) {
-                
                 return;
             }
-            //遍历所有订阅者，如果订阅者不打开，则移除订阅者
             for (WebSocketSession s : new ArrayList<>(set)) {
-                //如果session不打开，则移除session
                 if (!s.isOpen()) {
                     set.remove(s);
+                    lastBroadcastPayloadBySession.remove(s);
+                    continue;
+                }
+                String nick = (String) s.getAttributes().get("viewerNickname");
+                String json;
+                if (live == null) {
+                    json = ROOM_CLOSED;
+                } else {
+                    DpRoom view = roomService.snapshotForViewerFromLive(live, nick);
+                    json = objectMapper.writeValueAsString(view);
+                }
+                String prev = lastBroadcastPayloadBySession.get(s);
+                if (json.equals(prev)) {
+                    log.debug("WS broadcast skip (payload unchanged) roomId={}", roomId);
                     continue;
                 }
                 try {
                     synchronized (s) {
-                        // System.out.println("成功推送");
                         s.sendMessage(new TextMessage(json));
                     }
+                    lastBroadcastPayloadBySession.put(s, json);
                 } catch (IOException e) {
                     log.debug("WebSocket send failed, closing session", e);
                     set.remove(s);
+                    lastBroadcastPayloadBySession.remove(s);
                     try {
                         s.close();
                     } catch (IOException ignored) {
@@ -234,10 +351,7 @@ public class DpGameRoomPushService {
                     }
                 }
             }
-            if (r != null) {
-                lastBroadcastPayload.put(roomId, json);
-            }
-            if (r == null) {
+            if (live == null) {
                 for (WebSocketSession s : new ArrayList<>(set)) {
                     try {
                         s.close(CloseStatus.GOING_AWAY);

@@ -1,139 +1,149 @@
 <template>
   <div class="login-box">
-    <h1>登录</h1>
+    <h1 class="login-box__title">登录</h1>
+    <p class="login-box__hint">使用已注册的昵称与密码进入游戏大厅</p>
 
-    <!-- 昵称输入框 -->
     <div class="form-item">
-      <label>昵称：</label>
-      <input v-model="nickname" type="text" placeholder="请输入昵称">
+      <label for="login-nickname">昵称</label>
+      <input
+        id="login-nickname"
+        v-model="nickname"
+        type="text"
+        placeholder="请输入昵称"
+        autocomplete="username"
+      >
     </div>
 
-    <!-- 密码输入框 -->
     <div class="form-item">
-      <label>密码：</label>
-      <input v-model="password" type="password" placeholder="请输入密码">
+      <label for="login-password">密码</label>
+      <input
+        id="login-password"
+        v-model="password"
+        type="password"
+        placeholder="请输入密码"
+        autocomplete="current-password"
+      >
     </div>
 
-    <!-- 登录按钮（预留了跳转空间） -->
-    <button class="login-btn" @click="login">
+    <button type="button" class="login-btn" @click="login">
       登录
     </button>
   </div>
 </template>
 
 <script>
+import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
+import { dpResultSuccess, dpResultData, dpResultMessage } from '@/utils/dpApiResult'
+
 export default {
   data() {
     return {
-      // 绑定输入框的数据
-      nickname: "",
-      password: ""
-    };
+      nickname: '',
+      password: ''
+    }
   },
-  created() {
-    const raw = localStorage.getItem("userInfo");
+  async created() {
+    const raw = localStorage.getItem('userInfo')
     if (!raw) {
-      return;
+      return
     }
     try {
-      const user = JSON.parse(raw);
+      const user = JSON.parse(raw)
       if (user && user.nickname && user.password) {
-        this.nickname = user.nickname;
-        this.password = user.password;
-        // 本地已有登录信息，直接免登录进入主页
-        this.$router.push("/home");
+        this.nickname = user.nickname
+        this.password = user.password
+        await ensureDpUserIdInStorage(this.$http)
+        this.$router.push('/home')
       }
     } catch (e) {
-      console.error("读取本地用户信息失败", e);
-      // 解析失败时清理异常数据，避免下次继续报错
-      localStorage.removeItem("userInfo");
+      console.error('读取本地用户信息失败', e)
+      localStorage.removeItem('userInfo')
     }
   },
   methods: {
-    // 登录请求方法
     login() {
-      // 简单非空判断
       if (!this.nickname || !this.password) {
-        alert("请输入昵称和密码");
-        return;
+        alert('请输入昵称和密码')
+        return
       }
-      this.$http.get("/dpUser/loginUser", {
-  params: {
-    nickname: this.nickname,
-    password: this.password
-  }
-}).then(res => {                  
-  console.log("登录结果：", res.data);
-  
-  // ============== 修复点：必须判断登录成功才允许进主页 ==============
-  if (res.data === "登录成功") {
-    alert("登录成功！");
-    // 保存用户信息
-    localStorage.setItem("userInfo", JSON.stringify({
-      nickname: this.nickname,
-      password: this.password
-    }));
-    // 只有成功才跳转
-    this.$router.push("/home");
-  } else {
-    // 登录失败：提示 + 不跳转 + 不存信息
-    alert("登录失败：" + res.data);
-  }
-  
-}).catch(err => {
-  console.error("请求失败", err);
-  alert("登录请求异常，请重试");
-});
-      //   // 向后端发送登录请求（参数：nickname + password，地址 /dpUser/loginUser）
-      //   this.$http.get("/dpUser/loginUser", {
-      //     nickname: this.nickname,
-      //     password: this.password
-      //   }).then(res => {
-      //     console.log("登录结果：", res.data);
-      //     alert(res.data); // 弹出后端返回的 成功/失败 提示
+      this.$http
+        .get('/dpUser/loginProfile', {
+          params: {
+            nickname: this.nickname,
+            password: this.password
+          }
+        })
+        .then((res) => {
+          console.log('登录结果：', res.data)
 
-
-      //     // ====================== 预留空间 ======================
-      //     // 你在这里写跳转逻辑：
-      //     // 1. 跳组件：this.$router.push("/xxx")
-      //     // 2. 跳html：window.location.href = "xxx.html"
-      //     // ======================================================
-
-      //   }).catch(err => {
-      //     console.error("请求失败", err);
-      //     alert("登录请求异常");
-      //   });
+          var d = res.data
+          if (dpResultSuccess(d)) {
+            var payload = dpResultData(d) || {}
+            alert('登录成功！')
+            var row = {
+              nickname: payload.nickname || this.nickname,
+              password: this.password,
+              userId: payload.userId
+            }
+            if (payload.token) row.token = payload.token
+            localStorage.setItem('userInfo', JSON.stringify(row))
+            this.$router.push('/home')
+          } else {
+            alert('登录失败：' + dpResultMessage(d))
+          }
+        })
+        .catch((err) => {
+          console.error('请求失败', err)
+          alert('登录请求异常，请重试')
+        })
     }
   }
-};
+}
 </script>
 
-<!-- 简单样式，让页面好看点 -->
 <style scoped>
 .login-box {
-  width: 300px;
-  margin: 100px auto;
+  width: 100%;
+  max-width: 340px;
+  margin: 0 auto;
   text-align: center;
 }
-
+.login-box__title {
+  margin: 0 0 8px;
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--dp-text-primary, inherit);
+}
+.login-box__hint {
+  margin: 0 0 20px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--dp-text-muted, #909399);
+}
 .form-item {
-  margin: 15px 0;
+  margin: 14px 0;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
-
-input {
-  width: 200px;
-  height: 30px;
-  padding: 0 8px;
+.form-item label {
+  flex: 0 0 48px;
+  font-size: 14px;
+  color: var(--dp-text-secondary, #666);
 }
-
+.form-item input {
+  flex: 1 1 180px;
+  min-width: 0;
+  height: 40px;
+  padding: 0 12px;
+}
 .login-btn {
-  width: 218px;
-  height: 38px;
-  background: #409eff;
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  margin-top: 10px;
-  cursor: pointer;
+  width: 100%;
+  max-width: 280px;
+  height: 42px;
+  margin-top: 18px;
+  font-size: 15px;
 }
 </style>

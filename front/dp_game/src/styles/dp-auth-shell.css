@@ -1,0 +1,94 @@
+/**
+ * 登录 / 注册：依赖 body[data-dp-game-theme] 与 dp-game-themes.css 的 --dp-*。
+ * 由 main.js 引入；与 #app.app--auth 配合（见 App.vue）。
+ */
+
+#app.app--auth {
+  background: transparent !important;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  color: var(--dp-text-primary, #333);
+  font-family: var(--dp-font-ui, Avenir, Helvetica, Arial, sans-serif);
+}
+
+#app.app--auth .app-container {
+  max-width: 440px;
+  padding: 24px 18px 40px;
+}
+
+#app.app--auth .app-auth-theme-bar {
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+#app.app--auth .app-title {
+  color: var(--dp-text-primary);
+  margin-bottom: 20px;
+}
+
+#app.app--auth .nav-bar {
+  margin-bottom: 24px;
+}
+
+#app.app--auth .nav-link {
+  background: var(--dp-btn-primary-bg) !important;
+  color: var(--dp-btn-primary-fg) !important;
+  border: 1px solid var(--dp-panel-border);
+  box-shadow: var(--dp-panel-shadow);
+}
+
+#app.app--auth .nav-link:hover {
+  filter: brightness(1.06);
+}
+
+#app.app--auth .nav-link.router-link-active {
+  box-shadow: 0 0 0 2px var(--dp-accent);
+}
+
+#app.app--auth .content-box {
+  background: var(--dp-panel-bg);
+  border: 1px solid var(--dp-panel-border);
+  box-shadow: var(--dp-panel-shadow);
+  border-radius: 12px;
+  padding: 28px 24px;
+  min-height: 280px;
+}
+
+#app.app--auth .content-box h1,
+#app.app--auth .content-box h2 {
+  color: var(--dp-text-primary);
+}
+
+#app.app--auth .content-box label {
+  color: var(--dp-text-secondary);
+}
+
+#app.app--auth .content-box input[type='text'],
+#app.app--auth .content-box input[type='password'] {
+  background: var(--dp-input-bg);
+  border: 1px solid var(--dp-input-border);
+  color: var(--dp-text-primary);
+  border-radius: 8px;
+}
+
+#app.app--auth .content-box input[type='text']:focus,
+#app.app--auth .content-box input[type='password']:focus {
+  outline: none;
+  border-color: var(--dp-accent);
+}
+
+#app.app--auth .content-box .login-btn,
+#app.app--auth .content-box .register-btn {
+  background: var(--dp-btn-primary-bg);
+  color: var(--dp-btn-primary-fg);
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+#app.app--auth .content-box .login-btn:hover,
+#app.app--auth .content-box .register-btn:hover {
+  filter: brightness(1.05);
+}

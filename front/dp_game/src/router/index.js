@@ -33,6 +33,7 @@
 // export default router
 // 意思是导出路由供其他文件引用
 import Home from '@/components/home.vue'
+import CreateRoom from '@/components/CreateRoom.vue'
 import Login from '@/components/login.vue'
 import Register from '@/components/register.vue'
 import Room from '@/components/room.vue'
@@ -40,6 +41,9 @@ import Vue from 'vue'
 import Router from 'vue-router'
 import Game from '../components/game.vue'
 import ImageUpload from '@/components/image_upload.vue'
+import HandHistory from '@/components/HandHistory.vue'
+import HandHistoryDetail from '@/components/HandHistoryDetail.vue'
+import MusicUpload from '@/components/MusicUpload.vue'
 
 Vue.use(Router)
 
@@ -49,8 +53,16 @@ export default new Router({
     { path: '/login', component: Login },
     { path: '/register', component: Register },
     { path: '/home', component: Home },
+    { path: '/create-room', component: CreateRoom },
+    { path: '/hand-history', component: HandHistory },
+    {
+      path: '/hand-history/detail/:handHistoryId',
+      component: HandHistoryDetail,
+      props: true
+    },
     { path: '/room/:roomId', component: Room },   // 动态路由，不是嵌套
     { path: '/game/:roomId', component: Game } ,  // 动态路由，不是嵌套
-    { path: '/image_upload', component: ImageUpload }
+    { path: '/image_upload', component: ImageUpload },
+    { path: '/music-upload', component: MusicUpload }
   ]
 })

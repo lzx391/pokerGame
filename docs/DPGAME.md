@@ -190,9 +190,9 @@ bet和fold可能会引起进程推进
 
 ## AI / NPC 模块说明（德扑机器人）
 
-> 详细设计文档已迁移到专门文件：  
-> **`src/main/java/com/example/mgdemoplus/service/studentImpl/DP_NPC_README.md`**  
-> 本节只保留整体思路，方便快速了解；深入调参与算法说明请看该 README。
+> 详细设计文档已迁移到专门目录：  
+> **`docs/ai/npc-engine/README.md`**（含普通 NPC 与 Shark 分册说明）  
+> 本节只保留整体思路，方便快速了解；深入调参与算法说明请看该目录下各篇。
 
 ### 一、当前实现概览（多风格 NPC 基础版）
 

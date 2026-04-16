@@ -33,27 +33,55 @@ public final class LlmNpc {
     private final String apiKey;
     private final String endpointModelId;
     private final String baseUrl;
+    /**
+     * 方舟文档 {@code reasoning_effort}（Chat API）：调节思维链长度；默认多为 medium。
+     * 为空则不写入请求体。
+     */
+    private final String reasoningEffort;
+    /**
+     * 方舟文档 {@code thinking.type}：{@code enabled} / {@code disabled} / {@code auto}；
+     * 若接入点为深度思考模型且未传，服务端对 Seed 系列多为 {@code enabled}，会明显变慢。
+     * 为空则不写入请求体。
+     */
+    private final String thinkingType;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
 
-    /**
-     * 从环境变量读取 {@code ARK_API_KEY}、{@code ARK_ENDPOINT_ID}，可选 {@code ARK_BASE_URL}。
-     */
-    public LlmNpc() {
-        this(
-                trimToNull(System.getenv("ARK_API_KEY")),
-                trimToNull(System.getenv("ARK_ENDPOINT_ID")),
-                trimToNull(System.getenv("ARK_BASE_URL")));
+    public LlmNpc(String apiKey, String endpointModelId, String baseUrl) {
+        this(apiKey, endpointModelId, baseUrl, null, null);
     }
 
-    public LlmNpc(String apiKey, String endpointModelId, String baseUrl) {
+    public LlmNpc(String apiKey, String endpointModelId, String baseUrl, String reasoningEffort) {
+        this(apiKey, endpointModelId, baseUrl, reasoningEffort, null);
+    }
+
+    public LlmNpc(
+            String apiKey,
+            String endpointModelId,
+            String baseUrl,
+            String reasoningEffort,
+            String thinkingType) {
         this.apiKey = apiKey != null ? apiKey : "";
         this.endpointModelId = endpointModelId != null ? endpointModelId : "";
         this.baseUrl = (baseUrl != null && !baseUrl.isBlank()) ? baseUrl.trim() : DEFAULT_ARK_BASE_URL;
+        this.reasoningEffort = (reasoningEffort != null && !reasoningEffort.isBlank()) ? reasoningEffort.trim() : null;
+        this.thinkingType = normalizeThinkingType(thinkingType);
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(15))
                 .build();
         this.objectMapper = new ObjectMapper();
+    }
+
+    /** 仅允许文档中的取值，非法则忽略（不写请求体）。 */
+    private static String normalizeThinkingType(String s) {
+        if (s == null || s.isBlank()) {
+            return null;
+        }
+        String t = s.trim().toLowerCase();
+        if ("enabled".equals(t) || "disabled".equals(t) || "auto".equals(t)) {
+            return t;
+        }
+        return null;
     }
 
     public String getApiKey() {
@@ -84,7 +112,7 @@ public final class LlmNpc {
     /**
      * system 一条 + 多轮 user/assistant（用于多轮对话）；roles 仅支持 user / assistant。
      */
-    public String chatMessages(String systemPrompt, List<ChatMessage> messages)
+    public String chatMessages(String systemPrompt, List<ChatMessage> messages)//含多轮对话
             throws IOException, InterruptedException {
         if (!isConfigured()) {
             throw new IllegalStateException(
@@ -97,6 +125,13 @@ public final class LlmNpc {
         body.put("temperature", 0.2);
         // 决策只需几十个 token，压低输出侧计费与胡扯长度
         body.put("max_tokens", 64);
+        // 方舟：thinking.type=disabled 时不可与 reasoning_effort（如 low）同传，否则 400 InvalidParameter
+        if (reasoningEffort != null && !"disabled".equals(thinkingType)) {
+            body.put("reasoning_effort", reasoningEffort);
+        }
+        if (thinkingType != null) {
+            body.putObject("thinking").put("type", thinkingType);
+        }
 
         ArrayNode arr = body.putArray("messages");
         if (systemPrompt != null && !systemPrompt.isBlank()) {
@@ -117,8 +152,8 @@ public final class LlmNpc {
             node.put("content", m.content());
         }
 
-        String json = objectMapper.writeValueAsString(body);
-        HttpRequest request = HttpRequest.newBuilder()
+        String json = objectMapper.writeValueAsString(body);//把body转换成json字符串
+        HttpRequest request = HttpRequest.newBuilder()//构建请求
                 .uri(URI.create(baseUrl))
                 .timeout(Duration.ofSeconds(120))
                 .header("Content-Type", "application/json; charset=utf-8")

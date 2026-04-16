@@ -51,24 +51,27 @@ public class DpLlmNpcDecisionService {
     public DpLlmNpcDecisionService(
             @Value("${dp.llm.ark.api-key:}") String propApiKey,
             @Value("${dp.llm.ark.endpoint-id:}") String propEndpointId,
-            @Value("${dp.llm.ark.base-url:}") String propBaseUrl) {
-        String apiKey = firstNonBlank(propApiKey, env("ARK_API_KEY"));
-        String endpointId = firstNonBlank(propEndpointId, env("ARK_ENDPOINT_ID"));
-        String baseUrl = firstNonBlank(propBaseUrl, env("ARK_BASE_URL"));
-        this.llmNpc = new LlmNpc(apiKey, endpointId, baseUrl.isEmpty() ? null : baseUrl);//这里涉及到Llmpc类
+            @Value("${dp.llm.ark.base-url:}") String propBaseUrl,
+            @Value("${dp.llm.ark.reasoning-effort:}") String propReasoningEffort,
+            @Value("${dp.llm.ark.thinking-type:}") String propThinkingType) {
+        String apiKey = trimToNull(propApiKey);
+        String endpointId = trimToNull(propEndpointId);
+        String baseUrl = propBaseUrl != null ? propBaseUrl.trim() : "";
+        String reasoningEffort = propReasoningEffort != null ? propReasoningEffort.trim() : "";
+        String thinkingType = propThinkingType != null ? propThinkingType.trim() : "";
+        this.llmNpc = new LlmNpc(
+                apiKey,
+                endpointId,
+                baseUrl.isEmpty() ? null : baseUrl,
+                reasoningEffort.isEmpty() ? null : reasoningEffort,
+                thinkingType.isEmpty() ? null : thinkingType);
     }
 
-    private static String env(String name) {
-        String v = System.getenv(name);
-        return v == null ? "" : v.trim();
-    }
-
-    /** 配置文件优先，否则用环境变量。 */
-    private static String firstNonBlank(String prop, String envVal) {
-        if (prop != null && !prop.isBlank()) {
-            return prop.trim();
+    private static String trimToNull(String s) {
+        if (s == null || s.isBlank()) {
+            return null;
         }
-        return envVal != null && !envVal.isBlank() ? envVal.trim() : "";
+        return s.trim();
     }
 //已学习，检查快照是否有效的类和方法
     private record LlmActionTicket(
@@ -232,10 +235,10 @@ public class DpLlmNpcDecisionService {
         System.out.println(userPrompt);
         try {
             //把大模型key id 提示词 信息包输入进去
-            String raw = llmNpc.chat(LLM_SYSTEM_PROMPT, userPrompt);
+            String raw = llmNpc.chat(LLM_SYSTEM_PROMPT, userPrompt);//这里是真正与大模型平台交互的地方
             System.out.println("======== [BOT_LLM] 模型返回原文 ========");
             System.out.println(raw == null ? "(null)" : raw);
-            DpNpcEngine.BotAction parsed = parseModelReply(raw);
+            DpNpcEngine.BotAction parsed = parseModelReply(raw);//解析
             if (parsed == null && raw != null && !raw.isBlank()) {
                 System.out.println("[BOT_LLM] 提示：模型有正文但 JSON 未解析成动作，主线程将打印【本地决策】");
             }
@@ -267,7 +270,7 @@ public class DpLlmNpcDecisionService {
 //已学习，构建喂给AI的信息包
     private String buildUserPrompt(DpRoom room, DpPlayer bot, LlmNpcGameContext ctx) {
         StringBuilder sb = new StringBuilder(1024);
-        sb.append("M BB=").append(DpRoom.getBBChips()).append(" SB=").append(DpRoom.getSBChips())
+        sb.append("M BB=").append(room.getBigBlindChips()).append(" SB=").append(room.getSmallBlindChips())
                 .append(" rl=").append(room.getRaiseLevel()).append('\n');
         sb.append("T ").append(compactTable(room, bot)).append('\n');
         if (ctx != null) {
@@ -379,7 +382,7 @@ public class DpLlmNpcDecisionService {
                 return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.ALL_IN, chips);
             }
             int newTotal = bot.getBet() + add;
-            int bb = Math.max(1, DpRoom.getBBChips());
+            int bb = Math.max(1, room.getBigBlindChips());
             int minTotal = room.getCurrentBetToCall() + bb;
             if (newTotal <= room.getCurrentBetToCall()) {
                 newTotal = minTotal;

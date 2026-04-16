@@ -31,8 +31,7 @@ public class DpNpcSharkOpponentMemoryService {
 
     public DpNpcSharkOpponentMemoryService(
             DpSharkOpponentProfileMapper mapper,
-            ObjectMapper objectMapper
-    ) {
+            ObjectMapper objectMapper) {
         this.mapper = mapper;
         this.objectMapper = objectMapper;
     }
@@ -41,7 +40,7 @@ public class DpNpcSharkOpponentMemoryService {
      * 一手结算且 LearningLab 已更新后调用：为每位非 Shark 对手 upsert 一行。
      */
     public void persistOpponentsAfterHand(DpRoom room) {
-        if (room == null || !DpNpcSharkObservedHandHistory.isEnabledForRoom(room)) {
+        if (room == null || !DpHandHistoryObservedImpl.isSharkAtTable(room)) {
             return;
         }
         Map<String, DpPlayerStats> statsMap = room.getPlayerStatsMap();
@@ -77,8 +76,8 @@ public class DpNpcSharkOpponentMemoryService {
                 sp.recentHands = new ArrayList<>(stats.getRecentHands());
 
                 String statsJson = objectMapper.writeValueAsString(sp);
-                DpNpcSharkLearningLab.LearnedPersistSnapshot learned =
-                        DpNpcSharkLearningLab.exportLearnedSnapshot(name);
+                DpNpcSharkLearningLab.LearnedPersistSnapshot learned = DpNpcSharkLearningLab
+                        .exportLearnedSnapshot(name);
                 String learnedJson = objectMapper.writeValueAsString(learned);
 
                 DpSharkOpponentProfile row = new DpSharkOpponentProfile();
@@ -100,7 +99,7 @@ public class DpNpcSharkOpponentMemoryService {
         if (room == null || nickname == null || nickname.isEmpty()) {
             return;
         }
-        if (!DpNpcSharkObservedHandHistory.isEnabledForRoom(room)) {
+        if (!DpHandHistoryObservedImpl.isSharkAtTable(room)) {
             return;
         }
         if (DpNpcEngine.SHARK_BOT_NICKNAME.equals(nickname)) {
@@ -128,14 +127,12 @@ public class DpNpcSharkOpponentMemoryService {
                         sp.totalShowdown,
                         sp.foldAdjustmentAgainstHero,
                         sp.recentHands,
-                        STATS_HAND_WINDOW
-                );
+                        STATS_HAND_WINDOW);
                 statsMap.put(nickname, stats);
             }
             if (row.getLearnedJson() != null && !row.getLearnedJson().isBlank()) {
-                DpNpcSharkLearningLab.LearnedPersistSnapshot learned =
-                        objectMapper.readValue(row.getLearnedJson(),
-                                DpNpcSharkLearningLab.LearnedPersistSnapshot.class);
+                DpNpcSharkLearningLab.LearnedPersistSnapshot learned = objectMapper.readValue(row.getLearnedJson(),
+                        DpNpcSharkLearningLab.LearnedPersistSnapshot.class);
                 DpNpcSharkLearningLab.importLearnedSnapshot(nickname, learned);
             }
         } catch (Exception e) {
@@ -145,7 +142,7 @@ public class DpNpcSharkOpponentMemoryService {
 
     /** 新一手开局、座位已定后，为桌上每位非 Shark 玩家尝试加载记忆。 */
     public void hydrateAllOpponentsForNewHand(DpRoom room) {
-        if (room == null || !DpNpcSharkObservedHandHistory.isEnabledForRoom(room)) {
+        if (room == null || !DpHandHistoryObservedImpl.isSharkAtTable(room)) {
             return;
         }
         List<DpPlayer> ps = room.getPlayers();

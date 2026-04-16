@@ -3,8 +3,11 @@ package com.example.mgdemoplus.controller.dp;
 import com.example.mgdemoplus.dto.DpRoomDTO;
 import com.example.mgdemoplus.entity.dp.DpRoom;
 import com.example.mgdemoplus.service.serviceImpl.dp.DpRoomServiceImpl;
+import com.example.mgdemoplus.utils.ResultUtil;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,18 +23,47 @@ public class DpRoomController {
     // 注意：不要在 Controller 里再建 roomMap，所有数据操作都走 Service
 
     @PostMapping("/createRoom")
-    public DpRoom createRoom(@RequestParam String nickname) {
-        return dpRoomService.createRoom(nickname);
+    public DpRoom createRoom(@RequestParam String nickname,
+                             @RequestParam(required = false) Integer userId,
+                             @RequestParam(required = false, defaultValue = "5") int smallBlindChips,
+                             @RequestParam(required = false, defaultValue = "10") int bigBlindChips,
+                             @RequestParam(required = false, defaultValue = "50") int startingStackBb,
+                             @RequestParam(required = false) String roomPassword) {
+        return dpRoomService.createRoom(nickname, userId, smallBlindChips, bigBlindChips, startingStackBb, roomPassword);
     }
 
     @GetMapping("/getNowRoom")
-    public DpRoom getAllRooms(@RequestParam String roomId) {
-        return dpRoomService.getAllRooms(roomId);
+    public DpRoom getNowRoom(@RequestParam String roomId,
+                             @RequestParam(required = false) String nickname) {
+        return dpRoomService.getRoomSnapshotForViewer(roomId, nickname);
     }
 
     @PostMapping("/joinRoom")
-    public String joinRoom(@RequestParam String roomId, @RequestParam String nickname) {
-        return dpRoomService.joinRoom(roomId, nickname);
+    public String joinRoom(@RequestParam String roomId, @RequestParam String nickname,
+                           @RequestParam(required = false) Integer userId,
+                           @RequestParam(required = false) String roomPassword) {
+        return dpRoomService.joinRoom(roomId, nickname, userId, roomPassword);
+    }
+    /**
+     * 与 {@link #joinRoom} 业务相同；鉴权由全局 {@link com.example.mgdemoplus.security.JwtAuthenticationFilter} 完成，
+     * 此处仅校验 JWT subject（昵称）与参数 {@code nickname} 一致。
+     */
+    @PostMapping("/joinRoom2")
+    public ResultUtil joinRoom2(@RequestParam String roomId,
+                                @RequestParam String nickname,
+                                @RequestParam(required = false) Integer userId,
+                                @RequestParam(required = false) String roomPassword) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String jwtNickname = auth != null ? auth.getName() : null;
+        if (jwtNickname == null || !jwtNickname.equals(nickname)) {
+            return ResultUtil.error().data("message", "token 与当前昵称不一致");
+        }
+
+        String outcome = dpRoomService.joinRoom(roomId, nickname, userId, roomPassword);
+        if ("ok".equals(outcome) || "游戏已开始".equals(outcome)) {
+            return ResultUtil.ok().data("message", outcome);
+        }
+        return ResultUtil.error().data("message", outcome);
     }
 /**
  * 该房间内玩家是否能准备成功的接口
@@ -89,8 +121,9 @@ public class DpRoomController {
      * 观战玩家：标记在下一局加入对局
      */
     @PostMapping("/readyNextHand")
-    public String readyNextHand(@RequestParam String roomId, @RequestParam String nickname) {
-        return dpRoomService.readyNextHand(roomId, nickname) ? "ok" : "人数已满";
+    public String readyNextHand(@RequestParam String roomId, @RequestParam String nickname,
+                                @RequestParam(required = false) Integer userId) {
+        return dpRoomService.readyNextHand(roomId, nickname, userId) ? "ok" : "人数已满";
     }
 
     /**

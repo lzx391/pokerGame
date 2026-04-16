@@ -3,7 +3,12 @@ package com.example.mgdemoplus.dto;
 public class DpRoomDTO {
     private String roomId;
     private String owner;
-    private int playerSize ;
+    private int playerSize;
+    private int smallBlindChips;
+    private int bigBlindChips;
+    /** 每人初始筹码对应的大盲倍数（如 50 表示 50BB 带入） */
+    private int startingStackBb;
+    private boolean passwordProtected;
 
     @Override
     public String toString() {
@@ -36,6 +41,38 @@ public class DpRoomDTO {
 
     public void setPlayerSize(int playerSize) {
         this.playerSize = playerSize;
+    }
+
+    public int getSmallBlindChips() {
+        return smallBlindChips;
+    }
+
+    public void setSmallBlindChips(int smallBlindChips) {
+        this.smallBlindChips = smallBlindChips;
+    }
+
+    public int getBigBlindChips() {
+        return bigBlindChips;
+    }
+
+    public void setBigBlindChips(int bigBlindChips) {
+        this.bigBlindChips = bigBlindChips;
+    }
+
+    public int getStartingStackBb() {
+        return startingStackBb;
+    }
+
+    public void setStartingStackBb(int startingStackBb) {
+        this.startingStackBb = startingStackBb;
+    }
+
+    public boolean isPasswordProtected() {
+        return passwordProtected;
+    }
+
+    public void setPasswordProtected(boolean passwordProtected) {
+        this.passwordProtected = passwordProtected;
     }
 }
 

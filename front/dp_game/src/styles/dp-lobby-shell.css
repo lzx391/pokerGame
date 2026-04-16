@@ -1,0 +1,167 @@
+/**
+ * 大厅与子页（home / room / 曲库 / 历史对局等）共用：在已有 .dp-game-root + dp-game-themes 变量下的布局与控件。
+ * 与对局页 dp-game-shell 中同名类保持一致，避免重复引入整份 shell。
+ *
+ * 【必须包含 .dp-game-root 首段】若只引 dp-game-themes.css，变量会生效，但根节点没有
+ * min-height / background，高度随内容收缩，下半屏会露出 #app 默认灰底；长页（如曲库表格）
+ * 还会出现「划不动」的错觉（可视区域与背景不同步）。以下与 dp-game-shell.css 根节点对齐。
+ */
+
+/**
+ * 大厅根：至少铺满一屏，高度随内容增长（勿写死可视区高度，否则长页无法滚动）。
+ * 不使用 min-height: 100% 作首条：父级常为 height:auto 时百分比会算成 0，跳转后易半屏露底。
+ */
+.dp-game-root {
+  box-sizing: border-box;
+  font-family: var(--dp-font-ui);
+  padding: 10px;
+  padding-top: max(0px, env(safe-area-inset-top, 0px));
+  padding-left: max(10px, env(safe-area-inset-left, 0px));
+  padding-right: max(10px, env(safe-area-inset-right, 0px));
+  padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  background: var(--dp-game-bg);
+  background-image: var(--dp-game-bg-image);
+  color: var(--dp-text-primary);
+  text-align: left;
+}
+
+/* 从对局页 flex 链切回大厅时，避免子级仍受 min-height:0 / flex 影响导致裁切 */
+#app.app--lobby {
+  display: block !important;
+  height: auto !important;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  overflow: visible !important;
+  background-color: transparent;
+}
+
+#app.app--lobby .full-page--lobby {
+  display: block !important;
+  flex: none !important;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+#app.app--lobby .full-page--lobby > .dp-game-root {
+  flex: none !important;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+@media (max-width: 600px) {
+  .dp-game-root {
+    padding-left: max(6px, env(safe-area-inset-left, 0px));
+    padding-right: max(6px, env(safe-area-inset-right, 0px));
+  }
+}
+
+/* main.js 统一设置 body[data-dp-game-theme]；铺同色避免滚动手感 / 回弹时露出 App 默认 #f5f7fa */
+body[data-dp-game-theme] {
+  background-color: var(--dp-game-bg);
+  background-image: var(--dp-game-bg-image);
+}
+
+.dp-lobby-inner {
+  max-width: 640px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.dp-lobby-inner--wide {
+  max-width: 920px;
+}
+
+.dp-game-theme-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 0;
+  flex-wrap: wrap;
+}
+
+.dp-game-theme-row__label {
+  font-size: 12px;
+  color: var(--dp-text-secondary);
+}
+
+.dp-game-theme-select {
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--dp-input-border);
+  background: var(--dp-input-bg);
+  color: var(--dp-text-primary);
+  cursor: pointer;
+  max-width: min(240px, 100%);
+}
+
+.dp-lobby-panel {
+  background: var(--dp-panel-bg);
+  border: 1px solid var(--dp-panel-border);
+  border-radius: 10px;
+  box-shadow: var(--dp-panel-shadow);
+  padding: 16px 18px;
+  margin-top: 16px;
+}
+
+.dp-lobby-panel__title {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--dp-text-primary);
+  text-align: center;
+}
+
+.dp-btn {
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 8px 14px;
+  font-family: inherit;
+}
+
+.dp-btn--primary {
+  background: var(--dp-btn-primary-bg);
+  color: var(--dp-btn-primary-fg);
+}
+
+.dp-btn--success {
+  background: var(--dp-success);
+  color: #fff;
+}
+
+.dp-btn--ghost {
+  background: var(--dp-btn-ghost-bg);
+  color: var(--dp-accent);
+  border: 1px solid var(--dp-input-border);
+}
+
+.dp-btn--ghost:hover {
+  border-color: var(--dp-accent);
+}
+
+.dp-btn--danger {
+  background: var(--dp-danger);
+  color: #fff;
+}
+
+.dp-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

@@ -1,7 +1,25 @@
 <template>
-  <div id="app" :class="{ 'app--lobby': isLobbyRoute }">
+  <div
+    id="app"
+    :class="{
+      'app--lobby': isLobbyRoute,
+      'app--dp-game': isGameRoute,
+      'app--auth': isAuthPage
+    }"
+  >
     <!-- 登录 / 注册 页面：带有导航和盒子布局 -->
     <div v-if="isAuthPage" class="app-container">
+      <div class="dp-game-theme-row app-auth-theme-bar">
+        <span class="dp-game-theme-row__label">界面主题</span>
+        <select
+          class="dp-game-theme-select"
+          aria-label="选择界面主题"
+          :value="gameUiTheme"
+          @change="onAuthThemeChange($event.target.value)"
+        >
+          <option v-for="t in gameThemeOptions" :key="t.id" :value="t.id">{{ t.label }}</option>
+        </select>
+      </div>
       <h1 class="app-title">DP GAME</h1>
       <div class="nav-bar">
         <router-link to="/login" class="nav-link">登录</router-link>
@@ -13,23 +31,41 @@
     </div>
 
     <!-- 其他路由：全屏展示，不显示登录 / 注册按钮 -->
-    <div v-else class="full-page" :class="{ 'full-page--lobby': isLobbyRoute }">
+    <div v-else class="full-page" :class="{ 'full-page--lobby': isLobbyRoute, 'full-page--dp-game': isGameRoute }">
       <router-view></router-view>
     </div>
   </div>
 </template>
 
 <script>
+import { mapState } from 'vuex'
+
 export default {
   name: 'App',
   computed: {
+    ...mapState('dpGame', ['gameUiTheme', 'gameThemeOptions']),
     isAuthPage() {
       const path = this.$route.path
       return path === '/login' || path === '/register' || path === '/'
     },
-    /** 大厅只需内容高度，避免整页强制 100vh 造成「下面一大块空白」的观感 */
+    /** 大厅与主题子页：#app 不铺灰底，由 .dp-game-root / body[data-dp-game-theme] 铺色 */
     isLobbyRoute() {
-      return this.$route.path === '/home'
+      const p = this.$route.path
+      return (
+        p === '/home' ||
+        p.startsWith('/hand-history') ||
+        p === '/music-upload' ||
+        p.startsWith('/room/')
+      )
+    },
+    /** 对局页：铺满视口、与 .dp-game-root 组成 flex 链，减少底部露灰/白边 */
+    isGameRoute() {
+      return this.$route.path.startsWith('/game')
+    }
+  },
+  methods: {
+    onAuthThemeChange(themeId) {
+      this.$store.commit('dpGame/SET_GAME_UI_THEME', themeId)
     }
   }
 }
@@ -46,6 +82,8 @@ export default {
 html {
   height: 100%;
   height: -webkit-fill-available;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 body {
@@ -54,6 +92,8 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   min-height: -webkit-fill-available;
+  overflow-x: hidden;
+  overflow-y: auto;
   /* 与 #app 一致，避免底部露默认白底 */
   background-color: #f5f7fa;
 }
@@ -69,6 +109,8 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   min-height: -webkit-fill-available;
+  overflow-x: hidden;
+  overflow-y: visible;
 }
 
 .app-container {
@@ -137,12 +179,28 @@ body {
   min-height: -webkit-fill-available;
 }
 
-/* 游戏大厅：不要与 #app 双重撑满视口，高度随内容 */
-#app.app--lobby {
-  min-height: 0;
+/* 大厅布局与 #app.app--lobby / .full-page--lobby：见 dp-lobby-shell.css（组件引入），避免与对局 flex 链冲突 */
+
+/* 对局：#app 与全屏容器拉满动态视口，子级 .dp-game-root flex:1 避免平板/安全区下露浅灰底 */
+#app.app--dp-game {
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  display: flex;
+  flex-direction: column;
 }
 
-.full-page--lobby {
+.full-page--dp-game {
+  flex: 1 1 auto;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+}
+
+.full-page--dp-game > .dp-game-root {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
 }
 </style>

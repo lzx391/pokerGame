@@ -2,15 +2,16 @@
   <div
     class="dp-player-card"
     :class="{
-      'player-card--win-streak': !player.leftThisHand && (player.winStreak || 0) >= 2,
+      'player-card--win-streak':
+        !heroHandDock && !player.leftThisHand && fieldChipLeader,
       'dp-player-card--compact': compact,
       'dp-player-card--rival-mini': rivalMini,
+      'dp-player-card--hand-dock': heroHandDock,
       /* 仅摊牌圈用毛玻璃；结算阶段与节能模式一致，仅用半透明底无 backdrop-filter */
       'dp-player-card--hand-reveal-glass':
         stage === 'showdown' && !player.leftThisHand
     }"
     :style="cardBoxStyle"
-    v-bind="dealerAnchorAttrs"
     @click="onClick"
   >
     <div
@@ -20,20 +21,6 @@
         role="status"
     >
       {{ seatChatText }}
-    </div>
-    <div class="dp-player-card__badges" :class="{ 'dp-player-card__badges--rival': rivalMini }">
-      <span v-if="player.dealer" class="dp-player-card__badge dp-player-card__badge--dealer">D</span>
-      <span v-if="player.blind === 1" class="dp-player-card__badge dp-player-card__badge--sb">SB</span>
-      <span v-if="player.blind === 2" class="dp-player-card__badge dp-player-card__badge--bb">BB</span>
-      <span
-        v-if="!player.leftThisHand && (player.winStreak || 0) >= 2"
-        class="win-streak-badge"
-        :class="{ 'win-streak-badge--rival': rivalMini }"
-        :title="'已连续赢下 ' + (player.winStreak || 0) + ' 手'"
-      >
-        <span class="win-streak-badge__emoji" aria-hidden="true">🔥</span>
-        <span class="win-streak-badge__text">{{ player.winStreak }}连胜</span>
-      </span>
     </div>
 
     <!-- 他人简化卡片：昵称 + 筹码/本轮 + 必要徽标 -->
@@ -97,7 +84,7 @@
             @animationend="onHoleWrapperAnimEnd($event, ci)"
           >
             <div
-              :class="[getCardClass(c), 'hole-card-flip', { 'hole-card-flip--instant': skipHoleDealAnimation }]"
+              :class="[getCardClass(c), 'hole-card-flip', { 'hole-card-flip--instant': holeFlipUseInstant }]"
               :style="holeCardInnerStyleRival(ci)"
             >
               {{ getCardDisplay(c) }}
@@ -127,13 +114,13 @@
           class="dp-player-card__rank-pill"
           :class="showHandRankAsOpen ? 'dp-player-card__rank-pill--open' : 'dp-player-card__rank-pill--showdown'"
         >
-          {{ getHandRank(player.holeCards, communityCards) }}
+          {{ displayHandRankName }}
         </span>
         <div
           v-if="showShowdownLeaderDetail && showHandRankFiveCardRow.length !== 5"
           class="dp-player-card__rank-detail"
         >
-          {{ getHandRankDetail(player.holeCards, communityCards) }}
+          {{ displayHandRankDetail }}
         </div>
         <div
           v-if="showHandRankFiveCardRow.length === 5"
@@ -154,6 +141,90 @@
     <template v-else-if="player.leftThisHand">
       <div class="dp-player-card__offline-title">该玩家已离线</div>
       <div class="dp-player-card__offline-hint">座位保留至本局结束，行动顺序不变</div>
+    </template>
+
+    <template v-else-if="heroHandDock">
+      <div class="dp-player-card__head dp-player-card__head--hand-dock-only">
+        <div class="dp-player-card__name">
+          {{ displayPlayerName }}
+          <span v-if="isMe" class="dp-player-card__name-me">（我）</span>
+          <span v-if="player.fold" class="dp-player-card__fold-inline">已弃牌</span>
+        </div>
+      </div>
+
+      <div
+        v-if="showHoleCardsArea"
+        ref="holeCardsRow"
+        class="dp-player-card__hole-row dp-player-card__hole-row--hand-dock"
+        :aria-label="isMe ? '我的手牌' : '手牌'"
+      >
+        <template v-if="showHoleCardsRevealed">
+          <div
+            v-for="(c, ci) in player.holeCards"
+            :key="'h' + ci + '-' + handDealKey"
+            class="hole-card-fly-wrapper"
+            :class="{
+              'hole-deal-fly-in': holeDealFlyActive(ci),
+              'hole-fold-to-muck': foldMuckFlying
+            }"
+            :style="holeWrapperStyle(ci)"
+            @animationend="onHoleWrapperAnimEnd($event, ci)"
+          >
+            <div
+              :class="[getCardClass(c), 'hole-card-flip', { 'hole-card-flip--instant': holeFlipUseInstant }]"
+              :style="holeCardInnerStyle(ci)"
+            >
+              {{ getCardDisplay(c) }}
+            </div>
+          </div>
+        </template>
+        <template v-else-if="player.holeCards && player.holeCards.length > 0">
+          <div
+            v-for="n in player.holeCards.length"
+            :key="'hb' + (n - 1) + '-' + handDealKey"
+            class="hole-card-fly-wrapper"
+            :class="{
+              'hole-deal-fly-in': holeDealFlyActive(n - 1),
+              'hole-fold-to-muck': foldMuckFlying
+            }"
+            :style="holeWrapperStyle(n - 1)"
+            @animationend="onHoleWrapperAnimEnd($event, n - 1)"
+          >
+            <div
+              class="card-base bg-gray"
+              style="width:36px; height:52px; font-size:13px;"
+            >?</div>
+          </div>
+        </template>
+      </div>
+
+      <div v-if="showHandRankSection" class="dp-player-card__hand-rank">
+        <span
+          class="dp-player-card__rank-pill"
+          :class="showHandRankAsOpen ? 'dp-player-card__rank-pill--open' : 'dp-player-card__rank-pill--showdown'"
+        >
+          {{ displayHandRankName }}
+        </span>
+        <div
+          v-if="showShowdownLeaderDetail && showHandRankFiveCardRow.length !== 5"
+          class="dp-player-card__rank-detail"
+        >
+          {{ displayHandRankDetail }}
+        </div>
+        <div
+          v-if="showHandRankFiveCardRow.length === 5"
+          class="best-hand-cards dp-player-card__best-hand"
+        >
+          <div
+            v-for="(c, ci) in showHandRankFiveCardRow"
+            :key="'best' + ci + '-' + handDealKey"
+            :class="[getCardClass(c), 'best-hand-card', 'best-hand-card-enter', 'dp-player-card__best-card']"
+            :style="bestHandCardEnterStyle(ci)"
+          >
+            {{ getCardDisplay(c) }}
+          </div>
+        </div>
+      </div>
     </template>
 
     <template v-else>
@@ -205,7 +276,7 @@
               @animationend="onHoleWrapperAnimEnd($event, ci)"
             >
               <div
-                :class="[getCardClass(c), 'hole-card-flip', { 'hole-card-flip--instant': skipHoleDealAnimation }]"
+                :class="[getCardClass(c), 'hole-card-flip', { 'hole-card-flip--instant': holeFlipUseInstant }]"
                 :style="holeCardInnerStyle(ci)"
               >
                 {{ getCardDisplay(c) }}
@@ -238,13 +309,13 @@
           class="dp-player-card__rank-pill"
           :class="showHandRankAsOpen ? 'dp-player-card__rank-pill--open' : 'dp-player-card__rank-pill--showdown'"
         >
-          {{ getHandRank(player.holeCards, communityCards) }}
+          {{ displayHandRankName }}
         </span>
         <div
           v-if="showShowdownLeaderDetail && showHandRankFiveCardRow.length !== 5"
           class="dp-player-card__rank-detail"
         >
-          {{ getHandRankDetail(player.holeCards, communityCards) }}
+          {{ displayHandRankDetail }}
         </div>
         <div
           v-if="showHandRankFiveCardRow.length === 5"
@@ -310,9 +381,22 @@ export default {
       }
     },
     /**
-     * 抽屉/镜像展示用手牌：跳过庄位发牌飞入与逐张翻面，避免「发完牌后再打开查看手牌」重复慢动画。
+     * 抽屉/镜像展示用手牌：跳过庄位发牌飞入，避免与桌上已发完的节奏重复播飞入。
+     * 可与 dealRevealStaggerSec 配合：仍逐张翻面。
      */
-    skipHoleDealAnimation: { type: Boolean, default: false }
+    skipHoleDealAnimation: { type: Boolean, default: false },
+    /**
+     * 与 skipHoleDealAnimation 同用时：每张间隔秒数再翻开（0 则保持翻面瞬间完成）。
+     */
+    dealRevealStaggerSec: { type: Number, default: 0 },
+    /**
+     * 本人内联手牌区：仅昵称 + 底牌 + 牌型；后手/本轮与庄盲标由外层承担。
+     */
+    heroHandDock: { type: Boolean, default: false },
+    /**
+     * 圆桌等外层传入：当前是否为「场上筹码最多」之一（并列则多人 true），用于底牌区光效。
+     */
+    fieldChipLeader: { type: Boolean, default: false }
   },
   data() {
     return {
@@ -340,6 +424,25 @@ export default {
       immediate: true,
       handler() {
         this.resetHoleDealFlyState()
+        var self = this
+        function kick() {
+          self.tryStartHoleDealFly()
+        }
+        this.$nextTick(kick)
+        setTimeout(kick, 60)
+        setTimeout(kick, 200)
+      }
+    },
+    /**
+     * 手牌常比 currentHandSeed 晚一拍下发；仅 handDealKey 不会再次触发 tryStart，导致飞牌从未启动。
+     */
+    'player.holeCards': {
+      deep: true,
+      handler() {
+        if (this.skipHoleDealAnimation) return
+        if (!this.player.holeCards || this.player.holeCards.length === 0) return
+        if (this.stage !== 'preflop') return
+        if (this.holeDealIntroDone) return
         var self = this
         function kick() {
           self.tryStartHoleDealFly()
@@ -389,11 +492,12 @@ export default {
         s.padding = '7px 9px'
         s.borderRadius = '8px'
       }
-      /* 摊牌 / 准备下一局：半透明 + 描边，减轻遮挡中央公共牌 */
+      /* 摊牌 / 准备下一局：与页面底混色半透明 + 描边，减轻遮挡中央公共牌。
+       * 第二色用 var(--dp-game-bg) 而非 transparent：浅色童话主题下「26%+透明」会与底图融成一片，像没渲染座位卡。 */
       if ((this.stage === 'showdown' || this.stage === 'settled') && !this.player.leftThisHand) {
         var base = s.background || 'var(--dp-player-card-bg)'
-        var pct = this.rivalMini ? '20%' : '26%'
-        s.background = 'color-mix(in srgb, ' + base + ' ' + pct + ', transparent)'
+        var pct = this.rivalMini ? '48%' : '58%'
+        s.background = 'color-mix(in srgb, ' + base + ' ' + pct + ', var(--dp-game-bg))'
         s.boxShadow =
           (s.boxShadow ? s.boxShadow + ', ' : '') + 'inset 0 0 0 1px rgba(100, 100, 100, 0.22)'
       }
@@ -413,6 +517,17 @@ export default {
         return false
       }
       if (!this.compact) return true
+      /**
+       * 本人：圆桌紧凑位或内联手牌区 — 翻牌前仅在手牌飞入阶段展示桌上牌；
+       * 结束后收起（桌上与下方一致），翻牌前看牌用外层「查看手牌」；翻牌后下方内联区常驻。
+       * 抽屉内 skipHoleDealAnimation 会把 introDone 置 true，不得按 intro 隐藏，否则翻牌前弹层里看不到牌。
+       */
+      if ((this.heroHandDock || this.rivalMini) && this.isMe) {
+        if (this.heroHandDock && this.skipHoleDealAnimation) return true
+        if (this.stage === 'showdown' || this.stage === 'settled') return true
+        if (this.stage === 'preflop') return !this.holeDealIntroDone
+        return this.showHoleCardsRevealed
+      }
       if (this.showHoleCardsRevealed) return true
       if (this.stage === 'preflop') return !this.holeDealIntroDone
       return false
@@ -452,6 +567,20 @@ export default {
       return this.isMe
         || (this.isOwner && this.ownerRevealAll && this.player.holeCards && this.player.holeCards.length > 0)
     },
+    /** 牌型名称：优先服务端 `handRankName`（翻后与 bestHandCards 同批下发），缺省时本地兜底 */
+    displayHandRankName() {
+      if (this.player.leftThisHand) return ''
+      var n = this.player.handRankName
+      if (n != null && String(n).trim() !== '') return String(n).trim()
+      return getHandRank(this.player.holeCards, this.communityCards)
+    },
+    /** 成牌说明：优先服务端 `handRankDetail`，缺省时本地兜底 */
+    displayHandRankDetail() {
+      if (this.player.leftThisHand) return ''
+      var d = this.player.handRankDetail
+      if (d != null && String(d).trim() !== '') return String(d).trim()
+      return getHandRankDetail(this.player.holeCards, this.communityCards)
+    },
     /** 摊牌或准备下一局：牌力最高者（含平局并列）展示精确五张（与本人 bestHand 同款） */
     showShowdownLeaderDetail() {
       var leaders = this.showdownHandLeaders
@@ -480,22 +609,20 @@ export default {
       }
       return []
     },
-    /** 供公共牌飞入动画定位庄位（D）发牌起点 */
-    dealerAnchorAttrs() {
-      if (this.player.leftThisHand || !this.player.dealer) return {}
-      return { 'data-dp-dealer-anchor': 'true' }
-    },
     /** 弃牌幽灵动画：手牌张数（用于 v-for 1..n） */
     ghostHoleLen() {
       var hc = this.player.holeCards
       return hc && hc.length ? hc.length : 0
+    },
+    /** 抽屉内可逐张翻：有 stagger 时不加 instant，保留 hole-card-flip 动画 */
+    holeFlipUseInstant() {
+      if (!this.skipHoleDealAnimation) return false
+      return !(this.dealRevealStaggerSec > 0)
     }
   },
   methods: {
     getCardClass,
     getCardDisplay,
-    getHandRank,
-    getHandRankDetail,
     prefersReducedMotion() {
       if (this.dpGameView && this.dpGameView.ecoMode) return true
       if (typeof window === 'undefined' || !window.matchMedia) return false
@@ -572,9 +699,21 @@ export default {
       })
     },
     finishHoleDealIntroIfNeeded() {
+      /* 翻牌前尚无 holeCards 时不得结束 intro，否则父级会收起 6 点座位，飞牌永远不播 */
+      if (this.stage === 'preflop' && this.compact) {
+        var hc0 = this.player.holeCards
+        if (!hc0 || hc0.length === 0) return
+      }
       this.clearHoleIntroTimer()
-      if (this.stage === 'preflop' && this.compact && !this.showHoleCardsRevealed) {
+      if (this.stage !== 'preflop' || !this.compact) return
+      var before = this.holeDealIntroDone
+      if (!this.showHoleCardsRevealed) {
         this.holeDealIntroDone = true
+      } else if (this.isMe && (this.heroHandDock || this.rivalMini)) {
+        this.holeDealIntroDone = true
+      }
+      if (!before && this.holeDealIntroDone && this.isMe && (this.heroHandDock || this.rivalMini)) {
+        this.$emit('hole-deal-intro-complete')
       }
     },
     /** 最后一手牌飞入起点时间 + 飞入/翻面余量（与人数、张数相关） */
@@ -670,7 +809,12 @@ export default {
     },
     /** 摊牌/结算同时翻开；仅首圈庄位发牌时沿用座位 stagger */
     holeFlipDelaySec(ci) {
-      if (this.skipHoleDealAnimation) return '0s'
+      if (this.skipHoleDealAnimation) {
+        if (this.dealRevealStaggerSec > 0) {
+          return (this.dealRevealStaggerSec * ci) + 's'
+        }
+        return '0s'
+      }
       if (this.stage === 'showdown' || this.stage === 'settled') return '0s'
       if (this.holeDealChainFlip) {
         return (this.holeDealDelayMsForCard(ci) / 1000 + 0.42) + 's'

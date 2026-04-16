@@ -38,6 +38,10 @@
   padding: 16px 18px;
 }
 
+.hand-rank-modal.hand-rank-modal--music-box {
+  max-width: 520px;
+}
+
 .dp-game-dialog__head {
   display: flex;
   align-items: center;

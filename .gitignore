@@ -31,3 +31,11 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### 环境变量（含密钥；示例见仓库根目录 .env.example） ###
+.env
+.env.local
+.env.*.local
+
+### Docker 运行时数据（上传的音/图等，体积大且因环境而异；compose 映射见 docker-data/uploads） ###
+docker-data/uploads/
