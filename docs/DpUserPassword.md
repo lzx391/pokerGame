@@ -72,7 +72,7 @@
 
 | 内容 | 位置 |
 |------|------|
-| MD5 摘要工具 | `src/main/java/.../utils/CryptoUtil.java` |
+| bcrypt 摘要工具 | `src/main/java/.../utils/CryptoUtil.java` |
 | JWT 签发/校验 | `src/main/java/.../security/JwtTokenService.java` |
 | 登录发 token | `DpUserController#loginProfile` |
 | 全局鉴权 | `docs/JWT.md` |
