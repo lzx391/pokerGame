@@ -215,7 +215,8 @@
 
 | 文档 | 内容 |
 |------|------|
-| [readme.md](../readme.md) | 总览、功能索引 |
+| [README.md](../README.md) | 总览、维护长说明 |
+| [docs/README.md](./README.md) | `docs/` 专题文档总索引 |
 | [DPGAME.md](./DPGAME.md) | 规则与接口 |
 | [WEBSOCKET.md](./WEBSOCKET.md) | WS 协议与多实例讨论 |
 | [JWT.md](./JWT.md) | JWT 使用说明 |
@@ -233,4 +234,4 @@
 
 ---
 
-*文档生成依据：仓库 `pom.xml`、`readme.md`、`application.properties` 及主要 Java 包结构；若代码变更，请以当前实现为准。*
+*文档生成依据：仓库 `pom.xml`、`README.md`、`application.properties` 及主要 Java 包结构；若代码变更，请以当前实现为准。*

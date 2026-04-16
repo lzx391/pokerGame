@@ -151,7 +151,7 @@
 
 ## 6. 对外查询 API（与落库的关系）
 
-根目录 `readme.md` 中已有摘要：
+根目录 [README.md](../README.md) 中已有摘要：
 
 - 列表：`GET /dpHandHistory/list?userId=…` —— 参与者表按 `user_id` 命中。
 - 详情：`GET /dpHandHistory/detail?handHistoryId=…&userId=…` —— 校验该 `user_id` 参与该手后读主表 `payload_json`。
