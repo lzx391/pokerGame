@@ -1,6 +1,6 @@
 package com.example.mgdemoplus.service.dp;
 
-import com.example.mgdemoplus.dto.DpObservedHandRecordDTO;
+import com.example.mgdemoplus.bo.DpObservedHandRecordBO;
 import com.example.mgdemoplus.entity.dp.DpPlayer;
 import com.example.mgdemoplus.entity.dp.DpRoom;
 
@@ -37,7 +37,7 @@ public interface DpHandHistoryObservedService {
 
     void capturePotsBeforeClear(DpRoom room);
 
-    DpObservedHandRecordDTO finalizeHand(DpRoom room);
+    DpObservedHandRecordBO finalizeHand(DpRoom room);
 
     void clearHand(DpRoom room);
 }

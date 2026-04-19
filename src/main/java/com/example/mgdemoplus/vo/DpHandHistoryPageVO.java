@@ -1,18 +1,18 @@
-package com.example.mgdemoplus.dto;
+package com.example.mgdemoplus.vo;
 
 import java.util.List;
 
 /**
  * 历史对局分页结果（无第三方分页插件，由 SQL LIMIT + COUNT 实现）。
  */
-public class DpHandHistoryPageDTO {
+public class DpHandHistoryPageVO {
     /** 符合条件的总行数（参与者维度） */
     private long total;
     /** 当前页码，从 1 开始 */
     private int page;
     /** 每页条数 */
     private int pageSize;
-    private List<DpHandHistoryListItemDTO> records;
+    private List<DpHandHistoryListItemVO> records;
 
     public long getTotal() {
         return total;
@@ -38,11 +38,11 @@ public class DpHandHistoryPageDTO {
         this.pageSize = pageSize;
     }
 
-    public List<DpHandHistoryListItemDTO> getRecords() {
+    public List<DpHandHistoryListItemVO> getRecords() {
         return records;
     }
 
-    public void setRecords(List<DpHandHistoryListItemDTO> records) {
+    public void setRecords(List<DpHandHistoryListItemVO> records) {
         this.records = records;
     }
 }

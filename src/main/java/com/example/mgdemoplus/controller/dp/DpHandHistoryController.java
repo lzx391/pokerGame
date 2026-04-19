@@ -1,8 +1,8 @@
 package com.example.mgdemoplus.controller.dp;
 
-import com.example.mgdemoplus.dto.DpHandHistoryDetailDTO;
-import com.example.mgdemoplus.dto.DpHandHistoryPageDTO;
 import com.example.mgdemoplus.service.dp.DpHandHistoryService;
+import com.example.mgdemoplus.vo.DpHandHistoryDetailVO;
+import com.example.mgdemoplus.vo.DpHandHistoryPageVO;
 
 // import com.example.mgdemoplus.service.serviceImpl.dp.DpHandHistoryServiceImpl;
 import org.springframework.http.ResponseEntity;
@@ -29,7 +29,7 @@ public class DpHandHistoryController {
      * @param pageSize 每页条数，默认 10，最大 100
      */
     @GetMapping("/list")
-    public DpHandHistoryPageDTO list(
+    public DpHandHistoryPageVO list(
             @RequestParam Integer userId,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize
@@ -41,11 +41,11 @@ public class DpHandHistoryController {
      * 单条牌谱回放数据（payload）；仅参与者（user_id）可读，他人洞牌已脱敏。
      */
     @GetMapping("/detail")
-    public ResponseEntity<DpHandHistoryDetailDTO> detail(
+    public ResponseEntity<DpHandHistoryDetailVO> detail(
             @RequestParam long handHistoryId,
             @RequestParam Integer userId
     ) {
-        DpHandHistoryDetailDTO dto = handHistoryService.getDetail(handHistoryId, userId);
+        DpHandHistoryDetailVO dto = handHistoryService.getDetail(handHistoryId, userId);
         if (dto == null) {
             return ResponseEntity.notFound().build();
         }
@@ -53,7 +53,7 @@ public class DpHandHistoryController {
     }
 
     @GetMapping("/checkUserAndOtherPlayerHandHistoryList")
-    public DpHandHistoryPageDTO checkUserAndOtherPlayerHandHistoryList(
+    public DpHandHistoryPageVO checkUserAndOtherPlayerHandHistoryList(
             @RequestParam Integer userId,
             @RequestParam Integer otherUserId,
             @RequestParam(defaultValue = "1") int page,

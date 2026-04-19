@@ -18,7 +18,7 @@
 ### 用户与账号
 
 - **认证**：**Spring Security** + **JWT**（`Authorization: Bearer`）；白名单含登录注册、`/ws/**`、部分房间只读接口等（完整列表见 [docs/JWT.md](docs/JWT.md)）。
-- **密码**：服务端对密码做 **MD5(UTF-8)** 摘要后入库（详见 [docs/DpUserPassword.md](docs/DpUserPassword.md)）。
+- **密码**：服务端对密码做 **bcrypt** 摘要后入库（详见 [docs/DpUserPassword.md](docs/DpUserPassword.md)）。
 - **虚拟筹码**：演示用途，不涉及真钱。
 
 ### NPC / AI
@@ -163,7 +163,7 @@ A **Spring Boot** web demo centered on **DP Texas Hold’em (NL)**—multi-room 
 #### Accounts
 
 - **Auth**: **Spring Security** + **JWT** (`Authorization: Bearer`); whitelist covers login/register, `/ws/**`, some read-only room APIs—full list in [docs/JWT.md](docs/JWT.md).
-- **Passwords**: **MD5(UTF-8)** digest stored server-side—see [docs/DpUserPassword.md](docs/DpUserPassword.md).
+- **Passwords**: **bcrypt** digest stored server-side—see [docs/DpUserPassword.md](docs/DpUserPassword.md).
 - **Play money only**: No real-money gambling.
 
 #### NPC / AI

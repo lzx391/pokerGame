@@ -1,11 +1,11 @@
-package com.example.mgdemoplus.dto;
+package com.example.mgdemoplus.vo;
 
 import java.util.Map;
 
 /**
  * 单条牌谱详情（payload 为解析后的 JSON 对象；他人底牌已在服务端脱敏）。
  */
-public class DpHandHistoryDetailDTO {
+public class DpHandHistoryDetailVO {
     //本类的作用是：将dp_observed_hand_history表中的数据转换为DTO对象
     private Long handHistoryId;
     private String roomId;

@@ -1,9 +1,9 @@
-package com.example.mgdemoplus.dto;
+package com.example.mgdemoplus.vo;
 
 /**
  * 历史对局列表单行（参与者维度 JOIN 牌谱主表摘要）。
  */
-public class DpHandHistoryListItemDTO {
+public class DpHandHistoryListItemVO {
     private Long handHistoryId;
     private String roomId;
     private Long handSeed;

@@ -1,6 +1,6 @@
 package com.example.mgdemoplus.service.serviceImpl.dp;
 
-import com.example.mgdemoplus.dto.DpRoomDTO;
+import com.example.mgdemoplus.bo.DpObservedHandRecordBO;
 import com.example.mgdemoplus.entity.dp.DpPlayer;
 import com.example.mgdemoplus.entity.dp.DpPot;
 import com.example.mgdemoplus.entity.dp.DpRoom;
@@ -8,9 +8,9 @@ import com.example.mgdemoplus.entity.dp.DpPlayerStats;
 import com.example.mgdemoplus.entity.dp.DpUser;
 import com.example.mgdemoplus.mapper.dp.DpUserMapper;
 import com.example.mgdemoplus.service.dp.DpHandHistoryObservedService;
-import com.example.mgdemoplus.dto.DpObservedHandRecordDTO;
 import com.example.mgdemoplus.service.dp.DpHandHistoryPersistService;
 import com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator;
+import com.example.mgdemoplus.vo.DpRoomVO;
 import com.example.mgdemoplus.websocket.DpGameRoomPushService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
@@ -474,10 +474,10 @@ public class DpRoomServiceImpl {
     /**
      * 房间列表摘要：用于大厅展示所有房间（房间号 / 房主 / 在线人数）
      */
-    public List<DpRoomDTO> getAllRooms2() {
+    public List<DpRoomVO> getAllRooms2() {
         return roomMap.values().stream()
                 .map(room -> {
-                    DpRoomDTO dto = new DpRoomDTO();
+                    DpRoomVO dto = new DpRoomVO();
                     dto.setRoomId(room.getRoomId());
                     dto.setOwner(room.getOwner());
                     // 房间展示人数只统计“非僵尸位”的真实玩家
@@ -1442,7 +1442,7 @@ public class DpRoomServiceImpl {
                 p.setReady(false);
             }
             //每局结算的时候将牌谱归档，并存入数据库
-            DpObservedHandRecordDTO archivedEarly = observedHandService.finalizeHand(r);
+            DpObservedHandRecordBO archivedEarly = observedHandService.finalizeHand(r);
             if (archivedEarly != null) {
                 observedHandPersistService.save(archivedEarly, r);
             }
@@ -1786,7 +1786,7 @@ public class DpRoomServiceImpl {
         // Shark 学习实验：基于本手统计结果更新“长期记忆参数”（只在 BOT_Shark 决策里读取）
         // 注意：LearningLab 内部会读取本手动作日志做 shove 频率等统计，因此必须先学习、后清理日志。
         // 完整牌谱归档（仅 Shark 在座时）：须在 LearningLab 之前，以便后者仍可读 ActionLog
-        DpObservedHandRecordDTO archived = observedHandService.finalizeHand(r);
+        DpObservedHandRecordBO archived = observedHandService.finalizeHand(r);
         if (archived != null) {
             observedHandPersistService.save(archived, r);
         }

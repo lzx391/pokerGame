@@ -1,4 +1,4 @@
-package com.example.mgdemoplus.dto;
+package com.example.mgdemoplus.bo;
 
 import java.util.List;
 import java.util.Map;
@@ -6,7 +6,7 @@ import java.util.Map;
 /**
  * 一手结束后的完整观测记录（服务端视角：含未摊牌者底牌，便于 AI 离线分析；勿直接原样下发客户端）。
  */
-public final class DpObservedHandRecordDTO {
+public final class DpObservedHandRecordBO {
     public final String roomId;
     public final long handSeed;
     public final long startedAtMs;
@@ -14,10 +14,10 @@ public final class DpObservedHandRecordDTO {
     public final int smallBlindChips;
     public final int bigBlindChips;
     public final String dealerNickname;
-    public final List<DpObservedSeatAtHandStartDTO> seatsAtStart;
-    public final List<DpObservedStreetBoardDTO> boardsByStreet;
-    public final List<DpObservedHandActionRecordDTO> actions;
-    public final List<DpObservedPotSnapshotDTO> potsBeforeSettlement;
+    public final List<DpObservedSeatAtHandStartBO> seatsAtStart;
+    public final List<DpObservedStreetBoardBO> boardsByStreet;
+    public final List<DpObservedHandActionRecordBO> actions;
+    public final List<DpObservedPotSnapshotBO> potsBeforeSettlement;
     /**
      * 结算前「有效」底池总额：仅含至少两名玩家有资格赢取的那几层池之和。
      */
@@ -25,12 +25,12 @@ public final class DpObservedHandRecordDTO {
     public final Map<String, List<String>> holeCardsAtEnd;
     public final Map<String, Integer> netChipsChange;
 
-    public DpObservedHandRecordDTO(String roomId, long handSeed, long startedAtMs, long endedAtMs,
+    public DpObservedHandRecordBO(String roomId, long handSeed, long startedAtMs, long endedAtMs,
                                    int smallBlindChips, int bigBlindChips, String dealerNickname,
-                                   List<DpObservedSeatAtHandStartDTO> seatsAtStart,
-                                   List<DpObservedStreetBoardDTO> boardsByStreet,
-                                   List<DpObservedHandActionRecordDTO> actions,
-                                   List<DpObservedPotSnapshotDTO> potsBeforeSettlement,
+                                   List<DpObservedSeatAtHandStartBO> seatsAtStart,
+                                   List<DpObservedStreetBoardBO> boardsByStreet,
+                                   List<DpObservedHandActionRecordBO> actions,
+                                   List<DpObservedPotSnapshotBO> potsBeforeSettlement,
                                    int mainPotTotalBeforeSettlement,
                                    Map<String, List<String>> holeCardsAtEnd,
                                    Map<String, Integer> netChipsChange) {

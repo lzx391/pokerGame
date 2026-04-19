@@ -1,9 +1,9 @@
 package com.example.mgdemoplus.controller.dp;
 
-import com.example.mgdemoplus.dto.DpRoomDTO;
 import com.example.mgdemoplus.entity.dp.DpRoom;
 import com.example.mgdemoplus.service.serviceImpl.dp.DpRoomServiceImpl;
 import com.example.mgdemoplus.utils.ResultUtil;
+import com.example.mgdemoplus.vo.DpRoomVO;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -186,7 +186,7 @@ public class DpRoomController {
         return dpRoomService.transferOwner(roomId, fromNickname, toNickname) ? "ok" : "fail";
     }
     @GetMapping("/getAllRooms2")
-    public List<DpRoomDTO> getAllRooms2() {
+    public List<DpRoomVO> getAllRooms2() {
         return dpRoomService.getAllRooms2();
     }
 }
