@@ -1,6 +1,6 @@
-package com.example.mgdemoplus.dto;
+package com.example.mgdemoplus.vo;
 
-public class DpRoomDTO {
+public class DpRoomVO {
     private String roomId;
     private String owner;
     private int playerSize;

@@ -1,10 +1,10 @@
 package com.example.mgdemoplus.service.serviceImpl.dp;
 
-import com.example.mgdemoplus.dto.DpObservedHandActionRecordDTO;
-import com.example.mgdemoplus.dto.DpObservedHandRecordDTO;
-import com.example.mgdemoplus.dto.DpObservedPotSnapshotDTO;
-import com.example.mgdemoplus.dto.DpObservedSeatAtHandStartDTO;
-import com.example.mgdemoplus.dto.DpObservedStreetBoardDTO;
+import com.example.mgdemoplus.bo.DpObservedHandActionRecordBO;
+import com.example.mgdemoplus.bo.DpObservedHandRecordBO;
+import com.example.mgdemoplus.bo.DpObservedPotSnapshotBO;
+import com.example.mgdemoplus.bo.DpObservedSeatAtHandStartBO;
+import com.example.mgdemoplus.bo.DpObservedStreetBoardBO;
 import com.example.mgdemoplus.entity.dp.DpObservedHandHistory;
 import com.example.mgdemoplus.entity.dp.DpObservedHandParticipant;
 import com.example.mgdemoplus.entity.dp.DpPlayer;
@@ -28,7 +28,7 @@ import java.util.Map;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 /**
- * 将 {@link DpObservedHandRecordDTO} 写入表 dp_observed_hand_history，
+ * 将 {@link DpObservedHandRecordBO} 写入表 dp_observed_hand_history，
  * 并对非机器人玩家写入 dp_observed_hand_participant（user_id 优先来自 dpUserId，否则按昵称查 dp_user；均可无则仅存昵称快照）。
  * 在 {@link DpRoomServiceImpl} 结算流程中调用；表不存在或 DB 异常时仅打日志，不中断游戏。
  */
@@ -71,7 +71,7 @@ public class DpHandHistoryPersistServiceImpl implements DpHandHistoryPersistServ
     /**
      * @param room 结算当刻的房间（用于参与者与 dp_user 关联）；可为 null 则只写牌谱主表。
      */
-    public void save(DpObservedHandRecordDTO rec, DpRoom room) {
+    public void save(DpObservedHandRecordBO rec, DpRoom room) {
         if (rec == null) {
             return;
         }
@@ -103,7 +103,7 @@ public class DpHandHistoryPersistServiceImpl implements DpHandHistoryPersistServ
         }
     }
 
-    private void insertParticipants(DpObservedHandRecordDTO rec, long handHistoryId, DpRoom room) {
+    private void insertParticipants(DpObservedHandRecordBO rec, long handHistoryId, DpRoom room) {
         List<DpPlayer> ps = room.getPlayers();
         if (ps == null) {
             return;
@@ -162,10 +162,10 @@ public class DpHandHistoryPersistServiceImpl implements DpHandHistoryPersistServ
         //6. PotDto对象：负责记录池
         //7. HoleCardsAtEnd对象：负责记录洞牌
         //8. NetChipsChange对象：负责记录净盈亏
-        static Payload from(DpObservedHandRecordDTO rec) {
+        static Payload from(DpObservedHandRecordBO rec) {
             Payload p = new Payload();
             p.seatsAtStart = new ArrayList<>();
-            for (DpObservedSeatAtHandStartDTO s : rec.seatsAtStart) {
+            for (DpObservedSeatAtHandStartBO s : rec.seatsAtStart) {
                 SeatDto d = new SeatDto();
                 d.seatIndex = s.seatIndex;
                 d.nickname = s.nickname;
@@ -174,14 +174,14 @@ public class DpHandHistoryPersistServiceImpl implements DpHandHistoryPersistServ
                 p.seatsAtStart.add(d);
             }
             p.boardsByStreet = new ArrayList<>();
-            for (DpObservedStreetBoardDTO b : rec.boardsByStreet) {
+            for (DpObservedStreetBoardBO b : rec.boardsByStreet) {
                 BoardDto d = new BoardDto();
                 d.stage = b.stage;
                 d.communityCards = new ArrayList<>(b.communityCards);
                 p.boardsByStreet.add(d);
             }
             p.actions = new ArrayList<>();
-            for (DpObservedHandActionRecordDTO a : rec.actions) {
+            for (DpObservedHandActionRecordBO a : rec.actions) {
                 ActionDto d = new ActionDto();
                 d.tsMs = a.tsMs;
                 d.stage = a.stage;
@@ -195,7 +195,7 @@ public class DpHandHistoryPersistServiceImpl implements DpHandHistoryPersistServ
                 p.actions.add(d);
             }
             p.potsBeforeSettlement = new ArrayList<>();
-            for (DpObservedPotSnapshotDTO pot : rec.potsBeforeSettlement) {
+            for (DpObservedPotSnapshotBO pot : rec.potsBeforeSettlement) {
                 PotDto d = new PotDto();
                 d.amount = pot.amount;
                 d.eligibleNicknames = new ArrayList<>(pot.eligibleNicknames);

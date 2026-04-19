@@ -1,14 +1,14 @@
 package com.example.mgdemoplus.service.serviceImpl.dp;
 
-import com.example.mgdemoplus.dto.DpHandHistoryDetailDTO;
-import com.example.mgdemoplus.dto.DpHandHistoryListItemDTO;
-import com.example.mgdemoplus.dto.DpHandHistoryPageDTO;
 import com.example.mgdemoplus.entity.dp.DpObservedHandHistory;
 import com.example.mgdemoplus.entity.dp.DpUser;
 import com.example.mgdemoplus.mapper.dp.DpHandHistoryQueryMapper;
 import com.example.mgdemoplus.mapper.dp.DpObservedHandHistoryMapper;
 import com.example.mgdemoplus.mapper.dp.DpUserMapper;
 import com.example.mgdemoplus.service.dp.DpHandHistoryService;
+import com.example.mgdemoplus.vo.DpHandHistoryDetailVO;
+import com.example.mgdemoplus.vo.DpHandHistoryListItemVO;
+import com.example.mgdemoplus.vo.DpHandHistoryPageVO;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.pagehelper.PageHelper;
@@ -46,13 +46,13 @@ public class DpHandHistoryServiceImpl implements DpHandHistoryService {
     /**
      * 两人共同参与过的对局：同一手牌上两条参与者（均按 user_id）；分页由 PageHelper + PageInfo。
      */
-    public DpHandHistoryPageDTO checkUserAndOtherPlayerHandHistoryList(
+    public DpHandHistoryPageVO checkUserAndOtherPlayerHandHistoryList(
             Integer userId,
             Integer otherUserId,
             int page,
             int pageSize
     ) {
-        DpHandHistoryPageDTO out = new DpHandHistoryPageDTO();
+        DpHandHistoryPageVO out = new DpHandHistoryPageVO();
         out.setPage(Math.max(page, 1));
         int size = pageSize > 0 ? pageSize : DEFAULT_PAGE_SIZE;
         size = Math.min(size, MAX_PAGE_SIZE);
@@ -73,8 +73,8 @@ public class DpHandHistoryServiceImpl implements DpHandHistoryService {
         }
 
         PageHelper.startPage(out.getPage(), size);
-        List<DpHandHistoryListItemDTO> records = queryMapper.listCommonHandsBothUserIds(userId, otherUserId);
-        PageInfo<DpHandHistoryListItemDTO> pageInfo = new PageInfo<>(records);
+        List<DpHandHistoryListItemVO> records = queryMapper.listCommonHandsBothUserIds(userId, otherUserId);
+        PageInfo<DpHandHistoryListItemVO> pageInfo = new PageInfo<>(records);
         out.setTotal(pageInfo.getTotal());
         out.setRecords(records);
         return out;
@@ -83,8 +83,8 @@ public class DpHandHistoryServiceImpl implements DpHandHistoryService {
     /**
      * 当前登录用户（仅按 dp_user.id，参与者表须含对应 user_id）。
      */
-    public DpHandHistoryPageDTO listMyHandsPage(Integer userId, int page, int pageSize) {
-        DpHandHistoryPageDTO out = new DpHandHistoryPageDTO();
+    public DpHandHistoryPageVO listMyHandsPage(Integer userId, int page, int pageSize) {
+        DpHandHistoryPageVO out = new DpHandHistoryPageVO();
         out.setPage(Math.max(page, 1));
         int size = pageSize > 0 ? pageSize : DEFAULT_PAGE_SIZE;
         size = Math.min(size, MAX_PAGE_SIZE);
@@ -103,8 +103,8 @@ public class DpHandHistoryServiceImpl implements DpHandHistoryService {
         }
 
         PageHelper.startPage(out.getPage(), size);
-        List<DpHandHistoryListItemDTO> records = queryMapper.listForUserId(userId);
-        PageInfo<DpHandHistoryListItemDTO> pageInfo = new PageInfo<>(records);
+        List<DpHandHistoryListItemVO> records = queryMapper.listForUserId(userId);
+        PageInfo<DpHandHistoryListItemVO> pageInfo = new PageInfo<>(records);
         out.setTotal(pageInfo.getTotal());
         out.setRecords(records);
         return out;
@@ -113,7 +113,7 @@ public class DpHandHistoryServiceImpl implements DpHandHistoryService {
     /**
      * 单条牌谱详情：仅当该 user_id 在参与者表中关联该手时可读。
      */
-    public DpHandHistoryDetailDTO getDetail(long handHistoryId, Integer userId) {
+    public DpHandHistoryDetailVO getDetail(long handHistoryId, Integer userId) {
 
         if (userId == null) {
             return null;
@@ -141,7 +141,7 @@ public class DpHandHistoryServiceImpl implements DpHandHistoryService {
             return null;
         }
 
-        DpHandHistoryDetailDTO dto = new DpHandHistoryDetailDTO();
+        DpHandHistoryDetailVO dto = new DpHandHistoryDetailVO();
         dto.setHandHistoryId(row.getId());
         dto.setRoomId(row.getRoomId());
         dto.setHandSeed(row.getHandSeed());

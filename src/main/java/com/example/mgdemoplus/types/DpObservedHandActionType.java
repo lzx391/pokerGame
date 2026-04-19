@@ -1,4 +1,4 @@
-package com.example.mgdemoplus.dto;
+package com.example.mgdemoplus.types;
 
 /** 观测牌谱中单条行动类型。 */
 public enum DpObservedHandActionType {

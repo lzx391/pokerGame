@@ -1,9 +1,10 @@
 package com.example.mgdemoplus.mapper.dp;
 
-import com.example.mgdemoplus.dto.DpHandHistoryListItemDTO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+
+import com.example.mgdemoplus.vo.DpHandHistoryListItemVO;
 
 import java.util.List;
 
@@ -30,7 +31,7 @@ public interface DpHandHistoryQueryMapper {
             WHERE p.user_id = #{userId}
             ORDER BY h.ended_at_ms DESC
             """)
-    List<DpHandHistoryListItemDTO> listForUserId(@Param("userId") int userId);
+    List<DpHandHistoryListItemVO> listForUserId(@Param("userId") int userId);
 
     @Select("""
             SELECT COUNT(*)
@@ -61,7 +62,7 @@ public interface DpHandHistoryQueryMapper {
                 AND o.user_id = #{otherUserId}
             ORDER BY h.ended_at_ms DESC
             """)
-    List<DpHandHistoryListItemDTO> listCommonHandsBothUserIds(
+    List<DpHandHistoryListItemVO> listCommonHandsBothUserIds(
             @Param("userId") int userId,
             @Param("otherUserId") int otherUserId
     );
