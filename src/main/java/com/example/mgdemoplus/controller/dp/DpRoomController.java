@@ -1,10 +1,11 @@
 package com.example.mgdemoplus.controller.dp;
 
+import com.example.mgdemoplus.bo.DpRoomBO;
+import com.example.mgdemoplus.bo.DpRoomLobbySearchParamBO;
 import com.example.mgdemoplus.entity.dp.DpRoom;
 import com.example.mgdemoplus.service.dp.DpRoomHallService;
 import com.example.mgdemoplus.service.serviceImpl.dp.DpRoomServiceImpl;
 import com.example.mgdemoplus.utils.ResultUtil;
-import com.example.mgdemoplus.vo.DpRoomVO;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -28,7 +29,7 @@ public class DpRoomController {
     // 注意：不要在 Controller 里再建 roomMap，所有数据操作都走 Service
 
     @PostMapping("/createRoom")
-    public DpRoom createRoom(@RequestParam String nickname,
+    public DpRoomBO createRoom(@RequestParam String nickname,
                              @RequestParam(required = false) Integer userId,
                              @RequestParam(required = false, defaultValue = "5") int smallBlindChips,
                              @RequestParam(required = false, defaultValue = "10") int bigBlindChips,
@@ -38,7 +39,7 @@ public class DpRoomController {
     }
 
     @GetMapping("/getNowRoom")
-    public DpRoom getNowRoom(@RequestParam String roomId,
+    public DpRoomBO getNowRoom(@RequestParam String roomId,
                              @RequestParam(required = false) String nickname) {
         return dpRoomService.getRoomSnapshotForViewer(roomId, nickname);
     }
@@ -191,7 +192,7 @@ public class DpRoomController {
         return dpRoomService.transferOwner(roomId, fromNickname, toNickname) ? "ok" : "fail";
     }
     @GetMapping("/getAllRooms2")
-    public List<DpRoomVO> getAllRooms2() {
+    public List<DpRoom> getAllRooms2() {
         return dpRoomService.getAllRooms2();
     }
 
@@ -200,6 +201,18 @@ public class DpRoomController {
                                            @RequestParam(defaultValue = "10") int pageSize) {
         Map<String, Object> out = new HashMap<>();
         var payload = dpRoomHallService.getPublicRoomsPage(page, pageSize);
+        out.put("list", payload.getList());
+        out.put("total", payload.getTotal());
+        out.put("page", payload.getPage());
+        out.put("pageSize", payload.getPageSize());
+        return out;
+    }
+
+    /** 筛选 / 精确房间号：只走 MySQL（MyBatis-Plus），不经 Redis */
+    @GetMapping("/publicRooms/query")
+    public Map<String, Object> publicRoomsQuery(DpRoomLobbySearchParamBO param) {
+        Map<String, Object> out = new HashMap<>();
+        var payload = dpRoomHallService.queryPublicRoomsFromDb(param);
         out.put("list", payload.getList());
         out.put("total", payload.getTotal());
         out.put("page", payload.getPage());

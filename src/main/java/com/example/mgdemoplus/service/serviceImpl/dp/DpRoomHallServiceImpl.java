@@ -1,11 +1,16 @@
 package com.example.mgdemoplus.service.serviceImpl.dp;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.mgdemoplus.bo.DpRoomBO;
+import com.example.mgdemoplus.bo.DpRoomLobbySearchParamBO;
 import com.example.mgdemoplus.entity.dp.DpPlayer;
 import com.example.mgdemoplus.entity.dp.DpRoom;
+import com.example.mgdemoplus.entity.dp.DpRoomLobby;
 import com.example.mgdemoplus.mapper.dp.DpRoomLobbyMapper;
+import com.example.mgdemoplus.mapper.dp.DpRoomLobbyMpMapper;
 import com.example.mgdemoplus.service.dp.DpRoomHallService;
 import com.example.mgdemoplus.vo.DpRoomPublicRoomsPageVO;
-import com.example.mgdemoplus.vo.DpRoomVO;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
@@ -22,7 +27,6 @@ import org.springframework.stereotype.Service;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-
 @Service
 public class DpRoomHallServiceImpl implements DpRoomHallService {
     private static final Logger log = LoggerFactory.getLogger(DpRoomHallServiceImpl.class);
@@ -32,30 +36,34 @@ public class DpRoomHallServiceImpl implements DpRoomHallService {
 
     private static final int DEFAULT_PAGE_SIZE = 10;
     private static final int MAX_PAGE_SIZE = 100;
+    private static final int MAX_ROOM_ID_LEN = 32;
 
     private final DpRoomLobbyMapper dpRoomLobbyMapper;
+    private final DpRoomLobbyMpMapper dpRoomLobbyMpMapper;
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
     private final long dataTtlSeconds;
 
     public DpRoomHallServiceImpl(
             DpRoomLobbyMapper dpRoomLobbyMapper,
+            DpRoomLobbyMpMapper dpRoomLobbyMpMapper,
             StringRedisTemplate stringRedisTemplate,
             ObjectMapper objectMapper,
             @Value("${mgdemoplus.cache.dp-room-public-rooms-ttl-seconds:120}") long dataTtlSeconds) {
         this.dpRoomLobbyMapper = dpRoomLobbyMapper;
+        this.dpRoomLobbyMpMapper = dpRoomLobbyMpMapper;
         this.stringRedisTemplate = stringRedisTemplate;
         this.objectMapper = objectMapper;
         this.dataTtlSeconds = Math.max(30L, dataTtlSeconds);
     }
 
     @Override
-    public void upsertRoomSummary(DpRoom room) {
+    public void upsertRoomSummary(DpRoomBO room) {
         if (room == null || room.getRoomId() == null || room.getRoomId().isEmpty()) {
             return;
         }
         try {
-            DpRoomVO summary = toSummary(room);
+            DpRoom summary = toSummary(room);
             int updated = dpRoomLobbyMapper.updateRoomSummary(summary);
             if (updated <= 0) {
                 dpRoomLobbyMapper.insertRoomSummary(summary);
@@ -68,7 +76,7 @@ public class DpRoomHallServiceImpl implements DpRoomHallService {
 
     @Override
     public void deleteRoomSummary(String roomId) {
-        
+
         if (roomId == null || roomId.isEmpty()) {
             return;
         }
@@ -105,10 +113,74 @@ public class DpRoomHallServiceImpl implements DpRoomHallService {
         }
     }
 
+    @Override
+    public DpRoomPublicRoomsPageVO queryPublicRoomsFromDb(DpRoomLobbySearchParamBO param) {
+        DpRoomLobbySearchParamBO p = param != null ? param : new DpRoomLobbySearchParamBO();
+        int safePage = Math.max(1, p.getPage());
+        int safeSize = p.getPageSize() > 0 ? p.getPageSize() : DEFAULT_PAGE_SIZE;
+        safeSize = Math.min(MAX_PAGE_SIZE, safeSize);
+        try {
+            LambdaQueryWrapper<DpRoomLobby> w = new LambdaQueryWrapper<>();
+            w.eq(DpRoomLobby::getRoomStatus, 0);
+            if (p.getRoomId() != null && !p.getRoomId().isBlank()) {
+                String t = p.getRoomId().trim();
+                if (t.length() > MAX_ROOM_ID_LEN) {
+                    t = t.substring(0, MAX_ROOM_ID_LEN);
+                }
+                w.eq(DpRoomLobby::getRoomId, t);
+            }
+            if (p.getMinBigBlindChips() != null) {
+                w.ge(DpRoomLobby::getBigBlindChips, p.getMinBigBlindChips());
+            }
+            if (p.getMaxBigBlindChips() != null) {
+                w.le(DpRoomLobby::getBigBlindChips, p.getMaxBigBlindChips());
+            }
+            if (p.getMinPlayerCount() != null) {
+                w.ge(DpRoomLobby::getPlayerCount, p.getMinPlayerCount());
+            }
+            if (p.getMaxPlayerCount() != null) {
+                w.le(DpRoomLobby::getPlayerCount, p.getMaxPlayerCount());
+            }
+            if (p.getPasswordProtected() != null) {
+                w.eq(DpRoomLobby::getPasswordProtected, p.getPasswordProtected());
+            }
+            w.orderByDesc(DpRoomLobby::getCreatedAt);
+            Page<DpRoomLobby> result = dpRoomLobbyMpMapper.selectPage(new Page<>(safePage, safeSize), w);
+            List<DpRoom> vos = new ArrayList<>();
+            for (DpRoomLobby row : result.getRecords()) {
+                vos.add(lobbyRowToVo(row));
+            }
+            DpRoomPublicRoomsPageVO out = new DpRoomPublicRoomsPageVO();
+            out.setList(vos);
+            out.setTotal(result.getTotal());
+            out.setPage(safePage);
+            out.setPageSize(safeSize);
+            return out;
+        } catch (DataAccessException e) {
+            log.warn("query public rooms (db filter) failed: {}", e.toString());
+            return DpRoomPublicRoomsPageVO.empty(safePage, safeSize);
+        } catch (Exception e) {
+            log.warn("query public rooms (db filter) failed: {}", e.toString());
+            return DpRoomPublicRoomsPageVO.empty(safePage, safeSize);
+        }
+    }
+
+    private DpRoom lobbyRowToVo(DpRoomLobby row) {
+        DpRoom dto = new DpRoom();
+        dto.setRoomId(row.getRoomId());
+        dto.setOwner(row.getOwnerNickname() != null ? row.getOwnerNickname() : "");
+        dto.setPlayerSize(row.getPlayerCount() != null ? row.getPlayerCount() : 0);
+        dto.setSmallBlindChips(row.getSmallBlindChips() != null ? row.getSmallBlindChips() : 0);
+        dto.setBigBlindChips(row.getBigBlindChips() != null ? row.getBigBlindChips() : 0);
+        dto.setStartingStackBb(row.getStartingStackBb() != null ? row.getStartingStackBb() : 0);
+        dto.setPasswordProtected(Boolean.TRUE.equals(row.getPasswordProtected()));
+        return dto;
+    }
+
     private DpRoomPublicRoomsPageVO queryPageFromDb(int page, int pageSize) {
         PageHelper.startPage(page, pageSize);
-        List<DpRoomVO> rows = dpRoomLobbyMapper.selectActiveRoomSummaries();
-        PageInfo<DpRoomVO> pageInfo = new PageInfo<>(rows);
+        List<DpRoom> rows = dpRoomLobbyMapper.selectActiveRoomSummaries();
+        PageInfo<DpRoom> pageInfo = new PageInfo<>(rows);
         DpRoomPublicRoomsPageVO out = new DpRoomPublicRoomsPageVO();
         out.setList(rows == null ? new ArrayList<>() : rows);
         out.setTotal(pageInfo.getTotal());
@@ -183,8 +255,8 @@ public class DpRoomHallServiceImpl implements DpRoomHallService {
         return DATA_PREFIX + rev + ":" + page + ":" + pageSize;
     }
 //以下代码作用是将DpRoom对象转换为DpRoomVO对象，用于大厅展示所有房间（房间号 / 房主 / 在线人数）
-    private DpRoomVO toSummary(DpRoom room) {
-        DpRoomVO dto = new DpRoomVO();
+    private DpRoom toSummary(DpRoomBO room) {
+        DpRoom dto = new DpRoom();
         dto.setRoomId(room.getRoomId());
         dto.setOwner(room.getOwner());
         int playerSize = 0;

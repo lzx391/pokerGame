@@ -1,7 +1,7 @@
 package com.example.mgdemoplus.service.serviceImpl.dp;
 
+import com.example.mgdemoplus.bo.DpRoomBO;
 import com.example.mgdemoplus.entity.dp.DpPlayer;
-import com.example.mgdemoplus.entity.dp.DpRoom;
 import com.example.mgdemoplus.entity.dp.DpSharkOpponentProfile;
 import com.example.mgdemoplus.entity.dp.DpPlayerStats;
 import com.example.mgdemoplus.mapper.dp.DpSharkOpponentProfileMapper;
@@ -39,7 +39,7 @@ public class DpNpcSharkOpponentMemoryService {
     /**
      * 一手结算且 LearningLab 已更新后调用：为每位非 Shark 对手 upsert 一行。
      */
-    public void persistOpponentsAfterHand(DpRoom room) {
+    public void persistOpponentsAfterHand(DpRoomBO room) {
         if (room == null || !DpHandHistoryObservedImpl.isSharkAtTable(room)) {
             return;
         }
@@ -95,7 +95,7 @@ public class DpNpcSharkOpponentMemoryService {
     /**
      * 若本桌有 Shark 且该昵称尚无内存统计，则从 DB 恢复（避免覆盖本局已累积的 map）。
      */
-    public void hydratePlayerIfNeeded(DpRoom room, String nickname) {
+    public void hydratePlayerIfNeeded(DpRoomBO room, String nickname) {
         if (room == null || nickname == null || nickname.isEmpty()) {
             return;
         }
@@ -141,7 +141,7 @@ public class DpNpcSharkOpponentMemoryService {
     }
 
     /** 新一手开局、座位已定后，为桌上每位非 Shark 玩家尝试加载记忆。 */
-    public void hydrateAllOpponentsForNewHand(DpRoom room) {
+    public void hydrateAllOpponentsForNewHand(DpRoomBO room) {
         if (room == null || !DpHandHistoryObservedImpl.isSharkAtTable(room)) {
             return;
         }

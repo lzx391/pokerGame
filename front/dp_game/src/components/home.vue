@@ -33,6 +33,75 @@
 
       <section class="dp-lobby-panel home-room-list">
         <h3 class="dp-lobby-panel__title">房间列表</h3>
+        <div class="home-filters" aria-label="筛选与搜索">
+          <div class="home-filters__row">
+            <label class="home-filters__item">
+              <span class="home-filters__label">房间号</span>
+              <input
+                v-model.trim="filters.roomId"
+                type="text"
+                class="home-filters__input"
+                placeholder="精确匹配"
+                maxlength="32"
+                @keyup.enter="applyFilters"
+              />
+            </label>
+            <label class="home-filters__item home-filters__item--num">
+              <span class="home-filters__label">大盲≥</span>
+              <input
+                v-model="filters.minBigBlind"
+                type="number"
+                min="0"
+                class="home-filters__input"
+                placeholder="可选"
+              />
+            </label>
+            <label class="home-filters__item home-filters__item--num">
+              <span class="home-filters__label">大盲≤</span>
+              <input
+                v-model="filters.maxBigBlind"
+                type="number"
+                min="0"
+                class="home-filters__input"
+                placeholder="可选"
+              />
+            </label>
+            <label class="home-filters__item home-filters__item--num">
+              <span class="home-filters__label">人数≥</span>
+              <input
+                v-model="filters.minPlayers"
+                type="number"
+                min="0"
+                class="home-filters__input"
+                placeholder="可选"
+              />
+            </label>
+            <label class="home-filters__item home-filters__item--num">
+              <span class="home-filters__label">人数≤</span>
+              <input
+                v-model="filters.maxPlayers"
+                type="number"
+                min="0"
+                class="home-filters__input"
+                placeholder="可选"
+              />
+            </label>
+            <label class="home-filters__item">
+              <span class="home-filters__label">房间</span>
+              <select v-model="filters.password" class="home-filters__select">
+                <option value="any">全部</option>
+                <option value="locked">仅密码房</option>
+                <option value="open">仅公开</option>
+              </select>
+            </label>
+          </div>
+          <div class="home-filters__actions">
+            <button type="button" class="dp-btn dp-btn--primary" @click="applyFilters">搜索</button>
+            <button type="button" class="dp-btn dp-btn--ghost" @click="resetFilters">重置</button>
+            <span v-if="useFilterQuery" class="home-filters__mode">当前：条件查询（直连数据库）</span>
+            <span v-else class="home-filters__mode">当前：默认列表（缓存加速）</span>
+          </div>
+        </div>
         <p v-if="roomsLoading" class="room-list__hint">加载中…</p>
         <p v-else-if="roomsError" class="room-list__hint room-list__hint--error">{{ roomsError }}</p>
         <p v-else-if="!roomDtos.length" class="room-list__hint">暂无房间，可先点「创建房间」开一桌。</p>
@@ -67,7 +136,22 @@ export default {
       user: {},
       roomDtos: [],
       roomsLoading: true,
-      roomsError: ''
+      roomsError: '',
+      /** 表单绑定；是否走 /publicRooms/query 由 applyFilters 写入 useFilterQuery */
+      filters: {
+        roomId: '',
+        minBigBlind: '',
+        maxBigBlind: '',
+        minPlayers: '',
+        maxPlayers: '',
+        password: 'any'
+      },
+      useFilterQuery: false
+    }
+  },
+  computed: {
+    pageSize() {
+      return 20
     }
   },
   async created() {
@@ -104,13 +188,62 @@ export default {
     goCreateRoom() {
       this.$router.push('/create-room')
     },
+    /** 与当前 filters 是否应走 MyBatis 查询一致（用于搜索按钮） */
+    filtersActiveFromForm() {
+      if ((this.filters.roomId || '').length > 0) return true
+      if (this.filters.password !== 'any') return true
+      const n = (s) => (s === '' || s == null ? NaN : parseInt(String(s), 10))
+      if (!isNaN(n(this.filters.minBigBlind))) return true
+      if (!isNaN(n(this.filters.maxBigBlind))) return true
+      if (!isNaN(n(this.filters.minPlayers))) return true
+      if (!isNaN(n(this.filters.maxPlayers))) return true
+      return false
+    },
+    buildFilterQueryParams() {
+      const o = { page: 1, pageSize: this.pageSize }
+      const rid = (this.filters.roomId || '').trim()
+      if (rid) o.roomId = rid
+      const n = (s) => (s === '' || s == null ? NaN : parseInt(String(s), 10))
+      const minBB = n(this.filters.minBigBlind)
+      if (!isNaN(minBB)) o.minBigBlindChips = minBB
+      const maxBB = n(this.filters.maxBigBlind)
+      if (!isNaN(maxBB)) o.maxBigBlindChips = maxBB
+      const minP = n(this.filters.minPlayers)
+      if (!isNaN(minP)) o.minPlayerCount = minP
+      const maxP = n(this.filters.maxPlayers)
+      if (!isNaN(maxP)) o.maxPlayerCount = maxP
+      if (this.filters.password === 'locked') o.passwordProtected = true
+      if (this.filters.password === 'open') o.passwordProtected = false
+      return o
+    },
+    applyFilters() {
+      this.useFilterQuery = this.filtersActiveFromForm()
+      this.getRooms()
+    },
+    resetFilters() {
+      this.filters = {
+        roomId: '',
+        minBigBlind: '',
+        maxBigBlind: '',
+        minPlayers: '',
+        maxPlayers: '',
+        password: 'any'
+      }
+      this.useFilterQuery = false
+      this.getRooms()
+    },
     async getRooms() {
       try {
+        if (this.useFilterQuery && !this.filtersActiveFromForm()) {
+          this.useFilterQuery = false
+        }
+        const useQuery = this.useFilterQuery && this.filtersActiveFromForm()
         if (!this.roomDtos.length) this.roomsLoading = true
         this.roomsError = ''
-        const res = await this.$http.get('/dpRoom/publicRooms', {
-          params: { page: 1, pageSize: 20 }
-        })
+        const base = { page: 1, pageSize: this.pageSize }
+        const url = useQuery ? '/dpRoom/publicRooms/query' : '/dpRoom/publicRooms'
+        const params = useQuery ? this.buildFilterQueryParams() : base
+        const res = await this.$http.get(url, { params })
         var list = res && res.data ? res.data.list : []
         this.roomDtos = Array.isArray(list) ? list : []
       } catch (e) {
@@ -202,6 +335,59 @@ export default {
 }
 .home-room-list .dp-lobby-panel__title {
   margin-bottom: 8px;
+}
+.home-filters {
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid var(--dp-subpanel-border);
+  border-radius: 8px;
+  background: var(--dp-subpanel-bg, rgba(0, 0, 0, 0.04));
+}
+.home-filters__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  align-items: flex-end;
+}
+.home-filters__item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.home-filters__item--num {
+  max-width: 110px;
+}
+.home-filters__label {
+  font-size: 12px;
+  color: var(--dp-text-muted);
+}
+.home-filters__input,
+.home-filters__select {
+  padding: 6px 8px;
+  font-size: 14px;
+  border: 1px solid var(--dp-subpanel-border);
+  border-radius: 6px;
+  background: var(--dp-panel-bg, #fff);
+  color: var(--dp-text-primary);
+  min-width: 0;
+}
+.home-filters__input:focus,
+.home-filters__select:focus {
+  outline: 2px solid var(--dp-accent, #409eff);
+  outline-offset: 0;
+}
+.home-filters__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.home-filters__mode {
+  font-size: 12px;
+  color: var(--dp-text-muted);
+  margin-left: 4px;
 }
 .room-list__hint {
   margin: 12px 0;

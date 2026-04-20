@@ -5,9 +5,9 @@ import com.example.mgdemoplus.bo.DpObservedHandRecordBO;
 import com.example.mgdemoplus.bo.DpObservedPotSnapshotBO;
 import com.example.mgdemoplus.bo.DpObservedSeatAtHandStartBO;
 import com.example.mgdemoplus.bo.DpObservedStreetBoardBO;
+import com.example.mgdemoplus.bo.DpRoomBO;
 import com.example.mgdemoplus.entity.dp.DpPlayer;
 import com.example.mgdemoplus.entity.dp.DpPot;
-import com.example.mgdemoplus.entity.dp.DpRoom;
 import com.example.mgdemoplus.service.dp.DpHandHistoryObservedService;
 import com.example.mgdemoplus.types.DpObservedHandActionType;
 
@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 本桌有玩家时即记录完整牌谱（与是否坐 Shark 无关），供入库与回放。
- * Shark 专用逻辑见 {@link #isSharkAtTable(DpRoom)}（对手记忆等仍仅在桌上有 Shark 时启用）。
+ * Shark 专用逻辑见 {@link #isSharkAtTable(DpRoomBO)}（对手记忆等仍仅在桌上有 Shark 时启用）。
  *
  * <p>与 {@link DpNpcSharkHandActionLog} 并行：ActionLog 仍仅在桌上有 Shark 时启用；
  * 本类将结束的整手归档到环形缓冲，不依赖当手临时列表。</p>
@@ -102,7 +102,7 @@ public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedSer
     /**
      * 是否为本桌记牌谱：有人上桌即开启（不再要求必须有 Shark）。
      */
-    static boolean isEnabledForRoom(DpRoom room) {
+    static boolean isEnabledForRoom(DpRoomBO room) {
         if (room == null || room.getPlayers() == null) {
             return false;
         }
@@ -117,7 +117,7 @@ public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedSer
     /**
      * 桌上是否有 BOT_Shark（仅 {@link DpNpcSharkOpponentMemoryService} 等 Shark 专用逻辑使用）。
      */
-    static boolean isSharkAtTable(DpRoom room) {
+    static boolean isSharkAtTable(DpRoomBO room) {
         if (room == null || room.getPlayers() == null) {
             return false;
         }
@@ -152,7 +152,7 @@ public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedSer
     }
 //这里是开始一手牌谱的记录
 //已学习
-    public void beginHand(DpRoom room) {
+    public void beginHand(DpRoomBO room) {
         if (!isEnabledForRoom(room)) return;
         Key k = new Key(room.getRoomId(), room.getCurrentHandSeed());
         HandBuilder b = new HandBuilder();
@@ -165,7 +165,7 @@ public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedSer
      * 发牌与下盲结束后调用：固定座位序、盲注后筹码，并记一条 preflop 空_board。
      */
     //已学习，本模块代码精讲如下：翻前行动前快照
-   public  void markHandReadyAfterBlinds(DpRoom room) {
+   public  void markHandReadyAfterBlinds(DpRoomBO room) {
         if (!isEnabledForRoom(room)) return;
         Key k = new Key(room.getRoomId(), room.getCurrentHandSeed());
         HandBuilder b = BUILDERS.get(k);
@@ -187,7 +187,7 @@ public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedSer
                 ? List.of() : new ArrayList<>(room.getCommunityCards())));
     }
 //之后行动记录用
-   public  void recordBoardState(DpRoom room) {
+   public  void recordBoardState(DpRoomBO room) {
         if (!isEnabledForRoom(room)) return;
         Key k = new Key(room.getRoomId(), room.getCurrentHandSeed());
         HandBuilder b = BUILDERS.get(k);
@@ -200,14 +200,14 @@ public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedSer
         b.boardsByStreet.add(new DpObservedStreetBoardBO(st, cc));
     }
 
-   public  void recordBlind(DpRoom room, String nickname, boolean isSb, int amount, int potBefore) {
+   public  void recordBlind(DpRoomBO room, String nickname, boolean isSb, int amount, int potBefore) {
         if (!isEnabledForRoom(room)) return;
         DpObservedHandActionType t = isSb ? DpObservedHandActionType.POST_BLIND_SB : DpObservedHandActionType.POST_BLIND_BB;
         append(room, new DpObservedHandActionRecordBO(System.currentTimeMillis(), "preflop", nickname, t, amount,
                 0, 0, room.getRaiseLevel(), potBefore));
     }
 
-  public   void recordFold(DpRoom room, DpPlayer actor, int potBefore) {
+  public   void recordFold(DpRoomBO room, DpPlayer actor, int potBefore) {
         if (!isEnabledForRoom(room)) return;
         if (actor == null) return;
         append(room, new DpObservedHandActionRecordBO(System.currentTimeMillis(), room.getCurrentStage(),
@@ -215,7 +215,7 @@ public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedSer
                 room.getCurrentBetToCall(), actor.getBet(), room.getRaiseLevel(), potBefore));
     }
 
-   public  void recordBetLikeAction(DpRoom room, DpPlayer actor, int amount,
+   public  void recordBetLikeAction(DpRoomBO room, DpPlayer actor, int amount,
                                     int betToCallBefore, int actorBetBefore, int potBefore,
                                     boolean becameAllIn, boolean isRaise) {
         if (!isEnabledForRoom(room)) return;
@@ -236,7 +236,7 @@ public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedSer
     }
 
     /** 在筹码分配前调用：复制主池与边池结构 */
-  public   void capturePotsBeforeClear(DpRoom room) {//由HandBuilder类接收
+  public   void capturePotsBeforeClear(DpRoomBO room) {//由HandBuilder类接收
         if (!isEnabledForRoom(room)) return;
         Key k = new Key(room.getRoomId(), room.getCurrentHandSeed());
         HandBuilder b = BUILDERS.get(k);
@@ -260,7 +260,7 @@ public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedSer
      * 丢弃本手未归档的构建数据（与 {@link com.example.mgdemoplus.service.serviceImpl.dp.DpNpcSharkHandActionLog#clearHand} 对称）。
      */
     @Override
-    public void clearHand(DpRoom room) {
+    public void clearHand(DpRoomBO room) {
         if (room == null) return;
         BUILDERS.remove(new Key(room.getRoomId(), room.getCurrentHandSeed()));
     }
@@ -277,7 +277,7 @@ public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedSer
     //6. ARCHIVE类：负责记录牌谱
     //7. append方法：负责记录行动
     //8. blindPostedChipsForSeat方法：负责记录盲注
-   public DpObservedHandRecordBO finalizeHand(DpRoom room) {//归档牌局，并挂到最近的手列表中限400手
+   public DpObservedHandRecordBO finalizeHand(DpRoomBO room) {//归档牌局，并挂到最近的手列表中限400手
       if(room.getPlayers().size()<=1){
     // System.out.println("场上只有一个玩家，不落库保存");
         return null;//如果场上只有1个玩家，则不记录牌谱
@@ -349,7 +349,7 @@ public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedSer
         return rec;
     }
 //已学习，记录行动用的方法
-    private static void append(DpRoom room, DpObservedHandActionRecordBO e) {
+    private static void append(DpRoomBO room, DpObservedHandActionRecordBO e) {
         Key k = new Key(room.getRoomId(), room.getCurrentHandSeed());
         HandBuilder b = BUILDERS.computeIfAbsent(k, kk -> {
             HandBuilder nb = new HandBuilder();
@@ -383,7 +383,7 @@ public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedSer
         return sum > 0 ? sum : totalPotFallback;
     }
 
-    private static int blindPostedChipsForSeat(DpRoom room, List<DpObservedSeatAtHandStartBO> seatsAtStart, String nickname) {
+    private static int blindPostedChipsForSeat(DpRoomBO room, List<DpObservedSeatAtHandStartBO> seatsAtStart, String nickname) {
         if (room == null || seatsAtStart == null || nickname == null) {
             return 0;
         }

@@ -1,7 +1,7 @@
 package com.example.mgdemoplus.service.serviceImpl.dp;
 
+import com.example.mgdemoplus.bo.DpRoomBO;
 import com.example.mgdemoplus.entity.dp.DpPlayer;
-import com.example.mgdemoplus.entity.dp.DpRoom;
 import com.example.mgdemoplus.entity.dp.DpPlayerStats;
 
 import java.util.HashMap;
@@ -62,7 +62,7 @@ final class DpNpcSharkPreflopStrategy {
     }
 
     static DpNpcEngine.BotAction decideForShark(
-            DpRoom room,
+            DpRoomBO room,
             DpPlayer hero,
             DpNpcEngine.TablePosition position,
             int callAmount,
@@ -163,7 +163,7 @@ final class DpNpcSharkPreflopStrategy {
     }
 
     private static DpNpcEngine.BotAction decideFacingOpen(
-            DpRoom room,
+            DpRoomBO room,
             DpPlayer hero,
             int bb,
             int sb,
@@ -202,7 +202,7 @@ final class DpNpcSharkPreflopStrategy {
     }
 
     private static DpNpcEngine.BotAction decideFacing3Bet(
-            DpRoom room,
+            DpRoomBO room,
             DpPlayer hero,
             int bb,
             int sb,
@@ -700,7 +700,7 @@ final class DpNpcSharkPreflopStrategy {
         return HandGroup.G8;
     }
 
-    private static int countActivePlayers(DpRoom room) {
+    private static int countActivePlayers(DpRoomBO room) {
         if (room == null || room.getPlayers() == null)
             return 0;
         int n = 0;
@@ -714,7 +714,7 @@ final class DpNpcSharkPreflopStrategy {
         return n;
     }
 
-    private static DpPlayer findAggressor(DpRoom room, DpPlayer hero) {
+    private static DpPlayer findAggressor(DpRoomBO room, DpPlayer hero) {
         if (room == null || room.getPlayers() == null)
             return null;
         DpPlayer ag = null;

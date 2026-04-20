@@ -1,7 +1,7 @@
 package com.example.mgdemoplus.service.serviceImpl.dp;
 
+import com.example.mgdemoplus.bo.DpRoomBO;
 import com.example.mgdemoplus.entity.dp.DpPlayer;
-import com.example.mgdemoplus.entity.dp.DpRoom;
 import com.example.mgdemoplus.service.serviceImpl.dp.npc.LlmNpcGameContext;
 import com.example.mgdemoplus.utils.dp.DpUtilSmartContext;
 import com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator.SimpleStrength;
@@ -18,7 +18,7 @@ public final class DpLlmNpcContextMapper {
     }
 
     public static LlmNpcGameContext map(
-            DpRoom room,
+            DpRoomBO room,
             DpPlayer hero,
             DpUtilSmartContext ctx,
             String stage,

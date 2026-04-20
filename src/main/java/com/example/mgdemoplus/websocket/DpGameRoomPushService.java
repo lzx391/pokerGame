@@ -1,7 +1,7 @@
 package com.example.mgdemoplus.websocket;
 
+import com.example.mgdemoplus.bo.DpRoomBO;
 import com.example.mgdemoplus.entity.dp.DpPlayer;
-import com.example.mgdemoplus.entity.dp.DpRoom;
 import com.example.mgdemoplus.service.serviceImpl.dp.DpRoomServiceImpl;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -126,7 +126,7 @@ public class DpGameRoomPushService {
         if (last != null && now - last < CHAT_MIN_INTERVAL_MS) {
             return;
         }
-        DpRoom room = roomService.getAllRooms(roomId);
+        DpRoomBO room = roomService.getAllRooms(roomId);
         if (room == null || !isNicknameInRoom(room, nickname)) {
             return;
         }
@@ -167,7 +167,7 @@ public class DpGameRoomPushService {
         if (lastMs != null && now - lastMs < MUSIC_SYNC_MIN_INTERVAL_MS) {
             return;
         }
-        DpRoom room = roomService.getAllRooms(roomId);
+        DpRoomBO room = roomService.getAllRooms(roomId);
         if (room == null || !isNicknameInRoom(room, nickname)) {
             return;
         }
@@ -227,7 +227,7 @@ public class DpGameRoomPushService {
         return rest.length() > 0 && rest.matches("[a-zA-Z0-9._-]+");
     }
 
-    private static boolean isNicknameInRoom(DpRoom room, String nickname) {
+    private static boolean isNicknameInRoom(DpRoomBO room, String nickname) {
         List<DpPlayer> players = room.getPlayers();
         if (players != null) {
             for (DpPlayer p : players) {
@@ -276,7 +276,7 @@ public class DpGameRoomPushService {
     public void sendInitialSnapshot(WebSocketSession session, String roomId) {
         try {
             String nick = (String) session.getAttributes().get("viewerNickname");
-            DpRoom r = roomService.getRoomSnapshotForViewer(roomId, nick);//通过房间id和昵称实现处理
+            DpRoomBO r = roomService.getRoomSnapshotForViewer(roomId, nick);//通过房间id和昵称实现处理
             if (r == null) {
                 synchronized (session) {
                     session.sendMessage(new TextMessage(ROOM_CLOSED));
@@ -311,7 +311,7 @@ public class DpGameRoomPushService {
             return;
         }
         try {
-            DpRoom live = roomService.getAllRooms(roomId);
+            DpRoomBO live = roomService.getAllRooms(roomId);
             Set<WebSocketSession> set = roomSessions.get(roomId);//这里是通过房间id获取所有订阅者的会话
             if (set == null || set.isEmpty()) {
                 return;
@@ -327,7 +327,7 @@ public class DpGameRoomPushService {
                 if (live == null) {
                     json = ROOM_CLOSED;
                 } else {
-                    DpRoom view = roomService.snapshotForViewerFromLive(live, nick);
+                    DpRoomBO view = roomService.snapshotForViewerFromLive(live, nick);
                     json = objectMapper.writeValueAsString(view);
                 }
                 String prev = lastBroadcastPayloadBySession.get(s);

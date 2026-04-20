@@ -1,7 +1,7 @@
 package com.example.mgdemoplus.service.serviceImpl.dp;
 
+import com.example.mgdemoplus.bo.DpRoomBO;
 import com.example.mgdemoplus.entity.dp.DpPlayer;
-import com.example.mgdemoplus.entity.dp.DpRoom;
 import com.example.mgdemoplus.utils.dp.DpUtilSmartContext;
 import com.example.mgdemoplus.entity.dp.DpPlayerStats;
 
@@ -24,7 +24,7 @@ final class DpNpcSharkStrategy {
     private DpNpcSharkStrategy() {
     }
 
-    private static void dbg(DpRoom room, DpNpcEngine.BotType type, DpPlayer bot, String msg) {
+    private static void dbg(DpRoomBO room, DpNpcEngine.BotType type, DpPlayer bot, String msg) {
         if (type != DpNpcEngine.BotType.SHARK)
             return;
         if (bot == null)
@@ -34,7 +34,7 @@ final class DpNpcSharkStrategy {
     }
 
     static DpNpcEngine.BotAction decide(
-            DpRoom room,
+            DpRoomBO room,
             DpPlayer bot,
             DpNpcEngine.BotType type,
             int chips,

@@ -3,8 +3,10 @@ package com.example.mgdemoplus.vo;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.example.mgdemoplus.entity.dp.DpRoom;
+
 public class DpRoomPublicRoomsPageVO {
-    private List<DpRoomVO> list = new ArrayList<>();
+    private List<DpRoom> list = new ArrayList<>();
     private long total;
     private int page;
     private int pageSize;
@@ -18,11 +20,11 @@ public class DpRoomPublicRoomsPageVO {
         return out;
     }
 
-    public List<DpRoomVO> getList() {
+    public List<DpRoom> getList() {
         return list;
     }
 
-    public void setList(List<DpRoomVO> list) {
+    public void setList(List<DpRoom> list) {
         this.list = list;
     }
 

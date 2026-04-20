@@ -1,11 +1,13 @@
 package com.example.mgdemoplus.mapper.dp;
 
-import com.example.mgdemoplus.vo.DpRoomVO;
 import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
+
+import com.example.mgdemoplus.entity.dp.DpRoom;
+import com.example.mgdemoplus.entity.dp.DpRoom;
 
 import java.util.List;
 
@@ -18,7 +20,7 @@ public interface DpRoomLobbyMapper {
             VALUES
             (#{roomId}, #{owner}, 0, #{playerSize}, #{smallBlindChips}, #{bigBlindChips}, #{startingStackBb}, #{passwordProtected})
             """)
-    int insertRoomSummary(DpRoomVO row);
+    int insertRoomSummary(DpRoom row);
 
     @Update("""
             UPDATE dp_room_lobby
@@ -31,7 +33,7 @@ public interface DpRoomLobbyMapper {
                 password_protected = #{passwordProtected}
             WHERE room_id = #{roomId}
             """)
-    int updateRoomSummary(DpRoomVO row);
+    int updateRoomSummary(DpRoom row);
 
     @Update("""
             UPDATE dp_room_lobby
@@ -52,5 +54,5 @@ public interface DpRoomLobbyMapper {
             WHERE room_status = 0
             ORDER BY created_at DESC
             """)
-    List<DpRoomVO> selectActiveRoomSummaries();
+    List<DpRoom> selectActiveRoomSummaries();
 }

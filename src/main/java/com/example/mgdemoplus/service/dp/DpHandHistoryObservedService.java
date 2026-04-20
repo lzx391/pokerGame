@@ -1,16 +1,16 @@
 package com.example.mgdemoplus.service.dp;
 
 import com.example.mgdemoplus.bo.DpObservedHandRecordBO;
+import com.example.mgdemoplus.bo.DpRoomBO;
 import com.example.mgdemoplus.entity.dp.DpPlayer;
-import com.example.mgdemoplus.entity.dp.DpRoom;
 
 public interface DpHandHistoryObservedService {
 
-    void beginHand(DpRoom room);
+    void beginHand(DpRoomBO room);
 
-    void markHandReadyAfterBlinds(DpRoom room);
+    void markHandReadyAfterBlinds(DpRoomBO room);
 
-    void recordBoardState(DpRoom room);
+    void recordBoardState(DpRoomBO room);
 /**
  * 记录盲注
  * @param room 房间
@@ -19,9 +19,9 @@ public interface DpHandHistoryObservedService {
  * @param amount 盲注金额
  * @param potBefore 盲注前的底池金额
  */
-    void recordBlind(DpRoom room, String nickname, boolean isSb, int amount, int potBefore);
+    void recordBlind(DpRoomBO room, String nickname, boolean isSb, int amount, int potBefore);
 
-    void recordFold(DpRoom room, DpPlayer actor, int potBefore);
+    void recordFold(DpRoomBO room, DpPlayer actor, int potBefore);
 /**
  * 记录行动
  * @param room 房间
@@ -33,11 +33,11 @@ public interface DpHandHistoryObservedService {
  * @param becameAllIn 是否全押
  * @param isRaise 是否加注
  */
-    void recordBetLikeAction(DpRoom room, DpPlayer actor, int amount, int betToCallBefore, int actorBetBefore, int potBefore, boolean becameAllIn, boolean isRaise);
+    void recordBetLikeAction(DpRoomBO room, DpPlayer actor, int amount, int betToCallBefore, int actorBetBefore, int potBefore, boolean becameAllIn, boolean isRaise);
 
-    void capturePotsBeforeClear(DpRoom room);
+    void capturePotsBeforeClear(DpRoomBO room);
 
-    DpObservedHandRecordBO finalizeHand(DpRoom room);
+    DpObservedHandRecordBO finalizeHand(DpRoomBO room);
 
-    void clearHand(DpRoom room);
+    void clearHand(DpRoomBO room);
 }
