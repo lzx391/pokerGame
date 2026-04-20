@@ -108,8 +108,10 @@ export default {
       try {
         if (!this.roomDtos.length) this.roomsLoading = true
         this.roomsError = ''
-        const res = await this.$http.get('/dpRoom/getAllRooms2')
-        var list = res.data
+        const res = await this.$http.get('/dpRoom/publicRooms', {
+          params: { page: 1, pageSize: 20 }
+        })
+        var list = res && res.data ? res.data.list : []
         this.roomDtos = Array.isArray(list) ? list : []
       } catch (e) {
         console.error('getRooms', e)

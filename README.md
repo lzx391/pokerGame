@@ -14,6 +14,7 @@
 - **多房间**：房间状态保存在进程内 **`ConcurrentHashMap`（`roomMap`）**；详见长文档中的 WebSocket 与房间说明。前端 **`/create-room`** 页设 **小盲/大盲**、**每人初始多少 BB**（筹码 = 大盲 × BB，补码同深度）与可选 **进房密码**（仅存内存，重启失效）；大厅 **`/home`** 仅列表与加入。
 - **实时推送**：游戏页 WebSocket 路径形如 **`/ws/dp-game?roomId=...`**；有订阅者时才序列化推送，并与上次 JSON 去重以省流量。
 - **牌谱**：观察到的对局可落库，支持按用户分页列表与详情（权限与底牌展示规则见 `docs` 下说明）。
+- **大厅列表（单例版）**：`/dpRoom/publicRooms` 改为读 `dp_room_lobby` 单表（唯一数据源），返回结构保持 `{ list, total, page, pageSize }`；服务端在建房/进退房/踢人/房主变更/开局与房间销毁时同步摘要，分页查询使用 PageHelper + Redis 版本缓存（`mgdemo:cache:dpRoom:publicRooms:rev` 与 `mgdemo:cache:dpRoom:publicRooms:data:{rev}:{page}:{pageSize}`），变更时通过 `INCR rev + SCAN 删除旧 data 键` 失效，失败仅记录日志不阻断业务。
 
 ### 用户与账号
 

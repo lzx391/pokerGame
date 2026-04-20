@@ -9,6 +9,7 @@ import com.example.mgdemoplus.entity.dp.DpUser;
 import com.example.mgdemoplus.mapper.dp.DpUserMapper;
 import com.example.mgdemoplus.service.dp.DpHandHistoryObservedService;
 import com.example.mgdemoplus.service.dp.DpHandHistoryPersistService;
+import com.example.mgdemoplus.service.dp.DpRoomHallService;
 import com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator;
 import com.example.mgdemoplus.vo.DpRoomVO;
 import com.example.mgdemoplus.websocket.DpGameRoomPushService;
@@ -28,6 +29,7 @@ public class DpRoomServiceImpl {
     private final DpGameRoomPushService gameRoomPushService;
     private final DpUserMapper dpUserMapper;
     private final DpHandHistoryObservedService observedHandService;
+    private final DpRoomHallService dpRoomHallService;
     private final ObjectMapper objectMapper;
 
     // 统一从 NPC 引擎中获取机器人昵称，避免散落魔法字符串
@@ -43,6 +45,7 @@ public class DpRoomServiceImpl {
             DpGameRoomPushService gameRoomPushService,
             DpUserMapper dpUserMapper,
             DpHandHistoryObservedService observedHandService,
+            DpRoomHallService dpRoomHallService,
             ObjectMapper objectMapper
     ) {
         this.observedHandPersistService = observedHandPersistService;
@@ -51,12 +54,14 @@ public class DpRoomServiceImpl {
         this.gameRoomPushService = gameRoomPushService;
         this.dpUserMapper = dpUserMapper;
         this.observedHandService = observedHandService;
+        this.dpRoomHallService = dpRoomHallService;
         this.objectMapper = objectMapper;
         // 心跳清理 + 超时行动
         new Timer().scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
                 for (DpRoom room : roomMap.values()) {
+                    boolean lobbyDirty = false;
                     Iterator<DpPlayer> it = room.getPlayers().iterator();
                     while (it.hasNext()) {
                         DpPlayer p = it.next();
@@ -73,6 +78,7 @@ public class DpRoomServiceImpl {
                             }
                             System.out.println("未收到" + p.getNickname() + "的心跳,已移除房间");
                             it.remove();
+                            lobbyDirty = true;
                         }
                     }
                     int size = 0;//检测活人逻辑
@@ -85,7 +91,7 @@ public class DpRoomServiceImpl {
 //                    System.out.println("定时器检测：人数："+size);
                         if (size == 0 && room.getSpectators().isEmpty()) {
                         System.out.println("定时器检测：房间：" + room.getRoomId() + "没活人了");
-                        roomMap.remove(room.getRoomId());//房间空了就清人
+                        removeRoom(room.getRoomId());//房间空了就清人
                         continue;
                     }
                     // 30秒超时弃牌；若当前行动位是已离线占位，直接跳过不等待
@@ -178,6 +184,9 @@ public class DpRoomServiceImpl {
                     }
                     //已学习，调用websocket的gameRoomPushService.broadcastIfSubscribed(room.getRoomId())广播房间数据给所有订阅者
                     gameRoomPushService.broadcastIfSubscribed(room.getRoomId());
+                    if (lobbyDirty) {
+                        syncLobbyForRoomId(room.getRoomId());
+                    }
                 }
             }
         }, 0, 1000);
@@ -196,6 +205,25 @@ public class DpRoomServiceImpl {
         }
         Collections.shuffle(deck);
         return deck;
+    }
+
+    private void syncLobbyForRoomId(String roomId) {
+        if (roomId == null || roomId.isEmpty()) {
+            return;
+        }
+        DpRoom room = roomMap.get(roomId);
+        if (room == null) {
+            return;
+        }
+        dpRoomHallService.upsertRoomSummary(room);
+    }
+
+    private void removeRoom(String roomId) {
+        if (roomId == null || roomId.isEmpty()) {
+            return;
+        }
+        roomMap.remove(roomId);
+        dpRoomHallService.deleteRoomSummary(roomId);
     }
 
     /**
@@ -227,6 +255,7 @@ public class DpRoomServiceImpl {
 
         r.setOwner(toNickname);
         System.out.println("房间 " + r.getRoomId() + " 房主由 " + fromNickname + " 移交给: " + toNickname);
+        syncLobbyForRoomId(roomId);
         return true;
     }
 
@@ -252,7 +281,7 @@ public class DpRoomServiceImpl {
         }
         if (tableHumans + spectatorHumans == 0) {
             System.out.println("giveOwner：没有活人了");
-            roomMap.remove(roomId);
+            removeRoom(roomId);
             return;
         }
         // 优先桌上真人，其次观众席真人（避免只剩观众时误删房或无人接任）
@@ -260,6 +289,7 @@ public class DpRoomServiceImpl {
             if (!candidate.getNickname().equals(ownerNickname) && !candidate.isLeftThisHand() && !DpNpcEngine.isBotPlayer(candidate)) {
                 room.setOwner(candidate.getNickname());
                 System.out.println("giveOwner：房间 " + room.getRoomId() + " 房主易位给: " + candidate.getNickname());
+                syncLobbyForRoomId(roomId);
                 return;
             }
         }
@@ -267,6 +297,7 @@ public class DpRoomServiceImpl {
             if (!specNick.equals(ownerNickname) && !DpNpcEngine.isBotNickname(specNick)) {
                 room.setOwner(specNick);
                 System.out.println("giveOwner：房间 " + room.getRoomId() + " 房主易位给观众: " + specNick);
+                syncLobbyForRoomId(roomId);
                 return;
             }
         }
@@ -305,6 +336,7 @@ public class DpRoomServiceImpl {
                     spectators.add(nickname);
                 }
             }
+            syncLobbyForRoomId(roomId);
             return true;
         } else {
             return false;
@@ -454,6 +486,7 @@ public class DpRoomServiceImpl {
         }
         r.getPlayers().add(p);
         roomMap.put(id, r);
+        syncLobbyForRoomId(id);
         return r;
     }
 
@@ -646,6 +679,7 @@ public class DpRoomServiceImpl {
         }
         r.getPlayers().add(p);
         sharkOpponentMemoryService.hydratePlayerIfNeeded(r, nickname);
+        syncLobbyForRoomId(roomId);
         return "ok";
     }
 
@@ -812,7 +846,9 @@ public class DpRoomServiceImpl {
 
                 giveOwner(roomId, nickname);
             }
-            return r.getPlayers().removeIf(p -> p.getNickname().equals(nickname));
+            boolean removed = r.getPlayers().removeIf(p -> p.getNickname().equals(nickname));
+            syncLobbyForRoomId(roomId);
+            return removed;
         }
 
         // ===== 正在对局中：本手牌内不直接删人，而是视为弃牌 + 标记本手结束后清理 =====
@@ -859,6 +895,7 @@ public class DpRoomServiceImpl {
             }
         }
 
+        syncLobbyForRoomId(roomId);
         return true;
     }
 
@@ -887,6 +924,7 @@ public class DpRoomServiceImpl {
 //            p.setBlind(0);
 //        }
         r.getPlayers().get(0).setDealer(true);
+        syncLobbyForRoomId(roomId);
         return newHand(roomId);
     }
 
@@ -986,6 +1024,7 @@ public class DpRoomServiceImpl {
         //标记手准备
         observedHandService.markHandReadyAfterBlinds(r);
         sharkOpponentMemoryService.hydrateAllOpponentsForNewHand(r);
+        syncLobbyForRoomId(roomId);
         return true;
     }
 

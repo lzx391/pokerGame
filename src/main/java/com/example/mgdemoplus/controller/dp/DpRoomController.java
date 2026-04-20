@@ -1,6 +1,7 @@
 package com.example.mgdemoplus.controller.dp;
 
 import com.example.mgdemoplus.entity.dp.DpRoom;
+import com.example.mgdemoplus.service.dp.DpRoomHallService;
 import com.example.mgdemoplus.service.serviceImpl.dp.DpRoomServiceImpl;
 import com.example.mgdemoplus.utils.ResultUtil;
 import com.example.mgdemoplus.vo.DpRoomVO;
@@ -10,7 +11,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 
 @RestController
@@ -19,6 +22,8 @@ public class DpRoomController {
 
     @Autowired
     private DpRoomServiceImpl dpRoomService;
+    @Autowired
+    private DpRoomHallService dpRoomHallService;
 
     // 注意：不要在 Controller 里再建 roomMap，所有数据操作都走 Service
 
@@ -188,5 +193,17 @@ public class DpRoomController {
     @GetMapping("/getAllRooms2")
     public List<DpRoomVO> getAllRooms2() {
         return dpRoomService.getAllRooms2();
+    }
+
+    @GetMapping("/publicRooms")
+    public Map<String, Object> publicRooms(@RequestParam(defaultValue = "1") int page,
+                                           @RequestParam(defaultValue = "10") int pageSize) {
+        Map<String, Object> out = new HashMap<>();
+        var payload = dpRoomHallService.getPublicRoomsPage(page, pageSize);
+        out.put("list", payload.getList());
+        out.put("total", payload.getTotal());
+        out.put("page", payload.getPage());
+        out.put("pageSize", payload.getPageSize());
+        return out;
     }
 }
