@@ -1,12 +1,10 @@
 package com.example.mgdemoplus.mapper.dp;
 
-import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
-import com.example.mgdemoplus.entity.dp.DpRoom;
 import com.example.mgdemoplus.entity.dp.DpRoom;
 
 import java.util.List;
@@ -55,4 +53,8 @@ public interface DpRoomLobbyMapper {
             ORDER BY created_at DESC
             """)
     List<DpRoom> selectActiveRoomSummaries();
+
+    /** 当前仍展示在大厅的房间号（room_status = 0） */
+    @Select("SELECT room_id FROM dp_room_lobby WHERE room_status = 0")
+    List<String> selectActiveLobbyRoomIds();
 }

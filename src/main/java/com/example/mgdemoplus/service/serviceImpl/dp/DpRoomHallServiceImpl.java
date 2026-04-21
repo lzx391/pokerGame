@@ -26,7 +26,9 @@ import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 @Service
 public class DpRoomHallServiceImpl implements DpRoomHallService {
     private static final Logger log = LoggerFactory.getLogger(DpRoomHallServiceImpl.class);
@@ -87,6 +89,35 @@ public class DpRoomHallServiceImpl implements DpRoomHallService {
             log.warn("delete room lobby failed for roomId={}, ignore: {}", roomId, e.toString());
         }
     }
+//通过对比单实例里房间内存的房间和数据库里的所有“活跃”房间，从而找到没有正常关闭的幽灵房间
+    @Override
+    public int reconcileLobbyWithRuntimeRoomIds(Set<String> runtimeRoomIds) {
+        Set<String> live = runtimeRoomIds != null ? runtimeRoomIds : Collections.emptySet();
+        try {
+            List<String> dbIds = dpRoomLobbyMapper.selectActiveLobbyRoomIds();//获取数据库的所有房间
+            if (dbIds == null || dbIds.isEmpty()) {
+                return 0;
+            }
+            int n = 0;
+            for (String id : dbIds) {
+                if (id == null || id.isEmpty()) {
+                    continue;
+                }
+                if (!live.contains(id)) {
+                    dpRoomLobbyMapper.deleteRoomSummaryByRoomId(id);
+                    n++;
+                }
+            }
+            if (n > 0) {
+                bumpRevisionAndCleanupCache();
+                log.info("dp_room_lobby reconcile: soft-deleted {} ghost row(s)", n);
+            }
+            return n;
+        } catch (Exception e) {
+            log.warn("reconcileLobbyWithRuntimeRoomIds failed: {}", e.toString());
+            return 0;
+        }
+    }
 
     @Override
     public DpRoomPublicRoomsPageVO getPublicRoomsPage(int page, int pageSize) {
@@ -120,7 +151,7 @@ public class DpRoomHallServiceImpl implements DpRoomHallService {
         int safeSize = p.getPageSize() > 0 ? p.getPageSize() : DEFAULT_PAGE_SIZE;
         safeSize = Math.min(MAX_PAGE_SIZE, safeSize);
         try {
-            LambdaQueryWrapper<DpRoomLobby> w = new LambdaQueryWrapper<>();
+            LambdaQueryWrapper<DpRoomLobby> w = new LambdaQueryWrapper<>();//构建查询条件
             w.eq(DpRoomLobby::getRoomStatus, 0);
             if (p.getRoomId() != null && !p.getRoomId().isBlank()) {
                 String t = p.getRoomId().trim();
@@ -145,7 +176,8 @@ public class DpRoomHallServiceImpl implements DpRoomHallService {
                 w.eq(DpRoomLobby::getPasswordProtected, p.getPasswordProtected());
             }
             w.orderByDesc(DpRoomLobby::getCreatedAt);
-            Page<DpRoomLobby> result = dpRoomLobbyMpMapper.selectPage(new Page<>(safePage, safeSize), w);
+            //分页语法是new Page<>(safePage, safeSize), w是查询条件
+            Page<DpRoomLobby> result = dpRoomLobbyMpMapper.selectPage(new Page<>(safePage, safeSize), w);//执行查询
             List<DpRoom> vos = new ArrayList<>();
             for (DpRoomLobby row : result.getRecords()) {
                 vos.add(lobbyRowToVo(row));

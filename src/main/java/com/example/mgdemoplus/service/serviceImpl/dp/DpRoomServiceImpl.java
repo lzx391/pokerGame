@@ -527,6 +527,11 @@ public class DpRoomServiceImpl {
                 .collect(Collectors.toList());
     }
 
+    /** 当前进程内存中的房间 ID（与 dp_room_lobby 对齐任务使用） */
+    public Set<String> getRoomIdsInMemory() {
+        return Set.copyOf(roomMap.keySet());
+    }
+
     public DpRoomBO getAllRooms(String roomId) {
         DpRoomBO r = roomMap.get(roomId);
         if (r == null) return null;
