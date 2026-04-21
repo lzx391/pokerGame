@@ -98,7 +98,7 @@
           <div class="home-filters__actions">
             <button type="button" class="dp-btn dp-btn--primary" @click="applyFilters">搜索</button>
             <button type="button" class="dp-btn dp-btn--ghost" @click="resetFilters">重置</button>
-            <span v-if="useFilterQuery" class="home-filters__mode">当前：条件查询（直连数据库）</span>
+            <span v-if="useFilterQuery" class="home-filters__mode">当前：条件查询（缓存加速）</span>
             <span v-else class="home-filters__mode">当前：默认列表（缓存加速）</span>
           </div>
         </div>
