@@ -37,8 +37,8 @@
 
     <game-bottom-sheet
         v-if="vm.showMobileActionSheet && (vm.isMyTurn || vm.inSettledStage)"
-        :title="vm.inSettledStage ? '准备下一局' : '本轮行动'"
-        :aria-label="vm.inSettledStage ? '准备下一局' : '本轮行动'"
+        :title="vm.inSettledStage ? '结算阶段' : '本轮行动'"
+        :aria-label="vm.inSettledStage ? '结算阶段' : '本轮行动'"
         :wide="true"
         body-modifier="action"
         @close="$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileActionSheet: false })"

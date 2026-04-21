@@ -26,13 +26,14 @@
           <li><strong>发牌猫</strong>：只标记「从哪一侧开始发牌」，不占输赢。</li>
           <li><strong>小猫（SC）/ 大猫（BC）</strong>：开局各自动拿出一点小鱼干，形成前置鱼干池，避免大家一直观望赢不到小鱼干。</li>
           <li>桌面公共牌会按阶段一张张翻开；轮到你时，可选<strong>跟投</strong>、<strong>加投</strong>、<strong>盖牌</strong>放弃，或<strong>全投</strong>光手上小鱼干。</li>
-          <li>若只剩一人未盖牌，直接收下池子；否则摊牌比大小，按规则分池。结束后进入准备，凑齐人再开下一局。</li>
+          <li>若只剩一人未盖牌，直接收下池子；否则进入<strong>结算阶段</strong>比牌型分池。结束后大家准备妥当再开下一局。</li>
         </ul>
       </div>
 
       <div class="dp-cat-tutorial-dialog__section">
         <strong class="dp-cat-tutorial-dialog__h">界面常用词</strong>
         <ul class="dp-cat-tutorial-dialog__list dp-cat-tutorial-dialog__list--tight">
+          <li>顶栏<strong>阶段</strong>顺序：<strong>翻前圈</strong> → <strong>翻后圈</strong> → <strong>半决赛</strong> → <strong>决赛圈</strong> → <strong>结算阶段</strong>（比牌与等待下一局都属于结算阶段）。</li>
           <li><strong>小猫鱼干</strong>＝大猫鱼干的一半；<strong>大猫鱼干</strong>＝每轮主动投放的最低鱼干数；<strong>小鱼干池</strong>＝本局大家投入堆在中间、等待分配的总量。</li>
           <li><strong>需对齐</strong>＝为了游戏公平，只有投放相同鱼干数的玩家才有资格赢取小鱼干池。</li>
           <li>座位上 <strong>发</strong>＝发牌猫；<strong>SC / BC</strong>＝小猫 / 大猫位置。</li>

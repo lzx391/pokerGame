@@ -2,14 +2,16 @@
  * 牌谱回放：按街拆分行动轮次、行动文案（与 dp_observed_hand_history.payload_json 对齐）。
  */
 
+import { DP_GAME_STAGE_LABELS } from '../constants/dpCatThemeCopy'
+
 export const STREET_ORDER = ['preflop', 'flop', 'turn', 'river']
 
 export const STREET_TABS = [
-  { key: 'preflop', label: 'preflop' },
-  { key: 'flop', label: 'flop' },
-  { key: 'turn', label: 'turn' },
-  { key: 'river', label: 'river' },
-  { key: 'settlement', label: 'settlement' }
+  { key: 'preflop', label: DP_GAME_STAGE_LABELS.preflop },
+  { key: 'flop', label: DP_GAME_STAGE_LABELS.flop },
+  { key: 'turn', label: DP_GAME_STAGE_LABELS.turn },
+  { key: 'river', label: DP_GAME_STAGE_LABELS.river },
+  { key: 'settlement', label: DP_GAME_STAGE_LABELS.settled }
 ]
 
 /**

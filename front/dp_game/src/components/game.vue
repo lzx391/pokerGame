@@ -653,7 +653,7 @@ export default {
         if (res.data !== 'ok') {
           this.$message.error('补满失败：' + res.data)
         } else {
-          this.$message.success('补满成功，可以准备下一局了')
+          this.$message.success('补满成功，可在结算阶段准备下一局')
         }
         await this.loadGame()
       } catch (err) {

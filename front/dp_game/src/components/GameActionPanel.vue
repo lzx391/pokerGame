@@ -6,7 +6,7 @@
     <!-- 结算后准备阶段（原 GameSettledPreparePanel） -->
     <template v-if="settledPrepare">
       <div class="dp-action-panel__settled-title">
-        本局已结算，请准备下一局（约30秒后未准备将移到观众席）
+        已进入结算阶段，请选择是否继续下一局（约 30 秒未操作将移至观众席）
       </div>
       <div class="dp-action-panel__settled-count">
         <div class="dp-timer-ring dp-timer-ring--sm">
@@ -26,7 +26,7 @@
             :class="{ 'dp-action-panel__settled-btn--dim': myChips < bigBlind }"
             @click="$emit('toggle-ready')"
         >
-          {{ myReady ? '取消准备' : (myChips >= bigBlind ? '准备下一局' : ('小鱼干不足大猫鱼干数(' + bigBlind + ')，无法准备')) }}
+          {{ myReady ? '取消准备' : (myChips >= bigBlind ? '准备下一局' : ('小鱼干不足大猫注(' + bigBlind + ')，无法准备')) }}
         </button>
         <button
             v-if="myChips < bigBlind"

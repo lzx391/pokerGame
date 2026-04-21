@@ -5,6 +5,7 @@ import { dpDisplayNickname, isDpBotNickname } from '../../utils/dpDisplayNicknam
 import { readGameTheme, writeGameTheme } from '../../utils/dpGameTheme'
 import { readEcoMode, writeEcoMode } from '../../utils/dpGameEcoMode'
 import { GAME_UI_THEMES } from '../../constants/dpGameThemes'
+import { dpGameStageDisplay } from '../../constants/dpCatThemeCopy'
 
 function initialState() {
   return {
@@ -76,8 +77,7 @@ export default {
       return HAND_RANK_REFERENCE
     },
     stageCN: function (state) {
-      var m = { preflop: '翻牌前', flop: '翻牌圈', turn: '转牌圈', river: '河牌圈', showdown: '摊牌结算', settled: '准备下一局' }
-      return m[state.stage] || state.stage
+      return dpGameStageDisplay(state.stage)
     },
     isOwner: function (state) {
       return state.user && state.owner === state.user.nickname

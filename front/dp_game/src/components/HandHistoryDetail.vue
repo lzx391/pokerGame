@@ -172,7 +172,7 @@
             </div>
           </div>
 
-          <h2 class="hand-detail-page__subh">盈亏与摊牌</h2>
+          <h2 class="hand-detail-page__subh">盈亏与结算</h2>
           <div class="hand-detail-table-wrap">
             <table class="hand-detail-table hand-detail-table--settlement">
               <thead>
@@ -425,10 +425,10 @@ export default {
     },
     streetHint() {
       const map = {
-        preflop: '翻前无公共牌',
-        flop: '最多 3 张',
-        turn: '第 4 张',
-        river: '第 5 张'
+        preflop: '本圈桌面牌尚未公开',
+        flop: '本圈至多公开 3 张桌面牌',
+        turn: '本圈公开第 4 张桌面牌',
+        river: '本圈公开第 5 张桌面牌'
       }
       return map[this.activeTab] || ''
     }
@@ -1007,16 +1007,12 @@ export default {
   border: 1px solid #fed7aa;
 }
 
-.hand-detail-page__role-tag--sb {
+/* SC / BC：同一视觉风格，随主题一致；仅靠文字区分 */
+.hand-detail-page__role-tag--sb,
+.hand-detail-page__role-tag--bb {
   color: #1d4ed8;
   background: #eff6ff;
   border: 1px solid #bfdbfe;
-}
-
-.hand-detail-page__role-tag--bb {
-  color: #6d28d9;
-  background: #f5f3ff;
-  border: 1px solid #ddd6fe;
 }
 
 .hand-detail-table__cell-actions {
@@ -1206,16 +1202,11 @@ export default {
   border: 1px solid var(--dp-panel-border, #fed7aa);
 }
 
-.hand-detail-page--embedded .hand-detail-page__role-tag--sb {
+.hand-detail-page--embedded .hand-detail-page__role-tag--sb,
+.hand-detail-page--embedded .hand-detail-page__role-tag--bb {
   color: var(--dp-accent, #1d4ed8);
   background: var(--dp-subpanel-bg, #eff6ff);
   border: 1px solid var(--dp-panel-border, #bfdbfe);
-}
-
-.hand-detail-page--embedded .hand-detail-page__role-tag--bb {
-  color: var(--dp-owner-purple-fg, #6d28d9);
-  background: var(--dp-subpanel-bg, #f5f3ff);
-  border: 1px solid var(--dp-panel-border, #ddd6fe);
 }
 
 .hand-detail-page--embedded .hand-detail-table__net--win {

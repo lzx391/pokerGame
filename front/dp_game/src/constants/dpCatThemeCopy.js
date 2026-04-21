@@ -48,6 +48,22 @@ export function setCatTutorialDismissedPermanently() {
 /** 紧凑台呢标：发牌猫 */
 export const DEALER_BADGE_CHAR = '发'
 
+/** 对局阶段展示名（后端 stage 不变，仅界面文案） */
+export const DP_GAME_STAGE_LABELS = Object.freeze({
+  preflop: '翻前圈',
+  flop: '翻后圈',
+  turn: '半决赛',
+  river: '决赛圈',
+  showdown: '结算阶段',
+  settled: '结算阶段'
+})
+
+export function dpGameStageDisplay(stage) {
+  if (stage == null || stage === '') return ''
+  var s = String(stage)
+  return DP_GAME_STAGE_LABELS[s] || s
+}
+
 export const CAT_COPY = Object.freeze({
   chips: '小鱼干',
   smallBlind: '小猫',
