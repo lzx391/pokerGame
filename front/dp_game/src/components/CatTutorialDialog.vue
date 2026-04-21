@@ -10,7 +10,7 @@
   >
     <div class="dp-cat-tutorial-dialog__body">
       <p class="dp-cat-tutorial-dialog__lead">
-        你和朋友们扮演<strong>猫咪</strong>，用两张手牌配合桌面公共牌组牌型，通过表态争夺桌心<strong>小鱼干池</strong>里的奖励。
+        你和朋友们扮演<strong>猫咪</strong>，用两张手牌配合桌面公共牌组牌型，通过每轮行动争夺桌心<strong>小鱼干池</strong>里的奖励。
       </p>
 
       <div class="dp-cat-tutorial-dialog__section">
