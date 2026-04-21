@@ -1,8 +1,8 @@
 # MGDemoPlus
 
-基于 **Spring Boot** 的 Web 演示项目，核心是 **DP 德州扑克（无限注）**：多房间、实时对局、机器人 NPC、牌谱回放、可选火山方舟大模型牌手等。前端 **`front/dp_game`** 为 **Vue 2 + Vue Router + Vuex + Element UI**，构建产物由 **`Dockerfile`** 打进后端 JAR，与 REST、WebSocket **同端口**发布。
+基于 **Spring Boot** 的 Web 演示项目，核心是**多人实时在线卡牌对战 / 多人联机策略卡牌演示**：多房间、实时对战、AI 智能玩家、对局回放、可选火山方舟大模型决策玩家等。前端 **`front/dp_game`** 为 **Vue 2 + Vue Router + Vuex + Element UI**，构建产物由 **`Dockerfile`** 打进后端 JAR，与 REST、WebSocket **同端口**发布。
 
-**长说明（环境变量、WebSocket、NPC、牌谱、Docker 等）：** 中文 **[README.ch.md](README.ch.md)** · 英文 **[README.en.md](README.en.md)**（同结构对照）。
+**长说明（环境变量、WebSocket、AI 玩家、对局回放、Docker 等）：** 中文 **[README.ch.md](README.ch.md)** · 英文 **[README.en.md](README.en.md)**（同结构对照）。
 
 ---
 
@@ -10,22 +10,22 @@
 
 ### 游戏与对局
 
-- **标准 NL 规则**：盲注、街、最小加注、边池等逻辑在后端 `DpRoomServiceImpl` 等模块中实现；对局页通过轮询 + WebSocket 同步房间状态。
-- **多房间**：房间状态保存在进程内 **`ConcurrentHashMap`（`roomMap`）**；详见长文档中的 WebSocket 与房间说明。前端 **`/create-room`** 页设 **小盲/大盲**、**每人初始多少 BB**（筹码 = 大盲 × BB，补码同深度）与可选 **进房密码**（仅存内存，重启失效）；大厅 **`/home`** 仅列表与加入。
+- **标准卡牌对战规则**：回合流程、最小操作、多玩家结算逻辑等在后端 `DpRoomServiceImpl` 等模块中实现；对局页通过轮询 + WebSocket 同步房间状态。
+- **多房间**：房间状态保存在进程内 **`ConcurrentHashMap`（`roomMap`）**；详见长文档中的 WebSocket 与房间说明。前端 **`/create-room`** 页可设置**房间基础积分**、**每人初始积分**与可选**进房密码**（仅存内存，重启失效）；大厅 **`/home`** 仅列表与加入。
 - **实时推送**：游戏页 WebSocket 路径形如 **`/ws/dp-game?roomId=...`**；有订阅者时才序列化推送，并与上次 JSON 去重以省流量。
-- **牌谱**：观察到的对局可落库，支持按用户分页列表与详情（权限与底牌展示规则见 `docs` 下说明）。
+- **对局回放**：完整游戏对局记录可落库，支持按用户分页列表与详情（权限与卡牌信息展示规则见 `docs` 下说明）。
 - **大厅列表（单例版）**：`/dpRoom/publicRooms` 改为读 `dp_room_lobby` 单表（唯一数据源），返回结构保持 `{ list, total, page, pageSize }`；服务端在建房/进退房/踢人/房主变更/开局与房间销毁时同步摘要，分页查询使用 PageHelper + Redis 版本缓存（`mgdemo:cache:dpRoom:publicRooms:rev` 与 `mgdemo:cache:dpRoom:publicRooms:data:{rev}:{page}:{pageSize}`），变更时通过 `INCR rev + SCAN 删除旧 data 键` 失效，失败仅记录日志不阻断业务。带筛选的 `/dpRoom/publicRooms/query` 共用同一 `rev`，结果键为 `mgdemo:cache:dpRoom:lobbyQuery:data:{rev}:{paramHash}`（`paramHash` 为规范化查询串的 SHA-256 前 16 位十六进制），TTL 与 `mgdemoplus.cache.dp-room-public-rooms-ttl-seconds` 一致。
 
 ### 用户与账号
 
 - **认证**：**Spring Security** + **JWT**（`Authorization: Bearer`）；白名单含登录注册、`/ws/**`、部分房间只读接口等（完整列表见 [docs/JWT.md](docs/JWT.md)）。
 - **密码**：服务端对密码做 **bcrypt** 摘要后入库（详见 [docs/DpUserPassword.md](docs/DpUserPassword.md)）。
-- **虚拟筹码**：演示用途，不涉及真钱。
+- **虚拟积分**：演示用途，不涉及真实货币。
 
-### NPC / AI
+### AI 智能玩家
 
-- **规则型机器人**：多种风格与难度（如 Fish、TAG、**Shark** 等），Shark 含翻前范围、翻后计划、对手习惯记忆等（概要见 [docs/ai/npc-engine/README.md](docs/ai/npc-engine/README.md)）。
-- **大模型牌手（可选）**：`BOT_LLM` 通过火山方舟接口决策，需配置 `ARK_API_KEY`、`ARK_ENDPOINT_ID` 等（见 [README.en.md](README.en.md) 中大模型小节与 [docs/ENV_README.md](docs/ENV_README.md)）。
+- **规则型策略机器人**：多种风格与难度，包含回合策略、行为逻辑、对手习惯记忆等（概要见 [docs/ai/npc-engine/README.md](docs/ai/npc-engine/README.md)）。
+- **大模型玩家（可选）**：`BOT_LLM` 通过火山方舟接口实现 AI 决策，需配置 `ARK_API_KEY`、`ARK_ENDPOINT_ID` 等（见 [README.en.md](README.en.md) 中大模型小节与 [docs/ENV_README.md](docs/ENV_README.md)）。
 
 ### 其它功能
 
@@ -39,7 +39,7 @@
 | 层级        | 技术                                                                                                                                               |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 后端        | Java **17**、**Spring Boot 3.5**、Spring Web / Security / WebSocket、**MyBatis-Plus**、**PageHelper**、**Druid**、MySQL 驱动、**Lettuce**（Redis）、**JJWT** |
-| 前端（DP 游戏） | **Vue 2**、Vue Router、**Vuex**、**Element UI**、axios（源码目录 **`front/dp_game`**）                                                                     |
+| 前端（卡牌游戏） | **Vue 2**、Vue Router、**Vuex**、**Element UI**、axios（源码目录 **`front/dp_game`**）                                                                     |
 | 数据        | **MySQL 8**（库名默认 **`school_db`**）、**Redis 7**                                                                                                    |
 | 构建与部署     | **Maven**、**Docker** / **Docker Compose**、**Nginx**（反向代理与 WS 转发）                                                                                 |
 
@@ -48,7 +48,7 @@
 ## 环境要求
 
 - **JDK 17**、**Maven 3.6+**
-- 开发 DP 前端：**Node.js**（与 `front/dp_game/package.json` 中 Vue CLI 5 兼容的版本）
+- 开发前端：**Node.js**（与 `front/dp_game/package.json` 中 Vue CLI 5 兼容的版本）
 - 可选：**Docker 20+**、**Docker Compose 2+**（一键起 MySQL + Redis + 应用 + Nginx）
 
 ---
@@ -115,7 +115,7 @@ npm run dev
 ```
 MGDemoPlus/
 ├── src/main/java/com/example/mgdemoplus/   # Spring Boot 主工程
-├── front/dp_game/                          # DP 游戏前端（Vue CLI）
+├── front/dp_game/                          # 游戏前端（Vue CLI）
 ├── docker/                                 # Nginx 等配置
 ├── docker-data/
 ├── docker-compose.yml
@@ -141,7 +141,7 @@ MGDemoPlus/
 
 ## 许可证与声明
 
-- DP 游戏为**学习与演示**，**虚拟筹码，不涉及真实货币**。
+**本项目仅为计算机技术学习与演示使用，采用虚拟积分，不涉及真实货币交易，不包含任何赌博相关功能。**
 
 若本短版与代码不一致，以 **[README.ch.md](README.ch.md)** / **[README.en.md](README.en.md)** 与 **[docs/README.md](docs/README.md)** 为准。
 
@@ -149,7 +149,7 @@ MGDemoPlus/
 
 ## English
 
-A **Spring Boot** web demo centered on **DP Texas Hold’em (NL)**—multi-room tables, live play, NPC bots, hand history, and optional Volcengine Ark LLM players. The **`front/dp_game`** UI is **Vue 2 + Vue Router + Vuex + Element UI**; production builds are embedded into the Spring Boot JAR by **`Dockerfile`**, served on the **same port** as REST and WebSocket.
+A **Spring Boot** web demo centered on **multiplayer online strategy card play**—multi-room sessions, real-time battle, AI players, session replay, and optional Volcengine Ark LLM-based players. The **`front/dp_game`** UI is **Vue 2 + Vue Router + Vuex + Element UI**; production builds are embedded into the Spring Boot JAR by **`Dockerfile`**, served on the **same port** as REST and WebSocket.
 
 **Long-form maintenance notes:** Chinese **[README.ch.md](README.ch.md)** · English **[README.en.md](README.en.md)** (same structure).
 
@@ -157,39 +157,41 @@ A **Spring Boot** web demo centered on **DP Texas Hold’em (NL)**—multi-room 
 
 #### Gameplay
 
-- **NLHE rules**: Blinds, streets, min-raise, side pots, etc., implemented server-side (e.g. `DpRoomServiceImpl`); the table UI uses polling plus WebSocket for state.
+- **Card battle rules**: Turn flow, minimum actions, and multiplayer settlement logic are implemented server-side (e.g. `DpRoomServiceImpl`); the room UI uses polling plus WebSocket for state.
 - **Rooms**: In-memory **`ConcurrentHashMap` (`roomMap`)**; see long docs for WebSocket and room lifecycle.
 - **Push**: Game WebSocket path pattern **`/ws/dp-game?roomId=...`**; serializes only when subscribers exist and de-duplicates JSON vs last push.
+- **Session replay**: Full match records can be persisted; user-scoped paged list and detail (permissions and card-info display rules in `docs`).
+- **Public lobby (single-table source)**: `/dpRoom/publicRooms` reads `dp_room_lobby` as the single source of truth, response shape `{ list, total, page, pageSize }`; summaries sync on create/join/leave/kick/owner change/start/destroy; paging uses PageHelper + Redis revision cache (`mgdemo:cache:dpRoom:publicRooms:rev`, `mgdemo:cache:dpRoom:publicRooms:data:{rev}:{page}:{pageSize}`), invalidated via `INCR rev` + `SCAN` to drop old data keys; failures are logged only. Filtered `/dpRoom/publicRooms/query` shares the same `rev`; keys `mgdemo:cache:dpRoom:lobbyQuery:data:{rev}:{paramHash}` (`paramHash` = first 16 hex chars of SHA-256 of normalized query string), TTL matches `mgdemoplus.cache.dp-room-public-rooms-ttl-seconds`.
 
 #### Accounts
 
 - **Auth**: **Spring Security** + **JWT** (`Authorization: Bearer`); whitelist covers login/register, `/ws/**`, some read-only room APIs—full list in [docs/JWT.md](docs/JWT.md).
 - **Passwords**: **bcrypt** digest stored server-side—see [docs/DpUserPassword.md](docs/DpUserPassword.md).
-- **Play money only**: No real-money gambling.
+- **Virtual points only**: Demo use; no real currency.
 
-#### NPC / AI
+#### AI players
 
-- **Rule-based bots**: Multiple styles (e.g. Fish, TAG, **Shark** with preflop/postflop logic and opponent memory)—overview in [docs/ai/npc-engine/README.md](docs/ai/npc-engine/README.md).
-- **LLM seat (optional)**: `BOT_LLM` via Ark APIs; set `ARK_API_KEY`, `ARK_ENDPOINT_ID`, etc. ([docs/ENV_README.md](docs/ENV_README.md), LLM section in [README.en.md](README.en.md)).
+- **Rule-based bots**: Multiple styles and difficulty levels with strategy logic and opponent memory—overview in [docs/ai/npc-engine/README.md](docs/ai/npc-engine/README.md).
+- **LLM player (optional)**: `BOT_LLM` via Ark APIs; set `ARK_API_KEY`, `ARK_ENDPOINT_ID`, etc. ([docs/ENV_README.md](docs/ENV_README.md), LLM section in [README.en.md](README.en.md)).
 
 #### Other
 
 - **Music library BGM**: Upload/list APIs; in-game playback state can sync over the room WebSocket.
-- **Redis**: Used for music list cache, `/demo/redis/*` labs, etc.; **table WebSocket state is not Redis-backed by default** (scale-out notes in [docs/WEBSOCKET.md](docs/WEBSOCKET.md)).
+- **Redis**: Used for music list cache, `/demo/redis/*` labs, etc.; **room WebSocket state is not Redis-backed by default** (scale-out notes in [docs/WEBSOCKET.md](docs/WEBSOCKET.md)).
 
 ### Stack
 
 | Layer | Tech |
 |--------|------|
 | Backend | Java **17**, **Spring Boot 3.5**, Web / Security / WebSocket, **MyBatis-Plus**, **PageHelper**, **Druid**, MySQL driver, **Lettuce** (Redis), **JJWT** |
-| Frontend (DP) | **Vue 2**, Vue Router, **Vuex**, **Element UI**, axios (`front/dp_game`) |
+| Frontend (card game) | **Vue 2**, Vue Router, **Vuex**, **Element UI**, axios (`front/dp_game`) |
 | Data | **MySQL 8** (default DB **`school_db`**), **Redis 7** |
 | Build / Ops | **Maven**, **Docker** / **Compose**, **Nginx** |
 
 ### Requirements
 
 - **JDK 17**, **Maven 3.6+**
-- For DP frontend dev: **Node.js** compatible with Vue CLI 5 in `front/dp_game`
+- For frontend dev: **Node.js** compatible with Vue CLI 5 in `front/dp_game`
 - Optional: **Docker 20+**, **Compose 2+**
 
 ### Quick start
@@ -266,8 +268,8 @@ MGDemoPlus/
 - [front/dp_game/docs/README.md](front/dp_game/docs/README.md)
 - [README.ch.md](README.ch.md) · [README.en.md](README.en.md) — long-form maintenance notes
 
-### Legal
+### Statement
 
-Virtual chips only; **no real-money play**. License: see **LICENSE** if present.
+**This project is for technical learning and demonstration only. It uses virtual points, involves no real currency, and does not provide gambling-related functionality.**
 
 If this overview disagrees with code, trust **[README.ch.md](README.ch.md)** / **[README.en.md](README.en.md)** and **[docs/README.md](docs/README.md)** / **docs/**.
