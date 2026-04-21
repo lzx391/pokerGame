@@ -1,7 +1,7 @@
 package com.example.mgdemoplus.service.serviceImpl.dp;
 
+import com.example.mgdemoplus.bo.DpRoomBO;
 import com.example.mgdemoplus.entity.dp.DpPlayer;
-import com.example.mgdemoplus.entity.dp.DpRoom;
 import com.example.mgdemoplus.entity.dp.DpPlayerStats;
 import com.example.mgdemoplus.service.serviceImpl.dp.npc.LlmNpcGameContext;
 import com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator;
@@ -399,7 +399,7 @@ public final class DpNpcEngine {
      * 仅在当前还没有计划（npcHandPlanType 为空）时才会生成一次。
      */
     static void initHandPlanIfNeededForPostflop(
-            DpRoom room,
+            DpRoomBO room,
             DpPlayer bot,
             BotType type,
             SimpleStrength strength,
@@ -594,7 +594,7 @@ public final class DpNpcEngine {
      * <li>若其余人都已 check 完只剩自己 → 再取顺时针第一个仍在局对手（用于统计/剧本不断线）。</li>
      * </ul>
      */
-    static DpPlayer resolvePrimaryVillainForShark(DpRoom room, DpPlayer bot, DpUtilSmartContext ctx) {
+    static DpPlayer resolvePrimaryVillainForShark(DpRoomBO room, DpPlayer bot, DpUtilSmartContext ctx) {
         if (ctx != null && ctx.aggressor != null && ctx.aggressor != bot) {
             return ctx.aggressor;
         }
@@ -714,7 +714,7 @@ public final class DpNpcEngine {
      * </p>
      */
     static void updateHandPlanForLaterStreetIfNeeded(
-            DpRoom room,
+            DpRoomBO room,
             DpPlayer bot,
             BotType type,
             SimpleStrength st,
@@ -1279,7 +1279,7 @@ public final class DpNpcEngine {
      * 用于 Shark 翻后避免误判“公共牌很强 = 我很强”。
      * </p>
      */
-    static boolean isBoardDominantBestHand(DpRoom room, DpPlayer hero) {
+    static boolean isBoardDominantBestHand(DpRoomBO room, DpPlayer hero) {
         if (room == null || hero == null)
             return false;
         List<String> board = room.getCommunityCards();
@@ -1300,7 +1300,7 @@ public final class DpNpcEngine {
         return !usedHole;
     }
 
-    private static SimpleStrength estimateCurrentStrength(DpRoom room, DpPlayer bot) {
+    private static SimpleStrength estimateCurrentStrength(DpRoomBO room, DpPlayer bot) {
         List<String> hole = bot.getHoleCards();
         List<String> community = room.getCommunityCards();
         if (hole == null || hole.size() < 2) {
@@ -1392,7 +1392,7 @@ public final class DpNpcEngine {
     /**
      * 计算机器人在牌桌上的大致位置：早位 / 中位 / 晚位 / 盲注。
      */
-    private static TablePosition getTablePosition(DpRoom room, DpPlayer bot) {
+    private static TablePosition getTablePosition(DpRoomBO room, DpPlayer bot) {
         List<DpPlayer> ps = room.getPlayers();
         if (ps == null || ps.isEmpty())
             return TablePosition.MIDDLE;
@@ -1532,7 +1532,7 @@ public final class DpNpcEngine {
      * 只在 stage == "preflop" 时调用，返回非 null 即表示已经给出明确动作。
      */
     private static PreflopDecision decidePreflopForTagOrShark(
-            DpRoom room,
+            DpRoomBO room,
             DpPlayer bot,
             BotType type,
             SimpleStrength strength,
@@ -1895,7 +1895,7 @@ public final class DpNpcEngine {
     /**
      * 读当前加注动作的可信度：是价值下注还是偏诈唬。
      */
-    private static ActionCredibility estimateActionCredibility(DpRoom room, DpPlayer bot, DpPlayer aggressor) {
+    private static ActionCredibility estimateActionCredibility(DpRoomBO room, DpPlayer bot, DpPlayer aggressor) {
         if (aggressor == null || aggressor == bot) {
             return ActionCredibility.MEDIUM;
         }
@@ -1922,7 +1922,7 @@ public final class DpNpcEngine {
      * 底池赔率：call / (pot + call)，并根据难度加入轻微噪声。
      * SHARK 在决定弃牌/跟注时会参考此值（赔率差时更易弃牌，赔率好时略减弃牌率）。
      */
-    private static double computePotOdds(DpRoom room, DpPlayer bot, int callAmount, Random random,
+    private static double computePotOdds(DpRoomBO room, DpPlayer bot, int callAmount, Random random,
             NpcDifficulty difficulty) {
         int pot = room.getPot();
         int denom = pot + callAmount;
@@ -1970,9 +1970,9 @@ public final class DpNpcEngine {
      * - minStackBB <= 20 视为有典型短码病人
      * - minStackBB > 60 & avgStackBB > 80 视为整体深码桌
      */
-    private static StackContext analyzeStacks(DpRoom room, DpPlayer hero) {
+    private static StackContext analyzeStacks(DpRoomBO room, DpPlayer hero) {
         if (room == null || hero == null) {
-            return new StackContext(0, 0, 0, DpRoom.DEFAULT_BIG_BLIND_CHIPS);
+            return new StackContext(0, 0, 0, DpRoomBO.DEFAULT_BIG_BLIND_CHIPS);
         }
         int bb = room.getBigBlindChips();
         int min = Integer.MAX_VALUE;
@@ -2067,7 +2067,7 @@ public final class DpNpcEngine {
      * 在定时任务中调用：如果轮到机器人行动，则根据思考时间和当前局面给出一个 BotAction。
      * 返回 null 表示暂时不需要行动（例如正在“思考中”或不该由该机器人行动）。
      */
-    public static BotAction decideActionIfReady(DpRoom room, DpPlayer bot) {
+    public static BotAction decideActionIfReady(DpRoomBO room, DpPlayer bot) {
         if (room == null || bot == null || !room.isPlaying()) {
             return null;
         }
@@ -2208,7 +2208,7 @@ public final class DpNpcEngine {
     /**
      * 为机器人当前这一手行动计算一个“思考时间”延迟。
      */
-    private static long calculateBotThinkDelay(DpRoom room, DpPlayer bot) {
+    private static long calculateBotThinkDelay(DpRoomBO room, DpPlayer bot) {
         int chips = bot.getChips();
         int callAmount = Math.max(0, room.getCurrentBetToCall() - bot.getBet());
         double callRatio = chips == 0 ? 1.0 : (callAmount * 1.0 / Math.max(1, chips));
@@ -2271,7 +2271,7 @@ public final class DpNpcEngine {
     /**
      * 统一的机器人决策函数。
      */
-    private static Random buildHandRandom(DpRoom room, DpPlayer bot) {
+    private static Random buildHandRandom(DpRoomBO room, DpPlayer bot) {
         long seed = room != null ? room.getCurrentHandSeed() : System.currentTimeMillis();
         int seatIndex = -1;
         if (room != null && room.getPlayers() != null) {
@@ -2304,7 +2304,7 @@ public final class DpNpcEngine {
         return v;
     }
 
-    private static int countActiveVillains(DpRoom room, DpPlayer hero) {
+    private static int countActiveVillains(DpRoomBO room, DpPlayer hero) {
         if (room == null || hero == null || room.getPlayers() == null) {
             return 0;
         }
@@ -2326,7 +2326,7 @@ public final class DpNpcEngine {
      * 不改变任何底层工具函数的行为，只做一次集中调用与打包。
      */
     static DpUtilSmartContext buildSmartContext(
-            DpRoom room,
+            DpRoomBO room,
             DpPlayer hero,
             SimpleStrength strength,
             String stage,
@@ -2464,7 +2464,7 @@ public final class DpNpcEngine {
      * 仅给 {@code BOT_LLM} 使用：打包当前局面摘要，供大模型阅读。
      * 不进入 {@link #decideBotAction}，与普通规则 NPC 分离。
      */
-    public static LlmNpcGameContext buildLlmNpcGameSnapshot(DpRoom room, DpPlayer bot) {
+    public static LlmNpcGameContext buildLlmNpcGameSnapshot(DpRoomBO room, DpPlayer bot) {
         if (room == null || bot == null) {
             return null;
         }
@@ -2478,7 +2478,7 @@ public final class DpNpcEngine {
                                                                                                 // LlmNpcGameContext->
     }
 
-    private static BotAction decideBotAction(DpRoom room, DpPlayer bot, BotType type) {
+    private static BotAction decideBotAction(DpRoomBO room, DpPlayer bot, BotType type) {
         int chips = bot.getChips();
         if (chips <= 0) {
             return new BotAction(BotActionType.FOLD, 0);

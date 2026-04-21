@@ -1,7 +1,7 @@
 package com.example.mgdemoplus.service.serviceImpl.dp;
 
+import com.example.mgdemoplus.bo.DpRoomBO;
 import com.example.mgdemoplus.entity.dp.DpPlayer;
-import com.example.mgdemoplus.entity.dp.DpRoom;
 import com.example.mgdemoplus.service.serviceImpl.dp.npc.LlmNpc;
 import com.example.mgdemoplus.service.serviceImpl.dp.npc.LlmNpcGameContext;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -82,7 +82,7 @@ public class DpLlmNpcDecisionService {
             int heroBet,
             int betToCall
     ) {
-        boolean stillValid(DpRoom room, DpPlayer bot) {
+        boolean stillValid(DpRoomBO room, DpPlayer bot) {
             if (room == null || bot == null) {
                 return false;
             }
@@ -121,7 +121,7 @@ public class DpLlmNpcDecisionService {
     /**
      * 与 {@link DpNpcEngine#decideActionIfReady} 相同调用约定：未到点或请求未完成时返回 null。
      */
-    public DpNpcEngine.BotAction decideActionIfReady(DpRoom room, DpPlayer bot) {
+    public DpNpcEngine.BotAction decideActionIfReady(DpRoomBO room, DpPlayer bot) {
         //全是防御性编程
         if (room == null || bot == null || !room.isPlaying()) {
             return null;
@@ -218,7 +218,7 @@ public class DpLlmNpcDecisionService {
     }
 //已学习，离线决策
     /** 未走模型或丢弃模型结果时的本地兜底，统一打日志便于对照控制台。 */
-    private static DpNpcEngine.BotAction applyLocalFallback(DpRoom room, DpPlayer bot, String reason) {
+    private static DpNpcEngine.BotAction applyLocalFallback(DpRoomBO room, DpPlayer bot, String reason) {
         DpNpcEngine.BotAction a = fallback(room, bot);
         System.out.println("[BOT_LLM] 【本地决策】原因=" + reason + " -> " + a.getType() + " amount=" + a.getAmount());
         return a;
@@ -254,7 +254,7 @@ public class DpLlmNpcDecisionService {
     }
 //已学习，防御性编程
     /** 本手牌里尚未标记离桌的玩家数（含自己）。≤1 表示没有对手在同一手内。 */
-    private static int countPlayersStillInThisHand(DpRoom room) {
+    private static int countPlayersStillInThisHand(DpRoomBO room) {
         List<DpPlayer> ps = room.getPlayers();
         if (ps == null) {
             return 0;
@@ -268,7 +268,7 @@ public class DpLlmNpcDecisionService {
         return n;
     }
 //已学习，构建喂给AI的信息包
-    private String buildUserPrompt(DpRoom room, DpPlayer bot, LlmNpcGameContext ctx) {
+    private String buildUserPrompt(DpRoomBO room, DpPlayer bot, LlmNpcGameContext ctx) {
         StringBuilder sb = new StringBuilder(1024);
         sb.append("M BB=").append(room.getBigBlindChips()).append(" SB=").append(room.getSmallBlindChips())
                 .append(" rl=").append(room.getRaiseLevel()).append('\n');
@@ -283,7 +283,7 @@ public class DpLlmNpcDecisionService {
     /**
      * 每人一段：昵称,后手,本街注,标记；| 分隔。D=庄 F=弃 A=全下 *=行动者。
      */
-    private static String compactTable(DpRoom room, DpPlayer hero) {
+    private static String compactTable(DpRoomBO room, DpPlayer hero) {
         StringBuilder sb = new StringBuilder();
         List<DpPlayer> ps = room.getPlayers();
         if (ps == null) {
@@ -347,7 +347,7 @@ public class DpLlmNpcDecisionService {
         }
     }
 //已学习，简单离线决策，有钱直接跟或者过牌，没钱直接弃
-    private static DpNpcEngine.BotAction fallback(DpRoom room, DpPlayer bot) {
+    private static DpNpcEngine.BotAction fallback(DpRoomBO room, DpPlayer bot) {
         int callAmount = Math.max(0, room.getCurrentBetToCall() - bot.getBet());
         if (callAmount <= 0) {
             return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
@@ -358,7 +358,7 @@ public class DpLlmNpcDecisionService {
         return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.FOLD, 0);
     }
 //已学习，LLM决策修正
-    private static DpNpcEngine.BotAction normalizeAndClamp(DpRoom room, DpPlayer bot, DpNpcEngine.BotAction a) {
+    private static DpNpcEngine.BotAction normalizeAndClamp(DpRoomBO room, DpPlayer bot, DpNpcEngine.BotAction a) {
         int callAmount = Math.max(0, room.getCurrentBetToCall() - bot.getBet());
         int chips = bot.getChips();
         if (a.getType() == DpNpcEngine.BotActionType.FOLD) {

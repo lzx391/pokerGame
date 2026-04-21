@@ -1,7 +1,7 @@
 package com.example.mgdemoplus.service.serviceImpl.dp;
 
+import com.example.mgdemoplus.bo.DpRoomBO;
 import com.example.mgdemoplus.entity.dp.DpPlayer;
-import com.example.mgdemoplus.entity.dp.DpRoom;
 import com.example.mgdemoplus.entity.dp.DpPlayerStats;
 
 import java.util.List;
@@ -34,7 +34,7 @@ final class DpNpcSharkLearningLab {
         return v == null ? "" : v;
     }
 
-    private static void dbg(DpRoom room, String msg) {
+    private static void dbg(DpRoomBO room, String msg) {
         String rid = room != null ? room.getRoomId() : "-";
         System.out.println("[SHARK-LEARN][room=" + rid + "] " + msg);
     }
@@ -205,7 +205,7 @@ final class DpNpcSharkLearningLab {
     private static final ConcurrentHashMap<BucketKey, Double> REWARD_SUM = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<BucketKey, Integer> REWARD_CNT = new ConcurrentHashMap<>();
 
-    static LearnedAdjust getAdjust(DpRoom room, DpPlayer sharkBot, DpPlayer villain) {
+    static LearnedAdjust getAdjust(DpRoomBO room, DpPlayer sharkBot, DpPlayer villain) {
         if (room == null || sharkBot == null || villain == null) {
             return new LearnedAdjust(0.0, 0.0, 1.0, 1.0,
                     0.0, 0.0, 0.0,
@@ -340,7 +340,7 @@ final class DpNpcSharkLearningLab {
      * 注意：这里不需要保存 SmartContext 历史，只用统计结果驱动“旋钮”。
      * </p>
      */
-    static void onHandSettled(DpRoom room) {
+    static void onHandSettled(DpRoomBO room) {
         if (room == null || room.getPlayerStatsMap() == null) {
             return;
         }
@@ -661,7 +661,7 @@ final class DpNpcSharkLearningLab {
         }
     }
 
-    private static void updateFoldBucketsFromActionLog(DpRoom room) {
+    private static void updateFoldBucketsFromActionLog(DpRoomBO room) {
         List<DpNpcSharkHandActionLog.ActionEvent> events = DpNpcSharkHandActionLog.snapshot(room);
         if (events == null || events.isEmpty())
             return;
@@ -784,7 +784,7 @@ final class DpNpcSharkLearningLab {
      * epsilon-greedy 选尺度：大多数时候用当前“最容易让他弃牌”的桶，小概率随机试探别的桶。
      * 这能模拟真人的“有意识试探边界”，并且随着样本增长逐步收敛到更有效的尺度。
      */
-    static double pickBluffBetPotFactorWithExplore(DpRoom room,
+    static double pickBluffBetPotFactorWithExplore(DpRoomBO room,
             DpPlayer villain,
             String street,
             java.util.Random random,

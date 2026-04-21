@@ -5,10 +5,10 @@ import com.example.mgdemoplus.bo.DpObservedHandRecordBO;
 import com.example.mgdemoplus.bo.DpObservedPotSnapshotBO;
 import com.example.mgdemoplus.bo.DpObservedSeatAtHandStartBO;
 import com.example.mgdemoplus.bo.DpObservedStreetBoardBO;
+import com.example.mgdemoplus.bo.DpRoomBO;
 import com.example.mgdemoplus.entity.dp.DpObservedHandHistory;
 import com.example.mgdemoplus.entity.dp.DpObservedHandParticipant;
 import com.example.mgdemoplus.entity.dp.DpPlayer;
-import com.example.mgdemoplus.entity.dp.DpRoom;
 import com.example.mgdemoplus.entity.dp.DpUser;
 import com.example.mgdemoplus.mapper.dp.DpObservedHandHistoryMapper;
 import com.example.mgdemoplus.mapper.dp.DpObservedHandParticipantMapper;
@@ -71,7 +71,7 @@ public class DpHandHistoryPersistServiceImpl implements DpHandHistoryPersistServ
     /**
      * @param room 结算当刻的房间（用于参与者与 dp_user 关联）；可为 null 则只写牌谱主表。
      */
-    public void save(DpObservedHandRecordBO rec, DpRoom room) {
+    public void save(DpObservedHandRecordBO rec, DpRoomBO room) {
         if (rec == null) {
             return;
         }
@@ -103,7 +103,7 @@ public class DpHandHistoryPersistServiceImpl implements DpHandHistoryPersistServ
         }
     }
 
-    private void insertParticipants(DpObservedHandRecordBO rec, long handHistoryId, DpRoom room) {
+    private void insertParticipants(DpObservedHandRecordBO rec, long handHistoryId, DpRoomBO room) {
         List<DpPlayer> ps = room.getPlayers();
         if (ps == null) {
             return;

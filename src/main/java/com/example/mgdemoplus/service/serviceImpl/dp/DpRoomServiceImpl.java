@@ -1,6 +1,7 @@
 package com.example.mgdemoplus.service.serviceImpl.dp;
 
 import com.example.mgdemoplus.bo.DpObservedHandRecordBO;
+import com.example.mgdemoplus.bo.DpRoomBO;
 import com.example.mgdemoplus.entity.dp.DpPlayer;
 import com.example.mgdemoplus.entity.dp.DpPot;
 import com.example.mgdemoplus.entity.dp.DpRoom;
@@ -9,8 +10,8 @@ import com.example.mgdemoplus.entity.dp.DpUser;
 import com.example.mgdemoplus.mapper.dp.DpUserMapper;
 import com.example.mgdemoplus.service.dp.DpHandHistoryObservedService;
 import com.example.mgdemoplus.service.dp.DpHandHistoryPersistService;
+import com.example.mgdemoplus.service.dp.DpRoomHallService;
 import com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator;
-import com.example.mgdemoplus.vo.DpRoomVO;
 import com.example.mgdemoplus.websocket.DpGameRoomPushService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
@@ -21,13 +22,14 @@ import java.util.stream.Collectors;
 
 @Service
 public class DpRoomServiceImpl {
-    private final Map<String, DpRoom> roomMap = new ConcurrentHashMap<>();
+    private final Map<String, DpRoomBO> roomMap = new ConcurrentHashMap<>();
     private final DpHandHistoryPersistService observedHandPersistService;
     private final DpNpcSharkOpponentMemoryService sharkOpponentMemoryService;
     private final DpLlmNpcDecisionService llmNpcDecisionService;
     private final DpGameRoomPushService gameRoomPushService;
     private final DpUserMapper dpUserMapper;
     private final DpHandHistoryObservedService observedHandService;
+    private final DpRoomHallService dpRoomHallService;
     private final ObjectMapper objectMapper;
 
     // 统一从 NPC 引擎中获取机器人昵称，避免散落魔法字符串
@@ -43,6 +45,7 @@ public class DpRoomServiceImpl {
             DpGameRoomPushService gameRoomPushService,
             DpUserMapper dpUserMapper,
             DpHandHistoryObservedService observedHandService,
+            DpRoomHallService dpRoomHallService,
             ObjectMapper objectMapper
     ) {
         this.observedHandPersistService = observedHandPersistService;
@@ -51,12 +54,14 @@ public class DpRoomServiceImpl {
         this.gameRoomPushService = gameRoomPushService;
         this.dpUserMapper = dpUserMapper;
         this.observedHandService = observedHandService;
+        this.dpRoomHallService = dpRoomHallService;
         this.objectMapper = objectMapper;
         // 心跳清理 + 超时行动
         new Timer().scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
-                for (DpRoom room : roomMap.values()) {
+                for (DpRoomBO room : roomMap.values()) {
+                    boolean lobbyDirty = false;
                     Iterator<DpPlayer> it = room.getPlayers().iterator();
                     while (it.hasNext()) {
                         DpPlayer p = it.next();
@@ -67,12 +72,13 @@ public class DpRoomServiceImpl {
                         }
                         // 本手已离线的“占位”玩家不因心跳踢出，留到结算时再移除，以保持行动顺序
                         if (p.isLeftThisHand()) continue;
-                        if (System.currentTimeMillis() - p.getLastHeartBeat() > DpRoom.getHeartTimeout()) {
+                        if (System.currentTimeMillis() - p.getLastHeartBeat() > DpRoomBO.getHeartTimeout()) {
                             if (p.getNickname().equals(room.getOwner())) {
                                 giveOwner(room.getRoomId(), p.getNickname());
                             }
                             System.out.println("未收到" + p.getNickname() + "的心跳,已移除房间");
                             it.remove();
+                            lobbyDirty = true;
                         }
                     }
                     int size = 0;//检测活人逻辑
@@ -85,7 +91,7 @@ public class DpRoomServiceImpl {
 //                    System.out.println("定时器检测：人数："+size);
                         if (size == 0 && room.getSpectators().isEmpty()) {
                         System.out.println("定时器检测：房间：" + room.getRoomId() + "没活人了");
-                        roomMap.remove(room.getRoomId());//房间空了就清人
+                        removeRoom(room.getRoomId());//房间空了就清人
                         continue;
                     }
                     // 30秒超时弃牌；若当前行动位是已离线占位，直接跳过不等待
@@ -130,7 +136,7 @@ public class DpRoomServiceImpl {
                             if (p.isLeftThisHand()) {
                                 moveToNextValidActor(room);
                                 autoAdvanceIfRoundFinished(room);
-                            } else if (System.currentTimeMillis() - room.getLastActionTime() > DpRoom.getActionTimeout()) {
+                            } else if (System.currentTimeMillis() - room.getLastActionTime() > DpRoomBO.getActionTimeout()) {
                                 p.setFold(true);
                                 moveToNextValidActor(room);
                                 autoAdvanceIfRoundFinished(room);
@@ -178,6 +184,9 @@ public class DpRoomServiceImpl {
                     }
                     //已学习，调用websocket的gameRoomPushService.broadcastIfSubscribed(room.getRoomId())广播房间数据给所有订阅者
                     gameRoomPushService.broadcastIfSubscribed(room.getRoomId());
+                    if (lobbyDirty) {
+                        syncLobbyForRoomId(room.getRoomId());
+                    }
                 }
             }
         }, 0, 1000);
@@ -198,11 +207,30 @@ public class DpRoomServiceImpl {
         return deck;
     }
 
+    private void syncLobbyForRoomId(String roomId) {
+        if (roomId == null || roomId.isEmpty()) {
+            return;
+        }
+        DpRoomBO room = roomMap.get(roomId);
+        if (room == null) {
+            return;
+        }
+        dpRoomHallService.upsertRoomSummary(room);
+    }
+
+    private void removeRoom(String roomId) {
+        if (roomId == null || roomId.isEmpty()) {
+            return;
+        }
+        roomMap.remove(roomId);
+        dpRoomHallService.deleteRoomSummary(roomId);
+    }
+
     /**
      * 房主主动移交房主给房间内另一位玩家
      */
     public boolean transferOwner(String roomId, String fromNickname, String toNickname) {
-        DpRoom r = roomMap.get(roomId);
+        DpRoomBO r = roomMap.get(roomId);
         if (r == null) return false;
         // 只有当前房主可以发起移交
         if (!fromNickname.equals(r.getOwner())) return false;
@@ -227,12 +255,13 @@ public class DpRoomServiceImpl {
 
         r.setOwner(toNickname);
         System.out.println("房间 " + r.getRoomId() + " 房主由 " + fromNickname + " 移交给: " + toNickname);
+        syncLobbyForRoomId(roomId);
         return true;
     }
 
     // ========== 顺位移交房主操作 =========
     public void giveOwner(String roomId, String ownerNickname) {
-        DpRoom room = roomMap.get(roomId);
+        DpRoomBO room = roomMap.get(roomId);
         if (room == null) {
             return;
         }
@@ -252,7 +281,7 @@ public class DpRoomServiceImpl {
         }
         if (tableHumans + spectatorHumans == 0) {
             System.out.println("giveOwner：没有活人了");
-            roomMap.remove(roomId);
+            removeRoom(roomId);
             return;
         }
         // 优先桌上真人，其次观众席真人（避免只剩观众时误删房或无人接任）
@@ -260,6 +289,7 @@ public class DpRoomServiceImpl {
             if (!candidate.getNickname().equals(ownerNickname) && !candidate.isLeftThisHand() && !DpNpcEngine.isBotPlayer(candidate)) {
                 room.setOwner(candidate.getNickname());
                 System.out.println("giveOwner：房间 " + room.getRoomId() + " 房主易位给: " + candidate.getNickname());
+                syncLobbyForRoomId(roomId);
                 return;
             }
         }
@@ -267,6 +297,7 @@ public class DpRoomServiceImpl {
             if (!specNick.equals(ownerNickname) && !DpNpcEngine.isBotNickname(specNick)) {
                 room.setOwner(specNick);
                 System.out.println("giveOwner：房间 " + room.getRoomId() + " 房主易位给观众: " + specNick);
+                syncLobbyForRoomId(roomId);
                 return;
             }
         }
@@ -277,7 +308,7 @@ public class DpRoomServiceImpl {
      *
      */
     public boolean kickPlayer(String roomId, String nickname) {
-        DpRoom r = roomMap.get(roomId);
+        DpRoomBO r = roomMap.get(roomId);
         int idx = -1;
         List<DpPlayer> ps = r.getPlayers();
         for (int i = 0; i < ps.size(); i++) {//找到这个人的下标返回
@@ -305,6 +336,7 @@ public class DpRoomServiceImpl {
                     spectators.add(nickname);
                 }
             }
+            syncLobbyForRoomId(roomId);
             return true;
         } else {
             return false;
@@ -314,7 +346,7 @@ public class DpRoomServiceImpl {
     }
 
     //======== 获取观众席防null版本 =========
-    public List<String> getNewSpectators(DpRoom r) {
+    public List<String> getNewSpectators(DpRoomBO r) {
         List<String> spectators = r.getSpectators();
         if (spectators == null) {
             spectators = new ArrayList<>();
@@ -328,7 +360,7 @@ public class DpRoomServiceImpl {
      * 统一的行动者轮转方法
      * 跳过：已弃牌、已全下、已行动且下注已跟齐 的玩家
      */
-    private void moveToNextValidActor(DpRoom r) {
+    private void moveToNextValidActor(DpRoomBO r) {
         int size = r.getPlayers().size();//玩家数量
         int startIdx = r.getCurrentActorIndex();//当前行动者下标
         //这里是检测本轮剩两个玩家时，当前玩家弃牌之后，应该直接推进，而不是等另一个玩家点一下过牌
@@ -379,7 +411,7 @@ public class DpRoomServiceImpl {
      * 计算主池和边池
      * 在进入 showdown 时调用
      */
-    private void calculatePots(DpRoom r) {
+    private void calculatePots(DpRoomBO r) {
         List<Integer> levels = r.getPlayers().stream()
                 .map(DpPlayer::getTotalBet)
                 .filter(b -> b > 0)
@@ -417,10 +449,10 @@ public class DpRoomServiceImpl {
 
     // ========== 开局前：房间与准备 ==========
 
-    public DpRoom createRoom(String ownerNickname, Integer ownerUserId,
+    public DpRoomBO createRoom(String ownerNickname, Integer ownerUserId,
                              int smallBlindChips, int bigBlindChips, int startingStackBb, String roomPassword) {
         String id = UUID.randomUUID().toString().substring(0, 8);//随机生成的id?
-        DpRoom r = new DpRoom();
+        DpRoomBO r = new DpRoomBO();
         r.setRoomId(id);
         r.setOwner(ownerNickname);
         int sb = Math.max(1, smallBlindChips);
@@ -454,6 +486,7 @@ public class DpRoomServiceImpl {
         }
         r.getPlayers().add(p);
         roomMap.put(id, r);
+        syncLobbyForRoomId(id);
         return r;
     }
 
@@ -474,10 +507,10 @@ public class DpRoomServiceImpl {
     /**
      * 房间列表摘要：用于大厅展示所有房间（房间号 / 房主 / 在线人数）
      */
-    public List<DpRoomVO> getAllRooms2() {
+    public List<DpRoom> getAllRooms2() {
         return roomMap.values().stream()
                 .map(room -> {
-                    DpRoomVO dto = new DpRoomVO();
+                    DpRoom dto = new DpRoom();
                     dto.setRoomId(room.getRoomId());
                     dto.setOwner(room.getOwner());
                     // 房间展示人数只统计“非僵尸位”的真实玩家
@@ -494,8 +527,13 @@ public class DpRoomServiceImpl {
                 .collect(Collectors.toList());
     }
 
-    public DpRoom getAllRooms(String roomId) {
-        DpRoom r = roomMap.get(roomId);
+    /** 当前进程内存中的房间 ID（与 dp_room_lobby 对齐任务使用） */
+    public Set<String> getRoomIdsInMemory() {
+        return Set.copyOf(roomMap.keySet());
+    }
+
+    public DpRoomBO getAllRooms(String roomId) {
+        DpRoomBO r = roomMap.get(roomId);
         if (r == null) return null;
         // 当公共牌不少于 3 张时，为每位有手牌的玩家计算并填充「最大牌型的 5 张牌」，供前端展示
         List<String> community = r.getCommunityCards();
@@ -529,8 +567,8 @@ public class DpRoomServiceImpl {
      *
      * @param viewerNickname 当前连接者的昵称；null 或空则视为未认领身份，不展示任何玩家的真实底牌。
      */
-    public DpRoom getRoomSnapshotForViewer(String roomId, String viewerNickname) {
-        DpRoom live = getAllRooms(roomId);
+    public DpRoomBO getRoomSnapshotForViewer(String roomId, String viewerNickname) {
+        DpRoomBO live = getAllRooms(roomId);
         if (live == null) {
             return null;
         }
@@ -540,20 +578,20 @@ public class DpRoomServiceImpl {
     /**
      * 在已调用 {@link #getAllRooms(String)} 得到的实体上生成对外快照，避免同一推送周期内重复计算 bestHand。
      */
-    public DpRoom snapshotForViewerFromLive(DpRoom live, String viewerNickname) {
+    public DpRoomBO snapshotForViewerFromLive(DpRoomBO live, String viewerNickname) {
         if (live == null) {
             return null;
         }
-        DpRoom copy = deepCopyRoomForSnapshot(live);
+        DpRoomBO copy = deepCopyRoomForSnapshot(live);
         sanitizeHoleCardsForViewer(copy, viewerNickname);
         return copy;
     }
 /**
  * 深拷贝房间对象，避免修改原始对象
  */
-    private DpRoom deepCopyRoomForSnapshot(DpRoom live) {
+    private DpRoomBO deepCopyRoomForSnapshot(DpRoomBO live) {
         try {
-            return objectMapper.readValue(objectMapper.writeValueAsBytes(live), DpRoom.class);
+            return objectMapper.readValue(objectMapper.writeValueAsBytes(live), DpRoomBO.class);
         } catch (Exception e) {
             throw new IllegalStateException("room snapshot copy failed", e);
         }
@@ -562,7 +600,7 @@ public class DpRoomServiceImpl {
     /**
      * 仅保留「本人」或「已摊牌公开」的他人底牌；并清空由他人底牌推导的 bestHand / 牌型说明，避免间接泄露。
      */
-    private static void sanitizeHoleCardsForViewer(DpRoom room, String viewerNickname) {
+    private static void sanitizeHoleCardsForViewer(DpRoomBO room, String viewerNickname) {
         if (room == null || room.getPlayers() == null) {
             return;
         }
@@ -600,7 +638,7 @@ public class DpRoomServiceImpl {
 
     public String joinRoom(String roomId, String nickname, Integer userId, String roomPassword) {
         
-        DpRoom r = roomMap.get(roomId);
+        DpRoomBO r = roomMap.get(roomId);
         if (r == null) return "房间不存在";
         if (!r.matchesRoomPassword(roomPassword)) {
             return "密码错误";
@@ -646,6 +684,7 @@ public class DpRoomServiceImpl {
         }
         r.getPlayers().add(p);
         sharkOpponentMemoryService.hydratePlayerIfNeeded(r, nickname);
+        syncLobbyForRoomId(roomId);
         return "ok";
     }
 
@@ -654,7 +693,7 @@ public class DpRoomServiceImpl {
      * 当前局没有作为玩家参与的人，可以通过该接口在下一局开局时被加入 players
      */
     public boolean readyNextHand(String roomId, String nickname, Integer userId) {
-        DpRoom r = roomMap.get(roomId);
+        DpRoomBO r = roomMap.get(roomId);
         if (r == null) return false;
 
         Integer uid = resolveAndValidateUserId(userId, nickname);
@@ -725,7 +764,7 @@ public class DpRoomServiceImpl {
     }
 
     public boolean toggleReady(String roomId, String nickname) {
-        DpRoom r = roomMap.get(roomId);
+        DpRoomBO r = roomMap.get(roomId);
         if (r == null) return false;
 
         // 1. 首次开局前的准备：房间未开始
@@ -765,7 +804,7 @@ public class DpRoomServiceImpl {
         return false;
     }
 
-    private void checkAndStartNextHandAfterSettle(DpRoom r) {
+    private void checkAndStartNextHandAfterSettle(DpRoomBO r) {
         int size = 0;
         int size1 = 0;
         //算所有场上有能力准备下一场的人数（筹码 ≥ 大盲）
@@ -792,7 +831,7 @@ public class DpRoomServiceImpl {
     }
 
     public boolean exitRoom(String roomId, String nickname) {
-        DpRoom r = roomMap.get(roomId);
+        DpRoomBO r = roomMap.get(roomId);
         if (r == null) return false;
         // 先从观众席中移除这个人（无论是否在牌桌上）
         List<String> spectators = r.getSpectators();
@@ -812,7 +851,9 @@ public class DpRoomServiceImpl {
 
                 giveOwner(roomId, nickname);
             }
-            return r.getPlayers().removeIf(p -> p.getNickname().equals(nickname));
+            boolean removed = r.getPlayers().removeIf(p -> p.getNickname().equals(nickname));
+            syncLobbyForRoomId(roomId);
+            return removed;
         }
 
         // ===== 正在对局中：本手牌内不直接删人，而是视为弃牌 + 标记本手结束后清理 =====
@@ -859,6 +900,7 @@ public class DpRoomServiceImpl {
             }
         }
 
+        syncLobbyForRoomId(roomId);
         return true;
     }
 
@@ -866,7 +908,7 @@ public class DpRoomServiceImpl {
     // ========== 游戏开始与流程 ==========
 
     public boolean startGame(String roomId, String ownerNickname) {
-        DpRoom r = roomMap.get(roomId);
+        DpRoomBO r = roomMap.get(roomId);
         if (r == null || !r.getOwner().equals(ownerNickname)) return false;
         r.setPlaying(true);
         r.setCurrentStage("preflop");
@@ -887,11 +929,12 @@ public class DpRoomServiceImpl {
 //            p.setBlind(0);
 //        }
         r.getPlayers().get(0).setDealer(true);
+        syncLobbyForRoomId(roomId);
         return newHand(roomId);
     }
 
     public boolean newHand(String roomId) {
-        DpRoom r = roomMap.get(roomId);
+        DpRoomBO r = roomMap.get(roomId);
         if (r == null || !r.isPlaying()) return false;
         r.setLastHandHoleCardsPublic(false);
 
@@ -986,11 +1029,12 @@ public class DpRoomServiceImpl {
         //标记手准备
         observedHandService.markHandReadyAfterBlinds(r);
         sharkOpponentMemoryService.hydrateAllOpponentsForNewHand(r);
+        syncLobbyForRoomId(roomId);
         return true;
     }
 
     // =========== 检查所有可参与游戏的人 =========
-    public List<DpPlayer> getAllCanPlayer(DpRoom r) {
+    public List<DpPlayer> getAllCanPlayer(DpRoomBO r) {
         //防null
         List<String> spectators = getNewSpectators(r);
         r.setSpectators(spectators);
@@ -1039,7 +1083,7 @@ public class DpRoomServiceImpl {
      * 从庄家位 D 左边第一个玩家开始，跳过已弃牌 / 已 all-in 的玩家。
      * 若没有庄家标记或没人能行动，则返回 -1。
      */
-    private int findFirstActorAfterDealer(DpRoom r) {
+    private int findFirstActorAfterDealer(DpRoomBO r) {
         List<DpPlayer> ps = r.getPlayers();
         if (ps == null || ps.isEmpty()) {
             return -1;
@@ -1075,7 +1119,7 @@ public class DpRoomServiceImpl {
     /**
      * NPC 加注额兜底：抬到合法最小再加注（若后手不足则全下）。
      */
-    private static int clampRaiseAmountForLegal(DpRoom r, DpPlayer p, int amount) {
+    private static int clampRaiseAmountForLegal(DpRoomBO r, DpPlayer p, int amount) {
         int chips = p.getChips();
         if (amount > chips) {
             amount = chips;
@@ -1096,7 +1140,7 @@ public class DpRoomServiceImpl {
     }
 
     public boolean bet(String roomId, String nickname, int amount) {
-        DpRoom r = roomMap.get(roomId);
+        DpRoomBO r = roomMap.get(roomId);
         if (r == null || !r.isPlaying()) return false;
 
         DpPlayer p = r.getPlayers().stream()
@@ -1170,7 +1214,7 @@ public class DpRoomServiceImpl {
     }
 
     public boolean fold(String roomId, String nickname) {
-        DpRoom r = roomMap.get(roomId);
+        DpRoomBO r = roomMap.get(roomId);
         if (r == null || !r.isPlaying() || r.getCurrentActorIndex() < 0) return false;
 
         DpPlayer p = r.getPlayers().get(r.getCurrentActorIndex());
@@ -1191,7 +1235,7 @@ public class DpRoomServiceImpl {
      * 自动推进阶段：当本轮所有可行动玩家都行动完毕 (currentActorIndex == -1) 时，
      * 自动从 preflop/flop/turn/river 往后走，直到出现新的行动者或进入 showdown。
      */
-    private void autoAdvanceIfRoundFinished(DpRoom r) {
+    private void autoAdvanceIfRoundFinished(DpRoomBO r) {
         if (r == null || !r.isPlaying()) return;
         // 只有当当前轮已经没有行动者时才考虑推进
         if (r.getCurrentActorIndex() >= 0) return;
@@ -1209,7 +1253,7 @@ public class DpRoomServiceImpl {
     /**
      * 内部通用：在一轮下注结束后推进阶段（翻牌/转牌/河牌/摊牌）
      */
-    private boolean advanceStage(DpRoom r) {
+    private boolean advanceStage(DpRoomBO r) {
         if (r == null || !r.isPlaying()) return false;
 
         // 清理本轮投注数据（不清 totalBet 和 allIn）
@@ -1284,7 +1328,7 @@ public class DpRoomServiceImpl {
      * 统计本手牌中仍未弃牌且在局的玩家数量（未离开本手）。
      * 用于判断“只剩一人”时是否连推到摊牌。
      */
-    private int countPlayersStillInHand(DpRoom r) {
+    private int countPlayersStillInHand(DpRoomBO r) {
         if (r == null || r.getPlayers() == null) return 0;
         int count = 0;
         for (DpPlayer p : r.getPlayers()) {
@@ -1293,7 +1337,7 @@ public class DpRoomServiceImpl {
         return count;
     }
     //这个是倒数第二个人弃牌之后直接触发连推的逻辑
-    private int countPlayersStillInHandAndNotActed(DpRoom r) {
+    private int countPlayersStillInHandAndNotActed(DpRoomBO r) {
         //这里是规避两个人玩的时候出现逻辑错误
         if (r == null || r.getPlayers() == null || r.getPlayers().size() <= 2) return 0;
         int count = 0;
@@ -1302,7 +1346,7 @@ public class DpRoomServiceImpl {
         }
         return count;
     }
-    private boolean isOnlyOnePlayerStillInHandAndNotActedAndFold(DpRoom r) {
+    private boolean isOnlyOnePlayerStillInHandAndNotActedAndFold(DpRoomBO r) {
         return countPlayersStillInHandAndNotActed(r) == 1;
     }
     /**
@@ -1311,7 +1355,7 @@ public class DpRoomServiceImpl {
      *   （要么全部 all-in，要么只有一个人还有筹码，但其它人都 all-in 了）
      * 这种情况下，无论有无边池，系统都可以直接连推到摊牌。
      */
-    private boolean noFurtherBettingPossible(DpRoom r) {
+    private boolean noFurtherBettingPossible(DpRoomBO r) {
         if (r == null || r.getPlayers() == null) return false;
         int notAllIn = 0;
         for (DpPlayer p : r.getPlayers()) {
@@ -1332,7 +1376,7 @@ public class DpRoomServiceImpl {
      * <p>说明：按池分配时，边池可能只有筹码更深的一方有资格，会不比较牌力就独吞边池；
      * 若用“分到池子的人”算连胜，会出现“输主池但赢边池仍算胜”的错误。连胜只跟全局牌力挂钩。</p>
      */
-    private Set<String> computeStreakWinnersByBestHand(DpRoom r, Map<String, DpUtilHandEvaluator.HandStrength> strengthMap) {
+    private Set<String> computeStreakWinnersByBestHand(DpRoomBO r, Map<String, DpUtilHandEvaluator.HandStrength> strengthMap) {
         List<DpPlayer> stillIn = r.getPlayers().stream()
                 .filter(p -> p != null && !p.isLeftThisHand() && !p.isFold())
                 .collect(Collectors.toList());
@@ -1370,7 +1414,7 @@ public class DpRoomServiceImpl {
      * 本手牌池底分配完成后更新连胜：牌力全局第一或并列第一的玩家 +1，其余未离线座位清零。
      * 若没有任何此类赢家（异常局），不修改避免误清空。
      */
-    private void applyWinStreakAfterHand(DpRoom r, Set<String> winnerNicknames) {
+    private void applyWinStreakAfterHand(DpRoomBO r, Set<String> winnerNicknames) {
         if (r == null || r.getPlayers() == null) return;
         if (winnerNicknames == null || winnerNicknames.isEmpty()) return;
         for (DpPlayer p : r.getPlayers()) {
@@ -1389,7 +1433,7 @@ public class DpRoomServiceImpl {
      * 按当前 {@link DpPlayer#getChips()} 计算场上（未本手离席）筹码最高者昵称列表，写入房间供前端座位光效。
      * 仅在 autoSettle 末尾调用，第一局开局前列表为空，避免「全员同分并列第一」误亮。
      */
-    private void refreshChipLeaderNicknames(DpRoom r) {
+    private void refreshChipLeaderNicknames(DpRoomBO r) {
         if (r == null) {
             return;
         }
@@ -1427,7 +1471,7 @@ public class DpRoomServiceImpl {
     /**
      * 自动结算当前房间：为每个池按牌力选出赢家并分配筹码，然后进入结算完成/准备下一局阶段。
      */
-    private void autoSettle(DpRoom r) {
+    private void autoSettle(DpRoomBO r) {
         if (r == null || !r.isPlaying()) return;
 
         final boolean lastHandPublic = countPlayersStillInHand(r) >= 2;
@@ -1817,7 +1861,7 @@ public class DpRoomServiceImpl {
      * 结算后准备阶段到时间：未准备的玩家被踢到观众席，准备好的玩家自动开下一局。
      * 先让积分不足大盲的人去观众厅，再按准备状态分人，避免输光的被强行带入下一把。
      */
-    private void handleReadyTimeout(DpRoom r) {
+    private void handleReadyTimeout(DpRoomBO r) {
         if (r == null || !r.isPlaying()) return;
         if (!"settled".equals(r.getCurrentStage())) return;
 
@@ -1912,7 +1956,7 @@ public class DpRoomServiceImpl {
      * 结算后筹码不足大盲（10）的玩家补码到初始筹码。
      */
     public boolean rebuy(String roomId, String nickname) {
-        DpRoom r = roomMap.get(roomId);
+        DpRoomBO r = roomMap.get(roomId);
         if (r == null || !r.isPlaying()) return false;
         if (!"settled".equals(r.getCurrentStage())) return false;
         for (DpPlayer p : r.getPlayers()) {
@@ -1931,7 +1975,7 @@ public class DpRoomServiceImpl {
     // ========== 心跳 ==========
 
     public void heartbeat(String roomId, String nickname) {
-        DpRoom r = roomMap.get(roomId);
+        DpRoomBO r = roomMap.get(roomId);
         if (r == null) return;
         for (DpPlayer p : r.getPlayers()) {
             if (p.getNickname().equals(nickname)) {

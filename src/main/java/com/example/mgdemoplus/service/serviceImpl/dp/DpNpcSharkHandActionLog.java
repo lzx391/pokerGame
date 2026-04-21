@@ -1,7 +1,7 @@
 package com.example.mgdemoplus.service.serviceImpl.dp;
 
+import com.example.mgdemoplus.bo.DpRoomBO;
 import com.example.mgdemoplus.entity.dp.DpPlayer;
-import com.example.mgdemoplus.entity.dp.DpRoom;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -98,7 +98,7 @@ final class DpNpcSharkHandActionLog {
 
     private static final ConcurrentHashMap<Key, List<ActionEvent>> EVENTS = new ConcurrentHashMap<>();
 
-    static boolean isEnabledForRoom(DpRoom room) {
+    static boolean isEnabledForRoom(DpRoomBO room) {
         if (room == null || room.getPlayers() == null)
             return false;
         for (DpPlayer p : room.getPlayers()) {
@@ -111,7 +111,7 @@ final class DpNpcSharkHandActionLog {
         return false;
     }
 
-    static void beginHand(DpRoom room) {
+    static void beginHand(DpRoomBO room) {
         if (room == null)
             return;
         if (!isEnabledForRoom(room))
@@ -120,7 +120,7 @@ final class DpNpcSharkHandActionLog {
         EVENTS.put(k, Collections.synchronizedList(new ArrayList<>()));
     }
 
-    static List<ActionEvent> snapshot(DpRoom room) {
+    static List<ActionEvent> snapshot(DpRoomBO room) {
         if (room == null)
             return Collections.emptyList();
         if (!isEnabledForRoom(room))
@@ -133,13 +133,13 @@ final class DpNpcSharkHandActionLog {
         }
     }
 
-    static void clearHand(DpRoom room) {
+    static void clearHand(DpRoomBO room) {
         if (room == null)
             return;
         EVENTS.remove(new Key(room.getRoomId(), room.getCurrentHandSeed()));
     }
 
-    static void recordBlind(DpRoom room, String nickname, boolean isSb, int amount, int potBefore) {
+    static void recordBlind(DpRoomBO room, String nickname, boolean isSb, int amount, int potBefore) {
         if (room == null || nickname == null)
             return;
         if (!isEnabledForRoom(room))
@@ -149,7 +149,7 @@ final class DpNpcSharkHandActionLog {
                 room.getRaiseLevel(), potBefore));
     }
 
-    static void recordFold(DpRoom room, DpPlayer actor, int potBefore) {
+    static void recordFold(DpRoomBO room, DpPlayer actor, int potBefore) {
         if (room == null || actor == null)
             return;
         if (!isEnabledForRoom(room))
@@ -158,7 +158,7 @@ final class DpNpcSharkHandActionLog {
                 ActionType.FOLD, 0, room.getCurrentBetToCall(), actor.getBet(), room.getRaiseLevel(), potBefore));
     }
 
-    static void recordBetLikeAction(DpRoom room,
+    static void recordBetLikeAction(DpRoomBO room,
             DpPlayer actor,
             int amount,
             int betToCallBefore,
@@ -187,7 +187,7 @@ final class DpNpcSharkHandActionLog {
                 t, amount, betToCallBefore, actorBetBefore, room.getRaiseLevel(), potBefore));
     }
 
-    private static void append(DpRoom room, ActionEvent e) {
+    private static void append(DpRoomBO room, ActionEvent e) {
         Key k = new Key(room.getRoomId(), room.getCurrentHandSeed());
         List<ActionEvent> list = EVENTS.computeIfAbsent(k, kk -> Collections.synchronizedList(new ArrayList<>()));
         list.add(e);
