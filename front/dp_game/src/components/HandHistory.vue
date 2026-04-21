@@ -1,7 +1,8 @@
 <template>
   <div
     :class="{ 'dp-game-root': !embedded }"
-    :data-dp-game-theme="embedded ? undefined : gameUiTheme"
+    :data-dp-game-theme="embedded ? undefined : effectiveThemeForCss"
+    :style="embedded ? {} : customThemeInlineStyle"
   >
   <div class="hand-history-page hand-history-page--dp">
     <div class="hand-history-page__header">
@@ -9,14 +10,15 @@
       <div class="hand-history-page__header-actions">
         <div v-if="!embedded" class="dp-game-theme-row hand-history-page__theme-row">
           <span class="dp-game-theme-row__label">界面主题</span>
-          <select
-            class="dp-game-theme-select"
-            aria-label="选择界面主题"
-            :value="gameUiTheme"
-            @change="onLobbyThemeChange($event.target.value)"
-          >
-            <option v-for="t in gameThemeOptions" :key="t.id" :value="t.id">{{ t.label }}</option>
-          </select>
+          <dp-theme-picker
+            :game-ui-theme="gameUiTheme"
+            :theme-options="gameThemeOptions"
+            :custom-theme-base="customThemeBase"
+            :custom-accent="customAccent"
+            @input-theme="onLobbyThemeChange($event)"
+            @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
+            @custom-accent="$store.commit('dpGame/SET_CUSTOM_THEME', { accent: $event })"
+          />
         </div>
         <button type="button" class="hand-history-page__back" @click="goBack">
           {{ embedded ? '关闭' : '返回大厅' }}

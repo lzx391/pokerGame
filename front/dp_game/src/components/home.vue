@@ -1,5 +1,9 @@
 <template>
-  <div class="dp-game-root" :data-dp-game-theme="gameUiTheme">
+  <div
+    class="dp-game-root"
+    :data-dp-game-theme="effectiveThemeForCss"
+    :style="customThemeInlineStyle"
+  >
     <div class="dp-lobby-inner home-inner">
       <cat-tutorial-dialog :visible.sync="catTutorialVisible" @confirm="onCatTutorialConfirm" />
 
@@ -8,14 +12,15 @@
         <div class="home-header__right">
           <div class="dp-game-theme-row home-theme-row">
             <span class="dp-game-theme-row__label">界面主题</span>
-            <select
-              class="dp-game-theme-select"
-              aria-label="选择界面主题"
-              :value="gameUiTheme"
-              @change="onLobbyThemeChange($event.target.value)"
-            >
-              <option v-for="t in gameThemeOptions" :key="t.id" :value="t.id">{{ t.label }}</option>
-            </select>
+            <dp-theme-picker
+              :game-ui-theme="gameUiTheme"
+              :theme-options="gameThemeOptions"
+              :custom-theme-base="customThemeBase"
+              :custom-accent="customAccent"
+              @input-theme="onLobbyThemeChange($event)"
+              @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
+              @custom-accent="$store.commit('dpGame/SET_CUSTOM_THEME', { accent: $event })"
+            />
           </div>
           <div class="user-info">
             <span v-if="user && user.nickname">当前用户：{{ user.nickname }}</span>

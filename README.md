@@ -46,6 +46,7 @@
 ### 前端「猫咪派对」展示包装（仅文案与 UI）
 
 - 登录成功后会请求在大厅展示**玩法说明**弹窗（`CatTutorialDialog.vue`，`append-to-body`）；样式与当前**界面主题**一致：`body[data-dp-game-theme]` 上的 `--dp-*` 与 **`dp-game-element-ui.css`** 中对 `el-dialog` 的覆盖（避免暗色主题下浅色字叠在白底上）。可选「不再自动弹出」，仍可通过大厅 **玩法说明** 打开。
+- **界面主题**：预设多套 + 可选「**自定义**」（选一预设作底 + **强调色**，派生若干 `--dp-*` 覆盖；`dp_game_ui_theme` + `dp_game_custom_theme` 存 **localStorage**，非数据库）。
 - 术语与本地存储键名集中在 **`front/dp_game/src/constants/dpCatThemeCopy.js`**（如：发牌猫、小猫 SC / 大猫 BC、小鱼干；对局阶段展示为翻前圈 / 翻后圈 / 半决赛 / 决赛圈 / 结算阶段）；**不改变**后端 API、请求参数或 WebSocket 载荷字段名。
 
 ---

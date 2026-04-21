@@ -1,4 +1,4 @@
-import { mapState } from 'vuex'
+import { mapState, mapGetters } from 'vuex'
 
 /**
  * 大厅子页：仅映射主题状态与提交变更。
@@ -7,7 +7,13 @@ import { mapState } from 'vuex'
  */
 export default {
   computed: {
-    ...mapState('dpGame', ['gameUiTheme', 'gameThemeOptions'])
+    ...mapState('dpGame', [
+      'gameUiTheme',
+      'gameThemeOptions',
+      'customThemeBase',
+      'customAccent'
+    ]),
+    ...mapGetters('dpGame', ['effectiveThemeForCss', 'customThemeInlineStyle'])
   },
   methods: {
     onLobbyThemeChange(themeId) {

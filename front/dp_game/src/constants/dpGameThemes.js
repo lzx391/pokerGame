@@ -9,7 +9,9 @@ export const GAME_UI_THEMES = [
   { id: 'sunset', label: '落日熔金' },
   { id: 'ink', label: '水墨丹青' },
   { id: 'strawberry', label: '草莓甜心' },
-  { id: 'cotton', label: '绵云轻柔' }
+  { id: 'cotton', label: '绵云轻柔' },
+  /** 基于某一预设 + 自定义强调色，见 dpGameCustomTheme.js */
+  { id: 'custom', label: '自定义' }
 ]
 
 export const GAME_UI_THEME_IDS = GAME_UI_THEMES.map(function (t) {

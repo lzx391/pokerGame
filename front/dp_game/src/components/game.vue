@@ -7,7 +7,8 @@
         'dp-game-root--layout-fs': layoutFullscreen,
         'dp-game-root--mobile-hero-dock': mobileHeroDockActive
       }"
-      :data-dp-game-theme="gameUiTheme"
+      :data-dp-game-theme="effectiveThemeForCss"
+      :style="customThemeInlineStyle"
       :data-dp-eco-mode="ecoMode ? 'true' : 'false'"
       :data-dp-stage="stage"
   >
@@ -24,7 +25,11 @@
         :show-spectator-prepare="showSpectatorPrepareBlock"
         :next-hand-ready="nextHandReady"
         :game-ui-theme="gameUiTheme"
+        :custom-theme-base="customThemeBase"
+        :custom-accent="customAccent"
         @update:gameUiTheme="$store.commit('dpGame/SET_GAME_UI_THEME', $event)"
+        @update:customThemeBase="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
+        @update:customAccent="$store.commit('dpGame/SET_CUSTOM_THEME', { accent: $event })"
         :eco-mode="ecoMode"
         @update:ecoMode="$store.commit('dpGame/SET_ECO_MODE', $event)"
         :theme-options="gameThemeOptions"
@@ -148,10 +153,10 @@ export default {
 
   computed: {
     ...mapState('dpGame', [
-      'gameUiTheme', 'ecoMode', 'gameThemeOptions', 'roomId', 'user', 'currentHandSeed', 'owner', 'players', 'playing', 'stage', 'communityCards', 'pot', 'pots', 'currentBetToCall', 'lastRaiseIncrement', 'actIndex', 'spectators', 'raiseAmount', 'selectedWinners', 'potWinners', 'nextHandReady', 'loading', 'communityCardsFlipState', 'communityCardsFlipComplete', 'seatChatTextByNick', 'chatInputDraft', 'showHandRankModal', 'showSpectatorModal', 'showHandHistoryModal', 'showMusicBoxModal', 'musicTracks', 'musicTracksLoading', 'musicTracksError', 'roomMusicState', 'showOwnerHubSheet', 'ownerToolType', 'ownerActionTarget', 'demoBotAdding', 'demoBotAddedTip', 'maniacBotAdding', 'maniacBotAddedTip', 'tagBotAdding', 'tagBotAddedTip', 'sharkBotAdding', 'sharkBotAddedTip', 'llmBotAdding', 'llmBotAddedTip', 'ownerRevealAll', 'showMobileHandSheet', 'showMobileActionSheet', 'heroHoleDealIntroDone', 'chipLeaderNicknames'
+      'gameUiTheme', 'customThemeBase', 'customAccent', 'ecoMode', 'gameThemeOptions', 'roomId', 'user', 'currentHandSeed', 'owner', 'players', 'playing', 'stage', 'communityCards', 'pot', 'pots', 'currentBetToCall', 'lastRaiseIncrement', 'actIndex', 'spectators', 'raiseAmount', 'selectedWinners', 'potWinners', 'nextHandReady', 'loading', 'communityCardsFlipState', 'communityCardsFlipComplete', 'seatChatTextByNick', 'chatInputDraft', 'showHandRankModal', 'showSpectatorModal', 'showHandHistoryModal', 'showMusicBoxModal', 'musicTracks', 'musicTracksLoading', 'musicTracksError', 'roomMusicState', 'showOwnerHubSheet', 'ownerToolType', 'ownerActionTarget', 'demoBotAdding', 'demoBotAddedTip', 'maniacBotAdding', 'maniacBotAddedTip', 'tagBotAdding', 'tagBotAddedTip', 'sharkBotAdding', 'sharkBotAddedTip', 'llmBotAdding', 'llmBotAddedTip', 'ownerRevealAll', 'showMobileHandSheet', 'showMobileActionSheet', 'heroHoleDealIntroDone', 'chipLeaderNicknames'
     ]),
     ...mapGetters('dpGame', [
-      'handRankReference', 'stageCN', 'isOwner', 'isMyTurn', 'myPlayer', 'showSpectatorPrepareBlock', 'myReady', 'myChips', 'myBet', 'callAmount', 'smallBlind', 'bigBlind', 'lastRaiseIncrementEffective', 'minTotalToRaise', 'minRaise', 'allPotsHaveWinners', 'inSettledStage', 'ownerActionPlayers', 'playersDisplayOrder', 'viewerSeatedAtTable', 'holeDealPlayerCountForAnim', 'heroDockRow', 'dealerDisplayIndex', 'showdownHandLeaderNicknames', 'spectatorSeatChatEntries', 'tableActionActorDisplayName', 'mobileHeroDockActive', 'showHeroViewHandButton', 'showHeroSeatOnTable', 'showBottomHeroDock'
+      'effectiveThemeForCss', 'customThemeInlineStyle', 'handRankReference', 'stageCN', 'isOwner', 'isMyTurn', 'myPlayer', 'showSpectatorPrepareBlock', 'myReady', 'myChips', 'myBet', 'callAmount', 'smallBlind', 'bigBlind', 'lastRaiseIncrementEffective', 'minTotalToRaise', 'minRaise', 'allPotsHaveWinners', 'inSettledStage', 'ownerActionPlayers', 'playersDisplayOrder', 'viewerSeatedAtTable', 'holeDealPlayerCountForAnim', 'heroDockRow', 'dealerDisplayIndex', 'showdownHandLeaderNicknames', 'spectatorSeatChatEntries', 'tableActionActorDisplayName', 'mobileHeroDockActive', 'showHeroViewHandButton', 'showHeroSeatOnTable', 'showBottomHeroDock'
     ]),
     actionTimerProgressPct() {
       var t = Number(this.timeLeft)

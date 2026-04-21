@@ -33,14 +33,16 @@
             @click.stop
         >
           <span class="dp-game-theme-row__label">界面主题</span>
-          <select
-              class="dp-game-theme-select"
+          <dp-theme-picker
+              :game-ui-theme="gameUiTheme"
+              :theme-options="themeOptions"
+              :custom-theme-base="customThemeBase"
+              :custom-accent="customAccent"
               aria-label="选择对局界面主题"
-              :value="gameUiTheme"
-              @change="onThemeChange($event.target.value)"
-          >
-            <option v-for="t in themeOptions" :key="t.id" :value="t.id">{{ t.label }}</option>
-          </select>
+              @input-theme="onThemeChange($event)"
+              @custom-base="$emit('update:customThemeBase', $event)"
+              @custom-accent="$emit('update:customAccent', $event)"
+          />
           <label class="dp-game-eco-label">
             <input
                 type="checkbox"
@@ -121,6 +123,8 @@ export default {
     nextHandReady: { type: Boolean, default: false },
     /** 与 game.vue 的 data-dp-game-theme 同步 */
     gameUiTheme: { type: String, required: true },
+    customThemeBase: { type: String, default: 'default' },
+    customAccent: { type: String, default: '#1890ff' },
     ecoMode: { type: Boolean, required: true },
     themeOptions: {
       type: Array,

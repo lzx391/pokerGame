@@ -2,7 +2,8 @@
   <div
     class="hand-detail-page-root"
     :class="{ 'dp-game-root': !embedded }"
-    :data-dp-game-theme="!embedded ? gameUiTheme : undefined"
+    :data-dp-game-theme="!embedded ? effectiveThemeForCss : undefined"
+    :style="!embedded ? customThemeInlineStyle : {}"
   >
   <div class="hand-detail-page hand-detail-page--embedded">
     <div class="hand-detail-page__shell">
@@ -14,14 +15,15 @@
           </button>
           <div v-if="!embedded" class="dp-game-theme-row hand-detail-page__theme-row">
             <span class="dp-game-theme-row__label">界面主题</span>
-            <select
-              class="dp-game-theme-select"
-              aria-label="选择界面主题"
-              :value="gameUiTheme"
-              @change="onLobbyThemeChange($event.target.value)"
-            >
-              <option v-for="t in gameThemeOptions" :key="t.id" :value="t.id">{{ t.label }}</option>
-            </select>
+            <dp-theme-picker
+              :game-ui-theme="gameUiTheme"
+              :theme-options="gameThemeOptions"
+              :custom-theme-base="customThemeBase"
+              :custom-accent="customAccent"
+              @input-theme="onLobbyThemeChange($event)"
+              @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
+              @custom-accent="$store.commit('dpGame/SET_CUSTOM_THEME', { accent: $event })"
+            />
           </div>
         </div>
         <div class="hand-detail-page__hero-text">

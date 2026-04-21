@@ -4,6 +4,9 @@ import axios from 'axios'
 import router from './router'
 import store from './store'
 import { syncDpBodyGameTheme } from './utils/dpBodyGameTheme'
+import DpThemePicker from './components/DpThemePicker.vue'
+
+Vue.component('DpThemePicker', DpThemePicker)
 /* 主题变量需先于 lobby-shell（body 背景用 var(--dp-game-bg)） */
 import './styles/dp-game-themes.css'
 /* 尽早加载：大厅 #app.app--lobby 与 .dp-game-root 布局 */
@@ -77,7 +80,10 @@ router.onReady(function () {
   syncDpBodyGameTheme(store, router)
 })
 store.subscribe(function (mutation) {
-  if (mutation.type === 'dpGame/SET_GAME_UI_THEME') {
+  if (
+    mutation.type === 'dpGame/SET_GAME_UI_THEME' ||
+    mutation.type === 'dpGame/SET_CUSTOM_THEME'
+  ) {
     syncDpBodyGameTheme(store, router)
   }
 })

@@ -12,12 +12,12 @@
     />
     <game-hand-history-modal
         :visible="vm.showHandHistoryModal"
-        :game-ui-theme="vm.gameUiTheme"
+        :game-ui-theme="vm.effectiveThemeForCss"
         @close="$store.commit('dpGame/SET_MODAL', { showHandHistoryModal: false })"
     />
     <game-music-box-modal
         :visible="vm.showMusicBoxModal"
-        :game-ui-theme="vm.gameUiTheme"
+        :game-ui-theme="vm.effectiveThemeForCss"
         :tracks="vm.musicTracks"
         :list-loading="vm.musicTracksLoading"
         :list-error="vm.musicTracksError"

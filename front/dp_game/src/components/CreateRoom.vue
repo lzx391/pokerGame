@@ -1,18 +1,23 @@
 <template>
-  <div class="dp-game-root" :data-dp-game-theme="gameUiTheme">
+  <div
+    class="dp-game-root"
+    :data-dp-game-theme="effectiveThemeForCss"
+    :style="customThemeInlineStyle"
+  >
     <div class="dp-lobby-inner create-room-inner">
       <header class="create-room-header">
         <button type="button" class="dp-btn dp-btn--ghost create-room-header__back" @click="goHome">← 返回大厅</button>
         <div class="dp-game-theme-row create-room-theme-row">
           <span class="dp-game-theme-row__label">界面主题</span>
-          <select
-            class="dp-game-theme-select"
-            aria-label="选择界面主题"
-            :value="gameUiTheme"
-            @change="onLobbyThemeChange($event.target.value)"
-          >
-            <option v-for="t in gameThemeOptions" :key="t.id" :value="t.id">{{ t.label }}</option>
-          </select>
+          <dp-theme-picker
+            :game-ui-theme="gameUiTheme"
+            :theme-options="gameThemeOptions"
+            :custom-theme-base="customThemeBase"
+            :custom-accent="customAccent"
+            @input-theme="onLobbyThemeChange($event)"
+            @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
+            @custom-accent="$store.commit('dpGame/SET_CUSTOM_THEME', { accent: $event })"
+          />
         </div>
       </header>
 

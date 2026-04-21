@@ -4,13 +4,22 @@ import { pickShowdownLeaderNicknames } from '../../utils/dpGameHandRank'
 import { dpDisplayNickname, isDpBotNickname } from '../../utils/dpDisplayNickname'
 import { readGameTheme, writeGameTheme } from '../../utils/dpGameTheme'
 import { readEcoMode, writeEcoMode } from '../../utils/dpGameEcoMode'
-import { GAME_UI_THEMES } from '../../constants/dpGameThemes'
+import {
+  readCustomTheme,
+  writeCustomTheme,
+  normalizeAccentHex,
+  buildCustomThemeVars
+} from '../../utils/dpGameCustomTheme'
+import { GAME_UI_THEMES, GAME_UI_THEME_IDS } from '../../constants/dpGameThemes'
 import { dpGameStageDisplay } from '../../constants/dpCatThemeCopy'
 
 function initialState() {
+  var ct = readCustomTheme()
   return {
     gameUiTheme: readGameTheme(),
     ecoMode: readEcoMode(),
+    customThemeBase: ct.baseId,
+    customAccent: ct.accent,
     gameThemeOptions: GAME_UI_THEMES,
     roomId: '',
     user: null,
@@ -265,6 +274,23 @@ export default {
     },
     showBottomHeroDock: function (state, getters) {
       return getters.heroDockRow && state.stage !== 'preflop'
+    },
+    /** 供 data-dp-game-theme：自定义时沿用预设底的 CSS 变量块 */
+    effectiveThemeForCss: function (state) {
+      if (state.gameUiTheme === 'custom') {
+        var b = state.customThemeBase
+        if (b && GAME_UI_THEME_IDS.indexOf(b) !== -1 && b !== 'custom') {
+          return b
+        }
+        return 'default'
+      }
+      return state.gameUiTheme || 'default'
+    },
+    /** 自定义时覆盖到 .dp-game-root 内联样式，与 body 上由 dpBodyGameTheme 同步的一致 */
+    customThemeInlineStyle: function (state) {
+      if (state.gameUiTheme !== 'custom') return {}
+      var a = normalizeAccentHex(state.customAccent)
+      return buildCustomThemeVars(a || '#1890ff')
     }
   },
   mutations: {
@@ -275,6 +301,23 @@ export default {
     SET_GAME_UI_THEME: function (state, id) {
       state.gameUiTheme = id
       writeGameTheme(id)
+    },
+    SET_CUSTOM_THEME: function (state, payload) {
+      payload = payload || {}
+      if (payload.baseId != null) {
+        var bid = String(payload.baseId)
+        if (GAME_UI_THEME_IDS.indexOf(bid) !== -1 && bid !== 'custom') {
+          state.customThemeBase = bid
+        }
+      }
+      if (payload.accent != null) {
+        var ax = normalizeAccentHex(payload.accent)
+        if (ax) state.customAccent = ax
+      }
+      writeCustomTheme({
+        baseId: state.customThemeBase,
+        accent: state.customAccent
+      })
     },
     SET_ECO_MODE: function (state, on) {
       state.ecoMode = !!on
