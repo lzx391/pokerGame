@@ -25,6 +25,8 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -35,6 +37,8 @@ public class DpRoomHallServiceImpl implements DpRoomHallService {
 
     private static final String REV_KEY = "mgdemo:cache:dpRoom:publicRooms:rev";
     private static final String DATA_PREFIX = "mgdemo:cache:dpRoom:publicRooms:data:";
+    /** 筛选分页结果：{@code mgdemo:cache:dpRoom:lobbyQuery:data:{rev}:{paramHash}} */
+    private static final String LOBBY_QUERY_DATA_PREFIX = "mgdemo:cache:dpRoom:lobbyQuery:data:";
 
     private static final int DEFAULT_PAGE_SIZE = 10;
     private static final int MAX_PAGE_SIZE = 100;
@@ -151,43 +155,17 @@ public class DpRoomHallServiceImpl implements DpRoomHallService {
         int safeSize = p.getPageSize() > 0 ? p.getPageSize() : DEFAULT_PAGE_SIZE;
         safeSize = Math.min(MAX_PAGE_SIZE, safeSize);
         try {
-            LambdaQueryWrapper<DpRoomLobby> w = new LambdaQueryWrapper<>();//构建查询条件
-            w.eq(DpRoomLobby::getRoomStatus, 0);
-            if (p.getRoomId() != null && !p.getRoomId().isBlank()) {
-                String t = p.getRoomId().trim();
-                if (t.length() > MAX_ROOM_ID_LEN) {
-                    t = t.substring(0, MAX_ROOM_ID_LEN);
-                }
-                w.eq(DpRoomLobby::getRoomId, t);
+            String rev = safeGetRevision();
+            String canonical = buildLobbyQueryCanonicalString(p, safePage, safeSize);
+            String paramHash = sha256HexPrefix16(canonical);
+            String cacheKey = LOBBY_QUERY_DATA_PREFIX + rev + ":" + paramHash;
+            String cachedJson = stringRedisTemplate.opsForValue().get(cacheKey);
+            if (cachedJson != null && !cachedJson.isEmpty()) {
+                return objectMapper.readValue(cachedJson, DpRoomPublicRoomsPageVO.class);
             }
-            if (p.getMinBigBlindChips() != null) {
-                w.ge(DpRoomLobby::getBigBlindChips, p.getMinBigBlindChips());
-            }
-            if (p.getMaxBigBlindChips() != null) {
-                w.le(DpRoomLobby::getBigBlindChips, p.getMaxBigBlindChips());
-            }
-            if (p.getMinPlayerCount() != null) {
-                w.ge(DpRoomLobby::getPlayerCount, p.getMinPlayerCount());
-            }
-            if (p.getMaxPlayerCount() != null) {
-                w.le(DpRoomLobby::getPlayerCount, p.getMaxPlayerCount());
-            }
-            if (p.getPasswordProtected() != null) {
-                w.eq(DpRoomLobby::getPasswordProtected, p.getPasswordProtected());
-            }
-            w.orderByDesc(DpRoomLobby::getCreatedAt);
-            //分页语法是new Page<>(safePage, safeSize), w是查询条件
-            Page<DpRoomLobby> result = dpRoomLobbyMpMapper.selectPage(new Page<>(safePage, safeSize), w);//执行查询
-            List<DpRoom> vos = new ArrayList<>();
-            for (DpRoomLobby row : result.getRecords()) {
-                vos.add(lobbyRowToVo(row));
-            }
-            DpRoomPublicRoomsPageVO out = new DpRoomPublicRoomsPageVO();
-            out.setList(vos);
-            out.setTotal(result.getTotal());
-            out.setPage(safePage);
-            out.setPageSize(safeSize);
-            return out;
+            DpRoomPublicRoomsPageVO fresh = executeFilteredLobbyPageQuery(p, safePage, safeSize);
+            safeWriteDataCache(cacheKey, fresh);
+            return fresh;
         } catch (DataAccessException e) {
             log.warn("query public rooms (db filter) failed: {}", e.toString());
             return DpRoomPublicRoomsPageVO.empty(safePage, safeSize);
@@ -195,6 +173,84 @@ public class DpRoomHallServiceImpl implements DpRoomHallService {
             log.warn("query public rooms (db filter) failed: {}", e.toString());
             return DpRoomPublicRoomsPageVO.empty(safePage, safeSize);
         }
+    }
+
+    /**
+     * 与 {@link #executeFilteredLobbyPageQuery} 中 WHERE 条件一致，用于缓存键指纹；格式变更时请升版本前缀（v1→v2）。
+     */
+    private static String buildLobbyQueryCanonicalString(DpRoomLobbySearchParamBO p, int safePage, int safeSize) {
+        String roomPart = "";
+        if (p.getRoomId() != null && !p.getRoomId().isBlank()) {
+            String t = p.getRoomId().trim();
+            if (t.length() > MAX_ROOM_ID_LEN) {
+                t = t.substring(0, MAX_ROOM_ID_LEN);
+            }
+            roomPart = t;
+        }
+        String minBb = p.getMinBigBlindChips() != null ? Integer.toString(p.getMinBigBlindChips()) : "";
+        String maxBb = p.getMaxBigBlindChips() != null ? Integer.toString(p.getMaxBigBlindChips()) : "";
+        String minPc = p.getMinPlayerCount() != null ? Integer.toString(p.getMinPlayerCount()) : "";
+        String maxPc = p.getMaxPlayerCount() != null ? Integer.toString(p.getMaxPlayerCount()) : "";
+        String pwd;
+        if (p.getPasswordProtected() == null) {
+            pwd = "";
+        } else {
+            pwd = p.getPasswordProtected() ? "1" : "0";
+        }
+        return "v1|" + safePage + "|" + safeSize + "|" + roomPart + "|" + minBb + "|" + maxBb + "|" + minPc + "|" + maxPc + "|" + pwd;
+    }
+
+    private static String sha256HexPrefix16(String s) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(s.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(16);
+            for (int i = 0; i < 8; i++) {
+                sb.append(String.format("%02x", digest[i]));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 not available", e);
+        }
+    }
+
+    private DpRoomPublicRoomsPageVO executeFilteredLobbyPageQuery(DpRoomLobbySearchParamBO p, int safePage, int safeSize) {
+        LambdaQueryWrapper<DpRoomLobby> w = new LambdaQueryWrapper<>();
+        w.eq(DpRoomLobby::getRoomStatus, 0);
+        if (p.getRoomId() != null && !p.getRoomId().isBlank()) {
+            String t = p.getRoomId().trim();
+            if (t.length() > MAX_ROOM_ID_LEN) {
+                t = t.substring(0, MAX_ROOM_ID_LEN);
+            }
+            w.eq(DpRoomLobby::getRoomId, t);
+        }
+        if (p.getMinBigBlindChips() != null) {
+            w.ge(DpRoomLobby::getBigBlindChips, p.getMinBigBlindChips());
+        }
+        if (p.getMaxBigBlindChips() != null) {
+            w.le(DpRoomLobby::getBigBlindChips, p.getMaxBigBlindChips());
+        }
+        if (p.getMinPlayerCount() != null) {
+            w.ge(DpRoomLobby::getPlayerCount, p.getMinPlayerCount());
+        }
+        if (p.getMaxPlayerCount() != null) {
+            w.le(DpRoomLobby::getPlayerCount, p.getMaxPlayerCount());
+        }
+        if (p.getPasswordProtected() != null) {
+            w.eq(DpRoomLobby::getPasswordProtected, p.getPasswordProtected());
+        }
+        w.orderByDesc(DpRoomLobby::getCreatedAt);
+        Page<DpRoomLobby> result = dpRoomLobbyMpMapper.selectPage(new Page<>(safePage, safeSize), w);
+        List<DpRoom> vos = new ArrayList<>();
+        for (DpRoomLobby row : result.getRecords()) {
+            vos.add(lobbyRowToVo(row));
+        }
+        DpRoomPublicRoomsPageVO out = new DpRoomPublicRoomsPageVO();
+        out.setList(vos);
+        out.setTotal(result.getTotal());
+        out.setPage(safePage);
+        out.setPageSize(safeSize);
+        return out;
     }
 
     private DpRoom lobbyRowToVo(DpRoomLobby row) {
@@ -258,8 +314,10 @@ public class DpRoomHallServiceImpl implements DpRoomHallService {
 
         // 按约定删除所有旧 data 页缓存；失败仅日志，不阻断业务。
         try {
-            List<String> keys = scanDataKeys();
-            if (keys != null && !keys.isEmpty()) {
+            List<String> keys = new ArrayList<>();
+            keys.addAll(scanKeysWithPrefix(DATA_PREFIX));
+            keys.addAll(scanKeysWithPrefix(LOBBY_QUERY_DATA_PREFIX));
+            if (!keys.isEmpty()) {
                 stringRedisTemplate.delete(keys);
             }
         } catch (Exception e) {
@@ -267,10 +325,10 @@ public class DpRoomHallServiceImpl implements DpRoomHallService {
         }
     }
 
-    private List<String> scanDataKeys() {
+    private List<String> scanKeysWithPrefix(String prefix) {
         return stringRedisTemplate.execute((RedisConnection connection) -> {
             List<String> keys = new ArrayList<>();
-            ScanOptions options = ScanOptions.scanOptions().match(DATA_PREFIX + "*").count(200).build();
+            ScanOptions options = ScanOptions.scanOptions().match(prefix + "*").count(200).build();
             try (Cursor<byte[]> cursor = connection.scan(options)) {
                 while (cursor.hasNext()) {
                     byte[] raw = cursor.next();

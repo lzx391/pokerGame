@@ -90,6 +90,7 @@
 | **[Java对象引用与浅拷贝深拷贝备忘.md](Java对象引用与浅拷贝深拷贝备忘.md)** | Java 引用、`roomMap` 与拷贝相关备忘。 |
 | **[Spring依赖注入复习笔记.md](Spring依赖注入复习笔记.md)** | Spring DI 中文复习笔记。 |
 | **[SPRING_DI_NOTES.md](SPRING_DI_NOTES.md)** | Spring DI 英文/对照笔记（与上一篇主题相近，选读其一即可）。 |
+| **[SpringScheduling.md](SpringScheduling.md)** | Spring `@Scheduled` 与 `Timer` 对照、`DpRoomLobbyReconcileScheduler` 与配置、在本项目新增定时任务的步骤与多实例注意。 |
 
 ---
 

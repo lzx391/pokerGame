@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 
 /**
  * 大厅房间摘要表 {@code dp_room_lobby}，与 {@link com.example.mgdemoplus.mapper.dp.DpRoomLobbyMapper} 注解 SQL 写入的数据一致；
- * 动态筛选 / 精确搜走 {@link com.example.mgdemoplus.mapper.dp.DpRoomLobbyMpMapper}（MyBatis-Plus），不经 Redis。
+ * 动态筛选 / 精确搜走 {@link com.example.mgdemoplus.mapper.dp.DpRoomLobbyMpMapper}（MyBatis-Plus）；结果页缓存在 Redis（与 publicRooms 共用 rev）。
  */
 @TableName("dp_room_lobby")
 public class DpRoomLobby {

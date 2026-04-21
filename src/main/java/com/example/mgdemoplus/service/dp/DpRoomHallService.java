@@ -24,7 +24,7 @@ public interface DpRoomHallService {
     DpRoomPublicRoomsPageVO getPublicRoomsPage(int page, int pageSize);
 
     /**
-     * 筛选 + 精确房间号：只查 MySQL（MyBatis-Plus），不使用 Redis。
+     * 筛选 + 精确房间号：MyBatis-Plus 查库；结果按「版本号 + 参数指纹」缓存在 Redis（与 {@link #getPublicRoomsPage} 共用 rev）。
      */
     DpRoomPublicRoomsPageVO queryPublicRoomsFromDb(DpRoomLobbySearchParamBO param);
 }
