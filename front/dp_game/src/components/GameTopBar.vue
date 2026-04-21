@@ -8,9 +8,9 @@
         </span>
         <span class="dp-top-bar__meta-sep" aria-hidden="true">·</span>
         <span class="dp-top-bar__sub">
-          公共池 <span class="dp-top-bar__pot">{{ pot }}</span>
+          小鱼干池 <span class="dp-top-bar__pot">{{ pot }}</span>
           <span class="dp-top-bar__meta-sep dp-top-bar__meta-sep--thin" aria-hidden="true">|</span>
-          需匹配 <span class="dp-top-bar__bet">{{ currentBetToCall }}</span>
+          需对齐 <span class="dp-top-bar__bet">{{ currentBetToCall }}</span>
         </span>
       </div>
       <div ref="settingsRoot" class="dp-top-bar__settings-wrap">

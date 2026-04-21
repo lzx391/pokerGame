@@ -43,6 +43,11 @@
 | 数据        | **MySQL 8**（库名默认 **`school_db`**）、**Redis 7**                                                                                                    |
 | 构建与部署     | **Maven**、**Docker** / **Docker Compose**、**Nginx**（反向代理与 WS 转发）                                                                                 |
 
+### 前端「猫咪派对」展示包装（仅文案与 UI）
+
+- 登录成功后会请求在大厅展示**玩法说明**弹窗（`CatTutorialDialog.vue`）；可选「不再自动弹出」，仍可通过大厅 **玩法说明** 打开。
+- 术语与本地存储键名集中在 **`front/dp_game/src/constants/dpCatThemeCopy.js`**（如：发牌猫、小猫 SC / 大猫 BC、小鱼干）；**不改变**后端 API、请求参数或 WebSocket 载荷字段名。
+
 ---
 
 ## 环境要求

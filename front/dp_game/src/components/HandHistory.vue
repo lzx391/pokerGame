@@ -47,7 +47,7 @@
                 <th>结束时间</th>
                 <th>房间</th>
                 <th>主池</th>
-                <th>本手盈亏</th>
+                <th>鱼干输赢</th>
                 <!-- <th>座位</th> -->
                 <th>角色</th>
                 <th>操作</th>
@@ -191,9 +191,9 @@ export default {
     },
     roleLabel(r) {
       var parts = []
-      if (r.dealer) parts.push('发牌')
-      if (r.blindPos === 1) parts.push('底1')
-      else if (r.blindPos === 2) parts.push('底2')
+      if (r.dealer) parts.push('发牌猫')
+      if (r.blindPos === 1) parts.push('SC')
+      else if (r.blindPos === 2) parts.push('BC')
       if (!parts.length) parts.push('—')
       return parts.join(' ')
     },

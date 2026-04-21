@@ -87,7 +87,7 @@ export function splitRoundsByRaises(actionsForStreet) {
   return { prefix, rounds }
 }
 
-/** 起手座位：发牌位、开局底分档标记（与 seatsAtStart.blind 一致） */
+/** 起手座位：发牌猫、小猫/大猫标记（与 seatsAtStart.blind 一致） */
 export function playerRoleTagsByNickname(seatsAtStart, dealerNickname) {
   const map = {}
   if (!Array.isArray(seatsAtStart)) return map
@@ -95,10 +95,10 @@ export function playerRoleTagsByNickname(seatsAtStart, dealerNickname) {
     const n = s.nickname
     if (!n) continue
     const tags = []
-    if (dealerNickname && n === dealerNickname) tags.push('发牌')
+    if (dealerNickname && n === dealerNickname) tags.push('发牌猫')
     const bl = s.blind != null ? Number(s.blind) : 0
-    if (bl === 1) tags.push('底1')
-    if (bl === 2) tags.push('底2')
+    if (bl === 1) tags.push('SC')
+    if (bl === 2) tags.push('BC')
     map[n] = tags
   }
   return map
@@ -110,9 +110,9 @@ export function formatActionText(a) {
   const amt = a.amount
   switch (t) {
     case 'POST_BLIND_SB':
-      return '小底分' + (amt ? ' ' + amt : '')
+      return '小猫' + (amt ? ' ' + amt : '')
     case 'POST_BLIND_BB':
-      return '大底分' + (amt ? ' ' + amt : '')
+      return '大猫' + (amt ? ' ' + amt : '')
     case 'CHECK':
       return '观望'
     case 'CALL':

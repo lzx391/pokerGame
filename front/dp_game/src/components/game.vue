@@ -675,7 +675,7 @@ export default {
         return
       }
       if (this.raiseAmount > this.myChips) {
-        this.$message.warning('积分不足！')
+        this.$message.warning('小鱼干不足！')
         return
       }
       await this.submitBet(this.raiseAmount)
@@ -796,7 +796,7 @@ export default {
       }
       var names = this.selectedWinners.map(dpDisplayNickname).join(', ')
       try {
-        await this.dpConfirm('确定由 [' + names + '] 平分公共池 ' + this.pot + ' 吗？', '确认结算')
+        await this.dpConfirm('确定由 [' + names + '] 平分小鱼干池 ' + this.pot + ' 吗？', '确认结算')
       } catch (e) {
         return
       }

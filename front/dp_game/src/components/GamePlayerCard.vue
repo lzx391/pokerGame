@@ -23,7 +23,7 @@
       {{ seatChatText }}
     </div>
 
-    <!-- 他人简化卡片：昵称 + 积分/本轮 + 必要徽标 -->
+    <!-- 他人简化卡片：昵称 + 小鱼干/本轮 + 必要徽标 -->
     <template v-if="rivalMini && player.leftThisHand">
       <div class="dp-player-card__rival-offline">离线</div>
       <div class="dp-player-card__rival-name dp-player-card__rival-name--dim">{{ displayPlayerName }}</div>
@@ -45,7 +45,7 @@
       >
         <span>{{ player.chips }}</span>
         <span class="dp-player-card__rival-stats-sep">·</span>
-        <span>本轮 {{ player.bet }}</span>
+        <span>{{ catCopy.roundShort }} {{ player.bet }}</span>
       </div>
       <div v-if="player.fold" class="dp-player-card__rival-fold">已盖牌</div>
       <div
@@ -250,11 +250,11 @@
         :class="{ 'dp-player-card__stats-row--has-holes': showHoleCardsArea }"
       >
         <div class="dp-player-card__chips">
-          <span class="dp-player-card__mini-label">后手</span>
+          <span class="dp-player-card__mini-label">{{ catCopy.stackShort }}</span>
           <span class="dp-player-card__chips-val">{{ player.chips }}</span>
         </div>
-        <div class="dp-player-card__bet" aria-label="本轮已下积分">
-          <span class="dp-player-card__mini-label">本轮</span>
+        <div class="dp-player-card__bet" aria-label="本轮已出小鱼干">
+          <span class="dp-player-card__mini-label">{{ catCopy.roundShort }}</span>
           <span class="dp-player-card__bet-val">{{ player.bet }}</span>
         </div>
         <div
@@ -341,6 +341,7 @@ import { getHandRank, getHandRankDetail, getBestFiveCardIds } from '../utils/dpG
 import { dpDisplayNickname } from '../utils/dpDisplayNickname'
 import { DP_DEAL_STAGGER_MS } from '../constants/dpGameDealTiming'
 import { getDealerAnchorViewportPoint } from '../utils/dpGameDealerAnchor'
+import { CAT_COPY } from '../constants/dpCatThemeCopy'
 
 export default {
   name: 'GamePlayerCard',
@@ -400,6 +401,7 @@ export default {
   },
   data() {
     return {
+      catCopy: CAT_COPY,
       holeDealFlyByIndex: {},
       holeDealOriginByIndex: null,
       /** 本手是否走庄位发牌；用于翻牌 delay，避免飞入结束改 style 导致翻牌动画重播 */

@@ -46,12 +46,12 @@
             <span class="hand-detail-page__meta-k">结束</span>
             <span class="hand-detail-page__meta-v">{{ formatTime(detail.endedAtMs) }}</span>
           </div>
-          <div class="hand-detail-page__meta-chip" title="开局底分">
-            <span class="hand-detail-page__meta-k">开局底分</span>
+          <div class="hand-detail-page__meta-chip" title="小猫/大猫小鱼干注">
+            <span class="hand-detail-page__meta-k">开局注</span>
             <span class="hand-detail-page__meta-v">{{ detail.smallBlindChips }} / {{ detail.bigBlindChips }}</span>
           </div>
-          <div class="hand-detail-page__meta-chip" title="发牌位">
-            <span class="hand-detail-page__meta-k">发牌位</span>
+          <div class="hand-detail-page__meta-chip" title="发牌猫">
+            <span class="hand-detail-page__meta-k">发牌猫</span>
             <span class="hand-detail-page__meta-v">{{ detail.dealerNickname || '—' }}</span>
           </div>
         </div>
@@ -178,7 +178,7 @@
               <thead>
                 <tr>
                   <th scope="col">玩家</th>
-                  <th scope="col">本手盈亏</th>
+                  <th scope="col">鱼干输赢</th>
                   <th scope="col">底牌</th>
                 </tr>
               </thead>
@@ -474,9 +474,9 @@ export default {
       return getCardDisplay(c)
     },
     roleTagClass(t) {
-      if (t === '发牌') return 'hand-detail-page__role-tag--dealer'
-      if (t === '底1') return 'hand-detail-page__role-tag--sb'
-      if (t === '底2') return 'hand-detail-page__role-tag--bb'
+      if (t === '发牌' || t === '发牌猫') return 'hand-detail-page__role-tag--dealer'
+      if (t === '底1' || t === 'SC') return 'hand-detail-page__role-tag--sb'
+      if (t === '底2' || t === 'BC') return 'hand-detail-page__role-tag--bb'
       return ''
     },
     goBack() {

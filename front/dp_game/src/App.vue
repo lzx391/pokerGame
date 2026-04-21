@@ -20,7 +20,7 @@
           <option v-for="t in gameThemeOptions" :key="t.id" :value="t.id">{{ t.label }}</option>
         </select>
       </div>
-      <h1 class="app-title">DP GAME</h1>
+      <h1 class="app-title">POKER GAME</h1>
       <div class="nav-bar">
         <router-link to="/login" class="nav-link">登录</router-link>
         <router-link to="/register" class="nav-link">注册</router-link>

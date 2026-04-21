@@ -50,7 +50,7 @@
           class="dp-game-muck-pile dp-game-muck-pile--orbit"
           data-dp-muck-anchor="true"
           :style="muckStyle"
-          title="盖牌区（发牌位侧）"
+          title="盖牌区（发牌猫侧）"
           aria-label="盖牌区"
       />
       <div
@@ -63,18 +63,18 @@
         <span
             v-if="row.player.dealer"
             class="dp-player-card__badge dp-player-card__badge--dealer"
-            title="发牌位"
-        >D</span>
+            title="发牌猫"
+        >{{ dealerBadgeChar }}</span>
         <span
             v-if="row.player.blind === 1"
             class="dp-player-card__badge dp-player-card__badge--sb"
-            title="开局底分第一档"
-        >1</span>
+            title="小猫（SC）"
+        >{{ catCopy.smallBlindAbbr }}</span>
         <span
             v-if="row.player.blind === 2"
             class="dp-player-card__badge dp-player-card__badge--bb"
-            title="开局底分第二档"
-        >2</span>
+            title="大猫（BC）"
+        >{{ catCopy.bigBlindAbbr }}</span>
         <!-- 连胜台呢标已停用：改由「场上积分最多」玩家卡片光效表示；日后若要恢复连胜标可解开 -->
         <!--
         <span
@@ -137,6 +137,7 @@ import {
   seatChatBubbleSide,
   seatFeltMarkerRoundTableStyle
 } from '../utils/dpGameRoundTableLayout'
+import { CAT_COPY, DEALER_BADGE_CHAR } from '../constants/dpCatThemeCopy'
 
 export default {
   name: 'GameRoundTable',
@@ -175,6 +176,12 @@ export default {
     getPlayerBoxStyle: { type: Function, required: true },
     holeDealOrderFromDealer: { type: Function, required: true },
     seatChatTextFor: { type: Function, required: true }
+  },
+  data() {
+    return {
+      catCopy: CAT_COPY,
+      dealerBadgeChar: DEALER_BADGE_CHAR
+    }
   },
   computed: {
     muckStyle: function () {

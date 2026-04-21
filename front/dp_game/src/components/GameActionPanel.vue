@@ -14,8 +14,8 @@
         </div>
         <span class="dp-action-panel__settled-count-label">准备倒计时</span>
       </div>
-      <div class="dp-action-panel__stack-pair dp-action-panel__stack-pair--settled" aria-label="后手与本轮投入">
-        <span class="dp-action-panel__stack-pill">后手 <strong>{{ myChips }}</strong></span>
+      <div class="dp-action-panel__stack-pair dp-action-panel__stack-pair--settled" aria-label="持有小鱼干与本轮已出">
+        <span class="dp-action-panel__stack-pill">小鱼干 <strong>{{ myChips }}</strong></span>
         <span class="dp-action-panel__bet-pill">本轮 {{ myBet }}</span>
       </div>
       <div class="dp-action-panel__settled-actions">
@@ -26,7 +26,7 @@
             :class="{ 'dp-action-panel__settled-btn--dim': myChips < bigBlind }"
             @click="$emit('toggle-ready')"
         >
-          {{ myReady ? '取消准备' : (myChips >= bigBlind ? '准备下一局' : ('积分不足大底分(' + bigBlind + ')，无法准备')) }}
+          {{ myReady ? '取消准备' : (myChips >= bigBlind ? '准备下一局' : ('小鱼干不足大猫鱼干数(' + bigBlind + ')，无法准备')) }}
         </button>
         <button
             v-if="myChips < bigBlind"
@@ -34,7 +34,7 @@
             class="dp-btn--rebuy dp-action-panel__settled-btn"
             @click="$emit('rebuy')"
         >
-          补满至初始积分
+          补满至初始小鱼干
         </button>
       </div>
     </template>
@@ -44,19 +44,19 @@
       <div class="dp-action-panel__turn">
         轮到你行动了（30秒超时自动盖牌）
       </div>
-      <div class="dp-action-panel__stack-pair" aria-label="后手与本轮投入">
-        <span class="dp-action-panel__stack-pill">后手 {{ myChips }}</span>
+      <div class="dp-action-panel__stack-pair" aria-label="持有小鱼干与本轮已出">
+        <span class="dp-action-panel__stack-pill">小鱼干 {{ myChips }}</span>
         <span class="dp-action-panel__bet-pill">本轮 {{ myBet }}</span>
       </div>
       <div class="dp-action-panel__meta">
-        当前需匹配: {{ currentBetToCall }} | 你已投入: {{ myBet }} | 还需补: {{ callAmount }}
+        当前需对齐: {{ currentBetToCall }} | 你已投入: {{ myBet }} | 还需补: {{ callAmount }}
       </div>
       <div class="dp-action-panel__raise-hint">
         <!-- 合法加投至少抬到总投入 <strong>{{ minTotalToRaise }}</strong> -->
         <span class="dp-action-panel__raise-hint-sub">（本圈最小增量 {{ lastRaiseIncrement }}）</span>
       </div>
 
-      <div class="dp-action-panel__presets" aria-label="按公共池比例快捷加投">
+      <div class="dp-action-panel__presets" aria-label="按小鱼干池比例快捷加投">
         <button type="button" class="dp-btn--pot-preset" @click="setPotFrac(1 / 3)">
           ⅓池
         </button>

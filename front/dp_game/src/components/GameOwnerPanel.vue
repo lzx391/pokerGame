@@ -82,7 +82,7 @@
           :style="{ opacity: selectedWinners.length === 0 ? 0.4 : 1 }"
           @click="$emit('confirm-judge-win')"
         >
-          确认结算（公共池 {{ pot }} 分给 {{ selectedWinners.length }} 人）
+          确认结算（小鱼干池 {{ pot }} 分给 {{ selectedWinners.length }} 人）
         </button>
       </template>
     </div>
