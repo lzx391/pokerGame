@@ -1,6 +1,6 @@
 <template>
   <div class="dp-top-bar">
-    <!-- 第一行：房间/阶段 + 底池跟注 + 设置（原三行合并为两行里的首行） -->
+    <!-- 第一行：房间/阶段 + 公共池与需匹配额 + 设置（原三行合并为两行里的首行） -->
     <div class="dp-top-bar__row dp-top-bar__row--primary">
       <div class="dp-top-bar__primary-text">
         <span class="dp-top-bar__title">
@@ -8,9 +8,9 @@
         </span>
         <span class="dp-top-bar__meta-sep" aria-hidden="true">·</span>
         <span class="dp-top-bar__sub">
-          底池 <span class="dp-top-bar__pot">{{ pot }}</span>
+          公共池 <span class="dp-top-bar__pot">{{ pot }}</span>
           <span class="dp-top-bar__meta-sep dp-top-bar__meta-sep--thin" aria-hidden="true">|</span>
-          跟注 <span class="dp-top-bar__bet">{{ currentBetToCall }}</span>
+          需匹配 <span class="dp-top-bar__bet">{{ currentBetToCall }}</span>
         </span>
       </div>
       <div ref="settingsRoot" class="dp-top-bar__settings-wrap">

@@ -46,12 +46,12 @@
             <span class="hand-detail-page__meta-k">结束</span>
             <span class="hand-detail-page__meta-v">{{ formatTime(detail.endedAtMs) }}</span>
           </div>
-          <div class="hand-detail-page__meta-chip" title="盲注">
-            <span class="hand-detail-page__meta-k">盲注</span>
+          <div class="hand-detail-page__meta-chip" title="开局底分">
+            <span class="hand-detail-page__meta-k">开局底分</span>
             <span class="hand-detail-page__meta-v">{{ detail.smallBlindChips }} / {{ detail.bigBlindChips }}</span>
           </div>
-          <div class="hand-detail-page__meta-chip" title="庄家">
-            <span class="hand-detail-page__meta-k">庄家</span>
+          <div class="hand-detail-page__meta-chip" title="发牌位">
+            <span class="hand-detail-page__meta-k">发牌位</span>
             <span class="hand-detail-page__meta-v">{{ detail.dealerNickname || '—' }}</span>
           </div>
         </div>
@@ -197,7 +197,7 @@
                   </td>
                   <td :class="['hand-detail-table__net', netClass(row.net)]">{{ row.net }}</td>
                   <td class="hand-detail-table__holes-cell">
-                    <span v-if="row.folded && !row.isSelf" class="hand-detail-page__folded-label">已弃牌</span>
+                    <span v-if="row.folded && !row.isSelf" class="hand-detail-page__folded-label">已盖牌</span>
                     <div v-else-if="row.cards.length" class="hand-detail-page__card-row hand-detail-page__card-row--holes">
                       <div
                         v-for="(c, idx) in row.cards"
@@ -297,7 +297,7 @@ export default {
       return boardForStreet(this.boardsByStreet, this.activeTab)
     },
     /**
-     * 当前街底牌列：本人始终可看自己的底牌；他人若弃牌则不展示，否则仍按街与弃牌时机规则。
+     * 当前街底牌列：本人始终可看自己的底牌；他人若盖牌则不展示，否则仍按街与盖牌时机规则。
      * null 表示本格不展示他人底牌。
      */
     holeCardsByNickForStreet() {
@@ -474,9 +474,9 @@ export default {
       return getCardDisplay(c)
     },
     roleTagClass(t) {
-      if (t === '庄') return 'hand-detail-page__role-tag--dealer'
-      if (t === '小盲') return 'hand-detail-page__role-tag--sb'
-      if (t === '大盲') return 'hand-detail-page__role-tag--bb'
+      if (t === '发牌') return 'hand-detail-page__role-tag--dealer'
+      if (t === '底1') return 'hand-detail-page__role-tag--sb'
+      if (t === '底2') return 'hand-detail-page__role-tag--bb'
       return ''
     },
     goBack() {

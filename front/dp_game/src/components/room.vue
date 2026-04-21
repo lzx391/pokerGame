@@ -18,10 +18,10 @@
         <p class="room-panel__line">房间号：<strong>{{ roomId }}</strong></p>
         <p class="room-panel__line">房主：{{ displayNickname(room?.owner) }}</p>
         <p v-if="room && room.smallBlindChips != null && room.bigBlindChips != null" class="room-panel__line">
-          盲注：{{ room.smallBlindChips }} / {{ room.bigBlindChips }}（小盲 / 大盲）
+          开局底分：{{ room.smallBlindChips }} / {{ room.bigBlindChips }}（小底分 / 大底分）
         </p>
         <p v-if="room && room.startingStackBb != null" class="room-panel__line">
-          每人初始：{{ room.startingStackBb }}BB（{{ room.startingChips != null ? room.startingChips : '—' }} 筹码）
+          每人初始：{{ room.startingStackBb }} 倍（{{ room.startingChips != null ? room.startingChips : '—' }} 积分）
         </p>
         <p v-if="room && room.passwordProtected" class="room-panel__line">进房需密码（从大厅加入者需输入）</p>
 

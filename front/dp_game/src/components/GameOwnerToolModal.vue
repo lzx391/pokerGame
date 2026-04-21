@@ -34,8 +34,8 @@
         <div style="font-size:12px; color:#8c8c8c; margin-bottom:6px;">
           你可以在下一局加入不同风格的机器人玩家，当前支持：
           <span style="font-weight:bold;">BOT_Lag</span>（简单鱼式，偏被动，适合新手练习）、
-          <span style="font-weight:bold;">BOT_Maniac</span>（疯子风格，喜欢乱加注）、
-          <span style="font-weight:bold;">BOT_Tag</span>（紧凶风格，范围较紧、价值下注为主）、
+          <span style="font-weight:bold;">BOT_Maniac</span>（激进风格，喜欢乱加投）、
+          <span style="font-weight:bold;">BOT_Tag</span>（紧凶风格，范围较紧、偏价值投入）、
           <span style="font-weight:bold;">BOT_Shark</span>（会简单“读对手”的聪明型）、
           <span style="font-weight:bold;">BOT_LLM</span>（大模型决策，需在服务端配置方舟密钥与接入点）。
         </div>

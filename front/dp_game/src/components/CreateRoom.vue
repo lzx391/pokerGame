@@ -18,28 +18,28 @@
 
       <section class="dp-lobby-panel create-room-panel">
         <h1 class="create-room-panel__title">创建房间</h1>
-        <p class="create-room-panel__intro">在此设置本桌盲注、每人带入（BB）与可选进房密码，再进入房间等人。</p>
+        <p class="create-room-panel__intro">在此设置本桌开局底分、每人带入倍数（以大底分为 1 倍）与可选进房密码，再进入房间等人。</p>
 
         <div class="create-room-fields">
           <label class="create-room-fields__row">
-            <span class="create-room-fields__label">小盲</span>
+            <span class="create-room-fields__label">小底分</span>
             <input v-model.number="smallBlind" type="number" min="1" class="create-room-fields__input" />
           </label>
           <label class="create-room-fields__row">
-            <span class="create-room-fields__label">大盲</span>
+            <span class="create-room-fields__label">大底分</span>
             <input v-model.number="bigBlind" type="number" min="2" class="create-room-fields__input" />
           </label>
           <label class="create-room-fields__row">
-            <span class="create-room-fields__label">每人初始（BB）</span>
+            <span class="create-room-fields__label">每人初始（倍）</span>
             <input
               v-model.number="startingStackBb"
               type="number"
               min="5"
               class="create-room-fields__input"
-              title="筹码 = 大盲 × BB 数，局深看的是这个"
+              title="初始积分 = 大底分 × 倍数，局深看的是这个"
             />
           </label>
-          <p class="create-room-fields__hint">初始筹码 = 大盲 × BB；之后补码也回到该深度。</p>
+          <p class="create-room-fields__hint">初始积分 = 大底分 × 倍数；之后补满也回到该深度。</p>
           <label class="create-room-fields__row create-room-fields__row--full">
             <span class="create-room-fields__label">房间密码（可选）</span>
             <input

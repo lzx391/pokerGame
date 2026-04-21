@@ -191,9 +191,9 @@ export default {
     },
     roleLabel(r) {
       var parts = []
-      if (r.dealer) parts.push('庄')
-      if (r.blindPos === 1) parts.push('小盲')
-      else if (r.blindPos === 2) parts.push('大盲')
+      if (r.dealer) parts.push('发牌')
+      if (r.blindPos === 1) parts.push('底1')
+      else if (r.blindPos === 2) parts.push('底2')
       if (!parts.length) parts.push('—')
       return parts.join(' ')
     },

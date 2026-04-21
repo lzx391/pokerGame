@@ -63,7 +63,7 @@ function initialState() {
     showMobileActionSheet: false,
     heroHoleDealIntroDone: false,
     _settlementMusicStartedForHand: null,
-    /** 后端 autoSettle 后写入的「场上筹码并列最高」昵称，未结算过为空 */
+    /** 后端 autoSettle 后写入的「场上积分并列最高」昵称，未结算过为空 */
     chipLeaderNicknames: []
   }
 }

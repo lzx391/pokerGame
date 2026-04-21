@@ -23,7 +23,7 @@
       {{ seatChatText }}
     </div>
 
-    <!-- 他人简化卡片：昵称 + 筹码/本轮 + 必要徽标 -->
+    <!-- 他人简化卡片：昵称 + 积分/本轮 + 必要徽标 -->
     <template v-if="rivalMini && player.leftThisHand">
       <div class="dp-player-card__rival-offline">离线</div>
       <div class="dp-player-card__rival-name dp-player-card__rival-name--dim">{{ displayPlayerName }}</div>
@@ -47,7 +47,7 @@
         <span class="dp-player-card__rival-stats-sep">·</span>
         <span>本轮 {{ player.bet }}</span>
       </div>
-      <div v-if="player.fold" class="dp-player-card__rival-fold">已弃牌</div>
+      <div v-if="player.fold" class="dp-player-card__rival-fold">已盖牌</div>
       <div
         v-if="foldGhostFly"
         ref="foldGhostRow"
@@ -148,7 +148,7 @@
         <div class="dp-player-card__name">
           {{ displayPlayerName }}
           <span v-if="isMe" class="dp-player-card__name-me">（我）</span>
-          <span v-if="player.fold" class="dp-player-card__fold-inline">已弃牌</span>
+          <span v-if="player.fold" class="dp-player-card__fold-inline">已盖牌</span>
         </div>
       </div>
 
@@ -241,7 +241,7 @@
             'dp-player-card__status--idle': !player.fold && actIndex !== seatIndex
           }"
         >
-          {{ player.fold ? '已弃牌' : (actIndex === seatIndex ? '思考中…' : '进行中') }}
+          {{ player.fold ? '已盖牌' : (actIndex === seatIndex ? '思考中…' : '进行中') }}
         </div>
       </div>
 
@@ -364,7 +364,7 @@ export default {
     compact: { type: Boolean, default: true },
     /** 圆桌模式下他人座位：极简信息密度 */
     rivalMini: { type: Boolean, default: false },
-    /** 开局发牌顺序（庄家下家为 0），用于多座位错开飞入 */
+    /** 开局发牌顺序（发牌位下家为 0），用于多座位错开飞入 */
     holeDealSeatOrder: { type: Number, default: 0 },
     /** 本桌人数：用于「先一圈再一圈」与公共牌同间隔(350ms)错开发牌 */
     holeDealPlayerCount: { type: Number, default: 1 },
@@ -390,11 +390,11 @@ export default {
      */
     dealRevealStaggerSec: { type: Number, default: 0 },
     /**
-     * 本人内联手牌区：仅昵称 + 底牌 + 牌型；后手/本轮与庄盲标由外层承担。
+     * 本人内联手牌区：仅昵称 + 底牌 + 牌型；后手/本轮与发牌位/底分档标由外层承担。
      */
     heroHandDock: { type: Boolean, default: false },
     /**
-     * 圆桌等外层传入：当前是否为「场上筹码最多」之一（并列则多人 true），用于底牌区光效。
+     * 圆桌等外层传入：当前是否为「场上积分最多」之一（并列则多人 true），用于底牌区光效。
      */
     fieldChipLeader: { type: Boolean, default: false }
   },
@@ -409,13 +409,13 @@ export default {
       _holeIntroClearTimer: null,
       /** 防止 handDealKey 多次 kick 在同一手内重复触发飞入 */
       holeDealFlightStarted: false,
-      /** 弃牌：手牌飞向桌面弃牌堆动画 */
+      /** 盖牌：手牌飞向桌面盖牌区动画 */
       foldMuckFlying: false,
       foldFlyPerCard: [],
       foldMuckAnimComplete: false,
       foldMuckEndsPending: 0,
       _foldMuckFallbackTimer: null,
-      /** 他人紧凑位底牌已隐藏时：临时渲染两张背面用于弃牌飞入弃牌堆 */
+      /** 他人紧凑位底牌已隐藏时：临时渲染两张背面用于盖牌飞入盖牌区 */
       foldGhostFly: false
     }
   },
@@ -507,7 +507,7 @@ export default {
     showHoleCardsArea() {
       if (this.player.leftThisHand) return false
       if (!this.player.holeCards || this.player.holeCards.length === 0) return false
-      /* 弃牌飞入弃牌堆后隐藏底牌区；本人仍可见；房主开启「看穿底牌」时仍展示 */
+      /* 盖牌飞入盖牌区后隐藏底牌区；本人仍可见；房主开启「看穿底牌」时仍展示 */
       if (
         this.player.fold
         && this.foldMuckAnimComplete
@@ -609,7 +609,7 @@ export default {
       }
       return []
     },
-    /** 弃牌幽灵动画：手牌张数（用于 v-for 1..n） */
+    /** 盖牌幽灵动画：手牌张数（用于 v-for 1..n） */
     ghostHoleLen() {
       var hc = this.player.holeCards
       return hc && hc.length ? hc.length : 0

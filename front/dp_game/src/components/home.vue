@@ -47,7 +47,7 @@
               />
             </label>
             <label class="home-filters__item home-filters__item--num">
-              <span class="home-filters__label">大盲≥</span>
+              <span class="home-filters__label">大底分≥</span>
               <input
                 v-model="filters.minBigBlind"
                 type="number"
@@ -57,7 +57,7 @@
               />
             </label>
             <label class="home-filters__item home-filters__item--num">
-              <span class="home-filters__label">大盲≤</span>
+              <span class="home-filters__label">大底分≤</span>
               <input
                 v-model="filters.maxBigBlind"
                 type="number"
@@ -110,7 +110,7 @@
             <span class="room-item__text">
               房间 {{ roomDto.roomId }} ({{ roomDto.playerSize }}人)
               <span v-if="roomDto.smallBlindChips != null && roomDto.bigBlindChips != null" class="room-item__blinds">
-                · 盲 {{ roomDto.smallBlindChips }}/{{ roomDto.bigBlindChips }}<template v-if="roomDto.startingStackBb"> · {{ roomDto.startingStackBb }}BB</template>
+                · 底分 {{ roomDto.smallBlindChips }}/{{ roomDto.bigBlindChips }}<template v-if="roomDto.startingStackBb"> · {{ roomDto.startingStackBb }} 倍</template>
               </span>
               <span v-if="roomDto.passwordProtected" class="room-item__lock" title="需要密码">🔒</span>
             </span>
