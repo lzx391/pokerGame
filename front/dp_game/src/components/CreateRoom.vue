@@ -9,15 +9,15 @@
         <button type="button" class="dp-btn dp-btn--ghost create-room-header__back" @click="goHome">← 返回大厅</button>
         <div class="dp-game-theme-row create-room-theme-row">
           <span class="dp-game-theme-row__label">界面主题</span>
-          <dp-theme-picker
-            :game-ui-theme="gameUiTheme"
-            :theme-options="gameThemeOptions"
-            :custom-theme-base="customThemeBase"
-            :custom-accent="customAccent"
-            @input-theme="onLobbyThemeChange($event)"
-            @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
-            @custom-accent="$store.commit('dpGame/SET_CUSTOM_THEME', { accent: $event })"
-          />
+            <dp-theme-picker
+              :game-ui-theme="gameUiTheme"
+              :theme-options="gameThemeOptions"
+              :custom-theme-base="customThemeBase"
+              :custom-theme-overrides="customThemeOverrides"
+              @input-theme="onLobbyThemeChange($event)"
+              @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
+              @custom-overrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
+            />
         </div>
       </header>
 

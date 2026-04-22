@@ -27,8 +27,8 @@ export function syncDpBodyGameTheme(store, router) {
       var raw = (st && st.gameUiTheme) || 'default'
       var eff = resolveEffectiveThemeId(raw, st && st.customThemeBase)
       document.body.setAttribute('data-dp-game-theme', eff)
-      if (raw === 'custom' && st && st.customAccent) {
-        applyCustomThemeToBody(st.customAccent)
+      if (raw === 'custom' && st) {
+        applyCustomThemeToBody(st.customAccent, st.customThemeOverrides)
       } else {
         clearCustomThemeFromBody()
       }

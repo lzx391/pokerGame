@@ -1,5 +1,5 @@
 /**
- * 「自定义」界面主题：选一个预设作底 + 强调色，派生若干 --dp-* 覆盖（localStorage，非数据库）。
+ * 「自定义」界面主题：选一个预设作模板（data-dp-game-theme），再用调色板覆盖任意 --dp-*（localStorage）。
  */
 import { GAME_UI_THEME_IDS } from '../constants/dpGameThemes'
 
@@ -8,7 +8,7 @@ var STORAGE_KEY = 'dp_game_custom_theme'
 var DEFAULT_BASE = 'default'
 var DEFAULT_ACCENT = '#1890ff'
 
-/** 供 body 上清除内联覆盖时按 key 移除 */
+/** 供 body 上清除内联覆盖时按 key 移除（与历史版本兼容；实际以 lastAppliedBodyVarKeys 为准） */
 export var CUSTOM_THEME_CSS_KEYS = [
   '--dp-accent',
   '--dp-cyan',
@@ -22,6 +22,11 @@ export var CUSTOM_THEME_CSS_KEYS = [
   '--dp-player-border-me',
   '--dp-timer-ring'
 ]
+
+/** 上一次写到 body 上的自定义变量名，用于在下次应用或切回预设时完整清除 */
+var lastAppliedBodyVarKeys = []
+
+var DP_VAR_KEY_RE = /^--dp-[a-zA-Z0-9-]+$/
 
 export function normalizeAccentHex(v) {
   if (v == null || v === '') return ''
@@ -90,8 +95,34 @@ export function resolveEffectiveThemeId(gameUiTheme, customThemeBase) {
   return t
 }
 
+/**
+ * 仅接受键名匹配 --dp-* 的条目，值为非空字符串（供 localStorage / 调试用 JSON）
+ */
+export function normalizeOverrides(raw) {
+  var out = {}
+  if (raw == null) return out
+  if (typeof raw === 'string') {
+    try {
+      raw = JSON.parse(raw)
+    } catch (e) {
+      return out
+    }
+  }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out
+  for (var k in raw) {
+    if (!Object.prototype.hasOwnProperty.call(raw, k)) continue
+    if (!DP_VAR_KEY_RE.test(k)) continue
+    var val = raw[k]
+    if (val == null) continue
+    var s = String(val).trim()
+    if (s === '') continue
+    out[k] = s
+  }
+  return out
+}
+
 export function readCustomTheme() {
-  var def = { baseId: DEFAULT_BASE, accent: DEFAULT_ACCENT }
+  var def = { baseId: DEFAULT_BASE, accent: DEFAULT_ACCENT, overrides: {} }
   try {
     var raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return def
@@ -102,7 +133,25 @@ export function readCustomTheme() {
       baseId = DEFAULT_BASE
     }
     var accent = normalizeAccentHex(o.accent) || def.accent
-    return { baseId: baseId, accent: accent }
+    var overrides = normalizeOverrides(o.overrides)
+    /* 旧版只存强调色、无 overrides：迁入调色板并写回，避免刷新后无法真正清空自定义 */
+    if (Object.keys(overrides).length === 0 && accent !== DEFAULT_ACCENT) {
+      overrides = buildCustomThemeVars(accent)
+      accent = DEFAULT_ACCENT
+      try {
+        localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({
+            baseId: baseId,
+            accent: accent,
+            overrides: overrides
+          })
+        )
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    return { baseId: baseId, accent: accent, overrides: overrides }
   } catch (e) {
     return def
   }
@@ -114,7 +163,8 @@ export function writeCustomTheme(data) {
       STORAGE_KEY,
       JSON.stringify({
         baseId: data.baseId,
-        accent: data.accent
+        accent: data.accent,
+        overrides: normalizeOverrides(data.overrides)
       })
     )
   } catch (e) {
@@ -149,16 +199,32 @@ export function buildCustomThemeVars(accentHex) {
   }
 }
 
-export function applyCustomThemeToBody(accentHex) {
+/**
+ * 仅应用用户在调色板里显式覆盖的变量；其余由当前「基于」预设的 CSS 提供。
+ * accentHex 保留参数以兼容旧调用，不再参与合并。
+ */
+export function mergeCustomThemeVars(accentHex, overrides) {
+  return normalizeOverrides(overrides)
+}
+
+export function applyCustomThemeToBody(accentHex, overrides) {
   clearCustomThemeFromBody()
-  var vars = buildCustomThemeVars(accentHex)
-  Object.keys(vars).forEach(function (k) {
-    document.body.style.setProperty(k, vars[k])
-  })
+  var merged = mergeCustomThemeVars(accentHex, overrides)
+  lastAppliedBodyVarKeys = Object.keys(merged)
+  for (var i = 0; i < lastAppliedBodyVarKeys.length; i++) {
+    var key = lastAppliedBodyVarKeys[i]
+    document.body.style.setProperty(key, merged[key])
+  }
 }
 
 export function clearCustomThemeFromBody() {
-  CUSTOM_THEME_CSS_KEYS.forEach(function (k) {
-    document.body.style.removeProperty(k)
-  })
+  var toClear = lastAppliedBodyVarKeys.slice()
+  lastAppliedBodyVarKeys = []
+  var i
+  for (i = 0; i < toClear.length; i++) {
+    document.body.style.removeProperty(toClear[i])
+  }
+  for (i = 0; i < CUSTOM_THEME_CSS_KEYS.length; i++) {
+    document.body.style.removeProperty(CUSTOM_THEME_CSS_KEYS[i])
+  }
 }

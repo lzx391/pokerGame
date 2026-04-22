@@ -15,10 +15,10 @@
           :game-ui-theme="gameUiTheme"
           :theme-options="gameThemeOptions"
           :custom-theme-base="customThemeBase"
-          :custom-accent="customAccent"
+          :custom-theme-overrides="customThemeOverrides"
           @input-theme="onAuthThemeChange($event)"
           @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
-          @custom-accent="$store.commit('dpGame/SET_CUSTOM_THEME', { accent: $event })"
+          @custom-overrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
         />
       </div>
       <h1 class="app-title">POKER GAME</h1>
@@ -48,7 +48,7 @@ export default {
       'gameUiTheme',
       'gameThemeOptions',
       'customThemeBase',
-      'customAccent'
+      'customThemeOverrides'
     ]),
     isAuthPage() {
       const path = this.$route.path

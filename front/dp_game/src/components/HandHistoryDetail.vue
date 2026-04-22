@@ -19,10 +19,10 @@
               :game-ui-theme="gameUiTheme"
               :theme-options="gameThemeOptions"
               :custom-theme-base="customThemeBase"
-              :custom-accent="customAccent"
+              :custom-theme-overrides="customThemeOverrides"
               @input-theme="onLobbyThemeChange($event)"
               @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
-              @custom-accent="$store.commit('dpGame/SET_CUSTOM_THEME', { accent: $event })"
+              @custom-overrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
             />
           </div>
         </div>

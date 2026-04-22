@@ -356,8 +356,8 @@
   align-items: stretch;
   justify-content: flex-start;
   gap: 10px;
-  min-width: min(240px, calc(100vw - 28px));
-  max-width: min(320px, calc(100vw - 28px));
+  min-width: min(260px, calc(100vw - 28px));
+  max-width: min(420px, calc(100vw - 24px));
   background: var(--dp-panel-bg);
   border: 1px solid var(--dp-panel-border);
   border-radius: 10px;

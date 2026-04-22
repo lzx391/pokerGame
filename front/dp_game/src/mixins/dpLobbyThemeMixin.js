@@ -11,7 +11,7 @@ export default {
       'gameUiTheme',
       'gameThemeOptions',
       'customThemeBase',
-      'customAccent'
+      'customThemeOverrides'
     ]),
     ...mapGetters('dpGame', ['effectiveThemeForCss', 'customThemeInlineStyle'])
   },

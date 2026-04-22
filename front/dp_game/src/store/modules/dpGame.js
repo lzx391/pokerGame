@@ -8,7 +8,8 @@ import {
   readCustomTheme,
   writeCustomTheme,
   normalizeAccentHex,
-  buildCustomThemeVars
+  mergeCustomThemeVars,
+  normalizeOverrides
 } from '../../utils/dpGameCustomTheme'
 import { GAME_UI_THEMES, GAME_UI_THEME_IDS } from '../../constants/dpGameThemes'
 import { dpGameStageDisplay } from '../../constants/dpCatThemeCopy'
@@ -20,6 +21,7 @@ function initialState() {
     ecoMode: readEcoMode(),
     customThemeBase: ct.baseId,
     customAccent: ct.accent,
+    customThemeOverrides: ct.overrides || {},
     gameThemeOptions: GAME_UI_THEMES,
     roomId: '',
     user: null,
@@ -289,8 +291,7 @@ export default {
     /** 自定义时覆盖到 .dp-game-root 内联样式，与 body 上由 dpBodyGameTheme 同步的一致 */
     customThemeInlineStyle: function (state) {
       if (state.gameUiTheme !== 'custom') return {}
-      var a = normalizeAccentHex(state.customAccent)
-      return buildCustomThemeVars(a || '#1890ff')
+      return mergeCustomThemeVars(null, state.customThemeOverrides)
     }
   },
   mutations: {
@@ -314,9 +315,13 @@ export default {
         var ax = normalizeAccentHex(payload.accent)
         if (ax) state.customAccent = ax
       }
+      if (payload.overrides !== undefined) {
+        state.customThemeOverrides = normalizeOverrides(payload.overrides)
+      }
       writeCustomTheme({
         baseId: state.customThemeBase,
-        accent: state.customAccent
+        accent: state.customAccent,
+        overrides: state.customThemeOverrides
       })
     },
     SET_ECO_MODE: function (state, on) {

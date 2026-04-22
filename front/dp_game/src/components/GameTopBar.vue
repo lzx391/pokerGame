@@ -37,11 +37,11 @@
               :game-ui-theme="gameUiTheme"
               :theme-options="themeOptions"
               :custom-theme-base="customThemeBase"
-              :custom-accent="customAccent"
+              :custom-theme-overrides="customThemeOverrides"
               aria-label="选择对局界面主题"
               @input-theme="onThemeChange($event)"
               @custom-base="$emit('update:customThemeBase', $event)"
-              @custom-accent="$emit('update:customAccent', $event)"
+              @custom-overrides="$emit('update:customThemeOverrides', $event)"
           />
           <label class="dp-game-eco-label">
             <input
@@ -124,7 +124,12 @@ export default {
     /** 与 game.vue 的 data-dp-game-theme 同步 */
     gameUiTheme: { type: String, required: true },
     customThemeBase: { type: String, default: 'default' },
-    customAccent: { type: String, default: '#1890ff' },
+    customThemeOverrides: {
+      type: Object,
+      default: function () {
+        return {}
+      }
+    },
     ecoMode: { type: Boolean, required: true },
     themeOptions: {
       type: Array,
