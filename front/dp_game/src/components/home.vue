@@ -5,7 +5,15 @@
     :style="customThemeInlineStyle"
   >
     <div class="dp-lobby-inner home-inner">
-      <cat-tutorial-dialog :visible.sync="catTutorialVisible" @confirm="onCatTutorialConfirm" />
+      <game-play-guide-modal
+        :visible="playGuideVisible"
+        :active-tab="playGuideTab"
+        :items="handRankReference"
+        :first-run="playGuideFirstRun"
+        @close="onPlayGuideClose"
+        @tab-change="playGuideTab = $event"
+        @confirm="onPlayGuideConfirm"
+      />
 
       <header class="home-header">
         <h2 class="home-title">猫咪牌局 · 大厅</h2>
@@ -24,7 +32,7 @@
           </div>
           <div class="user-info">
             <span v-if="user && user.nickname">当前用户：{{ user.nickname }}</span>
-            <button type="button" class="dp-btn dp-btn--ghost logout-btn" @click="catTutorialVisible = true">玩法说明</button>
+            <button type="button" class="dp-btn dp-btn--ghost logout-btn" @click="openPlayGuide(false)">玩法说明</button>
             <button type="button" class="dp-btn dp-btn--danger logout-btn" @click="logout">退出登录</button>
           </div>
         </div>
@@ -136,7 +144,8 @@ import '@/styles/dp-lobby-shell.css'
 import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
 import { dpResultSuccess, dpResultMessage } from '@/utils/dpApiResult'
-import CatTutorialDialog from '@/components/CatTutorialDialog.vue'
+import GamePlayGuideModal from '@/components/GamePlayGuideModal.vue'
+import { mapGetters } from 'vuex'
 import {
   peekCatTutorialRequested,
   clearCatTutorialSessionFlag,
@@ -145,11 +154,13 @@ import {
 } from '@/constants/dpCatThemeCopy'
 
 export default {
-  components: { CatTutorialDialog },
+  components: { GamePlayGuideModal },
   mixins: [dpLobbyThemeMixin],
   data() {
     return {
-      catTutorialVisible: false,
+      playGuideVisible: false,
+      playGuideTab: 'flow',
+      playGuideFirstRun: false,
       user: {},
       roomDtos: [],
       roomsLoading: true,
@@ -167,6 +178,7 @@ export default {
     }
   },
   computed: {
+    ...mapGetters('dpGame', ['handRankReference']),
     pageSize() {
       return 20
     }
@@ -188,7 +200,7 @@ export default {
     if (peekCatTutorialRequested()) {
       clearCatTutorialSessionFlag()
       if (!isCatTutorialDismissedPermanently()) {
-        this.catTutorialVisible = true
+        this.openPlayGuide(true)
       }
     }
   },
@@ -200,10 +212,20 @@ export default {
     }
   },
   methods: {
-    onCatTutorialConfirm(payload) {
+    openPlayGuide(firstRun) {
+      this.playGuideFirstRun = !!firstRun
+      this.playGuideTab = 'flow'
+      this.playGuideVisible = true
+    },
+    onPlayGuideClose() {
+      this.playGuideVisible = false
+      this.playGuideFirstRun = false
+    },
+    onPlayGuideConfirm(payload) {
       if (payload && payload.dontShowAgain) {
         setCatTutorialDismissedPermanently()
       }
+      this.onPlayGuideClose()
     },
     logout() {
       localStorage.removeItem('userInfo')

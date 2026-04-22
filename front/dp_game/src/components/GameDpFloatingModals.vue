@@ -1,9 +1,11 @@
 <template>
   <div>
-    <game-hand-rank-modal
-        :visible="vm.showHandRankModal"
+    <game-play-guide-modal
+        :visible="vm.showPlayGuideModal"
+        :active-tab="vm.playGuideTab"
         :items="vm.handRankReference"
-        @close="$store.commit('dpGame/SET_MODAL', { showHandRankModal: false })"
+        @close="$store.commit('dpGame/SET_MODAL', { showPlayGuideModal: false })"
+        @tab-change="$store.commit('dpGame/SET_MODAL', { playGuideTab: $event })"
     />
     <game-spectator-modal
         :visible="vm.showSpectatorModal"
@@ -29,7 +31,7 @@
 </template>
 
 <script>
-import GameHandRankModal from './GameHandRankModal.vue'
+import GamePlayGuideModal from './GamePlayGuideModal.vue'
 import GameSpectatorModal from './GameSpectatorModal.vue'
 import GameHandHistoryModal from './GameHandHistoryModal.vue'
 import GameMusicBoxModal from './GameMusicBoxModal.vue'
@@ -37,7 +39,7 @@ import GameMusicBoxModal from './GameMusicBoxModal.vue'
 export default {
   name: 'GameDpFloatingModals',
   components: {
-    GameHandRankModal,
+    GamePlayGuideModal,
     GameSpectatorModal,
     GameHandHistoryModal,
     GameMusicBoxModal

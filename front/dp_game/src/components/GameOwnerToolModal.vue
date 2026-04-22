@@ -48,7 +48,7 @@
                      background:#faad14; color:#fff; margin-right:8px;"
               @click="$emit('add-demo-bot')"
             >
-              {{ demoBotAdding ? '正在添加 BOT_Lag...' : '添加 BOT_Lag 到下一局' }}
+              {{ demoBotAdding ? '正在添加 BOT_Lag...' : '添加新手猫 BOT_Lag 到下一局' }}
             </button>
             <span v-if="demoBotAddedTip" style="font-size:12px; color:#595959;">{{ demoBotAddedTip }}</span>
           </div>
@@ -60,7 +60,7 @@
                      background:#f5222d; color:#fff; margin-right:8px;"
               @click="$emit('add-maniac-bot')"
             >
-              {{ maniacBotAdding ? '正在添加 BOT_Maniac...' : '添加疯子 BOT_Maniac 到下一局' }}
+              {{ maniacBotAdding ? '正在添加 BOT_Maniac...' : '添加激进猫 BOT_Maniac 到下一局' }}
             </button>
             <span v-if="maniacBotAddedTip" style="font-size:12px; color:#595959;">{{ maniacBotAddedTip }}</span>
           </div>
@@ -72,7 +72,7 @@
                      background:#389e0d; color:#fff; margin-right:8px;"
               @click="$emit('add-tag-bot')"
             >
-              {{ tagBotAdding ? '正在添加 BOT_Tag...' : '添加紧凶 BOT_Tag 到下一局' }}
+              {{ tagBotAdding ? '正在添加 BOT_Tag...' : '添加保守猫 BOT_Tag 到下一局' }}
             </button>
             <span v-if="tagBotAddedTip" style="font-size:12px; color:#595959;">{{ tagBotAddedTip }}</span>
           </div>
@@ -84,7 +84,7 @@
                      background:#722ed1; color:#fff; margin-right:8px;"
               @click="$emit('add-shark-bot')"
             >
-              {{ sharkBotAdding ? '正在添加 BOT_Shark...' : '添加聪明 BOT_Shark 到下一局' }}
+              {{ sharkBotAdding ? '正在添加 BOT_Shark...' : '添加聪明猫 BOT_Shark 到下一局' }}
             </button>
             <span v-if="sharkBotAddedTip" style="font-size:12px; color:#595959;">{{ sharkBotAddedTip }}</span>
           </div>
@@ -96,7 +96,7 @@
                      background:#08979c; color:#fff; margin-right:8px;"
               @click="$emit('add-llm-bot')"
             >
-              {{ llmBotAdding ? '正在添加 BOT_LLM...' : '添加大模型 BOT_LLM 到下一局' }}
+              {{ llmBotAdding ? '正在添加 BOT_LLM...' : '添加大模型猫 BOT_LLM 到下一局' }}
             </button>
             <span v-if="llmBotAddedTip" style="font-size:12px; color:#595959;">{{ llmBotAddedTip }}</span>
           </div>

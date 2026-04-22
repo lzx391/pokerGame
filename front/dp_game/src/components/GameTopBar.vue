@@ -66,8 +66,8 @@
         >
           {{ isFullscreen ? '退出全屏' : '全屏' }}
         </button>
-        <button type="button" class="dp-btn dp-btn--primary dp-top-bar__btn" @click="$emit('show-hand-rank')">
-          牌型说明
+        <button type="button" class="dp-btn dp-btn--primary dp-top-bar__btn" @click="$emit('show-play-guide')">
+          玩法说明
         </button>
         <button
             type="button"

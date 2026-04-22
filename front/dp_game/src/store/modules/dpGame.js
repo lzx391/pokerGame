@@ -49,7 +49,8 @@ function initialState() {
     communityCardsFlipComplete: false,
     seatChatTextByNick: {},
     chatInputDraft: '',
-    showHandRankModal: false,
+    showPlayGuideModal: false,
+    playGuideTab: 'flow',
     showSpectatorModal: false,
     showHandHistoryModal: false,
     showMusicBoxModal: false,
@@ -407,7 +408,8 @@ export default {
       state.ownerRevealAll = !!v
     },
     SET_MODAL: function (state, payload) {
-      if (payload.showHandRankModal !== undefined) state.showHandRankModal = payload.showHandRankModal
+      if (payload.showPlayGuideModal !== undefined) state.showPlayGuideModal = payload.showPlayGuideModal
+      if (payload.playGuideTab !== undefined) state.playGuideTab = payload.playGuideTab
       if (payload.showSpectatorModal !== undefined) state.showSpectatorModal = payload.showSpectatorModal
       if (payload.showHandHistoryModal !== undefined) state.showHandHistoryModal = payload.showHandHistoryModal
       if (payload.showMusicBoxModal !== undefined) state.showMusicBoxModal = payload.showMusicBoxModal
