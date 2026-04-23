@@ -90,6 +90,7 @@ html {
   height: -webkit-fill-available;
   overflow-x: hidden;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 body {
@@ -100,6 +101,7 @@ body {
   min-height: -webkit-fill-available;
   overflow-x: hidden;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   /* 与 #app 一致，避免底部露默认白底 */
   background-color: #f5f7fa;
 }
@@ -120,9 +122,11 @@ body {
 }
 
 .app-container {
-  max-width: 500px;
+  width: 100%;
+  max-width: min(100%, 30rem);
   margin: 0 auto;
-  padding: 40px 20px;
+  padding: clamp(20px, 5vw, 40px) clamp(14px, 4vw, 22px);
+  box-sizing: border-box;
 }
 
 /* 标题样式 */

@@ -26,11 +26,24 @@
         >
           <option v-for="t in baseThemeOptions" :key="t.id" :value="t.id">{{ t.label }}</option>
         </select>
-        <span class="dp-theme-picker__intro-hint">
+        <button
+          type="button"
+          class="dp-theme-picker__collapse"
+          :aria-expanded="customEditorExpanded ? 'true' : 'false'"
+          aria-controls="dp-theme-picker-palette"
+          @click="customEditorExpanded = !customEditorExpanded"
+        >
+          {{ customEditorExpanded ? '收起配色' : '展开配色' }}
+        </button>
+        <span v-show="customEditorExpanded" class="dp-theme-picker__intro-hint">
           未改动的项跟模板走。标有「统一」的条目会把多个变量设成同一颜色；预览取组内你改过或第一项。
         </span>
       </div>
-      <div class="dp-theme-picker__palette">
+      <div
+        v-show="customEditorExpanded"
+        id="dp-theme-picker-palette"
+        class="dp-theme-picker__palette"
+      >
         <section
           v-for="group in colorGroups"
           :key="group.id"
@@ -79,7 +92,7 @@
           </div>
         </section>
       </div>
-      <div class="dp-theme-picker__footer">
+      <div v-show="customEditorExpanded" class="dp-theme-picker__footer">
         <button type="button" class="dp-theme-picker__clear-btn" @click="clearAllOverrides">
           清除全部自定义颜色
         </button>
@@ -120,7 +133,9 @@ export default {
   data: function () {
     return {
       colorGroups: DP_CUSTOM_THEME_PALETTE_GROUPS,
-      samplerMap: {}
+      samplerMap: {},
+      /** 自定义模式下大块配色编辑区默认收起，需点「展开配色」 */
+      customEditorExpanded: false
     }
   },
   computed: {
@@ -135,7 +150,10 @@ export default {
       this.refreshSampler()
     },
     gameUiTheme: function (v) {
-      if (v === 'custom') this.refreshSampler()
+      if (v === 'custom') {
+        this.customEditorExpanded = false
+        this.refreshSampler()
+      }
     }
   },
   mounted: function () {
@@ -258,6 +276,10 @@ export default {
 <style scoped>
 .dp-theme-picker {
   position: relative;
+  min-width: 0;
+  /* 桌面：随内容宽；窄屏由 dp-lobby-shell 设为 width:100% 铺满 */
+  flex: 0 1 auto;
+  max-width: 100%;
 }
 .dp-theme-picker__sampler {
   position: absolute;
@@ -290,13 +312,42 @@ export default {
   line-height: 1.4;
   color: var(--dp-text-muted, #888);
 }
+.dp-theme-picker__collapse {
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--dp-input-border, #ccc);
+  background: var(--dp-panel-bg, #fff);
+  color: var(--dp-accent, #1890ff);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dp-theme-picker__collapse:hover {
+  border-color: var(--dp-accent, #1890ff);
+}
 .dp-theme-picker__palette {
-  max-height: min(52vh, 420px);
+  /* svh：移动端地址栏收起前后更稳；dvh：动态视口；clamp 保底高度避免「框太小划不动」 */
+  max-height: min(
+    clamp(220px, 58svh, 520px),
+    min(58dvh, 520px)
+  );
   overflow-y: auto;
-  padding: 4px 6px 8px 0;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  min-height: 0;
+  padding: clamp(6px, 1.5vw, 10px) clamp(4px, 1.2vw, 8px) clamp(8px, 2vw, 12px) 0;
   border: 1px solid var(--dp-subpanel-border, rgba(0, 0, 0, 0.08));
-  border-radius: 8px;
+  border-radius: clamp(8px, 2vw, 12px);
   background: var(--dp-subpanel-bg, rgba(0, 0, 0, 0.02));
+}
+
+@media (min-width: 768px) {
+  .dp-theme-picker__palette {
+    max-height: min(
+      clamp(260px, 52svh, 560px),
+      min(52dvh, 560px)
+    );
+  }
 }
 .dp-theme-picker__group {
   margin-bottom: 14px;

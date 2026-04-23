@@ -343,15 +343,16 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: clamp(10px, 2.5vw, 16px);
+  margin-bottom: clamp(12px, 3vw, 20px);
   flex-wrap: wrap;
 }
 .home-title {
   margin: 0;
-  font-size: 1.35rem;
+  font-size: clamp(1.12rem, 3.8vw, 1.4rem);
   font-weight: 600;
   color: var(--dp-text-primary);
+  line-height: 1.25;
 }
 .home-header__right {
   display: flex;

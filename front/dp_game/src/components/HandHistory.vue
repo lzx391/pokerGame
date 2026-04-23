@@ -230,9 +230,12 @@ export default {
 
 <style scoped>
 .hand-history-page {
-  max-width: 900px;
+  max-width: min(900px, 100%);
+  width: 100%;
   margin: 0 auto;
-  padding: 24px 16px;
+  padding: clamp(16px, 4vw, 24px) clamp(12px, 3vw, 16px);
+  box-sizing: border-box;
+  min-width: 0;
 }
 .hand-history-page__header {
   display: flex;
@@ -295,10 +298,18 @@ export default {
 }
 .hand-history-table-wrap {
   overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
   margin-top: 12px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  touch-action: pan-x pan-y;
 }
 .hand-history-table {
   width: 100%;
+  min-width: 680px;
   border-collapse: collapse;
   font-size: 13px;
 }

@@ -565,8 +565,11 @@ export default {
 }
 
 .hand-detail-page__shell {
-  max-width: 920px;
+  max-width: min(920px, 100%);
+  width: 100%;
   margin: 0 auto;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .hand-detail-page__hero {
@@ -930,13 +933,21 @@ export default {
 
 .hand-detail-table-wrap {
   overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
   margin: 0 -4px;
   padding: 0 4px;
   border-radius: 12px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  touch-action: pan-x pan-y;
 }
 
 .hand-detail-table {
   width: 100%;
+  min-width: 560px;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 13px;
