@@ -21,6 +21,12 @@ public class DpRoomBO {
      */
     private List<String> spectators = new ArrayList<>();
 
+    /**
+     * 观众席真人在线时间戳（毫秒）：由 HTTP 心跳与对局页 WebSocket 建连刷新，用于剔除长时间无保活的观众；不下发 JSON。
+     */
+    @JsonIgnore
+    private final Map<String, Long> spectatorLastPresenceMs = new ConcurrentHashMap<>();
+
     // 德扑核心
     private String currentStage = "preflop";
     private List<String> communityCards = new ArrayList<>();
@@ -130,6 +136,22 @@ public class DpRoomBO {
     public void setPlayers(List<DpPlayer> players) { this.players = players; }
     public List<String> getSpectators() { return spectators; }
     public void setSpectators(List<String> spectators) { this.spectators = spectators; }
+
+    public void touchSpectatorPresence(String nickname, long timeMs) {
+        if (nickname != null && !nickname.isEmpty()) {
+            spectatorLastPresenceMs.put(nickname, timeMs);
+        }
+    }
+
+    public void removeSpectatorPresence(String nickname) {
+        if (nickname != null) {
+            spectatorLastPresenceMs.remove(nickname);
+        }
+    }
+
+    public Long getSpectatorLastPresenceMs(String nickname) {
+        return nickname == null ? null : spectatorLastPresenceMs.get(nickname);
+    }
     public boolean isPlaying() { return isPlaying; }
     public void setPlaying(boolean playing) { isPlaying = playing; }
     public String getCurrentStage() { return currentStage; }

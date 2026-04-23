@@ -22,7 +22,7 @@
 **WebSocket**：服务器在状态变化后（或按固定节奏）**把数据推给前端**。  
 - 少很多无效 HTTP；多人同桌、状态频繁变时更合适。
 
-本项目里：**游戏对局页**用 WebSocket 收房间快照；**心跳**仍用普通 HTTP（`POST /dpRoom/heartbeat`），两件事分工不同，不互相替代。
+本项目里：**游戏对局页**（含**仅观战的观众席**，与同桌共用 `game.vue`）用 WebSocket 收房间快照；**是否在房、超时踢人**统一以普通 HTTP（`POST /dpRoom/heartbeat`）与 `DpRoomServiceImpl` 每秒定时逻辑为准：**桌上玩家**更新 `lastHeartBeat`；**观众席**更新 `spectatorLastPresenceMs`（与桌上同一超时阈值）。WS 仅负责推送与聊天/BGM，**断线不触发** `exitRoom`。
 
 ---
 
@@ -57,7 +57,7 @@
 2. **`DpGameRoomWebSocketHandler`**（继承 **`TextWebSocketHandler`**）  
    - **`afterConnectionEstablished`**：从 URL 解析 **`roomId`**，缺则 **`BAD_DATA`** 关闭；可选解析 **`nickname`** 写入 **`session.getAttributes()`** 的 `viewerNickname`。然后 **`pushService.register(roomId, session)`**，再 **`sendInitialSnapshot(session, roomId)`**。  
    - **`handleTextMessage`**：转给 **`DpGameRoomPushService.handleClientTextMessage`**。  
-   - **`afterConnectionClosed`**：按 attributes 里的 **`roomId`** 调用 **`unregister`**。
+   - **`afterConnectionClosed`** / **`handleTransportError`**：按 **`roomId`** 调用 **`removeSessionFromRoom`**，仅从推送订阅集合移除该会话；**不因 WS 断线修改房间成员**（由 **`/dpRoom/heartbeat`** 与定时任务处理）。广播时发现僵死连接亦走同一移除逻辑。
 3. **`DpGameRoomPushService`**  
    - **`roomSessions`**：`ConcurrentHashMap<String, Set<WebSocketSession>>`，表示每间房有哪些连接。  
    - **`sendInitialSnapshot`** / **`broadcastIfSubscribed`**：通过 **`DpRoomServiceImpl.getRoomSnapshotForViewer`** / **`snapshotForViewerFromLive`** 生成 **按观看者视角** 的 `DpRoom`，再 **`ObjectMapper.writeValueAsString`**；广播路径上与上次字符串相同则 **跳过该 session**（见上表）。  
