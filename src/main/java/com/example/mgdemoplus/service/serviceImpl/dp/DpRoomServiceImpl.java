@@ -606,13 +606,14 @@ public class DpRoomServiceImpl {
         }
         String v = viewerNickname == null ? "" : viewerNickname.trim();
         String stage = room.getCurrentStage();
-        int nonFoldIn = 0;
-        for (DpPlayer x : room.getPlayers()) {
-            if (x != null && !x.isLeftThisHand() && !x.isFold()) {
-                nonFoldIn++;
-            }
-        }
-        boolean multiWayShowdown = nonFoldIn >= 2;
+        // int nonFoldIn = 0;
+        // for (DpPlayer x : room.getPlayers()) {
+        //     if (x != null && !x.isLeftThisHand() && !x.isFold()) {
+        //         nonFoldIn++;
+        //     }
+        // }
+        // boolean multiWayShowdown = nonFoldIn >= 2;
+        boolean multiWayShowdown = true;
         //结算摊牌阶段可以摊牌公开底牌
         boolean revealOthers =
                 ("showdown".equals(stage) && multiWayShowdown)
@@ -1272,20 +1273,24 @@ public class DpRoomServiceImpl {
                 r.getCommunityCards().add(deck.remove(0));
                 r.getCommunityCards().add(deck.remove(0));
                 r.setCurrentStage("flop");
+                System.out.println("设置flop阶段");
                 observedHandService.recordBoardState(r);
                 break;
             case "flop":
                 r.getCommunityCards().add(deck.remove(0));
                 r.setCurrentStage("turn");
                 observedHandService.recordBoardState(r);
+                System.out.println("设置turn阶段");
                 break;
             case "turn":
                 r.getCommunityCards().add(deck.remove(0));
                 r.setCurrentStage("river");
                 observedHandService.recordBoardState(r);
+                System.out.println("设置river阶段");
                 break;
             case "river":
                 r.setCurrentStage("showdown");
+                System.out.println("设置showdown阶段");
                 calculatePots(r);             // 进入摊牌时计算主池/边池
                 r.setCurrentActorIndex(-1);
                 // 摊牌后立即自动结算
@@ -1474,7 +1479,9 @@ public class DpRoomServiceImpl {
     private void autoSettle(DpRoomBO r) {
         if (r == null || !r.isPlaying()) return;
 
-        final boolean lastHandPublic = countPlayersStillInHand(r) >= 2;
+        // 至少 1 人未弃牌收池时也应公开其底牌；原先 >=2 会在「对手弃牌、独赢」时置 false，
+        // 与 sanitizeHoleCardsForViewer 在 settled 阶段依赖本标志矛盾，导致非房主看不到赢家手牌。
+        final boolean lastHandPublic = countPlayersStillInHand(r) >= 1;
 
         // 没有任何下注，直接标记为结算完成
         if (r.getPot() <= 0 && (r.getPots() == null || r.getPots().isEmpty())) {
