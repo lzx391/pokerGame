@@ -7,7 +7,8 @@
         'dp-game-root--layout-fs': layoutFullscreen,
         'dp-game-root--mobile-hero-dock': mobileHeroDockActive
       }"
-      :data-dp-game-theme="gameUiTheme"
+      :data-dp-game-theme="effectiveThemeForCss"
+      :style="customThemeInlineStyle"
       :data-dp-eco-mode="ecoMode ? 'true' : 'false'"
       :data-dp-stage="stage"
   >
@@ -24,11 +25,15 @@
         :show-spectator-prepare="showSpectatorPrepareBlock"
         :next-hand-ready="nextHandReady"
         :game-ui-theme="gameUiTheme"
+        :custom-theme-base="customThemeBase"
+        :custom-theme-overrides="customThemeOverrides"
         @update:gameUiTheme="$store.commit('dpGame/SET_GAME_UI_THEME', $event)"
+        @update:customThemeBase="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
+        @update:customThemeOverrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
         :eco-mode="ecoMode"
         @update:ecoMode="$store.commit('dpGame/SET_ECO_MODE', $event)"
         :theme-options="gameThemeOptions"
-        @show-hand-rank="$store.commit('dpGame/SET_MODAL', { showHandRankModal: true })"
+        @show-play-guide="$store.commit('dpGame/SET_MODAL', { showPlayGuideModal: true, playGuideTab: 'flow' })"
         @show-spectators="$store.commit('dpGame/SET_MODAL', { showSpectatorModal: true })"
         @toggle-fullscreen="toggleDpFullscreen"
         @open-hand-history="openHandHistory"
@@ -41,7 +46,7 @@
 
     <main class="dp-game-layout__main">
     <!-- <div v-if="playing" class="dp-game-hint">
-      各人手牌与公共牌均由庄位（D）发出
+      各人手牌与公共牌均由发牌位（D）发出
     </div> -->
 
     <game-round-table
@@ -148,10 +153,10 @@ export default {
 
   computed: {
     ...mapState('dpGame', [
-      'gameUiTheme', 'ecoMode', 'gameThemeOptions', 'roomId', 'user', 'currentHandSeed', 'owner', 'players', 'playing', 'stage', 'communityCards', 'pot', 'pots', 'currentBetToCall', 'lastRaiseIncrement', 'actIndex', 'spectators', 'raiseAmount', 'selectedWinners', 'potWinners', 'nextHandReady', 'loading', 'communityCardsFlipState', 'communityCardsFlipComplete', 'seatChatTextByNick', 'chatInputDraft', 'showHandRankModal', 'showSpectatorModal', 'showHandHistoryModal', 'showMusicBoxModal', 'musicTracks', 'musicTracksLoading', 'musicTracksError', 'roomMusicState', 'showOwnerHubSheet', 'ownerToolType', 'ownerActionTarget', 'demoBotAdding', 'demoBotAddedTip', 'maniacBotAdding', 'maniacBotAddedTip', 'tagBotAdding', 'tagBotAddedTip', 'sharkBotAdding', 'sharkBotAddedTip', 'llmBotAdding', 'llmBotAddedTip', 'ownerRevealAll', 'showMobileHandSheet', 'showMobileActionSheet', 'heroHoleDealIntroDone', 'chipLeaderNicknames'
+      'gameUiTheme', 'customThemeBase', 'customThemeOverrides', 'ecoMode', 'gameThemeOptions', 'roomId', 'user', 'currentHandSeed', 'owner', 'players', 'playing', 'stage', 'communityCards', 'pot', 'pots', 'currentBetToCall', 'lastRaiseIncrement', 'actIndex', 'spectators', 'raiseAmount', 'selectedWinners', 'potWinners', 'nextHandReady', 'loading', 'communityCardsFlipState', 'communityCardsFlipComplete', 'seatChatTextByNick', 'chatInputDraft', 'showPlayGuideModal', 'playGuideTab', 'showSpectatorModal', 'showHandHistoryModal', 'showMusicBoxModal', 'musicTracks', 'musicTracksLoading', 'musicTracksError', 'roomMusicState', 'showOwnerHubSheet', 'ownerToolType', 'ownerActionTarget', 'demoBotAdding', 'demoBotAddedTip', 'maniacBotAdding', 'maniacBotAddedTip', 'tagBotAdding', 'tagBotAddedTip', 'sharkBotAdding', 'sharkBotAddedTip', 'llmBotAdding', 'llmBotAddedTip', 'ownerRevealAll', 'showMobileHandSheet', 'showMobileActionSheet', 'heroHoleDealIntroDone', 'chipLeaderNicknames'
     ]),
     ...mapGetters('dpGame', [
-      'handRankReference', 'stageCN', 'isOwner', 'isMyTurn', 'myPlayer', 'showSpectatorPrepareBlock', 'myReady', 'myChips', 'myBet', 'callAmount', 'smallBlind', 'bigBlind', 'lastRaiseIncrementEffective', 'minTotalToRaise', 'minRaise', 'allPotsHaveWinners', 'inSettledStage', 'ownerActionPlayers', 'playersDisplayOrder', 'viewerSeatedAtTable', 'holeDealPlayerCountForAnim', 'heroDockRow', 'dealerDisplayIndex', 'showdownHandLeaderNicknames', 'spectatorSeatChatEntries', 'tableActionActorDisplayName', 'mobileHeroDockActive', 'showHeroViewHandButton', 'showHeroSeatOnTable', 'showBottomHeroDock'
+      'effectiveThemeForCss', 'customThemeInlineStyle', 'handRankReference', 'stageCN', 'isOwner', 'isMyTurn', 'myPlayer', 'showSpectatorPrepareBlock', 'myReady', 'myChips', 'myBet', 'callAmount', 'smallBlind', 'bigBlind', 'lastRaiseIncrementEffective', 'minTotalToRaise', 'minRaise', 'allPotsHaveWinners', 'inSettledStage', 'ownerActionPlayers', 'playersDisplayOrder', 'viewerSeatedAtTable', 'holeDealPlayerCountForAnim', 'heroDockRow', 'dealerDisplayIndex', 'showdownHandLeaderNicknames', 'spectatorSeatChatEntries', 'tableActionActorDisplayName', 'mobileHeroDockActive', 'showHeroViewHandButton', 'showHeroSeatOnTable', 'showBottomHeroDock'
     ]),
     actionTimerProgressPct() {
       var t = Number(this.timeLeft)
@@ -644,16 +649,16 @@ export default {
         this.$message.error('网络错误: ' + err.message)
       }
     },
-    // 结算后筹码归零时补码
+    // 结算后积分归零时补满
     async rebuy() {
       try {
         var res = await this.$http.post('/dpRoom/rebuy', null, {
           params: {roomId: this.roomId, nickname: this.user.nickname}
         })
         if (res.data !== 'ok') {
-          this.$message.error('补码失败：' + res.data)
+          this.$message.error('补满失败：' + res.data)
         } else {
-          this.$message.success('补码成功，可以准备下一局了')
+          this.$message.success('补满成功，可在结算阶段准备下一局')
         }
         await this.loadGame()
       } catch (err) {
@@ -661,21 +666,21 @@ export default {
       }
     },
 
-    // ---- 跟注/过牌 ----
+    // ---- 跟投/观望 ----
     async doCall() {
       await this.submitBet(this.callAmount)
     },
 
-    // ---- 加注 ----
+    // ---- 加投 ----
     async doRaise() {
       if (this.raiseAmount < this.minRaise) {
         this.$message.warning(
-          '加注额不能低于 ' + this.minRaise + '（总注至少到 ' + this.minTotalToRaise + '）'
+          '加投不能低于 ' + this.minRaise + '（总投入至少到 ' + this.minTotalToRaise + '）'
         )
         return
       }
       if (this.raiseAmount > this.myChips) {
-        this.$message.warning('筹码不足！')
+        this.$message.warning('小鱼干不足！')
         return
       }
       await this.submitBet(this.raiseAmount)
@@ -686,13 +691,13 @@ export default {
       await this.submitBet(this.myChips)
     },
 
-    // ---- 统一提交下注 ----
+    // ---- 统一提交本轮投入（接口字段名仍为 bet）----
     async submitBet(amount) {
       try {
         var res = await this.$http.post('/dpRoom/bet', null, {
           params: {roomId: this.roomId, nickname: this.user.nickname, bet: amount}
         })
-        if (res.data !== 'ok') this.$message.error('下注失败，请检查金额')
+        if (res.data !== 'ok') this.$message.error('投入失败，请检查数额')
         this.$store.commit('dpGame/SET_RAISE_AMOUNT', 0)
         await this.loadGame()
       } catch (err) {
@@ -700,13 +705,13 @@ export default {
       }
     },
 
-    // ---- 弃牌 ----
+    // ---- 盖牌 ----
     async doFold() {
       try {
         var res = await this.$http.post('/dpRoom/fold', null, {
           params: {roomId: this.roomId, nickname: this.user.nickname}
         })
-        if (res.data !== 'ok') this.$message.error('弃牌失败')
+        if (res.data !== 'ok') this.$message.error('盖牌失败')
         await this.loadGame()
       } catch (err) {
         this.$message.error('网络错误: ' + err.message)
@@ -796,7 +801,7 @@ export default {
       }
       var names = this.selectedWinners.map(dpDisplayNickname).join(', ')
       try {
-        await this.dpConfirm('确定由 [' + names + '] 平分底池 ' + this.pot + ' 吗？', '确认结算')
+        await this.dpConfirm('确定由 [' + names + '] 平分小鱼干池 ' + this.pot + ' 吗？', '确认结算')
       } catch (e) {
         return
       }
@@ -976,7 +981,7 @@ export default {
 
     /**
      * 将聪明型 NPC（BOT_Shark）加入下一局等待列表。
-     * 该机器人会根据对手最近几手的行为粗略判断其风格，调整自己的弃牌/跟注/加注倾向。
+     * 该机器人会根据对手最近几手的行为粗略判断其风格，调整自己的盖牌/跟投/加投倾向。
      */
     async addSharkBot() {
       if (!this.roomId) return
@@ -1139,7 +1144,7 @@ export default {
     },
 
     /**
-     * 开局发牌动画：从庄家顺时针下一位起为 0，依次 1、2…（与常见首圈发牌顺序一致，仅用于错开飞入时间）
+     * 开局发牌动画：从发牌位顺时针下一位起为 0，依次 1、2…（与常见首圈发牌顺序一致，仅用于错开飞入时间）
      */
     holeDealOrderFromDealer(seatIndex) {
       return holeDealOrderFromDealerUtil(seatIndex, this.players)

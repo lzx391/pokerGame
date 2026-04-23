@@ -1,7 +1,7 @@
 <template>
   <div class="login-box">
     <h1 class="login-box__title">登录</h1>
-    <p class="login-box__hint">使用已注册的昵称与密码进入游戏大厅</p>
+    <p class="login-box__hint">使用已注册的昵称与密码进入猫咪牌局大厅</p>
 
     <div class="form-item">
       <label for="login-nickname">昵称</label>
@@ -34,6 +34,7 @@
 <script>
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
 import { dpResultSuccess, dpResultData, dpResultMessage } from '@/utils/dpApiResult'
+import { flagCatTutorialAfterLogin } from '@/constants/dpCatThemeCopy'
 
 export default {
   data() {
@@ -79,6 +80,7 @@ export default {
           var d = res.data
           if (dpResultSuccess(d)) {
             var payload = dpResultData(d) || {}
+            flagCatTutorialAfterLogin()
             alert('登录成功！')
             var row = {
               nickname: payload.nickname || this.nickname,

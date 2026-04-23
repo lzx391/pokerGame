@@ -1,19 +1,21 @@
 /**
- * 牌谱回放：按街拆分下注圈、行动文案（与 dp_observed_hand_history.payload_json 对齐）。
+ * 牌谱回放：按街拆分行动轮次、行动文案（与 dp_observed_hand_history.payload_json 对齐）。
  */
+
+import { DP_GAME_STAGE_LABELS } from '../constants/dpCatThemeCopy'
 
 export const STREET_ORDER = ['preflop', 'flop', 'turn', 'river']
 
 export const STREET_TABS = [
-  { key: 'preflop', label: 'preflop' },
-  { key: 'flop', label: 'flop' },
-  { key: 'turn', label: 'turn' },
-  { key: 'river', label: 'river' },
-  { key: 'settlement', label: 'settlement' }
+  { key: 'preflop', label: DP_GAME_STAGE_LABELS.preflop },
+  { key: 'flop', label: DP_GAME_STAGE_LABELS.flop },
+  { key: 'turn', label: DP_GAME_STAGE_LABELS.turn },
+  { key: 'river', label: DP_GAME_STAGE_LABELS.river },
+  { key: 'settlement', label: DP_GAME_STAGE_LABELS.settled }
 ]
 
 /**
- * 进入该街前仍在手、可参与本街下注的玩家（按起手座位顺序）。
+ * 进入该街前仍在手、可参与本街行动的玩家（按起手座位顺序）。
  */
 export function seatNicknamesOrdered(seatsAtStart) {
   if (!Array.isArray(seatsAtStart)) return []
@@ -37,7 +39,7 @@ export function activePlayersBeforeStreet(allActions, street, seatsNicknames) {
 }
 
 /**
- * 是否视为「加注/开池」：盲注不算；ALL_IN 仅在抬升总注（相对需跟注额）时算新一圈起点。
+ * 是否视为「加投/开池」：开局底分不算；ALL_IN 仅在抬升总投入（相对需匹配额）时算新一圈起点。
  */
 export function isRaiseLikeForRoundSplit(a) {
   if (!a || !a.type) return false
@@ -53,8 +55,8 @@ export function isRaiseLikeForRoundSplit(a) {
 }
 
 /**
- * 从「第一次加注/开池」起算第1圈；之后每次新的加注/开池开启下一圈；其前的盲注、跟注、过牌等为「前置」列。
- * 若本街没有任何加注类行动（例如全过牌），则整街归入第1圈。
+ * 从「第一次加投/开池」起算第1圈；之后每次新的加投/开池开启下一圈；其前的开局底分、跟投、观望等为「前置」列。
+ * 若本街没有任何加投类行动（例如全观望），则整街归入第1圈。
  */
 export function splitRoundsByRaises(actionsForStreet) {
   const list = Array.isArray(actionsForStreet) ? actionsForStreet : []
@@ -87,7 +89,7 @@ export function splitRoundsByRaises(actionsForStreet) {
   return { prefix, rounds }
 }
 
-/** 起手座位：庄、小盲、大盲标记（与 seatsAtStart.blind 一致） */
+/** 起手座位：发牌猫、小猫/大猫标记（与 seatsAtStart.blind 一致） */
 export function playerRoleTagsByNickname(seatsAtStart, dealerNickname) {
   const map = {}
   if (!Array.isArray(seatsAtStart)) return map
@@ -95,10 +97,10 @@ export function playerRoleTagsByNickname(seatsAtStart, dealerNickname) {
     const n = s.nickname
     if (!n) continue
     const tags = []
-    if (dealerNickname && n === dealerNickname) tags.push('庄')
+    if (dealerNickname && n === dealerNickname) tags.push('发牌猫')
     const bl = s.blind != null ? Number(s.blind) : 0
-    if (bl === 1) tags.push('小盲')
-    if (bl === 2) tags.push('大盲')
+    if (bl === 1) tags.push('SC')
+    if (bl === 2) tags.push('BC')
     map[n] = tags
   }
   return map
@@ -110,21 +112,21 @@ export function formatActionText(a) {
   const amt = a.amount
   switch (t) {
     case 'POST_BLIND_SB':
-      return '小盲' + (amt ? ' ' + amt : '')
+      return '小猫' + (amt ? ' ' + amt : '')
     case 'POST_BLIND_BB':
-      return '大盲' + (amt ? ' ' + amt : '')
+      return '大猫' + (amt ? ' ' + amt : '')
     case 'CHECK':
-      return '过牌'
+      return '观望'
     case 'CALL':
-      return amt != null && amt > 0 ? '跟注 ' + amt : '跟注'
+      return amt != null && amt > 0 ? '跟投 ' + amt : '跟投'
     case 'BET':
-      return '下注 ' + (amt != null ? amt : '')
+      return '投入 ' + (amt != null ? amt : '')
     case 'RAISE':
-      return '加注 ' + (amt != null ? amt : '')
+      return '加投 ' + (amt != null ? amt : '')
     case 'ALL_IN':
-      return '全下' + (amt != null && amt > 0 ? ' ' + amt : '')
+      return '全投' + (amt != null && amt > 0 ? ' ' + amt : '')
     case 'FOLD':
-      return '弃牌'
+      return '盖牌'
     default:
       return t || '—'
   }
@@ -160,7 +162,7 @@ export function boardForStreet(boardsByStreet, street) {
 }
 
 /**
- * 玩家第一次弃牌所在的街（无弃牌则 null）。
+ * 玩家第一次盖牌所在的街（无盖牌则 null）。
  */
 export function firstFoldStage(actions, nickname) {
   if (!nickname || !Array.isArray(actions)) return null
@@ -180,7 +182,7 @@ export function firstFoldStage(actions, nickname) {
 }
 
 /**
- * 在该街标签下是否展示底牌：在本街之前未弃牌（含本街才弃牌的，翻前仍展示）。
+ * 在该街标签下是否展示底牌：在本街之前未盖牌（含本街才盖牌的，翻前仍展示）。
  */
 export function shouldShowHoleCardsOnStreetTab(firstFoldStreet, tabStreet) {
   if (!tabStreet || tabStreet === 'settlement') return false

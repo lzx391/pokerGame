@@ -1,6 +1,6 @@
 <template>
   <div class="dp-top-bar">
-    <!-- 第一行：房间/阶段 + 底池跟注 + 设置（原三行合并为两行里的首行） -->
+    <!-- 第一行：房间/阶段 + 公共池与需匹配额 + 设置（原三行合并为两行里的首行） -->
     <div class="dp-top-bar__row dp-top-bar__row--primary">
       <div class="dp-top-bar__primary-text">
         <span class="dp-top-bar__title">
@@ -8,9 +8,9 @@
         </span>
         <span class="dp-top-bar__meta-sep" aria-hidden="true">·</span>
         <span class="dp-top-bar__sub">
-          底池 <span class="dp-top-bar__pot">{{ pot }}</span>
+          小鱼干池 <span class="dp-top-bar__pot">{{ pot }}</span>
           <span class="dp-top-bar__meta-sep dp-top-bar__meta-sep--thin" aria-hidden="true">|</span>
-          跟注 <span class="dp-top-bar__bet">{{ currentBetToCall }}</span>
+          需对齐 <span class="dp-top-bar__bet">{{ currentBetToCall }}</span>
         </span>
       </div>
       <div ref="settingsRoot" class="dp-top-bar__settings-wrap">
@@ -33,14 +33,16 @@
             @click.stop
         >
           <span class="dp-game-theme-row__label">界面主题</span>
-          <select
-              class="dp-game-theme-select"
+          <dp-theme-picker
+              :game-ui-theme="gameUiTheme"
+              :theme-options="themeOptions"
+              :custom-theme-base="customThemeBase"
+              :custom-theme-overrides="customThemeOverrides"
               aria-label="选择对局界面主题"
-              :value="gameUiTheme"
-              @change="onThemeChange($event.target.value)"
-          >
-            <option v-for="t in themeOptions" :key="t.id" :value="t.id">{{ t.label }}</option>
-          </select>
+              @input-theme="onThemeChange($event)"
+              @custom-base="$emit('update:customThemeBase', $event)"
+              @custom-overrides="$emit('update:customThemeOverrides', $event)"
+          />
           <label class="dp-game-eco-label">
             <input
                 type="checkbox"
@@ -64,8 +66,8 @@
         >
           {{ isFullscreen ? '退出全屏' : '全屏' }}
         </button>
-        <button type="button" class="dp-btn dp-btn--primary dp-top-bar__btn" @click="$emit('show-hand-rank')">
-          牌型说明
+        <button type="button" class="dp-btn dp-btn--primary dp-top-bar__btn" @click="$emit('show-play-guide')">
+          玩法说明
         </button>
         <button
             type="button"
@@ -121,6 +123,13 @@ export default {
     nextHandReady: { type: Boolean, default: false },
     /** 与 game.vue 的 data-dp-game-theme 同步 */
     gameUiTheme: { type: String, required: true },
+    customThemeBase: { type: String, default: 'default' },
+    customThemeOverrides: {
+      type: Object,
+      default: function () {
+        return {}
+      }
+    },
     ecoMode: { type: Boolean, required: true },
     themeOptions: {
       type: Array,

@@ -42,6 +42,11 @@
   max-width: 520px;
 }
 
+/* 玩法说明：流程 + 牌型分栏，略宽以容纳长句 */
+.hand-rank-modal.hand-rank-modal--play-guide {
+  max-width: 520px;
+}
+
 .dp-game-dialog__head {
   display: flex;
   align-items: center;

@@ -2,7 +2,8 @@
   <div
     class="hand-detail-page-root"
     :class="{ 'dp-game-root': !embedded }"
-    :data-dp-game-theme="!embedded ? gameUiTheme : undefined"
+    :data-dp-game-theme="!embedded ? effectiveThemeForCss : undefined"
+    :style="!embedded ? customThemeInlineStyle : {}"
   >
   <div class="hand-detail-page hand-detail-page--embedded">
     <div class="hand-detail-page__shell">
@@ -14,14 +15,15 @@
           </button>
           <div v-if="!embedded" class="dp-game-theme-row hand-detail-page__theme-row">
             <span class="dp-game-theme-row__label">界面主题</span>
-            <select
-              class="dp-game-theme-select"
-              aria-label="选择界面主题"
-              :value="gameUiTheme"
-              @change="onLobbyThemeChange($event.target.value)"
-            >
-              <option v-for="t in gameThemeOptions" :key="t.id" :value="t.id">{{ t.label }}</option>
-            </select>
+            <dp-theme-picker
+              :game-ui-theme="gameUiTheme"
+              :theme-options="gameThemeOptions"
+              :custom-theme-base="customThemeBase"
+              :custom-theme-overrides="customThemeOverrides"
+              @input-theme="onLobbyThemeChange($event)"
+              @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
+              @custom-overrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
+            />
           </div>
         </div>
         <div class="hand-detail-page__hero-text">
@@ -46,12 +48,12 @@
             <span class="hand-detail-page__meta-k">结束</span>
             <span class="hand-detail-page__meta-v">{{ formatTime(detail.endedAtMs) }}</span>
           </div>
-          <div class="hand-detail-page__meta-chip" title="盲注">
-            <span class="hand-detail-page__meta-k">盲注</span>
+          <div class="hand-detail-page__meta-chip" title="小猫/大猫小鱼干注">
+            <span class="hand-detail-page__meta-k">开局注</span>
             <span class="hand-detail-page__meta-v">{{ detail.smallBlindChips }} / {{ detail.bigBlindChips }}</span>
           </div>
-          <div class="hand-detail-page__meta-chip" title="庄家">
-            <span class="hand-detail-page__meta-k">庄家</span>
+          <div class="hand-detail-page__meta-chip" title="发牌猫">
+            <span class="hand-detail-page__meta-k">发牌猫</span>
             <span class="hand-detail-page__meta-v">{{ detail.dealerNickname || '—' }}</span>
           </div>
         </div>
@@ -172,13 +174,13 @@
             </div>
           </div>
 
-          <h2 class="hand-detail-page__subh">盈亏与摊牌</h2>
+          <h2 class="hand-detail-page__subh">盈亏与结算</h2>
           <div class="hand-detail-table-wrap">
             <table class="hand-detail-table hand-detail-table--settlement">
               <thead>
                 <tr>
                   <th scope="col">玩家</th>
-                  <th scope="col">本手盈亏</th>
+                  <th scope="col">鱼干输赢</th>
                   <th scope="col">底牌</th>
                 </tr>
               </thead>
@@ -197,7 +199,7 @@
                   </td>
                   <td :class="['hand-detail-table__net', netClass(row.net)]">{{ row.net }}</td>
                   <td class="hand-detail-table__holes-cell">
-                    <span v-if="row.folded && !row.isSelf" class="hand-detail-page__folded-label">已弃牌</span>
+                    <span v-if="row.folded && !row.isSelf" class="hand-detail-page__folded-label">已盖牌</span>
                     <div v-else-if="row.cards.length" class="hand-detail-page__card-row hand-detail-page__card-row--holes">
                       <div
                         v-for="(c, idx) in row.cards"
@@ -297,7 +299,7 @@ export default {
       return boardForStreet(this.boardsByStreet, this.activeTab)
     },
     /**
-     * 当前街底牌列：本人始终可看自己的底牌；他人若弃牌则不展示，否则仍按街与弃牌时机规则。
+     * 当前街底牌列：本人始终可看自己的底牌；他人若盖牌则不展示，否则仍按街与盖牌时机规则。
      * null 表示本格不展示他人底牌。
      */
     holeCardsByNickForStreet() {
@@ -425,10 +427,10 @@ export default {
     },
     streetHint() {
       const map = {
-        preflop: '翻前无公共牌',
-        flop: '最多 3 张',
-        turn: '第 4 张',
-        river: '第 5 张'
+        preflop: '本圈桌面牌尚未公开',
+        flop: '本圈至多公开 3 张桌面牌',
+        turn: '本圈公开第 4 张桌面牌',
+        river: '本圈公开第 5 张桌面牌'
       }
       return map[this.activeTab] || ''
     }
@@ -474,9 +476,9 @@ export default {
       return getCardDisplay(c)
     },
     roleTagClass(t) {
-      if (t === '庄') return 'hand-detail-page__role-tag--dealer'
-      if (t === '小盲') return 'hand-detail-page__role-tag--sb'
-      if (t === '大盲') return 'hand-detail-page__role-tag--bb'
+      if (t === '发牌' || t === '发牌猫') return 'hand-detail-page__role-tag--dealer'
+      if (t === '底1' || t === 'SC') return 'hand-detail-page__role-tag--sb'
+      if (t === '底2' || t === 'BC') return 'hand-detail-page__role-tag--bb'
       return ''
     },
     goBack() {
@@ -563,8 +565,11 @@ export default {
 }
 
 .hand-detail-page__shell {
-  max-width: 920px;
+  max-width: min(920px, 100%);
+  width: 100%;
   margin: 0 auto;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .hand-detail-page__hero {
@@ -928,13 +933,21 @@ export default {
 
 .hand-detail-table-wrap {
   overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
   margin: 0 -4px;
   padding: 0 4px;
   border-radius: 12px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  touch-action: pan-x pan-y;
 }
 
 .hand-detail-table {
   width: 100%;
+  min-width: 560px;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 13px;
@@ -1007,16 +1020,12 @@ export default {
   border: 1px solid #fed7aa;
 }
 
-.hand-detail-page__role-tag--sb {
+/* SC / BC：同一视觉风格，随主题一致；仅靠文字区分 */
+.hand-detail-page__role-tag--sb,
+.hand-detail-page__role-tag--bb {
   color: #1d4ed8;
   background: #eff6ff;
   border: 1px solid #bfdbfe;
-}
-
-.hand-detail-page__role-tag--bb {
-  color: #6d28d9;
-  background: #f5f3ff;
-  border: 1px solid #ddd6fe;
 }
 
 .hand-detail-table__cell-actions {
@@ -1206,16 +1215,11 @@ export default {
   border: 1px solid var(--dp-panel-border, #fed7aa);
 }
 
-.hand-detail-page--embedded .hand-detail-page__role-tag--sb {
+.hand-detail-page--embedded .hand-detail-page__role-tag--sb,
+.hand-detail-page--embedded .hand-detail-page__role-tag--bb {
   color: var(--dp-accent, #1d4ed8);
   background: var(--dp-subpanel-bg, #eff6ff);
   border: 1px solid var(--dp-panel-border, #bfdbfe);
-}
-
-.hand-detail-page--embedded .hand-detail-page__role-tag--bb {
-  color: var(--dp-owner-purple-fg, #6d28d9);
-  background: var(--dp-subpanel-bg, #f5f3ff);
-  border: 1px solid var(--dp-panel-border, #ddd6fe);
 }
 
 .hand-detail-page--embedded .hand-detail-table__net--win {

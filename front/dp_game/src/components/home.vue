@@ -1,22 +1,38 @@
 <template>
-  <div class="dp-game-root" :data-dp-game-theme="gameUiTheme">
+  <div
+    class="dp-game-root"
+    :data-dp-game-theme="effectiveThemeForCss"
+    :style="customThemeInlineStyle"
+  >
     <div class="dp-lobby-inner home-inner">
+      <game-play-guide-modal
+        :visible="playGuideVisible"
+        :active-tab="playGuideTab"
+        :items="handRankReference"
+        :first-run="playGuideFirstRun"
+        @close="onPlayGuideClose"
+        @tab-change="playGuideTab = $event"
+        @confirm="onPlayGuideConfirm"
+      />
+
       <header class="home-header">
-        <h2 class="home-title">游戏大厅</h2>
+        <h2 class="home-title">猫咪牌局 · 大厅</h2>
         <div class="home-header__right">
           <div class="dp-game-theme-row home-theme-row">
             <span class="dp-game-theme-row__label">界面主题</span>
-            <select
-              class="dp-game-theme-select"
-              aria-label="选择界面主题"
-              :value="gameUiTheme"
-              @change="onLobbyThemeChange($event.target.value)"
-            >
-              <option v-for="t in gameThemeOptions" :key="t.id" :value="t.id">{{ t.label }}</option>
-            </select>
+            <dp-theme-picker
+              :game-ui-theme="gameUiTheme"
+              :theme-options="gameThemeOptions"
+              :custom-theme-base="customThemeBase"
+              :custom-theme-overrides="customThemeOverrides"
+              @input-theme="onLobbyThemeChange($event)"
+              @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
+              @custom-overrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
+            />
           </div>
           <div class="user-info">
             <span v-if="user && user.nickname">当前用户：{{ user.nickname }}</span>
+            <button type="button" class="dp-btn dp-btn--ghost logout-btn" @click="openPlayGuide(false)">玩法说明</button>
             <button type="button" class="dp-btn dp-btn--danger logout-btn" @click="logout">退出登录</button>
           </div>
         </div>
@@ -47,7 +63,7 @@
               />
             </label>
             <label class="home-filters__item home-filters__item--num">
-              <span class="home-filters__label">大盲≥</span>
+              <span class="home-filters__label">大猫鱼干≥</span>
               <input
                 v-model="filters.minBigBlind"
                 type="number"
@@ -57,7 +73,7 @@
               />
             </label>
             <label class="home-filters__item home-filters__item--num">
-              <span class="home-filters__label">大盲≤</span>
+              <span class="home-filters__label">大猫鱼干≤</span>
               <input
                 v-model="filters.maxBigBlind"
                 type="number"
@@ -110,7 +126,7 @@
             <span class="room-item__text">
               房间 {{ roomDto.roomId }} ({{ roomDto.playerSize }}人)
               <span v-if="roomDto.smallBlindChips != null && roomDto.bigBlindChips != null" class="room-item__blinds">
-                · 盲 {{ roomDto.smallBlindChips }}/{{ roomDto.bigBlindChips }}<template v-if="roomDto.startingStackBb"> · {{ roomDto.startingStackBb }}BB</template>
+                · 小猫/大猫 {{ roomDto.smallBlindChips }}/{{ roomDto.bigBlindChips }}<template v-if="roomDto.startingStackBb"> · {{ roomDto.startingStackBb }} 倍</template>
               </span>
               <span v-if="roomDto.passwordProtected" class="room-item__lock" title="需要密码">🔒</span>
             </span>
@@ -128,11 +144,23 @@ import '@/styles/dp-lobby-shell.css'
 import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
 import { dpResultSuccess, dpResultMessage } from '@/utils/dpApiResult'
+import GamePlayGuideModal from '@/components/GamePlayGuideModal.vue'
+import { mapGetters } from 'vuex'
+import {
+  peekCatTutorialRequested,
+  clearCatTutorialSessionFlag,
+  isCatTutorialDismissedPermanently,
+  setCatTutorialDismissedPermanently
+} from '@/constants/dpCatThemeCopy'
 
 export default {
+  components: { GamePlayGuideModal },
   mixins: [dpLobbyThemeMixin],
   data() {
     return {
+      playGuideVisible: false,
+      playGuideTab: 'flow',
+      playGuideFirstRun: false,
       user: {},
       roomDtos: [],
       roomsLoading: true,
@@ -150,6 +178,7 @@ export default {
     }
   },
   computed: {
+    ...mapGetters('dpGame', ['handRankReference']),
     pageSize() {
       return 20
     }
@@ -167,6 +196,14 @@ export default {
       this.getRooms()
     }, 2000)
   },
+  mounted() {
+    if (peekCatTutorialRequested()) {
+      clearCatTutorialSessionFlag()
+      if (!isCatTutorialDismissedPermanently()) {
+        this.openPlayGuide(true)
+      }
+    }
+  },
   beforeDestroy() {
     if (this.timer) {
       console.log('正在销毁定时器')
@@ -175,6 +212,21 @@ export default {
     }
   },
   methods: {
+    openPlayGuide(firstRun) {
+      this.playGuideFirstRun = !!firstRun
+      this.playGuideTab = 'flow'
+      this.playGuideVisible = true
+    },
+    onPlayGuideClose() {
+      this.playGuideVisible = false
+      this.playGuideFirstRun = false
+    },
+    onPlayGuideConfirm(payload) {
+      if (payload && payload.dontShowAgain) {
+        setCatTutorialDismissedPermanently()
+      }
+      this.onPlayGuideClose()
+    },
     logout() {
       localStorage.removeItem('userInfo')
       this.$router.push('/')
@@ -291,15 +343,16 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: clamp(10px, 2.5vw, 16px);
+  margin-bottom: clamp(12px, 3vw, 20px);
   flex-wrap: wrap;
 }
 .home-title {
   margin: 0;
-  font-size: 1.35rem;
+  font-size: clamp(1.12rem, 3.8vw, 1.4rem);
   font-weight: 600;
   color: var(--dp-text-primary);
+  line-height: 1.25;
 }
 .home-header__right {
   display: flex;

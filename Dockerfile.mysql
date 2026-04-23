@@ -6,3 +6,4 @@ COPY src/main/resources/db/dp_observed_hand_history.sql /docker-entrypoint-initd
 COPY src/main/resources/db/dp_observed_hand_participant.sql /docker-entrypoint-initdb.d/03_dp_observed_hand_participant.sql
 COPY src/main/resources/db/dp_shark_opponent_profile.sql /docker-entrypoint-initdb.d/04_dp_shark_opponent_profile.sql
 COPY src/main/resources/db/dp_music_track.sql /docker-entrypoint-initdb.d/05_dp_music_track.sql
+COPY src/main/resources/db/dp_room_lobby.sql /docker-entrypoint-initdb.d/06_dp_room_lobby.sql

@@ -1,6 +1,13 @@
 const {defineConfig} = require('@vue/cli-service')
 module.exports = defineConfig({
     transpileDependencies: true,
+    /** 浏览器标签页标题；不设时默认用 package.json 的 name（即 dp_game） */
+    pages: {
+        index: {
+            entry: 'src/main.js',
+            title: 'poker_demo',
+        },
+    },
     devServer: {
         // 保持你原有的 client 配置
         client: {

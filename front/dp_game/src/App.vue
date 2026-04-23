@@ -11,16 +11,17 @@
     <div v-if="isAuthPage" class="app-container">
       <div class="dp-game-theme-row app-auth-theme-bar">
         <span class="dp-game-theme-row__label">界面主题</span>
-        <select
-          class="dp-game-theme-select"
-          aria-label="选择界面主题"
-          :value="gameUiTheme"
-          @change="onAuthThemeChange($event.target.value)"
-        >
-          <option v-for="t in gameThemeOptions" :key="t.id" :value="t.id">{{ t.label }}</option>
-        </select>
+        <dp-theme-picker
+          :game-ui-theme="gameUiTheme"
+          :theme-options="gameThemeOptions"
+          :custom-theme-base="customThemeBase"
+          :custom-theme-overrides="customThemeOverrides"
+          @input-theme="onAuthThemeChange($event)"
+          @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
+          @custom-overrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
+        />
       </div>
-      <h1 class="app-title">DP GAME</h1>
+      <h1 class="app-title">POKER GAME</h1>
       <div class="nav-bar">
         <router-link to="/login" class="nav-link">登录</router-link>
         <router-link to="/register" class="nav-link">注册</router-link>
@@ -43,7 +44,12 @@ import { mapState } from 'vuex'
 export default {
   name: 'App',
   computed: {
-    ...mapState('dpGame', ['gameUiTheme', 'gameThemeOptions']),
+    ...mapState('dpGame', [
+      'gameUiTheme',
+      'gameThemeOptions',
+      'customThemeBase',
+      'customThemeOverrides'
+    ]),
     isAuthPage() {
       const path = this.$route.path
       return path === '/login' || path === '/register' || path === '/'
@@ -84,6 +90,7 @@ html {
   height: -webkit-fill-available;
   overflow-x: hidden;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 body {
@@ -94,6 +101,7 @@ body {
   min-height: -webkit-fill-available;
   overflow-x: hidden;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   /* 与 #app 一致，避免底部露默认白底 */
   background-color: #f5f7fa;
 }
@@ -114,9 +122,11 @@ body {
 }
 
 .app-container {
-  max-width: 500px;
+  width: 100%;
+  max-width: min(100%, 30rem);
   margin: 0 auto;
-  padding: 40px 20px;
+  padding: clamp(20px, 5vw, 40px) clamp(14px, 4vw, 22px);
+  box-sizing: border-box;
 }
 
 /* 标题样式 */

@@ -1,45 +1,50 @@
 <template>
-  <div class="dp-game-root" :data-dp-game-theme="gameUiTheme">
+  <div
+    class="dp-game-root"
+    :data-dp-game-theme="effectiveThemeForCss"
+    :style="customThemeInlineStyle"
+  >
     <div class="dp-lobby-inner create-room-inner">
       <header class="create-room-header">
         <button type="button" class="dp-btn dp-btn--ghost create-room-header__back" @click="goHome">← 返回大厅</button>
         <div class="dp-game-theme-row create-room-theme-row">
           <span class="dp-game-theme-row__label">界面主题</span>
-          <select
-            class="dp-game-theme-select"
-            aria-label="选择界面主题"
-            :value="gameUiTheme"
-            @change="onLobbyThemeChange($event.target.value)"
-          >
-            <option v-for="t in gameThemeOptions" :key="t.id" :value="t.id">{{ t.label }}</option>
-          </select>
+            <dp-theme-picker
+              :game-ui-theme="gameUiTheme"
+              :theme-options="gameThemeOptions"
+              :custom-theme-base="customThemeBase"
+              :custom-theme-overrides="customThemeOverrides"
+              @input-theme="onLobbyThemeChange($event)"
+              @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
+              @custom-overrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
+            />
         </div>
       </header>
 
       <section class="dp-lobby-panel create-room-panel">
         <h1 class="create-room-panel__title">创建房间</h1>
-        <p class="create-room-panel__intro">在此设置本桌盲注、每人带入（BB）与可选进房密码，再进入房间等人。</p>
+        <p class="create-room-panel__intro">在此设置本桌开局小猫/大猫小鱼干数、每人带入倍数（以大猫鱼干数为 1 倍）与可选进房密码，再进入房间等人。</p>
 
         <div class="create-room-fields">
           <label class="create-room-fields__row">
-            <span class="create-room-fields__label">小盲</span>
+            <span class="create-room-fields__label">小猫（SC）</span>
             <input v-model.number="smallBlind" type="number" min="1" class="create-room-fields__input" />
           </label>
           <label class="create-room-fields__row">
-            <span class="create-room-fields__label">大盲</span>
+            <span class="create-room-fields__label">大猫（BC）</span>
             <input v-model.number="bigBlind" type="number" min="2" class="create-room-fields__input" />
           </label>
           <label class="create-room-fields__row">
-            <span class="create-room-fields__label">每人初始（BB）</span>
+            <span class="create-room-fields__label">每人初始（倍）</span>
             <input
               v-model.number="startingStackBb"
               type="number"
               min="5"
               class="create-room-fields__input"
-              title="筹码 = 大盲 × BB 数，局深看的是这个"
+              title="初始小鱼干 = 大猫鱼干数 × 倍数，局深看的是这个"
             />
           </label>
-          <p class="create-room-fields__hint">初始筹码 = 大盲 × BB；之后补码也回到该深度。</p>
+          <p class="create-room-fields__hint">初始小鱼干 = 大猫鱼干数 × 倍数；之后补满也回到该深度。</p>
           <label class="create-room-fields__row create-room-fields__row--full">
             <span class="create-room-fields__label">房间密码（可选）</span>
             <input

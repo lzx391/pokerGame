@@ -130,6 +130,38 @@ body[data-dp-game-theme] .el-message-box__status + .el-message-box__message {
   padding-left: 36px;
 }
 
+/* ---------- Dialog（el-dialog，append-to-body 挂到 body，需与 body 上 --dp-* 一致） ---------- */
+body[data-dp-game-theme] .el-dialog {
+  background: var(--dp-panel-bg);
+  border: 1px solid var(--dp-panel-border);
+  box-shadow: var(--dp-panel-shadow);
+  color: var(--dp-text-primary);
+}
+
+body[data-dp-game-theme] .el-dialog__header {
+  border-bottom: 1px solid var(--dp-panel-border);
+}
+
+body[data-dp-game-theme] .el-dialog__title {
+  color: var(--dp-text-primary);
+}
+
+body[data-dp-game-theme] .el-dialog__headerbtn .el-dialog__close {
+  color: var(--dp-text-muted);
+}
+
+body[data-dp-game-theme] .el-dialog__headerbtn .el-dialog__close:hover {
+  color: var(--dp-text-primary);
+}
+
+body[data-dp-game-theme] .el-dialog__body {
+  color: var(--dp-text-primary);
+}
+
+body[data-dp-game-theme] .el-dialog__footer {
+  border-top: 1px solid var(--dp-panel-border);
+}
+
 /* ---------- 表单 / 输入（曲库上传、后续管理页等） ---------- */
 body[data-dp-game-theme] .el-form-item__label {
   color: var(--dp-text-secondary);

@@ -46,7 +46,15 @@ public class DpGameRoomWebSocketHandler extends TextWebSocketHandler {
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         Object rid = session.getAttributes().get("roomId");
         if (rid instanceof String) {
-            pushService.unregister((String) rid, session);
+            pushService.removeSessionFromRoom((String) rid, session);
+        }
+    }
+
+    @Override
+    public void handleTransportError(WebSocketSession session, Throwable exception) {
+        Object rid = session.getAttributes().get("roomId");
+        if (rid instanceof String) {
+            pushService.removeSessionFromRoom((String) rid, session);
         }
     }
 /**

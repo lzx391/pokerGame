@@ -50,8 +50,8 @@
           class="dp-game-muck-pile dp-game-muck-pile--orbit"
           data-dp-muck-anchor="true"
           :style="muckStyle"
-          title="弃牌堆（庄家侧）"
-          aria-label="弃牌堆"
+          title="盖牌区（发牌猫侧）"
+          aria-label="盖牌区"
       />
       <div
           v-for="(row, displayIdx) in playersDisplayOrder"
@@ -63,16 +63,19 @@
         <span
             v-if="row.player.dealer"
             class="dp-player-card__badge dp-player-card__badge--dealer"
-        >D</span>
+            title="发牌猫"
+        >{{ dealerBadgeChar }}</span>
         <span
             v-if="row.player.blind === 1"
             class="dp-player-card__badge dp-player-card__badge--sb"
-        >SB</span>
+            title="小猫（SC）"
+        >{{ catCopy.smallBlindAbbr }}</span>
         <span
             v-if="row.player.blind === 2"
             class="dp-player-card__badge dp-player-card__badge--bb"
-        >BB</span>
-        <!-- 连胜台呢标已停用：改由「场上筹码最多」玩家卡片光效表示；日后若要恢复连胜标可解开 -->
+            title="大猫（BC）"
+        >{{ catCopy.bigBlindAbbr }}</span>
+        <!-- 连胜台呢标已停用：改由「场上积分最多」玩家卡片光效表示；日后若要恢复连胜标可解开 -->
         <!--
         <span
             v-if="!row.player.leftThisHand && (row.player.winStreak || 0) >= 2"
@@ -134,6 +137,7 @@ import {
   seatChatBubbleSide,
   seatFeltMarkerRoundTableStyle
 } from '../utils/dpGameRoundTableLayout'
+import { CAT_COPY, DEALER_BADGE_CHAR } from '../constants/dpCatThemeCopy'
 
 export default {
   name: 'GameRoundTable',
@@ -150,7 +154,7 @@ export default {
     timerUrgency: { type: String, default: 'ok' },
     timerProgressPct: { type: [Number, String], default: 0 },
     ecoMode: { type: Boolean, default: false },
-    /** 倒计时圆环随当前行动者移到台呢标（D/SB/BB）左侧，中央仅保留公共牌 */
+    /** 倒计时圆环随当前行动者移到台呢标（D/1/2）左侧，中央仅保留公共牌 */
     orbitActionTimer: { type: Boolean, default: true },
     communityCards: { type: Array, default: function () { return [] } },
     communityCardsFlipState: { type: Array, default: function () { return [] } },
@@ -167,11 +171,17 @@ export default {
     holeDealPlayerCountForAnim: { type: Number, default: 1 },
     showdownHandLeaderNicknames: { type: Array, default: function () { return [] } },
     dealerDisplayIndex: { type: Number, default: -1 },
-    /** 后端 autoSettle 写入的筹码并列最高昵称，未结算过为空数组 */
+    /** 后端 autoSettle 写入的积分并列最高昵称，未结算过为空数组 */
     chipLeaderNicknames: { type: Array, default: function () { return [] } },
     getPlayerBoxStyle: { type: Function, required: true },
     holeDealOrderFromDealer: { type: Function, required: true },
     seatChatTextFor: { type: Function, required: true }
+  },
+  data() {
+    return {
+      catCopy: CAT_COPY,
+      dealerBadgeChar: DEALER_BADGE_CHAR
+    }
   },
   computed: {
     muckStyle: function () {

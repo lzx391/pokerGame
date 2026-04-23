@@ -81,6 +81,27 @@ public class DpRoomServiceImpl {
                             lobbyDirty = true;
                         }
                     }
+                    // 观众席真人：与桌上玩家相同超时；由 HTTP 心跳 + 对局页 WebSocket 建连/保活刷新
+                    List<String> specList = room.getSpectators();
+                    if (specList != null && !specList.isEmpty()) {
+                        long tick = System.currentTimeMillis();
+                        for (String specNick : new ArrayList<>(specList)) {
+                            if (DpNpcEngine.isBotNickname(specNick)) {
+                                continue;
+                            }
+                            Long spLast = room.getSpectatorLastPresenceMs(specNick);
+                            if (spLast == null) {
+                                room.touchSpectatorPresence(specNick, tick);
+                                continue;
+                            }
+                            if (tick - spLast > DpRoomBO.getHeartTimeout()) {
+                                System.out.println("未收到观众 " + specNick + " 的心跳/WS 保活,已移出房间");
+                                if (exitRoom(room.getRoomId(), specNick)) {
+                                    lobbyDirty = true;
+                                }
+                            }
+                        }
+                    }
                     int size = 0;//检测活人逻辑
                     for (DpPlayer kickPlayer : room.getPlayers()) {
                         if (!kickPlayer.isLeftThisHand() && !DpNpcEngine.isBotPlayer(kickPlayer)) {
@@ -224,6 +245,7 @@ public class DpRoomServiceImpl {
         }
         roomMap.remove(roomId);
         dpRoomHallService.deleteRoomSummary(roomId);
+        gameRoomPushService.shutdownSubscriptionsForRoom(roomId);
     }
 
     /**
@@ -334,6 +356,9 @@ public class DpRoomServiceImpl {
                 List<String> spectators = getNewSpectators(r);
                 if(!spectators.contains(nickname)){
                     spectators.add(nickname);
+                }
+                if (!DpNpcEngine.isBotNickname(nickname)) {
+                    r.touchSpectatorPresence(nickname, System.currentTimeMillis());
                 }
             }
             syncLobbyForRoomId(roomId);
@@ -606,13 +631,14 @@ public class DpRoomServiceImpl {
         }
         String v = viewerNickname == null ? "" : viewerNickname.trim();
         String stage = room.getCurrentStage();
-        int nonFoldIn = 0;
-        for (DpPlayer x : room.getPlayers()) {
-            if (x != null && !x.isLeftThisHand() && !x.isFold()) {
-                nonFoldIn++;
-            }
-        }
-        boolean multiWayShowdown = nonFoldIn >= 2;
+        // int nonFoldIn = 0;
+        // for (DpPlayer x : room.getPlayers()) {
+        //     if (x != null && !x.isLeftThisHand() && !x.isFold()) {
+        //         nonFoldIn++;
+        //     }
+        // }
+        // boolean multiWayShowdown = nonFoldIn >= 2;
+        boolean multiWayShowdown = true;
         //结算摊牌阶段可以摊牌公开底牌
         boolean revealOthers =
                 ("showdown".equals(stage) && multiWayShowdown)
@@ -660,6 +686,9 @@ public class DpRoomServiceImpl {
             //如果观众里没自己就给自己加进来
             if (!spectators.contains(nickname)) {
                 spectators.add(nickname);
+            }
+            if (!DpNpcEngine.isBotNickname(nickname)) {
+                r.touchSpectatorPresence(nickname, System.currentTimeMillis());
             }
             Integer uid = resolveAndValidateUserId(userId, nickname);
             if (uid != null) {
@@ -840,6 +869,7 @@ public class DpRoomServiceImpl {
         if (spectators != null) {
             spectators.remove(nickname);
         }
+        r.removeSpectatorPresence(nickname);
         if (waiters != null) {
             waiters.remove(nickname);
         }
@@ -1044,6 +1074,9 @@ public class DpRoomServiceImpl {
             if (p.getChips() < r.getBigBlindChips()) {
                 if (!spectators.contains(p.getNickname())) {
                     spectators.add(p.getNickname());
+                    if (!DpNpcEngine.isBotPlayer(p)) {
+                        r.touchSpectatorPresence(p.getNickname(), System.currentTimeMillis());
+                    }
                 }
             } else {
                 canPlay.add(p);
@@ -1069,6 +1102,7 @@ public class DpRoomServiceImpl {
                 // 这些人已经回到牌桌，不再属于观众席
                 if (spectators != null) {//从观众席里拉下来了
                     spectators.remove(name);
+                    r.removeSpectatorPresence(name);
                 }
             }
             waiters.clear();//及时清理掉等待者列表
@@ -1272,20 +1306,24 @@ public class DpRoomServiceImpl {
                 r.getCommunityCards().add(deck.remove(0));
                 r.getCommunityCards().add(deck.remove(0));
                 r.setCurrentStage("flop");
+                System.out.println("设置flop阶段");
                 observedHandService.recordBoardState(r);
                 break;
             case "flop":
                 r.getCommunityCards().add(deck.remove(0));
                 r.setCurrentStage("turn");
                 observedHandService.recordBoardState(r);
+                System.out.println("设置turn阶段");
                 break;
             case "turn":
                 r.getCommunityCards().add(deck.remove(0));
                 r.setCurrentStage("river");
                 observedHandService.recordBoardState(r);
+                System.out.println("设置river阶段");
                 break;
             case "river":
                 r.setCurrentStage("showdown");
+                System.out.println("设置showdown阶段");
                 calculatePots(r);             // 进入摊牌时计算主池/边池
                 r.setCurrentActorIndex(-1);
                 // 摊牌后立即自动结算
@@ -1474,7 +1512,9 @@ public class DpRoomServiceImpl {
     private void autoSettle(DpRoomBO r) {
         if (r == null || !r.isPlaying()) return;
 
-        final boolean lastHandPublic = countPlayersStillInHand(r) >= 2;
+        // 至少 1 人未弃牌收池时也应公开其底牌；原先 >=2 会在「对手弃牌、独赢」时置 false，
+        // 与 sanitizeHoleCardsForViewer 在 settled 阶段依赖本标志矛盾，导致非房主看不到赢家手牌。
+        final boolean lastHandPublic = countPlayersStillInHand(r) >= 1;
 
         // 没有任何下注，直接标记为结算完成
         if (r.getPot() <= 0 && (r.getPots() == null || r.getPots().isEmpty())) {
@@ -1881,7 +1921,12 @@ public class DpRoomServiceImpl {
         List<DpPlayer> afterChips = new ArrayList<>();
         for (DpPlayer p : players) {
             if (p.getChips() < r.getBigBlindChips()) {
-                if (!spectators.contains(p.getNickname())) spectators.add(p.getNickname());
+                if (!spectators.contains(p.getNickname())) {
+                    spectators.add(p.getNickname());
+                    if (!DpNpcEngine.isBotPlayer(p)) {
+                        r.touchSpectatorPresence(p.getNickname(), System.currentTimeMillis());
+                    }
+                }
             } else {
                 afterChips.add(p);
             }
@@ -1913,6 +1958,9 @@ public class DpRoomServiceImpl {
         for (String name : kicked) {
             if (!spectators.contains(name)) {
                 spectators.add(name);
+                if (!DpNpcEngine.isBotNickname(name)) {
+                    r.touchSpectatorPresence(name, System.currentTimeMillis());
+                }
             }
         }
 
@@ -1977,10 +2025,15 @@ public class DpRoomServiceImpl {
     public void heartbeat(String roomId, String nickname) {
         DpRoomBO r = roomMap.get(roomId);
         if (r == null) return;
+        long now = System.currentTimeMillis();
         for (DpPlayer p : r.getPlayers()) {
             if (p.getNickname().equals(nickname)) {
-                p.setLastHeartBeat(System.currentTimeMillis());
+                p.setLastHeartBeat(now);
             }
+        }
+        List<String> specs = r.getSpectators();
+        if (specs != null && specs.contains(nickname)) {
+            r.touchSpectatorPresence(nickname, now);
         }
     }
 }

@@ -34,8 +34,8 @@
         <div style="font-size:12px; color:#8c8c8c; margin-bottom:6px;">
           你可以在下一局加入不同风格的机器人玩家，当前支持：
           <span style="font-weight:bold;">BOT_Lag</span>（简单鱼式，偏被动，适合新手练习）、
-          <span style="font-weight:bold;">BOT_Maniac</span>（疯子风格，喜欢乱加注）、
-          <span style="font-weight:bold;">BOT_Tag</span>（紧凶风格，范围较紧、价值下注为主）、
+          <span style="font-weight:bold;">BOT_Maniac</span>（激进风格，喜欢乱加投）、
+          <span style="font-weight:bold;">BOT_Tag</span>（紧凶风格，范围较紧、偏价值投入）、
           <span style="font-weight:bold;">BOT_Shark</span>（会简单“读对手”的聪明型）、
           <span style="font-weight:bold;">BOT_LLM</span>（大模型决策，需在服务端配置方舟密钥与接入点）。
         </div>
@@ -48,7 +48,7 @@
                      background:#faad14; color:#fff; margin-right:8px;"
               @click="$emit('add-demo-bot')"
             >
-              {{ demoBotAdding ? '正在添加 BOT_Lag...' : '添加 BOT_Lag 到下一局' }}
+              {{ demoBotAdding ? '正在添加 BOT_Lag...' : '添加新手猫 BOT_Lag 到下一局' }}
             </button>
             <span v-if="demoBotAddedTip" style="font-size:12px; color:#595959;">{{ demoBotAddedTip }}</span>
           </div>
@@ -60,7 +60,7 @@
                      background:#f5222d; color:#fff; margin-right:8px;"
               @click="$emit('add-maniac-bot')"
             >
-              {{ maniacBotAdding ? '正在添加 BOT_Maniac...' : '添加疯子 BOT_Maniac 到下一局' }}
+              {{ maniacBotAdding ? '正在添加 BOT_Maniac...' : '添加激进猫 BOT_Maniac 到下一局' }}
             </button>
             <span v-if="maniacBotAddedTip" style="font-size:12px; color:#595959;">{{ maniacBotAddedTip }}</span>
           </div>
@@ -72,7 +72,7 @@
                      background:#389e0d; color:#fff; margin-right:8px;"
               @click="$emit('add-tag-bot')"
             >
-              {{ tagBotAdding ? '正在添加 BOT_Tag...' : '添加紧凶 BOT_Tag 到下一局' }}
+              {{ tagBotAdding ? '正在添加 BOT_Tag...' : '添加保守猫 BOT_Tag 到下一局' }}
             </button>
             <span v-if="tagBotAddedTip" style="font-size:12px; color:#595959;">{{ tagBotAddedTip }}</span>
           </div>
@@ -84,7 +84,7 @@
                      background:#722ed1; color:#fff; margin-right:8px;"
               @click="$emit('add-shark-bot')"
             >
-              {{ sharkBotAdding ? '正在添加 BOT_Shark...' : '添加聪明 BOT_Shark 到下一局' }}
+              {{ sharkBotAdding ? '正在添加 BOT_Shark...' : '添加聪明猫 BOT_Shark 到下一局' }}
             </button>
             <span v-if="sharkBotAddedTip" style="font-size:12px; color:#595959;">{{ sharkBotAddedTip }}</span>
           </div>
@@ -96,7 +96,7 @@
                      background:#08979c; color:#fff; margin-right:8px;"
               @click="$emit('add-llm-bot')"
             >
-              {{ llmBotAdding ? '正在添加 BOT_LLM...' : '添加大模型 BOT_LLM 到下一局' }}
+              {{ llmBotAdding ? '正在添加 BOT_LLM...' : '添加大模型猫 BOT_LLM 到下一局' }}
             </button>
             <span v-if="llmBotAddedTip" style="font-size:12px; color:#595959;">{{ llmBotAddedTip }}</span>
           </div>

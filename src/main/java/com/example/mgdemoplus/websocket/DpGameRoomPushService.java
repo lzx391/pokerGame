@@ -58,11 +58,17 @@ public class DpGameRoomPushService {
     }
 
     public void register(String roomId, WebSocketSession session) {
-        // 已学习，注册房间订阅者
         roomSessions.computeIfAbsent(roomId, k -> ConcurrentHashMap.newKeySet()).add(session);
     }
 
-    public void unregister(String roomId, WebSocketSession session) {
+    /**
+     * 连接关闭、传输错误或广播时发现僵死会话时调用：仅从推送订阅集合移除会话。
+     * 房间内成员进退由 HTTP {@code /dpRoom/heartbeat} 与 {@link DpRoomServiceImpl} 定时逻辑负责，不因 WS 断线 {@code exitRoom}。
+     */
+    public void removeSessionFromRoom(String roomId, WebSocketSession session) {
+        if (session == null) {
+            return;
+        }
         lastBroadcastPayloadBySession.remove(session);
         Set<WebSocketSession> set = roomSessions.get(roomId);
         if (set == null) {
@@ -72,6 +78,37 @@ public class DpGameRoomPushService {
         if (set.isEmpty()) {
             roomSessions.remove(roomId);
             lastRoomMusicJson.remove(roomId);
+        }
+    }
+
+    /**
+     * 房间对象已从 {@link DpRoomServiceImpl} 移除时调用：关断该房全部长连并清理本地状态（避免 roomMap 已无房而 WS 仍悬挂）。
+     */
+    public void shutdownSubscriptionsForRoom(String roomId) {
+        if (roomId == null || roomId.isEmpty()) {
+            return;
+        }
+        lastRoomMusicJson.remove(roomId);
+        Set<WebSocketSession> set = roomSessions.remove(roomId);
+        if (set == null || set.isEmpty()) {
+            return;
+        }
+        for (WebSocketSession s : new ArrayList<>(set)) {
+            lastBroadcastPayloadBySession.remove(s);
+            try {
+                if (s.isOpen()) {
+                    synchronized (s) {
+                        s.sendMessage(new TextMessage(ROOM_CLOSED));
+                    }
+                }
+            } catch (Exception e) {
+                log.debug("shutdownSubscriptionsForRoom send roomClosed failed", e);
+            }
+            try {
+                s.close(CloseStatus.GOING_AWAY);
+            } catch (IOException ignored) {
+                // ignore
+            }
         }
     }
 
@@ -247,7 +284,7 @@ public class DpGameRoomPushService {
         }
         for (WebSocketSession s : new ArrayList<>(set)) {
             if (!s.isOpen()) {
-                set.remove(s);
+                removeSessionFromRoom(roomId, s);
                 continue;
             }
             try {
@@ -256,7 +293,7 @@ public class DpGameRoomPushService {
                 }
             } catch (IOException e) {
                 log.debug("WebSocket chat send failed, closing session", e);
-                set.remove(s);
+                removeSessionFromRoom(roomId, s);
                 try {
                     s.close();
                 } catch (IOException ignored) {
@@ -318,8 +355,7 @@ public class DpGameRoomPushService {
             }
             for (WebSocketSession s : new ArrayList<>(set)) {
                 if (!s.isOpen()) {
-                    set.remove(s);
-                    lastBroadcastPayloadBySession.remove(s);
+                    removeSessionFromRoom(roomId, s);
                     continue;
                 }
                 String nick = (String) s.getAttributes().get("viewerNickname");
@@ -342,8 +378,7 @@ public class DpGameRoomPushService {
                     lastBroadcastPayloadBySession.put(s, json);
                 } catch (IOException e) {
                     log.debug("WebSocket send failed, closing session", e);
-                    set.remove(s);
-                    lastBroadcastPayloadBySession.remove(s);
+                    removeSessionFromRoom(roomId, s);
                     try {
                         s.close();
                     } catch (IOException ignored) {
@@ -353,6 +388,7 @@ public class DpGameRoomPushService {
             }
             if (live == null) {
                 for (WebSocketSession s : new ArrayList<>(set)) {
+                    lastBroadcastPayloadBySession.remove(s);
                     try {
                         s.close(CloseStatus.GOING_AWAY);
                     } catch (IOException ignored) {
@@ -360,6 +396,7 @@ public class DpGameRoomPushService {
                     }
                 }
                 roomSessions.remove(roomId);
+                lastRoomMusicJson.remove(roomId);
             }
         } catch (Exception e) {
             log.warn("WebSocket broadcast failed roomId={}", roomId, e);

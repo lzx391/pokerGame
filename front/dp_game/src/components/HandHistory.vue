@@ -1,7 +1,8 @@
 <template>
   <div
     :class="{ 'dp-game-root': !embedded }"
-    :data-dp-game-theme="embedded ? undefined : gameUiTheme"
+    :data-dp-game-theme="embedded ? undefined : effectiveThemeForCss"
+    :style="embedded ? {} : customThemeInlineStyle"
   >
   <div class="hand-history-page hand-history-page--dp">
     <div class="hand-history-page__header">
@@ -9,14 +10,15 @@
       <div class="hand-history-page__header-actions">
         <div v-if="!embedded" class="dp-game-theme-row hand-history-page__theme-row">
           <span class="dp-game-theme-row__label">界面主题</span>
-          <select
-            class="dp-game-theme-select"
-            aria-label="选择界面主题"
-            :value="gameUiTheme"
-            @change="onLobbyThemeChange($event.target.value)"
-          >
-            <option v-for="t in gameThemeOptions" :key="t.id" :value="t.id">{{ t.label }}</option>
-          </select>
+            <dp-theme-picker
+              :game-ui-theme="gameUiTheme"
+              :theme-options="gameThemeOptions"
+              :custom-theme-base="customThemeBase"
+              :custom-theme-overrides="customThemeOverrides"
+              @input-theme="onLobbyThemeChange($event)"
+              @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
+              @custom-overrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
+            />
         </div>
         <button type="button" class="hand-history-page__back" @click="goBack">
           {{ embedded ? '关闭' : '返回大厅' }}
@@ -47,7 +49,7 @@
                 <th>结束时间</th>
                 <th>房间</th>
                 <th>主池</th>
-                <th>本手盈亏</th>
+                <th>鱼干输赢</th>
                 <!-- <th>座位</th> -->
                 <th>角色</th>
                 <th>操作</th>
@@ -191,9 +193,9 @@ export default {
     },
     roleLabel(r) {
       var parts = []
-      if (r.dealer) parts.push('庄')
-      if (r.blindPos === 1) parts.push('小盲')
-      else if (r.blindPos === 2) parts.push('大盲')
+      if (r.dealer) parts.push('发牌猫')
+      if (r.blindPos === 1) parts.push('SC')
+      else if (r.blindPos === 2) parts.push('BC')
       if (!parts.length) parts.push('—')
       return parts.join(' ')
     },
@@ -228,9 +230,12 @@ export default {
 
 <style scoped>
 .hand-history-page {
-  max-width: 900px;
+  max-width: min(900px, 100%);
+  width: 100%;
   margin: 0 auto;
-  padding: 24px 16px;
+  padding: clamp(16px, 4vw, 24px) clamp(12px, 3vw, 16px);
+  box-sizing: border-box;
+  min-width: 0;
 }
 .hand-history-page__header {
   display: flex;
@@ -293,10 +298,18 @@ export default {
 }
 .hand-history-table-wrap {
   overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
   margin-top: 12px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  touch-action: pan-x pan-y;
 }
 .hand-history-table {
   width: 100%;
+  min-width: 680px;
   border-collapse: collapse;
   font-size: 13px;
 }

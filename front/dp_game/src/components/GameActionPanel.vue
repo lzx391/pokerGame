@@ -6,7 +6,7 @@
     <!-- 结算后准备阶段（原 GameSettledPreparePanel） -->
     <template v-if="settledPrepare">
       <div class="dp-action-panel__settled-title">
-        本局已结算，请准备下一局（约30秒后未准备将移到观众席）
+        已进入结算阶段，请选择是否继续下一局（约 30 秒未操作将移至观众席）
       </div>
       <div class="dp-action-panel__settled-count">
         <div class="dp-timer-ring dp-timer-ring--sm">
@@ -14,8 +14,8 @@
         </div>
         <span class="dp-action-panel__settled-count-label">准备倒计时</span>
       </div>
-      <div class="dp-action-panel__stack-pair dp-action-panel__stack-pair--settled" aria-label="后手与本轮下注">
-        <span class="dp-action-panel__stack-pill">后手 <strong>{{ myChips }}</strong></span>
+      <div class="dp-action-panel__stack-pair dp-action-panel__stack-pair--settled" aria-label="持有小鱼干与本轮已出">
+        <span class="dp-action-panel__stack-pill">小鱼干 <strong>{{ myChips }}</strong></span>
         <span class="dp-action-panel__bet-pill">本轮 {{ myBet }}</span>
       </div>
       <div class="dp-action-panel__settled-actions">
@@ -26,7 +26,7 @@
             :class="{ 'dp-action-panel__settled-btn--dim': myChips < bigBlind }"
             @click="$emit('toggle-ready')"
         >
-          {{ myReady ? '取消准备' : (myChips >= bigBlind ? '准备下一局' : ('积分不足大盲(' + bigBlind + ')，无法准备')) }}
+          {{ myReady ? '取消准备' : (myChips >= bigBlind ? '准备下一局' : ('小鱼干不足大猫注(' + bigBlind + ')，无法准备')) }}
         </button>
         <button
             v-if="myChips < bigBlind"
@@ -34,29 +34,29 @@
             class="dp-btn--rebuy dp-action-panel__settled-btn"
             @click="$emit('rebuy')"
         >
-          补码到初始积分
+          补满至初始小鱼干
         </button>
       </div>
     </template>
 
-    <!-- 下注行动 -->
+    <!-- 本轮投入行动 -->
     <template v-else>
       <div class="dp-action-panel__turn">
-        轮到你行动了（30秒超时自动弃牌）
+        轮到你行动了（30秒超时自动盖牌）
       </div>
-      <div class="dp-action-panel__stack-pair" aria-label="后手与本轮下注">
-        <span class="dp-action-panel__stack-pill">后手 {{ myChips }}</span>
+      <div class="dp-action-panel__stack-pair" aria-label="持有小鱼干与本轮已出">
+        <span class="dp-action-panel__stack-pill">小鱼干 {{ myChips }}</span>
         <span class="dp-action-panel__bet-pill">本轮 {{ myBet }}</span>
       </div>
       <div class="dp-action-panel__meta">
-        当前跟注额: {{ currentBetToCall }} | 你已下注: {{ myBet }} | 还需跟: {{ callAmount }}
+        当前需对齐: {{ currentBetToCall }} | 你已投入: {{ myBet }} | 还需补: {{ callAmount }}
       </div>
       <div class="dp-action-panel__raise-hint">
-        <!-- 合法加注至少抬到总注 <strong>{{ minTotalToRaise }}</strong> -->
+        <!-- 合法加投至少抬到总投入 <strong>{{ minTotalToRaise }}</strong> -->
         <span class="dp-action-panel__raise-hint-sub">（本圈最小增量 {{ lastRaiseIncrement }}）</span>
       </div>
 
-      <div class="dp-action-panel__presets" aria-label="按底池比例快捷加注">
+      <div class="dp-action-panel__presets" aria-label="按小鱼干池比例快捷加投">
         <button type="button" class="dp-btn--pot-preset" @click="setPotFrac(1 / 3)">
           ⅓池
         </button>
@@ -76,15 +76,15 @@
             type="button"
             class="dp-btn--pot-preset dp-btn--mini-raise"
             :disabled="myChips < 1"
-            :title="'本注至少 ' + minRaise + '（总注到 ' + minTotalToRaise + '）'"
+            :title="'本笔至少 ' + minRaise + '（总投入到 ' + minTotalToRaise + '）'"
             @click="applyMiniRaise"
         >
-          最小加注 {{ minRaise }}
+          最小加投 {{ minRaise }}
         </button>
       </div>
 
       <div class="dp-action-panel__slider-row">
-        <label class="dp-raise-slider-label" for="dp-raise-slider">本注筹码</label>
+        <label class="dp-raise-slider-label" for="dp-raise-slider">本笔投入</label>
         <input
             id="dp-raise-slider"
             type="range"
@@ -105,7 +105,7 @@
           </div>
 
           <button type="button" class="dp-btn--call" @click="$emit('call')">
-            {{ callAmount > 0 ? '跟注 ' + callAmount : '过牌' }}
+            {{ callAmount > 0 ? '跟投 ' + callAmount : '观望' }}
           </button>
 
           <div class="dp-raise-controls">
@@ -139,16 +139,16 @@
               :style="{ opacity: raiseAmount < minRaise ? 0.45 : 1 }"
               @click="$emit('raise')"
           >
-            加注
+            加投
           </button>
         </div>
 
-        <div class="dp-action-panel__row dp-action-panel__row--commit" aria-label="全下与弃牌">
+        <div class="dp-action-panel__row dp-action-panel__row--commit" aria-label="全投与盖牌">
           <button type="button" class="dp-btn--allin" @click="$emit('all-in')">
-            All-In ({{ myChips }})
+            全投 ({{ myChips }})
           </button>
           <button type="button" class="dp-btn--fold" @click="$emit('fold')">
-            弃牌
+            盖牌
           </button>
         </div>
       </div>
@@ -160,7 +160,7 @@
 export default {
   name: 'GameActionPanel',
   props: {
-    /** true 时显示结算后准备 UI，隐藏下注区 */
+    /** true 时显示结算后准备 UI，隐藏行动区 */
     settledPrepare: { type: Boolean, default: false },
     readyTimeLeft: { type: Number, default: 0 },
     myReady: { type: Boolean, default: false },
@@ -178,7 +178,7 @@ export default {
     raiseAmount: { type: Number, default: 0 }
   },
   computed: {
-    /** 对齐用的小盲单位：prop 无效时用大盲/2，避免退化成 1 导致 23 等无法吸到 5 的倍数 */
+    /** 对齐用的小底分单位：prop 无效时用大底分/2，避免退化成 1 导致 23 等无法吸到 5 的倍数 */
     snapChipUnit() {
       var sb = Number(this.smallBlind)
       if (isFinite(sb) && sb >= 1) return Math.floor(sb)
@@ -219,7 +219,7 @@ export default {
       this.$emit('update:raiseAmount', n)
     },
     /**
-     * 总下注额对齐到小盲倍数：先向下取整档；若低于合法最小加注则取「≥minRaise 的最小小盲倍数」。
+     * 总投入对齐到小底分倍数：先向下取整档；若低于合法最小加投则取「≥minRaise 的最小小底分倍数」。
      */
     snapBetToSmallBlindMultiple(total) {
       var sb = this.snapChipUnit
@@ -235,7 +235,7 @@ export default {
       var pot = Number(this.pot) || 0
       var call = Math.max(0, Number(this.callAmount) || 0)
       var base = pot + call
-      // 与「向下吸到小盲倍数」一致：比例部分先向下取整，再交给 clamp 对齐
+      // 与「向下吸到小底分倍数」一致：比例部分先向下取整，再交给 clamp 对齐
       var extra = Math.floor(base * frac)
       var want = call + extra
       this.clampEmit(want)

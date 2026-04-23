@@ -12,8 +12,9 @@
 }
 
 #app.app--auth .app-container {
-  max-width: 440px;
-  padding: 24px 18px 40px;
+  max-width: min(100%, 28rem);
+  padding: clamp(18px, 4.5vw, 28px) clamp(14px, 3.5vw, 20px) clamp(28px, 7vw, 44px);
+  box-sizing: border-box;
 }
 
 #app.app--auth .app-auth-theme-bar {
@@ -49,8 +50,8 @@
   background: var(--dp-panel-bg);
   border: 1px solid var(--dp-panel-border);
   box-shadow: var(--dp-panel-shadow);
-  border-radius: 12px;
-  padding: 28px 24px;
+  border-radius: clamp(10px, 2.5vw, 14px);
+  padding: clamp(20px, 5vw, 32px) clamp(18px, 4vw, 28px);
   min-height: 280px;
 }
 

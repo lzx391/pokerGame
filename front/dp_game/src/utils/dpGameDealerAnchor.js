@@ -1,6 +1,6 @@
 /**
- * 发牌动画起点（视口坐标）：优先为桌面 **弃牌堆**（随庄位绕桌，`data-dp-muck-anchor`），
- * 与「从庄家一侧发牌」一致；若无则回退 `data-dp-dealer-anchor`；再回退视口安全位置。
+ * 发牌动画起点（视口坐标）：优先为桌面 **盖牌区**（随发牌位绕桌，`data-dp-muck-anchor`），
+ * 与「从发牌位一侧发牌」一致；若无则回退 `data-dp-dealer-anchor`；再回退视口安全位置。
  */
 export function getDealerAnchorViewportPoint() {
   if (typeof document === 'undefined') return null

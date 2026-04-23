@@ -30,7 +30,7 @@
 
     <div v-if="stage === 'showdown'">
       <div class="dp-owner-panel__showdown-title">
-        摊牌阶段 - 请为每个池选择赢家
+        结算阶段 — 请为每个池选择赢家
       </div>
 
       <template v-if="pots.length > 0">
@@ -82,13 +82,13 @@
           :style="{ opacity: selectedWinners.length === 0 ? 0.4 : 1 }"
           @click="$emit('confirm-judge-win')"
         >
-          确认结算（底池 {{ pot }} 分给 {{ selectedWinners.length }} 人）
+          确认结算（小鱼干池 {{ pot }} 分给 {{ selectedWinners.length }} 人）
         </button>
       </template>
     </div>
 
     <div v-if="!inSheet" class="dp-owner-panel__footer">
-      摊牌后系统会自动结算并在准备阶段结束后开启下一局，无需手动点击“重新发牌”
+      进入结算阶段后系统会自动分池，并在大家准备完毕后开启下一局，无需手动点击「重新发牌」
     </div>
   </div>
 </template>

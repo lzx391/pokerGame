@@ -1,17 +1,22 @@
 <template>
-  <div class="dp-game-root" :data-dp-game-theme="gameUiTheme">
+  <div
+    class="dp-game-root"
+    :data-dp-game-theme="effectiveThemeForCss"
+    :style="customThemeInlineStyle"
+  >
     <div class="dp-lobby-inner dp-lobby-inner--wide music-upload">
       <div class="music-upload__toolbar">
         <div class="dp-game-theme-row music-upload__theme-row">
           <span class="dp-game-theme-row__label">界面主题</span>
-          <select
-            class="dp-game-theme-select"
-            aria-label="选择界面主题"
-            :value="gameUiTheme"
-            @change="onLobbyThemeChange($event.target.value)"
-          >
-            <option v-for="t in gameThemeOptions" :key="t.id" :value="t.id">{{ t.label }}</option>
-          </select>
+            <dp-theme-picker
+              :game-ui-theme="gameUiTheme"
+              :theme-options="gameThemeOptions"
+              :custom-theme-base="customThemeBase"
+              :custom-theme-overrides="customThemeOverrides"
+              @input-theme="onLobbyThemeChange($event)"
+              @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
+              @custom-overrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
+            />
         </div>
       </div>
       <div class="music-upload__header">
@@ -124,7 +129,7 @@ export default {
       tracks: [],
       listLoading: true,
       listError: '',
-      /** 与 dp-lobby-inner 640px 对齐：小屏表格最后一列（试听）常溢出视口 */
+      /** 与窄视口对齐：表格最后一列（试听）易溢出，改用紧凑列 */
       useCompactTrackList: false
     }
   },
@@ -137,7 +142,8 @@ export default {
     this.loadList()
   },
   mounted() {
-    this._mqCompact = window.matchMedia('(max-width: 639px)')
+    /* 平板竖屏 / 手机横屏仍常 <900px 可用宽：宽表 + 试听列易溢出，与表格模式统一用卡片更稳 */
+    this._mqCompact = window.matchMedia('(max-width: 1023px)')
     this._onMqCompact = () => {
       this.useCompactTrackList = this._mqCompact.matches
     }
@@ -233,6 +239,9 @@ export default {
 .music-upload {
   padding: 16px 0 28px;
   text-align: left;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 .music-upload__toolbar {
   margin-bottom: 8px;
@@ -276,7 +285,7 @@ export default {
   margin-bottom: 8px;
 }
 .music-upload__form {
-  max-width: 560px;
+  max-width: min(560px, 100%);
 }
 .music-upload__tip {
   margin-left: 8px;
@@ -297,7 +306,12 @@ export default {
   overflow-x: auto;
   overflow-y: visible;
   max-height: none;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
 }
 .music-upload__cards {
   padding: 12px 14px;
@@ -351,6 +365,7 @@ export default {
 /* Element 表格默认可能带内部滚动高度；大厅页由整页 body 滚动 */
 .music-upload__table-wrap >>> .el-table {
   max-height: none !important;
+  min-width: 720px;
 }
 .music-upload__table-wrap >>> .el-table__body-wrapper {
   max-height: none !important;

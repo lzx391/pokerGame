@@ -1,16 +1,21 @@
 <template>
-  <div class="dp-game-root" :data-dp-game-theme="gameUiTheme">
+  <div
+    class="dp-game-root"
+    :data-dp-game-theme="effectiveThemeForCss"
+    :style="customThemeInlineStyle"
+  >
     <div class="dp-lobby-inner room-inner">
       <div class="dp-game-theme-row room-theme-row">
         <span class="dp-game-theme-row__label">界面主题</span>
-        <select
-          class="dp-game-theme-select"
-          aria-label="选择界面主题"
-          :value="gameUiTheme"
-          @change="onLobbyThemeChange($event.target.value)"
-        >
-          <option v-for="t in gameThemeOptions" :key="t.id" :value="t.id">{{ t.label }}</option>
-        </select>
+          <dp-theme-picker
+          :game-ui-theme="gameUiTheme"
+          :theme-options="gameThemeOptions"
+          :custom-theme-base="customThemeBase"
+          :custom-theme-overrides="customThemeOverrides"
+          @input-theme="onLobbyThemeChange($event)"
+          @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
+          @custom-overrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
+        />
       </div>
 
       <section class="dp-lobby-panel room-panel">
@@ -18,10 +23,10 @@
         <p class="room-panel__line">房间号：<strong>{{ roomId }}</strong></p>
         <p class="room-panel__line">房主：{{ displayNickname(room?.owner) }}</p>
         <p v-if="room && room.smallBlindChips != null && room.bigBlindChips != null" class="room-panel__line">
-          盲注：{{ room.smallBlindChips }} / {{ room.bigBlindChips }}（小盲 / 大盲）
+          开局小鱼干数量：{{ room.smallBlindChips }} / {{ room.bigBlindChips }}（小猫 SC / 大猫 BC）
         </p>
         <p v-if="room && room.startingStackBb != null" class="room-panel__line">
-          每人初始：{{ room.startingStackBb }}BB（{{ room.startingChips != null ? room.startingChips : '—' }} 筹码）
+          每人初始：{{ room.startingStackBb }} 倍（{{ room.startingChips != null ? room.startingChips : '—' }} 小鱼干）
         </p>
         <p v-if="room && room.passwordProtected" class="room-panel__line">进房需密码（从大厅加入者需输入）</p>
 

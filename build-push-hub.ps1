@@ -1,7 +1,3 @@
-# 在项目根目录一键：build 三个镜像并 push 到 Docker Hub
-# 用法：.\build-push-hub.ps1
-# 可选：.\build-push-hub.ps1 -Tag v1.0.1
-# 与 docker-compose.hub.yml 中 DOCKER_REGISTRY、IMAGE_TAG 默认值一致
 param(
     [string]$Registry = "1933886418",
     [string]$Tag = "v1.0.1"
