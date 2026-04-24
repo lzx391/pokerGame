@@ -28,17 +28,17 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
         this.objectMapper = objectMapper;
     }
 
-    @Override
+    @Override // 表示重写父接口的方法（AuthenticationEntryPoint#commence）
     public void commence(HttpServletRequest request, HttpServletResponse response,
                          AuthenticationException authException) throws IOException {
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // 设置HTTP响应状态为401未认证
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE); // 响应类型设置为JSON
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name()); // 响应编码为UTF-8
 
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("success", false);
-        body.put("code", ResultCode.ERROR);
-        body.put("message", "未登录或登录已失效，请重新登录");
-        objectMapper.writeValue(response.getOutputStream(), body);
+        Map<String, Object> body = new LinkedHashMap<>(); // 创建有序Map用于存放响应体
+        body.put("success", false); // success字段=false，表示操作失败
+        body.put("code", ResultCode.ERROR); // code字段=ResultCode.ERROR，统一错误编码
+        body.put("message", "未登录或登录已失效，请重新登录"); // message字段=中文错误提示
+        objectMapper.writeValue(response.getOutputStream(), body); // 用ObjectMapper序列化Map为JSON并写入响应输出流
     }
 }

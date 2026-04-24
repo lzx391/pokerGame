@@ -57,13 +57,17 @@ public class DpGameRoomPushService {
         this.roomService = roomService;
     }
 
+    // ====== 房间会话注册与注销相关 ======
+
+    /**
+     * 将WebSocketSession会话注册到指定房间。
+     */
     public void register(String roomId, WebSocketSession session) {
         roomSessions.computeIfAbsent(roomId, k -> ConcurrentHashMap.newKeySet()).add(session);
     }
 
     /**
-     * 连接关闭、传输错误或广播时发现僵死会话时调用：仅从推送订阅集合移除会话。
-     * 房间内成员进退由 HTTP {@code /dpRoom/heartbeat} 与 {@link DpRoomServiceImpl} 定时逻辑负责，不因 WS 断线 {@code exitRoom}。
+     * 连接关闭、传输错误或广播时发现僵死会话时调用: 仅从推送订阅集合移除会话。
      */
     public void removeSessionFromRoom(String roomId, WebSocketSession session) {
         if (session == null) {
@@ -82,7 +86,7 @@ public class DpGameRoomPushService {
     }
 
     /**
-     * 房间对象已从 {@link DpRoomServiceImpl} 移除时调用：关断该房全部长连并清理本地状态（避免 roomMap 已无房而 WS 仍悬挂）。
+     * 房间对象已从 {@link DpRoomServiceImpl} 移除时调用: 关断该房全部长连并清理本地状态。
      */
     public void shutdownSubscriptionsForRoom(String roomId) {
         if (roomId == null || roomId.isEmpty()) {
@@ -112,12 +116,10 @@ public class DpGameRoomPushService {
         }
     }
 
+    // ====== 客户端消息处理模块 ======
+
     /**
-     * 处理客户端经同一 WS 连接发来的文本：
-     * <ul>
-     * <li>{@code {"_ws":"chatSend",...}} → 房间聊天</li>
-     * <li>{@code {"_ws":"roomMusicSync",...}} → 曲库 BGM 同步（不参与房间快照去重）</li>
-     * </ul>
+     * 处理客户端经同一 WS 连接发来的文本消息。
      */
     public void handleClientTextMessage(WebSocketSession session, String payload) {
         if (payload == null || payload.isEmpty()) {
@@ -143,6 +145,9 @@ public class DpGameRoomPushService {
         }
     }
 
+    /**
+     * 聊天模块: 处理房间内聊天的发送与广播
+     */
     private void handleChatSend(WebSocketSession session, JsonNode root) {
         Object ridObj = session.getAttributes().get("roomId");
         if (!(ridObj instanceof String)) {
@@ -183,7 +188,7 @@ public class DpGameRoomPushService {
     }
 
     /**
-     * 客户端 {@code roomMusicSync}：校验昵称在房间内后广播 {@code _ws=roomMusic}，并记下最后状态供新连接补发。
+     * 曲库BGM模块: 客户端 roomMusicSync 处理与广播
      */
     private void handleRoomMusicSync(WebSocketSession session, JsonNode root) {
         Object ridObj = session.getAttributes().get("roomId");
@@ -250,70 +255,23 @@ public class DpGameRoomPushService {
         }
     }
 
-    private static boolean isSafeMusicWebPath(String path) {
-        if (path == null || path.isEmpty()) {
-            return false;
-        }
-        if (path.contains("..") || path.indexOf('\\') >= 0) {
-            return false;
-        }
-        if (!path.startsWith("/music/")) {
-            return false;
-        }
-        String rest = path.substring("/music/".length());
-        return rest.length() > 0 && rest.matches("[a-zA-Z0-9._-]+");
-    }
+    // ========== 推送与快照/广播相关 ==========
 
-    private static boolean isNicknameInRoom(DpRoomBO room, String nickname) {
-        List<DpPlayer> players = room.getPlayers();
-        if (players != null) {
-            for (DpPlayer p : players) {
-                if (p != null && nickname.equals(p.getNickname())) {
-                    return true;
-                }
-            }
-        }
-        List<String> spectators = room.getSpectators();
-        return spectators != null && spectators.contains(nickname);
-    }
-
-    private void broadcastRawJsonToRoom(String roomId, String json) {
-        Set<WebSocketSession> set = roomSessions.get(roomId);
-        if (set == null || set.isEmpty()) {
-            return;
-        }
-        for (WebSocketSession s : new ArrayList<>(set)) {
-            if (!s.isOpen()) {
-                removeSessionFromRoom(roomId, s);
-                continue;
-            }
-            try {
-                synchronized (s) {
-                    s.sendMessage(new TextMessage(json));
-                }
-            } catch (IOException e) {
-                log.debug("WebSocket chat send failed, closing session", e);
-                removeSessionFromRoom(roomId, s);
-                try {
-                    s.close();
-                } catch (IOException ignored) {
-                    // ignore
-                }
-            }
-        }
-    }
-
-    // 已学习，判断房间是否有订阅者，如果房间有订阅者，则返回true，如果房间没有订阅者，则返回false
+    /**
+     * 判断房间是否有订阅者。
+     */
     public boolean hasSubscribers(String roomId) {
         Set<WebSocketSession> set = roomSessions.get(roomId);
         return set != null && !set.isEmpty();
     }
 
-    // 已学习，发送初始房间数据给订阅者
+    /**
+     * 发送初始房间数据给订阅者。
+     */
     public void sendInitialSnapshot(WebSocketSession session, String roomId) {
         try {
             String nick = (String) session.getAttributes().get("viewerNickname");
-            DpRoomBO r = roomService.getRoomSnapshotForViewer(roomId, nick);//通过房间id和昵称实现处理
+            DpRoomBO r = roomService.getRoomSnapshotForViewer(roomId, nick);
             if (r == null) {
                 synchronized (session) {
                     session.sendMessage(new TextMessage(ROOM_CLOSED));
@@ -321,7 +279,6 @@ public class DpGameRoomPushService {
                 }
                 return;
             }
-            //将房间数据序列化成JSON字符串
             String json = objectMapper.writeValueAsString(r);
             lastBroadcastPayloadBySession.put(session, json);
             synchronized (session) {
@@ -338,18 +295,16 @@ public class DpGameRoomPushService {
         }
     }
 
-    // 已学习，调用服务层的roomService.getAllRooms(roomId)获取房间数据，然后序列化成JSON字符串，然后广播给所有订阅者
     /**
-     * 在 {@link DpRoomServiceImpl} 的定时任务中调用：仅当有订阅者时序列化；若与上次推送内容相同则不下发。
+     * 在定时任务中调用：仅当有订阅者时序列化；若与上次推送内容相同则不下发。
      */
     public void broadcastIfSubscribed(String roomId) {
-        // 如果房间没有订阅者，则返回，如果房间有订阅者，则获取房间数据，然后序列化成JSON字符串，然后广播给所有订阅者
         if (!hasSubscribers(roomId)) {
             return;
         }
         try {
             DpRoomBO live = roomService.getAllRooms(roomId);
-            Set<WebSocketSession> set = roomSessions.get(roomId);//这里是通过房间id获取所有订阅者的会话
+            Set<WebSocketSession> set = roomSessions.get(roomId);
             if (set == null || set.isEmpty()) {
                 return;
             }
@@ -358,6 +313,7 @@ public class DpGameRoomPushService {
                     removeSessionFromRoom(roomId, s);
                     continue;
                 }
+                //定制化的json数据
                 String nick = (String) s.getAttributes().get("viewerNickname");
                 String json;
                 if (live == null) {
@@ -401,5 +357,69 @@ public class DpGameRoomPushService {
         } catch (Exception e) {
             log.warn("WebSocket broadcast failed roomId={}", roomId, e);
         }
+    }
+
+    /**
+     * 向房间内所有会话推送json字符串消息（内部模块，供多处调用）。
+     */
+    private void broadcastRawJsonToRoom(String roomId, String json) {
+        Set<WebSocketSession> set = roomSessions.get(roomId);
+        if (set == null || set.isEmpty()) {
+            return;
+        }
+        for (WebSocketSession s : new ArrayList<>(set)) {
+            if (!s.isOpen()) {
+                removeSessionFromRoom(roomId, s);
+                continue;
+            }
+            try {
+                synchronized (s) {
+                    s.sendMessage(new TextMessage(json));
+                }
+            } catch (IOException e) {
+                log.debug("WebSocket chat send failed, closing session", e);
+                removeSessionFromRoom(roomId, s);
+                try {
+                    s.close();
+                } catch (IOException ignored) {
+                    // ignore
+                }
+            }
+        }
+    }
+
+    // =========== 校验与工具方法（按首次引用内联到对应模块） ===========
+
+    /**
+     * 校验音乐WebPath安全，首次用于handleRoomMusicSync。
+     */
+    private static boolean isSafeMusicWebPath(String path) {
+        if (path == null || path.isEmpty()) {
+            return false;
+        }
+        if (path.contains("..") || path.indexOf('\\') >= 0) {
+            return false;
+        }
+        if (!path.startsWith("/music/")) {
+            return false;
+        }
+        String rest = path.substring("/music/".length());
+        return rest.length() > 0 && rest.matches("[a-zA-Z0-9._-]+");
+    }
+
+    /**
+     * 判断nickname是否在房间内，首次用于handleChatSend/handleRoomMusicSync。
+     */
+    private static boolean isNicknameInRoom(DpRoomBO room, String nickname) {
+        List<DpPlayer> players = room.getPlayers();
+        if (players != null) {
+            for (DpPlayer p : players) {
+                if (p != null && nickname.equals(p.getNickname())) {
+                    return true;
+                }
+            }
+        }
+        List<String> spectators = room.getSpectators();
+        return spectators != null && spectators.contains(nickname);
     }
 }

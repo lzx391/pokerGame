@@ -19,20 +19,32 @@ public class DpGameRoomWebSocketHandler extends TextWebSocketHandler {
 
     private final DpGameRoomPushService pushService;
 
+    /**
+     * 构造函数，注入游戏房间推送服务
+     * @param pushService 房间推送服务实例
+     */
     public DpGameRoomWebSocketHandler(DpGameRoomPushService pushService) {
         this.pushService = pushService;
     }
 
+    /**
+     * 建立连接后调用
+     * @param session WebSocket会话
+     * @throws Exception 异常
+     */
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
+        // 解析 roomId 是从 session URI 或参数获得，并主动存入 session 的 attributes，
+        // 这样后续可以直接通过 session.getAttributes().get("roomId") 拿到，无需每次重复解析。
         String roomId = resolveRoomId(session);
         if (roomId == null || roomId.isEmpty()) {
             session.close(CloseStatus.BAD_DATA.withReason("missing roomId"));
             return;
         }
-        //已学习，将roomId存入session的attributes中
         session.getAttributes().put("roomId", roomId);
+        // 解析昵称
         String nickname = resolveNickname(session);
+
         if (nickname != null && !nickname.isEmpty()) {
             session.getAttributes().put("viewerNickname", nickname);
         }
@@ -42,6 +54,11 @@ public class DpGameRoomWebSocketHandler extends TextWebSocketHandler {
         pushService.sendInitialSnapshot(session, roomId);
     }
 
+    /**
+     * 连接关闭后调用
+     * @param session WebSocket会话
+     * @param status 关闭状态
+     */
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         Object rid = session.getAttributes().get("roomId");
@@ -50,6 +67,11 @@ public class DpGameRoomWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    /**
+     * 处理传输错误
+     * @param session WebSocket会话
+     * @param exception 异常
+     */
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) {
         Object rid = session.getAttributes().get("roomId");
@@ -67,7 +89,7 @@ public class DpGameRoomWebSocketHandler extends TextWebSocketHandler {
         pushService.handleClientTextMessage(session, message.getPayload());
     }
 /**
- * 解析房间ID
+ * 从session的URL解析房间ID
  * @param session
  * @return
  */
@@ -85,7 +107,7 @@ public class DpGameRoomWebSocketHandler extends TextWebSocketHandler {
     }
 //解析昵称
 /**
- * 解析昵称
+ * 从session的url解析昵称
  * @param session
  * @return
  */

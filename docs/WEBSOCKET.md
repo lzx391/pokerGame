@@ -147,8 +147,9 @@
 如有文档与实现不一致，以当前代码为准。
 --- 
 # 自己的笔记
+当session连接上的时候，通过sessionurl把房间id和玩家解析并存入session的Attributes中  
 首先用房间id和每个人的会话作为键值对存入roomSessions  
-然后用lastBroadcastPayloadBySession这个Map存会话和应推送的裁剪后的房间状态json，以下是大致实现思路：首先深拷贝一份房间状态(不是简单赋值，简单复制改的还是原来的房间，而深拷贝出来的房间信息后续怎么改都不影响原来roomMap里的房间状态)然后按昵称去裁剪信息，把其他人的信息设置成空，然后挂在lastBroadcastPayloadBySession里，等推送的时候按照昵称分别推送   
+然后用lastBroadcastPayloadBySession这个Map存会话和应推送的裁剪后的房间状态json，以下是大致实现思路：首先深拷贝一份房间状态(不是简单赋值，简单复制改的还是原来的房间，而深拷贝出来的房间信息后续怎么改都不影响原来roomMap里的房间状态)然后按session中Attributes中的昵称去裁剪信息，把其他人的信息设置成空，然后挂在lastBroadcastPayloadBySession里，等推送的时候按照昵称分别推送   
 getRoomSnapshotForViewer->通过房间id和昵称实现处理  
 snapshotForViewerFromLive->通过房间和昵称实现处理
 deepCopyRoomForSnapshot->深拷贝过程
