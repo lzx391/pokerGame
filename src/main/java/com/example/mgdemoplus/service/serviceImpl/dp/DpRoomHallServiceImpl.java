@@ -69,12 +69,15 @@ public class DpRoomHallServiceImpl implements DpRoomHallService {
             return;
         }
         try {
+            // 先更新数据库，再刷新Redis缓存，保证数据一致性。只有数据库操作成功后才更新缓存，防止不一致。
             DpRoom summary = toSummary(room);
             int updated = dpRoomLobbyMapper.updateRoomSummary(summary);
             if (updated <= 0) {
                 dpRoomLobbyMapper.insertRoomSummary(summary);
             }
+            // 数据库写入完成后再刷新相关Redis缓存，避免缓存提前导致并发读到脏数据
             bumpRevisionAndCleanupCache();
+ 
         } catch (Exception e) {
             log.warn("upsert room lobby failed for roomId={}, ignore: {}", room.getRoomId(), e.toString());
         }
@@ -215,31 +218,51 @@ public class DpRoomHallServiceImpl implements DpRoomHallService {
     }
 
     private DpRoomPublicRoomsPageVO executeFilteredLobbyPageQuery(DpRoomLobbySearchParamBO p, int safePage, int safeSize) {
+        // 创建一个 LambdaQueryWrapper 对象，参数泛型指定为 DpRoomLobby，这个对象用于构造数据库查询的各种条件。
         LambdaQueryWrapper<DpRoomLobby> w = new LambdaQueryWrapper<>();
+        // 添加一个等值条件，指定 roomStatus 字段的值等于 0。DpRoomLobby::getRoomStatus 是方法引用，指定字段。
         w.eq(DpRoomLobby::getRoomStatus, 0);
+
+        // 判断参数 p 的 roomId 字段不为 null 且不为空字符串
         if (p.getRoomId() != null && !p.getRoomId().isBlank()) {
+            // 对 roomId 进行去前后空格，并赋值给 t
             String t = p.getRoomId().trim();
+            // 如果 t 的长度超过最大长度限制，则截断
             if (t.length() > MAX_ROOM_ID_LEN) {
                 t = t.substring(0, MAX_ROOM_ID_LEN);
             }
+            // 添加 roomId 等值查询条件
             w.eq(DpRoomLobby::getRoomId, t);
         }
+        // 判断最小大盲注不为 null，则添加对应的查询条件（大于等于 minBigBlindChips）
         if (p.getMinBigBlindChips() != null) {
             w.ge(DpRoomLobby::getBigBlindChips, p.getMinBigBlindChips());
         }
+        // 判断最大大盲注不为 null，则添加对应的查询条件（小于等于 maxBigBlindChips）
         if (p.getMaxBigBlindChips() != null) {
             w.le(DpRoomLobby::getBigBlindChips, p.getMaxBigBlindChips());
         }
+        // 判断最小玩家人数不为 null，则添加查询条件（大于等于 minPlayerCount）
         if (p.getMinPlayerCount() != null) {
             w.ge(DpRoomLobby::getPlayerCount, p.getMinPlayerCount());
         }
+        // 判断最大玩家人数不为 null，则添加查询条件（小于等于 maxPlayerCount）
         if (p.getMaxPlayerCount() != null) {
             w.le(DpRoomLobby::getPlayerCount, p.getMaxPlayerCount());
         }
+        // 判断是否限定密码保护房，如果有则添加相应的等值特性过滤
         if (p.getPasswordProtected() != null) {
+            // 这里的 eq 方法是 MyBatis-Plus 提供的，用于添加等于（=）的条件到查询中。
+            // DpRoomLobby::getPasswordProtected 指定了要查询的实体字段（password_protected）。
+            // p.getPasswordProtected() 是你的查询参数里限制的密码保护状态（true/false）。
+            // 组合起来就是：只查 password_protected 字段等于 p.getPasswordProtected() 的那些房间。
             w.eq(DpRoomLobby::getPasswordProtected, p.getPasswordProtected());
         }
+        // 按照创建时间降序排序
+        // DpRoomLobby::getCreatedAt 这里的 :: 是 Java 的方法引用语法，等价于 (x) -> x.getCreatedAt()
+        // 也就是 "取出 DpRoomLobby 的 createdAt 属性"
         w.orderByDesc(DpRoomLobby::getCreatedAt);
+
         Page<DpRoomLobby> result = dpRoomLobbyMpMapper.selectPage(new Page<>(safePage, safeSize), w);
         List<DpRoom> vos = new ArrayList<>();
         for (DpRoomLobby row : result.getRecords()) {

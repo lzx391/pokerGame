@@ -1,0 +1,66 @@
+spring:
+  application:
+    name: MGDemoPlus
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/school_db?useSSL=false}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:123456}
+    druid:
+      enable: true
+  devtools:
+    restart:
+      additional-paths: src/main/java
+  servlet:
+    multipart:
+      max-file-size: 80MB
+      max-request-size: 80MB
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:127.0.0.1}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:ruoyi123}
+      database: 0
+      timeout: 3000ms
+
+mgdemoplus:
+  jwt:
+    secret: ${JWT_SECRET:abcdefghhgfedcbaabcdefghhgfedcba} # JWT 签名密钥（UTF-8 至少 32 字节）；可由环境变量 JWT_SECRET 覆盖（.env 经 LocalDotenvLoader 写入系统属性）
+    expiration:
+      time: 86400000
+  cache:
+    music-list-ttl-seconds: ${MGDEMOPLUS_CACHE_MUSIC_LIST_TTL_SECONDS:300} # 曲库列表 Redis 缓存 TTL（秒）；上传成功后会主动删缓存键。
+  dp-lobby-reconcile-enabled: true # DP 大厅表 dp_room_lobby 与内存 roomMap 对齐（清幽灵房）；单机房模型默认开启，多实例请设 false
+  dp-lobby-reconcile-ms: 60000 # 对齐间隔（毫秒）；启动时也会立即跑一轮
+  images:
+    file-location: ${MGDEMOPLUS_IMAGES_FILE_LOCATION:file:P:/javaworkspace/DPGameFiles/} # 头像等上传文件落盘目录（与 WebConfig `/images/**` 一致）；Docker 用环境变量 MGDEMOPLUS_IMAGES_FILE_LOCATION 覆盖
+  music:
+    file-location: ${MGDEMOPLUS_MUSIC_FILE_LOCATION:file:P:/javaworkspace/DPGameFiles/music/} # 曲库音频（与 WebConfig `/music/**`、DpMusicController 一致）；可设 MGDEMOPLUS_MUSIC_FILE_LOCATION
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+pagehelper:
+  helper-dialect: mysql
+  reasonable: true
+  support-methods-arguments: true
+
+server:
+  port: 8088
+
+#logging:
+#  level:
+#    com.example.mgdemoplus.websocket: DEBUG
+
+dp:
+  llm:
+    ark:
+      api-key: ${ARK_API_KEY:}
+      endpoint-id: ${ARK_ENDPOINT_ID:}
+      base-url: ${ARK_BASE_URL:}
+      reasoning-effort: ${ARK_REASONING_EFFORT:} # 推理/深度思考：reasoning_effort 调思维链长度；thinking.type 开关是否深度思考（Seed 系列默认多为 enabled，偏慢）
+      thinking-type: ${ARK_THINKING_TYPE:} # 方舟不接受 low+disabled 等同传；代码在 thinking-type=disabled 时会忽略 reasoning-effort
