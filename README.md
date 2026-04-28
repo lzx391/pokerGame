@@ -87,6 +87,8 @@ docker compose -f docker-compose.hub.yml up -d
 docker compose up --build
 ```
 
+**GitHub 自动构建镜像（可选）**：推送分支 **`desensitization`** 时由 GitHub Actions 构建并推送 `1933886418/dpgame*:v1.0.1` 三镜像（与 `build-push-hub.ps1`、默认 `docker-compose.hub.yml` 的 **`IMAGE_TAG=v1.0.1`** 一致，**不**另打 `latest`）；亦可在 **Actions** 里手动运行。仓库 **Secrets** 中配置 **`DOCKERHUB_TOKEN`** 即可；工作流见 [`.github/workflows/docker-publish.yml`](.github/workflows/docker-publish.yml)。
+
 - **经 Nginx**：浏览器打开 **[http://localhost](http://localhost)**（见 [docs/NGINX.md](docs/NGINX.md)）
 - **直连应用**：**[http://localhost:8088](http://localhost:8088)**（前端为 **hash 路由**，例如 **`/#/login`**）
 
@@ -220,6 +222,8 @@ From repo root:
 ```bash
 docker compose up --build
 ```
+
+**GitHub Actions (optional)** — On push to **`desensitization`**, workflows build/push **`1933886418/dpgame*:v1.0.1`** only (matches `build-push-hub.ps1` / default **`IMAGE_TAG=v1.0.1`**; no **`latest`** tag). Configure **`DOCKERHUB_TOKEN`**. See [`.github/workflows/docker-publish.yml`](.github/workflows/docker-publish.yml).
 
 - Via Nginx: **http://localhost** — [docs/NGINX.md](docs/NGINX.md)
 - Direct app: **http://localhost:8088** — hash routes, e.g. **`/#/login`**
