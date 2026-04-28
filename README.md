@@ -25,7 +25,7 @@
 ### AI 智能玩家
 
 - **规则型策略机器人**：多种风格与难度，包含回合策略、行为逻辑、对手习惯记忆等（概要见 [docs/ai/npc-engine/README.md](docs/ai/npc-engine/README.md)）。
-- **大模型玩家（可选）**：`BOT_LLM` 通过火山方舟接口实现 AI 决策，需配置 `ARK_API_KEY`、`ARK_ENDPOINT_ID` 等（见 [README.en.md](README.en.md) 中大模型小节与 [docs/ENV_README.md](docs/ENV_README.md)）。
+- **大模型玩家（可选）**：`BOT_LLM` 通过兼容 OpenAI 的 Chat 接口实现 AI 决策，需配置 `ARK_API_KEY`、`ARK_ENDPOINT_ID` 等（见 [README.en.md](README.en.md) 中大模型小节与 [docs/ENV_README.md](docs/ENV_README.md)）。默认开启 **`ARK_RESPONSE_JSON_OBJECT`**（`response_format=json_object`）以压缩正文；`H` 行仍含 **`rk=`** 与 **`hsl=`** 作为成牌真值。
 
 ### 其它功能
 

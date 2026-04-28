@@ -23,7 +23,8 @@ import java.util.Objects;
  * 不需要安装火山引擎本地 SDK：使用 JDK {@link HttpClient} 访问
  * {@code https://ark.cn-beijing.volces.com/api/v3/chat/completions} 即可。
  * <p>
- * 密钥请用环境变量 {@code ARK_API_KEY}；接入点 ID 用 {@code ARK_ENDPOINT_ID}（形如 {@code ep-...}）。
+ * 密钥请用环境变量 {@code ARK_API_KEY}；接入点 ID 用 {@code ARK_ENDPOINT_ID}（形如
+ * {@code ep-...}）。
  * 不要把密钥写进代码仓库或提交到 Git。
  */
 public final class LlmNpc {
@@ -87,6 +88,7 @@ public final class LlmNpc {
     // ========================= 配置校验及getter =========================
     /**
      * 获取API key
+     * 
      * @return 当前实例的API key
      */
     public String getApiKey() {
@@ -95,6 +97,7 @@ public final class LlmNpc {
 
     /**
      * 获取endpoint模型ID
+     * 
      * @return 当前实例的endpointModelId
      */
     public String getEndpointModelId() {
@@ -103,6 +106,7 @@ public final class LlmNpc {
 
     /**
      * 获取使用的baseUrl
+     * 
      * @return 当前baseUrl
      */
     public String getBaseUrl() {
@@ -111,6 +115,7 @@ public final class LlmNpc {
 
     /**
      * 检查配置是否齐全（API key和接入点ID都不为空）
+     * 
      * @return 配置齐全返回true，否则返回false
      */
     public boolean isConfigured() {
@@ -135,8 +140,9 @@ public final class LlmNpc {
 
     /**
      * 单轮对话接口：传一个system prompt和一个user消息，返回assistant回复
+     * 
      * @param systemPrompt 系统设定
-     * @param userMessage 用户输入内容
+     * @param userMessage  用户输入内容
      * @return assistant的回复内容
      */
     public String chat(String systemPrompt, String userMessage) throws IOException, InterruptedException {
@@ -148,8 +154,9 @@ public final class LlmNpc {
 
     /**
      * 多轮对话接口：传一个system prompt和多轮user/assistant消息，返回assistant最终回复
+     * 
      * @param systemPrompt 系统设定
-     * @param messages 多轮消息（role仅支持user/assistant）
+     * @param messages     多轮消息（role仅支持user/assistant）
      * @return assistant的回复内容
      */
     public String chatMessages(String systemPrompt, List<ChatMessage> messages)
@@ -159,11 +166,25 @@ public final class LlmNpc {
 
     /**
      * 多轮对话接口（结构化结果）：可获取模型回复正文和推理链
+     * 
      * @param systemPrompt 系统设定
-     * @param messages 多轮消息（role仅支持user/assistant）
+     * @param messages     多轮消息（role仅支持user/assistant）
      * @return LlmReply对象，含finalText和reasoningText
      */
     public LlmReply chatMessagesDetailed(String systemPrompt, List<ChatMessage> messages)
+            throws IOException, InterruptedException {
+        return chatMessagesDetailed(systemPrompt, messages, false);
+    }
+
+    /**
+     * 同 {@link #chatMessagesDetailed(String, List)}，可选请求
+     * {@code response_format.type=json_object}（OpenAI 兼容），
+     * 用于强制助手正文为 JSON，减少夹带说明；若与当前接入点/思考模式不兼容导致 HTTP 400，请改回 {@code false}。
+     */
+    public LlmReply chatMessagesDetailed(
+            String systemPrompt,
+            List<ChatMessage> messages,
+            boolean jsonObjectResponseFormat)
             throws IOException, InterruptedException {
         if (!isConfigured()) {
             throw new IllegalStateException(
@@ -175,12 +196,16 @@ public final class LlmNpc {
         body.put("model", endpointModelId);
         body.put("temperature", 0.2);
         // 不再硬编码 max_tokens，避免思考模式下正文被截断。
-        // 方舟：thinking.type=disabled 时不可与 reasoning_effort（如 low）同传，否则 400 InvalidParameter
+        // 方舟：thinking.type=disabled 时不可与 reasoning_effort（如 low）同传，否则 400
+        // InvalidParameter
         if (reasoningEffort != null && !"disabled".equals(thinkingType)) {
             body.put("reasoning_effort", reasoningEffort);
         }
         if (thinkingType != null) {
             body.putObject("thinking").put("type", thinkingType);
+        }
+        if (jsonObjectResponseFormat) {
+            body.putObject("response_format").put("type", "json_object");
         }
 
         ArrayNode arr = body.putArray("messages");
@@ -211,7 +236,8 @@ public final class LlmNpc {
                 .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
                 .build();
 
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        HttpResponse<String> response = httpClient.send(request,
+                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw new IOException("方舟接口 HTTP " + response.statusCode() + ": " + response.body());
         }
@@ -222,6 +248,7 @@ public final class LlmNpc {
 
     /**
      * 提取assistant回复的正文字符串（直接给业务用）
+     * 
      * @param responseJsonBody ark接口返回的JSON字符串
      * @return assistant的回复内容
      */
@@ -231,6 +258,7 @@ public final class LlmNpc {
 
     /**
      * 提取assistant回复，返回结构体（含正文和reasoning内容）
+     * 
      * @param responseJsonBody ark接口返回的JSON字符串
      * @return LlmReply对象，含assistant正文和reasoning链
      */
@@ -259,6 +287,7 @@ public final class LlmNpc {
 
     /**
      * 将一个复杂的json文本节点拍平成字符串，递归策略
+     * 
      * @param node 待拍平的JsonNode
      * @return 字符串内容
      */
@@ -300,7 +329,8 @@ public final class LlmNpc {
 
     /**
      * 辅助：如果给定字符串非空，给StringBuilder追加一行，自动换行
-     * @param sb StringBuilder
+     * 
+     * @param sb   StringBuilder
      * @param text 要添加的文本
      */
     private static void appendLine(StringBuilder sb, String text) {
@@ -317,6 +347,7 @@ public final class LlmNpc {
 
     /**
      * 工具方法：生成单条user消息的消息列表
+     * 
      * @param text 用户内容
      * @return 只包含一条user消息的列表
      */

@@ -4,8 +4,11 @@ import com.example.mgdemoplus.bo.DpRoomBO;
 import com.example.mgdemoplus.entity.dp.DpPlayer;
 import com.example.mgdemoplus.service.serviceImpl.dp.npc.LlmNpcGameContext;
 import com.example.mgdemoplus.utils.dp.DpUtilSmartContext;
+import com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator;
+import com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator.HandStrength;
 import com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator.SimpleStrength;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -36,6 +39,7 @@ public final class DpLlmNpcContextMapper {
         int heroChips = hero != null ? hero.getChips() : 0;
         String pos = position != null ? position.name() : "";
         String str = strength != null ? strength.name() : "";
+        String hsl = resolveHandStrengthLineForLlm(room, hero, st);
 
         String aggressor = "";
         if (ctx.aggressor != null) {
@@ -65,6 +69,7 @@ public final class DpLlmNpcContextMapper {
                 holes,
                 pos,
                 str,
+                hsl,
                 aggressor,
                 tier,
                 cred,
@@ -83,6 +88,30 @@ public final class DpLlmNpcContextMapper {
                 ctx.deepBehindCount,
                 ctx.shortBehindCount,
                 counter);
+    }
+
+    /**
+     * 与 {@link DpUtilHandEvaluator#evaluateBestHand(java.util.List)} 一致：翻前或无足够张数时不算五张成牌。
+     */
+    private static String resolveHandStrengthLineForLlm(DpRoomBO room, DpPlayer hero, String stage) {
+        String stg = stage != null ? stage : "";
+        if ("preflop".equals(stg)) {
+            return "PREFLOP";
+        }
+        List<String> hole = hero != null ? hero.getHoleCards() : null;
+        List<String> comm = room != null ? room.getCommunityCards() : null;
+        List<String> all = new ArrayList<>(6);
+        if (hole != null) {
+            all.addAll(hole);
+        }
+        if (comm != null) {
+            all.addAll(comm);
+        }
+        if (all.size() < 5) {
+            return "PREFLOP_OR_INCOMPLETE";
+        }
+        HandStrength hs = DpUtilHandEvaluator.evaluateBestHand(all);
+        return DpUtilHandEvaluator.describeHandStrengthForLlm(hs);
     }
 
     private static String formatCards(List<String> cards) {

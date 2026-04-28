@@ -34,8 +34,8 @@
 
 ## 4. 方舟 LLM（BOT_LLM）
 
-- **`application.properties`**：`dp.llm.ark.*=${ARK_*:…}`。
-- **`DpLlmNpcDecisionService`** 仅 **`@Value("${dp.llm.ark.*}")`**，构造 **`LlmNpc`**。  
+- **`application.yml`**：`dp.llm.ark.*=${ARK_*:…}`（含 **`response-json-object`**，对应环境变量 **`ARK_RESPONSE_JSON_OBJECT`**，默认 `true`：请求体带 `response_format=json_object`；若接入点返回 400 可设为 `false`，仍由解析器容错提取动作）。
+- **`DpLlmNpcDecisionService`** **`@Value`** 注入后构造 **`LlmNpc`**。  
   **`ARK_*`** 来自 Spring 解析后的配置（含 `.env` → `System.setProperty` → 占位符）。
 
 ---

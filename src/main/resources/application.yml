@@ -64,3 +64,4 @@ dp:
       base-url: ${ARK_BASE_URL:}
       reasoning-effort: ${ARK_REASONING_EFFORT:} # 推理/深度思考：reasoning_effort 调思维链长度；thinking.type 开关是否深度思考（Seed 系列默认多为 enabled，偏慢）
       thinking-type: ${ARK_THINKING_TYPE:} # 方舟不接受 low+disabled 等同传；代码在 thinking-type=disabled 时会忽略 reasoning-effort
+      response-json-object: ${ARK_RESPONSE_JSON_OBJECT:true} # BOT_LLM 请求加 response_format=json_object；若接口 400 可设 false，仍靠解析器容错

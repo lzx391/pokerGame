@@ -664,7 +664,7 @@ public final class DpUtilHandEvaluator {
         if (a != null && e != null && a == 5 && e == 1) {
             return 5;
         }
-        return a;
+        return a != null ? a : 0;
     }
 
     /**
@@ -738,6 +738,77 @@ public final class DpUtilHandEvaluator {
             default:
                 return "";
         }
+    }
+
+    /**
+     * 供 LLM prompt 使用的紧凑英文牌型标签（基于服务器 7 选 5 的 {@link HandStrength}），
+     * 与 {@link #buildHandRankDetailZh(HandStrength)} 信息等价，避免模型自行从 hole 目测误读。
+     */
+    public static String describeHandStrengthForLlm(HandStrength hs) {
+        if (hs == null) {
+            return "-";
+        }
+        int cat = hs.rankCategory;
+        List<Integer> r = hs.ranks;
+        if (r == null || r.isEmpty()) {
+            return "-";
+        }
+        switch (cat) {
+            case 10:
+                return "ROYAL_FLUSH";
+            case 9:
+                return "STRAIGHT_FLUSH_" + rankTokenEn(straightTopDisplayRank(r)) + "_HIGH";
+            case 8:
+                return r.size() >= 2
+                        ? ("FOUR_OF_A_KIND_" + rankTokenEn(r.get(0)) + "_KICKER_" + rankTokenEn(r.get(1)))
+                        : ("FOUR_OF_A_KIND_" + rankTokenEn(r.get(0)));
+            case 7:
+                return r.size() >= 2
+                        ? ("FULL_HOUSE_" + rankTokenEn(r.get(0)) + "_OVER_" + rankTokenEn(r.get(1)))
+                        : ("FULL_HOUSE_" + rankTokenEn(r.get(0)));
+            case 6:
+                return "FLUSH_" + rankTokenEn(r.get(0)) + "_HIGH";
+            case 5:
+                return "STRAIGHT_" + rankTokenEn(straightTopDisplayRank(r)) + "_HIGH";
+            case 4:
+                return r.size() >= 1 ? ("THREE_OF_A_KIND_" + rankTokenEn(r.get(0))) : "THREE_OF_A_KIND";
+            case 3:
+                return r.size() >= 3
+                        ? ("TWO_PAIR_" + rankTokenEn(r.get(0)) + "_" + rankTokenEn(r.get(1)) + "_KICKER_"
+                                + rankTokenEn(r.get(2)))
+                        : "TWO_PAIR";
+            case 2:
+                return r.size() >= 1 ? ("PAIR_OF_" + rankTokenEn(r.get(0))) : "PAIR";
+            case 1:
+                return "HIGH_CARD_" + rankTokenEn(r.get(0));
+            default:
+                return "UNKNOWN";
+        }
+    }
+
+    private static String rankTokenEn(int rank) {
+        if (rank <= 0) {
+            return "?";
+        }
+        if (rank == 14) {
+            return "A";
+        }
+        if (rank == 13) {
+            return "K";
+        }
+        if (rank == 12) {
+            return "Q";
+        }
+        if (rank == 11) {
+            return "J";
+        }
+        if (rank == 10) {
+            return "T";
+        }
+        if (rank >= 2 && rank <= 9) {
+            return String.valueOf(rank);
+        }
+        return "?";
     }
 }
 

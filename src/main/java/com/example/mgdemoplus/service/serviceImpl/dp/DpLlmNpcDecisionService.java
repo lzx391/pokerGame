@@ -26,33 +26,28 @@ import java.util.regex.Pattern;
  */
 @Service
 public class DpLlmNpcDecisionService {
-    // 已学习，提示词所在地
     /**
-     * 极短 system，省输入 token；具体规则在 user 里一行即可。
+     * 规则集中在此，user 仅留字段词典 + 数据，减少重复与 token。
      */
-    private static final String LLM_SYSTEM_PROMPT = "你是德州扑克 BOT_LLM 决策引擎。"
-            + "可以思考，但思考只能放 reasoning。"
-            + "语言约束：reasoning 必须使用中文简体。"
-            + "content 必须且只能返回一个 JSON："
-            + "{\"action\":\"FOLD|CALL_OR_CHECK|RAISE|ALL_IN\",\"chips_to_add\":整数}。"
-            + "content 中除 action 枚举值与键名(action/chips_to_add)外，不得输出英文句子。"
-            + "规则：FOLD/CALL_OR_CHECK 的 chips_to_add 必须为 0；不能为负数。"
-            + "不确定时返回 {\"action\":\"CALL_OR_CHECK\",\"chips_to_add\":0}。";
-    /**
-     * 缓存友好：把高复用说明固定为稳定前缀，动态数据统一放在末尾。
-     */
-    private static final String USER_PROMPT_STATIC_PREFIX = String.join("\n",
-            "S 这是 NLHE 决策信息包，以下字段均为权威真值。",
-            "S 固定顺序：M -> T -> H -> E。",
-            "S M：牌桌元信息。BB=大盲，SB=小盲，rl=加注级别。",
-            "S T：在局玩家列表。单项格式=nickname,stack,streetBet,tags。",
-            "S tags：D=庄按钮(不是你的位置)，F=已弃牌，A=已全下，*=当前行动者。",
-            "S H：你的状态。pos=你的位置分类，hole=你的手牌，board=公共牌(-表示无)，call=你当前需补齐筹码。",
-            "S E：对手画像摘要。",
-            "S 动作语义：CALL_OR_CHECK=过牌/跟注；RAISE 的 chips_to_add=本次额外增加筹码。",
-            "S 语言规则：reasoning 必须使用中文简体。",
-            "S 输出契约：reasoning 只放 reasoning 通道；content 必须且只能是 1 个 JSON 对象，键为 action 和 chips_to_add。",
-            "S 不要质疑字段格式，直接按给定字段做决策。");
+    private static final String LLM_SYSTEM_PROMPT = String.join(
+            "",
+            "你是 NLHE 的 BOT_LLM 决策器。",
+            "【reasoning】仅中文，≤120字或≤3短句：rk+hsl 一句、pot/call 一句、倾向一句。",
+            "禁止复述规则、禁止长篇推演 streetBet/底池定义、禁止英文长考；推理只走接口 reasoning 通道。",
+            "【牌力】hsl 为用户包真值；与心算冲突以 hsl 为准；不得仅凭 hole 两张定强弱。",
+            "【正文】仅输出一个 JSON 对象，键仅限 action、chips_to_add。",
+            "action∈FOLD|CALL_OR_CHECK|RAISE|ALL_IN；FOLD/CALL_OR_CHECK 的 chips_to_add=0；",
+            "RAISE 的 chips_to_add=本次额外加注筹码；非负；不确定用 {\"action\":\"CALL_OR_CHECK\",\"chips_to_add\":0}。",
+            "不要输出 {\"reasoning\":...,\"content\":...}，不要把 JSON 嵌成转义字符串；服务端仍会容错提取。");
+    /** 与 system 不重复的极简字段说明；动态 M/T/H/E 紧随其后。 */
+    private static final String USER_PROMPT_STATIC_PREFIX = String.join(
+            "\n",
+            "NLHE 决策包(权威)，顺序 M→T→H→E。",
+            "M: BB SB rl",
+            "T: nickname,stack,streetBet,tags — D庄 F弃 A全 *=当前行动者",
+            "H: rk hsl hole board pos call stk；st/pot 见行内",
+            "E: 对手摘要",
+            "勿纠格式，直接输出 system 要求的 JSON。");
     /** 轮到 BOT_LLM 后、发起方舟请求前的额外等待；0 表示不人为拖延（总耗时几乎全在 API 侧）。 */
     private static final long PRE_API_DELAY_MS = 0L;
     private static final Pattern JSON_BLOCK = Pattern.compile("```(?:json)?\\s*([\\s\\S]*?)```",
@@ -66,6 +61,7 @@ public class DpLlmNpcDecisionService {
 
     private final ConcurrentHashMap<String, Inflight> inflightByKey = new ConcurrentHashMap<>();
     private final LlmNpc llmNpc;
+    private final boolean llmResponseJsonObject;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // 构造器中从配置文件里取输入大模型请求的id，key baseUrl信息
@@ -74,12 +70,14 @@ public class DpLlmNpcDecisionService {
             @Value("${dp.llm.ark.endpoint-id:}") String propEndpointId,
             @Value("${dp.llm.ark.base-url:}") String propBaseUrl,
             @Value("${dp.llm.ark.reasoning-effort:}") String propReasoningEffort,
-            @Value("${dp.llm.ark.thinking-type:}") String propThinkingType) {
+            @Value("${dp.llm.ark.thinking-type:}") String propThinkingType,
+            @Value("${dp.llm.ark.response-json-object:true}") boolean responseJsonObject) {
         String apiKey = trimToNull(propApiKey);
         String endpointId = trimToNull(propEndpointId);
         String baseUrl = propBaseUrl != null ? propBaseUrl.trim() : "";
         String reasoningEffort = propReasoningEffort != null ? propReasoningEffort.trim() : "";
         String thinkingType = propThinkingType != null ? propThinkingType.trim() : "";
+        this.llmResponseJsonObject = responseJsonObject;
         this.llmNpc = new LlmNpc(
                 apiKey,
                 endpointId,
@@ -262,7 +260,8 @@ public class DpLlmNpcDecisionService {
             // 把大模型key id 提示词 信息包输入进去
             LlmNpc.LlmReply reply = llmNpc.chatMessagesDetailed(
                     LLM_SYSTEM_PROMPT,
-                    LlmNpc.singleUserMessage(userPrompt));// 这里是真正与大模型平台交互的地方
+                    LlmNpc.singleUserMessage(userPrompt),
+                    llmResponseJsonObject);
             String raw = reply == null ? "" : reply.finalText();
             String reasoning = reply == null ? "" : reply.reasoningText();
             System.out.println("======== [BOT_LLM] 模型返回原文 ========");
@@ -271,15 +270,16 @@ public class DpLlmNpcDecisionService {
                 System.out.println("======== [BOT_LLM] 模型思考摘要 ========");
                 System.out.println(reasoning);
             }
-            DpNpcEngine.BotAction parsed = parseModelReply(raw);// 解析
-            if (parsed == null && raw != null && !raw.isBlank()) {
+            LlmParseResult parsed = parseModelReply(raw);
+            DpNpcEngine.BotAction action = parsed == null ? null : parsed.action();
+            if (action == null && raw != null && !raw.isBlank()) {
                 System.out.println("[BOT_LLM] 提示：模型有正文但 JSON 未解析成动作，主线程将打印【本地决策】");
             }
-            if (parsed != null) {
-                System.out.println("[BOT_LLM] JSON 已解析为: " + parsed.getType() + " chips_to_add=" + parsed.getAmount());
+            if (parsed != null && action != null) {
+                System.out.println("[BOT_LLM] JSON 已解析 path=" + parsed.path() + " -> " + action.getType()
+                        + " chips_to_add=" + action.getAmount());
             }
-            // 返回决策结果
-            return parsed;
+            return action;
         } catch (Exception e) {
             System.err.println("[BOT_LLM] HTTP/调用失败: " + e.getMessage());
             return null;
@@ -349,39 +349,147 @@ public class DpLlmNpcDecisionService {
         return sb.toString();
     }
 
+    /** 解析结果 + 来源，便于对照日志与模型行为。 */
+    private record LlmParseResult(DpNpcEngine.BotAction action, String path) {}
+
     // 已学习，获取LLM返回结果并打包npc决策格式的数据结构
-    private DpNpcEngine.BotAction parseModelReply(String raw) {
+    /**
+     * 兼容历史行为：模型常在正文里夹 reasoning、或输出 {@code {"reasoning","content":"..."}}，
+     * 或 {@code content\{...}} 等非严格单 JSON。此处尽量抽出含 {@code action} 的对象。
+     */
+    private LlmParseResult parseModelReply(String raw) {
         if (raw == null || raw.isBlank()) {
             return null;
         }
-        String text = raw.trim();
-        Matcher m = JSON_BLOCK.matcher(text);
+        String trimmed = raw.trim();
+        LlmParseResult r = tryParseDecisionJson(trimmed, 0, false);
+        if (r != null) {
+            return r;
+        }
+        return scanJsonObjectsForAction(trimmed);
+    }
+
+    private LlmParseResult tryParseDecisionJson(String text, int depth, boolean fromContentUnwrap) {
+        if (text == null || text.isBlank() || depth > 6) {
+            return null;
+        }
+        String work = text.trim();
+        Matcher m = JSON_BLOCK.matcher(work);
         if (m.find()) {
-            text = m.group(1).trim();
+            work = m.group(1).trim();
         }
-        int brace = text.indexOf('{');
-        int end = text.lastIndexOf('}');
+        int brace = work.indexOf('{');
+        int end = work.lastIndexOf('}');
         if (brace >= 0 && end > brace) {
-            text = text.substring(brace, end + 1);
+            work = work.substring(brace, end + 1);
         }
+        final JsonNode root;
         try {
-            JsonNode root = objectMapper.readTree(text);
-            String action = root.path("action").asText("").trim().toUpperCase();
-            int chipsToAdd = root.path("chips_to_add").asInt(0);
-            if (chipsToAdd < 0) {
-                chipsToAdd = 0;
-            }
-            return switch (action) {
-                case "FOLD" -> new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.FOLD, 0);
-                case "CALL_OR_CHECK", "CHECK", "CALL", "CHECK_OR_CALL" ->
-                    new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
-                case "ALL_IN", "ALLIN" -> new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.ALL_IN, chipsToAdd);
-                case "RAISE", "BET" -> new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.RAISE, chipsToAdd);
-                default -> null;
-            };
+            root = objectMapper.readTree(work);
         } catch (Exception e) {
             return null;
         }
+        DpNpcEngine.BotAction direct = botActionFromJsonNode(root);
+        if (direct != null) {
+            return new LlmParseResult(direct, fromContentUnwrap ? "unwrap" : "top");
+        }
+        JsonNode content = root.get("content");
+        if (content != null && content.isTextual()) {
+            LlmParseResult inner = tryParseDecisionJson(content.asText(), depth + 1, true);
+            if (inner != null) {
+                return inner;
+            }
+        }
+        if (content != null && content.isObject()) {
+            DpNpcEngine.BotAction nested = botActionFromJsonNode(content);
+            if (nested != null) {
+                return new LlmParseResult(nested, "unwrap");
+            }
+        }
+        return null;
+    }
+
+    private LlmParseResult scanJsonObjectsForAction(String text) {
+        if (text == null || text.isBlank()) {
+            return null;
+        }
+        for (int i = 0; i < text.length(); i++) {
+            if (text.charAt(i) != '{') {
+                continue;
+            }
+            int close = indexOfMatchingCloseBrace(text, i);
+            if (close < 0) {
+                continue;
+            }
+            String slice = text.substring(i, close + 1);
+            try {
+                JsonNode node = objectMapper.readTree(slice);
+                DpNpcEngine.BotAction a = botActionFromJsonNode(node);
+                if (a != null) {
+                    return new LlmParseResult(a, "scan");
+                }
+                LlmParseResult inner = tryParseDecisionJson(slice, 1, false);
+                if (inner != null) {
+                    return new LlmParseResult(inner.action(), "scan");
+                }
+            } catch (Exception ignored) {
+                // try next '{'
+            }
+        }
+        return null;
+    }
+
+    /** 忽略字符串内的括号，避免误判。 */
+    private static int indexOfMatchingCloseBrace(String s, int openIdx) {
+        int depth = 0;
+        boolean inString = false;
+        boolean escape = false;
+        for (int i = openIdx; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (escape) {
+                escape = false;
+                continue;
+            }
+            if (c == '\\' && inString) {
+                escape = true;
+                continue;
+            }
+            if (c == '"') {
+                inString = !inString;
+                continue;
+            }
+            if (inString) {
+                continue;
+            }
+            if (c == '{') {
+                depth++;
+            } else if (c == '}') {
+                depth--;
+                if (depth == 0) {
+                    return i;
+                }
+            }
+        }
+        return -1;
+    }
+
+    private DpNpcEngine.BotAction botActionFromJsonNode(JsonNode root) {
+        if (root == null || !root.has("action")) {
+            return null;
+        }
+        String action = root.path("action").asText("").trim().toUpperCase();
+        int chipsToAdd = root.path("chips_to_add").asInt(0);
+        if (chipsToAdd < 0) {
+            chipsToAdd = 0;
+        }
+        return switch (action) {
+            case "FOLD" -> new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.FOLD, 0);
+            case "CALL_OR_CHECK", "CHECK", "CALL", "CHECK_OR_CALL" ->
+                new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
+            case "ALL_IN", "ALLIN" -> new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.ALL_IN, chipsToAdd);
+            case "RAISE", "BET" -> new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.RAISE, chipsToAdd);
+            default -> null;
+        };
     }
 
     // 已学习，简单离线决策，有钱直接跟或者过牌，没钱直接弃
