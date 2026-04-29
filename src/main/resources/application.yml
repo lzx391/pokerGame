@@ -42,7 +42,8 @@ mgdemoplus:
 
 mybatis-plus:
   configuration:
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    # StdOutImpl 会刷屏打印每条 SQL；需要看 SQL 时改为 Slf4jImpl 并设 logging.level 下对应 Mapper 包为 DEBUG
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
 
 pagehelper:
   helper-dialect: mysql
@@ -52,9 +53,15 @@ pagehelper:
 server:
   port: 8088
 
-#logging:
-#  level:
-#    com.example.mgdemoplus.websocket: DEBUG
+# Spring Boot 日志：按「Logger 名字」单独开/关，配合 DpLlmNpcDecisionService 中的 SLF4J。
+# 示例：只想看大模型 reasoning（思考链），其它尽量安静：
+# logging:
+#   level:
+#     root: WARN
+#     com.example.mgdemoplus.dp.BotLlmReasoning: INFO   # 仅模型思考
+#     com.example.mgdemoplus.service.serviceImpl.dp.DpLlmNpcDecisionService: WARN  # 关闭【已发起】【采用】等 INFO
+# 需要排查 SQL 时（MyBatis 已用 Slf4jImpl）：
+#     com.example.mgdemoplus.mapper: DEBUG
 
 dp:
   llm:

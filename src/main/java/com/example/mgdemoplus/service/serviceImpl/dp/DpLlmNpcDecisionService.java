@@ -7,6 +7,8 @@ import com.example.mgdemoplus.service.serviceImpl.dp.npc.LlmNpcGameContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -27,11 +29,20 @@ import java.util.regex.Pattern;
 @Service
 public class DpLlmNpcDecisionService {
     /**
+     * BOT_LLM 流程与明细；配合 {@link #LOG_REASONING} 在 {@code application.yml} 里用 {@code logging.level} 分项开关。
+     */
+    private static final Logger LOG = LoggerFactory.getLogger(DpLlmNpcDecisionService.class);
+    /**
+     * 仅模型 reasoning（思考链）；要「控制台几乎只看思考」可把本 logger 设为 INFO、本类设为 WARN。
+     */
+    private static final Logger LOG_REASONING = LoggerFactory.getLogger("com.example.mgdemoplus.dp.BotLlmReasoning");
+
+    /**
      * 规则集中在此，user 仅留字段词典 + 数据，减少重复与 token。
      */
     private static final String LLM_SYSTEM_PROMPT = String.join(
             "",
-            "你是一位专业的资深的无限注德扑的 BOT_LLM 决策老手。你拥有丰富的德扑经验和知识，能够根据当前的牌面和对手的行为，做出最合理的决策。",
+            "你是一位专业的资深的无限注德扑的 BOT_LLM 决策老手。你要20秒内通过给出的权威信息包给出决策。",
             "【数值权威】H 行的 pot、call、stack 为服务端真值；决策与赔率对照一律以 H 为准。",
             "【思考模式-快】保持深度思考可用，但思维链务必短：总字数尽量≤200 字（中文）。只写结论链条，禁止复述/推导 T 行座位顺序、禁止逐人推断「谁先谁后」、禁止同一数值（pot/call/赔率）重复验算。",
             "【牌力】hsl、rk 为服务端真值；推理中不得声称 hsl 错误；不得仅凭 hole 两张定强弱。",
@@ -55,7 +66,7 @@ public class DpLlmNpcDecisionService {
     /** 轮到 BOT_LLM 后、发起方舟请求前的额外等待；0 表示不人为拖延（总耗时几乎全在 API 侧）。 */
     private static final long PRE_API_DELAY_MS = 0L;
     /** 控制台打印 reasoning_content 上限，避免上万字刷屏；不影响 API 侧真实思考长度。 */
-    private static final int REASONING_LOG_MAX_CHARS = 800;
+    private static final int REASONING_LOG_MAX_CHARS = 2000;
     private static final Pattern JSON_BLOCK = Pattern.compile("```(?:json)?\\s*([\\s\\S]*?)```",
             Pattern.CASE_INSENSITIVE);
 
@@ -213,11 +224,11 @@ public class DpLlmNpcDecisionService {
                     .supplyAsync(() -> invokeModel(userPrompt), llmExecutor)
                     .orTimeout(125, TimeUnit.SECONDS)
                     .exceptionally(ex -> {
-                        System.out.println("[BOT_LLM] 异步请求异常/超时: " + (ex == null ? "?" : ex.getMessage()));
+                        LOG.warn("[BOT_LLM] 异步请求异常/超时: {}", ex == null ? "?" : ex.getMessage());
                         return null;
                     });
 
-            System.out.println("[BOT_LLM] 【已发起大模型请求】room=" + room.getRoomId() + " stage=" + room.getCurrentStage());
+            LOG.info("[BOT_LLM] 【已发起大模型请求】room={} stage={}", room.getRoomId(), room.getCurrentStage());
             inflightByKey.put(key, new Inflight(future, ticket));// 钥匙和在途任务以及快照信息，等请求完成了，用key取出来结果核验快照
             return null;
         }
@@ -239,8 +250,8 @@ public class DpLlmNpcDecisionService {
         }
         // 正常返回之后处理信息，有时候LLM返回的信息并不能实行，比如筹码剩下200了，他却要raise250，所以需要再最后把把关，弄成符合游戏实际的操作返回
         DpNpcEngine.BotAction executed = normalizeAndClamp(room, bot, parsed);
-        System.out.println("[BOT_LLM] 【采用大模型】解析动作=" + parsed.getType() + " chips_to_add=" + parsed.getAmount()
-                + " -> 规范化执行=" + executed.getType() + " amount=" + executed.getAmount());
+        LOG.info("[BOT_LLM] 【采用大模型】解析动作={} chips_to_add={} -> 规范化执行={} amount={}",
+                parsed.getType(), parsed.getAmount(), executed.getType(), executed.getAmount());
         return executed;
     }
 
@@ -248,20 +259,18 @@ public class DpLlmNpcDecisionService {
     /** 未走模型或丢弃模型结果时的本地兜底，统一打日志便于对照控制台。 */
     private static DpNpcEngine.BotAction applyLocalFallback(DpRoomBO room, DpPlayer bot, String reason) {
         DpNpcEngine.BotAction a = fallback(room, bot);
-        System.out.println("[BOT_LLM] 【本地决策】原因=" + reason + " -> " + a.getType() + " amount=" + a.getAmount());
+        LOG.info("[BOT_LLM] 【本地决策】原因={} -> {} amount={}", reason, a.getType(), a.getAmount());
         return a;
     }
 
     // 已学习，返回决策结果
     private DpNpcEngine.BotAction invokeModel(String userPrompt) {
         if (!llmNpc.isConfigured()) {
-            System.out.println("[BOT_LLM] 未配置密钥/接入点，跳过请求");
+            LOG.warn("[BOT_LLM] 未配置密钥/接入点，跳过请求");
             return null;
         }
-        System.out.println("======== [BOT_LLM] 输入 system ========");
-        System.out.println(LLM_SYSTEM_PROMPT);
-        System.out.println("======== [BOT_LLM] 输入 user ========");
-        System.out.println(userPrompt);
+        LOG.debug("======== [BOT_LLM] 输入 system ========\n{}", LLM_SYSTEM_PROMPT);
+        LOG.debug("======== [BOT_LLM] 输入 user ========\n{}", userPrompt);
         try {
             // 把大模型key id 提示词 信息包输入进去
             LlmNpc.LlmReply reply = llmNpc.chatMessagesDetailed(
@@ -270,32 +279,30 @@ public class DpLlmNpcDecisionService {
                     llmResponseJsonObject);
             String raw = reply == null ? "" : reply.finalText();
             String reasoning = reply == null ? "" : reply.reasoningText();
-            System.out.println("======== [BOT_LLM] 模型返回原文 ========");
-            System.out.println(raw == null ? "(null)" : raw);
+            LOG.debug("======== [BOT_LLM] 模型返回原文 ========\n{}", raw == null ? "(null)" : raw);
             if (reasoning != null && !reasoning.isBlank()) {
-                System.out.println("======== [BOT_LLM] 模型思考摘要 ========");
                 String r = reasoning.strip();
                 if (r.length() > REASONING_LOG_MAX_CHARS) {
                     r = r.substring(0, REASONING_LOG_MAX_CHARS) + " …(控制台已截断，约 " + reasoning.length()
                             + " 字；缩短思考请将环境变量 ARK_REASONING_EFFORT 设为 medium 或 low)";
                 }
-                System.out.println(r);
+                LOG_REASONING.info("======== [BOT_LLM] 模型思考 ========\n{}", r);
             }
             LlmParseResult parsed = parseModelReply(raw);
             DpNpcEngine.BotAction action = parsed == null ? null : parsed.action();
             if (parsed != null && parsed.briefReason() != null && !parsed.briefReason().isBlank()) {
-                System.out.println("[BOT_LLM] 决策理由(brief_reason)=" + parsed.briefReason());
+                LOG.info("[BOT_LLM] 决策理由(brief_reason)={}", parsed.briefReason());
             }
             if (action == null && raw != null && !raw.isBlank()) {
-                System.out.println("[BOT_LLM] 提示：模型有正文但 JSON 未解析成动作，主线程将打印【本地决策】");
+                LOG.warn("[BOT_LLM] 提示：模型有正文但 JSON 未解析成动作，主线程将打印【本地决策】");
             }
             if (parsed != null && action != null) {
-                System.out.println("[BOT_LLM] JSON 已解析 path=" + parsed.path() + " -> " + action.getType()
-                        + " chips_to_add=" + action.getAmount());
+                LOG.info("[BOT_LLM] JSON 已解析 path={} -> {} chips_to_add={}",
+                        parsed.path(), action.getType(), action.getAmount());
             }
             return action;
         } catch (Exception e) {
-            System.err.println("[BOT_LLM] HTTP/调用失败: " + e.getMessage());
+            LOG.warn("[BOT_LLM] HTTP/调用失败: {}", e.getMessage());
             return null;
         }
     }
