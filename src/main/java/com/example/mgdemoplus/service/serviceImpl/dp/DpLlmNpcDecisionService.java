@@ -279,6 +279,7 @@ public class DpLlmNpcDecisionService {
                     llmResponseJsonObject);
             String raw = reply == null ? "" : reply.finalText();
             String reasoning = reply == null ? "" : reply.reasoningText();
+            
             LOG.debug("======== [BOT_LLM] 模型返回原文 ========\n{}", raw == null ? "(null)" : raw);
             if (reasoning != null && !reasoning.isBlank()) {
                 String r = reasoning.strip();
