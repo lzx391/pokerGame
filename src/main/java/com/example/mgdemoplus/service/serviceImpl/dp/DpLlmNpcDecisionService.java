@@ -31,25 +31,31 @@ public class DpLlmNpcDecisionService {
      */
     private static final String LLM_SYSTEM_PROMPT = String.join(
             "",
-            "你是 NLHE 的 BOT_LLM 决策器。",
-            "【reasoning】仅中文，≤120字或≤3短句：rk+hsl 一句、pot/call 一句、倾向一句。",
-            "禁止复述规则、禁止长篇推演 streetBet/底池定义、禁止英文长考；推理只走接口 reasoning 通道。",
-            "【牌力】hsl 为用户包真值；与心算冲突以 hsl 为准；不得仅凭 hole 两张定强弱。",
-            "【正文】仅输出一个 JSON 对象，键仅限 action、chips_to_add。",
+            "你是一位专业的资深的无限注德扑的 BOT_LLM 决策老手。你拥有丰富的德扑经验和知识，能够根据当前的牌面和对手的行为，做出最合理的决策。",
+            "【数值权威】H 行的 pot、call、stack 为服务端真值；决策与赔率对照一律以 H 为准。",
+            "【思考模式-快】保持深度思考可用，但思维链务必短：总字数尽量≤200 字（中文）。只写结论链条，禁止复述/推导 T 行座位顺序、禁止逐人推断「谁先谁后」、禁止同一数值（pot/call/赔率）重复验算。",
+            "【牌力】hsl、rk 为服务端真值；推理中不得声称 hsl 错误；不得仅凭 hole 两张定强弱。",
+            "【输出】仅输出一个 JSON 对象，键仅限 action、chips_to_add、brief_reason。",
             "action∈FOLD|CALL_OR_CHECK|RAISE|ALL_IN；FOLD/CALL_OR_CHECK 的 chips_to_add=0；",
-            "RAISE 的 chips_to_add=本次额外加注筹码；非负；不确定用 {\"action\":\"CALL_OR_CHECK\",\"chips_to_add\":0}。",
+            "RAISE 的 chips_to_add=本次额外加注筹码；非负；实在不确定就弃牌。",
+            "brief_reason：给用户看的决策理由，1～2 句中文，≤120 字，须写清「牌力或赔率要点 + 为何选该 action」；勿在车轱辘复述。",
             "不要输出 {\"reasoning\":...,\"content\":...}，不要把 JSON 嵌成转义字符串；服务端仍会容错提取。");
-    /** 与 system 不重复的极简字段说明；动态 M/T/H/E 紧随其后。 */
+    /** 与 system 不重复；字段顺序与 {@link LlmNpcGameContext#toPromptBlock()} 一致。 */
     private static final String USER_PROMPT_STATIC_PREFIX = String.join(
             "\n",
             "NLHE 决策包(权威)，顺序 M→T→H→E。",
-            "M: BB SB rl",
-            "T: nickname,stack,streetBet,tags — D庄 F弃 A全 *=当前行动者",
-            "H: rk hsl hole board pos call stk；st/pot 见行内",
-            "E: 对手摘要",
-            "勿纠格式，直接输出 system 要求的 JSON。");
+            "M: BB=大盲筹码 SB=小盲筹码 rl=本街加注层级(1=面对open 2=面对3bet 3=面对4bet+；不是ante) SBseat/BBseat=本手小盲/大盲昵称",
+            "T: 仍在手玩家；列表顺序=房间座位序。每段 昵称,剩余筹码,本街已下(本轮已放入底池的额度；含盲注poster在本街的数额)。",
+            "  标记 D=庄位 F=弃牌 A=全下 *=轮到谁行动",
+            "H: hero=昵称 stage=阶段 pot=底池 call=为跟注至当前注额需再投入的筹码 stack=你剩余 pos=座位 rk=简化牌力 hsl=成牌标签 hole board",
+            "  rk 遇 hsl 为 PAIR_OF_* 且公牌已带该对（手牌未中该对）时多为弱踢脚，勿等同顶对重注",
+            "E: agg=最近下注/加注者 villainTier=主对手风格档 actionCred=线路可信度 sdBluff=摊牌唬偏好 potOdds=底池赔率 eqEst=胜率估计",
+            "  activeV=活跃对手数 behindTDS=身后台紧/深/短筹人数 counter=反制策略关键词",
+            "勿改字段名；JSON 须含 action、chips_to_add、brief_reason（见 system）。");
     /** 轮到 BOT_LLM 后、发起方舟请求前的额外等待；0 表示不人为拖延（总耗时几乎全在 API 侧）。 */
     private static final long PRE_API_DELAY_MS = 0L;
+    /** 控制台打印 reasoning_content 上限，避免上万字刷屏；不影响 API 侧真实思考长度。 */
+    private static final int REASONING_LOG_MAX_CHARS = 800;
     private static final Pattern JSON_BLOCK = Pattern.compile("```(?:json)?\\s*([\\s\\S]*?)```",
             Pattern.CASE_INSENSITIVE);
 
@@ -268,10 +274,18 @@ public class DpLlmNpcDecisionService {
             System.out.println(raw == null ? "(null)" : raw);
             if (reasoning != null && !reasoning.isBlank()) {
                 System.out.println("======== [BOT_LLM] 模型思考摘要 ========");
-                System.out.println(reasoning);
+                String r = reasoning.strip();
+                if (r.length() > REASONING_LOG_MAX_CHARS) {
+                    r = r.substring(0, REASONING_LOG_MAX_CHARS) + " …(控制台已截断，约 " + reasoning.length()
+                            + " 字；缩短思考请将环境变量 ARK_REASONING_EFFORT 设为 medium 或 low)";
+                }
+                System.out.println(r);
             }
             LlmParseResult parsed = parseModelReply(raw);
             DpNpcEngine.BotAction action = parsed == null ? null : parsed.action();
+            if (parsed != null && parsed.briefReason() != null && !parsed.briefReason().isBlank()) {
+                System.out.println("[BOT_LLM] 决策理由(brief_reason)=" + parsed.briefReason());
+            }
             if (action == null && raw != null && !raw.isBlank()) {
                 System.out.println("[BOT_LLM] 提示：模型有正文但 JSON 未解析成动作，主线程将打印【本地决策】");
             }
@@ -307,7 +321,7 @@ public class DpLlmNpcDecisionService {
         StringBuilder sb = new StringBuilder(1024);
         sb.append(USER_PROMPT_STATIC_PREFIX).append('\n');
         sb.append("M BB=").append(room.getBigBlindChips()).append(" SB=").append(room.getSmallBlindChips())
-                .append(" rl=").append(room.getRaiseLevel()).append('\n');
+                .append(" rl=").append(room.getRaiseLevel()).append(blindSeatsForPrompt(room)).append('\n');
         sb.append("T ").append(compactTable(room, bot)).append('\n');
         if (ctx != null) {
             sb.append(ctx.toPromptBlock());// LNGameContext的方法
@@ -315,9 +329,31 @@ public class DpLlmNpcDecisionService {
         return sb.toString();
     }
 
+    /** 本手小盲/大盲昵称，与 {@link DpRoomServiceImpl} 庄位后 (D+1)/(D+2) 一致；人不足 2 则省略。 */
+    private static String blindSeatsForPrompt(DpRoomBO room) {
+        if (room == null) {
+            return "";
+        }
+        List<DpPlayer> ps = room.getPlayers();
+        if (ps == null || ps.size() < 2) {
+            return "";
+        }
+        int did = room.getLastDealerIndex();
+        if (did < 0 || did >= ps.size()) {
+            return "";
+        }
+        int sbIdx = (did + 1) % ps.size();
+        int bbIdx = (did + 2) % ps.size();
+        DpPlayer sbp = ps.get(sbIdx);
+        DpPlayer bbp = ps.get(bbIdx);
+        String sbn = sbp != null && sbp.getNickname() != null ? sbp.getNickname() : "?";
+        String bbn = bbp != null && bbp.getNickname() != null ? bbp.getNickname() : "?";
+        return " SBseat=" + sbn + " BBseat=" + bbn;
+    }
+
     // 已学习，用于拼接场上信息
     /**
-     * 每人一段：昵称,后手,本街注,标记；| 分隔。D=庄 F=弃 A=全下 *=行动者。
+     * 每人一段：昵称,后手,本街已下,标记；| 分隔。第三列为当前下注街已放入底池的额度。D=庄 F=弃 A=全下 *=行动者。
      */
     private static String compactTable(DpRoomBO room, DpPlayer hero) {
         StringBuilder sb = new StringBuilder();
@@ -349,8 +385,8 @@ public class DpLlmNpcDecisionService {
         return sb.toString();
     }
 
-    /** 解析结果 + 来源，便于对照日志与模型行为。 */
-    private record LlmParseResult(DpNpcEngine.BotAction action, String path) {}
+    /** 解析结果 + 来源；briefReason 来自 JSON 的 brief_reason，仅日志展示。 */
+    private record LlmParseResult(DpNpcEngine.BotAction action, String path, String briefReason) {}
 
     // 已学习，获取LLM返回结果并打包npc决策格式的数据结构
     /**
@@ -391,7 +427,7 @@ public class DpLlmNpcDecisionService {
         }
         DpNpcEngine.BotAction direct = botActionFromJsonNode(root);
         if (direct != null) {
-            return new LlmParseResult(direct, fromContentUnwrap ? "unwrap" : "top");
+            return new LlmParseResult(direct, fromContentUnwrap ? "unwrap" : "top", briefReasonFromJsonNode(root));
         }
         JsonNode content = root.get("content");
         if (content != null && content.isTextual()) {
@@ -403,7 +439,7 @@ public class DpLlmNpcDecisionService {
         if (content != null && content.isObject()) {
             DpNpcEngine.BotAction nested = botActionFromJsonNode(content);
             if (nested != null) {
-                return new LlmParseResult(nested, "unwrap");
+                return new LlmParseResult(nested, "unwrap", briefReasonFromJsonNode(content));
             }
         }
         return null;
@@ -426,11 +462,11 @@ public class DpLlmNpcDecisionService {
                 JsonNode node = objectMapper.readTree(slice);
                 DpNpcEngine.BotAction a = botActionFromJsonNode(node);
                 if (a != null) {
-                    return new LlmParseResult(a, "scan");
+                    return new LlmParseResult(a, "scan", briefReasonFromJsonNode(node));
                 }
                 LlmParseResult inner = tryParseDecisionJson(slice, 1, false);
                 if (inner != null) {
-                    return new LlmParseResult(inner.action(), "scan");
+                    return new LlmParseResult(inner.action(), "scan", inner.briefReason());
                 }
             } catch (Exception ignored) {
                 // try next '{'
@@ -473,6 +509,22 @@ public class DpLlmNpcDecisionService {
         return -1;
     }
 
+    /** 模型输出的简短理由；仅用于日志，不参与下注逻辑。 */
+    private static String briefReasonFromJsonNode(JsonNode root) {
+        if (root == null || !root.has("brief_reason")) {
+            return null;
+        }
+        String s = root.path("brief_reason").asText("").trim();
+        if (s.isEmpty()) {
+            return null;
+        }
+        final int cap = 300;
+        if (s.length() > cap) {
+            return s.substring(0, cap) + "…";
+        }
+        return s;
+    }
+
     private DpNpcEngine.BotAction botActionFromJsonNode(JsonNode root) {
         if (root == null || !root.has("action")) {
             return null;
@@ -512,8 +564,12 @@ public class DpLlmNpcDecisionService {
             return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.FOLD, 0);
         }
         if (a.getType() == DpNpcEngine.BotActionType.CALL_OR_CHECK) {
+            // 跟注额超过后手时只能全下：与 ALL_IN 等价（bet 会夹成全下），避免误以为「call 失败会弃牌」
             if (callAmount > chips) {
-                return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.FOLD, 0);
+                if (chips <= 0) {
+                    return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.FOLD, 0);
+                }
+                return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.ALL_IN, chips);
             }
             return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
         }

@@ -126,33 +126,12 @@ public class DpRoomServiceImpl {
                             //如果是BOT_LLM则走大模型逻辑
                             if (DpNpcEngine.LLM_BOT_NICKNAME.equals(p.getNickname())) {
                                 action = llmNpcDecisionService.decideActionIfReady(room, p);
+                                NpcAction(room, p, action);
                             } else {
                                 action = DpNpcEngine.decideActionIfReady(room, p);
+                                NpcAction(room, p, action);
                             }
-                            if (action != null) {
-                                String roomId = room.getRoomId();
-                                switch (action.getType()) {
-                                    case FOLD:
-                                        fold(roomId, p.getNickname());
-                                        break;
-                                    case CALL_OR_CHECK: {
-                                        int callAmount = Math.max(0, room.getCurrentBetToCall() - p.getBet());
-                                        bet(roomId, p.getNickname(), callAmount);
-                                        break;
-                                    }
-                                    case RAISE:
-                                    case ALL_IN: {
-                                        int amount = Math.max(0, action.getAmount());
-                                        if (action.getType() == DpNpcEngine.BotActionType.RAISE) {
-                                            amount = clampRaiseAmountForLegal(room, p, amount);
-                                        }
-                                        bet(roomId, p.getNickname(), amount);
-                                        break;
-                                    }
-                                    default:
-                                        break;
-                                }
-                            }
+                      
                         } else {
                             if (p.isLeftThisHand()) {
                                 moveToNextValidActor(room);
@@ -214,7 +193,34 @@ public class DpRoomServiceImpl {
     }
 
     // ========== 工具方法 ==========
-
+    private void NpcAction(DpRoomBO room, DpPlayer p, DpNpcEngine.BotAction action) {
+        if (action != null) {
+            String roomId = room.getRoomId();
+            switch (action.getType()) {
+                case FOLD:
+                    fold(roomId, p.getNickname());
+                    break;
+                case CALL_OR_CHECK: {
+                    int callAmount = Math.max(0, room.getCurrentBetToCall() - p.getBet());
+                    bet(roomId, p.getNickname(), callAmount);
+                    break;
+                }
+                case RAISE:
+                case ALL_IN: {
+                    int amount = Math.max(0, action.getAmount());
+                    if (action.getType() == DpNpcEngine.BotActionType.RAISE) {
+                        amount = clampRaiseAmountForLegal(room, p, amount);
+                    }
+                    bet(roomId, p.getNickname(), amount);
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+    }
+   
+ 
     private List<String> newDeck() {
         List<String> deck = new ArrayList<>();
         String[] suits = {"hearts", "diamonds", "clubs", "spades"};

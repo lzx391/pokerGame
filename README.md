@@ -25,7 +25,7 @@
 ### AI 智能玩家
 
 - **规则型策略机器人**：多种风格与难度，包含回合策略、行为逻辑、对手习惯记忆等（概要见 [docs/ai/npc-engine/README.md](docs/ai/npc-engine/README.md)）。
-- **大模型玩家（可选）**：`BOT_LLM` 通过兼容 OpenAI 的 Chat 接口实现 AI 决策，需配置 `ARK_API_KEY`、`ARK_ENDPOINT_ID` 等（见 [README.en.md](README.en.md) 中大模型小节与 [docs/ENV_README.md](docs/ENV_README.md)）。默认开启 **`ARK_RESPONSE_JSON_OBJECT`**（`response_format=json_object`）以压缩正文；`H` 行仍含 **`rk=`** 与 **`hsl=`** 作为成牌真值。
+- **大模型玩家（可选）**：`BOT_LLM` 通过兼容 OpenAI 的 Chat 接口实现 AI 决策，需配置 `ARK_API_KEY`、`ARK_ENDPOINT_ID` 等（见 [README.en.md](README.en.md) 中大模型小节与 [docs/ENV_README.md](docs/ENV_README.md)）。默认开启 **`ARK_RESPONSE_JSON_OBJECT`**（`response_format=json_object`）以压缩正文；模型须返回含 **action / chips_to_add / brief_reason** 的 JSON（**brief_reason** 为 1～2 句决策理由，控制台会单独打印）。在 **thinking 仍开启** 的前提下，将 **`ARK_REASONING_EFFORT`** 从 **`high`** 改为 **`medium`** 或 **`low`** 可明显缩短服务端思维链耗时。喂给模型的 user 包顺序为 **M→T→H→E**：`M` 含盲注、`rl`（加注层级，非 ante）及 **`SBseat`/`BBseat`**；`T` 为座位序下的昵称、剩余筹码、本街已下；**`H` 的 `pot`/`call`/`stack` 为服务端真值**（键名 `hero`、`stage`、`stack` 等）；**`E`** 为可读键名的对手摘要；**`rk=`** 与 **`hsl=`** 仍为成牌相关真值说明。**`rk`** 对「公牌已成对、手牌未中该对、仅拼踢脚」的情形会在 `DpUtilHandEvaluator.toSimpleStrength` 中封顶为 **MEDIUM/WEAK**，避免误标成 STRONG。
 
 ### 其它功能
 

@@ -298,10 +298,9 @@ public final class LlmNpcGameContext {
     }
 
     /**
-     * 拼接出用于大模型 prompt 的局面简要文本
-     * 即塞进大模型 user 的紧凑局面块（英文键、无长中文），显著比早期版本省 token。
-     * {@code hsl=} 行为服务端 {@link com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator#describeHandStrengthForLlm} 生成的最佳五张牌标签。
-     * 多人逐行明细、对手 min/max/avg 筹码等已省略——桌上列表已在 {@code DpLlmNpcDecisionService} 里提供。
+     * 拼接出用于大模型 prompt 的局面简要文本（键名与 {@code DpLlmNpcDecisionService} 的 user 前缀词典一致）。
+     * {@code hsl=} 为服务端 {@link com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator#describeHandStrengthForLlm} 生成的最佳五张牌标签。
+     * 桌上逐人筹码见决策包 T 行。
      * @return 简化的对局字符串
      */
     public String toPromptBlock() {
@@ -313,8 +312,8 @@ public final class LlmNpcGameContext {
         String hsl = handStrengthLine == null || handStrengthLine.isEmpty() ? "-" : handStrengthLine;
         return String.format(
                 Locale.ROOT,
-                "H n=%s st=%s pot=%d call=%d stk=%d pos=%s rk=%s hsl=%s hole=%s board=%s\n"
-                        + "E agg=%s vt=%s cr=%s sb=%.2f po=%.2f eq=%.2f nv=%d tds=%d/%d/%d ctr=%s\n",
+                "H hero=%s stage=%s pot=%d call=%d stack=%d pos=%s rk=%s hsl=%s hole=%s board=%s\n"
+                        + "E agg=%s villainTier=%s actionCred=%s sdBluff=%.2f potOdds=%.2f eqEst=%.2f activeV=%d behindTDS=%d/%d/%d counter=%s\n",
                 heroNickname,
                 stage,
                 potChips,
