@@ -13,7 +13,6 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -85,37 +84,10 @@ public final class LlmNpc {
         this.objectMapper = new ObjectMapper();
     }
 
-    // ========================= 配置校验及getter =========================
-    /**
-     * 获取API key
-     * 
-     * @return 当前实例的API key
-     */
-    public String getApiKey() {
-        return apiKey;
-    }
-
-    /**
-     * 获取endpoint模型ID
-     * 
-     * @return 当前实例的endpointModelId
-     */
-    public String getEndpointModelId() {
-        return endpointModelId;
-    }
-
-    /**
-     * 获取使用的baseUrl
-     * 
-     * @return 当前baseUrl
-     */
-    public String getBaseUrl() {
-        return baseUrl;
-    }
-
+    // ========================= 配置校验 =========================
     /**
      * 检查配置是否齐全（API key和接入点ID都不为空）
-     * 
+     *
      * @return 配置齐全返回true，否则返回false
      */
     public boolean isConfigured() {
@@ -137,32 +109,6 @@ public final class LlmNpc {
     }
 
     // ========================= 公共业务调用入口 =========================
-
-    /**
-     * 单轮对话接口：传一个system prompt和一个user消息，返回assistant回复
-     * 
-     * @param systemPrompt 系统设定
-     * @param userMessage  用户输入内容
-     * @return assistant的回复内容
-     */
-    public String chat(String systemPrompt, String userMessage) throws IOException, InterruptedException {
-        return chatMessagesDetailed(
-                systemPrompt,
-                Collections.singletonList(new ChatMessage("user", userMessage)))
-                .finalText();
-    }
-
-    /**
-     * 多轮对话接口：传一个system prompt和多轮user/assistant消息，返回assistant最终回复
-     * 
-     * @param systemPrompt 系统设定
-     * @param messages     多轮消息（role仅支持user/assistant）
-     * @return assistant的回复内容
-     */
-    public String chatMessages(String systemPrompt, List<ChatMessage> messages)
-            throws IOException, InterruptedException {
-        return chatMessagesDetailed(systemPrompt, messages).finalText();
-    }
 
     /**
      * 多轮对话接口（结构化结果）：可获取模型回复正文和推理链
@@ -245,16 +191,6 @@ public final class LlmNpc {
     }
 
     // ========================= 结果解析工具 =========================
-
-    /**
-     * 提取assistant回复的正文字符串（直接给业务用）
-     * 
-     * @param responseJsonBody ark接口返回的JSON字符串
-     * @return assistant的回复内容
-     */
-    public String extractAssistantText(String responseJsonBody) throws IOException {
-        return extractAssistantReply(responseJsonBody).finalText();
-    }
 
     /**
      * 提取assistant回复，返回结构体（含正文和reasoning内容）

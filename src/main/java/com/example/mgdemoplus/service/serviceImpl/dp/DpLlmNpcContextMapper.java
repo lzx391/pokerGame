@@ -20,6 +20,7 @@ public final class DpLlmNpcContextMapper {
     private DpLlmNpcContextMapper() {
     }
 
+    /** 将引擎上下文映射为 LLM 可直接消费的扁平数据对象。 */
     public static LlmNpcGameContext map(
             DpRoomBO room,
             DpPlayer hero,
@@ -59,7 +60,7 @@ public final class DpLlmNpcContextMapper {
         String multi = summarizeMultiway(ctx.multiwayVillains);
         String counter = summarizeCounter(ctx.counterStrategy);
 
-        return new LlmNpcGameContext(//参数传入
+        return new LlmNpcGameContext(
                 st,
                 pot,
                 callAmount,
