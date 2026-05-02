@@ -718,6 +718,36 @@ export default {
       }
     },
 
+    // ---- 主动离座：将自己移到观众席 ----
+    async doLeaveSeat() {
+      if (!this.user || !this.user.nickname) return
+      try {
+        await this.dpConfirm('确定主动离座并进入观众席吗？', '主动离座', {
+          confirmButtonText: '确认离座',
+          cancelButtonText: '取消'
+        })
+      } catch (e) {
+        return
+      }
+      try {
+        var res = await this.$http.post('/dpRoom/kickPlayer', null, {
+          params: { roomId: this.roomId, nickname: this.user.nickname }
+        })
+        if (res.data !== 'ok') {
+          this.$message.error('离座失败：' + res.data)
+          return
+        }
+        this.$message.success('你已离座，当前为观众席状态')
+        this.$store.commit('dpGame/SET_MOBILE_SHEETS', {
+          showMobileHandSheet: false,
+          showMobileActionSheet: false
+        })
+        await this.loadGame()
+      } catch (err) {
+        this.$message.error('网络错误: ' + err.message)
+      }
+    },
+
     // ---- 摊牌阶段：点击玩家卡片选/取消赢家（简单模式备用） ----
     handleJudgeClick(nickname) {
       if (!this.isOwner || this.stage !== 'showdown') return

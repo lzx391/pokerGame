@@ -27,6 +27,14 @@
           查看手牌
         </button>
         <button
+            v-if="vm.heroDockRow"
+            type="button"
+            class="dp-game-hero-action-row__owner-btn"
+            @click="vm.doLeaveSeat"
+        >
+          主动离座
+        </button>
+        <button
             type="button"
             class="dp-game-hero-action-row__owner-btn"
             @click="vm.openOwnerHubSheet"
@@ -126,6 +134,14 @@
           查看手牌
         </button>
         <button
+            v-if="vm.heroDockRow"
+            type="button"
+            class="dp-game-mobile-hero-bar__btn"
+            @click="vm.doLeaveSeat"
+        >
+          主动离座
+        </button>
+        <button
             type="button"
             class="dp-game-mobile-hero-bar__btn dp-game-mobile-hero-bar__btn--owner"
             @click="vm.openOwnerHubSheet"
@@ -141,6 +157,14 @@
           @click="$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileHandSheet: true })"
       >
         查看手牌
+      </button>
+      <button
+          v-if="vm.heroDockRow && !vm.isOwner"
+          type="button"
+          class="dp-game-mobile-hero-bar__btn"
+          @click="vm.doLeaveSeat"
+      >
+        主动离座
       </button>
       <button
           v-if="vm.isMyTurn"
