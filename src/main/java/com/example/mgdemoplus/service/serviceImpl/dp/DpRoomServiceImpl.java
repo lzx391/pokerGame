@@ -177,7 +177,7 @@ public class DpRoomServiceImpl {
                             && System.currentTimeMillis() > room.getReadyDeadline()) {//当前时间戳大于准备倒计时时间戳，则进入准备超时逻辑
                                 //如果场上只有一个人且没有等待者，则直接跳过，防止机器人自己重开
                             if(room.getPlayers().size()==1 && room.getWaitNextHand().isEmpty())  {
-                                System.out.println("已跳过");
+                                // System.out.println("已跳过");
                                 continue;
                             }
                         handleReadyTimeout(room);
@@ -1022,7 +1022,7 @@ public class DpRoomServiceImpl {
         if (r.getLastDealerIndex() != 0) {//如果上局不是0，那就把did更新，如果是0，那按上把是0算
             did = r.getLastDealerIndex();
         }
-        System.out.println("上局庄位索引" + did);
+        // System.out.println("上局庄位索引" + did);
 //        System.out.println("玩家是:" + r.getPlayers().get(did).getNickname());
         for (DpPlayer p : ps) p.setDealer(false);//更新一轮
         did = (did + 1) % ps.size();
@@ -1312,24 +1312,24 @@ public class DpRoomServiceImpl {
                 r.getCommunityCards().add(deck.remove(0));
                 r.getCommunityCards().add(deck.remove(0));
                 r.setCurrentStage("flop");
-                System.out.println("设置flop阶段");
+                // System.out.println("设置flop阶段");
                 observedHandService.recordBoardState(r);
                 break;
             case "flop":
                 r.getCommunityCards().add(deck.remove(0));
                 r.setCurrentStage("turn");
                 observedHandService.recordBoardState(r);
-                System.out.println("设置turn阶段");
+                // System.out.println("设置turn阶段");
                 break;
             case "turn":
                 r.getCommunityCards().add(deck.remove(0));
                 r.setCurrentStage("river");
                 observedHandService.recordBoardState(r);
-                System.out.println("设置river阶段");
+                // System.out.println("设置river阶段");
                 break;
             case "river":
                 r.setCurrentStage("showdown");
-                System.out.println("设置showdown阶段");
+                // System.out.println("设置showdown阶段");
                 calculatePots(r);             // 进入摊牌时计算主池/边池
                 r.setCurrentActorIndex(-1);
                 // 摊牌后立即自动结算

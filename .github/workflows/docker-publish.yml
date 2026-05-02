@@ -13,6 +13,11 @@ on:
     branches: [desensitization]
   workflow_dispatch:
 
+# 同一分支上新触发时取消尚未结束的旧运行，只保留最新一次构建推送
+concurrency:
+  group: docker-publish-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   # 与 build-push-hub.ps1 / docker-compose.hub.yml 默认命名空间、标签一致
   DOCKER_NS: "1933886418"
