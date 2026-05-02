@@ -30,7 +30,7 @@ mgdemoplus:
   jwt:
     secret: ${JWT_SECRET:abcdefghhgfedcbaabcdefghhgfedcba} # JWT 签名密钥（UTF-8 至少 32 字节）；可由环境变量 JWT_SECRET 覆盖（.env 经 LocalDotenvLoader 写入系统属性）
     expiration:
-      time: 259200000
+      time: 86400000
   cache:
     music-list-ttl-seconds: ${MGDEMOPLUS_CACHE_MUSIC_LIST_TTL_SECONDS:300} # 曲库列表 Redis 缓存 TTL（秒）；上传成功后会主动删缓存键。
   dp-lobby-reconcile-enabled: true # DP 大厅表 dp_room_lobby 与内存 roomMap 对齐（清幽灵房）；单机房模型默认开启，多实例请设 false
