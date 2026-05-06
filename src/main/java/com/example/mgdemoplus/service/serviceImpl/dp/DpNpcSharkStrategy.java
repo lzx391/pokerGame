@@ -30,7 +30,7 @@ final class DpNpcSharkStrategy {
         if (bot == null)
             return;
         String rid = room != null ? room.getRoomId() : "-";
-        System.out.println("[SHARK][room=" + rid + "] " + msg);
+        // System.out.println("[SHARK][room=" + rid + "] " + msg);
     }
 
     static DpNpcEngine.BotAction decide(
