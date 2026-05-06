@@ -42,29 +42,38 @@ public class DpLlmNpcDecisionService {
      */
     private static final String LLM_SYSTEM_PROMPT = String.join(
             "",
-            "你是一位采用GTO策略的BOT_LLM决策者。你要10秒内通过权威信息包给出决策，注意，要严格按GTO策略分析牌局，信息包只起辅助作用，不要纠结没用的细节",
-            // "你是一位采用GTO策略的无限注德扑的 BOT_LLM 决策老手。你要10秒内通过给出的权威信息包给出决策。",
-            // "【数值权威】H 行的 pot、call、stack 为服务端真值；决策与赔率对照一律以 H 为准。",
-            // "【思考模式-快】保持深度思考可用，但思维链务必短：总字数尽量≤200 字（中文）。只写结论链条，禁止复述/推导 T 行座位顺序、禁止逐人推断「谁先谁后」、禁止同一数值（pot/call/赔率）重复验算。",
-            // "【防纠结】禁止出现“等下/不对/再看/我错了”等自我回退词；最多一次心算后直接给结论。",
-            // "【牌力】hsl、rk 为服务端真值；推理中不得声称 hsl 错误；不得仅凭 hole 两张定强弱。",
-            // "【赔率】优先直接使用 E.potOdds 与 E.eqEst 对比；仅当 E 缺失时才用 H.pot/H.call 自算。",
-            "【输出】仅输出一个 JSON 对象，键仅限 action、chips_to_add、brief_reason。",
-            "action∈FOLD|CALL_OR_CHECK|RAISE|ALL_IN；FOLD/CALL_OR_CHECK 的 chips_to_add=0；",
-            "CALL_OR_CHECK 为协议动作名：H.call>0 表示 CALL，H.call=0 表示 CHECK；两种情况 chips_to_add 均固定 0，禁止讨论该协议。",
-            "RAISE 的 chips_to_add=本次额外加注筹码；非负；实在不确定就弃牌。",
-            "brief_reason：给用户看的决策理由，1～2 句中文，≤120 字，须写清「牌力或赔率要点 + 为何选该 action」；勿在车轱辘复述。",
-            "不要输出 {\"reasoning\":...,\"content\":...}，不要把 JSON 嵌成转义字符串；服务端仍会容错提取。");
-    /** 与 system 不重复；字段顺序与 {@link LlmNpcGameContext#toPromptBlock()} 一致。 */
+            "你是 NLHE 无剥削均衡(GTO) 视角的 BOT_LLM：10 秒内出决策；rk/eqEst 为粗近似，须与决策包真值及底池数学自洽。",
+            "【思维链省 token=省时间】允许思考，但思考正文必须短：合计≤75 汉字、恰好三行、每行≤25 字，行首固定 R1/R2/R3，写完立刻输出 JSON，禁止出现 R4 或第4句。",
+            "【R1】hsl+rk 各一词+是否中牌一句。",
+            "【R2】只写 H.call、E.potOdds、eqEst、actionCred 与本次决策相关的一句结论，禁止展开范围。",
+            "【R3】最终 action 四选一(FOLD|CALL_OR_CHECK|RAISE|ALL_IN)+chips 取舍半句。",
+            "【禁止拖长推理】禁止自问自答与「先A再不对其实B」；禁止同论点写第二遍；禁止抄写 M/T/H/E、禁止逐张读牌。",
+            "禁止推断「T 的座位列表顺序是否等于本街行动顺序」「谁还未行动/谁在我身后下一轮」；多面底池只信 H.call、H.pot、E.activeV、E.agg，禁止为还原行动次序新开段落。",
+            "已读 M 的 SBseat/BBseat 与 T 的 * 后不得再辩论盲注位、庄位、谁先动；禁止教材式复述德州规则。",
+            "【GTO行动】禁止以犹豫、怕错、说不清为唯一理由弃牌；FOLD 须能一句点明 -EV(如 E.potOdds 明显高于 eqEst)或成牌/听牌不足以继续。",
+            "边缘 indifference(potOdds≈eqEst)勿默认弃：允许守最小防守频率的 CALL_OR_CHECK，brief_reason 须含赔率或档次关键词。",
+            "【真值】H.call/H.pot/H.stack 为跟注与筹码真值；赔率只用 E.potOdds 或单次 H.call/(H.pot+H.call)，禁止同街换分母重算。",
+            "【成牌】口述强度必须与 H.hsl 一致，禁止质疑 hsl、禁止用数公牌张数推翻；禁止先说俗语牌型再改口。",
+            "【对手】仅用 E.villainTier 字段原文，禁止擅自改成其它档位名或口语绰号（若原文是 BALANCED 就不得写成疯鱼）。",
+            "【口癖】禁止：等下/不对/再看/我错了/等等/等一下/让我想想/重新算/可能我理解错了。",
+            "【输出】仅一个 JSON：action、chips_to_add、brief_reason。",
+            "action∈FOLD|CALL_OR_CHECK|RAISE|ALL_IN；FOLD 与 CALL_OR_CHECK 的 chips_to_add=0。",
+            "CALL_OR_CHECK：H.call>0=跟注（不写跟注额，chips=0）；H.call=0=过牌；勿在思考中解释本协议。",
+            "RAISE：跟满后多加的筹码；H.call=0 时 chips_to_add=首注额；非负；尺度须与价值/诈唬平衡或 SPR 相称，无依据则选 CALL_OR_CHECK 勿硬加注。",
+            "ALL_IN：chips_to_add 任意非负，服务端夹为全下。",
+            "brief_reason：1～2 句中文≤120 字，牌力或赔率要点+为何此 action。",
+            "勿输出 reasoning/content 包装，勿把 JSON 嵌成转义字符串。");
+    /** 与 system 不重复；H 行字段顺序与 {@link LlmNpcGameContext#toPromptBlock()} 一致(hsl 紧跟 stage 以利速读)。 */
     private static final String USER_PROMPT_STATIC_PREFIX = String.join(
             "\n",
             "NLHE 决策包(权威)，顺序 M→T→H→E。",
-            "M: BB=大盲筹码 SB=小盲筹码 rl=本街加注层级(1=面对open 2=面对3bet 3=面对4bet+；不是ante) SBseat/BBseat=本手小盲/大盲昵称",
-            "T: 仍在手玩家；列表顺序=房间座位序。每段 昵称,剩余筹码,本街已下(本轮已放入底池的额度；含盲注poster在本街的数额)。",
-            "  标记 D=庄位 F=弃牌 A=全下 *=轮到谁行动",
-            "H: hero=昵称 stage=阶段 pot=底池 call=为跟注至当前注额需再投入的筹码 stack=你剩余 pos=座位 rk=简化牌力 hsl=成牌标签 hole board",
+            "M: BB=大盲筹码 SB=小盲筹码 rl=本街加注层级(1=面对open 2=面对3bet 3=面对4bet+；与ante无关) SBseat/BBseat=本手小盲/大盲昵称(定盲注位以此为准)",
+            "T: 仍在手玩家；列表顺序=房间座位序(≠翻后行动顺序)。每段 昵称,剩余筹码,本街已下(本轮已放入底池的额度；含盲注poster在本街的数额)。",
+            "  标记 D=庄按钮所在座位 F=弃牌 A=全下 *=本包发出时的行动者(即你)；轮到谁只以*为准，勿据 T 从前到后推断「下一个该谁」。",
+            "  D 与是否大盲/小盲无互斥，盲注身份只看 M 的 SBseat/BBseat，勿因 T 上谁带 D 而推翻 M。",
+            "H: hero stage hsl rk pot call stack pos hole board（hsl=服务端最佳五张标签，最先读它再读 rk）",
             "  rk 遇 hsl 为 PAIR_OF_* 且公牌已带该对（手牌未中该对）时多为弱踢脚，勿等同顶对重注",
-            "E: agg=最近下注/加注者 villainTier=主对手风格档 actionCred=线路可信度 sdBluff=摊牌唬偏好 potOdds=底池赔率 eqEst=胜率估计",
+            "E: agg=最近下注/加注者(无则-) villainTier=主对手风格档(仅用本行原文，勿改名；勿与控制台里其他 bot 的调试标签混用) actionCred=线路可信度 sdBluff=摊牌唬偏好 potOdds=底池赔率 eqEst=胜率估计",
             "  activeV=活跃对手数 behindTDS=身后台紧/深/短筹人数 counter=反制策略关键词",
             "勿改字段名；JSON 须含 action、chips_to_add、brief_reason（见 system）。");
     /** 轮到 BOT_LLM 后、发起方舟请求前的额外等待；0 表示不人为拖延（总耗时几乎全在 API 侧）。 */
@@ -152,10 +161,13 @@ public class DpLlmNpcDecisionService {
     private static final class Inflight {
         final CompletableFuture<DpNpcEngine.BotAction> future;
         final LlmActionTicket ticket;
+        /** {@link #decideActionIfReady} 把任务放进 map、发起异步的时刻，用于主线程侧「发起→落地」耗时 */
+        final long startedAtMs;
 
-        Inflight(CompletableFuture<DpNpcEngine.BotAction> future, LlmActionTicket ticket) {
+        Inflight(CompletableFuture<DpNpcEngine.BotAction> future, LlmActionTicket ticket, long startedAtMs) {
             this.future = future;
             this.ticket = ticket;
+            this.startedAtMs = startedAtMs;
         }
     }
 
@@ -224,16 +236,19 @@ public class DpLlmNpcDecisionService {
             LlmNpcGameContext gameContext = DpNpcEngine.buildLlmNpcGameSnapshot(room, bot);// 获取当前情况,Mapper相当于转接器，把smartcontext信息利用了
             String userPrompt = buildUserPrompt(room, bot, gameContext);// 用的是GameContext的方法，打包压缩送给大模型的信息
             // 异步发送打包信息，把传回来的信息给future
+            String roomId = room.getRoomId();
+            String stage = room.getCurrentStage();
             CompletableFuture<DpNpcEngine.BotAction> future = CompletableFuture
-                    .supplyAsync(() -> invokeModel(userPrompt), llmExecutor)
+                    .supplyAsync(() -> invokeModel(roomId, stage, userPrompt), llmExecutor)
                     .orTimeout(125, TimeUnit.SECONDS)
                     .exceptionally(ex -> {
                         LOG.warn("[BOT_LLM] 异步请求异常/超时: {}", ex == null ? "?" : ex.getMessage());
                         return null;
                     });
 
-            LOG.info("[BOT_LLM] 【已发起大模型请求】room={} stage={}", room.getRoomId(), room.getCurrentStage());
-            inflightByKey.put(key, new Inflight(future, ticket));// 钥匙和在途任务以及快照信息，等请求完成了，用key取出来结果核验快照
+            long dispatchMs = System.currentTimeMillis();
+            LOG.info("[BOT_LLM] 【已发起大模型请求】room={} stage={}", roomId, stage);
+            inflightByKey.put(key, new Inflight(future, ticket, dispatchMs));// 钥匙和在途任务以及快照信息，等请求完成了，用key取出来结果核验快照
             return null;
         }
         // 如果返回了就删掉key，没返回就卡着
@@ -243,17 +258,25 @@ public class DpLlmNpcDecisionService {
 
         inflightByKey.remove(key);
         bot.setNextBotActionTime(0L);
+        long landingMs = System.currentTimeMillis();
+        long sinceDispatchMs = landingMs - slot.startedAtMs;
         // 快照过期了，返回的决策不能用了，执行兜底决策
         if (!slot.ticket.stillValid(room, bot)) {// 执行兜底决策
+            LOG.info("[BOT_LLM] 【决策耗时】发起异步→本tick落地={}ms room={} stage={} outcome=丢弃(局面已变)",
+                    sinceDispatchMs, room.getRoomId(), room.getCurrentStage());
             return applyLocalFallback(room, bot, "局面已变(与发起请求时不一致，丢弃模型结果)");
         }
         // 模型返回null也走兜底
         DpNpcEngine.BotAction parsed = slot.future.getNow(null);
         if (parsed == null) {
+            LOG.info("[BOT_LLM] 【决策耗时】发起异步→本tick落地={}ms room={} stage={} outcome=本地兜底(模型无有效动作)",
+                    sinceDispatchMs, room.getRoomId(), room.getCurrentStage());
             return applyLocalFallback(room, bot, "模型返回null/未配置/解析失败/超时");
         }
         // 正常返回之后处理信息，有时候LLM返回的信息并不能实行，比如筹码剩下200了，他却要raise250，所以需要再最后把把关，弄成符合游戏实际的操作返回
         DpNpcEngine.BotAction executed = normalizeAndClamp(room, bot, parsed);
+        LOG.info("[BOT_LLM] 【决策耗时】发起异步→本tick落地={}ms room={} stage={} outcome=采用大模型",
+                sinceDispatchMs, room.getRoomId(), room.getCurrentStage());
         LOG.info("[BOT_LLM] 【采用大模型】解析动作={} chips_to_add={} -> 规范化执行={} amount={}",
                 parsed.getType(), parsed.getAmount(), executed.getType(), executed.getAmount());
         return executed;
@@ -268,13 +291,18 @@ public class DpLlmNpcDecisionService {
     }
 
     // 已学习，返回决策结果
-    private DpNpcEngine.BotAction invokeModel(String userPrompt) {
+    /**
+     * @param roomId 仅用于耗时日志关联房间
+     * @param stage  仅用于耗时日志关联阶段
+     */
+    private DpNpcEngine.BotAction invokeModel(String roomId, String stage, String userPrompt) {
         if (!llmNpc.isConfigured()) {
             LOG.warn("[BOT_LLM] 未配置密钥/接入点，跳过请求");
             return null;
         }
         LOG.debug("======== [BOT_LLM] 输入 system ========\n{}", LLM_SYSTEM_PROMPT);
         LOG.debug("======== [BOT_LLM] 输入 user ========\n{}", userPrompt);
+        long t0 = System.nanoTime();
         try {
             // 把大模型key id 提示词 信息包输入进去
             LlmNpc.LlmReply reply = llmNpc.chatMessagesDetailed(
@@ -309,6 +337,9 @@ public class DpLlmNpcDecisionService {
         } catch (Exception e) {
             LOG.warn("[BOT_LLM] HTTP/调用失败: {}", e.getMessage());
             return null;
+        } finally {
+            long modelWallMs = (System.nanoTime() - t0) / 1_000_000L;
+            LOG.info("[BOT_LLM] 【模型调用耗时】HTTP+解析={}s room={} stage={}", modelWallMs/1000, roomId, stage);
         }
     }
 

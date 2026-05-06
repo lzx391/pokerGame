@@ -103,7 +103,7 @@ public final class LlmNpcGameContext {
 
     /**
      * 拼接出用于大模型 prompt 的局面简要文本（键名与 {@code DpLlmNpcDecisionService} 的 user 前缀词典一致）。
-     * {@code hsl=} 为服务端 {@link com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator#describeHandStrengthForLlm} 生成的最佳五张牌标签。
+     * {@code hsl=} 为服务端 {@link com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator#describeHandStrengthForLlm} 生成的最佳五张牌标签，置于 H 行靠前以便模型速读。
      * 桌上逐人筹码见决策包 T 行。
      * @return 简化的对局字符串
      */
@@ -116,16 +116,16 @@ public final class LlmNpcGameContext {
         String hsl = handStrengthLine == null || handStrengthLine.isEmpty() ? "-" : handStrengthLine;
         return String.format(
                 Locale.ROOT,
-                "H hero=%s stage=%s pot=%d call=%d stack=%d pos=%s rk=%s hsl=%s hole=%s board=%s\n"
+                "H hero=%s stage=%s hsl=%s rk=%s pot=%d call=%d stack=%d pos=%s hole=%s board=%s\n"
                         + "E agg=%s villainTier=%s actionCred=%s sdBluff=%.2f potOdds=%.2f eqEst=%.2f activeV=%d behindTDS=%d/%d/%d counter=%s\n",
                 heroNickname,
                 stage,
+                hsl,
+                simpleStrength,
                 potChips,
                 callAmountChips,
                 heroChips,
                 tablePosition,
-                simpleStrength,
-                hsl,
                 hole,
                 board,
                 agg,
