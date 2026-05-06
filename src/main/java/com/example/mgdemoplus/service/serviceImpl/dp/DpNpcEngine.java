@@ -5,6 +5,7 @@ import com.example.mgdemoplus.entity.dp.DpPlayer;
 import com.example.mgdemoplus.entity.dp.DpPlayerStats;
 import com.example.mgdemoplus.service.serviceImpl.dp.npc.LlmNpcGameContext;
 import com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator;
+import com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator.HandStrength;
 import com.example.mgdemoplus.utils.dp.DpUtilSmartContext;
 
 import static com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator.CARD_RANK_MAP;
@@ -1154,13 +1155,13 @@ public final class DpNpcEngine {
     }
 
     /**
-     * 将粗粒度牌力 + 当前阶段映射为一个 0~1 的“赢率估计桶”。
-     * 这里只做非常粗略的分档，目的是让 SHARK 在有跟注成本时能先对比「赢率 vs 底池赔率」再决定是否弃牌。
+     * 将粗粒度牌力 + 当前阶段映射为一个 0~1 的“赢率估计桶”（供 SHARK / BOT_LLM 与底池赔率对照）。
+     * 在原有 rk 四档基础上，增加：翻前手牌结构、翻后真实成牌类别（{@link HandStrength}）校正，缓解「凡 WEAK 皆 0.25」的卡死问题。
      */
     private static double estimateEquityBucket(SimpleStrength st, String stage,
-            List<String> hole, List<String> community) {
+            List<String> hole, List<String> community, HandStrength hsMade) {
         if (st == null) {
-            return 0.25;
+            return clampEquityEstimate(0.25);
         }
         boolean preflop = "preflop".equals(stage);
         double base;
@@ -1179,8 +1180,15 @@ public final class DpNpcEngine {
                 base = preflop ? 0.25 : 0.20;
                 break;
         }
-        // 翻后在 flop / turn 结合听牌稍微微调：有强听牌时弱/中等牌适度抬高估计赢率
-        if (!preflop && ("flop".equals(stage) || "turn".equals(stage))) {
+        if (preflop) {
+            base = applyPreflopHoleEquityAdjustments(base, hole);
+            return clampEquityEstimate(base);
+        }
+        if (hsMade != null) {
+            base = applyPostflopMadeHandEquityAdjustments(base, st, hsMade, hole, community);
+        }
+        // 翻后在 flop / turn 结合听牌微调：有强听牌时弱/中等牌适度抬高估计赢率
+        if ("flop".equals(stage) || "turn".equals(stage)) {
             boolean strongDraw = hasStrongFlushDraw(hole, community) || hasOpenEndedStraightDraw(hole, community);
             if (strongDraw) {
                 if (st == SimpleStrength.MEDIUM) {
@@ -1188,6 +1196,126 @@ public final class DpNpcEngine {
                 } else if (st == SimpleStrength.WEAK) {
                     base = Math.max(base, 0.30);
                 }
+            }
+        }
+        return clampEquityEstimate(base);
+    }
+
+    private static double clampEquityEstimate(double v) {
+        if (v < 0.06) {
+            return 0.06;
+        }
+        if (v > 0.93) {
+            return 0.93;
+        }
+        return Math.round(v * 1000.0) / 1000.0;
+    }
+
+    /** 翻前：小对隐含赔率、同花连张/结构牌、AXs / 宽张等细调（不改变 rk，只调胜率桶）。 */
+    private static double applyPreflopHoleEquityAdjustments(double base, List<String> hole) {
+        if (hole == null || hole.size() < 2) {
+            return base;
+        }
+        int r1 = getRankFromCard(hole.get(0));
+        int r2 = getRankFromCard(hole.get(1));
+        if (r1 <= 0 || r2 <= 0) {
+            return base;
+        }
+        boolean suited = holeSuitsEqual(hole.get(0), hole.get(1));
+        int hi = Math.max(r1, r2);
+        int lo = Math.min(r1, r2);
+        int gap = hi - lo;
+        double b = base;
+        if (gap == 0) {
+            if (hi <= 6) {
+                b = Math.max(b, 0.37);
+            } else if (hi <= 8) {
+                b = Math.max(b, 0.39);
+            }
+            return b;
+        }
+        if (suited) {
+            if (gap <= 2 && hi >= 5 && hi <= 12 && lo >= 4) {
+                b += 0.045;
+            }
+            if (hi == 14 && lo >= 10) {
+                b += 0.04;
+            } else if (hi == 14 && lo >= 5 && lo <= 9) {
+                b += 0.03;
+            }
+        } else {
+            if (hi >= 12 && lo >= 10 && gap <= 2) {
+                b += 0.035;
+            }
+            if (hi == 14 && lo >= 11) {
+                b += 0.03;
+            }
+        }
+        return b;
+    }
+
+    private static boolean holeSuitsEqual(String c1, String c2) {
+        if (c1 == null || c2 == null || !c1.contains("_") || !c2.contains("_")) {
+            return false;
+        }
+        return Objects.equals(c1.split("_", 2)[0], c2.split("_", 2)[0]);
+    }
+
+    private static int maxRankOnBoard(List<String> community) {
+        if (community == null) {
+            return 0;
+        }
+        int m = 0;
+        for (String c : community) {
+            m = Math.max(m, getRankFromCard(c));
+        }
+        return m;
+    }
+
+    /**
+     * 翻后：按真实牌型大类 + 是否板对、是否超对/顶对等校正胜率桶（仍为估算，非蒙特卡洛）。
+     */
+    private static double applyPostflopMadeHandEquityAdjustments(double base, SimpleStrength st,
+            HandStrength hs, List<String> hole, List<String> community) {
+        if (hs == null || hole == null || community == null) {
+            return base;
+        }
+        int cat = hs.rankCategory;
+        List<Integer> rk = hs.ranks;
+        int boardHigh = maxRankOnBoard(community);
+
+        if (cat >= 7) {
+            return Math.max(base, 0.82);
+        }
+        if (cat == 6 || cat == 5) {
+            return Math.max(base, 0.68);
+        }
+        if (cat == 4) {
+            return Math.max(base, 0.52);
+        }
+        if (cat == 3) {
+            return Math.max(base, 0.44);
+        }
+        if (cat == 2 && rk != null && !rk.isEmpty()) {
+            int pr = rk.get(0);
+            if (DpUtilHandEvaluator.isPlayingBoardPairOnly(hs, hole, community)) {
+                return Math.min(base, 0.19);
+            }
+            if (pr > boardHigh) {
+                return Math.max(base, 0.62);
+            }
+            if (pr == boardHigh) {
+                return Math.max(base, 0.53);
+            }
+            if (pr >= 10) {
+                return Math.max(base, 0.37);
+            }
+            return Math.max(base, 0.28);
+        }
+        if (cat == 1 && rk != null && !rk.isEmpty()) {
+            int k0 = rk.get(0);
+            if (k0 == 14) {
+                return Math.max(base, 0.24);
             }
         }
         return base;
@@ -2392,10 +2520,18 @@ public final class DpNpcEngine {
             potOdds = computePotOdds(room, hero, callAmount, random, difficulty);
         }
 
-        // 7. 粗略赢率估计桶
+        // 7. 粗略赢率估计桶（翻后在可评估 5+ 张牌时用真实成牌类型校正）
         List<String> hole = hero.getHoleCards();
         List<String> community = room.getCommunityCards();
-        double equityEst = estimateEquityBucket(strength, stage, hole, community);
+        HandStrength hsForEquity = null;
+        if (hole != null && community != null && !"preflop".equals(stage)) {
+            List<String> allForEq = new ArrayList<>(hole);
+            allForEq.addAll(community);
+            if (allForEq.size() >= 5) {
+                hsForEquity = evaluateBestHand(allForEq);
+            }
+        }
+        double equityEst = estimateEquityBucket(strength, stage, hole, community, hsForEquity);
 
         // 8. 筹码深度上下文
         StackContext stackCtx = analyzeStacks(room, hero);

@@ -59,6 +59,8 @@ public final class DpLlmNpcContextMapper {
 
         String multi = summarizeMultiway(ctx.multiwayVillains);
         String counter = summarizeCounter(ctx.counterStrategy);
+        String squeeze = buildSqueezeRiskSummary(callAmount, room != null ? room.getBigBlindChips() : 0,
+                ctx.multiwayVillains);
 
         return new LlmNpcGameContext(
                 st,
@@ -88,7 +90,55 @@ public final class DpLlmNpcContextMapper {
                 ctx.tightBehindCount,
                 ctx.deepBehindCount,
                 ctx.shortBehindCount,
-                counter);
+                counter,
+                squeeze);
+    }
+
+    /**
+     * 身后激进短码「跟注后被挤压/全下」风险摘要，供 BOT_LLM 与赔率一并阅读。
+     */
+    private static String buildSqueezeRiskSummary(int callAmount, int bigBlindChips,
+            List<DpNpcEngine.MultiwayVillainInfo> list) {
+        int bb = Math.max(1, bigBlindChips);
+        double shortBb = DpNpcEngine.SharkConfig.SHORT_STACK_BB;
+        double deepBb = DpNpcEngine.SharkConfig.DEEP_STACK_MIN_BB;
+        if (callAmount <= 0) {
+            return "不适用（本轮你还须支付为 0：无「跟注后被身后加注」问题）。";
+        }
+        if (list == null || list.isEmpty()) {
+            return "低（无多路摘要）。";
+        }
+        List<String> aggShortNicks = new ArrayList<>();
+        int aggShortCnt = 0;
+        int nitDeepBehind = 0;
+        for (DpNpcEngine.MultiwayVillainInfo v : list) {
+            if (v == null || !v.behindHero) {
+                continue;
+            }
+            boolean agg = v.tier == DpNpcEngine.VillainRangeTier.MANIAC
+                    || v.tier == DpNpcEngine.VillainRangeTier.LOOSE;
+            boolean shortStack = v.stackBB > 0 && v.stackBB <= shortBb;
+            if (agg && shortStack) {
+                aggShortCnt++;
+                if (v.nickname != null && !v.nickname.isBlank()) {
+                    aggShortNicks.add(v.nickname);
+                }
+            }
+            if ((v.tier == DpNpcEngine.VillainRangeTier.NIT || v.tier == DpNpcEngine.VillainRangeTier.TIGHT)
+                    && v.stackBB >= deepBb) {
+                nitDeepBehind++;
+            }
+        }
+        if (aggShortCnt > 0) {
+            String names = aggShortNicks.isEmpty() ? "（见多路摘要）" : String.join("、", aggShortNicks);
+            return String.format(
+                    "高｜身后尚有约≤%.0fBB 的激进短码共%d人，可能在你平跟后继续加注或全下：%s。边缘牌慎纯跟注，可考虑弃牌或以大块加注夺回主动权。",
+                    shortBb, aggShortCnt, names);
+        }
+        if (nitDeepBehind > 0 && callAmount >= 5 * bb) {
+            return "中｜身后有紧凶深码，面对较大跟注可能被冷加注挤压；中等牌力避免勉强跟注。";
+        }
+        return "低｜身后未见显著「激进+短码」组合（仍有被加注的可能，勿理解为零风险）。";
     }
 
     /**

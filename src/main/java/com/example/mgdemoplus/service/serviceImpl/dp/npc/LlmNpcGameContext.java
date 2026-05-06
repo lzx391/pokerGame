@@ -38,6 +38,8 @@ public final class LlmNpcGameContext {
     private final int deepBehindCount;
     private final int shortBehindCount;
     private final String counterStrategySummary;
+    /** 身后激进短码等对「平跟后被挤压」风险的简述（服务端推算）。 */
+    private final String squeezeRiskSummary;
 
     /**
      * 构造函数，初始化所有字段
@@ -70,7 +72,8 @@ public final class LlmNpcGameContext {
             int tightBehindCount,
             int deepBehindCount,
             int shortBehindCount,
-            String counterStrategySummary) {
+            String counterStrategySummary,
+            String squeezeRiskSummary) {
         this.stage = stage != null ? stage : "";
         this.potChips = potChips;
         this.callAmountChips = callAmountChips;
@@ -99,6 +102,7 @@ public final class LlmNpcGameContext {
         this.deepBehindCount = deepBehindCount;
         this.shortBehindCount = shortBehindCount;
         this.counterStrategySummary = counterStrategySummary != null ? counterStrategySummary : "";
+        this.squeezeRiskSummary = squeezeRiskSummary != null ? squeezeRiskSummary : "";
     }
 
     /**
@@ -140,7 +144,9 @@ public final class LlmNpcGameContext {
         sb.append(String.format(Locale.ROOT, "【筹码深度】SPR≈%.2f（你的后手÷当前底池；底池为 0 时记 0）\n", spr));
         sb.append("【跟注胜率门槛】").append(implExplain).append('\n');
         sb.append(String.format(Locale.ROOT, "【底池赔率】%.2f｜%s\n", potOdds, potOddsExplain));
-        sb.append(String.format(Locale.ROOT, "【胜率估计】%.2f（粗桶，仅供参考）\n", equityEstimate));
+        sb.append(String.format(Locale.ROOT,
+                "【胜率估计】%.2f（服务端估算：rk 四档 + 翻前手牌结构 + 翻后成牌类型校正；非蒙特卡洛精确胜率）\n",
+                equityEstimate));
         sb.append("【你的底牌】").append(hole).append('\n');
         sb.append("【公共牌】").append(board).append('\n');
         sb.append("【服务端认定的最佳成牌英文标签】").append(hsl).append("（以此为准，勿自行推翻）\n");
@@ -155,6 +161,7 @@ public final class LlmNpcGameContext {
                 .append("｜深码=").append(deepBehindCount)
                 .append("｜短码=").append(shortBehindCount).append('\n');
         sb.append("【对策关键词】").append(ctr).append('\n');
+        sb.append("【挤压风险】").append(squeezeRiskSummary.isEmpty() ? "（无）" : squeezeRiskSummary).append('\n');
         boolean hasStacks = villainMinStackChips > 0 || villainMaxStackChips > 0 || villainAvgStackChips > 0;
         if (hasStacks) {
             sb.append(String.format(Locale.ROOT,
@@ -265,7 +272,8 @@ public final class LlmNpcGameContext {
                 && Objects.equals(villainRangeTier, that.villainRangeTier)
                 && Objects.equals(actionCredibility, that.actionCredibility)
                 && Objects.equals(multiwayVillainsSummary, that.multiwayVillainsSummary)
-                && Objects.equals(counterStrategySummary, that.counterStrategySummary);
+                && Objects.equals(counterStrategySummary, that.counterStrategySummary)
+                && Objects.equals(squeezeRiskSummary, that.squeezeRiskSummary);
     }
 
     /**
@@ -283,6 +291,6 @@ public final class LlmNpcGameContext {
                 villainMinStackBb, villainMaxStackBb, villainAvgStackBb,
                 activeVillains, multiwayVillainsSummary,
                 tightBehindCount, deepBehindCount, shortBehindCount,
-                counterStrategySummary);
+                counterStrategySummary, squeezeRiskSummary);
     }
 }
