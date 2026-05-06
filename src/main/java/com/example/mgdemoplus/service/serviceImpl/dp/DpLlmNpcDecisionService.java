@@ -38,44 +38,22 @@ public class DpLlmNpcDecisionService {
     private static final Logger LOG_REASONING = LoggerFactory.getLogger("com.example.mgdemoplus.dp.BotLlmReasoning");
 
     /**
-     * 规则集中在此，user 仅留字段词典 + 数据，减少重复与 token。
+     * 仅约束决策方式与 JSON；局面数字与说明全部由用户消息里的中文「局面包」提供（无额外英文字段词典）。
      */
     private static final String LLM_SYSTEM_PROMPT = String.join(
             "",
-            "你是 NLHE 无剥削均衡(GTO) 视角的 BOT_LLM：10 秒内出决策；rk/eqEst 为粗近似，须与决策包真值及底池数学自洽。",
-            "【思维链省 token=省时间】允许思考，但思考正文必须短：合计≤75 汉字、恰好三行、每行≤25 字，行首固定 R1/R2/R3，写完立刻输出 JSON，禁止出现 R4 或第4句。",
-            "【R1】hsl+rk 各一词+是否中牌一句。",
-            "【R2】只写 H.call、E.potOdds、eqEst、actionCred 与本次决策相关的一句结论，禁止展开范围。",
-            "【R3】最终 action 四选一(FOLD|CALL_OR_CHECK|RAISE|ALL_IN)+chips 取舍半句。",
-            "【禁止拖长推理】禁止自问自答与「先A再不对其实B」；禁止同论点写第二遍；禁止抄写 M/T/H/E、禁止逐张读牌。",
-            "禁止推断「T 的座位列表顺序是否等于本街行动顺序」「谁还未行动/谁在我身后下一轮」；多面底池只信 H.call、H.pot、E.activeV、E.agg，禁止为还原行动次序新开段落。",
-            "已读 M 的 SBseat/BBseat 与 T 的 * 后不得再辩论盲注位、庄位、谁先动；禁止教材式复述德州规则。",
-            "【GTO行动】禁止以犹豫、怕错、说不清为唯一理由弃牌；FOLD 须能一句点明 -EV(如 E.potOdds 明显高于 eqEst)或成牌/听牌不足以继续。",
-            "边缘 indifference(potOdds≈eqEst)勿默认弃：允许守最小防守频率的 CALL_OR_CHECK，brief_reason 须含赔率或档次关键词。",
-            "【真值】H.call/H.pot/H.stack 为跟注与筹码真值；赔率只用 E.potOdds 或单次 H.call/(H.pot+H.call)，禁止同街换分母重算。",
-            "【成牌】口述强度必须与 H.hsl 一致，禁止质疑 hsl、禁止用数公牌张数推翻；禁止先说俗语牌型再改口。",
-            "【对手】仅用 E.villainTier 字段原文，禁止擅自改成其它档位名或口语绰号（若原文是 BALANCED 就不得写成疯鱼）。",
-            "【口癖】禁止：等下/不对/再看/我错了/等等/等一下/让我想想/重新算/可能我理解错了。",
-            "【输出】仅一个 JSON：action、chips_to_add、brief_reason。",
-            "action∈FOLD|CALL_OR_CHECK|RAISE|ALL_IN；FOLD 与 CALL_OR_CHECK 的 chips_to_add=0。",
-            "CALL_OR_CHECK：H.call>0=跟注（不写跟注额，chips=0）；H.call=0=过牌；勿在思考中解释本协议。",
-            "RAISE：跟满后多加的筹码；H.call=0 时 chips_to_add=首注额；非负；尺度须与价值/诈唬平衡或 SPR 相称，无依据则选 CALL_OR_CHECK 勿硬加注。",
-            "ALL_IN：chips_to_add 任意非负，服务端夹为全下。",
-            "brief_reason：1～2 句中文≤120 字，牌力或赔率要点+为何此 action。",
-            "勿输出 reasoning/content 包装，勿把 JSON 嵌成转义字符串。");
-    /** 与 system 不重复；H 行字段顺序与 {@link LlmNpcGameContext#toPromptBlock()} 一致(hsl 紧跟 stage 以利速读)。 */
-    private static final String USER_PROMPT_STATIC_PREFIX = String.join(
-            "\n",
-            "NLHE 决策包(权威)，顺序 M→T→H→E。",
-            "M: BB=大盲筹码 SB=小盲筹码 rl=本街加注层级(1=面对open 2=面对3bet 3=面对4bet+；与ante无关) SBseat/BBseat=本手小盲/大盲昵称(定盲注位以此为准)",
-            "T: 仍在手玩家；列表顺序=房间座位序(≠翻后行动顺序)。每段 昵称,剩余筹码,本街已下(本轮已放入底池的额度；含盲注poster在本街的数额)。",
-            "  标记 D=庄按钮所在座位 F=弃牌 A=全下 *=本包发出时的行动者(即你)；轮到谁只以*为准，勿据 T 从前到后推断「下一个该谁」。",
-            "  D 与是否大盲/小盲无互斥，盲注身份只看 M 的 SBseat/BBseat，勿因 T 上谁带 D 而推翻 M。",
-            "H: hero stage hsl rk pot call stack pos hole board（hsl=服务端最佳五张标签，最先读它再读 rk）",
-            "  rk 遇 hsl 为 PAIR_OF_* 且公牌已带该对（手牌未中该对）时多为弱踢脚，勿等同顶对重注",
-            "E: agg=最近下注/加注者(无则-) villainTier=主对手风格档(仅用本行原文，勿改名；勿与控制台里其他 bot 的调试标签混用) actionCred=线路可信度 sdBluff=摊牌唬偏好 potOdds=底池赔率 eqEst=胜率估计",
-            "  activeV=活跃对手数 behindTDS=身后台紧/深/短筹人数 counter=反制策略关键词",
-            "勿改字段名；JSON 须含 action、chips_to_add、brief_reason（见 system）。");
+            "你是无限德州 BOT_LLM，GTO 取向；用户消息只有一节中文「局面包」，其中数字为本拍快照真值，直接采用，勿再追问字段含义或复读整包。",
+            "胜率估计与 rk 为粗桶；最佳成牌以局面包里的英文 hsl 标签为准，勿质疑、勿用口头牌型推翻。rk 再高也不是坚果：勿写「最大/坚果」除非 hsl 已是坚果类；公牌可配更大葫芦/花/顺时忌夸张。",
+            "你还须支付=0 表示本轮不必再掏钱即可维持参与：选过牌或翻前已对齐盲注；此时底池赔率为 0 表示不适用，禁止拿它与胜率估计比弃跟。",
+            "你还须支付>0 时：底池赔率≈你还须支付÷(当前底池+你还须支付)，可与胜率估计对照；勿换分母重算。",
+            "【短思考】≤75 汉字、恰好三行 R1/R2/R3（每行≤25 字），行首必须是 R1/R2/R3，紧接着输出 JSON；禁止第 4 句、禁止长篇复述局面包、禁止逐张背牌、禁止推断「座位列表顺序=说话顺序」。",
+            "R1：hsl+rk+是否成牌一句。R2：仅当你还须支付>0 时写底池赔率与胜率估计一句；否则写「免票」一句。R3：四选一动作+筹码半句。",
+            "【行动】弃牌须能说清跟注为何 -EV 或牌力不足；赔率与胜率接近时不要默认弃。brief_reason 里弃牌请写「跟注-EV」故弃，勿写「弃牌-EV」。",
+            "【输出】仅一个 JSON 对象，键名必须为英文：action、chips_to_add、brief_reason（1～2 句中文≤120 字）。",
+            "action 取值：FOLD | CALL_OR_CHECK | RAISE | ALL_IN；FOLD 与 CALL_OR_CHECK 的 chips_to_add 固定为 0。",
+            "CALL_OR_CHECK：你还须支付>0 表示跟注（勿在 chips_to_add 里写跟注额）；你还须支付=0 表示过牌。",
+            "RAISE：在跟满你还须支付之外再加的筹码；你还须支付=0 时 chips_to_add 为首注金额；无明确价值/诈唬/SPR 依据勿硬加注。ALL_IN：chips_to_add 任意非负，由服务端规范为全下。",
+            "勿 markdown、勿代码块包裹 JSON。禁止口癖：等下/不对/再看/我错了/重新算/可能我理解错了。");
     /** 轮到 BOT_LLM 后、发起方舟请求前的额外等待；0 表示不人为拖延（总耗时几乎全在 API 侧）。 */
     private static final long PRE_API_DELAY_MS = 0L;
     /** 控制台打印 reasoning_content 上限，避免上万字刷屏；不影响 API 侧真实思考长度。 */
@@ -359,31 +337,45 @@ public class DpLlmNpcDecisionService {
         return n;
     }
 
-    // 已学习，构建喂给AI的信息包
+    // 已学习，构建喂给AI的信息包（纯中文局面说明 + smartContext 映射结果，无英文字段词典前缀）
     private String buildUserPrompt(DpRoomBO room, DpPlayer bot, LlmNpcGameContext ctx) {
-        StringBuilder sb = new StringBuilder(1024);
-        sb.append(USER_PROMPT_STATIC_PREFIX).append('\n');
-        sb.append("M BB=").append(room.getBigBlindChips()).append(" SB=").append(room.getSmallBlindChips())
-                .append(" rl=").append(room.getRaiseLevel()).append(blindSeatsForPrompt(room)).append('\n');
-        sb.append("T ").append(compactTable(room, bot)).append('\n');
+        StringBuilder sb = new StringBuilder(2048);
+        sb.append("【BOT_LLM 局面包】\n");
+        sb.append("【怎样读顺序】下列「座位快照」的多行顺序只是房间座位环上的枚举顺序，不是翻后每条街真实说话先后；")
+                .append("也不能据此推断谁在你后面尚未说话。唯一表示「现在轮到你决策」的是该行状态里的「轮到你」。\n");
+        sb.append("【盲注与加注层级】大盲筹码=").append(room.getBigBlindChips())
+                .append("｜小盲筹码=").append(room.getSmallBlindChips())
+                .append("｜本街加注层级rl=").append(room.getRaiseLevel())
+                .append("（0=尚无人抬注 1=面对开局加注 2=面对3bet 3=面对4bet 或更高；与 ante 无关）\n");
+        BlindSeatNames blinds = resolveBlindSeatNames(room);
+        if (blinds != null) {
+            sb.append("【本手盲注座位】小盲位玩家=").append(blinds.sbNick())
+                    .append("｜大盲位玩家=").append(blinds.bbNick())
+                    .append("（定你是否为小盲/大盲以这里为准，勿单靠「庄」标记推断）\n");
+        }
+        sb.append("【座位快照】格式：昵称｜剩余后手筹码｜本街已放入底池的筹码｜状态\n");
+        appendSeatSnapshotZh(sb, room, bot);
+        sb.append('\n');
         if (ctx != null) {
-            sb.append(ctx.toPromptBlock());// LNGameContext的方法
+            sb.append(ctx.toPromptBlock());
         }
         return sb.toString();
     }
 
-    /** 本手小盲/大盲昵称，与 {@link DpRoomServiceImpl} 庄位后 (D+1)/(D+2) 一致；人不足 2 则省略。 */
-    private static String blindSeatsForPrompt(DpRoomBO room) {
+    private record BlindSeatNames(String sbNick, String bbNick) {}
+
+    /** 本手小盲/大盲昵称，与 {@link DpRoomServiceImpl} 庄位后 (D+1)/(D+2) 一致；人不足 2 则返回 null。 */
+    private static BlindSeatNames resolveBlindSeatNames(DpRoomBO room) {
         if (room == null) {
-            return "";
+            return null;
         }
         List<DpPlayer> ps = room.getPlayers();
         if (ps == null || ps.size() < 2) {
-            return "";
+            return null;
         }
         int did = room.getLastDealerIndex();
         if (did < 0 || did >= ps.size()) {
-            return "";
+            return null;
         }
         int sbIdx = (did + 1) % ps.size();
         int bbIdx = (did + 2) % ps.size();
@@ -391,41 +383,49 @@ public class DpLlmNpcDecisionService {
         DpPlayer bbp = ps.get(bbIdx);
         String sbn = sbp != null && sbp.getNickname() != null ? sbp.getNickname() : "?";
         String bbn = bbp != null && bbp.getNickname() != null ? bbp.getNickname() : "?";
-        return " SBseat=" + sbn + " BBseat=" + bbn;
+        return new BlindSeatNames(sbn, bbn);
     }
 
-    // 已学习，用于拼接场上信息
     /**
-     * 每人一段：昵称,后手,本街已下,标记；| 分隔。第三列为当前下注街已放入底池的额度。D=庄 F=弃 A=全下 *=行动者。
+     * 仍在局的玩家一人一行；状态用汉字。庄=持按钮（与是否盲注位无关）。
      */
-    private static String compactTable(DpRoomBO room, DpPlayer hero) {
-        StringBuilder sb = new StringBuilder();
+    private static void appendSeatSnapshotZh(StringBuilder sb, DpRoomBO room, DpPlayer hero) {
         List<DpPlayer> ps = room.getPlayers();
         if (ps == null) {
-            return "";
+            return;
         }
         for (DpPlayer p : ps) {
             if (p == null || p.isLeftThisHand()) {
                 continue;
             }
-            if (sb.length() > 0) {
-                sb.append('|');
-            }
-            sb.append(p.getNickname()).append(',').append(p.getChips()).append(',').append(p.getBet());
+            sb.append(p.getNickname()).append('｜').append(p.getChips()).append('｜').append(p.getBet()).append('｜');
+            boolean any = false;
             if (p.isDealer()) {
-                sb.append(",D");
+                sb.append("庄");
+                any = true;
             }
             if (p.isFold()) {
-                sb.append(",F");
+                if (any) {
+                    sb.append('·');
+                }
+                sb.append("已弃牌");
+                any = true;
             }
             if (p.isAllIn()) {
-                sb.append(",A");
+                if (any) {
+                    sb.append('·');
+                }
+                sb.append("全下");
+                any = true;
             }
             if (p == hero) {
-                sb.append(",*");
+                if (any) {
+                    sb.append('·');
+                }
+                sb.append("轮到你");
             }
+            sb.append('\n');
         }
-        return sb.toString();
     }
 
     /** 解析结果 + 来源；briefReason 来自 JSON 的 brief_reason，仅日志展示。 */

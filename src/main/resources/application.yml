@@ -59,7 +59,7 @@ logging:
   level:
     root: WARN
     com.example.mgdemoplus.dp.BotLlmReasoning: INFO
-    com.example.mgdemoplus.service.serviceImpl.dp.DpLlmNpcDecisionService: INFO
+    com.example.mgdemoplus.service.serviceImpl.dp.DpLlmNpcDecisionService: DEBUG
     org.springframework: WARN
     com.alibaba.druid: WARN
 # 只要思考、不要【已发起】【采用】：把 DpLlmNpcDecisionService 改成 WARN。
