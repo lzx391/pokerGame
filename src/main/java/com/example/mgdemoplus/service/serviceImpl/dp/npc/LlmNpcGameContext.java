@@ -105,6 +105,11 @@ public final class LlmNpcGameContext {
         this.squeezeRiskSummary = squeezeRiskSummary != null ? squeezeRiskSummary : "";
     }
 
+    /** 与服务端胜率/成牌计算一致的底牌英文标签串（空格分隔）。供局面包首部引用，避免与下行「服务端块」不一致。 */
+    public String getHoleCardsText() {
+        return holeCardsText;
+    }
+
     /**
      * 中文结构化局面正文（由 smartContext 映射字段拼装，不改变情报来源）。
      * hsl 仍为服务端英文标签，便于与评测器一致。
