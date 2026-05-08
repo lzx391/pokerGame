@@ -659,6 +659,8 @@ public class DpPlayer {
 
 ### 四、机器人“思考时间”与节奏感（强牌长考、弱牌秒出）
 
+> **当前实现**：`DpNpcEngine.decideActionIfReady` 已不再使用 `nextBotActionTime` 等待窗，轮到规则 NPC 即决策；字段仍存在于 `DpPlayer` 仅兼容旧数据。下列为原设计说明。
+
 为让机器人更像真人玩家，在 `DpRoomServiceImpl` 中对所有 NPC 新增了简单的“思考时间”机制：
 
 - **字段**：在 `DpPlayer` 上增加 `nextBotActionTime`（仅 NPC 使用），表示“下一次允许自动行动的时间戳（毫秒）”。

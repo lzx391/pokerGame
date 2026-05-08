@@ -10,8 +10,8 @@
 | `estimateCurrentStrength` | 手牌 + 公共牌 → `DpUtilHandEvaluator.evaluateBestHand` → `SimpleStrength`。 |
 | `evaluateBoardDanger` | 同花/连张结构 → `DRY` / `WET`。 |
 | `getTablePosition` | 结合庄家与座位顺序 → 位置枚举。 |
-| `applyStrengthNoise` | 按 `NpcDifficulty` 扰动牌力档（Shark 用 PRO 时几乎不扰动）。 |
-| `calculateBotThinkDelay` | 按牌力档、`BotThinkProfile`、情绪、是否便宜跟注等生成延迟毫秒数。 |
+| （已移除）难度噪声 | 历史上曾有按难度的牌力/赔率噪声；当前规则型 NPC 一律用真值。 |
+| （已移除）思考延迟 | 原 `nextBotActionTime` / `BotThinkProfile` 已删；`decideActionIfReady` 校验通过即决策。 |
 | `buildSmartContext` | 组装 `DpUtilSmartContext`（见 3.3）。Maniac / TAG / Shark 都会用；Fish 主要在同文件内直接决策，不强制依赖 SmartContext。 |
 | `decidePreflopForTagOrShark` | **仅 TAG（以及历史兼容的 SHARK 参数表名）** 使用的翻前表；**当前 Shark 翻前已改为** `DpNpcSharkPreflopStrategy`，不再走此函数。 |
 | `initHandPlanIfNeededForPostflop` | **TAG 与 Shark** 在 flop 首次行动时生成整手计划（见 Shark 文档 4/5）。 |
@@ -45,7 +45,7 @@
 ## 3.4 `DpPlayer` 上与 NPC 相关的字段
 
 - **`nextBotActionTime`**：思考延迟截止时刻。
-- **`mood`**：情绪，结算时由房间服务调整。
+- **`mood`**：默认关闭（`NPC_MOOD_ENABLED`）；开启后结算由房间服务调整。
 - **`npcHandPlanType` / `npcHandPlanMaxBarrels` / `npcHandPlanAggression` / `npcHandPlanTargetVillain`**：HandPlan（**TAG 与 Shark**）。
 
 ---
@@ -60,7 +60,7 @@
 ## 3.6 `DpRoomServiceImpl`
 
 - 定时器里调用 NPC 引擎并执行 `bet`/`fold`。
-- 结算 **`autoSettle`** 里调整机器人 **`mood`**，并触发与 Shark 相关的持久化（仅当桌上有 Shark 时，见 `05_shark_modules.md`）。
+- 结算 **`autoSettle`** 里可选调整机器人 **`mood`**（同上开关），并触发与 Shark 相关的持久化（仅当桌上有 Shark 时，见 `05_shark_modules.md`）。
 
 ---
 

@@ -4,24 +4,30 @@ import com.example.mgdemoplus.bo.DpRoomBO;
 import com.example.mgdemoplus.entity.dp.DpPlayer;
 import com.example.mgdemoplus.entity.dp.DpPlayerStats;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
 /**
- * 可复用的翻前策略模块（先给 SHARK 接入，后续可给其它 NPC 配置复用）。
+ * 规则 NPC 共用翻前：G1–G8 手牌分组 + 单一阈值表；{@code rangeLevel} 由 vpip、人数、有效筹码深度、
+ * callStation、foldToPressure、mood 驱动；3bet/4bet 侵略性由 pfr 缩放；{@link DpNpcEngine.BotType}
+ * 仅做小幅档位加成（如 Shark +1、Maniac +2）。
  *
  * <p>
- * 设计思路（两层）：
+ * <b>位置只进一档</b>：离散 {@link DpNpcEngine.TablePosition} 仅用于 {@link #thresholdsFor}（与 {@code rangeLevel} 一起决定各局面手牌阈值）；
+ * 开局加注倍数、3bet/4bet 体量与再加注概率<strong>不按座位二次缩放</strong>，避免与阈值表双重叠加。
+ *
+ * <p>
+ * <b>有效位置</b>：与 {@link DpRoomServiceImpl} 一致，翻前首位行动者为 {@code (dealerIndex + 3) % N}（UTG），
+ * 顺时针直至大盲结束一圈。只统计本手仍未弃牌且未离桌的玩家，得到英雄在该顺序里的次序 {@code rank}（1=仍存活中最先须表态的一侧），
+ * {@code lateFactor = (rank - 1) / (active - 1)} ∈ [0,1]：越接近 1 表示在<strong>本轮仍存活玩家</strong>中越靠后行动（通常更有位置优势）。
+ * 再映射到 {@link DpNpcEngine.TablePosition} 供阈值表使用（非盲注席按三分位；小盲/大盲仍走 BLINDS）。
  * </p>
- * <ul>
- * <li>底层：13×13 手牌“分组”（HandGroup，1 最强，数字越大越弱）</li>
- * <li>上层：把人数/位置/码量/松紧/情绪等因素算成 rangeLevel（1~8），映射成可玩的 HandGroup 阈值</li>
- * </ul>
  */
-final class DpNpcSharkPreflopStrategy {
-    private DpNpcSharkPreflopStrategy() {
+final class DpNpcUnifiedPreflopStrategy {
+    private DpNpcUnifiedPreflopStrategy() {
     }
 
     private static final Map<String, Integer> RANK = new HashMap<>();
@@ -61,16 +67,21 @@ final class DpNpcSharkPreflopStrategy {
         UNKNOWN
     }
 
-    static DpNpcEngine.BotAction decideForShark(
+    /**
+     * 先通过竞争者数、码量、风格算出粗范围，再与位置阈值表结合，按手牌定档并据当前局面决策。
+     */
+    static DpNpcEngine.BotAction decide(
             DpRoomBO room,
             DpPlayer hero,
-            DpNpcEngine.TablePosition position,
             int callAmount,
             double callRatio,
-            double preflopTightness,
+            double vpip,
+            double pfr,
             double callStation,
+            double foldToPressure,
             double mood,
-            Random random) {
+            Random random,
+            DpNpcEngine.BotType botType) {
         if (room == null || hero == null || random == null) {
             return null;
         }
@@ -83,7 +94,7 @@ final class DpNpcSharkPreflopStrategy {
             return null;
         }
 
-        HoleInfo hole = parseHole(hero.getHoleCards());
+        HoleInfo hole = parseHole(hero.getHoleCards());//判断点数和合法性和是否同花
         if (!hole.valid) {
             return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
         }
@@ -96,20 +107,24 @@ final class DpNpcSharkPreflopStrategy {
         VillainTier tier = estimateVillainTier(aggressorStats);
 
         double heroStackBB = hero.getChips() * 1.0 / bb;
-        double effStackBB = heroStackBB;
+        double effStackBB = heroStackBB;//算最小有效筹码bb数
         if (aggressor != null) {
             effStackBB = Math.min(hero.getChips(), aggressor.getChips()) * 1.0 / bb;
         }
 
-        int raiseLevel = room.getRaiseLevel();
+        int raiseLevel = room.getRaiseLevel();//加注层级
         PreflopSpot spot = spotBy(raiseLevel, callAmount);
 
-        int rangeLevel = computeRangeLevel(activePlayers, position, effStackBB, preflopTightness, callStation, mood);
-        // Shark：整体放宽一档范围，减少「面对加注过度弃牌」、更贴 LAG
-        rangeLevel = Math.min(8, rangeLevel + 1);
+        double lateFactor = computePreflopLateFactor(room, hero);
+        DpNpcEngine.TablePosition position = pseudoTablePosition(lateFactor, hero.getBlind());
+
+        int rangeLevel = computeRangeLevel(activePlayers, effStackBB, vpip, callStation, foldToPressure, mood);
+        rangeLevel += rangeLevelBonus(botType);
+        rangeLevel = clampInt(rangeLevel, 1, 8);
+        // 位置只管「阈值表 / 松紧档」一档；开局加注额、3bet/4bet 概率与倍数不再单独按座位二次调节
         RangeThreshold th = thresholdsFor(position, rangeLevel);
 
-        HandGroup g = groupOf(hole);
+        HandGroup g = groupOf(hole);//根据手牌获取当前所处范围
 
         // === 终局规则：到 4bet 往后收敛到 all-in / call / fold ===
         if (spot == PreflopSpot.FACING_4BET) {
@@ -118,17 +133,17 @@ final class DpNpcSharkPreflopStrategy {
 
         // === 无人加注：open / limp-check / fold ===
         if (spot == PreflopSpot.UNOPENED) {
-            return decideUnopened(hero, bb, sb, position, activePlayers, effStackBB, g, th, mood, random);
+            return decideUnopened(hero, bb, sb, activePlayers, effStackBB, g, th, mood, random);
         }
 
         // === 面对 open：call / 3bet / fold ===
         if (spot == PreflopSpot.FACING_OPEN) {
-            return decideFacingOpen(room, hero, bb, sb, position, callAmount, effStackBB, g, th, tier, mood, random);
+            return decideFacingOpen(room, hero, bb, sb, callAmount, effStackBB, g, th, tier, mood, pfr, random);
         }
 
         // === 你 open 后被 3bet：call / 4bet / fold ===
         if (spot == PreflopSpot.FACING_3BET) {
-            return decideFacing3Bet(room, hero, bb, sb, position, callAmount, callRatio, effStackBB, g, th, tier, mood,
+            return decideFacing3Bet(room, hero, bb, sb, callAmount, callRatio, effStackBB, g, th, tier, mood, pfr,
                     random);
         }
 
@@ -136,11 +151,33 @@ final class DpNpcSharkPreflopStrategy {
         return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
     }
 
+    private static int rangeLevelBonus(DpNpcEngine.BotType t) {
+        if (t == null) {
+            return 0;
+        }
+        if (t == DpNpcEngine.BotType.SHARK) {
+            return 1;
+        }
+        if (t == DpNpcEngine.BotType.MANIAC) {
+            return 2;
+        }
+        return 0;
+    }
+
+    private static double pfrAggressionScale(double pfr) {
+        double p = pfr;
+        if (p < 0.0) {
+            p = 0.0;
+        } else if (p > 1.0) {
+            p = 1.0;
+        }
+        return 0.35 + 0.65 * p;
+    }
+
     private static DpNpcEngine.BotAction decideUnopened(
             DpPlayer hero,
             int bb,
             int sb,
-            DpNpcEngine.TablePosition position,
             int activePlayers,
             double effStackBB,
             HandGroup g,
@@ -153,7 +190,7 @@ final class DpNpcSharkPreflopStrategy {
             return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
         }
 
-        int openSizeBB = baseOpenSizeBB(position, activePlayers, effStackBB, mood, random);
+        int openSizeBB = baseOpenSizeBB(activePlayers, effStackBB, mood, random);
         int raiseAmount = Math.min(hero.getChips(), openSizeBB * bb);
         raiseAmount = roundToSB(raiseAmount, sb, hero.getChips());
         if (raiseAmount <= 0) {
@@ -167,13 +204,13 @@ final class DpNpcSharkPreflopStrategy {
             DpPlayer hero,
             int bb,
             int sb,
-            DpNpcEngine.TablePosition position,
             int callAmount,
             double effStackBB,
             HandGroup g,
             RangeThreshold th,
             VillainTier tier,
             double mood,
+            double pfr,
             Random random) {
         boolean canContinue = isGroupAtMost(g, th.vsOpenContinueMaxGroup);
         if (!canContinue) {
@@ -184,15 +221,13 @@ final class DpNpcSharkPreflopStrategy {
         boolean can3BetBluff = is3BetBluffCandidate(g) && tier == VillainTier.LOOSE_OR_AGGRO;
 
         double base3betProb = can3BetValue ? 0.62 : (can3BetBluff ? 0.16 : 0.0);
-        if (position == DpNpcEngine.TablePosition.BLINDS)
-            base3betProb += 0.06;
         base3betProb += mood * 0.04;
+        base3betProb *= pfrAggressionScale(pfr);
         base3betProb = clamp01(base3betProb);
 
         if (base3betProb > 0 && hero.getChips() > callAmount && random.nextDouble() < base3betProb) {
             int villainBetToCall = room.getCurrentBetToCall();
-            int raiseAmount = compute3BetAmount(hero, villainBetToCall, callAmount, bb, sb, position, effStackBB,
-                    random);
+            int raiseAmount = compute3BetAmount(hero, villainBetToCall, callAmount, bb, sb, effStackBB, random);
             if (raiseAmount > callAmount) {
                 return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.RAISE, raiseAmount);
             }
@@ -206,7 +241,6 @@ final class DpNpcSharkPreflopStrategy {
             DpPlayer hero,
             int bb,
             int sb,
-            DpNpcEngine.TablePosition position,
             int callAmount,
             double callRatio,
             double effStackBB,
@@ -214,6 +248,7 @@ final class DpNpcSharkPreflopStrategy {
             RangeThreshold th,
             VillainTier tier,
             double mood,
+            double pfr,
             Random random) {
         // continue range：比面对 open 更紧
         boolean canContinue = isGroupAtMost(g, th.vs3BetContinueMaxGroup);
@@ -241,14 +276,12 @@ final class DpNpcSharkPreflopStrategy {
 
         double fourBetProb = value4bet ? 0.72 : (bluff4bet ? 0.14 : 0.0);
         fourBetProb += mood * 0.04;
-        if (position == DpNpcEngine.TablePosition.BLINDS)
-            fourBetProb += 0.04;
+        fourBetProb *= pfrAggressionScale(pfr);
         fourBetProb = clamp01(fourBetProb);
 
         if (fourBetProb > 0 && hero.getChips() > callAmount && random.nextDouble() < fourBetProb) {
             int villainBetToCall = room.getCurrentBetToCall();
-            int raiseAmount = compute4BetAmount(hero, villainBetToCall, callAmount, bb, sb, position, effStackBB,
-                    random);
+            int raiseAmount = compute4BetAmount(hero, villainBetToCall, callAmount, bb, sb, effStackBB, random);
             if (raiseAmount > callAmount) {
                 // 短码/有效筹码很浅：价值牌更倾向直接打光
                 if (value4bet && effStackBB <= 16 && random.nextDouble() < 0.65) {
@@ -324,13 +357,12 @@ final class DpNpcSharkPreflopStrategy {
             int callAmount,
             int bb,
             int sb,
-            DpNpcEngine.TablePosition position,
             double effStackBB,
             Random random) {
         if (villainBetToCall < bb)
             villainBetToCall = bb;
-        boolean oop = (position == DpNpcEngine.TablePosition.BLINDS);
-        double mult = oop ? 4.0 : 3.0;
+        // 原 IP≈3×、OOP≈4×；位置已进阈值表，此处用折中倍数避免重复按座调节
+        double mult = 3.5;
         // 深码更偏向稍小，避免过早把锅抬太大；浅码更偏向更大制造弃牌率
         if (effStackBB >= 50)
             mult -= 0.2;
@@ -358,15 +390,11 @@ final class DpNpcSharkPreflopStrategy {
             int callAmount,
             int bb,
             int sb,
-            DpNpcEngine.TablePosition position,
             double effStackBB,
             Random random) {
         if (villainBetToCall < bb)
             villainBetToCall = bb;
-        boolean oop = (position == DpNpcEngine.TablePosition.BLINDS);
         double mult = 2.2 + random.nextDouble() * 0.4;
-        if (oop)
-            mult += 0.1;
         if (effStackBB <= 20)
             mult += 0.1;
         int desiredTotalBet = (int) Math.round(villainBetToCall * mult);
@@ -384,28 +412,18 @@ final class DpNpcSharkPreflopStrategy {
         return roundToSB(raiseAmount, sb, hero.getChips());
     }
 
+    /** 开局加注倍数（以大盲计）；松紧已由 {@link #thresholdsFor} 体现，此处仅用人数 / 深度 / mood 微调体量。 */
     private static int baseOpenSizeBB(
-            DpNpcEngine.TablePosition position,
             int activePlayers,
             double effStackBB,
             double mood,
             Random random) {
-        // 简化：用位置 + 人数 + 码深做近似，先把“像人”拉起来
-        int base;
-        if (position == DpNpcEngine.TablePosition.EARLY)
-            base = 3;
-        else if (position == DpNpcEngine.TablePosition.MIDDLE)
-            base = 3;
-        else if (position == DpNpcEngine.TablePosition.LATE)
-            base = 2;
-        else
-            base = 3; // blinds
-
+        int base = 3;
         if (activePlayers <= 3)
             base = Math.max(2, base - 1);
         if (effStackBB <= 18)
             base = Math.max(2, base - 1);
-        if (effStackBB >= 60 && position == DpNpcEngine.TablePosition.EARLY)
+        if (effStackBB >= 60)
             base = Math.min(4, base + 1);
 
         double jitter = (random.nextDouble() * 0.4 - 0.2) + mood * 0.10;
@@ -442,23 +460,93 @@ final class DpNpcSharkPreflopStrategy {
         return PreflopSpot.UNKNOWN;
     }
 
+    /**
+     * 翻前「有效位置」标量：仍在局的玩家按 UTG→BB **座位几何顺序**排队（与当前是 open / 3bet / 4bet 无关），
+     * 英雄在该列表中越靠后 {@code rank} 越大，{@code lateFactor = (rank-1)/(active-1)} 越接近 1。
+     *
+     * <p>
+     * <b>与多注（3B、4B…）的关系</b>：每次轮到机器人决策都会<strong>用当前弃牌状态重算</strong>；
+     * 有人弃牌后 {@code active} 变小，仍在局的人的 {@code rank / lateFactor} 可能变化——这叫「兼容」多注局面下的动态人数，
+     * 但<strong>不读</strong> {@code raiseLevel}、谁在加注、本轮还剩谁未表态等细项，属于<strong>粗粒度几何 proxy</strong>。
+     * </p>
+     * <p>
+     * 更细的 squeeze / 关闭行动位等若以后要建模，再单独加因子即可。
+     * </p>
+     */
+    static double computePreflopLateFactor(DpRoomBO room, DpPlayer hero) {
+        List<DpPlayer> ps = room != null ? room.getPlayers() : null;
+        if (ps == null || ps.isEmpty() || hero == null) {
+            return 0.5;
+        }
+        int n = ps.size();
+        int dealer = -1;
+        for (int i = 0; i < n; i++) {
+            DpPlayer p = ps.get(i);
+            if (p != null && p.isDealer()) {
+                dealer = i;
+                break;
+            }
+        }
+        if (dealer < 0) {
+            return 0.5;
+        }
+        // 与发牌逻辑一致：翻前从大盲下家（UTG）开始
+        int utg = (dealer + 3) % n;
+        List<Integer> activeSeatOrder = new ArrayList<>();
+        for (int step = 0; step < n; step++) {
+            int idx = (utg + step) % n;
+            DpPlayer p = ps.get(idx);
+            if (p == null) {
+                continue;
+            }
+            if (p.isLeftThisHand() || p.isFold()) {
+                continue;
+            }
+            activeSeatOrder.add(idx);
+        }
+        int active = activeSeatOrder.size();
+        if (active <= 1) {
+            return 0.5;
+        }
+        int heroIdx = ps.indexOf(hero);
+        int rank = -1;
+        for (int i = 0; i < activeSeatOrder.size(); i++) {
+            if (activeSeatOrder.get(i) == heroIdx) {
+                rank = i + 1;
+                break;
+            }
+        }
+        if (rank < 0) {
+            return 0.5;
+        }
+        return (rank - 1) * 1.0 / (active - 1);
+    }
+
+    /**
+     * 连续 {@code lateFactor} → 阈值表用的离散桶；盲注仍单独一类（含 HU 时 BTN/SB）。
+     */
+    private static DpNpcEngine.TablePosition pseudoTablePosition(double lateFactor, int blind) {
+        if (blind == 1 || blind == 2) {
+            return DpNpcEngine.TablePosition.BLINDS;
+        }
+        if (lateFactor < 0.34) {
+            return DpNpcEngine.TablePosition.EARLY;
+        }
+        if (lateFactor < 0.67) {
+            return DpNpcEngine.TablePosition.MIDDLE;
+        }
+        return DpNpcEngine.TablePosition.LATE;
+    }
+
     private static int computeRangeLevel(
             int activePlayers,
-            DpNpcEngine.TablePosition position,
             double effStackBB,
-            double preflopTightness,
+            double vpip,
             double callStation,
+            double foldToPressure,
             double mood) {
-        // 1~8：数字越大越松
-        int base;
-        if (position == DpNpcEngine.TablePosition.EARLY)
-            base = 3;
-        else if (position == DpNpcEngine.TablePosition.MIDDLE)
-            base = 4;
-        else if (position == DpNpcEngine.TablePosition.LATE)
-            base = 5;
-        else
-            base = 4;
+        // 1~8：数字越大越松；位置松紧主要由 thresholdsFor(pseudoPosition(lateFactor)) 承担，此处不再按座位粗分。
+        int base = 4;
 
         // 人数：人少范围变大
         if (activePlayers <= 3)
@@ -472,14 +560,11 @@ final class DpNpcSharkPreflopStrategy {
         if (effStackBB <= 16)
             base -= 1;
 
-        // 风格：preflopTightness 越大越紧。
-        // 注意：原先用 *2.0 且 vsOpen 再用 rangeLevel-2，配合 Shark/TAG 的 preflopTightness≈0.85
-        // 会把「面对 open」压成几乎只剩 G1（JJ+/AK），观感像「有人加就弃」。
-        base -= (int) Math.round(preflopTightness * 1.0); // 0~1 -> 约 0~1，避免过度扣档
-        base += (int) Math.round(callStation * 1.0); // 0~1 -> 0~1
-
-        // 情绪：更开心更松
-        base += (int) Math.round(mood * 1.0); // -1~+1 -> -1~+1
+        // vpip 越高越松（典型约 0.15~0.60）
+        base += (int) Math.round((vpip - 0.30) * 5.0);
+        base += (int) Math.round(callStation * 1.0);
+        base -= (int) Math.round(foldToPressure * 0.8);
+        base += (int) Math.round(mood * 1.0);
 
         return clampInt(base, 1, 8);
     }
@@ -629,6 +714,11 @@ final class DpNpcSharkPreflopStrategy {
         return new Card(true, suit, r);
     }
 
+    /**
+     * 德州扑克起手牌分组（预分组），用于简化后续决策逻辑。
+     * 依据两张牌是否对子、是否同花、是否A高、是否大牌等经验规则将手牌划分为八组（HandGroup.G1-G8）。
+     * 可根据具体策略/业务需求进行微调。
+     */
     private static HandGroup groupOf(HoleInfo h) {
         int a = Math.max(h.r1, h.r2);
         int b = Math.min(h.r1, h.r2);
@@ -714,7 +804,7 @@ final class DpNpcSharkPreflopStrategy {
         return n;
     }
 
-    private static DpPlayer findAggressor(DpRoomBO room, DpPlayer hero) {
+    private static DpPlayer findAggressor(DpRoomBO room, DpPlayer hero) {//找到当前圈最高bet且非hero的玩家
         if (room == null || room.getPlayers() == null)
             return null;
         DpPlayer ag = null;

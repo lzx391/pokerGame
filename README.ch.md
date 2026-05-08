@@ -70,8 +70,9 @@
 
 #### 酒馆档强度（BOT_Fish，2026-03-25）
 
-- **背景**：原先 `BOT_Fish` 使用 `NpcDifficulty.EASY`，读牌/底池赔率噪声很高（约 35%/40%），容易“看错牌力”，整体比《大镖客 2》酒馆 NPC 更弱、更好欺负。
-- **调整**：`BOT_Fish` 改为 **`MEDIUM` 难度**（并略收紧 `MEDIUM`/`HARD` 的噪声），`LOOSE_FUN` 风格提高激进度与诈唬频率、略收跟注站倾向；`DEMO` 分支翻后略提高加注倾向。仍弱于 `BOT_Shark`（PRO），但更接近单机酒馆桌的压迫感。若需要 **更菜的演示鱼**，可再把 `decideBotAction` 里 `case DEMO` 的难度改回 `EASY`。
+- **规则型 NPC 读牌/赔率**：已不再按「难度档」对牌力或底池赔率加人为噪声；`estimateCurrentStrength` 与 `computePotOdds` 一律用真值，强弱差异主要来自 `NpcStyle`/`StyleProfile` 与各 bot 分支逻辑。**情绪 `mood`**：默认关闭（`DpNpcEngine.NPC_MOOD_ENABLED = false`），决策按 mood=0，结算也不再改写机器人 mood；若要恢复，将该常量改为 `true`。
+- **决策概率抖动**：`applySoftNoise` 由 `DpNpcEngine.NPC_SOFT_NOISE_ENABLED` 控制（默认 `false`，已关闭 ±`PROB_NOISE_DELTA`）；与发牌/洗牌无关。
+- **机器人决策随机**：`NPC_HAND_SEED_FOR_DECISIONS` 默认 `false`，每次行动 `new Random()`；房间的 `currentHandSeed` 仍用于前端动画 key、牌谱等，**不是发牌种子**，洗牌在 `newDeck()` 里单独 `Collections.shuffle`。
 
 #### Shark（BOT_Shark）现在会“翻前按局势调范围”
 

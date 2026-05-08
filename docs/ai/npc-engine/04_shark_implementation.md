@@ -6,7 +6,7 @@
 
 ## 4.1 与其它类型相同的公共前置
 
-与 [02_normal_npc_implementation.md](02_normal_npc_implementation.md) 相同：`callAmount`、`position`、`strength`（**PRO** 难度下噪声极小）、`boardDanger`、`mood`、`StyleProfile`（Shark 映射为 **`LOOSE_AGGRO`**，与 Maniac 共用同一套风格**数值表**，但决策树不同）。
+与 [02_normal_npc_implementation.md](02_normal_npc_implementation.md) 相同：`callAmount`、`position`、`strength`（真值牌力档）、`boardDanger`、`mood`（默认 0）、`StyleProfile`（Shark 映射为 **`LOOSE_AGGRO`**，与 Maniac 共用同一套风格**数值表**，但决策树不同）。
 
 ---
 
@@ -42,7 +42,7 @@
 | 翻后主逻辑 | `DpNpcEngine` 内 `case TAG` | **`DpNpcSharkStrategy`** |
 | Flop 剥削剧本 | 无 | **`DpNpcSharkExploitHandPlan`** |
 | 学习旋钮 | 无 | **`DpNpcSharkLearningLab` + DB** |
-| 难度 | `HARD` | **`PRO`** |
+| 牌力/赔率人为噪声 | 无 | 无（与其它规则 NPC 一致；策略实现仍见 `DpNpcSharkStrategy`） |
 
 ---
 

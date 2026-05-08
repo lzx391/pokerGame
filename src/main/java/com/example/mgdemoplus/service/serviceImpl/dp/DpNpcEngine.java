@@ -8,6 +8,8 @@ import com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator;
 import com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator.HandStrength;
 import com.example.mgdemoplus.utils.dp.DpUtilSmartContext;
 
+import ch.qos.logback.classic.Logger;
+
 import static com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator.CARD_RANK_MAP;
 import static com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator.SimpleStrength;
 import static com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator.evaluateBestHand;
@@ -15,6 +17,8 @@ import static com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator.getRankFromCar
 import static com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator.toSimpleStrength;
 
 import java.util.*;
+
+import org.slf4j.LoggerFactory;
 
 /**
  * 德扑 NPC 行为模块。
@@ -25,6 +29,7 @@ import java.util.*;
  * - 模拟机器人“思考时间”，按节奏在定时任务中出手
  */
 public final class DpNpcEngine {
+    private static final Logger log = (Logger) LoggerFactory.getLogger(DpNpcEngine.class);
 
     private DpNpcEngine() {
     }
@@ -80,7 +85,7 @@ public final class DpNpcEngine {
         /**
          * multi-way（多人底池）基础弃牌加成：
          * - 建议范围：0.10~0.25，默认 0.15；
-         * - 最终会结合玩家自身 callStation / checkRaiseFear 进行缩放；
+         * - 最终会结合玩家自身 callStation / foldToPressure（风格层经 checkRaiseFear 兼容口径）进行缩放；
          * - 调大：3 人以上底池时整体弃牌率显著提升；
          * - 调小：即使多人底池也更敢继续拼。
          */
@@ -258,8 +263,36 @@ public final class DpNpcEngine {
     public static final String MANIAC_BOT_NICKNAME = "BOT_Maniac";
     public static final String SHARK_BOT_NICKNAME = "BOT_Shark";
     private static final boolean SHARK_DEBUG = true;
-    private static final boolean DISABLE_BOT_THINK_DELAY = true;
-    public static final String TAG_BOT_NICKNAME = "BOT_Tag"; // 新增：紧凶型 TAG（Tight-Aggressive），困难难度
+
+    /**
+     * 为 false：规则 NPC 决策里 mood 恒按 0；思考延迟也不按 mood 缩放；结算不再改写机器人 mood。
+     */
+    public static final boolean NPC_MOOD_ENABLED = false;
+
+    /**
+     * 为 false：不在结算后把对手 {@link DpPlayerStats} / {@link DpNpcSharkLearningLab} 快照写入
+     * {@code dp_shark_opponent_profile}，也不再从该表在开局时灌回内存（按昵称存，多 UUID Bot 易冗余，可后续再设计）。
+     * <p>
+     * 不影响：本手牌内内存统计、Shark 翻后仍可读当前局 {@code playerStatsMap}；不影响牌谱入库（见
+     * {@code DpHandHistoryObservedImpl} / {@code DpHandHistoryPersistServiceImpl}）。
+     * </p>
+     */
+    public static final boolean NPC_SHARK_OPPONENT_DB_ENABLED = false;
+
+    /**
+     * 为 false：{@link #applySoftNoise} 不再对概率做 ±delta 抖动（Fish/Maniac/TAG/Shark 共用）。
+     * 若想保留原先「不那么死板」的抽样，保持 true。
+     */
+    public static final boolean NPC_SOFT_NOISE_ENABLED = false;
+
+    /**
+     * 为 true：机器人 fold/call/raise 等抽样使用 {@code currentHandSeed ^ 座位} 固定种子，便于同一手牌复现决策序列。<br>
+     * 为 false（默认）：每次决策 {@code new Random()}，与 handSeed 无关。<br>
+     * 注意：{@code currentHandSeed} 仍会写入房间，供前端发牌动画 key、牌谱、LLM 对齐等使用，并非「发牌种子」。
+     */
+    public static final boolean NPC_HAND_SEED_FOR_DECISIONS = false;
+
+    public static final String TAG_BOT_NICKNAME = "BOT_Tag"; // 紧凶型 TAG（Tight-Aggressive）
     /**
      * 大模型驱动机器人：决策走
      * {@link com.example.mgdemoplus.service.serviceImpl.dp.DpLlmNpcDecisionService}，
@@ -268,8 +301,7 @@ public final class DpNpcEngine {
     public static final String LLM_BOT_NICKNAME = "BOT_LLM";
 
     /**
-     * 机器人类型（现有昵称入口），后续只用来映射「风格 + 难度」。
-     * 真正的决策逻辑不按类型分叉，只按参数表工作。
+     * 机器人类型（昵称入口）：映射到抽象 {@link NpcStyle} 与分支逻辑。
      */
     enum BotType {
         DEMO,
@@ -298,16 +330,6 @@ public final class DpNpcEngine {
         LOOSE_AGGRO, // 松凶型：入池宽、极凶、高诈唬、爱偷盲
         TIGHT_PASSIVE, // 紧弱型：只玩好牌、被加注就弃、不诈唬
         LOOSE_FUN // 松散娱乐型：乱入池、爱跟注、易被诈
-    }
-
-    /**
-     * 难度等级：通过“削弱系数 + 随机失误”来控制强弱。
-     */
-    enum NpcDifficulty {
-        EASY,
-        MEDIUM,
-        HARD,
-        PRO // 专业档：关闭所有“失误型噪声”，尽量发挥策略上限
     }
 
     /**
@@ -354,28 +376,6 @@ public final class DpNpcEngine {
         MIDDLE,
         LATE,
         BLINDS
-    }
-
-    /**
-     * 翻前位置抽象：与 TablePosition 一一对应，作为 preflop 策略层的统一入口。
-     */
-    enum PreflopPosition {
-        EARLY,
-        MIDDLE,
-        LATE,
-        BLINDS
-    }
-
-    /**
-     * 简化的起手牌分类，用于 TAG/SHARK 的翻前决策。
-     */
-    enum PreflopHandCategory {
-        PREMIUM_PAIR, // JJ+、AKs/AQo+
-        MEDIUM_PAIR, // 88-TT、AQo 之类
-        SMALL_PAIR, // 22-77
-        STRONG_SUITED_BROADWAY, // AJs+, KQs, KJs, QJs
-        SUITED_CONNECTOR, // 65s-T9s 等
-        TRASH // 其它杂牌
     }
 
     /**
@@ -791,165 +791,6 @@ public final class DpNpcEngine {
     }
 
     /**
-     * 共用的翻前决策结果结构。
-     */
-    private static class PreflopDecision {
-        final BotActionType action;
-        final int raiseAmount;
-        final boolean allIn;
-
-        PreflopDecision(BotActionType action, int raiseAmount, boolean allIn) {
-            this.action = action;
-            this.raiseAmount = raiseAmount;
-            this.allIn = allIn;
-        }
-    }
-
-    /**
-     * TAG / SHARK 共用的翻前参数表：
-     * - openRaiseSizeBBByCategoryAndPos：不同行为牌类和位置的标准开局加注大小（单位：BB）；
-     * - threeBetSizeBBByCategory：面对 open 时的标准 3bet 额外加注大小（在 call 基础上再加多少个 BB）；
-     * - shoveThresholdBB：筹码低于该值时，允许用强牌直接 all-in；
-     * - openRangeTightnessByPos：不同位置的入池紧度，0.0~1.0，数值越大代表越紧。
-     */
-    private static final class PreflopStrategyProfile {
-        final int[][] openRaiseSizeBBByCategoryAndPos; // [PreflopHandCategory.ordinal()][PreflopPosition.ordinal()]
-        final int[] threeBetSizeBBByCategory; // [PreflopHandCategory.ordinal()]
-        final int shoveThresholdBB;
-        final double[] openRangeTightnessByPos; // [PreflopPosition.ordinal()]
-
-        PreflopStrategyProfile(int[][] openRaiseSizeBBByCategoryAndPos,
-                int[] threeBetSizeBBByCategory,
-                int shoveThresholdBB,
-                double[] openRangeTightnessByPos) {
-            this.openRaiseSizeBBByCategoryAndPos = openRaiseSizeBBByCategoryAndPos;
-            this.threeBetSizeBBByCategory = threeBetSizeBBByCategory;
-            this.shoveThresholdBB = shoveThresholdBB;
-            this.openRangeTightnessByPos = openRangeTightnessByPos;
-        }
-    }
-
-    /**
-     * TAG：整体更紧，偷盲与宽松 open 范围较小。
-     */
-    private static final PreflopStrategyProfile PREFLOP_TAG_PROFILE;
-
-    /**
-     * SHARK：比 TAG 略松，晚位 open 与 3bet 稍多。
-     */
-    private static final PreflopStrategyProfile PREFLOP_SHARK_PROFILE;
-
-    static {
-        int catCount = PreflopHandCategory.values().length;
-        int posCount = PreflopPosition.values().length;
-
-        int[][] tagOpen = new int[catCount][posCount];
-        int[][] sharkOpen = new int[catCount][posCount];
-        int[] tag3Bet = new int[catCount];
-        int[] shark3Bet = new int[catCount];
-
-        // 初始化：默认 0，按类别填充常见范围
-        for (int c = 0; c < catCount; c++) {
-            for (int p = 0; p < posCount; p++) {
-                tagOpen[c][p] = 0;
-                sharkOpen[c][p] = 0;
-            }
-            tag3Bet[c] = 0;
-            shark3Bet[c] = 0;
-        }
-
-        // PREMIUM_PAIR：各位置 3~4BB，晚位略大
-        for (PreflopPosition pos : PreflopPosition.values()) {
-            int idx = PreflopHandCategory.PREMIUM_PAIR.ordinal();
-            int posIdx = pos.ordinal();
-            tagOpen[idx][posIdx] = (pos == PreflopPosition.LATE ? 4 : 3);
-            sharkOpen[idx][posIdx] = (pos == PreflopPosition.LATE ? 4 : 3);
-        }
-        tag3Bet[PreflopHandCategory.PREMIUM_PAIR.ordinal()] = 6;
-        shark3Bet[PreflopHandCategory.PREMIUM_PAIR.ordinal()] = 7;
-
-        // MEDIUM_PAIR：2.5~3BB
-        for (PreflopPosition pos : PreflopPosition.values()) {
-            int idx = PreflopHandCategory.MEDIUM_PAIR.ordinal();
-            int posIdx = pos.ordinal();
-            tagOpen[idx][posIdx] = (pos == PreflopPosition.EARLY ? 3 : 2);
-            sharkOpen[idx][posIdx] = 3;
-        }
-        tag3Bet[PreflopHandCategory.MEDIUM_PAIR.ordinal()] = 5;
-        shark3Bet[PreflopHandCategory.MEDIUM_PAIR.ordinal()] = 6;
-
-        // SMALL_PAIR：主要在中后位 open
-        for (PreflopPosition pos : PreflopPosition.values()) {
-            int idx = PreflopHandCategory.SMALL_PAIR.ordinal();
-            int posIdx = pos.ordinal();
-            tagOpen[idx][posIdx] = (pos == PreflopPosition.LATE ? 2 : (pos == PreflopPosition.MIDDLE ? 2 : 0));
-            sharkOpen[idx][posIdx] = (pos == PreflopPosition.EARLY ? 2 : 2);
-        }
-        tag3Bet[PreflopHandCategory.SMALL_PAIR.ordinal()] = 0; // TAG 很少用小对子 3bet
-        shark3Bet[PreflopHandCategory.SMALL_PAIR.ordinal()] = 4;
-
-        // STRONG_SUITED_BROADWAY：中后位积极 open
-        for (PreflopPosition pos : PreflopPosition.values()) {
-            int idx = PreflopHandCategory.STRONG_SUITED_BROADWAY.ordinal();
-            int posIdx = pos.ordinal();
-            tagOpen[idx][posIdx] = (pos == PreflopPosition.EARLY ? 0 : 3);
-            sharkOpen[idx][posIdx] = (pos == PreflopPosition.EARLY ? 2 : 3);
-        }
-        tag3Bet[PreflopHandCategory.STRONG_SUITED_BROADWAY.ordinal()] = 5;
-        shark3Bet[PreflopHandCategory.STRONG_SUITED_BROADWAY.ordinal()] = 6;
-
-        // SUITED_CONNECTOR：主要在 late/盲注 open，包含高同花连张 + 部分高 one-gap
-        for (PreflopPosition pos : PreflopPosition.values()) {
-            int idx = PreflopHandCategory.SUITED_CONNECTOR.ordinal();
-            int posIdx = pos.ordinal();
-            // TAG：中位少量 open，晚位和盲注更愿意开池
-            if (pos == PreflopPosition.LATE || pos == PreflopPosition.BLINDS) {
-                tagOpen[idx][posIdx] = 2;
-            } else if (pos == PreflopPosition.MIDDLE) {
-                tagOpen[idx][posIdx] = 1;
-            } else {
-                tagOpen[idx][posIdx] = 0;
-            }
-            // SHARK：从中位开始更积极地 open suited connectors
-            if (pos == PreflopPosition.EARLY) {
-                sharkOpen[idx][posIdx] = 0;
-            } else {
-                sharkOpen[idx][posIdx] = 2;
-            }
-        }
-        tag3Bet[PreflopHandCategory.SUITED_CONNECTOR.ordinal()] = 0;
-        shark3Bet[PreflopHandCategory.SUITED_CONNECTOR.ordinal()] = 4;
-
-        // TRASH：一般不主动 open / 3bet
-        tag3Bet[PreflopHandCategory.TRASH.ordinal()] = 0;
-        shark3Bet[PreflopHandCategory.TRASH.ordinal()] = 0;
-
-        double[] tagTight = new double[] {
-                0.9, // EARLY
-                0.8, // MIDDLE
-                0.6, // LATE
-                0.7 // BLINDS
-        };
-        double[] sharkTight = new double[] {
-                0.8,
-                0.7,
-                0.5,
-                0.6
-        };
-
-        PREFLOP_TAG_PROFILE = new PreflopStrategyProfile(
-                tagOpen,
-                tag3Bet,
-                18, // TAG 在 <18BB 时更愿意用强牌直接 all-in
-                tagTight);
-        PREFLOP_SHARK_PROFILE = new PreflopStrategyProfile(
-                sharkOpen,
-                shark3Bet,
-                16, // SHARK 在更浅筹码时就敢全下
-                sharkTight);
-    }
-
-    /**
      * 对手整体牌范围强度（不是具体牌）。
      */
     public enum VillainRangeTier {
@@ -970,127 +811,115 @@ public final class DpNpcEngine {
     }
 
     /**
-     * 风格参数表：控制范围/激进度/诈唬频率等。
+     * 规则 NPC 风格参数（0~1），以六个<strong>原始字段</strong>为准：{@code vpip}、{@code pfr}、{@code cbetFreq}、
+     * {@code bluffFreq}、{@code callStation}、{@code foldToPressure}。
+     *
+     * <p>
+     * <b>翻前</b>：{@link DpNpcUnifiedPreflopStrategy} 只读 {@code vpip}、{@code pfr}、{@code callStation}、
+     * {@code foldToPressure}（外加 mood、座位与局面），<strong>不</strong>经过 {@link #preflopTightness()}、
+     * {@link #aggression()} 等兼容 getter。
+     * </p>
+     * <p>
+     * <b>翻后</b>：部分分支仍通过下方 deprecated getter 读「合成口径」，便于旧决策树少改公式。
+     * </p>
+     * <p>
+     * {@code foldToPressure}：面对下注/加注压力时倾向弃牌的程度（越高越「怂」、范围略收紧）；历史上对应旧名
+     * {@code checkRaiseFear}。
+     * </p>
+     * <p>
+     * <b>迁移（旧 → 新）</b>
+     * </p>
+     * <ul>
+     * <li>{@code preflopTightness} → 用 {@code 1 - vpip} 近似「翻前紧度」</li>
+     * <li>{@code aggression} → 用 {@code (pfr + cbetFreq) / 2} 近似「整体激进」</li>
+     * <li>{@code bluffFrequency} → {@code bluffFreq}</li>
+     * <li>{@code callStation} → 同名保留</li>
+     * <li>{@code stealBlindFrequency} → 删除；由 {@code 0.35*vpip + 0.65*pfr} 合成偷盲/开局侵略近似</li>
+     * <li>{@code checkRaiseFear} → {@code foldToPressure}</li>
+     * </ul>
      */
-    private static class StyleProfile {
-        final double preflopTightness;
-        final double aggression;
-        final double bluffFrequency;
+    private static final class StyleProfile {
+        final double vpip;
+        final double pfr;
+        final double cbetFreq;
+        final double bluffFreq;
         final double callStation;
-        final double stealBlindFrequency;
-        final double checkRaiseFear;
+        final double foldToPressure;
 
-        StyleProfile(double preflopTightness,
-                double aggression,
-                double bluffFrequency,
-                double callStation,
-                double stealBlindFrequency,
-                double checkRaiseFear) {
-            this.preflopTightness = preflopTightness;
-            this.aggression = aggression;
-            this.bluffFrequency = bluffFrequency;
-            this.callStation = callStation;
-            this.stealBlindFrequency = stealBlindFrequency;
-            this.checkRaiseFear = checkRaiseFear;
+        StyleProfile(double vpip, double pfr, double cbetFreq, double bluffFreq, double callStation,
+                double foldToPressure) {
+            this.vpip = clamp01(vpip);
+            this.pfr = clamp01(pfr);
+            this.cbetFreq = clamp01(cbetFreq);
+            this.bluffFreq = clamp01(bluffFreq);
+            this.callStation = clamp01(callStation);
+            this.foldToPressure = clamp01(foldToPressure);
         }
-    }
 
-    /**
-     * 难度削弱参数：控制“看错牌 / 算错赔率 / 偶尔乱来”。
-     */
-    private static class DifficultyProfile {
-        final double strengthNoise;
-        final double potOddsNoise;
-        final double ignorePositionProb;
-        final double ignorePotOddsProb;
-        final double missBluffCatchProb;
-        final double randomSpewProb;
+        private static double clamp01(double v) {
+            if (v < 0.0)
+                return 0.0;
+            if (v > 1.0)
+                return 1.0;
+            return v;
+        }
 
-        DifficultyProfile(double strengthNoise,
-                double potOddsNoise,
-                double ignorePositionProb,
-                double ignorePotOddsProb,
-                double missBluffCatchProb,
-                double randomSpewProb) {
-            this.strengthNoise = strengthNoise;
-            this.potOddsNoise = potOddsNoise;
-            this.ignorePositionProb = ignorePositionProb;
-            this.ignorePotOddsProb = ignorePotOddsProb;
-            this.missBluffCatchProb = missBluffCatchProb;
-            this.randomSpewProb = randomSpewProb;
+        /** @deprecated 语义兼容：≈ {@code 1 - vpip} */
+        double preflopTightness() {
+            return clamp01(1.0 - vpip);
+        }
+
+        /** @deprecated 语义兼容：≈ {@code (pfr + cbetFreq) / 2} */
+        double aggression() {
+            return clamp01(0.5 * (pfr + cbetFreq));
+        }
+
+        /** @deprecated 语义兼容：即 {@link #bluffFreq} */
+        double bluffFrequency() {
+            return bluffFreq;
+        }
+
+        /** @deprecated 语义兼容：偷盲倾向改由 vpip/pfr 合成 */
+        double stealBlindFrequency() {
+            return clamp01(0.35 * vpip + 0.65 * pfr);
+        }
+
+        /** @deprecated 语义兼容：即 {@link #foldToPressure} */
+        double checkRaiseFear() {
+            return foldToPressure;
+        }
+
+        /** 紧凶（TAG）：vpip↓ pfr↑ cbet↑ bluff 中 call↓ foldToPressure↓ */
+        static StyleProfile presetTightAggro() {
+            return new StyleProfile(0.24, 0.76, 0.82, 0.36, 0.18, 0.22);
+        }
+
+        /**
+         * 松凶～疯子（Maniac & Shark 共用 {@link NpcStyle#LOOSE_AGGRO}）：高 vpip/pfr/cbet/bluff，低 callStation、低
+         * foldToPressure。
+         */
+        static StyleProfile presetLooseAggro() {
+            return new StyleProfile(0.46, 0.88, 0.86, 0.64, 0.24, 0.12);
+        }
+
+        /** 紧弱：vpip/pfr/cbet/bluff 低，call 中、受压跑 */
+        static StyleProfile presetTightPassive() {
+            return new StyleProfile(0.18, 0.22, 0.26, 0.06, 0.44, 0.84);
+        }
+
+        /** 跟注站（Fish）：vpip 高、pfr/cbet/bluff 低，call 极高、foldToPressure 低 */
+        static StyleProfile presetCallingStation() {
+            return new StyleProfile(0.58, 0.14, 0.18, 0.08, 0.92, 0.14);
         }
     }
 
     private static final Map<NpcStyle, StyleProfile> STYLE_PROFILE_MAP = new EnumMap<>(NpcStyle.class);
-    private static final Map<NpcDifficulty, DifficultyProfile> DIFFICULTY_PROFILE_MAP = new EnumMap<>(
-            NpcDifficulty.class);
 
     static {
-        // 4 种风格参数配置
-        STYLE_PROFILE_MAP.put(NpcStyle.TIGHT_AGGRO, new StyleProfile(
-                0.85, // preflopTightness
-                0.80, // aggression
-                0.35, // bluffFrequency
-                0.20, // callStation
-                0.60, // stealBlindFrequency
-                0.70 // checkRaiseFear
-        ));
-        STYLE_PROFILE_MAP.put(NpcStyle.LOOSE_AGGRO, new StyleProfile(
-                0.30,
-                0.95,
-                0.60,
-                0.35,
-                0.90,
-                0.25));
-        STYLE_PROFILE_MAP.put(NpcStyle.TIGHT_PASSIVE, new StyleProfile(
-                0.90,
-                0.20,
-                0.05,
-                0.35,
-                0.15,
-                0.90));
-        // LOOSE_FUN：娱乐鱼但要有酒馆 NPC 的压迫感——比纯跟注站更会下价值注/半诈唬
-        STYLE_PROFILE_MAP.put(NpcStyle.LOOSE_FUN, new StyleProfile(
-                0.28,
-                0.46,
-                0.15,
-                0.76,
-                0.45,
-                0.38));
-
-        // 3 级难度削弱规则
-        DIFFICULTY_PROFILE_MAP.put(NpcDifficulty.EASY, new DifficultyProfile(
-                0.35,
-                0.40,
-                0.90,
-                0.90,
-                0.90,
-                0.25));
-        // MEDIUM：给「酒馆级」鱼机器人用——读牌/赔率明显比 EASY 准，仍偶有失误
-        DIFFICULTY_PROFILE_MAP.put(NpcDifficulty.MEDIUM, new DifficultyProfile(
-                0.11,
-                0.11,
-                0.30,
-                0.35,
-                0.40,
-                0.08));
-        // HARD：TAG / Maniac 略再收紧噪声，接近单机里较难桌的观感
-        DIFFICULTY_PROFILE_MAP.put(NpcDifficulty.HARD, new DifficultyProfile(
-                0.03,
-                0.03,
-                0.05,
-                0.05,
-                0.10,
-                0.02));
-        // PRO 档：关闭所有“读牌/赔率/位置/乱来”等削弱噪声，让策略尽量纯粹
-        DIFFICULTY_PROFILE_MAP.put(NpcDifficulty.PRO, new DifficultyProfile(
-                0.0, // strengthNoise：不再主动“看错牌力”
-                0.0, // potOddsNoise：不对底池赔率加入误差
-                0.0, // ignorePositionProb：始终考虑位置
-                0.0, // ignorePotOddsProb：始终考虑赔率
-                0.0, // missBluffCatchProb：不再额外制造“错过抓诈唬”的弱化
-                0.0 // randomSpewProb：不再触发“完全乱来一把”的行为
-        ));
+        STYLE_PROFILE_MAP.put(NpcStyle.TIGHT_AGGRO, StyleProfile.presetTightAggro());
+        STYLE_PROFILE_MAP.put(NpcStyle.LOOSE_AGGRO, StyleProfile.presetLooseAggro());
+        STYLE_PROFILE_MAP.put(NpcStyle.TIGHT_PASSIVE, StyleProfile.presetTightPassive());
+        STYLE_PROFILE_MAP.put(NpcStyle.LOOSE_FUN, StyleProfile.presetCallingStation());
     }
 
     /** 与 {@link #isBotPlayer(DpPlayer)} 一致，仅按昵称判断（观众席只有昵称无 DpPlayer）。 */
@@ -1146,8 +975,8 @@ public final class DpNpcEngine {
                 // 紧凶常客
                 return NpcStyle.TIGHT_AGGRO;
             case SHARK:
-                // 松凶（LAG）：翻前范围更宽，面对 open 不会过度弃牌；与 MANIAC 共用 LOOSE_AGGRO 参数表，
-                // 但 Shark 仍走 DpNpcSharkPreflopStrategy + DpNpcSharkStrategy，与疯子分支逻辑不同。
+                // 松凶（LAG）：与 MANIAC 共用 {@link NpcStyle#LOOSE_AGGRO} 的 StyleProfile；翻前与同风格共用
+                // {@link DpNpcUnifiedPreflopStrategy}，翻后仍走 {@link DpNpcSharkStrategy}。
                 return NpcStyle.LOOSE_AGGRO;
             default:
                 return NpcStyle.TIGHT_AGGRO;
@@ -1447,35 +1276,19 @@ public final class DpNpcEngine {
     }
 
     /**
-     * 根据难度在牌力上增加适度噪声，用于 EASY/MEDIUM 弱化“读牌准确度”。
+     * 判断公共牌面是否“湿”（容易成大牌/花顺危险）还是“干”（较安全）:
+     * - 如果未发足够公共牌（少于3张），直接判为干牌面（DRY）。
+     * - 如果有任意花色出现3张及以上（同花潜力），判为湿牌面（WET）。
+     * - 如果有至少3张不同点数且其中有3+张是连续的（顺子潜力），也判为湿牌面（WET）。
+     * - 否则，认为是干牌面（DRY）。
      */
-    private static SimpleStrength applyStrengthNoise(SimpleStrength raw, NpcDifficulty difficulty, Random random) {
-        DifficultyProfile profile = DIFFICULTY_PROFILE_MAP.get(difficulty);
-        if (profile == null || profile.strengthNoise <= 0) {
-            return raw;
-        }
-        if (random.nextDouble() > profile.strengthNoise) {
-            return raw;
-        }
-        switch (raw) {
-            case MONSTER:
-                return random.nextBoolean() ? SimpleStrength.STRONG : SimpleStrength.MONSTER;
-            case STRONG:
-                return random.nextBoolean() ? SimpleStrength.MEDIUM : SimpleStrength.MONSTER;
-            case MEDIUM:
-                return random.nextBoolean() ? SimpleStrength.WEAK : SimpleStrength.STRONG;
-            case WEAK:
-            default:
-                return random.nextBoolean() ? SimpleStrength.MEDIUM : SimpleStrength.WEAK;
-        }
-    }
-
     private static BoardDanger evaluateBoardDanger(List<String> communityCards) {
+        // 公共牌为空或不足3张必定是干燥牌面
         if (communityCards == null || communityCards.size() < 3) {
             return BoardDanger.DRY;
         }
-        Set<Integer> ranks = new HashSet<>();
-        Map<String, Integer> suitCount = new HashMap<>();
+        Set<Integer> ranks = new HashSet<>();        // 记录已出现的点数
+        Map<String, Integer> suitCount = new HashMap<>(); // 记录每种花色的数量
         for (String c : communityCards) {
             if (c == null || !c.contains("_"))
                 continue;
@@ -1490,13 +1303,13 @@ public final class DpNpcEngine {
             }
             suitCount.put(suit, suitCount.getOrDefault(suit, 0) + 1);
         }
-        // 同花危险：某一花色数量 >= 3
+        // 【同花危险】只要某种花色数量>=3，则有同花潜力视为湿牌面
         for (Integer cnt : suitCount.values()) {
             if (cnt >= 3) {
                 return BoardDanger.WET;
             }
         }
-        // 顺子危险：有 3 张以上接近的连张结构
+        // 【顺子危险】只要有3张及以上不同点数，且其中有3+张是连续的也判为湿牌面
         if (ranks.size() >= 3) {
             List<Integer> list = new ArrayList<>(ranks);
             Collections.sort(list);
@@ -1510,10 +1323,12 @@ public final class DpNpcEngine {
                     currentRun = 1;
                 }
             }
+            // 只要有连续3张牌（潜在顺子结构），也视为湿牌面
             if (maxRun >= 3) {
                 return BoardDanger.WET;
             }
         }
+        // 都没有则为干燥牌面
         return BoardDanger.DRY;
     }
 
@@ -1552,332 +1367,6 @@ public final class DpNpcEngine {
             return TablePosition.EARLY;
         }
         return TablePosition.MIDDLE;
-    }
-
-    private static PreflopPosition toPreflopPosition(TablePosition pos) {
-        if (pos == null) {
-            return PreflopPosition.MIDDLE;
-        }
-        switch (pos) {
-            case EARLY:
-                return PreflopPosition.EARLY;
-            case LATE:
-                return PreflopPosition.LATE;
-            case BLINDS:
-                return PreflopPosition.BLINDS;
-            case MIDDLE:
-            default:
-                return PreflopPosition.MIDDLE;
-        }
-    }
-
-    /**
-     * 将两张手牌粗略划分到若干大类，用于翻前决策。
-     */
-    private static PreflopHandCategory classifyHoleCards(List<String> holeCards) {
-        if (holeCards == null || holeCards.size() < 2) {
-            return PreflopHandCategory.TRASH;
-        }
-        String c1 = holeCards.get(0);
-        String c2 = holeCards.get(1);
-        if (c1 == null || c2 == null || !c1.contains("_") || !c2.contains("_")) {
-            return PreflopHandCategory.TRASH;
-        }
-        String[] p1 = c1.split("_", 2);
-        String[] p2 = c2.split("_", 2);
-        if (p1.length != 2 || p2.length != 2) {
-            return PreflopHandCategory.TRASH;
-        }
-        String suit1 = p1[0];
-        String suit2 = p2[0];
-        String r1 = p1[1];
-        String r2 = p2[1];
-        int v1 = CARD_RANK_MAP.getOrDefault(r1, 0);
-        int v2 = CARD_RANK_MAP.getOrDefault(r2, 0);
-        boolean suited = suit1.equals(suit2);
-        int high = Math.max(v1, v2);
-        int low = Math.min(v1, v2);
-        boolean pair = v1 == v2;
-
-        // 简化：10=十, 11=J, 12=Q, 13=K, 14=A
-        if (pair) {
-            if (high >= CARD_RANK_MAP.getOrDefault("J", 11)) {
-                return PreflopHandCategory.PREMIUM_PAIR;
-            }
-            if (high >= CARD_RANK_MAP.getOrDefault("8", 8)) {
-                return PreflopHandCategory.MEDIUM_PAIR;
-            }
-            return PreflopHandCategory.SMALL_PAIR;
-        }
-
-        boolean broadway1 = v1 >= CARD_RANK_MAP.getOrDefault("10", 10);
-        boolean broadway2 = v2 >= CARD_RANK_MAP.getOrDefault("10", 10);
-        boolean anyAce = (r1.equals("A") || r2.equals("A"));
-
-        if (suited && (broadway1 || broadway2)) {
-            // 调整：把 KTs/QTs/JTs 这类典型“可玩同花大牌”也纳入到强同花大牌桶里
-            // 原先要求 low >= J，导致 KTs/QTs 被误判为 TRASH，这里放宽到 low >= 10
-            if ((anyAce && high >= CARD_RANK_MAP.getOrDefault("J", 11))
-                    || (high >= CARD_RANK_MAP.getOrDefault("K", 13) && low >= CARD_RANK_MAP.getOrDefault("10", 10))) {
-                return PreflopHandCategory.STRONG_SUITED_BROADWAY;
-            }
-        }
-
-        if (suited) {
-            int gap = high - low;
-            // 高同花连张 / 小连张：gap == 1，high 在 6~Q 之间 → 典型 suited connector
-            if (gap == 1 && high >= CARD_RANK_MAP.getOrDefault("6", 6)
-                    && high <= CARD_RANK_MAP.getOrDefault("Q", 12)) {
-                return PreflopHandCategory.SUITED_CONNECTOR;
-            }
-            // 高同花 one-gap：例如 J9s、T8s、97s、86s 等，实战中经常被视为“可玩牌”
-            if (gap == 2 && high >= CARD_RANK_MAP.getOrDefault("10", 10)
-                    && high <= CARD_RANK_MAP.getOrDefault("Q", 12)) {
-                return PreflopHandCategory.SUITED_CONNECTOR;
-            }
-            // 高同花 one-gap：例如 J9s、T8s、97s、86s 等，实战中经常被视为“可玩牌”
-            if (gap == 2 && high >= CARD_RANK_MAP.getOrDefault("10", 10)
-                    && high <= CARD_RANK_MAP.getOrDefault("Q", 12)) {
-                return PreflopHandCategory.SUITED_CONNECTOR;
-            }
-        }
-
-        // 高张非同花大牌组合（如 KQo、KJo、QJo）：比杂牌强一档，至少不应被视作纯垃圾
-        if (!suited && broadway1 && broadway2 && high >= CARD_RANK_MAP.getOrDefault("Q", 12)) {
-            return PreflopHandCategory.MEDIUM_PAIR;
-        }
-
-        // AKo/AQo 作为强牌但非同花，近似归为 MEDIUM_PAIR 类似范围
-        if (anyAce && high >= CARD_RANK_MAP.getOrDefault("Q", 12)) {
-            return PreflopHandCategory.MEDIUM_PAIR;
-        }
-
-        return PreflopHandCategory.TRASH;
-    }
-
-    /**
-     * TAG / SHARK 通用的翻前决策入口。
-     * 只在 stage == "preflop" 时调用，返回非 null 即表示已经给出明确动作。
-     */
-    private static PreflopDecision decidePreflopForTagOrShark(
-            DpRoomBO room,
-            DpPlayer bot,
-            BotType type,
-            SimpleStrength strength,
-            PreflopPosition pos,
-            int callAmount,
-            double callRatio,
-            Random random) {
-        if (room == null || bot == null || type == null) {
-            return null;
-        }
-        if (!"preflop".equals(room.getCurrentStage())) {
-            return null;
-        }
-
-        int bb = room.getBigBlindChips();
-        int sb = room.getSmallBlindChips();
-        if (bb <= 0) {
-            return null;
-        }
-
-        PreflopStrategyProfile profile = (type == BotType.TAG) ? PREFLOP_TAG_PROFILE : PREFLOP_SHARK_PROFILE;
-        PreflopHandCategory cat = classifyHoleCards(bot.getHoleCards());
-
-        double stackBB = bot.getChips() * 1.0 / bb;
-        boolean facingRaise = callAmount > 0 && room.getPot() > (bb + sb);
-        int raiseLevel = room.getRaiseLevel();
-
-        // 短码 all-in 规则：强牌 + 面对 open/3bet 时，直接全下
-        if (facingRaise
-                && stackBB <= profile.shoveThresholdBB
-                && (cat == PreflopHandCategory.PREMIUM_PAIR
-                        || cat == PreflopHandCategory.STRONG_SUITED_BROADWAY)
-                && strength != SimpleStrength.WEAK) {
-            return new PreflopDecision(BotActionType.ALL_IN, bot.getChips(), true);
-        }
-
-        int catIdx = cat.ordinal();
-        int posIdx = pos.ordinal();
-
-        // 翻前没人加注：open 场景
-        if (callAmount == 0) {
-            int baseBB = profile.openRaiseSizeBBByCategoryAndPos[catIdx][posIdx];
-            if (baseBB <= 0) {
-                // 对于 TAG：根据 openRangeTightness 额外过滤一部分 marginal 牌；SHARK 稍微宽松一点
-                double tight = profile.openRangeTightnessByPos[posIdx];
-                double r = random.nextDouble();
-                if (cat == PreflopHandCategory.SUITED_CONNECTOR
-                        && r > (type == BotType.TAG ? 0.2 : 0.4) * (1.0 - tight)) {
-                    return new PreflopDecision(BotActionType.CALL_OR_CHECK, 0, false);
-                }
-                // 其它情况直接过牌/补盲
-                return new PreflopDecision(BotActionType.CALL_OR_CHECK, 0, false);
-            }
-            // 计算 open 大小
-            int raiseAmount = Math.min(bot.getChips(), baseBB * bb);
-            if (sb > 0 && raiseAmount > 0) {
-                int units = Math.max(1, Math.round(raiseAmount * 1.0f / sb));
-                raiseAmount = units * sb;
-                if (raiseAmount > bot.getChips()) {
-                    units = Math.max(1, bot.getChips() / sb);
-                    raiseAmount = units * sb;
-                }
-            }
-            if (raiseAmount <= 0) {
-                return new PreflopDecision(BotActionType.CALL_OR_CHECK, 0, false);
-            }
-            return new PreflopDecision(BotActionType.RAISE, raiseAmount, false);
-        }
-
-        // 面对 open/3bet：根据牌力和类别选择 3bet / 跟注 / 弃牌
-        int extraBB = profile.threeBetSizeBBByCategory[catIdx];
-        boolean strongCategory = (cat == PreflopHandCategory.PREMIUM_PAIR
-                || cat == PreflopHandCategory.MEDIUM_PAIR
-                || cat == PreflopHandCategory.STRONG_SUITED_BROADWAY);
-
-        // ===== SHARK 专用：更像真人的 3bet/4bet sizing + raiseLevel 终局规则（防 overfold）=====
-        // raiseLevel 约定（由房间层维护）：1=open, 2=3bet, 3=4bet, >=4 进入终局
-        // 终局规则：到 4bet 往后不再“小加一点点”，而是在 all-in / call / fold 中收敛。
-        if (type == BotType.SHARK && facingRaise && raiseLevel >= 3) {
-            boolean premium = (cat == PreflopHandCategory.PREMIUM_PAIR);
-            boolean broadway = (cat == PreflopHandCategory.STRONG_SUITED_BROADWAY);
-            boolean medium = (cat == PreflopHandCategory.MEDIUM_PAIR);
-
-            // 便宜跟注保护（按底池赔率）：当 potOdds 很好时，不要轻易弃牌（防止被小幅加注稳定剥削）
-            // potOdds = call / (pot + call)，越小代表“越便宜”
-            double prePotOdds;
-            int denom = room.getPot() + callAmount;
-            if (callAmount <= 0 || denom <= 0) {
-                prePotOdds = 1.0;
-            } else {
-                prePotOdds = callAmount * 1.0 / denom;
-            }
-            // 经验阈值：<=0.18 视为“很便宜”（例如底池已经很大，你只加 2BB/3BB 也会落在这里）
-            if (callAmount > 0 && prePotOdds <= 0.18) {
-                if (strength != SimpleStrength.WEAK || premium || broadway) {
-                    return new PreflopDecision(BotActionType.CALL_OR_CHECK, 0, false);
-                }
-                // 弱牌也不应该全弃：保留一定随机防守频率
-                if (random.nextDouble() < 0.45) {
-                    return new PreflopDecision(BotActionType.CALL_OR_CHECK, 0, false);
-                }
-                return new PreflopDecision(BotActionType.FOLD, 0, false);
-            }
-
-            // 强牌更愿意打光；中等牌更多控制；弱牌多数弃
-            if (premium || (broadway && strength != SimpleStrength.WEAK) || (strength == SimpleStrength.MONSTER)) {
-                // 深码时也不总是推，给少量平跟空间（避免过于机械）
-                if (stackBB >= 45 && random.nextDouble() < 0.25) {
-                    return new PreflopDecision(BotActionType.CALL_OR_CHECK, 0, false);
-                }
-                return new PreflopDecision(BotActionType.ALL_IN, bot.getChips(), true);
-            }
-            if (medium && strength != SimpleStrength.WEAK) {
-                // 中等牌面对 4bet：更偏向平跟（看翻牌）或直接弃牌
-                double foldP = 0.30 + 0.20 * Math.min(1.0, callRatio);
-                if (random.nextDouble() < foldP) {
-                    return new PreflopDecision(BotActionType.FOLD, 0, false);
-                }
-                return new PreflopDecision(BotActionType.CALL_OR_CHECK, 0, false);
-            }
-            // 其余：大多数弃牌
-            return new PreflopDecision(BotActionType.FOLD, 0, false);
-        }
-
-        // 强牌优先 3bet；中等牌更多选择跟注；垃圾牌在较高压力下直接弃牌
-        if (strongCategory && extraBB > 0 && bot.getChips() > callAmount) {
-            double base3betProb = (type == BotType.TAG ? 0.55 : 0.7);
-            if (strength == SimpleStrength.MONSTER) {
-                base3betProb += 0.15;
-            } else if (strength == SimpleStrength.MEDIUM) {
-                base3betProb -= 0.1;
-            }
-            if (random.nextDouble() < base3betProb) {
-                // TAG：保留原先“固定额外 BB”逻辑
-                // SHARK：更像真人的 sizing：按当前 betToCall（对手下注总额）乘倍数，并做少量随机抖动
-                int raiseAmount;
-                if (type == BotType.SHARK) {
-                    int villainBetToCall = room.getCurrentBetToCall(); // 本轮对手下注总额（不是 callAmount）
-                    if (villainBetToCall < bb)
-                        villainBetToCall = bb;
-
-                    boolean inPositionApprox = (pos == PreflopPosition.LATE || pos == PreflopPosition.MIDDLE);
-                    boolean outOfPositionApprox = (pos == PreflopPosition.BLINDS);
-
-                    double mult;
-                    if (raiseLevel <= 1) {
-                        // 3bet：IP ~3x，OOP ~4x
-                        mult = outOfPositionApprox ? 4.0 : (inPositionApprox ? 3.0 : 3.5);
-                        mult += (random.nextDouble() * 0.4 - 0.2); // ±0.2
-                    } else {
-                        // 4bet：对 3bet 通常 ~2.2x~2.6x
-                        mult = 2.2 + random.nextDouble() * 0.4;
-                        if (outOfPositionApprox) {
-                            mult += 0.1;
-                        }
-                    }
-
-                    int desiredTotalBet = (int) Math.round(villainBetToCall * mult);
-                    // 兜底：至少比跟注多出 3BB（防止出现“加注不像加注”）
-                    int minTotalBet = room.getCurrentBetToCall() + 3 * bb;
-                    if (desiredTotalBet < minTotalBet) {
-                        desiredTotalBet = minTotalBet;
-                    }
-                    // 转成“本次需要再加多少”
-                    raiseAmount = desiredTotalBet - bot.getBet();
-                    if (raiseAmount < 0)
-                        raiseAmount = 0;
-                    if (raiseAmount > bot.getChips())
-                        raiseAmount = bot.getChips();
-                    // 确保确实是 raise（必须 > callAmount）
-                    if (raiseAmount <= callAmount && bot.getChips() > callAmount) {
-                        int bump = Math.min(bot.getChips(), callAmount + bb * 2);
-                        raiseAmount = Math.max(raiseAmount, bump);
-                    }
-                } else {
-                    int extra = extraBB * bb;
-                    int target = callAmount + extra;
-                    raiseAmount = Math.min(bot.getChips(), target);
-                    // 保证是真 3bet：在 call 基础上至少再多出 3BB
-                    if (bb > 0) {
-                        int minRaise = callAmount + 3 * bb;
-                        if (raiseAmount < minRaise) {
-                            raiseAmount = Math.min(bot.getChips(), minRaise);
-                        }
-                    }
-                }
-
-                if (sb > 0 && raiseAmount > 0) {
-                    int units = Math.max(1, Math.round(raiseAmount * 1.0f / sb));
-                    raiseAmount = units * sb;
-                    if (raiseAmount > bot.getChips()) {
-                        units = Math.max(1, bot.getChips() / sb);
-                        raiseAmount = units * sb;
-                    }
-                }
-                if (raiseAmount > callAmount) {
-                    return new PreflopDecision(BotActionType.RAISE, raiseAmount, false);
-                }
-            }
-        }
-
-        // 弱牌：在高压力下直接弃牌
-        if (!strongCategory || strength == SimpleStrength.WEAK) {
-            double baseFold = 0.4 + 0.3 * profile.openRangeTightnessByPos[posIdx];
-            if (callRatio > 0.5) {
-                baseFold += 0.2;
-            }
-            if (stackBB < 20) {
-                baseFold += 0.1;
-            }
-            if (random.nextDouble() < Math.min(0.95, baseFold)) {
-                return new PreflopDecision(BotActionType.FOLD, 0, false);
-            }
-        }
-
-        // 默认选择跟注
-        return new PreflopDecision(BotActionType.CALL_OR_CHECK, 0, false);
     }
 
     /**
@@ -2047,28 +1536,15 @@ public final class DpNpcEngine {
     }
 
     /**
-     * 底池赔率：call / (pot + call)，并根据难度加入轻微噪声。
-     * SHARK 在决定弃牌/跟注时会参考此值（赔率差时更易弃牌，赔率好时略减弃牌率）。
+     * 底池赔率：call / (pot + call)。规则型 NPC 一律使用真值（不做人为噪声）。
      */
-    private static double computePotOdds(DpRoomBO room, DpPlayer bot, int callAmount, Random random,
-            NpcDifficulty difficulty) {
+    private static double computePotOdds(DpRoomBO room, DpPlayer bot, int callAmount) {
         int pot = room.getPot();
         int denom = pot + callAmount;
         if (callAmount <= 0 || denom <= 0) {
             return 0.0;
         }
-        double base = callAmount * 1.0 / denom;
-        DifficultyProfile profile = DIFFICULTY_PROFILE_MAP.get(difficulty);
-        if (profile == null || profile.potOddsNoise <= 0) {
-            return base;
-        }
-        double noise = (random.nextDouble() * 2 - 1) * profile.potOddsNoise;
-        double v = base + noise;
-        if (v < 0)
-            v = 0;
-        if (v > 1)
-            v = 1;
-        return v;
+        return callAmount * 1.0 / denom;
     }
 
     /**
@@ -2192,8 +1668,8 @@ public final class DpNpcEngine {
     }
 
     /**
-     * 在定时任务中调用：如果轮到机器人行动，则根据思考时间和当前局面给出一个 BotAction。
-     * 返回 null 表示暂时不需要行动（例如正在“思考中”或不该由该机器人行动）。
+     * 在定时任务中调用：轮到规则 NPC 且校验通过则立即给出 {@link BotAction}。
+     * 返回 null 表示不该由该机器人行动。
      */
     public static BotAction decideActionIfReady(DpRoomBO room, DpPlayer bot) {
         if (room == null || bot == null || !room.isPlaying()) {
@@ -2212,24 +1688,6 @@ public final class DpNpcEngine {
             return null;
         }
 
-        // 先根据当前局面为机器人设置一次“思考时间”，到点前不真正出手
-        long now = System.currentTimeMillis();
-        long nextTime = bot.getNextBotActionTime();
-        if (nextTime <= 0L) {
-            if (DISABLE_BOT_THINK_DELAY) {
-                // 调试阶段：关闭机器人思考时间，轮到行动就立刻出手
-                bot.setNextBotActionTime(now);
-            } else {
-                long delayMs = calculateBotThinkDelay(room, bot);
-                bot.setNextBotActionTime(now + delayMs);
-                return null;
-            }
-        }
-        if (now < nextTime) {
-            // 还在思考时间窗口内，暂不行动
-            return null;
-        }
-        // 本轮行动完成后清零，下次成为行动者时重新计算
         bot.setNextBotActionTime(0L);
 
         BotType type = getBotTypeByNickname(bot.getNickname());
@@ -2241,165 +1699,14 @@ public final class DpNpcEngine {
     }
 
     /**
-     * 机器人“思考时间”配置。
-     */
-    private static class BotThinkProfile {
-        final long weakMinMs;
-        final long weakMaxMs;
-        final long mediumMinMs;
-        final long mediumMaxMs;
-        final long strongMinMs;
-        final long strongMaxMs;
-
-        final long cheapMinMs;
-        final long cheapMaxMs;
-
-        final double cheapSnapProb;
-        final double globalSnapProb;
-        final long maxCapMs;
-
-        BotThinkProfile(long weakMinMs, long weakMaxMs,
-                long mediumMinMs, long mediumMaxMs,
-                long strongMinMs, long strongMaxMs,
-                long cheapMinMs, long cheapMaxMs,
-                double cheapSnapProb,
-                double globalSnapProb,
-                long maxCapMs) {
-            this.weakMinMs = weakMinMs;
-            this.weakMaxMs = weakMaxMs;
-            this.mediumMinMs = mediumMinMs;
-            this.mediumMaxMs = mediumMaxMs;
-            this.strongMinMs = strongMinMs;
-            this.strongMaxMs = strongMaxMs;
-            this.cheapMinMs = cheapMinMs;
-            this.cheapMaxMs = cheapMaxMs;
-            this.cheapSnapProb = cheapSnapProb;
-            this.globalSnapProb = globalSnapProb;
-            this.maxCapMs = maxCapMs;
-        }
-    }
-
-    private static final BotThinkProfile THINK_DEMO = new BotThinkProfile(
-            250, 1700, // WEAK
-            1200, 4200, // MEDIUM
-            2800, 7500, // STRONG
-            0, 450, // cheap snap range
-            0.85, // cheapSnapProb
-            0.03, // globalSnapProb
-            12000 // max cap
-    );
-
-    private static final BotThinkProfile THINK_MANIAC = new BotThinkProfile(
-            0, 500, // WEAK：基本秒出
-            200, 900, // MEDIUM：也很快
-            500, 1800, // STRONG
-            0, 250, // cheap snap range
-            0.95, // cheapSnapProb
-            0.18, // globalSnapProb
-            6000 // max cap
-    );
-
-    private static final BotThinkProfile THINK_SHARK = new BotThinkProfile(
-            200, 1600, // WEAK
-            1400, 5200, // MEDIUM
-            3200, 9000, // STRONG
-            0, 500, // cheap snap range
-            0.70, // cheapSnapProb
-            0.08, // globalSnapProb
-            12000 // max cap
-    );
-
-    private static BotThinkProfile getThinkProfile(BotType type) {
-        if (type == null)
-            return THINK_DEMO;
-        switch (type) {
-            case MANIAC:
-                return THINK_MANIAC;
-            case SHARK:
-                return THINK_SHARK;
-            case DEMO:
-            default:
-                return THINK_DEMO;
-        }
-    }
-
-    private static long randomBetween(long minInclusive, long maxInclusive, Random random) {
-        long min = Math.max(0L, minInclusive);
-        long max = Math.max(0L, maxInclusive);
-        if (max <= min)
-            return min;
-        long span = max - min + 1;
-        long v = Math.floorMod(random.nextLong(), span);
-        return min + v;
-    }
-
-    /**
-     * 为机器人当前这一手行动计算一个“思考时间”延迟。
-     */
-    private static long calculateBotThinkDelay(DpRoomBO room, DpPlayer bot) {
-        int chips = bot.getChips();
-        int callAmount = Math.max(0, room.getCurrentBetToCall() - bot.getBet());
-        double callRatio = chips == 0 ? 1.0 : (callAmount * 1.0 / Math.max(1, chips));
-
-        SimpleStrength strength = estimateCurrentStrength(room, bot);
-        BotType type = getBotTypeByNickname(bot.getNickname());
-        double mood = bot.getMood();
-        Random random = buildHandRandom(room, bot);
-
-        BotThinkProfile profile = getThinkProfile(type);
-
-        // 全局“秒出手”
-        if (profile.globalSnapProb > 0 && random.nextDouble() < profile.globalSnapProb) {
-            return randomBetween(0, Math.max(0L, profile.cheapMaxMs), random);
-        }
-
-        // cheap snap：free check 或者跟注很便宜
-        boolean isCheap = (callAmount == 0) || (callRatio <= 0.2);
-        if (isCheap && profile.cheapSnapProb > 0 && random.nextDouble() < profile.cheapSnapProb) {
-            return randomBetween(profile.cheapMinMs, profile.cheapMaxMs, random);
-        }
-
-        long minMs;
-        long maxMs;
-        switch (strength) {
-            case STRONG:
-                minMs = profile.strongMinMs;
-                maxMs = profile.strongMaxMs;
-                break;
-            case MEDIUM:
-                minMs = profile.mediumMinMs;
-                maxMs = profile.mediumMaxMs;
-                break;
-            default:
-                minMs = profile.weakMinMs;
-                maxMs = profile.weakMaxMs;
-                break;
-        }
-
-        // 情绪：高兴时更快，低落时更慢
-        double moodFactor = 1.0 - mood * 0.2;
-        if (moodFactor < 0.8)
-            moodFactor = 0.8;
-        if (moodFactor > 1.2)
-            moodFactor = 1.2;
-
-        long base = randomBetween(minMs, maxMs, random);
-        long result = (long) (base * moodFactor);
-
-        if (result < 0L)
-            result = 0L;
-        long cap = profile.maxCapMs > 0 ? profile.maxCapMs : 12000L;
-        if (cap > 20000L)
-            cap = 20000L;
-        if (result > cap)
-            result = cap;
-        return result;
-    }
-
-    /**
-     * 统一的机器人决策函数。
+     * 规则 NPC 决策用的 {@link Random}（仅用于概率抽样，不参与洗牌发牌）。
+     *
+     * @see #NPC_HAND_SEED_FOR_DECISIONS
      */
     private static Random buildHandRandom(DpRoomBO room, DpPlayer bot) {
+        if (!NPC_HAND_SEED_FOR_DECISIONS) {
+            return new Random();
+        }
         long seed = room != null ? room.getCurrentHandSeed() : System.currentTimeMillis();
         int seatIndex = -1;
         if (room != null && room.getPlayers() != null) {
@@ -2416,6 +1723,9 @@ public final class DpNpcEngine {
      * 对概率应用一个 [-delta, +delta] 的软噪声，并裁剪在 [0,1]。
      */
     static double applySoftNoise(double prob, double delta, Random random) {
+        if (!NPC_SOFT_NOISE_ENABLED) {
+            delta = 0;
+        }
         if (delta <= 0 || random == null) {
             if (prob < 0)
                 return 0.0;
@@ -2459,7 +1769,6 @@ public final class DpNpcEngine {
             SimpleStrength strength,
             String stage,
             int callAmount,
-            NpcDifficulty difficulty,
             Random random) {
         if (room == null || hero == null) {
             StackContext emptyStacks = analyzeStacks(room, hero);
@@ -2517,7 +1826,7 @@ public final class DpNpcEngine {
         // 6. 底池赔率（仅在有跟注成本时）
         double potOdds = 0.0;
         if (callAmount > 0) {
-            potOdds = computePotOdds(room, hero, callAmount, random, difficulty);
+            potOdds = computePotOdds(room, hero, callAmount);
         }
 
         // 7. 粗略赢率估计桶（翻后在可评估 5+ 张牌时用真实成牌类型校正）
@@ -2609,7 +1918,7 @@ public final class DpNpcEngine {
         SimpleStrength strength = estimateCurrentStrength(room, bot);
         TablePosition position = getTablePosition(room, bot);
         Random random = buildHandRandom(room, bot);
-        DpUtilSmartContext ctx = buildSmartContext(room, bot, strength, stage, callAmount, NpcDifficulty.PRO, random);
+        DpUtilSmartContext ctx = buildSmartContext(room, bot, strength, stage, callAmount, random);
         return DpLlmNpcContextMapper.map(room, bot, ctx, stage, callAmount, strength, position);// DNCMapper->new
                                                                                                 // LlmNpcGameContext->
     }
@@ -2623,62 +1932,48 @@ public final class DpNpcEngine {
         int callAmount = Math.max(0, room.getCurrentBetToCall() - bot.getBet());
         double callRatio = chips == 0 || callAmount >= chips ? 1.0 : (callAmount * 1.0 / chips);// 把要跟的大于自己的部分算作1，因为超出去部分没意义，要跟的已经占百分百了
         TablePosition position = getTablePosition(room, bot);// 看位置方法
-        SimpleStrength rawStrength = estimateCurrentStrength(room, bot);// 看牌力方法
-        /// 这里是根据类型去看对应的难度，从而用噪声干扰牌力感知的模块
-        NpcDifficulty difficulty;
-        switch (type) {
-            case SHARK:
-                difficulty = NpcDifficulty.PRO;
-                break;
-            case TAG:
-                difficulty = NpcDifficulty.HARD;
-                break;
-            case MANIAC:
-                difficulty = NpcDifficulty.HARD;
-                break;
-            case DEMO:
-                // 原 EASY 噪声过大（常看错牌力），整体弱于大镖客酒馆 NPC；改为 MEDIUM 作默认「酒馆档」
-                difficulty = NpcDifficulty.MEDIUM;
-                break;
-            default:
-                difficulty = NpcDifficulty.EASY;
-                break;
-        }
+        String stageForNpc = room.getCurrentStage() != null ? room.getCurrentStage() : "";
         Random random = buildHandRandom(room, bot);
-        SimpleStrength strength = applyStrengthNoise(rawStrength, difficulty, random);// 通过难度噪声来干扰对牌力的感知
-        /// 这里判断牌面危险度，心情模块,取风格配置参数，涉及翻前范围，凶度，偷盲率，诈唬频率等
+        // log.info("random: {}", random);
+        /// 这里判断牌面危险度、风格配置（翻前范围、凶度、偷盲率、诈唬频率等）；mood 见 {@link #NPC_MOOD_ENABLED}
         BoardDanger boardDanger = evaluateBoardDanger(room.getCommunityCards());
-        double mood = bot.getMood();
+        double mood = NPC_MOOD_ENABLED ? bot.getMood() : 0.0;
         // 统一根据 BotType 拿到风格配置，后续各 case 里不再写死“紧/松、凶/弱”等魔法数字。
         StyleProfile style = STYLE_PROFILE_MAP.get(getStyleByBotType(type));
         if (style == null) {// 如果没有对应风格默认紧凶
             style = STYLE_PROFILE_MAP.get(NpcStyle.TIGHT_AGGRO);
         }
-        double preflopTight = style.preflopTightness;
-        double aggression = style.aggression;
-        double bluffFrequency = style.bluffFrequency;
+        // 翻前由 {@link DpNpcUnifiedPreflopStrategy}（G1–G8 + rangeLevel）决策，不消耗 SimpleStrength。
+        if ("preflop".equals(stageForNpc)) {
+            BotAction preUnified = DpNpcUnifiedPreflopStrategy.decide(
+                    room,
+                    bot,
+                    callAmount,
+                    callRatio,
+                    style.vpip,
+                    style.pfr,
+                    style.callStation,
+                    style.foldToPressure,
+                    mood,
+                    random,
+                    type);
+            if (preUnified != null) {
+                return preUnified;
+            }
+        }
+        SimpleStrength strength = "preflop".equals(stageForNpc)
+                ? SimpleStrength.MEDIUM
+                : estimateCurrentStrength(room, bot);
+        double preflopTight = style.preflopTightness();
+        double aggression = style.aggression();
+        double bluffFrequency = style.bluffFrequency();
         double callStation = style.callStation;
-        double stealBlindFrequency = style.stealBlindFrequency;
-        double checkRaiseFear = style.checkRaiseFear;
+        double stealBlindFrequency = style.stealBlindFrequency();
+        double checkRaiseFear = style.checkRaiseFear();
         /// 整合好上面全部参数，进入具体类型的决策
         switch (type) {
             case DEMO: {
                 String stage = room.getCurrentStage();
-
-                // 翻前弱牌弃牌概率由 preflopTightness 驱动：0.4 ~ 0.95 之间线性变化
-                if ("preflop".equals(stage) && callAmount > 0 && strength == SimpleStrength.WEAK) {
-                    double baseFoldWeakPreflop = 0.4 + 0.55 * preflopTight;
-                    if (callRatio > 0.5) {
-                        baseFoldWeakPreflop += 0.1;
-                    } else if (callRatio < 0.15) {
-                        baseFoldWeakPreflop -= 0.1;
-                    }
-                    double foldProbPre = Math.min(1.0, Math.max(0.0, baseFoldWeakPreflop + (-mood) * 0.2));
-                    foldProbPre = applySoftNoise(foldProbPre, SharkConfig.PROB_NOISE_DELTA, random);
-                    if (random.nextDouble() < foldProbPre) {
-                        return new BotAction(BotActionType.FOLD, 0);
-                    }
-                }
 
                 // 免费看牌时（对手过牌、无需跟注）绝不弃牌，至少过牌看摊牌
                 if (callAmount > 0 && !"preflop".equals(stage)) {
@@ -2786,14 +2081,7 @@ public final class DpNpcEngine {
             }
             case MANIAC: {
                 String stage = room.getCurrentStage();
-                DpUtilSmartContext ctx = buildSmartContext(
-                        room,
-                        bot,
-                        strength,
-                        stage,
-                        callAmount,
-                        difficulty,
-                        random);
+                DpUtilSmartContext ctx = buildSmartContext(room, bot, strength, stage, callAmount, random);
                 StackContext maniStackCtx = ctx.stackCtx;
                 int maniTotalStack = bot.getBet() + bot.getChips();
                 double maniCommitFactor;
@@ -3073,22 +2361,6 @@ public final class DpNpcEngine {
                 BoardDanger bd = boardDanger;
                 SimpleStrength st = strength;
                 String stage = room.getCurrentStage();
-                /// 翻前行动决策
-                if ("preflop".equals(stage)) {
-                    BotAction pre = DpNpcSharkPreflopStrategy.decideForShark(
-                            room,
-                            bot,
-                            position,
-                            callAmount,
-                            callRatio,
-                            preflopTight,
-                            callStation,
-                            mood,
-                            random);
-                    if (pre != null) {
-                        return pre;
-                    }
-                }
                 /// 翻后行动决策（拆分到独立类，减少 DpNpcEngine 体积）
                 BotAction delegated = DpNpcSharkStrategy.decide(
                         room,
@@ -3100,7 +2372,6 @@ public final class DpNpcEngine {
                         position,
                         st,
                         bd,
-                        difficulty,
                         random,
                         mood,
                         callStation,
@@ -3111,50 +2382,14 @@ public final class DpNpcEngine {
 
             }
             case TAG: {
-                // 紧凶型 TAG（重写逻辑）：
-                // - 翻前：明显更紧，对 WEAK 起手在大部分情况下直接弃牌；
-                // - 翻后：中等牌有一定概率 thin value，强牌更积极 value bet / raise；
-                // - 不做复杂读牌，只基于牌力+赔率+简单压力做决策。
+                // 紧凶型 TAG：翻前与同房间其它规则 NPC 共用 {@link DpNpcUnifiedPreflopStrategy}（由 vpip/pfr 等驱动档位）。
+                // 翻后：中等牌有一定概率 thin value，强牌更积极 value bet / raise。
                 BoardDanger bd = boardDanger;
                 SimpleStrength st = strength;
                 String stage = room.getCurrentStage();
                 callAmount = Math.max(0, room.getCurrentBetToCall() - bot.getBet());
                 callRatio = chips == 0 ? 1.0 : (callAmount * 1.0 / chips);
-                if ("preflop".equals(stage)) {
-                    PreflopDecision pre = decidePreflopForTagOrShark(
-                            room,
-                            bot,
-                            type,
-                            st,
-                            toPreflopPosition(position),
-                            callAmount,
-                            callRatio,
-                            random);
-                    if (pre != null) {
-                        if (pre.allIn) {
-                            return new BotAction(BotActionType.ALL_IN, chips);
-                        }
-                        switch (pre.action) {
-                            case FOLD:
-                                return new BotAction(BotActionType.FOLD, 0);
-                            case RAISE:
-                                return new BotAction(BotActionType.RAISE, pre.raiseAmount);
-                            case ALL_IN:
-                                return new BotAction(BotActionType.ALL_IN, pre.raiseAmount);
-                            case CALL_OR_CHECK:
-                            default:
-                                return new BotAction(BotActionType.CALL_OR_CHECK, 0);
-                        }
-                    }
-                }
-                DpUtilSmartContext ctx = buildSmartContext(
-                        room,
-                        bot,
-                        st,
-                        stage,
-                        callAmount,
-                        difficulty,
-                        random);
+                DpUtilSmartContext ctx = buildSmartContext(room, bot, st, stage, callAmount, random);
                 // 在 flop 首次行动时为 TAG 初始化整手 HandPlan
                 initHandPlanIfNeededForPostflop(
                         room,
@@ -3193,53 +2428,8 @@ public final class DpNpcEngine {
                 if (tagCommitFactor > 0.9)
                     tagCommitFactor = 0.9;
                 final double tagCommitThreshold = tagTotalStack * tagCommitFactor;
-                // ==== 1) preflop：明显更紧，弱牌弃牌概率由 preflopTightness 驱动 ====
-                if ("preflop".equals(stage)) {
-                    if (st == SimpleStrength.WEAK) {
-                        double baseFoldWeakPreflop = 0.4 + 0.55 * preflopTight;
-                        if (callRatio < 0.1) {
-                            baseFoldWeakPreflop -= 0.15;
-                        } else if (callRatio > 0.4) {
-                            baseFoldWeakPreflop += 0.1;
-                        }
-                        double foldProbPre = Math.min(1.0, Math.max(0.0, baseFoldWeakPreflop + (-mood) * 0.1));
-                        foldProbPre = applySoftNoise(foldProbPre, SharkConfig.PROB_NOISE_DELTA, random);
-                        if (random.nextDouble() < foldProbPre) {
-                            return new BotAction(BotActionType.FOLD, 0);
-                        }
-                    }
-                    // 强牌在有人 open 时更偏向 3bet，抢主动权
-                    if (callAmount > 0 && (st == SimpleStrength.STRONG || st == SimpleStrength.MONSTER)) {
-                        int bbPre = room.getBigBlindChips();
-                        int extraBB = (st == SimpleStrength.MONSTER) ? 4 : 3;
-                        int extra = extraBB * bbPre;
-                        int target = callAmount + extra;
-                        int raiseAmount = Math.min(chips, target);
-                        int sbPre = room.getSmallBlindChips();
-                        if (sbPre > 0 && raiseAmount > 0) {
-                            int units = Math.max(1, Math.round(raiseAmount * 1.0f / sbPre));
-                            raiseAmount = units * sbPre;
-                            if (raiseAmount > chips) {
-                                units = Math.max(1, chips / sbPre);
-                                raiseAmount = units * sbPre;
-                            }
-                        }
-                        // 至少保证是真 3bet：在跟注基础上再多加若干个大盲
-                        if (bbPre > 0 && callAmount > 0) {
-                            int minRaise = callAmount + 3 * bbPre;
-                            if (raiseAmount < minRaise) {
-                                raiseAmount = Math.min(chips, minRaise);
-                            }
-                        }
-                        if (raiseAmount > callAmount) {
-                            return new BotAction(BotActionType.RAISE, raiseAmount);
-                        }
-                    }
-                    // 其他 preflop 情况：直接跟注/过牌
-                    return new BotAction(BotActionType.CALL_OR_CHECK, 0);
-                }
 
-                // ==== 2) flop/turn/river：先决定要不要弃牌 ====
+                // ==== 1) flop/turn/river：先决定要不要弃牌 ====
                 double baseFold = 0.0;
                 if (st == SimpleStrength.WEAK) {
                     if (callRatio > 0.5) {

@@ -43,7 +43,6 @@ final class DpNpcSharkStrategy {
             DpNpcEngine.TablePosition position,
             SimpleStrength strength,
             DpNpcEngine.BoardDanger boardDanger,
-            DpNpcEngine.NpcDifficulty difficulty,
             Random random,
             double mood,
             double callStation,
@@ -79,14 +78,7 @@ final class DpNpcSharkStrategy {
                 + " pot=" + room.getPot()
                 + " activeVillains=?");
 
-        DpUtilSmartContext ctx = DpNpcEngine.buildSmartContext(
-                room,
-                bot,
-                st,
-                stage,
-                callAmount,
-                difficulty,
-                random);
+        DpUtilSmartContext ctx = DpNpcEngine.buildSmartContext(room, bot, st, stage, callAmount, random);
 
         // 在 flop 首次行动时为 Shark 初始化整手 HandPlan
         DpNpcEngine.initHandPlanIfNeededForPostflop(
@@ -735,15 +727,6 @@ final class DpNpcSharkStrategy {
                             eps = 0.03;
                         if (eps > 0.20)
                             eps = 0.20;
-                        if (difficulty == DpNpcEngine.NpcDifficulty.PRO)
-                            eps *= 1.00;
-                        else if (difficulty == DpNpcEngine.NpcDifficulty.HARD)
-                            eps *= 0.90;
-                        else if (difficulty == DpNpcEngine.NpcDifficulty.MEDIUM)
-                            eps *= 0.80;
-                        else
-                            eps *= 0.70;
-
                         double fallback = "flop".equals(stage) ? 0.45 : ("turn".equals(stage) ? 0.55 : 0.55);
                         double pref = DpNpcSharkLearningLab.pickBluffBetPotFactorWithExplore(room, aggressor, stage,
                                 random, fallback, eps);
@@ -917,15 +900,6 @@ final class DpNpcSharkStrategy {
                         eps = 0.03;
                     if (eps > 0.20)
                         eps = 0.20;
-                    if (difficulty == DpNpcEngine.NpcDifficulty.PRO) {
-                        eps *= 1.00;
-                    } else if (difficulty == DpNpcEngine.NpcDifficulty.HARD) {
-                        eps *= 0.90;
-                    } else if (difficulty == DpNpcEngine.NpcDifficulty.MEDIUM) {
-                        eps *= 0.80;
-                    } else {
-                        eps *= 0.70;
-                    }
                     double fallback = "flop".equals(stage) ? 0.45 : ("turn".equals(stage) ? 0.55 : 0.55);
                     double pref = DpNpcSharkLearningLab.pickBluffBetPotFactorWithExplore(
                             room, aggressor, stage, random, fallback, eps);

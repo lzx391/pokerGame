@@ -72,6 +72,7 @@
 | 文档 | 简介 |
 |------|------|
 | **[ai/npc-engine/README.md](ai/npc-engine/README.md)** | NPC 引擎总入口与分册导航（Fish/Maniac/TAG、Shark 等）。 |
+| **[ai/npc-preflop-unified-decision-flow.md](ai/npc-preflop-unified-decision-flow.md)** | 统一翻前策略数据流向（入口、`Spot`、`lateFactor`、`rangeLevel`、分场景、加注尺度与 G1–G8 说明）。 |
 | **[ai/npc-engine/01_overview_and_entry.md](ai/npc-engine/01_overview_and_entry.md)** | 总览与调用入口。 |
 | **[ai/npc-engine/02_normal_npc_implementation.md](ai/npc-engine/02_normal_npc_implementation.md)** | 普通 NPC 实现要点。 |
 | **[ai/npc-engine/03_normal_npc_modules.md](ai/npc-engine/03_normal_npc_modules.md)** | 普通 NPC 模块拆分。 |

@@ -12,17 +12,17 @@
 **风格映射（抽象参数，不是第二套决策树）**  
 `DpNpcEngine.getStyleByBotType` 把每种 `BotType` 映射到 `NpcStyle`，再通过 `STYLE_PROFILE_MAP` 得到 `StyleProfile`（紧松、凶度、诈唬频率等）。Fish 为 `LOOSE_FUN`，Maniac 与 Shark 为 `LOOSE_AGGRO`，TAG 为 `TIGHT_AGGRO`。Shark 虽与 Maniac 共用同一套风格数字，但 **翻前/翻后走完全不同的代码路径**。
 
-**难度（噪声）**  
-在 `decideBotAction` 里：`SHARK` → `NpcDifficulty.PRO`（不削弱）；`TAG` / `MANIAC` → `HARD`；`DEMO`（Fish）→ `MEDIUM`（避免旧版 EASY 噪声过大）。随后 `applyStrengthNoise` 会按难度扰动「感知到的」`SimpleStrength`。
+**牌力与赔率**  
+规则型 NPC 使用 **`estimateCurrentStrength` 得到的 `SimpleStrength` 真值**（不对牌力档做人为降级噪声）；`buildSmartContext` 里的 **底池赔率**亦为真值。强弱观感主要来自 **`StyleProfile`** 与各 `BotType` 分支。
 
 ---
 
 ## 1.2 从房间服务到 `BotAction` 的调用链
 
 1. **`DpRoomServiceImpl`** 定时任务发现当前行动者是机器人（`DpNpcEngine.isBotPlayer`），且不是 `BOT_LLM` 时，调用 **`DpNpcEngine.decideActionIfReady(room, bot)`**。
-2. **`decideActionIfReady`** 做守卫（房间在玩、行动位是本人、未弃牌未全下等），再处理 **思考延迟**（`nextBotActionTime`；当前工程里可用 `DISABLE_BOT_THINK_DELAY` 关闭）。
+2. **`decideActionIfReady`** 做守卫（房间在玩、行动位是本人、未弃牌未全下等），通过后立即调用决策（不再使用 `nextBotActionTime` 思考窗）。
 3. 通过 `getBotTypeByNickname` 得到 `BotType`，进入 **`decideBotAction(room, bot, type)`**。
-4. **`decideBotAction`** 统一计算：`callAmount`、`callRatio`、`TablePosition`、`SimpleStrength`（含噪声）、`BoardDanger`、`mood`、`StyleProfile` 等，然后 **`switch (type)`** 进入各机器人分支。
+4. **`decideBotAction`** 统一计算：`callAmount`、`callRatio`、`TablePosition`、`SimpleStrength`（真值）、`BoardDanger`、**`mood`（默认关闭，见 `DpNpcEngine.NPC_MOOD_ENABLED`）**、`StyleProfile` 等，然后 **`switch (type)`** 进入各机器人分支。
 5. 返回 **`BotAction`（类型 + 金额）**；房间服务映射为 `fold` / `bet` 等，**不**在引擎里直接改筹码。
 
 ---
@@ -39,6 +39,6 @@
 | `DpNpcSharkExploitHandPlan` | Shark flop 计划在基础 HandPlan 上叠「剥削剧本」。 |
 | `DpNpcSharkLearningLab` | 按对手昵称累积旋钮（弃牌倾向、尺度、诈唬频率等）。 |
 | `DpNpcSharkOpponentMemoryService` | 桌上有 Shark 时，把统计 + 旋钮持久化到 DB。 |
-| `DpRoomServiceImpl` | 执行 NPC 返回的动作；结算时调整机器人 `mood` 等。 |
+| `DpRoomServiceImpl` | 执行 NPC 返回的动作；可选结算时调整机器人 `mood`（由 `NPC_MOOD_ENABLED` 控制）。 |
 
 下一篇：[02_normal_npc_implementation.md](02_normal_npc_implementation.md)。

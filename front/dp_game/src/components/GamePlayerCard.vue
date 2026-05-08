@@ -109,15 +109,16 @@
           </div>
         </template>
       </div>
-      <div v-if="showHandRankSection" class="dp-player-card__hand-rank dp-player-card__hand-rank--rival">
+      <div v-if="showHandRankSection && rankBlockHasVisiblePart" class="dp-player-card__hand-rank dp-player-card__hand-rank--rival">
         <span
+          v-if="displayHandRankName"
           class="dp-player-card__rank-pill"
           :class="showHandRankAsOpen ? 'dp-player-card__rank-pill--open' : 'dp-player-card__rank-pill--showdown'"
         >
           {{ displayHandRankName }}
         </span>
         <div
-          v-if="showShowdownLeaderDetail && showHandRankFiveCardRow.length !== 5"
+          v-if="showShowdownLeaderDetail && showHandRankFiveCardRow.length !== 5 && displayHandRankDetail"
           class="dp-player-card__rank-detail"
         >
           {{ displayHandRankDetail }}
@@ -198,15 +199,16 @@
         </template>
       </div>
 
-      <div v-if="showHandRankSection" class="dp-player-card__hand-rank">
+      <div v-if="showHandRankSection && rankBlockHasVisiblePart" class="dp-player-card__hand-rank">
         <span
+          v-if="displayHandRankName"
           class="dp-player-card__rank-pill"
           :class="showHandRankAsOpen ? 'dp-player-card__rank-pill--open' : 'dp-player-card__rank-pill--showdown'"
         >
           {{ displayHandRankName }}
         </span>
         <div
-          v-if="showShowdownLeaderDetail && showHandRankFiveCardRow.length !== 5"
+          v-if="showShowdownLeaderDetail && showHandRankFiveCardRow.length !== 5 && displayHandRankDetail"
           class="dp-player-card__rank-detail"
         >
           {{ displayHandRankDetail }}
@@ -304,15 +306,16 @@
         </div>
       </div>
 
-      <div v-if="showHandRankSection" class="dp-player-card__hand-rank">
+      <div v-if="showHandRankSection && rankBlockHasVisiblePart" class="dp-player-card__hand-rank">
         <span
+          v-if="displayHandRankName"
           class="dp-player-card__rank-pill"
           :class="showHandRankAsOpen ? 'dp-player-card__rank-pill--open' : 'dp-player-card__rank-pill--showdown'"
         >
           {{ displayHandRankName }}
         </span>
         <div
-          v-if="showShowdownLeaderDetail && showHandRankFiveCardRow.length !== 5"
+          v-if="showShowdownLeaderDetail && showHandRankFiveCardRow.length !== 5 && displayHandRankDetail"
           class="dp-player-card__rank-detail"
         >
           {{ displayHandRankDetail }}
@@ -337,7 +340,6 @@
 
 <script>
 import { getCardClass, getCardDisplay } from '../utils/dpGameCardVisual'
-import { getHandRank, getHandRankDetail, getBestFiveCardIds } from '../utils/dpGameHandRank'
 import { dpDisplayNickname } from '../utils/dpDisplayNickname'
 import { DP_DEAL_STAGGER_MS } from '../constants/dpGameDealTiming'
 import { getDealerAnchorViewportPoint } from '../utils/dpGameDealerAnchor'
@@ -564,24 +566,29 @@ export default {
         || ((this.stage === 'showdown' || this.stage === 'settled') && !this.player.fold)
       )
     },
+    /** 翻后有成牌服务端字段时才渲染牌型区；翻前本来就不展示该区域（community 不足三张） */
+    rankBlockHasVisiblePart() {
+      if (!this.showHandRankSection) return false
+      if (this.displayHandRankName) return true
+      if (this.showHandRankFiveCardRow.length === 5) return true
+      return !!(this.showShowdownLeaderDetail && this.displayHandRankDetail)
+    },
     /** 牌型标签用「己方可见」配色还是摊牌公开配色 */
     showHandRankAsOpen() {
       return this.isMe
         || (this.isOwner && this.ownerRevealAll && this.player.holeCards && this.player.holeCards.length > 0)
     },
-    /** 牌型名称：优先服务端 `handRankName`（翻后与 bestHandCards 同批下发），缺省时本地兜底 */
+    /** 牌型名称：仅展示服务端在下发快照中填入的 `handRankName`（与 `DpRoomServiceImpl#getAllRooms` 一致），不再在前端推导 */
     displayHandRankName() {
       if (this.player.leftThisHand) return ''
       var n = this.player.handRankName
-      if (n != null && String(n).trim() !== '') return String(n).trim()
-      return getHandRank(this.player.holeCards, this.communityCards)
+      return n != null && String(n).trim() !== '' ? String(n).trim() : ''
     },
-    /** 成牌说明：优先服务端 `handRankDetail`，缺省时本地兜底 */
+    /** 成牌说明：仅服务端 `handRankDetail` */
     displayHandRankDetail() {
       if (this.player.leftThisHand) return ''
       var d = this.player.handRankDetail
-      if (d != null && String(d).trim() !== '') return String(d).trim()
-      return getHandRankDetail(this.player.holeCards, this.communityCards)
+      return d != null && String(d).trim() !== '' ? String(d).trim() : ''
     },
     /** 摊牌或准备下一局：牌力最高者（含平局并列）展示精确五张（与本人 bestHand 同款） */
     showShowdownLeaderDetail() {
@@ -594,21 +601,17 @@ export default {
       )
     },
     /**
-     * 牌型区下方五张：优先用接口里 `DpPlayer.bestHandCards`（Java DpUtilHandEvaluator.sortCardsForDisplay：
-     * 先按牌型结构排、再踢脚），与文档 DPGAME.md 一致；仅在后端未带满 5 张时再用本地兜底。
+     * 牌型区下方五张：仅用接口里的 `DpPlayer.bestHandCards`（DpUtilHandEvaluator.sortCardsForDisplay），与后端一致；
+     * 服务端未下发 5 张时不再在前端拼凑。
      */
     showHandRankFiveCardRow() {
       var fromServer =
         this.player.bestHandCards && this.player.bestHandCards.length === 5
           ? this.player.bestHandCards
           : []
-      if (this.showShowdownLeaderDetail) {
-        if (fromServer.length === 5) return fromServer
-        return getBestFiveCardIds(this.player.holeCards, this.communityCards)
-      }
-      if (!this.rivalMini && fromServer.length === 5) {
-        return fromServer
-      }
+      if (fromServer.length !== 5) return []
+      if (this.showShowdownLeaderDetail) return fromServer
+      if (!this.rivalMini) return fromServer
       return []
     },
     /** 盖牌幽灵动画：手牌张数（用于 v-for 1..n） */

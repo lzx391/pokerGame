@@ -329,7 +329,7 @@ function bestHandCacheKey(holeCards, communityCards) {
   return ids.join('|')
 }
 
-/** 摊牌阶段同一手牌会被 getHandRank / getHandRankDetail / getBestFiveCardIds / pickShowdownLeader 重复计算，缓存避免主线程堆积 */
+/** pickShowdownLeaderNicknames / getBestHandEvaluation 等对同一组牌会重复评估；缓存减轻主线程压力。牌型文案与 best 五张仅以服务端字段展示，见 GamePlayerCard。 */
 var BEST_HAND_CACHE = new Map()
 var BEST_HAND_CACHE_MAX = 96
 

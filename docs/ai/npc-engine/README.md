@@ -14,6 +14,7 @@
 
 | 文件 | 内容 |
 |------|------|
+| [npc-preflop-unified-decision-flow.md](../npc-preflop-unified-decision-flow.md) | **统一翻前**（`DpNpcUnifiedPreflopStrategy`）数据流向：入口、`Spot`、`lateFactor`、`rangeLevel`、分场景动作与加注尺度 |
 | [01_overview_and_entry.md](01_overview_and_entry.md) | 分类（普通 vs Shark）、调用链、核心类一览 |
 | [02_normal_npc_implementation.md](02_normal_npc_implementation.md) | 普通 NPC（Fish / Maniac / TAG）从入口到分支的逐步流程 |
 | [03_normal_npc_modules.md](03_normal_npc_modules.md) | 普通 NPC 共用模块：`DpUtilHandEvaluator`、`StyleProfile`、思考延迟等 |

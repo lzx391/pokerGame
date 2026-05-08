@@ -17,6 +17,11 @@ import java.util.Map;
 /**
  * 将 Shark 参考的 {@link DpPlayerStats} 与 {@link DpNpcSharkLearningLab} 旋钮按对手昵称持久化，
  * 跨随机房间 ID 认出同一玩家并恢复习惯画像。
+ *
+ * <p>
+ * 总开关：{@link DpNpcEngine#NPC_SHARK_OPPONENT_DB_ENABLED}；为 {@code false} 时不读写 DB，
+ * 牌谱归档仍由其它模块负责。
+ * </p>
  */
 @Service
 public class DpNpcSharkOpponentMemoryService {
@@ -40,6 +45,9 @@ public class DpNpcSharkOpponentMemoryService {
      * 一手结算且 LearningLab 已更新后调用：为每位非 Shark 对手 upsert 一行。
      */
     public void persistOpponentsAfterHand(DpRoomBO room) {
+        if (!DpNpcEngine.NPC_SHARK_OPPONENT_DB_ENABLED) {
+            return;
+        }
         if (room == null || !DpHandHistoryObservedImpl.isSharkAtTable(room)) {
             return;
         }
@@ -96,6 +104,9 @@ public class DpNpcSharkOpponentMemoryService {
      * 若本桌有 Shark 且该昵称尚无内存统计，则从 DB 恢复（避免覆盖本局已累积的 map）。
      */
     public void hydratePlayerIfNeeded(DpRoomBO room, String nickname) {
+        if (!DpNpcEngine.NPC_SHARK_OPPONENT_DB_ENABLED) {
+            return;
+        }
         if (room == null || nickname == null || nickname.isEmpty()) {
             return;
         }

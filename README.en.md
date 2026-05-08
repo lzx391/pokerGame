@@ -70,8 +70,7 @@
 
 #### Saloon-style Fish (`BOT_Fish`, 2026-03-25)
 
-- **Before**: `EASY` noise too high—too weak vs saloon NPC feel.
-- **Now**: **`MEDIUM`**, tighter noise, `LOOSE_FUN` more aggressive; still below `BOT_Shark`. For weaker demo fish, set `case DEMO` back to `EASY` in `decideBotAction`.
+- **Rule NPCs**: No tiered difficulty noise on strength or pot odds—decisions use real strength and pot odds; style comes from `StyleProfile` and per-bot logic. **`mood`**: off by default (`DpNpcEngine.NPC_MOOD_ENABLED = false`); set `true` to restore post-hand mood updates and mood-weighted probabilities.
 
 #### Shark preflop ranges
 

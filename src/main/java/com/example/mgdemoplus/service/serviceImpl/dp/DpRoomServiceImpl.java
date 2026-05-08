@@ -1244,7 +1244,7 @@ public class DpRoomServiceImpl {
         p.setActed(true);
         r.setPot(r.getPot() + amount);
 
-        // Shark 专用逐街动作日志（只在桌上存在 BOT_Shark 时启用）
+        // Shark 专用逐街动作日志（只在桌上存在 BOT_Shark 时启用），现在改了，没有shark也行
         DpNpcSharkHandActionLog.recordBetLikeAction(r, p, amount, betToCallBefore, actorBetBefore, potBefore, becameAllIn, isRaise);
         observedHandService.recordBetLikeAction(r, p, amount, betToCallBefore, actorBetBefore, potBefore, becameAllIn, isRaise);
 
@@ -1852,25 +1852,27 @@ public class DpRoomServiceImpl {
             }
         }
 
-        // 根据赢/输调整机器人情绪：赢到筹码的机器人情绪略微变高，输掉筹码的略微变低
-        for (DpPlayer p : r.getPlayers()) {
-            if (!DpNpcEngine.isBotPlayer(p)) {
-                continue;
+        // 根据赢/输调整机器人情绪（可通过 DpNpcEngine.NPC_MOOD_ENABLED 关闭）
+        if (DpNpcEngine.NPC_MOOD_ENABLED) {
+            for (DpPlayer p : r.getPlayers()) {
+                if (!DpNpcEngine.isBotPlayer(p)) {
+                    continue;
+                }
+                int initialChips = r.getStartingChips();
+                int diff = p.getChips() - initialChips;
+                double moodDelta;
+                if (diff > 0) {
+                    moodDelta = 0.2;
+                } else if (diff < 0) {
+                    moodDelta = -0.2;
+                } else {
+                    continue;
+                }
+                double newMood = p.getMood() + moodDelta;
+                if (newMood > 1.0) newMood = 1.0;
+                if (newMood < -1.0) newMood = -1.0;
+                p.setMood(newMood);
             }
-            int initialChips = r.getStartingChips();
-            int diff = p.getChips() - initialChips;
-            double moodDelta;
-            if (diff > 0) {
-                moodDelta = 0.2;
-            } else if (diff < 0) {
-                moodDelta = -0.2;
-            } else {
-                continue;
-            }
-            double newMood = p.getMood() + moodDelta;
-            if (newMood > 1.0) newMood = 1.0;
-            if (newMood < -1.0) newMood = -1.0;
-            p.setMood(newMood);
         }
 
         // Shark 学习实验：基于本手统计结果更新“长期记忆参数”（只在 BOT_Shark 决策里读取）

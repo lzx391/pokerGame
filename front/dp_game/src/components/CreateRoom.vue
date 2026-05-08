@@ -23,17 +23,17 @@
 
       <section class="dp-lobby-panel create-room-panel">
         <h1 class="create-room-panel__title">创建房间</h1>
-        <p class="create-room-panel__intro">在此设置本桌开局小猫/大猫小鱼干数、每人带入倍数（以大猫鱼干数为 1 倍）与可选进房密码，再进入房间等人。</p>
+        <p class="create-room-panel__intro">在此设置本桌小猫小鱼干数（大猫自动为其 2 倍）、每人带入倍数（以大猫鱼干数为 1 倍）与可选进房密码，再进入房间等人。</p>
 
         <div class="create-room-fields">
           <label class="create-room-fields__row">
             <span class="create-room-fields__label">小猫（SC）</span>
             <input v-model.number="smallBlind" type="number" min="1" class="create-room-fields__input" />
           </label>
-          <label class="create-room-fields__row">
+          <div class="create-room-fields__row">
             <span class="create-room-fields__label">大猫（BC）</span>
-            <input v-model.number="bigBlind" type="number" min="2" class="create-room-fields__input" />
-          </label>
+            <span class="create-room-fields__derived" title="始终为小猫的 2 倍">{{ computedBigBlindChips }}</span>
+          </div>
           <label class="create-room-fields__row">
             <span class="create-room-fields__label">每人初始（倍）</span>
             <input
@@ -80,10 +80,15 @@ export default {
     return {
       user: {},
       smallBlind: 5,
-      bigBlind: 10,
       startingStackBb: 50,
       roomPassword: '',
       submitting: false
+    }
+  },
+  computed: {
+    computedBigBlindChips() {
+      var sc = Math.max(1, Number(this.smallBlind) || 5)
+      return sc * 2
     }
   },
   async created() {
@@ -106,10 +111,11 @@ export default {
       if (this.submitting) return
       this.submitting = true
       try {
+        var sc = Math.max(1, Number(this.smallBlind) || 5)
         const params = {
           nickname: this.user.nickname,
-          smallBlindChips: Math.max(1, Number(this.smallBlind) || 5),
-          bigBlindChips: Math.max(2, Number(this.bigBlind) || 10),
+          smallBlindChips: sc,
+          bigBlindChips: sc * 2,
           startingStackBb: Math.max(5, Number(this.startingStackBb) || 50)
         }
         if (this.roomPassword) {
@@ -195,6 +201,16 @@ export default {
   border: 1px solid var(--dp-subpanel-border);
   background: var(--dp-panel-bg);
   color: var(--dp-text-primary);
+  font-size: 14px;
+}
+.create-room-fields__derived {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px dashed var(--dp-subpanel-border);
+  background: var(--dp-panel-bg);
+  color: var(--dp-text-muted);
   font-size: 14px;
 }
 .create-room-actions {
