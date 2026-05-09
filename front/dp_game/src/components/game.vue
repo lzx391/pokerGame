@@ -12,7 +12,7 @@
       :data-dp-eco-mode="ecoMode ? 'true' : 'false'"
       :data-dp-stage="stage"
   >
-    <!-- 新布局：顶栏 | 主区(仅此滚动圆桌) | 底栏(文档流占位，不再 position:fixed 遮挡桌面) -->
+    <!-- 新布局：顶栏 | 主区(圆桌整块 scale 适配视口、不纵向滚) | 底栏(文档流占位，不再 position:fixed 遮挡桌面) -->
     <div class="dp-game-layout">
     <header class="dp-game-layout__header">
     <game-top-bar
@@ -44,41 +44,51 @@
 
     </header>
 
-    <main class="dp-game-layout__main">
+    <main
+        ref="gameMain"
+        class="dp-game-layout__main dp-game-layout__main--fit-table"
+        :class="{ 'dp-game-layout__main--settlement-scroll': stage === 'showdown' || stage === 'settled' }"
+    >
     <!-- <div v-if="playing" class="dp-game-hint">
       各人手牌与公共牌均由发牌位（D）发出
     </div> -->
 
-    <game-round-table
-        :chip-leader-nicknames="chipLeaderNicknames"
-        :players-display-order="playersDisplayOrder"
-        :show-table-action-timer="showTableActionTimer"
-        :time-left="timeLeft"
-        :timer-actor-name="tableActionActorDisplayName"
-        :timer-urgency="tableActionTimerUrgency"
-        :timer-progress-pct="actionTimerProgressPct"
-        :eco-mode="ecoMode"
-        :community-cards="communityCards"
-        :community-cards-flip-state="communityCardsFlipState"
-        :viewer-seated-at-table="viewerSeatedAtTable"
-        :hero-hole-deal-intro-done="heroHoleDealIntroDone"
-        :show-hero-seat-on-table="showHeroSeatOnTable"
-        :act-index="actIndex"
-        :stage="stage"
-        :community-cards-flip-complete="communityCardsFlipComplete"
-        :is-owner="isOwner"
-        :owner-reveal-all="ownerRevealAll"
-        :my-nickname="user ? user.nickname : ''"
-        :current-hand-seed="currentHandSeed"
-        :hole-deal-player-count-for-anim="holeDealPlayerCountForAnim"
-        :showdown-hand-leader-nicknames="showdownHandLeaderNicknames"
-        :dealer-display-index="dealerDisplayIndex"
-        :get-player-box-style="getPlayerBoxStyle"
-        :hole-deal-order-from-dealer="holeDealOrderFromDealer"
-        :seat-chat-text-for="seatChatTextFor"
-        @hole-deal-intro-complete="$store.commit('dpGame/SET_HERO_HOLE_DEAL', true)"
-        @card-click="onPlayerCardClick"
-    />
+    <div class="dp-game-table-fit">
+      <div class="dp-game-table-fit__clip" :style="tableFitClipStyleObj">
+        <div ref="tableFitInner" class="dp-game-table-fit__inner">
+          <game-round-table
+              :chip-leader-nicknames="chipLeaderNicknames"
+              :players-display-order="playersDisplayOrder"
+              :show-table-action-timer="showTableActionTimer"
+              :time-left="timeLeft"
+              :timer-actor-name="tableActionActorDisplayName"
+              :timer-urgency="tableActionTimerUrgency"
+              :timer-progress-pct="actionTimerProgressPct"
+              :eco-mode="ecoMode"
+              :community-cards="communityCards"
+              :community-cards-flip-state="communityCardsFlipState"
+              :viewer-seated-at-table="viewerSeatedAtTable"
+              :hero-hole-deal-intro-done="heroHoleDealIntroDone"
+              :show-hero-seat-on-table="showHeroSeatOnTable"
+              :act-index="actIndex"
+              :stage="stage"
+              :community-cards-flip-complete="communityCardsFlipComplete"
+              :is-owner="isOwner"
+              :owner-reveal-all="ownerRevealAll"
+              :my-nickname="user ? user.nickname : ''"
+              :current-hand-seed="currentHandSeed"
+              :hole-deal-player-count-for-anim="holeDealPlayerCountForAnim"
+              :showdown-hand-leader-nicknames="showdownHandLeaderNicknames"
+              :dealer-display-index="dealerDisplayIndex"
+              :get-player-box-style="getPlayerBoxStyle"
+              :hole-deal-order-from-dealer="holeDealOrderFromDealer"
+              :seat-chat-text-for="seatChatTextFor"
+              @hole-deal-intro-complete="$store.commit('dpGame/SET_HERO_HOLE_DEAL', true)"
+              @card-click="onPlayerCardClick"
+          />
+        </div>
+      </div>
+    </div>
 
     </main>
 
@@ -116,6 +126,7 @@ import GameHeroDockFooter from './GameHeroDockFooter.vue'
 import GameDpFloatingModals from './GameDpFloatingModals.vue'
 import GameDpGameSheets from './GameDpGameSheets.vue'
 import dpGameFullscreenMixin from '../mixins/dpGameFullscreenMixin'
+import dpGameTableFitMixin from '../mixins/dpGameTableFitMixin'
 import dpGameActionCountdownMixin from '../mixins/dpGameActionCountdownMixin'
 import { dpGamePlayerBoxStyle } from '../utils/dpGamePlayerBoxStyle'
 import { ensureDpUserIdInStorage } from '../utils/dpEnsureUserId'
@@ -123,7 +134,7 @@ import { dpResultSuccess, dpResultData, dpResultMessage } from '../utils/dpApiRe
 import { mapState, mapGetters } from 'vuex'
 
 export default {
-  mixins: [dpGameFullscreenMixin, dpGameActionCountdownMixin],
+  mixins: [dpGameFullscreenMixin, dpGameTableFitMixin, dpGameActionCountdownMixin],
   provide() {
     return {
       dpGameView: this

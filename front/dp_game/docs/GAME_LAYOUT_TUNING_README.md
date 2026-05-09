@@ -67,10 +67,20 @@ padding-top: clamp(80px, 3.2vmin, 1000px);
 - **想拉近顶栏和圆桌**：把 **80** 调小，或把 **3.2vmin** 调小（例如改成 `2.5vmin`）。
 - **想拉远**：把 **80** 调大，或把 **3.2vmin** 调大。
 
-### 3.2 摊牌 / 结算阶段： extra 顶留白
+### 3.2 摊牌 / 结算阶段：主区离顶栏（结算参数在哪）
 
-选择器带 **`[data-dp-stage='showdown']`**、**`settled`** 时，主区会再加大 **`padding-top`**，避免 12 点方向座位上的牌型文字被裁掉。  
-若你改宽屏的 `padding-top`，有时也要看一眼这两段是否还够用。
+**一定要改 **`dp-game-shell.css` 文件最末尾** 注释为 `SETTLEMENT_TOP_SPACING` 的那一段**（约在文件结尾、`dp-room-bgm` 样式后面）。
+
+原因：对局页的 `<main>` **固定带有类名** **`dp-game-layout__main--fit-table`**。若只写：
+
+`.dp-game-root[data-dp-stage='settled'] .dp-game-layout__main { padding-top: ... }`
+
+**特异性不够**，会被别的 `.fit-table` 规则压住，浏览器里看起来就像「怎么改都不生效」。**正确写法必须带上** `.dp-game-layout__main--fit-table`，与工程里当前选择器保持一致。
+
+- **`padding-top`**：调 **`clamp(第一个数, …)`** 里最左边的数（例如 `140px`、`176px`），越大整张桌子离顶栏越远；**你手滑滚动、看「离顶栏多远」时改它就够。**
+- **`scroll-padding-top`**：只参与 **滚动算法里的「最佳可视区」**（主要是 **`scrollIntoView()`**、**`scroll-snap`** 等对滚动位置的计算），**不会**像普通 `padding` 那样把内容顶下去。当前对局前端 **没有** 使用 scroll-snap / scrollIntoView，所以改到 `900px` 也常 **完全看不出变化**；需要顶边空白请改上面的 **`padding-top`**。
+
+矮横屏在同一文件里用 **`@media (max-width: 1024px) and (max-height: 560px)`** 再叠一档更大的 `padding-top`。
 
 ### 3.3 手机窄屏（≤900px）
 

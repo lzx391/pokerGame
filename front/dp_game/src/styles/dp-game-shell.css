@@ -107,6 +107,9 @@
   flex-shrink: 0;
   width: 100%;
   box-sizing: border-box;
+  /* 圆桌含 z-index，避免座位区叠在顶栏之上造成「顶栏挡内容」错觉 */
+  position: relative;
+  z-index: 20;
 }
 
 /* 圆桌区：全屏/伪全屏时由父链给高度，仅此区域纵向滚动 */
@@ -123,6 +126,66 @@
   flex-shrink: 0;
   width: 100%;
   box-sizing: border-box;
+}
+
+/*
+ * 牌桌适配：主区不纵向滚动，由 JS 按视口对 .dp-game-table-fit__inner 做 scale（见 dpGameTableFitMixin）。
+ */
+.dp-game-root .dp-game-layout__main.dp-game-layout__main--fit-table {
+  overflow: hidden !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.dp-game-table-fit {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  align-self: stretch;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dp-game-table-fit__clip {
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+.dp-game-table-fit__inner {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+
+/*
+ * 摊牌/结算：牌桌区允许横向/纵向滑动，避免比牌面与左右座位被裁切（对局中仍用 fit-table 整块 scale）。
+ */
+.dp-game-root .dp-game-layout__main.dp-game-layout__main--fit-table.dp-game-layout__main--settlement-scroll {
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  align-items: flex-start;
+}
+
+.dp-game-root .dp-game-layout__main--settlement-scroll .dp-game-table-fit {
+  justify-content: flex-start;
+  align-items: flex-start;
+  flex: 1 1 auto;
+  min-height: min-content;
+}
+
+.dp-game-root .dp-game-layout__main--settlement-scroll .dp-game-table-fit__clip {
+  overflow: visible !important;
+  width: 100% !important;
+  max-width: none !important;
+  height: auto !important;
 }
 
 /* 手机 / 小屏平板：与全屏同一套「根封顶 + 仅主区滚」，底栏在视口下沿占位，不盖桌面 */
@@ -190,24 +253,26 @@
     /* scroll-padding-top: clamp(14px, 2.8vmin, 32px); */
   }
 
-  .dp-game-root .dp-game-layout__main > .dp-game-table {
+  .dp-game-root .dp-game-layout__main > .dp-game-table-fit {
     flex: 0 1 auto;
     min-height: min-content;
     width: 100%;
     margin-top: auto;
     margin-bottom: auto;
   }
+
+  .dp-game-root .dp-game-layout__main > .dp-game-table-fit .dp-game-table {
+    flex: 0 1 auto;
+    min-height: min-content;
+    width: 100%;
+  }
 }
 
-/* 摊牌/结算：主区顶留白，避免座位上沿牌型/最佳五张被 overflow 裁切（负向滚动不可用） */
-.dp-game-root[data-dp-stage='showdown'] .dp-game-layout__main,
-.dp-game-root[data-dp-stage='settled'] .dp-game-layout__main {
-  padding-top: clamp(98px, 4.2vw, 160px);
-  scroll-padding-top: clamp(16px, 4.2vw, 52px);
-}
+/* 摊牌/结算顶留白：见文件末尾「SETTLEMENT_TOP_SPACING」统一调高特异性（须含 .dp-game-layout__main--fit-table） */
 
 /*
- * 全屏 / 伪全屏：根节点固定视口高度且自身不滚；滚动发生在 .dp-game-layout__main 内，
+ * 全屏 / 伪全屏：根节点固定视口高度且自身不滚。主区默认曾允许纵向滚以看全桌；
+ * 现对局页使用 .dp-game-layout__main--fit-table 时改为整块 scale 适配，不再依赖主区滚动。
  * 底栏在 footer 占文档流，不再 position:fixed，从结构上避免挡座位。
  */
 .dp-game-root:fullscreen,
@@ -250,6 +315,22 @@
   -webkit-overflow-scrolling: touch;
 }
 
+.dp-game-root:fullscreen .dp-game-layout__main.dp-game-layout__main--fit-table,
+.dp-game-root:-webkit-full-screen .dp-game-layout__main.dp-game-layout__main--fit-table,
+.dp-game-root.dp-game-root--layout-fs .dp-game-layout__main.dp-game-layout__main--fit-table,
+.dp-game-root.dp-game-root--pseudo-fs .dp-game-layout__main.dp-game-layout__main--fit-table {
+  overflow: hidden !important;
+}
+
+.dp-game-root:fullscreen .dp-game-layout__main.dp-game-layout__main--fit-table.dp-game-layout__main--settlement-scroll,
+.dp-game-root:-webkit-full-screen .dp-game-layout__main.dp-game-layout__main--fit-table.dp-game-layout__main--settlement-scroll,
+.dp-game-root.dp-game-root--layout-fs .dp-game-layout__main.dp-game-layout__main--fit-table.dp-game-layout__main--settlement-scroll,
+.dp-game-root.dp-game-root--pseudo-fs .dp-game-layout__main.dp-game-layout__main--fit-table.dp-game-layout__main--settlement-scroll {
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* 无 Fullscreen API：文档流铺满视口（勿 fixed+bottom:0 钉死高度，否则与 body 锁滚动叠加后手机无法整页下滑） */
 .dp-game-root.dp-game-root--pseudo-fs {
   position: relative;
@@ -277,10 +358,10 @@
 
 /* 宽屏全屏：主区已 flex，圆桌用 auto 边距垂直居中（覆盖上一段固定 margin，避免与 ≥901px 布局冲突） */
 @media (min-width: 901px) {
-  .dp-game-root:fullscreen .dp-game-layout__main > .dp-game-table,
-  .dp-game-root:-webkit-full-screen .dp-game-layout__main > .dp-game-table,
-  .dp-game-root.dp-game-root--layout-fs .dp-game-layout__main > .dp-game-table,
-  .dp-game-root.dp-game-root--pseudo-fs .dp-game-layout__main > .dp-game-table {
+  .dp-game-root:fullscreen .dp-game-layout__main > .dp-game-table-fit,
+  .dp-game-root:-webkit-full-screen .dp-game-layout__main > .dp-game-table-fit,
+  .dp-game-root.dp-game-root--layout-fs .dp-game-layout__main > .dp-game-table-fit,
+  .dp-game-root.dp-game-root--pseudo-fs .dp-game-layout__main > .dp-game-table-fit {
     margin-top: auto;
     margin-bottom: auto;
   }
@@ -2097,13 +2178,15 @@
   color: var(--dp-btn-ghost-fg);
 }
 
-/* 全屏：房间条收窄、字号与按钮略缩（须保留与根节点 safe-area 成对的 margin/padding-top，勿单删） */
+/* 全屏：顶栏横铺容器宽；字号与按钮略缩（须保留与根节点 safe-area 成对的 margin/padding-top，勿单删） */
 .dp-game-root--layout-fs .dp-top-bar,
 .dp-game-root:fullscreen .dp-top-bar,
 .dp-game-root:-webkit-full-screen .dp-top-bar {
-  max-width: min(460px, calc(100% - 12px));
-  margin-left: auto;
-  margin-right: auto;
+  width: 100%;
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+  box-sizing: border-box;
   padding: 8px 10px;
   margin-top: calc(-1 * max(0px, env(safe-area-inset-top, 0px)));
   padding-top: calc(8px + max(0px, env(safe-area-inset-top, 0px)));
@@ -2148,9 +2231,11 @@
     padding-top: calc(4px + max(0px, env(safe-area-inset-top, 0px)));
     gap: 4px;
     margin-bottom: 4px;
-    max-width: min(460px, 100%);
-    margin-left: auto;
-    margin-right: auto;
+    width: 100%;
+    max-width: none;
+    margin-left: 0;
+    margin-right: 0;
+    box-sizing: border-box;
   }
 
   .dp-top-bar__title {
@@ -2177,9 +2262,11 @@
 /* 矮视口/横屏紧凑：顶栏 safe-area 抵消仍须与根节点成对 */
 @media (max-width: 1024px) and (max-height: 560px) {
   .dp-top-bar {
-    max-width: min(440px, 96vw);
-    margin-left: auto;
-    margin-right: auto;
+    width: 100%;
+    max-width: none;
+    margin-left: 0;
+    margin-right: 0;
+    box-sizing: border-box;
     /* 上贴安全区下沿、下沿紧贴按钮行，减少纵向占位让圆桌整体上移 */
     padding: 2px 6px 2px;
     margin-top: calc(-1 * max(0px, env(safe-area-inset-top, 0px)));
@@ -2208,7 +2295,10 @@
   .dp-game-root--layout-fs .dp-top-bar,
   .dp-game-root:fullscreen .dp-top-bar,
   .dp-game-root:-webkit-full-screen .dp-top-bar {
-    max-width: min(420px, 94vw);
+    width: 100%;
+    max-width: none;
+    margin-left: 0;
+    margin-right: 0;
     padding: 2px 6px 2px;
     margin-top: calc(-1 * max(0px, env(safe-area-inset-top, 0px)));
     padding-top: calc(2px + max(0px, env(safe-area-inset-top, 0px)));
@@ -2989,4 +3079,32 @@
   height: 0;
   opacity: 0;
   pointer-events: none;
+}
+
+/*
+ * SETTLEMENT_TOP_SPACING — 摊牌 / 结算：主区离顶栏（可调参数全在这）
+ * ------------------------------------------------------------------
+ * 对局页 main 固定带 .dp-game-layout__main--fit-table，旧选择器未写此类时特异性输给 .fit-table
+ * 等规则，改动会「看起来完全没生效」。务必保留 .dp-game-layout__main--fit-table。
+ * 调大 clamp 里**第一个数字**（最小值）最直接：圆桌整体下移。
+ * scroll-padding-top：仅影响 scrollIntoView / scroll-snap 等算法，本项目未用时改动不可见；要顶留白请改 padding-top。
+ */
+.dp-game-root[data-dp-stage='showdown'] .dp-game-layout__main.dp-game-layout__main--fit-table,
+.dp-game-root[data-dp-stage='settled'] .dp-game-layout__main.dp-game-layout__main--fit-table {
+  padding-top: clamp(140px, 9vmin, 240px);
+  scroll-padding-top: clamp(64px, 10vmin, 140px);
+  justify-content: flex-start;
+}
+
+.dp-game-root[data-dp-stage='showdown'] .dp-game-layout__main.dp-game-layout__main--fit-table.dp-game-layout__main--settlement-scroll,
+.dp-game-root[data-dp-stage='settled'] .dp-game-layout__main.dp-game-layout__main--fit-table.dp-game-layout__main--settlement-scroll {
+  align-items: flex-start;
+}
+
+@media (max-width: 1024px) and (max-height: 560px) {
+  .dp-game-root[data-dp-stage='showdown'] .dp-game-layout__main.dp-game-layout__main--fit-table,
+  .dp-game-root[data-dp-stage='settled'] .dp-game-layout__main.dp-game-layout__main--fit-table {
+    padding-top: clamp(85px, 24vmin, 300px);
+    scroll-padding-top: clamp(88px, 15vmin, 180px);
+  }
 }
