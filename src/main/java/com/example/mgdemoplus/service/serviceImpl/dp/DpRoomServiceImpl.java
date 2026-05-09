@@ -90,7 +90,7 @@ public class DpRoomServiceImpl {
             waiters = new ArrayList<>();
             r.setWaitNextHand(waiters);
         }
-        int cap = 10 - r.getPlayers().size() - waiters.size();
+        int cap = r.getMaxSeatCount() - seatedCountForSeatCap(r) - waiters.size();
         if (cap <= 0) {
             return false;
         }
@@ -553,10 +553,28 @@ public class DpRoomServiceImpl {
         r.setPots(pots);
     }
 
+    /**
+     * 占「人数上限」的桌上席位数：本手已离座（{@code leftThisHand}）仅占位维持本手流程，下一局会释放，
+     * 预约「下一局上桌」时应视为空出席位。
+     */
+    private static int seatedCountForSeatCap(DpRoomBO r) {
+        if (r == null || r.getPlayers() == null) {
+            return 0;
+        }
+        int n = 0;
+        for (DpPlayer p : r.getPlayers()) {
+            if (p != null && !p.isLeftThisHand()) {
+                n++;
+            }
+        }
+        return n;
+    }
+
     // ========== 开局前：房间与准备 ==========
 
     public DpRoomBO createRoom(String ownerNickname, Integer ownerUserId,
-                             int smallBlindChips, int bigBlindChips, int startingStackBb, String roomPassword) {
+                             int smallBlindChips, int bigBlindChips, int startingStackBb, String roomPassword,
+                             int maxSeatCount) {
         String id = UUID.randomUUID().toString().substring(0, 8);//随机生成的id?
         DpRoomBO r = new DpRoomBO();
         r.setRoomId(id);
@@ -580,6 +598,7 @@ public class DpRoomServiceImpl {
         int starting = startingLong > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) startingLong;
         r.setStartingChips(starting);
         r.setRoomPassword(roomPassword);
+        r.setMaxSeatCount(maxSeatCount);
 
         DpPlayer p = new DpPlayer();
         p.setNickname(ownerNickname);
@@ -628,6 +647,7 @@ public class DpRoomServiceImpl {
                     dto.setBigBlindChips(room.getBigBlindChips());
                     dto.setStartingStackBb(room.getStartingStackBb());
                     dto.setPasswordProtected(room.isPasswordProtected());
+                    dto.setMaxSeatCount(room.getMaxSeatCount());
                     return dto;
                 })
                 .collect(Collectors.toList());
@@ -777,6 +797,9 @@ public class DpRoomServiceImpl {
             }
             return "游戏已开始";
         }
+        if (r.getPlayers().size() >= r.getMaxSeatCount()) {
+            return "人数已满";
+        }
         //存疑
 //        for (DpPlayer p : r.getPlayers()) {
 //            // 已经在房间中的活跃玩家不允许重复加入；
@@ -824,8 +847,8 @@ public class DpRoomServiceImpl {
             waiters = new ArrayList<>();
             r.setWaitNextHand(waiters);
         }
-        //如果游戏和等待人数满10人则不可继续加入游戏
-        if (r.getPlayers().size() + waiters.size() >= 10) {
+        // 非僵尸占位 + 预约下一局总人数不得超过房间人数上限（离座占位不计入）
+        if (seatedCountForSeatCap(r) + waiters.size() >= r.getMaxSeatCount()) {
             return false;
         }
         if (!waiters.contains(nickname)) {
@@ -1112,6 +1135,9 @@ public class DpRoomServiceImpl {
         //防筹码不足
         List<DpPlayer> canPlay = new ArrayList<>();
         for (DpPlayer p : r.getPlayers()) {
+            if (p.isLeftThisHand()) {
+                continue;
+            }
             if (p.getChips() < r.getBigBlindChips()) {
                 if (!spectators.contains(p.getNickname())) {
                     spectators.add(p.getNickname());
@@ -1123,12 +1149,17 @@ public class DpRoomServiceImpl {
                 canPlay.add(p);
             }
         }
-        //拉取准备下一把的
+        //拉取准备下一把的（受人数上限约束，未排上的仍留在 waitNextHand）
         List<String> waiters = r.getWaitNextHand();
         if (waiters != null && !waiters.isEmpty()) {
-            //这段意思说场上准备的人和观众席准备的人都会被加入waiters，如果场上在的就是exists不管，场上不在的就拉下来当新玩家，把观众厅的名字移除掉，最后清理掉等待者为下一把做准备
-            for (String name : waiters) {
-//
+            int seatCap = r.getMaxSeatCount();
+            Iterator<String> it = waiters.iterator();
+            while (it.hasNext()) {
+                if (canPlay.size() >= seatCap) {
+                    break;
+                }
+                String name = it.next();
+
                 DpPlayer np = new DpPlayer();
                 np.setNickname(name);
                 Integer regUid = r.getRegisteredDpUserId(name);
@@ -1145,8 +1176,8 @@ public class DpRoomServiceImpl {
                     spectators.remove(name);
                     r.removeSpectatorPresence(name);
                 }
+                it.remove();
             }
-            waiters.clear();//及时清理掉等待者列表
         }
         return canPlay;
 

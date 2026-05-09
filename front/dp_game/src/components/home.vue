@@ -124,7 +124,7 @@
         <div v-else class="room-list__items">
           <div class="room-item" v-for="roomDto in roomDtos" :key="roomDto.roomId">
             <span class="room-item__text">
-              房间 {{ roomDto.roomId }} ({{ roomDto.playerSize }}人)
+              房间 {{ roomDto.roomId }} ({{ roomDto.playerSize }}/{{ roomDto.maxSeatCount != null ? roomDto.maxSeatCount : 9 }}人)
               <span v-if="roomDto.smallBlindChips != null && roomDto.bigBlindChips != null" class="room-item__blinds">
                 · 小猫/大猫 {{ roomDto.smallBlindChips }}/{{ roomDto.bigBlindChips }}<template v-if="roomDto.startingStackBb"> · {{ roomDto.startingStackBb }} 倍</template>
               </span>

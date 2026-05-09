@@ -9,6 +9,8 @@ public class DpRoom {
     /** 每人初始筹码对应的大盲倍数（如 50 表示 50BB 带入） */
     private int startingStackBb;
     private boolean passwordProtected;
+    /** 一桌最多玩家数（建房时指定，与大厅表 max_seat_count 一致） */
+    private int maxSeatCount = 9;
 
     @Override
     public String toString() {
@@ -16,6 +18,7 @@ public class DpRoom {
                 "roomId='" + roomId + '\'' +
                 ", owner='" + owner + '\'' +
                 ", playerSize=" + playerSize +
+                ", maxSeatCount=" + maxSeatCount +
                 '}';
     }
 
@@ -73,6 +76,14 @@ public class DpRoom {
 
     public void setPasswordProtected(boolean passwordProtected) {
         this.passwordProtected = passwordProtected;
+    }
+
+    public int getMaxSeatCount() {
+        return maxSeatCount;
+    }
+
+    public void setMaxSeatCount(int maxSeatCount) {
+        this.maxSeatCount = maxSeatCount;
     }
 }
 

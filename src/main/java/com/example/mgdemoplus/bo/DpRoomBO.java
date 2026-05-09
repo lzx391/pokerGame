@@ -51,6 +51,11 @@ public class DpRoomBO {
     /** 默认每人带入深度（用大盲计）：{@code startingChips = bigBlindChips × startingStackBb} */
     public static final int DEFAULT_STARTING_STACK_BB = 50;
 
+    /** 一桌最多玩家数（建房时指定，合法区间 {@value #MIN_SEAT_COUNT}～{@value #MAX_SEAT_COUNT}）。 */
+    public static final int MIN_SEAT_COUNT = 2;
+    public static final int MAX_SEAT_COUNT = 9;
+    public static final int DEFAULT_MAX_SEAT_COUNT = MAX_SEAT_COUNT;
+
     /** 本桌小盲/大盲；逻辑与下注校验均使用实例值，不再使用静态全局盲注。 */
     private int smallBlindChips = DEFAULT_SMALL_BLIND_CHIPS;
     private int bigBlindChips = DEFAULT_BIG_BLIND_CHIPS;
@@ -66,6 +71,11 @@ public class DpRoomBO {
      * 进房密码（仅内存）；空或 null 表示不设密码。不下发 JSON。
      */
     private String roomPassword = "";
+
+    /**
+     * 人数上限：当前桌玩家数与「下一局」预约总人数不得超过该值（创建房间时写入）。
+     */
+    private int maxSeatCount = DEFAULT_MAX_SEAT_COUNT;
 
     // 行动顺序
     private int lastDealerIndex =0;
@@ -227,6 +237,14 @@ public class DpRoomBO {
 
     public void setRoomPassword(String roomPassword) {
         this.roomPassword = roomPassword == null ? "" : roomPassword.trim();
+    }
+
+    public int getMaxSeatCount() {
+        return maxSeatCount;
+    }
+
+    public void setMaxSeatCount(int maxSeatCount) {
+        this.maxSeatCount = maxSeatCount;
     }
 
     /** 加入房间时校验；未设密码时恒为 true。 */

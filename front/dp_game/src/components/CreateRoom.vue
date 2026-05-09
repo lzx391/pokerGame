@@ -23,7 +23,7 @@
 
       <section class="dp-lobby-panel create-room-panel">
         <h1 class="create-room-panel__title">创建房间</h1>
-        <p class="create-room-panel__intro">在此设置本桌小猫小鱼干数（大猫自动为其 2 倍）、每人带入倍数（以大猫鱼干数为 1 倍）与可选进房密码，再进入房间等人。</p>
+        <p class="create-room-panel__intro">在此设置本桌小猫小鱼干数（大猫自动为其 2 倍）、每人带入倍数（以大猫鱼干数为 1 倍）、一桌最多几名玩家（2～9）与可选进房密码，再进入房间等人。</p>
 
         <div class="create-room-fields">
           <label class="create-room-fields__row">
@@ -45,6 +45,18 @@
             />
           </label>
           <p class="create-room-fields__hint">初始小鱼干 = 大猫鱼干数 × 倍数；之后补满也回到该深度。</p>
+          <label class="create-room-fields__row">
+            <span class="create-room-fields__label">人数上限</span>
+            <input
+              v-model.number="maxSeatCount"
+              type="number"
+              min="2"
+              max="9"
+              class="create-room-fields__input"
+              title="一桌最多几名玩家；含已上桌与预约下一局的总人数"
+            />
+          </label>
+          <p class="create-room-fields__hint">2～9 人；达到上限后无法再进桌或预约下一局。</p>
           <label class="create-room-fields__row create-room-fields__row--full">
             <span class="create-room-fields__label">房间密码（可选）</span>
             <input
@@ -81,6 +93,7 @@ export default {
       user: {},
       smallBlind: 5,
       startingStackBb: 50,
+      maxSeatCount: 9,
       roomPassword: '',
       submitting: false
     }
@@ -112,11 +125,14 @@ export default {
       this.submitting = true
       try {
         var sc = Math.max(1, Number(this.smallBlind) || 5)
+        var cap = Math.round(Number(this.maxSeatCount) || 9)
+        cap = Math.min(9, Math.max(2, cap))
         const params = {
           nickname: this.user.nickname,
           smallBlindChips: sc,
           bigBlindChips: sc * 2,
-          startingStackBb: Math.max(5, Number(this.startingStackBb) || 50)
+          startingStackBb: Math.max(5, Number(this.startingStackBb) || 50),
+          maxSeatCount: cap
         }
         if (this.roomPassword) {
           params.roomPassword = this.roomPassword

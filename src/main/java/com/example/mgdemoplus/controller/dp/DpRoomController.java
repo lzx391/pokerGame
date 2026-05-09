@@ -10,11 +10,13 @@ import com.example.mgdemoplus.utils.ResultUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.web.server.ResponseStatusException;
 
 
 @RestController
@@ -34,8 +36,13 @@ public class DpRoomController {
                              @RequestParam(required = false, defaultValue = "5") int smallBlindChips,
                              @RequestParam(required = false, defaultValue = "10") int bigBlindChips,
                              @RequestParam(required = false, defaultValue = "50") int startingStackBb,
+                             @RequestParam(required = false, defaultValue = "9") int maxSeatCount,
                              @RequestParam(required = false) String roomPassword) {
-        return dpRoomService.createRoom(nickname, userId, smallBlindChips, bigBlindChips, startingStackBb, roomPassword);
+        if (maxSeatCount < DpRoomBO.MIN_SEAT_COUNT
+                || maxSeatCount > DpRoomBO.MAX_SEAT_COUNT) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "人数上限需在 2～9 之间");
+        }
+        return dpRoomService.createRoom(nickname, userId, smallBlindChips, bigBlindChips, startingStackBb, roomPassword, maxSeatCount);
     }
 
     @GetMapping("/getNowRoom")

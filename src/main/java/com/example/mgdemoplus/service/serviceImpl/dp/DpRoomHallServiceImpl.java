@@ -285,6 +285,8 @@ public class DpRoomHallServiceImpl implements DpRoomHallService {
         dto.setBigBlindChips(row.getBigBlindChips() != null ? row.getBigBlindChips() : 0);
         dto.setStartingStackBb(row.getStartingStackBb() != null ? row.getStartingStackBb() : 0);
         dto.setPasswordProtected(Boolean.TRUE.equals(row.getPasswordProtected()));
+        int cap = row.getMaxSeatCount() != null ? row.getMaxSeatCount() : DpRoomBO.DEFAULT_MAX_SEAT_COUNT;
+        dto.setMaxSeatCount(cap);
         return dto;
     }
 
@@ -385,6 +387,7 @@ public class DpRoomHallServiceImpl implements DpRoomHallService {
         dto.setBigBlindChips(room.getBigBlindChips());
         dto.setStartingStackBb(room.getStartingStackBb());
         dto.setPasswordProtected(room.isPasswordProtected());
+        dto.setMaxSeatCount(room.getMaxSeatCount());
         return dto;
     }
 }
