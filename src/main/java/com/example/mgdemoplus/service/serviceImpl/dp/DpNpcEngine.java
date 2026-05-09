@@ -270,11 +270,11 @@ public final class DpNpcEngine {
     public static final boolean NPC_MOOD_ENABLED = false;
 
     /**
-     * 为 false：不在结算后把对手 {@link DpPlayerStats} / {@link DpNpcSharkLearningLab} 快照写入
-     * {@code dp_shark_opponent_profile}，也不再从该表在开局时灌回内存（按昵称存，多 UUID Bot 易冗余，可后续再设计）。
+     * 为 false：不在结算后把 {@link DpPlayerStats} 与 {@link DpNpcSharkLearningLab} 快照写入
+     * {@code dp_shark_opponent_profile}，也不再从该表在开局灌回内存（按昵称存，多 UUID Bot 易冗余，可后续再设计）。
      * <p>
-     * 不影响：本手牌内内存统计、Shark 翻后仍可读当前局 {@code playerStatsMap}；不影响牌谱入库（见
-     * {@code DpHandHistoryObservedImpl} / {@code DpHandHistoryPersistServiceImpl}）。
+     * 不影响：当局 {@code playerStatsMap}；不影响牌谱观测与入库（{@code DpHandHistoryObservedImpl} /
+     * {@code DpHandHistoryPersistServiceImpl}）。与桌面上是否有 BOT_Shark 无关。
      * </p>
      */
     public static final boolean NPC_SHARK_OPPONENT_DB_ENABLED = false;

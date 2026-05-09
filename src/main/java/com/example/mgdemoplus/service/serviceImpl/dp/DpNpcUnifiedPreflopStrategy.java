@@ -105,7 +105,8 @@ final class DpNpcUnifiedPreflopStrategy {
                 ? room.getPlayerStatsMap().get(aggressor.getNickname())
                 : null;
         VillainTier tier = estimateVillainTier(aggressorStats);
-
+        System.out.println(tier);
+   
         double heroStackBB = hero.getChips() * 1.0 / bb;
         double effStackBB = heroStackBB;//算最小有效筹码bb数
         if (aggressor != null) {
@@ -113,7 +114,7 @@ final class DpNpcUnifiedPreflopStrategy {
         }
 
         int raiseLevel = room.getRaiseLevel();//加注层级
-        PreflopSpot spot = spotBy(raiseLevel, callAmount);
+        PreflopSpot spot = spotBy(raiseLevel, callAmount);//后续动作更新局面包
 
         double lateFactor = computePreflopLateFactor(room, hero);
         DpNpcEngine.TablePosition position = pseudoTablePosition(lateFactor, hero.getBlind());

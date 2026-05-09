@@ -10,18 +10,11 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Shark 专用“逐街动作日志”（实验版）。
+ * 逐街动作内存日志（全桌共用）：用于玩家统计与学习外的决策辅助。
  *
  * <p>
- * 目标：补齐目前缺失的逐街动作轨迹，让 Shark 能更准确地识别：
- * - 谁是 flop/turn/river 的激进者（bet/raise）
- * - 谁在 turn/river 常放弃（raise 后放弃 / 只打一枪）
- * - 未来可扩展：c-bet、double barrel、check-raise、下注尺度偏好等
- * </p>
- *
- * <p>
- * 为了不影响其他 NPC/前端：该日志只在桌上存在 BOT_Shark 时启用，
- * 且只保留“当前这一手”的内存态记录；结算后会清空。
+ * 记录 flop/turn/river 谁在激进、谁在街口弃牌等信息；与是否坐 BOT_Shark 无关。
+ * 仅保留当前这一手的内存记录，结算后清空。
  * </p>
  */
 final class DpNpcSharkHandActionLog {
@@ -98,17 +91,9 @@ final class DpNpcSharkHandActionLog {
 
     private static final ConcurrentHashMap<Key, List<ActionEvent>> EVENTS = new ConcurrentHashMap<>();
 
+    /** 与 {@link DpHandHistoryObservedImpl#isEnabledForRoom(DpRoomBO)} 一致：有人在座即记录。 */
     static boolean isEnabledForRoom(DpRoomBO room) {
-        if (room == null || room.getPlayers() == null)
-            return false;
-        for (DpPlayer p : room.getPlayers()) {
-            if (p == null)
-                continue;
-            if (DpNpcEngine.SHARK_BOT_NICKNAME.equals(p.getNickname())) {
-                return true;
-            }
-        }
-        return false;
+        return DpHandHistoryObservedImpl.isEnabledForRoom(room);
     }
 
     static void beginHand(DpRoomBO room) {

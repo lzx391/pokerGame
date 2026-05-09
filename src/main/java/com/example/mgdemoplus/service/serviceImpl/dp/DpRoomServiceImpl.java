@@ -985,7 +985,7 @@ public class DpRoomServiceImpl {
         }
         r.setCurrentHandSeed(seedBase);
 
-        // Shark 专用逐街动作日志：为新一手初始化（只在桌上存在 BOT_Shark 时启用）
+        // 逐街动作日志（全员）：与新一手种子绑定，结算后清空
         DpNpcSharkHandActionLog.beginHand(r);
         //开始一手牌谱的记录
         observedHandService.beginHand(r);
@@ -1061,7 +1061,7 @@ public class DpRoomServiceImpl {
 
         r.setCurrentActorIndex((did + 3) % ps.size());//翻前从大盲的下一个开始行动
         r.setLastActionTime(System.currentTimeMillis());//方便计时间用
-        // Shark 在场时：固定本手座位/盲注后筹码，并记 preflop 公共牌空快照
+        // 固定本手座位/盲注后筹码，并记 preflop 公共牌空快照
         //标记手准备
         observedHandService.markHandReadyAfterBlinds(r);
         sharkOpponentMemoryService.hydrateAllOpponentsForNewHand(r);
@@ -1244,7 +1244,6 @@ public class DpRoomServiceImpl {
         p.setActed(true);
         r.setPot(r.getPot() + amount);
 
-        // Shark 专用逐街动作日志（只在桌上存在 BOT_Shark 时启用），现在改了，没有shark也行
         DpNpcSharkHandActionLog.recordBetLikeAction(r, p, amount, betToCallBefore, actorBetBefore, potBefore, becameAllIn, isRaise);
         observedHandService.recordBetLikeAction(r, p, amount, betToCallBefore, actorBetBefore, potBefore, becameAllIn, isRaise);
 
@@ -1261,7 +1260,6 @@ public class DpRoomServiceImpl {
         if (!p.getNickname().equals(nickname) || p.isFold()) return false;
 
         p.setFold(true);//弃牌的人没设置行动状态，只有bet的人才设置
-        // Shark 专用逐街动作日志（只在桌上存在 BOT_Shark 时启用）
         DpNpcSharkHandActionLog.recordFold(r, p, r.getPot());
         observedHandService.recordFold(r, p, r.getPot());
         moveToNextValidActor(r);  // 统一用新方法，不再用旧的 nextActor
@@ -1625,47 +1623,13 @@ public class DpRoomServiceImpl {
         r.setPot(0);
         r.setPots(new ArrayList<>());
 
-        // ==== 更新玩家行为统计：用于高级机器人（如 BOT_Shark）判断对手风格 ====
-        // Shark 专用逐街动作日志快照：用于更精确填充 SingleHandStats 的逐街字段（不影响其他 NPC）
-        List<DpNpcSharkHandActionLog.ActionEvent> sharkEvents = DpNpcSharkHandActionLog.snapshot(r);
+        // ==== 更新玩家行为统计（全桌昵称维度；供 NPC / 回放分析等使用） ====
+        // 逐街动作快照：填充 SingleHandStats 各街激进/放弃等字段
+        List<DpNpcSharkHandActionLog.ActionEvent> streetEvents = DpNpcSharkHandActionLog.snapshot(r);
 
         if (r.getPlayerStatsMap() != null) {
             Map<String, DpPlayerStats> statsMap = r.getPlayerStatsMap();
             int bb = r.getBigBlindChips();
-            // 即使 Shark 没摊牌，也为“对 Shark 的精确 WEAK 摊牌统计”准备基准牌力：
-            // Shark 知道自己手牌，结算时也能用最终公共牌计算“如果没弃牌会是什么牌力”，从而学习修正。
-            final String sharkName = DpNpcEngine.SHARK_BOT_NICKNAME;
-            DpUtilHandEvaluator.HandStrength sharkHs = null;
-            long sharkStrengthValue = 0L;
-            DpPlayer sharkPlayer = null;
-            if ("showdown".equals(r.getCurrentStage())) {
-                for (DpPlayer px : r.getPlayers()) {
-                    if (px == null) continue;
-                    if (sharkName.equals(px.getNickname())) {
-                        sharkPlayer = px;
-                        break;
-                    }
-                }
-            }
-            boolean boardCompleteForCompare = false;
-            List<String> boardForCompare = r.getCommunityCards();
-            if (boardForCompare != null && boardForCompare.size() >= 5) {
-                boardCompleteForCompare = true;
-            }
-            if (sharkPlayer != null && boardCompleteForCompare) {
-                // 优先使用 strengthMap（若 Shark 摊牌，里面一定有），否则用“洞牌+公共牌”补算
-                sharkHs = strengthMap.get(sharkName);
-                if (sharkHs == null) {
-                    List<String> hole = sharkPlayer.getHoleCards();
-                    if (hole != null && hole.size() >= 2) {
-                        List<String> all = new java.util.ArrayList<>();
-                        all.addAll(boardForCompare);
-                        all.addAll(hole);
-                        sharkHs = DpUtilHandEvaluator.evaluateBestHand(all);
-                    }
-                }
-                sharkStrengthValue = DpUtilHandEvaluator.encodeStrengthValue(sharkHs);
-            }
             for (DpPlayer p : r.getPlayers()) {
                 String name = p.getNickname();
                 DpPlayerStats stats = statsMap.get(name);
@@ -1682,7 +1646,7 @@ public class DpRoomServiceImpl {
                 // 摊牌：到 showdown 阶段且未弃牌
                 boolean wentToShowdown = "showdown".equals(r.getCurrentStage()) && !p.isFold();
                 hand.setWentToShowdown(wentToShowdown);
-                // 记录摊牌时的最终牌型大类（仅在真正摊牌且有评估结果时有效），供 BOT_Shark 评估 bluff 倾向
+                // 记录摊牌时的最终牌型大类（仅在真正摊牌且有评估结果时有效）
                 if (wentToShowdown) {
                     DpUtilHandEvaluator.HandStrength hs = strengthMap.get(name);
                     hand.setFinalRankCategory(hs != null ? hs.rankCategory : 0);
@@ -1713,24 +1677,6 @@ public class DpRoomServiceImpl {
                         }
                     }
                     hand.setBoardDominantShowdown(boardDominant);
-
-                    // === Shark 学习：精确 WEAK 摊牌判定（只在 Shark 也摊牌且该玩家也摊牌时写入样本） ===
-                    boolean comparedToShark = false;
-                    boolean weakVsShark = false;
-                    if (hs != null
-                            && sharkHs != null
-                            && sharkStrengthValue > 0
-                            && !sharkName.equals(name)) {
-                        comparedToShark = true;
-                        int finalCat = hs.rankCategory;
-                        if (finalCat > 0 && finalCat <= 2) {
-                            long v = hand.getFinalStrengthValue();
-                            // “精确牌型大小”：按 HandStrength.compareTo 的同序编码比较
-                            weakVsShark = v > 0 && sharkStrengthValue > 0 && v < sharkStrengthValue;
-                        }
-                    }
-                    hand.setComparedToSharkAtShowdown(comparedToShark);
-                    hand.setShowdownWeakVsShark(weakVsShark);
                 }
 
                 // === 基于本手最终下注规模和公共牌张数的粗略行为标签推断 ===
@@ -1761,7 +1707,7 @@ public class DpRoomServiceImpl {
                 hand.setLimpedPreflop(limpedPreflop);
                 hand.setOpenRaisedPreflop(openRaisedPreflop);
 
-                // === 逐街激进行为：优先用 Shark 动作日志填充（否则回退为 false） ===
+                // === 逐街激进行为：优先用逐街动作日志填充（否则回退为 false） ===
                 boolean flopAgg = false;
                 boolean turnAgg = false;
                 boolean riverAgg = false;
@@ -1770,8 +1716,8 @@ public class DpRoomServiceImpl {
                 boolean hadAggBeforeTurn = false;
                 boolean hadAggBeforeRiver = false;
 
-                if (sharkEvents != null && !sharkEvents.isEmpty()) {
-                    for (DpNpcSharkHandActionLog.ActionEvent e : sharkEvents) {
+                if (streetEvents != null && !streetEvents.isEmpty()) {
+                    for (DpNpcSharkHandActionLog.ActionEvent e : streetEvents) {
                         if (e == null) continue;
                         if (!name.equals(e.actor)) continue;
                         boolean isAgg = e.type == DpNpcSharkHandActionLog.ActionType.BET
@@ -1812,7 +1758,7 @@ public class DpRoomServiceImpl {
                 boolean gaveUpRiverAfterRaise = false;
                 if (hand.isRaised() && !wentToShowdown) {
                     // 优先用动作日志判断放弃街道（更准确）；没有日志时才回退用公共牌张数猜
-                    if (sharkEvents != null && !sharkEvents.isEmpty()) {
+                    if (streetEvents != null && !streetEvents.isEmpty()) {
                         if (foldedOnTurn && (hadAggBeforeTurn || openRaisedPreflop)) {
                             gaveUpTurnAfterRaise = true;
                         }
@@ -1835,7 +1781,7 @@ public class DpRoomServiceImpl {
                 stats.addHand(hand, 10);
 
                 // 个体化长期弃牌调整：
-                // - 若该玩家经常以较弱牌力摊牌且本手去了摊牌，适当降低 foldAdjustment（Shark 更少相信其价值下注）；
+                // - 若该玩家经常以较弱牌力摊牌且本手去了摊牌，适当降低 foldAdjustment；
                 // - 若摊牌大多是强牌，则略微提高 foldAdjustment。
                 double adj = stats.getFoldAdjustmentAgainstHero();
                 if (wentToShowdown) {
@@ -1875,17 +1821,14 @@ public class DpRoomServiceImpl {
             }
         }
 
-        // Shark 学习实验：基于本手统计结果更新“长期记忆参数”（只在 BOT_Shark 决策里读取）
-        // 注意：LearningLab 内部会读取本手动作日志做 shove 频率等统计，因此必须先学习、后清理日志。
-        // 完整牌谱归档（仅 Shark 在座时）：须在 LearningLab 之前，以便后者仍可读 ActionLog
+        // 完整牌谱归档 → 可选对手画像入库；最后再清理当手观测/逐街缓冲
         DpObservedHandRecordBO archived = observedHandService.finalizeHand(r);
         if (archived != null) {
             observedHandPersistService.save(archived, r);
         }
-        DpNpcSharkLearningLab.onHandSettled(r);
         sharkOpponentMemoryService.persistOpponentsAfterHand(r);
 
-        // Shark 逐街动作日志：本手结束后清理，避免内存增长
+        // 逐街动作日志：本手结束后清理，避免内存增长
         DpNpcSharkHandActionLog.clearHand(r);
         observedHandService.clearHand(r);
 

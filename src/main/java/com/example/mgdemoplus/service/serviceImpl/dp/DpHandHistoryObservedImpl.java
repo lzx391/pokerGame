@@ -23,11 +23,9 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 本桌有玩家时即记录完整牌谱（与是否坐 Shark 无关），供入库与回放。
- * Shark 专用逻辑见 {@link #isSharkAtTable(DpRoomBO)}（对手记忆等仍仅在桌上有 Shark 时启用）。
+ * 本桌有玩家时即记录完整牌谱，供入库与回放。
  *
- * <p>与 {@link DpNpcSharkHandActionLog} 并行：ActionLog 仍仅在桌上有 Shark 时启用；
- * 本类将结束的整手归档到环形缓冲，不依赖当手临时列表。</p>
+ * <p>与 {@link DpNpcSharkHandActionLog} 并行：该类记录逐街动作用于统计；观测牌谱不依赖 Shark。</p>
  */
 @Service
 public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedService{
@@ -43,15 +41,14 @@ public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedSer
     //9. BUILDERS类：负责记录牌谱
     //10. ARCHIVE类：负责记录牌谱
     //11. isEnabledForRoom方法：负责判断是否启用
-    //12. isSharkAtTable方法：负责判断是否坐Shark
-    //13. getRecentHands方法：负责获取最近的手
-    //14. beginHand方法：负责开始手
-    //15. markHandReadyAfterBlinds方法：负责标记手准备
-    //16. recordBoardState方法：负责记录公共牌
-    //17. recordBlind方法：负责记录盲注
-    //18. recordFold方法：负责记录弃牌
-    //19. recordBetLikeAction方法：负责记录行动
-    //20. capturePotsBeforeClear方法：负责记录池
+    //12. getRecentHands方法：负责获取最近的手
+    //13. beginHand方法：负责开始手
+    //14. markHandReadyAfterBlinds方法：负责标记手准备
+    //15. recordBoardState方法：负责记录公共牌
+    //16. recordBlind方法：负责记录盲注
+    //17. recordFold方法：负责记录弃牌
+    //18. recordBetLikeAction方法：负责记录行动
+    //19. capturePotsBeforeClear方法：负责记录池
     public DpHandHistoryObservedImpl() {
     }
 
@@ -108,24 +105,6 @@ public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedSer
         }
         for (DpPlayer p : room.getPlayers()) {
             if (p != null) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * 桌上是否有 BOT_Shark（仅 {@link DpNpcSharkOpponentMemoryService} 等 Shark 专用逻辑使用）。
-     */
-    static boolean isSharkAtTable(DpRoomBO room) {
-        if (room == null || room.getPlayers() == null) {
-            return false;
-        }
-        for (DpPlayer p : room.getPlayers()) {
-            if (p == null) {
-                continue;
-            }
-            if (DpNpcEngine.SHARK_BOT_NICKNAME.equals(p.getNickname())) {
                 return true;
             }
         }

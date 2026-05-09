@@ -15,8 +15,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 将 Shark 参考的 {@link DpPlayerStats} 与 {@link DpNpcSharkLearningLab} 旋钮按对手昵称持久化，
- * 跨随机房间 ID 认出同一玩家并恢复习惯画像。
+ * 将 {@link DpPlayerStats} 与（实验用）{@link DpNpcSharkLearningLab} 旋钮快照按玩家昵称持久化，
+ * 跨随机房间认出同一昵称并恢复习惯画像；不依赖桌面上是否有 BOT_Shark。
  *
  * <p>
  * 总开关：{@link DpNpcEngine#NPC_SHARK_OPPONENT_DB_ENABLED}；为 {@code false} 时不读写 DB，
@@ -42,13 +42,13 @@ public class DpNpcSharkOpponentMemoryService {
     }
 
     /**
-     * 一手结算且 LearningLab 已更新后调用：为每位非 Shark 对手 upsert 一行。
+     * 一手结算后调用：为桌上每位真人/Bot 昵称 upsert 一行（旋钮快照由 LearningLab 内存状态导出）。
      */
     public void persistOpponentsAfterHand(DpRoomBO room) {
         if (!DpNpcEngine.NPC_SHARK_OPPONENT_DB_ENABLED) {
             return;
         }
-        if (room == null || !DpHandHistoryObservedImpl.isSharkAtTable(room)) {
+        if (room == null) {
             return;
         }
         Map<String, DpPlayerStats> statsMap = room.getPlayerStatsMap();
@@ -65,9 +65,6 @@ public class DpNpcSharkOpponentMemoryService {
             }
             String name = p.getNickname();
             if (name == null || name.isEmpty()) {
-                continue;
-            }
-            if (DpNpcEngine.SHARK_BOT_NICKNAME.equals(name)) {
                 continue;
             }
             DpPlayerStats stats = statsMap.get(name);
@@ -101,19 +98,13 @@ public class DpNpcSharkOpponentMemoryService {
     }
 
     /**
-     * 若本桌有 Shark 且该昵称尚无内存统计，则从 DB 恢复（避免覆盖本局已累积的 map）。
+     * 若该昵称在房内尚无内存统计，则从 DB 恢复（避免覆盖本局已累积的 map）。
      */
     public void hydratePlayerIfNeeded(DpRoomBO room, String nickname) {
         if (!DpNpcEngine.NPC_SHARK_OPPONENT_DB_ENABLED) {
             return;
         }
         if (room == null || nickname == null || nickname.isEmpty()) {
-            return;
-        }
-        if (!DpHandHistoryObservedImpl.isSharkAtTable(room)) {
-            return;
-        }
-        if (DpNpcEngine.SHARK_BOT_NICKNAME.equals(nickname)) {
             return;
         }
         Map<String, DpPlayerStats> statsMap = room.getPlayerStatsMap();
@@ -151,9 +142,9 @@ public class DpNpcSharkOpponentMemoryService {
         }
     }
 
-    /** 新一手开局、座位已定后，为桌上每位非 Shark 玩家尝试加载记忆。 */
+    /** 新一手开局、座位已定后，为桌上每位玩家尝试加载记忆。 */
     public void hydrateAllOpponentsForNewHand(DpRoomBO room) {
-        if (room == null || !DpHandHistoryObservedImpl.isSharkAtTable(room)) {
+        if (room == null) {
             return;
         }
         List<DpPlayer> ps = room.getPlayers();

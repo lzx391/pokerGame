@@ -350,7 +350,7 @@ final class DpNpcSharkLearningLab {
         }
 
         // 先用本手逐街动作日志更新 “面对不同尺度下注的弃牌反应”（按街 + 分桶）
-        // 这一步只依赖 ActionLog，不依赖 PlayerStats；并且只在桌上有 Shark 时启用（snapshot 会返回空列表）。
+        // 这一步只依赖 ActionLog，不依赖 PlayerStats（人手足够时全员桌都会记 ActionLog）。
         updateFoldBucketsFromActionLog(room);
 
         // 注意：你当前的对局很多是 bot vs bot。
