@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 本桌有玩家时即记录完整牌谱，供入库与回放。
  *
- * <p>与 {@link DpNpcSharkHandActionLog} 并行：该类记录逐街动作用于统计；观测牌谱不依赖 Shark。</p>
+ * <p>与 {@link DpNpcStreetActionLog} 并行：该类记录逐街动作用于统计。</p>
  */
 @Service
 public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedService{
@@ -97,7 +97,7 @@ public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedSer
     private static final ConcurrentHashMap<String, ArrayDeque<DpObservedHandRecordBO>> ARCHIVE = new ConcurrentHashMap<>();
 
     /**
-     * 是否为本桌记牌谱：有人上桌即开启（不再要求必须有 Shark）。
+     * 是否为本桌记牌谱：有人上桌即开启。
      */
     static boolean isEnabledForRoom(DpRoomBO room) {
         if (room == null || room.getPlayers() == null) {
@@ -236,7 +236,7 @@ public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedSer
     }
 
     /**
-     * 丢弃本手未归档的构建数据（与 {@link com.example.mgdemoplus.service.serviceImpl.dp.DpNpcSharkHandActionLog#clearHand} 对称）。
+     * 丢弃本手未归档的构建数据（与 {@link com.example.mgdemoplus.service.serviceImpl.dp.DpNpcStreetActionLog#clearHand} 对称）。
      */
     @Override
     public void clearHand(DpRoomBO room) {

@@ -10,15 +10,11 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 逐街动作内存日志（全桌共用）：用于玩家统计与学习外的决策辅助。
- *
- * <p>
- * 记录 flop/turn/river 谁在激进、谁在街口弃牌等信息；与是否坐 BOT_Shark 无关。
- * 仅保留当前这一手的内存记录，结算后清空。
- * </p>
+ * 逐街动作内存日志：flop/turn/river 谁在激进、谁在街口弃牌等，供当局统计与牌谱分析。
+ * 仅保留当前这一手的记录，结算后清空。
  */
-final class DpNpcSharkHandActionLog {
-    private DpNpcSharkHandActionLog() {
+final class DpNpcStreetActionLog {
+    private DpNpcStreetActionLog() {
     }
 
     enum ActionType {
@@ -34,14 +30,14 @@ final class DpNpcSharkHandActionLog {
 
     static final class ActionEvent {
         final long ts;
-        final String stage; // preflop/flop/turn/river
-        final String actor; // nickname
+        final String stage;
+        final String actor;
         final ActionType type;
-        final int amount; // 本次投入金额（check/fold 为 0）
+        final int amount;
         final int betToCallBefore;
         final int actorBetBefore;
         final int raiseLevelAfter;
-        final int potBefore; // 发生该动作前的底池（用于按尺度分桶：bet/pot）
+        final int potBefore;
 
         ActionEvent(long ts,
                 String stage,
@@ -91,7 +87,6 @@ final class DpNpcSharkHandActionLog {
 
     private static final ConcurrentHashMap<Key, List<ActionEvent>> EVENTS = new ConcurrentHashMap<>();
 
-    /** 与 {@link DpHandHistoryObservedImpl#isEnabledForRoom(DpRoomBO)} 一致：有人在座即记录。 */
     static boolean isEnabledForRoom(DpRoomBO room) {
         return DpHandHistoryObservedImpl.isEnabledForRoom(room);
     }
@@ -157,14 +152,12 @@ final class DpNpcSharkHandActionLog {
             return;
         ActionType t;
         if (amount <= 0) {
-            // amount==0：要么 check（无人下注），要么 call(0) 的一种实现（看 betToCallBefore 与 actorBetBefore）
             t = (betToCallBefore <= actorBetBefore) ? ActionType.CHECK : ActionType.CALL;
         } else if (becameAllIn) {
             t = ActionType.ALL_IN;
         } else if (isRaise) {
             t = ActionType.RAISE;
         } else {
-            // 非 raise：在 betToCallBefore==0 时就是 bet；否则就是 call
             t = (betToCallBefore <= actorBetBefore) ? ActionType.BET : ActionType.CALL;
         }
 

@@ -24,7 +24,6 @@ import java.util.stream.Collectors;
 public class DpRoomServiceImpl {
     private final Map<String, DpRoomBO> roomMap = new ConcurrentHashMap<>();
     private final DpHandHistoryPersistService observedHandPersistService;
-    private final DpNpcSharkOpponentMemoryService sharkOpponentMemoryService;
     private final DpLlmNpcDecisionService llmNpcDecisionService;
     private final DpGameRoomPushService gameRoomPushService;
     private final DpUserMapper dpUserMapper;
@@ -40,7 +39,6 @@ public class DpRoomServiceImpl {
     public DpRoomServiceImpl(
         //注入服务
             DpHandHistoryPersistService observedHandPersistService,
-            DpNpcSharkOpponentMemoryService sharkOpponentMemoryService,
             DpLlmNpcDecisionService llmNpcDecisionService,
             DpGameRoomPushService gameRoomPushService,
             DpUserMapper dpUserMapper,
@@ -49,7 +47,6 @@ public class DpRoomServiceImpl {
             ObjectMapper objectMapper
     ) {
         this.observedHandPersistService = observedHandPersistService;
-        this.sharkOpponentMemoryService = sharkOpponentMemoryService;
         this.llmNpcDecisionService = llmNpcDecisionService;
         this.gameRoomPushService = gameRoomPushService;
         this.dpUserMapper = dpUserMapper;
@@ -718,7 +715,6 @@ public class DpRoomServiceImpl {
             r.putRegisteredDpUserId(nickname, uid);
         }
         r.getPlayers().add(p);
-        sharkOpponentMemoryService.hydratePlayerIfNeeded(r, nickname);
         syncLobbyForRoomId(roomId);
         return "ok";
     }
@@ -776,11 +772,11 @@ public class DpRoomServiceImpl {
     }
 
     /**
-     * 将聪明型 NPC（BOT_Shark）加入指定房间的下一局等待列表。
-     * 该机器人会基于最近几手对手的行为做简单“读对手”决策。
+     * 兼容旧接口/前端：下一局加入昵称 {@link DpNpcEngine#LEGACY_BOT_SHARK_NICKNAME}，
+     * 行为与 {@link #addTagBotToNextHand(String)} 相同（紧凶规则 NPC）。
      */
     public boolean addSharkBotToNextHand(String roomId) {
-        return readyNextHand(roomId, "BOT_Shark", null);
+        return readyNextHand(roomId, DpNpcEngine.LEGACY_BOT_SHARK_NICKNAME, null);
     }
 
     /**
@@ -986,7 +982,7 @@ public class DpRoomServiceImpl {
         r.setCurrentHandSeed(seedBase);
 
         // 逐街动作日志（全员）：与新一手种子绑定，结算后清空
-        DpNpcSharkHandActionLog.beginHand(r);
+        DpNpcStreetActionLog.beginHand(r);
         //开始一手牌谱的记录
         observedHandService.beginHand(r);
 
@@ -1041,7 +1037,7 @@ public class DpRoomServiceImpl {
             ps.get(sb).setChips(ps.get(sb).getChips() - r.getSmallBlindChips());
             ps.get(sb).setBet(r.getSmallBlindChips());
             ps.get(sb).setTotalBet(r.getSmallBlindChips());      // 记入累计下注
-            DpNpcSharkHandActionLog.recordBlind(r, ps.get(sb).getNickname(), true, r.getSmallBlindChips(), potBeforeSb);
+            DpNpcStreetActionLog.recordBlind(r, ps.get(sb).getNickname(), true, r.getSmallBlindChips(), potBeforeSb);
             observedHandService.recordBlind(r, ps.get(sb).getNickname(), true, r.getSmallBlindChips(), potBeforeSb);
 
             ps.get(bb).setBlind(2);
@@ -1049,7 +1045,7 @@ public class DpRoomServiceImpl {
             ps.get(bb).setChips(ps.get(bb).getChips() - r.getBigBlindChips());
             ps.get(bb).setBet(r.getBigBlindChips());
             ps.get(bb).setTotalBet(r.getBigBlindChips());     // 记入累计下注
-            DpNpcSharkHandActionLog.recordBlind(r, ps.get(bb).getNickname(), false, r.getBigBlindChips(), potBeforeBb);
+            DpNpcStreetActionLog.recordBlind(r, ps.get(bb).getNickname(), false, r.getBigBlindChips(), potBeforeBb);
             observedHandService.recordBlind(r, ps.get(bb).getNickname(), false, r.getBigBlindChips(), potBeforeBb);
 
             r.setCurrentBetToCall(r.getBigBlindChips());
@@ -1064,7 +1060,6 @@ public class DpRoomServiceImpl {
         // 固定本手座位/盲注后筹码，并记 preflop 公共牌空快照
         //标记手准备
         observedHandService.markHandReadyAfterBlinds(r);
-        sharkOpponentMemoryService.hydrateAllOpponentsForNewHand(r);
         syncLobbyForRoomId(roomId);
         return true;
     }
@@ -1244,7 +1239,7 @@ public class DpRoomServiceImpl {
         p.setActed(true);
         r.setPot(r.getPot() + amount);
 
-        DpNpcSharkHandActionLog.recordBetLikeAction(r, p, amount, betToCallBefore, actorBetBefore, potBefore, becameAllIn, isRaise);
+        DpNpcStreetActionLog.recordBetLikeAction(r, p, amount, betToCallBefore, actorBetBefore, potBefore, becameAllIn, isRaise);
         observedHandService.recordBetLikeAction(r, p, amount, betToCallBefore, actorBetBefore, potBefore, becameAllIn, isRaise);
 
         moveToNextValidActor(r);
@@ -1260,7 +1255,7 @@ public class DpRoomServiceImpl {
         if (!p.getNickname().equals(nickname) || p.isFold()) return false;
 
         p.setFold(true);//弃牌的人没设置行动状态，只有bet的人才设置
-        DpNpcSharkHandActionLog.recordFold(r, p, r.getPot());
+        DpNpcStreetActionLog.recordFold(r, p, r.getPot());
         observedHandService.recordFold(r, p, r.getPot());
         moveToNextValidActor(r);  // 统一用新方法，不再用旧的 nextActor
         autoAdvanceIfRoundFinished(r);
@@ -1534,7 +1529,7 @@ public class DpRoomServiceImpl {
             if (archivedEarly != null) {
                 observedHandPersistService.save(archivedEarly, r);
             }
-            DpNpcSharkHandActionLog.clearHand(r);
+            DpNpcStreetActionLog.clearHand(r);
             observedHandService.clearHand(r);
             refreshChipLeaderNicknames(r);
             return;
@@ -1625,7 +1620,7 @@ public class DpRoomServiceImpl {
 
         // ==== 更新玩家行为统计（全桌昵称维度；供 NPC / 回放分析等使用） ====
         // 逐街动作快照：填充 SingleHandStats 各街激进/放弃等字段
-        List<DpNpcSharkHandActionLog.ActionEvent> streetEvents = DpNpcSharkHandActionLog.snapshot(r);
+        List<DpNpcStreetActionLog.ActionEvent> streetEvents = DpNpcStreetActionLog.snapshot(r);
 
         if (r.getPlayerStatsMap() != null) {
             Map<String, DpPlayerStats> statsMap = r.getPlayerStatsMap();
@@ -1717,12 +1712,12 @@ public class DpRoomServiceImpl {
                 boolean hadAggBeforeRiver = false;
 
                 if (streetEvents != null && !streetEvents.isEmpty()) {
-                    for (DpNpcSharkHandActionLog.ActionEvent e : streetEvents) {
+                    for (DpNpcStreetActionLog.ActionEvent e : streetEvents) {
                         if (e == null) continue;
                         if (!name.equals(e.actor)) continue;
-                        boolean isAgg = e.type == DpNpcSharkHandActionLog.ActionType.BET
-                                || e.type == DpNpcSharkHandActionLog.ActionType.RAISE
-                                || e.type == DpNpcSharkHandActionLog.ActionType.ALL_IN;
+                        boolean isAgg = e.type == DpNpcStreetActionLog.ActionType.BET
+                                || e.type == DpNpcStreetActionLog.ActionType.RAISE
+                                || e.type == DpNpcStreetActionLog.ActionType.ALL_IN;
                         if ("flop".equals(e.stage)) {
                             if (isAgg) {
                                 flopAgg = true;
@@ -1734,14 +1729,14 @@ public class DpRoomServiceImpl {
                                 turnAgg = true;
                                 hadAggBeforeRiver = true;
                             }
-                            if (e.type == DpNpcSharkHandActionLog.ActionType.FOLD) {
+                            if (e.type == DpNpcStreetActionLog.ActionType.FOLD) {
                                 foldedOnTurn = true;
                             }
                         } else if ("river".equals(e.stage)) {
                             if (isAgg) {
                                 riverAgg = true;
                             }
-                            if (e.type == DpNpcSharkHandActionLog.ActionType.FOLD) {
+                            if (e.type == DpNpcStreetActionLog.ActionType.FOLD) {
                                 foldedOnRiver = true;
                             }
                         }
@@ -1826,10 +1821,9 @@ public class DpRoomServiceImpl {
         if (archived != null) {
             observedHandPersistService.save(archived, r);
         }
-        sharkOpponentMemoryService.persistOpponentsAfterHand(r);
 
         // 逐街动作日志：本手结束后清理，避免内存增长
-        DpNpcSharkHandActionLog.clearHand(r);
+        DpNpcStreetActionLog.clearHand(r);
         observedHandService.clearHand(r);
 
         // 结算完成后，先清理本手中已离开的“僵尸位”玩家

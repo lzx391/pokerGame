@@ -35,10 +35,9 @@ public final class DpNpcEngine {
     }
 
     /**
-     * Shark 策略参数表：将原先散落在 case SHARK 中的关键常量集中到一个配置中，方便统一调参。
-     * 所有字段的推荐范围与“调大/调小效果”见各字段注释。
+     * 规则 NPC 共用系数：短/深码、equity×底池赔率、c-bet/河牌尺度、概率噪声等（集中便于调参）。
      */
-    static final class SharkStrategyProfile {
+    static final class NpcRuleCoeffs {
         /**
          * 典型短码阈值（单位：BB）：
          * - 建议范围：15~30，默认 20；
@@ -134,7 +133,7 @@ public final class DpNpcEngine {
         final double cbetRandomMin;
         final double cbetRandomMax;
 
-        SharkStrategyProfile(double shortStackBB,
+        NpcRuleCoeffs(double shortStackBB,
                 double deepStackMinBB,
                 double deepTableAvgBB,
                 double equityPotOddsEps,
@@ -175,10 +174,9 @@ public final class DpNpcEngine {
         }
 
         /**
-         * 默认 Shark 策略（v2）：偏「少弃错、多拿价值、少对跟注站送诈唬」；
-         * 与 {@link DpNpcSharkExploitHandPlan}、{@link DpNpcSharkStrategy} 同期调参。
+         * 默认值：与历史工程中的主规则 NPC 系数一致。
          */
-        static final SharkStrategyProfile DEFAULT = new SharkStrategyProfile(
+        static final NpcRuleCoeffs DEFAULT = new NpcRuleCoeffs(
                 20.0, // shortStackBB
                 60.0, // deepStackMinBB
                 80.0, // deepTableAvgBB
@@ -202,11 +200,10 @@ public final class DpNpcEngine {
     }
 
     /**
-     * 向后兼容的 Shark 常量访问器：保留原有 SharkConfig.* 写法，
-     * 但实际值全部来自 SharkStrategyProfile.DEFAULT，便于通过一个地方调参。
+     * 规则 NPC 决策里引用的常量（数值来自 {@link NpcRuleCoeffs#DEFAULT}）。
      */
-    static final class SharkConfig {
-        private static final SharkStrategyProfile P = SharkStrategyProfile.DEFAULT;
+    public static final class RuleNpcConfig {
+        private static final NpcRuleCoeffs P = NpcRuleCoeffs.DEFAULT;
 
         static final double SHORT_STACK_BB = P.shortStackBB;
         static final double DEEP_STACK_MIN_BB = P.deepStackMinBB;
@@ -220,49 +217,19 @@ public final class DpNpcEngine {
         static final double RIVER_OVERBET_PROB = P.riverOverbetProb;
         static final double RIVER_BLOCK_PROB = P.riverBlockProb;
         static final double RIVER_BLOCK_FACTOR = P.riverBlockFactor;
-        /** 翻后无人加注时，按 pot×factor 下注的基准（弱/中/强），见 {@link SharkStrategyProfile} */
+        /** 翻后无人加注时，按 pot×factor 下注的基准（弱/中/强），见 {@link NpcRuleCoeffs} */
         static final double CBET_BASE_WEAK = P.cbetBaseWeak;
         static final double CBET_BASE_MEDIUM = P.cbetBaseMedium;
         static final double CBET_BASE_STRONG = P.cbetBaseStrong;
         static final double CBET_RANDOM_MIN = P.cbetRandomMin;
         static final double CBET_RANDOM_MAX = P.cbetRandomMax;
-
-        // ===== Shark LearningLab / 旋钮参数（集中配置）=====
-        // foldAdjustment（整体弃牌倾向）学习率与裁剪上限
-        static final double LEARN_FOLD_LR = 0.10;
-        static final double LEARN_FOLD_ADJ_CAP = 0.25;
-
-        // 对“高压/高频 all-in”玩家的 bluff-catch 旋钮上限与学习率
-        static final double LEARN_SHOVE_EMA_ALPHA = 0.10; // shoveFreq EMA 的观测权重
-        static final double LEARN_BLUFF_CATCH_LR = 0.18;
-        static final double LEARN_BLUFF_CATCH_CAP = 0.32; // 让抓诈唬更明显
-
-        // 主动开枪 / value raise 旋钮：上限与学习率（按街）
-        static final double LEARN_BLUFF_FIRE_LR = 0.14;
-        static final double LEARN_BLUFF_FIRE_CAP = 0.42; // 让“读人更准→更敢开枪”更明显
-        static final double LEARN_VALUE_RAISE_LR = 0.14;
-        static final double LEARN_VALUE_RAISE_CAP = 0.52;
-
-        /** 对默认诈唬/施压概率的整体乘子下限（1=不压，越低越像面对跟注站） */
-        static final double LEARN_BLUFF_FREQ_SCALE_MIN = 0.20;
-        static final double LEARN_BLUFF_FREQ_SCALE_LR = 0.16;
-        /** 决策层把学习到的 valueRaise 旋钮放大应用（旋钮本身仍受 CAP 限制） */
-        static final double LEARN_VALUE_RAISE_APPLY_MULT = 1.55;
-
-        // 下注尺度旋钮
-        static final double LEARN_SIZING_LR = 0.12;
-        static final double LEARN_SIZING_MIN = 0.85;
-        static final double LEARN_SIZING_MAX = 1.20;
-
-        // 策略侧使用旋钮时的归一化分母（避免到处写死 0.25）
-        static final double LEARN_BOOST_NORM = 0.25;
     }
 
     // 显示昵称：后端/前端都以这些字符串识别不同 NPC
     public static final String DEMO_BOT_NICKNAME = "BOT_Fish"; // 原 BOT_Demo → 现在命名为 BOT_Fish（鱼式简单玩家）
     public static final String MANIAC_BOT_NICKNAME = "BOT_Maniac";
-    public static final String SHARK_BOT_NICKNAME = "BOT_Shark";
-    private static final boolean SHARK_DEBUG = true;
+    /** 旧版机器人昵称；仍会识别为机器人，决策与 {@link BotType#TAG} 相同。 */
+    public static final String LEGACY_BOT_SHARK_NICKNAME = "BOT_Shark";
 
     /**
      * 为 false：规则 NPC 决策里 mood 恒按 0；思考延迟也不按 mood 缩放；结算不再改写机器人 mood。
@@ -270,17 +237,7 @@ public final class DpNpcEngine {
     public static final boolean NPC_MOOD_ENABLED = false;
 
     /**
-     * 为 false：不在结算后把 {@link DpPlayerStats} 与 {@link DpNpcSharkLearningLab} 快照写入
-     * {@code dp_shark_opponent_profile}，也不再从该表在开局灌回内存（按昵称存，多 UUID Bot 易冗余，可后续再设计）。
-     * <p>
-     * 不影响：当局 {@code playerStatsMap}；不影响牌谱观测与入库（{@code DpHandHistoryObservedImpl} /
-     * {@code DpHandHistoryPersistServiceImpl}）。与桌面上是否有 BOT_Shark 无关。
-     * </p>
-     */
-    public static final boolean NPC_SHARK_OPPONENT_DB_ENABLED = false;
-
-    /**
-     * 为 false：{@link #applySoftNoise} 不再对概率做 ±delta 抖动（Fish/Maniac/TAG/Shark 共用）。
+     * 为 false：{@link #applySoftNoise} 不再对概率做 ±delta 抖动（Fish/Maniac/TAG 共用）。
      * 若想保留原先「不那么死板」的抽样，保持 true。
      */
     public static final boolean NPC_SOFT_NOISE_ENABLED = false;
@@ -306,12 +263,11 @@ public final class DpNpcEngine {
     enum BotType {
         DEMO,
         MANIAC,
-        SHARK,
-        TAG // 紧凶型
+        TAG
     }
 
     /**
-     * 整手牌计划类型：在 flop 首次行动时为 TAG/SHARK 生成，
+     * 整手牌计划类型：在 flop 首次行动时为 TAG 生成，
      * 后续 turn/river 通过剩余“barrels”数量控制继续进攻的积极程度。
      */
     enum HandPlanType {
@@ -396,7 +352,7 @@ public final class DpNpcEngine {
     }
 
     /**
-     * 在 flop 首次行动时为 TAG/SHARK 初始化整手牌计划。
+     * 在 flop 首次行动时为 TAG 初始化整手牌计划。
      * 仅在当前还没有计划（npcHandPlanType 为空）时才会生成一次。
      */
     static void initHandPlanIfNeededForPostflop(
@@ -424,10 +380,8 @@ public final class DpNpcEngine {
         VillainRangeTier villainTier = ctx.villainTier;
         double equityEst = ctx.equityEst;
 
-        // Shark 翻后“相对牌力”修正：公共牌主导时，避免把自己当成强牌去走 VALUE 线路
-        // 同时：当 strength 被粗分为 WEAK，但 equityEst 不低（例如强听牌/两头顺等），不要太早进入 GIVE_UP。
-        boolean isShark = type == BotType.SHARK;
-        boolean boardDominant = isShark && isBoardDominantBestHand(room, bot);
+        // 公共牌主导时下调自评牌力，避免把「board 很强」误当自己很强
+        boolean boardDominant = isBoardDominantBestHand(room, bot);
 
         // 基于牌力 + 牌面 + 参与人数的简单规则生成计划
         SimpleStrength planStrength = strength;
@@ -444,7 +398,6 @@ public final class DpNpcEngine {
                 if (boardDanger == BoardDanger.DRY) {
                     planType = HandPlanType.VALUE;
                 } else {
-                    // 湿牌面上强牌略偏向 value + 控池混合
                     planType = (boardDanger == BoardDanger.WET && activeVillains >= 3)
                             ? HandPlanType.POT_CONTROL
                             : HandPlanType.VALUE;
@@ -454,52 +407,35 @@ public final class DpNpcEngine {
                 if (boardDanger == BoardDanger.WET || activeVillains >= 3) {
                     planType = HandPlanType.POT_CONTROL;
                 } else {
-                    // 单挑 + 干燥牌面：Shark 更常走薄价值，避免对跟注型对手控池过多
-                    double thinProb = isShark ? 0.58 : 0.4;
+                    double thinProb = 0.4;
                     boolean thinValue = activeVillains <= 2 && random.nextDouble() < thinProb;
                     planType = thinValue ? HandPlanType.VALUE : HandPlanType.POT_CONTROL;
                 }
                 break;
             case WEAK:
             default:
-                // 原逻辑过于死板：WEAK 只有“单挑+后位+干燥”才可能 BLUFF，其它几乎必 GIVE_UP，
-                // 在 2~3 人、盲位场景会导致 Shark 翻后几乎不主动开枪。
                 if (boardDanger == BoardDanger.DRY && activeVillains <= 2) {
-                    // 2 人 / 3 人 + 干燥牌面：允许一定比例的“试探开枪”或“控池打一枪”
                     double bluffProb;
                     if (position == TablePosition.LATE) {
                         bluffProb = (activeVillains <= 1) ? 0.58 : 0.42;
                     } else if (position == TablePosition.BLINDS) {
-                        // 盲位也允许偷（尤其 heads-up），但略低于后位
                         bluffProb = (activeVillains <= 1) ? 0.46 : 0.32;
                     } else {
-                        // 早中位：更保守，但对紧玩家仍可低频试探
                         bluffProb = (villainTier == VillainRangeTier.NIT || villainTier == VillainRangeTier.TIGHT)
                                 ? 0.28
                                 : 0.18;
                     }
-
-                    // 多人（3 人局）再收一点
                     if (activeVillains >= 2) {
                         bluffProb *= 0.85;
                     }
-
-                    // Shark：对爱跟对手少走纯 BLUFF 线，把权重挪到 POT_CONTROL（剥削层仍会再调）
-                    if (isShark) {
-                        bluffProb *= 0.82;
-                    }
-
-                    // Shark 专用：当 equityEst 不低（通常是听牌/可持续施压结构），降低 GIVE_UP 概率，保留探索空间
-                    if (isShark && equityEst >= 0.30 && !boardDominant) {
+                    if (equityEst >= 0.30 && !boardDominant) {
                         bluffProb = Math.min(0.72, bluffProb + 0.10);
                     }
-
-                    double potProbeFrac = isShark ? 0.30 : 0.22;
+                    double potProbeFrac = 0.22;
                     double x = random.nextDouble();
                     if (x < bluffProb) {
                         planType = HandPlanType.BLUFF;
                     } else if (x < bluffProb + potProbeFrac) {
-                        // 给一部分 WEAK 一个 POT_CONTROL：允许打一枪/小 probing，而不是直接放弃
                         planType = HandPlanType.POT_CONTROL;
                     } else {
                         planType = HandPlanType.GIVE_UP;
@@ -510,30 +446,27 @@ public final class DpNpcEngine {
                 break;
         }
 
-        // 公共牌主导：进一步抑制 VALUE，更多控池/试探，避免“打公共牌却觉得自己稳赢”
         if (boardDominant) {
             if (planType == HandPlanType.VALUE) {
                 planType = HandPlanType.POT_CONTROL;
             }
             if (planStrength == SimpleStrength.WEAK && planType == HandPlanType.BLUFF) {
-                // 纯公共牌 + 弱：减少无谓开火
                 planType = HandPlanType.POT_CONTROL;
             }
         }
 
-        // 不同机器人风格下的默认“最大进攻街数”和基础激进度
         switch (planType) {
             case VALUE:
-                maxBarrels = isShark ? 3 : 2;
-                aggression = isShark ? 0.84 : 0.7;
+                maxBarrels = 2;
+                aggression = 0.7;
                 break;
             case BLUFF:
-                maxBarrels = isShark ? 2 : 1;
-                aggression = isShark ? 0.62 : 0.6;
+                maxBarrels = 1;
+                aggression = 0.6;
                 break;
             case POT_CONTROL:
-                maxBarrels = isShark ? 2 : 1;
-                aggression = isShark ? 0.46 : 0.35;
+                maxBarrels = 1;
+                aggression = 0.35;
                 break;
             case GIVE_UP:
             default:
@@ -542,10 +475,6 @@ public final class DpNpcEngine {
                 break;
         }
 
-        // 轻微随机扰动，避免所有牌局完全一致
-        if (isShark) {
-            aggression += (random.nextDouble() - 0.5) * 0.1; // ±0.05
-        }
         if (aggression < 0.0)
             aggression = 0.0;
         if (aggression > 1.0)
@@ -554,118 +483,10 @@ public final class DpNpcEngine {
         DpPlayer aggressor = ctx.aggressor;
         String targetVillain = aggressor != null ? aggressor.getNickname() : null;
 
-        if (isShark) {
-            DpPlayer primaryVillain = resolvePrimaryVillainForShark(room, bot, ctx);
-            DpPlayerStats villainStats = null;
-            if (primaryVillain != null && room.getPlayerStatsMap() != null) {
-                villainStats = room.getPlayerStatsMap().get(primaryVillain.getNickname());
-            }
-            DpNpcSharkLearningLab.LearnedAdjust learnedAdj = DpNpcSharkLearningLab.getAdjust(room, bot, primaryVillain);
-            DpNpcSharkExploitHandPlan.MutableFlopPlan tune = new DpNpcSharkExploitHandPlan.MutableFlopPlan();
-            tune.type = planType;
-            tune.barrels = maxBarrels;
-            tune.aggression = aggression;
-            DpNpcSharkExploitHandPlan.tuneAfterBasePlan(
-                    tune,
-                    villainStats,
-                    learnedAdj,
-                    strength,
-                    equityEst,
-                    boardDominant,
-                    random,
-                    primaryVillain != null ? primaryVillain.getNickname() : null);
-            planType = tune.type;
-            maxBarrels = tune.barrels;
-            aggression = tune.aggression;
-            targetVillain = primaryVillain != null ? primaryVillain.getNickname() : targetVillain;
-        }
-
         bot.setNpcHandPlanType(planType.name());
         bot.setNpcHandPlanMaxBarrels(maxBarrels);
         bot.setNpcHandPlanAggression(aggression);
         bot.setNpcHandPlanTargetVillain(targetVillain);
-    }
-
-    /**
-     * Shark 剥削/读牌用的「主对手」：
-     * <ul>
-     * <li>有当前街下注者（aggressor）且不是自己 → 用其；</li>
-     * <li>否则按座位列表顺时针，从 hero 下家起找：优先「本轮尚未跟齐 / 尚未行动」的在局玩家
-     * （与 {@code moveToNextValidActor} 一致），即先行动时主要针对「下一个要表态的人」；</li>
-     * <li>若其余人都已 check 完只剩自己 → 再取顺时针第一个仍在局对手（用于统计/剧本不断线）。</li>
-     * </ul>
-     */
-    static DpPlayer resolvePrimaryVillainForShark(DpRoomBO room, DpPlayer bot, DpUtilSmartContext ctx) {
-        if (ctx != null && ctx.aggressor != null && ctx.aggressor != bot) {
-            return ctx.aggressor;
-        }
-        if (room == null || room.getPlayers() == null) {
-            return null;
-        }
-        List<DpPlayer> ps = room.getPlayers();
-        int n = ps.size();
-        if (n == 0) {
-            return null;
-        }
-        int heroIdx = indexOfPlayerInRoom(ps, bot);
-        int btc = room.getCurrentBetToCall();
-
-        if (heroIdx >= 0) {
-            for (int step = 1; step <= n; step++) {
-                int idx = (heroIdx + step) % n;
-                DpPlayer p = ps.get(idx);
-                if (!isSharkPrimaryVillainCandidate(p, bot)) {
-                    continue;
-                }
-                if (!p.isActed() || p.getBet() < btc) {
-                    return p;
-                }
-            }
-            for (int step = 1; step <= n; step++) {
-                int idx = (heroIdx + step) % n;
-                DpPlayer p = ps.get(idx);
-                if (isSharkPrimaryVillainCandidate(p, bot)) {
-                    return p;
-                }
-            }
-        }
-
-        for (DpPlayer p : ps) {
-            if (isSharkPrimaryVillainCandidate(p, bot)) {
-                return p;
-            }
-        }
-        return null;
-    }
-
-    private static int indexOfPlayerInRoom(List<DpPlayer> ps, DpPlayer bot) {
-        if (ps == null || bot == null) {
-            return -1;
-        }
-        for (int i = 0; i < ps.size(); i++) {
-            DpPlayer p = ps.get(i);
-            if (p == bot) {
-                return i;
-            }
-        }
-        String nick = bot.getNickname();
-        if (nick == null) {
-            return -1;
-        }
-        for (int i = 0; i < ps.size(); i++) {
-            DpPlayer p = ps.get(i);
-            if (p != null && nick.equals(p.getNickname())) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    private static boolean isSharkPrimaryVillainCandidate(DpPlayer p, DpPlayer bot) {
-        if (p == null || p == bot) {
-            return false;
-        }
-        return !p.isFold() && !p.isAllIn() && !p.isLeftThisHand();
     }
 
     /**
@@ -726,8 +547,8 @@ public final class DpNpcEngine {
         String stage = room.getCurrentStage();
         if (!"turn".equals(stage) && !"river".equals(stage))
             return;
-        if (type != BotType.SHARK)
-            return; // 先只修复 Shark 的观感
+        if (type != BotType.TAG)
+            return;
 
         HandPlanType currentPlan = getHandPlanType(bot);
         if (currentPlan == null)
@@ -741,7 +562,7 @@ public final class DpNpcEngine {
 
         // st 升级到“强牌”才触发纠正：避免弱牌把计划硬改成价值线
         double minEq = (st == SimpleStrength.MONSTER) ? 0.60 : 0.45;
-        if (!isStrong || equityEst + SharkConfig.EQUITY_POTODDS_EPS < minEq)
+        if (!isStrong || equityEst + RuleNpcConfig.EQUITY_POTODDS_EPS < minEq)
             return;
 
         // 如果你已经是 VALUE 且 barrels 还够，那就没必要强行改
@@ -769,25 +590,6 @@ public final class DpNpcEngine {
         bot.setNpcHandPlanType(newPlan.name());
         bot.setNpcHandPlanMaxBarrels(newMaxBarrels);
         bot.setNpcHandPlanAggression(aggression);
-
-        String tv = bot.getNpcHandPlanTargetVillain();
-        if (tv != null && room.getPlayerStatsMap() != null) {
-            DpPlayer vil = null;
-            for (DpPlayer px : room.getPlayers()) {
-                if (px != null && tv.equals(px.getNickname())) {
-                    vil = px;
-                    break;
-                }
-            }
-            DpPlayerStats vs = room.getPlayerStatsMap().get(tv);
-            DpNpcSharkLearningLab.LearnedAdjust la = DpNpcSharkLearningLab.getAdjust(room, bot, vil);
-            if (vil != null
-                    && DpNpcSharkExploitHandPlan.classify(vs, la,
-                            tv) == DpNpcSharkExploitHandPlan.ExploitScript.CALLING_STATION
-                    && newPlan == HandPlanType.VALUE) {
-                bot.setNpcHandPlanMaxBarrels(Math.min(3, bot.getNpcHandPlanMaxBarrels() + 1));
-            }
-        }
     }
 
     /**
@@ -929,7 +731,7 @@ public final class DpNpcEngine {
         }
         return DEMO_BOT_NICKNAME.equals(name)
                 || MANIAC_BOT_NICKNAME.equals(name)
-                || SHARK_BOT_NICKNAME.equals(name)
+                || LEGACY_BOT_SHARK_NICKNAME.equals(name)
                 || TAG_BOT_NICKNAME.equals(name)
                 || LLM_BOT_NICKNAME.equals(name);
     }
@@ -947,8 +749,8 @@ public final class DpNpcEngine {
         if (MANIAC_BOT_NICKNAME.equals(nickname)) {
             return BotType.MANIAC;
         }
-        if (SHARK_BOT_NICKNAME.equals(nickname)) {
-            return BotType.SHARK;
+        if (LEGACY_BOT_SHARK_NICKNAME.equals(nickname)) {
+            return BotType.TAG;
         }
         if (TAG_BOT_NICKNAME.equals(nickname)) {
             return BotType.TAG;
@@ -974,17 +776,13 @@ public final class DpNpcEngine {
             case TAG:
                 // 紧凶常客
                 return NpcStyle.TIGHT_AGGRO;
-            case SHARK:
-                // 松凶（LAG）：与 MANIAC 共用 {@link NpcStyle#LOOSE_AGGRO} 的 StyleProfile；翻前与同风格共用
-                // {@link DpNpcUnifiedPreflopStrategy}，翻后仍走 {@link DpNpcSharkStrategy}。
-                return NpcStyle.LOOSE_AGGRO;
             default:
                 return NpcStyle.TIGHT_AGGRO;
         }
     }
 
     /**
-     * 将粗粒度牌力 + 当前阶段映射为一个 0~1 的“赢率估计桶”（供 SHARK / BOT_LLM 与底池赔率对照）。
+     * 将粗粒度牌力 + 当前阶段映射为一个 0~1 的“赢率估计桶”（供规则 NPC / BOT_LLM 与底池赔率对照）。
      * 在原有 rk 四档基础上，增加：翻前手牌结构、翻后真实成牌类别（{@link HandStrength}）校正，缓解「凡 WEAK 皆 0.25」的卡死问题。
      */
     private static double estimateEquityBucket(SimpleStrength st, String stage,
@@ -1549,7 +1347,7 @@ public final class DpNpcEngine {
 
     /**
      * 本手牌场上其他未弃牌玩家的筹码分布（后手 stack 视角）。
-     * 用于区分短码（short stack）和深码（deep stack），指导 SHARK 调整下注压力。
+     * 用于区分短码（short stack）和深码（deep stack），指导翻后尺度与投入倾向。
      */
     public static class StackContext {
         final int minStack;
@@ -1873,10 +1671,10 @@ public final class DpNpcEngine {
                     if (tier == VillainRangeTier.NIT || tier == VillainRangeTier.TIGHT) {
                         tightBehind++;
                     }
-                    if (stackBB > SharkStrategyProfile.DEFAULT.deepStackMinBB) {
+                    if (stackBB > NpcRuleCoeffs.DEFAULT.deepStackMinBB) {
                         deepBehind++;
                     }
-                    if (stackBB > 0 && stackBB <= SharkStrategyProfile.DEFAULT.shortStackBB) {
+                    if (stackBB > 0 && stackBB <= NpcRuleCoeffs.DEFAULT.shortStackBB) {
                         shortBehind++;
                     }
                 }
@@ -2012,7 +1810,7 @@ public final class DpNpcEngine {
                     double bluffProb = baseBluffProb * (0.5 + 1.0 * bluffFrequency);
                     bluffProb = applySoftNoise(
                             Math.min(0.6, Math.max(0.0, bluffProb)),
-                            SharkConfig.PROB_NOISE_DELTA,
+                            RuleNpcConfig.PROB_NOISE_DELTA,
                             random);
                     if (random.nextDouble() < bluffProb) {
                         int pot = room.getPot();
@@ -2040,7 +1838,7 @@ public final class DpNpcEngine {
                 }
                 callOrCheckProb = applySoftNoise(
                         Math.min(0.95, Math.max(0.05, callOrCheckProb)),
-                        SharkConfig.PROB_NOISE_DELTA,
+                        RuleNpcConfig.PROB_NOISE_DELTA,
                         random);
 
                 if (r < callOrCheckProb) {
@@ -2097,7 +1895,7 @@ public final class DpNpcEngine {
                 }
                 if (!"preflop".equals(stage)
                         && maniStackCtx != null
-                        && maniStackCtx.avgStackBB >= SharkConfig.DEEP_TABLE_AVG_BB
+                        && maniStackCtx.avgStackBB >= RuleNpcConfig.DEEP_TABLE_AVG_BB
                         && (strength == SimpleStrength.WEAK || strength == SimpleStrength.MEDIUM)) {
                     maniCommitFactor *= 0.85;
                 }
@@ -2156,7 +1954,7 @@ public final class DpNpcEngine {
                         double stealProb = stealBlindFrequency;
                         stealProb = applySoftNoise(
                                 Math.min(0.95, Math.max(0.0, stealProb)),
-                                SharkConfig.PROB_NOISE_DELTA,
+                                RuleNpcConfig.PROB_NOISE_DELTA,
                                 random);
                         if (random.nextDouble() < stealProb) {
                             int bbPost = room.getBigBlindChips();
@@ -2183,7 +1981,7 @@ public final class DpNpcEngine {
                             baseFoldWeakPreflop += 0.05;
                         }
                         double foldProbPre = Math.min(0.4, Math.max(0.0, baseFoldWeakPreflop + (-mood) * 0.1));
-                        foldProbPre = applySoftNoise(foldProbPre, SharkConfig.PROB_NOISE_DELTA, random);
+                        foldProbPre = applySoftNoise(foldProbPre, RuleNpcConfig.PROB_NOISE_DELTA, random);
                         if (random.nextDouble() < foldProbPre) {
                             return new BotAction(BotActionType.FOLD, 0);
                         }
@@ -2320,67 +2118,6 @@ public final class DpNpcEngine {
                 }
                 return new BotAction(BotActionType.ALL_IN, chips);
             }
-            case SHARK: {
-                String rid = room != null ? room.getRoomId() : "-";
-                String bn = bot != null ? bot.getNickname() : "-";
-                String stg = room != null ? room.getCurrentStage() : "-";
-                String holeStr = "-";
-                if (bot != null && bot.getHoleCards() != null && !bot.getHoleCards().isEmpty()) {
-                    holeStr = String.join(",", bot.getHoleCards());
-                }
-                String boardStr = "-";
-                if (room != null && room.getCommunityCards() != null && !room.getCommunityCards().isEmpty()) {
-                    boardStr = String.join(",", room.getCommunityCards());
-                }
-                // System.out.println("[SHARK][room=" + rid + "] ENGINE ENTER bot=" + bn
-                // + " stage=" + stg
-                // + " callAmount=" + callAmount
-                // + " curBTC=" + (room != null ? room.getCurrentBetToCall() : -1)
-                // + " botBet=" + (bot != null ? bot.getBet() : -1)
-                // + " pot=" + (room != null ? room.getPot() : -1)
-                // + " hole=" + holeStr
-                // + " board=" + boardStr);
-
-                // 额外打印一条“桌面快照”：所有在局内对手的关键状态，便于离线分析 Shark 决策是否合理。
-                if (room != null && room.getPlayers() != null) {
-                    StringBuilder sb = new StringBuilder();
-                    sb.append("[SHARK][room=").append(rid).append("] TABLE STATE:");
-                    for (DpPlayer p : room.getPlayers()) {
-                        if (p == null)
-                            continue;
-                        sb.append(" {name=").append(p.getNickname())
-                                .append(", chips=").append(p.getChips())
-                                .append(", bet=").append(p.getBet())
-                                .append(", fold=").append(p.isFold())
-                                .append(", allIn=").append(p.isAllIn())
-                                .append(", left=").append(p.isLeftThisHand())
-                                .append("}");
-                    }
-                    // System.out.println(sb.toString());
-                }
-                BoardDanger bd = boardDanger;
-                SimpleStrength st = strength;
-                String stage = room.getCurrentStage();
-                /// 翻后行动决策（拆分到独立类，减少 DpNpcEngine 体积）
-                BotAction delegated = DpNpcSharkStrategy.decide(
-                        room,
-                        bot,
-                        type,
-                        chips,
-                        callAmount,
-                        callRatio,
-                        position,
-                        st,
-                        bd,
-                        random,
-                        mood,
-                        callStation,
-                        checkRaiseFear);
-                if (delegated != null) {
-                    return delegated;
-                }
-
-            }
             case TAG: {
                 // 紧凶型 TAG：翻前与同房间其它规则 NPC 共用 {@link DpNpcUnifiedPreflopStrategy}（由 vpip/pfr 等驱动档位）。
                 // 翻后：中等牌有一定概率 thin value，强牌更积极 value bet / raise。
@@ -2419,7 +2156,7 @@ public final class DpNpcEngine {
                 }
                 if (!"preflop".equals(stage)
                         && tagStackCtx != null
-                        && tagStackCtx.avgStackBB >= SharkConfig.DEEP_TABLE_AVG_BB
+                        && tagStackCtx.avgStackBB >= RuleNpcConfig.DEEP_TABLE_AVG_BB
                         && (st == SimpleStrength.WEAK || st == SimpleStrength.MEDIUM)) {
                     tagCommitFactor *= 0.85;
                 }
@@ -2477,7 +2214,7 @@ public final class DpNpcEngine {
                 double foldProbTag = Math.min(1.0, Math.max(0.0, baseFold + (-mood) * 0.05));
                 // callStation 越高，越偏向继续跟注，整体降低 fold 概率
                 foldProbTag *= (1.0 - 0.5 * callStation);
-                foldProbTag = applySoftNoise(foldProbTag, SharkConfig.PROB_NOISE_DELTA, random);
+                foldProbTag = applySoftNoise(foldProbTag, RuleNpcConfig.PROB_NOISE_DELTA, random);
                 if (callAmount > 0 && foldProbTag > 0 && random.nextDouble() < foldProbTag) {
                     return new BotAction(BotActionType.FOLD, 0);
                 }
@@ -2520,7 +2257,7 @@ public final class DpNpcEngine {
                     valueBetProb *= aggroFactor;
                     valueBetProb = applySoftNoise(
                             Math.min(0.95, Math.max(0.05, valueBetProb)),
-                            SharkConfig.PROB_NOISE_DELTA,
+                            RuleNpcConfig.PROB_NOISE_DELTA,
                             random);
                     if (random.nextDouble() < valueBetProb) {
                         if (shouldSkipAggressiveActionByPlan(bot, stage)) {
@@ -2572,7 +2309,7 @@ public final class DpNpcEngine {
                 raiseProb *= aggroFactorRaise;
                 raiseProb = applySoftNoise(
                         Math.min(0.9, Math.max(0.05, raiseProb)),
-                        SharkConfig.PROB_NOISE_DELTA,
+                        RuleNpcConfig.PROB_NOISE_DELTA,
                         random);
 
                 double r = random.nextDouble();

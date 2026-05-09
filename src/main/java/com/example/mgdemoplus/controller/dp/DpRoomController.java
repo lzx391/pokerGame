@@ -158,7 +158,7 @@ public class DpRoomController {
     }
 
     /**
-     * 将聪明型 NPC（BOT_Shark）加入到指定房间的「下一局加入」列表中。
+     * 兼容旧前端：下一局加入 BOT_Shark（与 TAG 共用同一套规则决策）。
      */
     @PostMapping("/addSharkBot")
     public String addSharkBot(@RequestParam String roomId) {
@@ -167,7 +167,6 @@ public class DpRoomController {
 
     /**
      * 将紧凶型 NPC（BOT_Tag）加入到指定房间的「下一局加入」列表中。
-     * 该机器人打得相对紧凶，但不像 Shark 那样根据对手历史动态调整策略。
      */
     @PostMapping("/addTagBot")
     public String addTagBot(@RequestParam String roomId) {

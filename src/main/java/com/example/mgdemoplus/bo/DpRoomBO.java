@@ -83,8 +83,8 @@ public class DpRoomBO {
     private long readyDeadline = 0L;
 
     /**
-     * 玩家行为统计：用于高级机器人（如 BOT_Shark）根据最近几手的表现
-     * 粗略揣测每个玩家是紧/松、凶/弱，从而调整自己的跟注/加注策略。
+     * 玩家行为统计：用于规则 NPC 根据最近几手的表现
+     * 粗略揣测每个玩家是紧/松、凶/弱，从而调整跟注/加注策略。
      * key 为玩家昵称，value 为该玩家的统计信息。
      */
     private Map<String, DpPlayerStats> playerStatsMap = new HashMap<>();
