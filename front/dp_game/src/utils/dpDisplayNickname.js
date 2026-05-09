@@ -1,20 +1,54 @@
 /**
- * 对局界面展示用昵称（与服务端真实 nickname 区分，避免改后端常量）。
- * DEMO 机器人在后端仍为 BOT_Fish，仅前端显示为 BOT_Lag。
+ * UI 展示昵称：服务端仍为完整 nickname（下注 / WS 逻辑必须用全称）。
+ * - BOT_*_&lt;uuid&gt; → 前缀 + uuid 去横线后的前 4 字符（与 {@link com.example.mgdemoplus.service.serviceImpl.dp.DpNpcEngine#displayNicknameForUi} 对齐）
  */
-export function dpDisplayNickname (nickname) {
-  if (nickname === 'BOT_Fish') return 'BOT_Lag'
+const BOT_TRUNC_HEADS = [
+  'BOT_MANIAC_',
+  'BOT_CALL_',
+  'BOT_LLM_',
+  'BOT_LAG_',
+  'BOT_TAG_',
+  'BOT_NIT_',
+  'BOT_FISH_'
+]
+
+function shortenBotUuidNickname (nickname) {
+  if (!nickname) return nickname
+  for (let i = 0; i < BOT_TRUNC_HEADS.length; i++) {
+    const head = BOT_TRUNC_HEADS[i]
+    if (!nickname.startsWith(head) || nickname.length <= head.length) continue
+    const uuidPart = nickname.slice(head.length).replace(/-/g, '')
+    if (uuidPart.length >= 4) return head + uuidPart.slice(0, 4)
+    return nickname
+  }
   return nickname
 }
 
-/** 与后端 DpNpcEngine.isBotNickname 一致，用于下拉列表过滤等 */
+/**
+ * @param {string|{nickname?: string, displayNickname?: string}} nicknameOrPlayer
+ */
+export function dpDisplayNickname (nicknameOrPlayer) {
+  if (nicknameOrPlayer && typeof nicknameOrPlayer === 'object') {
+    const dn = nicknameOrPlayer.displayNickname
+    if (dn) return dn
+    return shortenBotUuidNickname(nicknameOrPlayer.nickname || '')
+  }
+  const nickname =
+    nicknameOrPlayer == null ? '' : String(nicknameOrPlayer)
+  return shortenBotUuidNickname(nickname)
+}
+
+/** 与后端 DpNpcEngine.isBotNickname 对齐（含多实例 BOT_*_uuid） */
 export function isDpBotNickname (nickname) {
-  if (!nickname) return false
-  return (
-    nickname === 'BOT_Fish' ||
-    nickname === 'BOT_Maniac' ||
-    nickname === 'BOT_Shark' ||
-    nickname === 'BOT_Tag' ||
-    nickname === 'BOT_LLM'
-  )
+  if (!nickname || typeof nickname !== 'string') return false
+  if (!nickname.startsWith('BOT_')) return false
+  if (nickname === 'BOT_LLM' || nickname.startsWith('BOT_LLM_')) return true
+  const legacy = ['BOT_Fish', 'BOT_Maniac', 'BOT_Shark', 'BOT_Tag']
+  if (legacy.indexOf(nickname) !== -1) return true
+  const prefixBodies = ['MANIAC', 'CALL', 'LAG', 'TAG', 'NIT', 'FISH']
+  for (let i = 0; i < prefixBodies.length; i++) {
+    const px = 'BOT_' + prefixBodies[i]
+    if (nickname === px || nickname.startsWith(px + '_')) return true
+  }
+  return false
 }

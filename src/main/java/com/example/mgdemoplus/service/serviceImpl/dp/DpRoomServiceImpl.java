@@ -32,10 +32,88 @@ public class DpRoomServiceImpl {
     private final ObjectMapper objectMapper;
 
     // 统一从 NPC 引擎中获取机器人昵称，避免散落魔法字符串
-    private static final String DEMO_BOT_NICKNAME = DpNpcEngine.DEMO_BOT_NICKNAME;   // BOT_Fish
-    private static final String MANIAC_BOT_NICKNAME = DpNpcEngine.MANIAC_BOT_NICKNAME;
-    private static final String TAG_BOT_NICKNAME   = DpNpcEngine.TAG_BOT_NICKNAME;    // BOT_Tag
+    public boolean addDemoBotToNextHand(String roomId) {
+        return readyNextHand(roomId, DpNpcEngine.generateUniqueRuleBotNickname(DpNpcEngine.BotType.FISH), null);
+    }
 
+    /**
+     * 疯子 NPC：{@code BOT_MANIAC_<uuid>}。
+     */
+    public boolean addManiacBotToNextHand(String roomId) {
+        return readyNextHand(roomId, DpNpcEngine.generateUniqueRuleBotNickname(DpNpcEngine.BotType.MANIAC), null);
+    }
+
+    /**
+     * 兼容旧接口/前端：下一局加入昵称 {@link DpNpcEngine#LEGACY_BOT_SHARK_NICKNAME}，
+     * 行为与 {@link #addTagBotToNextHand(String)} 相同（紧凶规则 NPC）。
+     */
+    public boolean addSharkBotToNextHand(String roomId) {
+        return readyNextHand(roomId, DpNpcEngine.LEGACY_BOT_SHARK_NICKNAME, null);
+    }
+
+    /**
+     * 紧凶型 NPC：{@code BOT_TAG_<uuid>}。
+     */
+    public boolean addTagBotToNextHand(String roomId) {
+        return readyNextHand(roomId, DpNpcEngine.generateUniqueRuleBotNickname(DpNpcEngine.BotType.TAG), null);
+    }
+
+    /** 松凶 LAG */
+    public boolean addLagBotToNextHand(String roomId) {
+        return readyNextHand(roomId, DpNpcEngine.generateUniqueRuleBotNickname(DpNpcEngine.BotType.LAG), null);
+    }
+
+    /** 紧弱 Nit */
+    public boolean addNitBotToNextHand(String roomId) {
+        return readyNextHand(roomId, DpNpcEngine.generateUniqueRuleBotNickname(DpNpcEngine.BotType.NIT), null);
+    }
+
+    /** 跟注站 */
+    public boolean addCallStationBotToNextHand(String roomId) {
+        return readyNextHand(roomId, DpNpcEngine.generateUniqueRuleBotNickname(DpNpcEngine.BotType.CALL), null);
+    }
+
+    /**
+     * 按档位连续添加 {@code count} 个规则 NPC（独立 uuid）；{@code archetypeKey} 参见
+     * {@link DpNpcEngine#generateUniqueRuleBotNicknameForKey(String)}。
+     */
+    public boolean addRuleNpcBatchToNextHand(String roomId, String archetypeKey, int count) {
+        if (count <= 0) {
+            return true;
+        }
+        DpRoomBO r = roomMap.get(roomId);
+        if (r == null) {
+            return false;
+        }
+        List<String> waiters = r.getWaitNextHand();
+        if (waiters == null) {
+            waiters = new ArrayList<>();
+            r.setWaitNextHand(waiters);
+        }
+        int cap = 10 - r.getPlayers().size() - waiters.size();
+        if (cap <= 0) {
+            return false;
+        }
+        int n = Math.min(count, cap);
+        try {
+            for (int i = 0; i < n; i++) {
+                String nick = DpNpcEngine.generateUniqueRuleBotNicknameForKey(archetypeKey);
+                if (!waiters.contains(nick)) {
+                    waiters.add(nick);
+                }
+            }
+        } catch (IllegalArgumentException ex) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * 将大模型 NPC 加入下一局；{@code BOT_LLM_<uuid>}，决策仅走 {@link DpLlmNpcDecisionService}。
+     */
+    public boolean addLlmBotToNextHand(String roomId) {
+        return readyNextHand(roomId, DpNpcEngine.generateUniqueLlmBotNickname(), null);
+    }
     public DpRoomServiceImpl(
         //注入服务
             DpHandHistoryPersistService observedHandPersistService,
@@ -121,7 +199,7 @@ public class DpRoomServiceImpl {
                         if (DpNpcEngine.isBotPlayer(p)) {//决策入口：BOT_LLM 与普通 NPC 分离
                             DpNpcEngine.BotAction action;
                             //如果是BOT_LLM则走大模型逻辑
-                            if (DpNpcEngine.LLM_BOT_NICKNAME.equals(p.getNickname())) {
+                            if (DpNpcEngine.isLlmBotNickname(p.getNickname())) {
                                 action = llmNpcDecisionService.decideActionIfReady(room, p);
                                 NpcAction(room, p, action);
                             } else {
@@ -754,44 +832,6 @@ public class DpRoomServiceImpl {
             waiters.add(nickname);
         }
         return true;
-    }
-
-    /**
-     * 将简单鱼式 NPC（BOT_Fish，原 BOT_Demo）加入指定房间的下一局等待列表。
-     * 对外作为一个基础演示入口。
-     */
-    public boolean addDemoBotToNextHand(String roomId) {
-        return readyNextHand(roomId, DEMO_BOT_NICKNAME, null);
-    }
-
-    /**
-     * 将疯子风格 NPC 加入指定房间的下一局等待列表。
-     */
-    public boolean addManiacBotToNextHand(String roomId) {
-        return readyNextHand(roomId, MANIAC_BOT_NICKNAME, null);
-    }
-
-    /**
-     * 兼容旧接口/前端：下一局加入昵称 {@link DpNpcEngine#LEGACY_BOT_SHARK_NICKNAME}，
-     * 行为与 {@link #addTagBotToNextHand(String)} 相同（紧凶规则 NPC）。
-     */
-    public boolean addSharkBotToNextHand(String roomId) {
-        return readyNextHand(roomId, DpNpcEngine.LEGACY_BOT_SHARK_NICKNAME, null);
-    }
-
-    /**
-     * 将紧凶型 NPC（BOT_Tag）加入指定房间的下一局等待列表。
-     * 该机器人只基于牌力/牌面/赔率做相对稳健的紧凶决策，不做复杂“读对手”调整。
-     */
-    public boolean addTagBotToNextHand(String roomId) {
-        return readyNextHand(roomId, TAG_BOT_NICKNAME, null);
-    }
-
-    /**
-     * 将大模型 NPC（BOT_LLM）加入指定房间的下一局等待列表；决策仅走 {@link DpLlmNpcDecisionService}。
-     */
-    public boolean addLlmBotToNextHand(String roomId) {
-        return readyNextHand(roomId, DpNpcEngine.LLM_BOT_NICKNAME, null);
     }
 
     public boolean toggleReady(String roomId, String nickname) {

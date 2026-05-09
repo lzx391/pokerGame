@@ -13,7 +13,7 @@ import java.util.Random;
 /**
  * 规则 NPC 共用翻前：G1–G8 手牌分组 + 单一阈值表；{@code rangeLevel} 由 vpip、人数、有效筹码深度、
  * callStation、foldToPressure、mood 驱动；3bet/4bet 侵略性由 pfr 缩放；{@link DpNpcEngine.BotType}
- * 仅做小幅档位加成（如 Maniac +2）。
+ * 做小幅档位加成（MANIAC +2、LAG/FISH/CALL +1、NIT −2）。
  *
  * <p>
  * <b>位置只进一档</b>：离散 {@link DpNpcEngine.TablePosition} 仅用于 {@link #thresholdsFor}（与 {@code rangeLevel} 一起决定各局面手牌阈值）；
@@ -105,8 +105,7 @@ final class DpNpcUnifiedPreflopStrategy {
                 ? room.getPlayerStatsMap().get(aggressor.getNickname())
                 : null;
         VillainTier tier = estimateVillainTier(aggressorStats);
-        System.out.println(tier);
-   
+
         double heroStackBB = hero.getChips() * 1.0 / bb;
         double effStackBB = heroStackBB;//算最小有效筹码bb数
         if (aggressor != null) {
@@ -158,6 +157,15 @@ final class DpNpcUnifiedPreflopStrategy {
         }
         if (t == DpNpcEngine.BotType.MANIAC) {
             return 2;
+        }
+        if (t == DpNpcEngine.BotType.LAG) {
+            return 1;
+        }
+        if (t == DpNpcEngine.BotType.FISH || t == DpNpcEngine.BotType.CALL) {
+            return 1;
+        }
+        if (t == DpNpcEngine.BotType.NIT) {
+            return -2;
         }
         return 0;
     }

@@ -141,8 +141,7 @@ public class DpRoomController {
     }
 
     /**
-     * 将简单鱼式 NPC（BOT_Fish，原 BOT_Demo）加入到指定房间的「下一局加入」列表中。
-     * 主要用于当前阶段验证机器人流程是否正常工作，后续可扩展为通用添加机器人接口。
+     * 鱼式 NPC：服务端生成 {@code BOT_FISH_<uuid>} 加入下一局。
      */
     @PostMapping("/addDemoBot")
     public String addDemoBot(@RequestParam String roomId) {
@@ -150,7 +149,7 @@ public class DpRoomController {
     }
 
     /**
-     * 将疯子型 NPC（BOT_Maniac）加入到指定房间的「下一局加入」列表中。
+     * 疯子 NPC：{@code BOT_MANIAC_<uuid>}。
      */
     @PostMapping("/addManiacBot")
     public String addManiacBot(@RequestParam String roomId) {
@@ -158,7 +157,7 @@ public class DpRoomController {
     }
 
     /**
-     * 兼容旧前端：下一局加入 BOT_Shark（与 TAG 共用同一套规则决策）。
+     * 兼容旧前端：固定昵称 BOT_Shark（紧凶）。
      */
     @PostMapping("/addSharkBot")
     public String addSharkBot(@RequestParam String roomId) {
@@ -166,15 +165,43 @@ public class DpRoomController {
     }
 
     /**
-     * 将紧凶型 NPC（BOT_Tag）加入到指定房间的「下一局加入」列表中。
+     * 紧凶 NPC：{@code BOT_TAG_<uuid>}。
      */
     @PostMapping("/addTagBot")
     public String addTagBot(@RequestParam String roomId) {
         return dpRoomService.addTagBotToNextHand(roomId) ? "ok" : "fail";
     }
 
+    /** 松凶 {@code BOT_LAG_<uuid>} */
+    @PostMapping("/addLagBot")
+    public String addLagBot(@RequestParam String roomId) {
+        return dpRoomService.addLagBotToNextHand(roomId) ? "ok" : "fail";
+    }
+
+    /** 紧弱 Nit {@code BOT_NIT_<uuid>} */
+    @PostMapping("/addNitBot")
+    public String addNitBot(@RequestParam String roomId) {
+        return dpRoomService.addNitBotToNextHand(roomId) ? "ok" : "fail";
+    }
+
+    /** 跟注站 {@code BOT_CALL_<uuid>} */
+    @PostMapping("/addCallStationBot")
+    public String addCallStationBot(@RequestParam String roomId) {
+        return dpRoomService.addCallStationBotToNextHand(roomId) ? "ok" : "fail";
+    }
+
     /**
-     * 将大模型 NPC（BOT_LLM）加入下一局；需配置环境变量 ARK_API_KEY、ARK_ENDPOINT_ID。
+     * 批量添加同一档位 NPC（独立 uuid）。{@code archetype} 支持 TAG、LAG、NIT、FISH、CALL、MANIAC（或带 BOT_ 前缀）。
+     */
+    @PostMapping("/addRuleNpcBatch")
+    public String addRuleNpcBatch(@RequestParam String roomId,
+            @RequestParam String archetype,
+            @RequestParam(defaultValue = "1") int count) {
+        return dpRoomService.addRuleNpcBatchToNextHand(roomId, archetype, count) ? "ok" : "fail";
+    }
+
+    /**
+     * 大模型 NPC：{@code BOT_LLM_<uuid>}；需配置 ARK_API_KEY、ARK_ENDPOINT_ID。
      */
     @PostMapping("/addLlmBot")
     public String addLlmBot(@RequestParam String roomId) {

@@ -1,6 +1,9 @@
 package com.example.mgdemoplus.entity.dp;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import com.example.mgdemoplus.utils.dp.DpUtilNpcDisplayNickname;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -101,6 +104,14 @@ public class DpPlayer {
     public void setActed(boolean acted) { this.acted = acted; }
     public String getNickname() { return nickname; }
     public void setNickname(String nickname) { this.nickname = nickname; }
+
+    /**
+     * 界面展示用短昵称（BOT_*_uuid 截短）；下注等接口仍以 {@link #nickname} 为准。
+     */
+    @JsonProperty("displayNickname")
+    public String getDisplayNickname() {
+        return DpUtilNpcDisplayNickname.shortenForUi(nickname);
+    }
 
     public Integer getDpUserId() {
         return dpUserId;

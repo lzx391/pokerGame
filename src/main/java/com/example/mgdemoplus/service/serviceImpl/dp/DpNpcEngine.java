@@ -6,6 +6,7 @@ import com.example.mgdemoplus.entity.dp.DpPlayerStats;
 import com.example.mgdemoplus.service.serviceImpl.dp.npc.LlmNpcGameContext;
 import com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator;
 import com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator.HandStrength;
+import com.example.mgdemoplus.utils.dp.DpUtilNpcDisplayNickname;
 import com.example.mgdemoplus.utils.dp.DpUtilSmartContext;
 
 import ch.qos.logback.classic.Logger;
@@ -225,11 +226,29 @@ public final class DpNpcEngine {
         static final double CBET_RANDOM_MAX = P.cbetRandomMax;
     }
 
-    // 显示昵称：后端/前端都以这些字符串识别不同 NPC
-    public static final String DEMO_BOT_NICKNAME = "BOT_Fish"; // 原 BOT_Demo → 现在命名为 BOT_Fish（鱼式简单玩家）
-    public static final String MANIAC_BOT_NICKNAME = "BOT_Maniac";
-    /** 旧版机器人昵称；仍会识别为机器人，决策与 {@link BotType#TAG} 相同。 */
+    /** 规则 NPC 昵称前缀 + {@code _<uuid>}；一桌可多实例。 */
+    public static final String PREFIX_BOT_LAG = "BOT_LAG";
+    public static final String PREFIX_BOT_TAG = "BOT_TAG";
+    public static final String PREFIX_BOT_NIT = "BOT_NIT";
+    public static final String PREFIX_BOT_FISH = "BOT_FISH";
+    public static final String PREFIX_BOT_CALL = "BOT_CALL";
+    public static final String PREFIX_BOT_MANIAC = "BOT_MANIAC";
+    /**
+     * 大模型机器人前缀：{@code BOT_LLM} 或 {@code BOT_LLM_<uuid>}。
+     */
+    public static final String PREFIX_BOT_LLM = "BOT_LLM";
+
+    /** 兼容旧前端；决策映射为 {@link BotType#TAG}（紧凶）。 */
     public static final String LEGACY_BOT_SHARK_NICKNAME = "BOT_Shark";
+    /** @deprecated 兼容旧前端固定昵称 */
+    public static final String LEGACY_BOT_TAG_NICKNAME = "BOT_Tag";
+    /** @deprecated 兼容旧前端固定昵称 */
+    public static final String LEGACY_BOT_FISH_NICKNAME = "BOT_Fish";
+    /** @deprecated 兼容旧前端固定昵称 */
+    public static final String LEGACY_BOT_MANIAC_NICKNAME = "BOT_Maniac";
+
+    /** 与 {@link #PREFIX_BOT_LLM} 一致，供文档与精确匹配旧逻辑引用。 */
+    public static final String LLM_BOT_NICKNAME = PREFIX_BOT_LLM;
 
     /**
      * 为 false：规则 NPC 决策里 mood 恒按 0；思考延迟也不按 mood 缩放；结算不再改写机器人 mood。
@@ -249,25 +268,27 @@ public final class DpNpcEngine {
      */
     public static final boolean NPC_HAND_SEED_FOR_DECISIONS = false;
 
-    public static final String TAG_BOT_NICKNAME = "BOT_Tag"; // 紧凶型 TAG（Tight-Aggressive）
     /**
-     * 大模型驱动机器人：决策走
-     * {@link com.example.mgdemoplus.service.serviceImpl.dp.DpLlmNpcDecisionService}，
-     * 不进入本类 {@link #decideBotAction} 的分支，避免与普通规则 NPC 混在一起。
+     * 机器人类型：与 {@link NpcStyle} 一一对应，决策参数取自 {@link #STYLE_PROFILE_MAP}，
+     * 翻后大分支仍按 {@code BotType} 分岔（LAG/MANIAC、TAG/NIT、FISH/CALL）。
      */
-    public static final String LLM_BOT_NICKNAME = "BOT_LLM";
-
-    /**
-     * 机器人类型（昵称入口）：映射到抽象 {@link NpcStyle} 与分支逻辑。
-     */
-    enum BotType {
-        DEMO,
-        MANIAC,
-        TAG
+    public enum BotType {
+        /** 松凶 LAG */
+        LAG,
+        /** 紧凶 TAG */
+        TAG,
+        /** 紧弱 Nit */
+        NIT,
+        /** 松弱 / 娱乐鱼 */
+        FISH,
+        /** 跟注站 */
+        CALL,
+        /** 疯子 */
+        MANIAC
     }
 
     /**
-     * 整手牌计划类型：在 flop 首次行动时为 TAG 生成，
+     * 整手牌计划类型：在 flop 首次行动时为 TAG / NIT 生成，
      * 后续 turn/river 通过剩余“barrels”数量控制继续进攻的积极程度。
      */
     enum HandPlanType {
@@ -278,14 +299,22 @@ public final class DpNpcEngine {
     }
 
     /**
-     * NPC 风格：紧凶 / 松凶 / 紧弱 / 松散娱乐。
-     * 所有风格通过参数差异体现，而不是多套逻辑。
+     * NPC 风格旋钮（六档）：与 {@link BotType} 一一对应；{@link BotType#CALL} 对应 {@link #CALL_STATION}。
+     * 数值驱动翻前 {@link DpNpcUnifiedPreflopStrategy} 与翻后概率缩放。
      */
     enum NpcStyle {
-        TIGHT_AGGRO, // 紧凶型：紧、凶、会诈唬、读牌准
-        LOOSE_AGGRO, // 松凶型：入池宽、极凶、高诈唬、爱偷盲
-        TIGHT_PASSIVE, // 紧弱型：只玩好牌、被加注就弃、不诈唬
-        LOOSE_FUN // 松散娱乐型：乱入池、爱跟注、易被诈
+        /** 松凶 */
+        LAG,
+        /** 紧凶 */
+        TAG,
+        /** 紧弱 Nit */
+        NIT,
+        /** 松弱 / 鱼 */
+        FISH,
+        /** 跟注站 */
+        CALL_STATION,
+        /** 疯子 */
+        MANIAC
     }
 
     /**
@@ -547,7 +576,7 @@ public final class DpNpcEngine {
         String stage = room.getCurrentStage();
         if (!"turn".equals(stage) && !"river".equals(stage))
             return;
-        if (type != BotType.TAG)
+        if (type != BotType.TAG && type != BotType.NIT)
             return;
 
         HandPlanType currentPlan = getHandPlanType(bot);
@@ -691,49 +720,176 @@ public final class DpNpcEngine {
             return foldToPressure;
         }
 
-        /** 紧凶（TAG）：vpip↓ pfr↑ cbet↑ bluff 中 call↓ foldToPressure↓ */
-        static StyleProfile presetTightAggro() {
+        /** 松凶 LAG：介于疯子与 TAG 之间 */
+        static StyleProfile presetLag() {
+            return new StyleProfile(0.38, 0.72, 0.78, 0.44, 0.26, 0.24);
+        }
+
+        /** 紧凶 TAG */
+        static StyleProfile presetTag() {
             return new StyleProfile(0.24, 0.76, 0.82, 0.36, 0.18, 0.22);
         }
 
-        /**
-         * 松凶～疯子（Maniac & Shark 共用 {@link NpcStyle#LOOSE_AGGRO}）：高 vpip/pfr/cbet/bluff，低 callStation、低
-         * foldToPressure。
-         */
-        static StyleProfile presetLooseAggro() {
-            return new StyleProfile(0.46, 0.88, 0.86, 0.64, 0.24, 0.12);
+        /** 紧弱 Nit */
+        static StyleProfile presetNit() {
+            return new StyleProfile(0.13, 0.17, 0.30, 0.04, 0.36, 0.90);
         }
 
-        /** 紧弱：vpip/pfr/cbet/bluff 低，call 中、受压跑 */
-        static StyleProfile presetTightPassive() {
-            return new StyleProfile(0.18, 0.22, 0.26, 0.06, 0.44, 0.84);
+        /** 松弱 / 娱乐鱼 */
+        static StyleProfile presetFish() {
+            return new StyleProfile(0.52, 0.15, 0.20, 0.09, 0.74, 0.38);
         }
 
-        /** 跟注站（Fish）：vpip 高、pfr/cbet/bluff 低，call 极高、foldToPressure 低 */
-        static StyleProfile presetCallingStation() {
-            return new StyleProfile(0.58, 0.14, 0.18, 0.08, 0.92, 0.14);
+        /** 跟注站：极少 fold、极少主动加注 */
+        static StyleProfile presetCallStation() {
+            return new StyleProfile(0.62, 0.06, 0.11, 0.03, 0.94, 0.11);
+        }
+
+        /** 疯子：极松极凶 */
+        static StyleProfile presetManiac() {
+            return new StyleProfile(0.48, 0.90, 0.88, 0.68, 0.22, 0.10);
         }
     }
 
     private static final Map<NpcStyle, StyleProfile> STYLE_PROFILE_MAP = new EnumMap<>(NpcStyle.class);
 
     static {
-        STYLE_PROFILE_MAP.put(NpcStyle.TIGHT_AGGRO, StyleProfile.presetTightAggro());
-        STYLE_PROFILE_MAP.put(NpcStyle.LOOSE_AGGRO, StyleProfile.presetLooseAggro());
-        STYLE_PROFILE_MAP.put(NpcStyle.TIGHT_PASSIVE, StyleProfile.presetTightPassive());
-        STYLE_PROFILE_MAP.put(NpcStyle.LOOSE_FUN, StyleProfile.presetCallingStation());
+        STYLE_PROFILE_MAP.put(NpcStyle.LAG, StyleProfile.presetLag());
+        STYLE_PROFILE_MAP.put(NpcStyle.TAG, StyleProfile.presetTag());
+        STYLE_PROFILE_MAP.put(NpcStyle.NIT, StyleProfile.presetNit());
+        STYLE_PROFILE_MAP.put(NpcStyle.FISH, StyleProfile.presetFish());
+        STYLE_PROFILE_MAP.put(NpcStyle.CALL_STATION, StyleProfile.presetCallStation());
+        STYLE_PROFILE_MAP.put(NpcStyle.MANIAC, StyleProfile.presetManiac());
+    }
+
+    /** {@code BOT_LLM} 或 {@code BOT_LLM_<uuid>} */
+    public static boolean isLlmBotNickname(String name) {
+        return name != null && (PREFIX_BOT_LLM.equals(name) || name.startsWith(PREFIX_BOT_LLM + "_"));
+    }
+
+    /**
+     * 生成规则 NPC 唯一昵称：{@code BOT_TAG_<uuid>} 等。
+     */
+    public static String generateUniqueRuleBotNickname(BotType type) {
+        if (type == null) {
+            throw new IllegalArgumentException("type");
+        }
+        String prefix;
+        switch (type) {
+            case LAG:
+                prefix = PREFIX_BOT_LAG;
+                break;
+            case TAG:
+                prefix = PREFIX_BOT_TAG;
+                break;
+            case NIT:
+                prefix = PREFIX_BOT_NIT;
+                break;
+            case FISH:
+                prefix = PREFIX_BOT_FISH;
+                break;
+            case CALL:
+                prefix = PREFIX_BOT_CALL;
+                break;
+            case MANIAC:
+                prefix = PREFIX_BOT_MANIAC;
+                break;
+            default:
+                prefix = PREFIX_BOT_TAG;
+                break;
+        }
+        return prefix + "_" + UUID.randomUUID();
+    }
+
+    /**
+     * 根据档位关键字生成昵称；{@code key} 可为 {@code TAG}、{@code BOT_TAG}、{@code lag} 等。
+     */
+    public static String generateUniqueRuleBotNicknameForKey(String archetypeKey) {
+        return generateUniqueRuleBotNickname(botTypeFromArchetypeKey(archetypeKey));
+    }
+
+    private static BotType botTypeFromArchetypeKey(String key) {
+        if (key == null || key.isEmpty()) {
+            throw new IllegalArgumentException("archetypeKey");
+        }
+        String k = key.trim().toUpperCase(Locale.ROOT);
+        if (k.startsWith("BOT_")) {
+            k = k.substring(4);
+        }
+        switch (k) {
+            case "LAG":
+                return BotType.LAG;
+            case "TAG":
+                return BotType.TAG;
+            case "NIT":
+                return BotType.NIT;
+            case "FISH":
+                return BotType.FISH;
+            case "CALL":
+                return BotType.CALL;
+            case "MANIAC":
+                return BotType.MANIAC;
+            default:
+                throw new IllegalArgumentException("unknown npc archetype: " + key);
+        }
+    }
+
+    /** LLM 多实例昵称 */
+    public static String generateUniqueLlmBotNickname() {
+        return PREFIX_BOT_LLM + "_" + UUID.randomUUID();
+    }
+
+    private static BotType resolveRuleBotType(String nickname) {
+        if (nickname == null || !nickname.startsWith("BOT_")) {
+            return null;
+        }
+        if (LEGACY_BOT_SHARK_NICKNAME.equals(nickname) || LEGACY_BOT_TAG_NICKNAME.equals(nickname)) {
+            return BotType.TAG;
+        }
+        if (LEGACY_BOT_FISH_NICKNAME.equals(nickname)) {
+            return BotType.FISH;
+        }
+        if (LEGACY_BOT_MANIAC_NICKNAME.equals(nickname)) {
+            return BotType.MANIAC;
+        }
+        // 最长前缀优先，避免 BOT_MANIAC 被 BOT_MAN 误匹配
+        if (nickname.startsWith(PREFIX_BOT_MANIAC + "_") || PREFIX_BOT_MANIAC.equals(nickname)) {
+            return BotType.MANIAC;
+        }
+        if (nickname.startsWith(PREFIX_BOT_CALL + "_") || PREFIX_BOT_CALL.equals(nickname)) {
+            return BotType.CALL;
+        }
+        if (nickname.startsWith(PREFIX_BOT_LAG + "_") || PREFIX_BOT_LAG.equals(nickname)) {
+            return BotType.LAG;
+        }
+        if (nickname.startsWith(PREFIX_BOT_TAG + "_") || PREFIX_BOT_TAG.equals(nickname)) {
+            return BotType.TAG;
+        }
+        if (nickname.startsWith(PREFIX_BOT_NIT + "_") || PREFIX_BOT_NIT.equals(nickname)) {
+            return BotType.NIT;
+        }
+        if (nickname.startsWith(PREFIX_BOT_FISH + "_") || PREFIX_BOT_FISH.equals(nickname)) {
+            return BotType.FISH;
+        }
+        return null;
+    }
+
+    /**
+     * UI / JSON 短显；实现见 {@link com.example.mgdemoplus.utils.dp.DpUtilNpcDisplayNickname}。
+     */
+    public static String displayNicknameForUi(String nickname) {
+        return DpUtilNpcDisplayNickname.shortenForUi(nickname);
     }
 
     /** 与 {@link #isBotPlayer(DpPlayer)} 一致，仅按昵称判断（观众席只有昵称无 DpPlayer）。 */
     public static boolean isBotNickname(String name) {
-        if (name == null) {
+        if (name == null || !name.startsWith("BOT_")) {
             return false;
         }
-        return DEMO_BOT_NICKNAME.equals(name)
-                || MANIAC_BOT_NICKNAME.equals(name)
-                || LEGACY_BOT_SHARK_NICKNAME.equals(name)
-                || TAG_BOT_NICKNAME.equals(name)
-                || LLM_BOT_NICKNAME.equals(name);
+        if (isLlmBotNickname(name)) {
+            return true;
+        }
+        return resolveRuleBotType(name) != null;
     }
 
     public static boolean isBotPlayer(DpPlayer p) {
@@ -743,41 +899,32 @@ public final class DpNpcEngine {
     }
 
     public static BotType getBotTypeByNickname(String nickname) {
-        if (DEMO_BOT_NICKNAME.equals(nickname)) {
-            return BotType.DEMO;
+        if (nickname == null || isLlmBotNickname(nickname)) {
+            return null;
         }
-        if (MANIAC_BOT_NICKNAME.equals(nickname)) {
-            return BotType.MANIAC;
-        }
-        if (LEGACY_BOT_SHARK_NICKNAME.equals(nickname)) {
-            return BotType.TAG;
-        }
-        if (TAG_BOT_NICKNAME.equals(nickname)) {
-            return BotType.TAG;
-        }
-        return null;
+        return resolveRuleBotType(nickname);
     }
 
-    /**
-     * 通过 BotType 映射到一个抽象的风格枚举。
-     * 后续大部分“紧/松 + 凶/弱”行为都应尽量只依赖 NpcStyle，而不是在各个 case 里写死。
-     */
-    private static NpcStyle getStyleByBotType(BotType type) {
+    /** {@link BotType} → {@link NpcStyle}（{@link BotType#CALL} → {@link NpcStyle#CALL_STATION}）。 */
+    private static NpcStyle npcStyleForBotType(BotType type) {
         if (type == null) {
-            return NpcStyle.TIGHT_AGGRO;
+            return NpcStyle.TAG;
         }
         switch (type) {
-            case DEMO:
-                // Fish 型：范围偏松、整体偏娱乐/被动
-                return NpcStyle.LOOSE_FUN;
-            case MANIAC:
-                // 疯子：松、凶、爱加注和 all-in
-                return NpcStyle.LOOSE_AGGRO;
+            case LAG:
+                return NpcStyle.LAG;
             case TAG:
-                // 紧凶常客
-                return NpcStyle.TIGHT_AGGRO;
+                return NpcStyle.TAG;
+            case NIT:
+                return NpcStyle.NIT;
+            case FISH:
+                return NpcStyle.FISH;
+            case CALL:
+                return NpcStyle.CALL_STATION;
+            case MANIAC:
+                return NpcStyle.MANIAC;
             default:
-                return NpcStyle.TIGHT_AGGRO;
+                return NpcStyle.TAG;
         }
     }
 
@@ -1737,9 +1884,9 @@ public final class DpNpcEngine {
         BoardDanger boardDanger = evaluateBoardDanger(room.getCommunityCards());
         double mood = NPC_MOOD_ENABLED ? bot.getMood() : 0.0;
         // 统一根据 BotType 拿到风格配置，后续各 case 里不再写死“紧/松、凶/弱”等魔法数字。
-        StyleProfile style = STYLE_PROFILE_MAP.get(getStyleByBotType(type));
+        StyleProfile style = STYLE_PROFILE_MAP.get(npcStyleForBotType(type));
         if (style == null) {// 如果没有对应风格默认紧凶
-            style = STYLE_PROFILE_MAP.get(NpcStyle.TIGHT_AGGRO);
+            style = STYLE_PROFILE_MAP.get(NpcStyle.TAG);
         }
         // 翻前由 {@link DpNpcUnifiedPreflopStrategy}（G1–G8 + rangeLevel）决策，不消耗 SimpleStrength。
         if ("preflop".equals(stageForNpc)) {
@@ -1770,7 +1917,9 @@ public final class DpNpcEngine {
         double checkRaiseFear = style.checkRaiseFear();
         /// 整合好上面全部参数，进入具体类型的决策
         switch (type) {
-            case DEMO: {
+            case FISH:
+            case CALL: {
+                boolean ultraCall = type == BotType.CALL;
                 String stage = room.getCurrentStage();
 
                 // 免费看牌时（对手过牌、无需跟注）绝不弃牌，至少过牌看摊牌
@@ -1792,7 +1941,7 @@ public final class DpNpcEngine {
 
                 // 翻后激进度由 aggression 调节：在原有基础上 0.7x~1.3x 拉偏，从而控制“凶不凶”
                 // 基准略低于旧版 0.75，多出一些价值加注，贴近酒馆 NPC 而非纯跟注
-                double callOrCheckProb = 0.68 - mood * 0.1;
+                double callOrCheckProb = (ultraCall ? 0.80 : 0.68) - mood * 0.1;
                 if (!"preflop".equals(stage)) {
                     double baseRaiseProb = 1.0 - callOrCheckProb;
                     double raiseProb = baseRaiseProb * (0.7 + 0.6 * aggression);
@@ -1802,7 +1951,7 @@ public final class DpNpcEngine {
                         raiseProb = 0.9;
                     callOrCheckProb = 1.0 - raiseProb;
                 }
-                // DEMO 的弱牌 bluff：翻后无人下注、牌力 WEAK/MEDIUM 时，用 bluffFrequency 决定是否“装作有牌”小额下注
+                // FISH/CALL：翻后弱牌小额诈唬频率由 bluffFrequency 缩放
                 if (callAmount == 0
                         && !"preflop".equals(stage)
                         && (strength == SimpleStrength.WEAK || strength == SimpleStrength.MEDIUM)) {
@@ -1877,7 +2026,9 @@ public final class DpNpcEngine {
 
                 return new BotAction(BotActionType.CALL_OR_CHECK, 0);
             }
+            case LAG:
             case MANIAC: {
+                final double looseAggroMul = type == BotType.LAG ? 0.88 : 1.0;
                 String stage = room.getCurrentStage();
                 DpUtilSmartContext ctx = buildSmartContext(room, bot, strength, stage, callAmount, random);
                 StackContext maniStackCtx = ctx.stackCtx;
@@ -1899,6 +2050,7 @@ public final class DpNpcEngine {
                         && (strength == SimpleStrength.WEAK || strength == SimpleStrength.MEDIUM)) {
                     maniCommitFactor *= 0.85;
                 }
+                maniCommitFactor *= looseAggroMul;
                 if (maniCommitFactor < 0.1)
                     maniCommitFactor = 0.1;
                 if (maniCommitFactor > 0.98)
@@ -1908,7 +2060,7 @@ public final class DpNpcEngine {
                 if (callAmount >= chips) {
                     double rAllIn = random.nextDouble();
                     // 疯子在“全压 or 放弃”场景下，仍然以全压为主，但会稍微参考牌力与对手可信度
-                    double allInProb = 0.9;
+                    double allInProb = 0.9 * looseAggroMul + 0.1 * (1.0 - looseAggroMul);
                     double foldProb = 0.1;
                     if (strength == SimpleStrength.WEAK) {
                         allInProb -= 0.25;
@@ -1987,7 +2139,7 @@ public final class DpNpcEngine {
                         }
                     }
 
-                    double raiseProb = 0.75 + mood * 0.15;
+                    double raiseProb = (0.75 + mood * 0.15) * looseAggroMul;
                     // 用 aggression 统一调节 Maniac 翻前/翻后“凶猛程度”
                     double aggroFactor = 0.7 + 0.6 * aggression; // ≈0.7~1.3
                     raiseProb *= aggroFactor;
@@ -2118,7 +2270,9 @@ public final class DpNpcEngine {
                 }
                 return new BotAction(BotActionType.ALL_IN, chips);
             }
-            case TAG: {
+            case TAG:
+            case NIT: {
+                final boolean nitPlayer = type == BotType.NIT;
                 // 紧凶型 TAG：翻前与同房间其它规则 NPC 共用 {@link DpNpcUnifiedPreflopStrategy}（由 vpip/pfr 等驱动档位）。
                 // 翻后：中等牌有一定概率 thin value，强牌更积极 value bet / raise。
                 BoardDanger bd = boardDanger;
@@ -2164,6 +2318,9 @@ public final class DpNpcEngine {
                     tagCommitFactor = 0.15;
                 if (tagCommitFactor > 0.9)
                     tagCommitFactor = 0.9;
+                if (nitPlayer) {
+                    tagCommitFactor *= 0.82;
+                }
                 final double tagCommitThreshold = tagTotalStack * tagCommitFactor;
 
                 // ==== 1) flop/turn/river：先决定要不要弃牌 ====
@@ -2176,6 +2333,9 @@ public final class DpNpcEngine {
                     }
                 } else if (st == SimpleStrength.MEDIUM && callRatio > 0.6 && bd == BoardDanger.WET) {
                     baseFold = 0.35;
+                }
+                if (nitPlayer) {
+                    baseFold = Math.min(1.0, baseFold * 1.18 + 0.04);
                 }
 
                 double potOdds = ctx.potOdds;

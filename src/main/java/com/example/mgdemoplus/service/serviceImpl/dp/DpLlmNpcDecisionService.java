@@ -119,7 +119,7 @@ public class DpLlmNpcDecisionService {
             if (room == null || bot == null) {
                 return false;
             }
-            if (!DpNpcEngine.LLM_BOT_NICKNAME.equals(bot.getNickname())) {
+            if (!DpNpcEngine.isLlmBotNickname(bot.getNickname())) {
                 return false;
             }
             if (room.getCurrentActorIndex() != actorIndex) {
@@ -171,7 +171,7 @@ public class DpLlmNpcDecisionService {
         if (room.getPlayers().get(actorIndex) != bot) {
             return null;
         }
-        if (!DpNpcEngine.LLM_BOT_NICKNAME.equals(bot.getNickname())) {
+        if (!DpNpcEngine.isLlmBotNickname(bot.getNickname())) {
             return null;
         }
         if (bot.isFold() || bot.isAllIn() || bot.isLeftThisHand()) {

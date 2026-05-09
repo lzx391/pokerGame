@@ -33,72 +33,141 @@
         </div>
         <div style="font-size:12px; color:#8c8c8c; margin-bottom:6px;">
           你可以在下一局加入不同风格的机器人玩家，当前支持：
-          <span style="font-weight:bold;">BOT_Lag</span>（简单鱼式，偏被动，适合新手练习）、
-          <span style="font-weight:bold;">BOT_Maniac</span>（激进风格，喜欢乱加投）、
-          <span style="font-weight:bold;">BOT_Tag</span>（紧凶风格，范围较紧、偏价值投入）、
-          <span style="font-weight:bold;">BOT_Shark</span>（会简单“读对手”的聪明型）、
-          <span style="font-weight:bold;">BOT_LLM</span>（大模型决策，需在服务端配置方舟密钥与接入点）。
+          <span style="font-weight:bold;">BOT_FISH</span>、
+          <span style="font-weight:bold;">BOT_TAG</span>、
+          <span style="font-weight:bold;">BOT_LAG</span>、
+          <span style="font-weight:bold;">BOT_NIT</span>、
+          <span style="font-weight:bold;">BOT_CALL</span>、
+          <span style="font-weight:bold;">BOT_MANIAC</span>，
+          兼容旧昵称 <span style="font-weight:bold;">BOT_Shark</span>，
+          以及 <span style="font-weight:bold;">BOT_LLM</span>（大模型）。
+          服务端会为 BOT 生成唯一后缀；JSON 里仍是完整 nickname，牌桌上展示为前缀 + uuid 去横线后的前 4 位。
+          先调数量（1～9，受房间空位限制），再点「确认添加」。
         </div>
-        <div style="display:flex; flex-direction:column; gap:6px;">
-          <div>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div
+            v-for="row in ruleNpcRows"
+            :key="row.id"
+            style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:12px;"
+          >
+            <span style="min-width:148px; font-weight:600;" :style="{ color: row.labelColor }">{{ row.label }}</span>
+            <span style="display:inline-flex; align-items:center; gap:4px;">
+              <button
+                type="button"
+                class="owner-npc-count-btn"
+                :disabled="row.adding || npcCounts[row.id] <= 1"
+                @click="bumpNpcCount(row.id, -1, 9)"
+              >
+                −
+              </button>
+              <input
+                v-model.number="npcCounts[row.id]"
+                type="number"
+                min="1"
+                max="9"
+                class="owner-npc-count-input"
+                :disabled="row.adding"
+                @change="normalizeNpcCount(row.id, 9)"
+              >
+              <button
+                type="button"
+                class="owner-npc-count-btn"
+                :disabled="row.adding || npcCounts[row.id] >= 9"
+                @click="bumpNpcCount(row.id, 1, 9)"
+              >
+                +
+              </button>
+            </span>
             <button
               type="button"
-              :disabled="demoBotAdding"
-              style="padding:6px 10px; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;
-                     background:#faad14; color:#fff; margin-right:8px;"
-              @click="$emit('add-demo-bot')"
+              :disabled="row.adding"
+              :style="confirmNpcStyle(row.btnColor, !row.adding)"
+              @click="emitConfirmRule(row.archetype)"
             >
-              {{ demoBotAdding ? '正在添加 BOT_Lag...' : '添加新手猫 BOT_Lag 到下一局' }}
+              {{ row.adding ? '提交中…' : '确认添加' }}
             </button>
-            <span v-if="demoBotAddedTip" style="font-size:12px; color:#595959;">{{ demoBotAddedTip }}</span>
+            <span v-if="row.tip" style="flex:1 1 220px; color:#595959;">{{ row.tip }}</span>
           </div>
-          <div>
-            <button
-              type="button"
-              :disabled="maniacBotAdding"
-              style="padding:6px 10px; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;
-                     background:#f5222d; color:#fff; margin-right:8px;"
-              @click="$emit('add-maniac-bot')"
-            >
-              {{ maniacBotAdding ? '正在添加 BOT_Maniac...' : '添加激进猫 BOT_Maniac 到下一局' }}
-            </button>
-            <span v-if="maniacBotAddedTip" style="font-size:12px; color:#595959;">{{ maniacBotAddedTip }}</span>
-          </div>
-          <div>
-            <button
-              type="button"
-              :disabled="tagBotAdding"
-              style="padding:6px 10px; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;
-                     background:#389e0d; color:#fff; margin-right:8px;"
-              @click="$emit('add-tag-bot')"
-            >
-              {{ tagBotAdding ? '正在添加 BOT_Tag...' : '添加保守猫 BOT_Tag 到下一局' }}
-            </button>
-            <span v-if="tagBotAddedTip" style="font-size:12px; color:#595959;">{{ tagBotAddedTip }}</span>
-          </div>
-          <div>
+
+          <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:12px;">
+            <span style="min-width:148px; font-weight:600; color:#722ed1;">聪明猫 BOT_Shark（旧版）</span>
+            <span style="font-size:11px; color:#8c8c8c;">固定昵称，报名队列最多 1 个</span>
+            <span style="display:inline-flex; align-items:center; gap:4px;">
+              <button
+                type="button"
+                class="owner-npc-count-btn"
+                :disabled="sharkBotAdding || npcCounts.shark <= 1"
+                @click="bumpNpcCount('shark', -1, 1)"
+              >
+                −
+              </button>
+              <input
+                v-model.number="npcCounts.shark"
+                type="number"
+                min="1"
+                max="1"
+                class="owner-npc-count-input"
+                :disabled="sharkBotAdding"
+                @change="normalizeNpcCount('shark', 1)"
+              >
+              <button
+                type="button"
+                class="owner-npc-count-btn"
+                :disabled="sharkBotAdding || npcCounts.shark >= 1"
+                @click="bumpNpcCount('shark', 1, 1)"
+              >
+                +
+              </button>
+            </span>
             <button
               type="button"
               :disabled="sharkBotAdding"
-              style="padding:6px 10px; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;
-                     background:#722ed1; color:#fff; margin-right:8px;"
-              @click="$emit('add-shark-bot')"
+              :style="confirmNpcStyle('#722ed1', !sharkBotAdding)"
+              @click="$emit('confirm-add-npcs', { type: 'shark', count: 1 })"
             >
-              {{ sharkBotAdding ? '正在添加 BOT_Shark...' : '添加聪明猫 BOT_Shark 到下一局' }}
+              {{ sharkBotAdding ? '提交中…' : '确认添加' }}
             </button>
-            <span v-if="sharkBotAddedTip" style="font-size:12px; color:#595959;">{{ sharkBotAddedTip }}</span>
+            <span v-if="sharkBotAddedTip" style="flex:1 1 220px; color:#595959;">{{ sharkBotAddedTip }}</span>
           </div>
-          <div>
+
+          <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:12px;">
+            <span style="min-width:148px; font-weight:600; color:#08979c;">大模型 BOT_LLM</span>
+            <span style="display:inline-flex; align-items:center; gap:4px;">
+              <button
+                type="button"
+                class="owner-npc-count-btn"
+                :disabled="llmBotAdding || npcCounts.llm <= 1"
+                @click="bumpNpcCount('llm', -1, 9)"
+              >
+                −
+              </button>
+              <input
+                v-model.number="npcCounts.llm"
+                type="number"
+                min="1"
+                max="9"
+                class="owner-npc-count-input"
+                :disabled="llmBotAdding"
+                @change="normalizeNpcCount('llm', 9)"
+              >
+              <button
+                type="button"
+                class="owner-npc-count-btn"
+                :disabled="llmBotAdding || npcCounts.llm >= 9"
+                @click="bumpNpcCount('llm', 1, 9)"
+              >
+                +
+              </button>
+            </span>
             <button
               type="button"
               :disabled="llmBotAdding"
-              style="padding:6px 10px; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;
-                     background:#08979c; color:#fff; margin-right:8px;"
-              @click="$emit('add-llm-bot')"
+              :style="confirmNpcStyle('#08979c', !llmBotAdding)"
+              @click="$emit('confirm-add-npcs', { type: 'llm', count: clampCount(npcCounts.llm, 9) })"
             >
-              {{ llmBotAdding ? '正在添加 BOT_LLM...' : '添加大模型猫 BOT_LLM 到下一局' }}
+              {{ llmBotAdding ? '提交中…' : '确认添加' }}
             </button>
-            <span v-if="llmBotAddedTip" style="font-size:12px; color:#595959;">{{ llmBotAddedTip }}</span>
+            <span v-if="llmBotAddedTip" style="flex:1 1 220px; color:#595959;">{{ llmBotAddedTip }}</span>
           </div>
         </div>
       </div>
@@ -188,6 +257,17 @@ import { dpDisplayNickname } from '../utils/dpDisplayNickname'
 
 export default {
   name: 'GameOwnerToolModal',
+  data () {
+    return {
+      npcCounts: {
+        fish: 1,
+        maniac: 1,
+        tag: 1,
+        shark: 1,
+        llm: 1
+      }
+    }
+  },
   props: {
     /** 嵌入 game.vue 底部抽屉时不使用遮罩层，由外层 sheet 承载 */
     embedded: { type: Boolean, default: false },
@@ -207,8 +287,72 @@ export default {
     llmBotAdding: { type: Boolean, default: false },
     llmBotAddedTip: { type: String, default: '' }
   },
+  computed: {
+    ruleNpcRows () {
+      return [
+        {
+          id: 'fish',
+          archetype: 'FISH',
+          label: '新手猫 BOT_FISH',
+          labelColor: '#d46b08',
+          btnColor: '#faad14',
+          adding: this.demoBotAdding,
+          tip: this.demoBotAddedTip
+        },
+        {
+          id: 'maniac',
+          archetype: 'MANIAC',
+          label: '激进猫 BOT_MANIAC',
+          labelColor: '#cf1322',
+          btnColor: '#f5222d',
+          adding: this.maniacBotAdding,
+          tip: this.maniacBotAddedTip
+        },
+        {
+          id: 'tag',
+          archetype: 'TAG',
+          label: '保守猫 BOT_TAG',
+          labelColor: '#237804',
+          btnColor: '#389e0d',
+          adding: this.tagBotAdding,
+          tip: this.tagBotAddedTip
+        }
+      ]
+    }
+  },
   methods: {
     displayNickname: dpDisplayNickname,
+    clampCount (raw, max) {
+      var n = parseInt(raw, 10)
+      if (isNaN(n)) n = 1
+      return Math.max(1, Math.min(max, n))
+    },
+    normalizeNpcCount (key, max) {
+      this.npcCounts[key] = this.clampCount(this.npcCounts[key], max)
+    },
+    bumpNpcCount (key, delta, max) {
+      this.npcCounts[key] = this.clampCount(this.clampCount(this.npcCounts[key], max) + delta, max)
+    },
+    emitConfirmRule (archetype) {
+      var id = archetype === 'FISH' ? 'fish' : archetype === 'MANIAC' ? 'maniac' : 'tag'
+      this.$emit('confirm-add-npcs', {
+        type: 'rule',
+        archetype: archetype,
+        count: this.clampCount(this.npcCounts[id], 9)
+      })
+    },
+    confirmNpcStyle (bg, enabled) {
+      return {
+        padding: '6px 12px',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: enabled ? 'pointer' : 'not-allowed',
+        fontSize: '12px',
+        fontWeight: 'bold',
+        background: enabled ? bg : '#d9d9d9',
+        color: '#fff'
+      }
+    },
     tabStyle(type) {
       var on = this.ownerToolType === type
       var color = type === 'transfer' ? '#722ed1' : '#ff4d4f'
@@ -239,4 +383,30 @@ export default {
 }
 </script>
 
+<style scoped>
+.owner-npc-count-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  color: #333;
+}
+.owner-npc-count-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.owner-npc-count-input {
+  width: 44px;
+  height: 28px;
+  text-align: center;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 13px;
+}
+</style>
 <style src="../styles/dp-game-modals.css"></style>

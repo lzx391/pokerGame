@@ -926,144 +926,120 @@ export default {
     },
 
     /**
-     * 将 DEMO 型 NPC（服务端昵称为 BOT_Fish，界面展示为 BOT_Lag）加入下一局等待列表。
-     * 当前用于基础难度练习与流程验证。
+     * 房主神器：按数量将 NPC 加入下一局等待列表。
+     * - FISH / MANIAC / TAG：POST /dpRoom/addRuleNpcBatch
+     * - LLM：多次 POST /dpRoom/addLlmBot（每次独立 uuid）
+     * - BOT_Shark：固定昵称，服务端 waitNextHand 去重，仅 1 个有效
      */
-    async addDemoBot() {
-      if (!this.roomId) return
-      this.$store.commit('dpGame/SET_BOT_STATE', { demoBotAdding: true, demoBotAddedTip: '' })
-      try {
-        var res = await this.$http.post('/dpRoom/addDemoBot', null, {
-          params: {roomId: this.roomId}
-        })
-        if (res.data === 'ok') {
-          this.$store.commit('dpGame/SET_BOT_STATE', {
-            demoBotAddedTip: '已请求在下一局加入 BOT_Lag，请等待本局结束后自动入座。'
-          })
-        } else {
-          this.$store.commit('dpGame/SET_BOT_STATE', { demoBotAddedTip: '添加 NPC 失败：' + res.data })
-        }
-      } catch (e) {
-        this.$store.commit('dpGame/SET_BOT_STATE', {
-          demoBotAddedTip: '网络错误：' + (e && e.message ? e.message : e)
-        })
-      } finally {
-        this.$store.commit('dpGame/SET_BOT_STATE', { demoBotAdding: false })
-      }
-    },
+    async confirmAddOwnerNpcs (payload) {
+      if (!this.roomId || !payload) return
+      var type = payload.type
+      var count = parseInt(payload.count, 10)
+      if (isNaN(count) || count < 1) count = 1
+      if (count > 9) count = 9
 
-    /**
-     * 将疯子型 NPC（BOT_Maniac）加入下一局等待列表。
-     */
-    async addManiacBot() {
-      if (!this.roomId) return
-      this.$store.commit('dpGame/SET_BOT_STATE', { maniacBotAdding: true, maniacBotAddedTip: '' })
-      try {
-        var res = await this.$http.post('/dpRoom/addManiacBot', null, {
-          params: {roomId: this.roomId}
-        })
-        if (res.data === 'ok') {
-          this.$store.commit('dpGame/SET_BOT_STATE', {
-            maniacBotAddedTip: '已请求在下一局加入 BOT_Maniac，请等待本局结束后自动入座。'
-          })
-        } else {
-          this.$store.commit('dpGame/SET_BOT_STATE', {
-            maniacBotAddedTip: '添加疯子 NPC 失败：' + res.data
-          })
-        }
-      } catch (e) {
-        this.$store.commit('dpGame/SET_BOT_STATE', {
-          maniacBotAddedTip: '网络错误：' + (e && e.message ? e.message : e)
-        })
-      } finally {
-        this.$store.commit('dpGame/SET_BOT_STATE', { maniacBotAdding: false })
-      }
-    },
+      var adding = {}
+      var tipEmpty = {}
+      var tipKey = ''
+      var run = null
 
-    /**
-     * 将紧凶型 NPC（BOT_Tag）加入下一局等待列表。
-     * 该机器人打得相对紧凶，但不会像 Shark 那样根据对手历史动态调整策略。
-     */
-    async addTagBot() {
-      if (!this.roomId) return
-      this.$store.commit('dpGame/SET_BOT_STATE', { tagBotAdding: true, tagBotAddedTip: '' })
-      try {
-        var res = await this.$http.post('/dpRoom/addTagBot', null, {
-          params: {roomId: this.roomId}
-        })
-        if (res.data === 'ok') {
-          this.$store.commit('dpGame/SET_BOT_STATE', {
-            tagBotAddedTip: '已请求在下一局加入 BOT_Tag，请等待本局结束后自动入座。'
-          })
+      if (type === 'rule') {
+        var arch = String(payload.archetype || 'FISH').toUpperCase().replace(/^BOT_/, '')
+        if (arch === 'FISH') {
+          tipKey = 'demoBot'
+          adding.demoBotAdding = true
+          tipEmpty.demoBotAddedTip = ''
+        } else if (arch === 'MANIAC') {
+          tipKey = 'maniacBot'
+          adding.maniacBotAdding = true
+          tipEmpty.maniacBotAddedTip = ''
+        } else if (arch === 'TAG') {
+          tipKey = 'tagBot'
+          adding.tagBotAdding = true
+          tipEmpty.tagBotAddedTip = ''
         } else {
-          this.$store.commit('dpGame/SET_BOT_STATE', {
-            tagBotAddedTip: '添加紧凶 NPC 失败：' + res.data
-          })
+          this.$message.warning('不支持的机器人类型')
+          return
         }
-      } catch (e) {
-        this.$store.commit('dpGame/SET_BOT_STATE', {
-          tagBotAddedTip: '网络错误：' + (e && e.message ? e.message : e)
-        })
-      } finally {
-        this.$store.commit('dpGame/SET_BOT_STATE', { tagBotAdding: false })
+        run = async function () {
+          var res = await this.$http.post('/dpRoom/addRuleNpcBatch', null, {
+            params: { roomId: this.roomId, archetype: arch, count: count }
+          })
+          if (res.data === 'ok') {
+            return '已请求在下一局加入最多 ' + count + ' 个 ' + arch + '（受空位限制；每人独立编号），请等待本局结束。'
+          }
+          return '添加失败：' + res.data
+        }.bind(this)
+      } else if (type === 'llm') {
+        tipKey = 'llmBot'
+        adding.llmBotAdding = true
+        tipEmpty.llmBotAddedTip = ''
+        run = async function () {
+          var ok = 0
+          var lastErr = ''
+          for (var i = 0; i < count; i++) {
+            var res = await this.$http.post('/dpRoom/addLlmBot', null, {
+              params: { roomId: this.roomId }
+            })
+            if (res.data === 'ok') {
+              ok++
+            } else {
+              lastErr = String(res.data)
+              break
+            }
+          }
+          if (ok === count) {
+            return '已请求在下一局加入 ' + count + ' 个 BOT_LLM，请等待本局结束（需配置服务端方舟密钥）。'
+          }
+          if (ok > 0) {
+            return '仅成功添加 ' + ok + '/' + count + ' 个：' + (lastErr || '席位可能已满')
+          }
+          return '添加大模型 NPC 失败：' + (lastErr || 'fail')
+        }.bind(this)
+      } else if (type === 'shark') {
+        tipKey = 'sharkBot'
+        adding.sharkBotAdding = true
+        tipEmpty.sharkBotAddedTip = ''
+        run = async function () {
+          var res = await this.$http.post('/dpRoom/addSharkBot', null, {
+            params: { roomId: this.roomId }
+          })
+          if (res.data === 'ok') {
+            return '已请求在下一局加入 BOT_Shark（固定昵称，队列不重复），请等待本局结束。'
+          }
+          return '添加失败：' + res.data
+        }.bind(this)
+      } else {
+        return
       }
-    },
 
-    /**
-     * 将聪明型 NPC（BOT_Shark）加入下一局等待列表。
-     * 该机器人会根据对手最近几手的行为粗略判断其风格，调整自己的盖牌/跟投/加投倾向。
-     */
-    async addSharkBot() {
-      if (!this.roomId) return
-      this.$store.commit('dpGame/SET_BOT_STATE', { sharkBotAdding: true, sharkBotAddedTip: '' })
+      this.$store.commit('dpGame/SET_BOT_STATE', Object.assign({}, adding, tipEmpty))
       try {
-        var res = await this.$http.post('/dpRoom/addSharkBot', null, {
-          params: {roomId: this.roomId}
-        })
-        if (res.data === 'ok') {
-          this.$store.commit('dpGame/SET_BOT_STATE', {
-            sharkBotAddedTip: '已请求在下一局加入 BOT_Shark，请等待本局结束后自动入座。'
-          })
-        } else {
-          this.$store.commit('dpGame/SET_BOT_STATE', {
-            sharkBotAddedTip: '添加聪明 NPC 失败：' + res.data
-          })
-        }
+        var msg = await run()
+        var tipPatch = {}
+        if (tipKey === 'demoBot') tipPatch.demoBotAddedTip = msg
+        else if (tipKey === 'maniacBot') tipPatch.maniacBotAddedTip = msg
+        else if (tipKey === 'tagBot') tipPatch.tagBotAddedTip = msg
+        else if (tipKey === 'sharkBot') tipPatch.sharkBotAddedTip = msg
+        else if (tipKey === 'llmBot') tipPatch.llmBotAddedTip = msg
+        this.$store.commit('dpGame/SET_BOT_STATE', tipPatch)
       } catch (e) {
-        this.$store.commit('dpGame/SET_BOT_STATE', {
-          sharkBotAddedTip: '网络错误：' + (e && e.message ? e.message : e)
-        })
+        var errPatch = {}
+        var errText = '网络错误：' + (e && e.message ? e.message : e)
+        if (tipKey === 'demoBot') errPatch.demoBotAddedTip = errText
+        else if (tipKey === 'maniacBot') errPatch.maniacBotAddedTip = errText
+        else if (tipKey === 'tagBot') errPatch.tagBotAddedTip = errText
+        else if (tipKey === 'sharkBot') errPatch.sharkBotAddedTip = errText
+        else if (tipKey === 'llmBot') errPatch.llmBotAddedTip = errText
+        this.$store.commit('dpGame/SET_BOT_STATE', errPatch)
       } finally {
-        this.$store.commit('dpGame/SET_BOT_STATE', { sharkBotAdding: false })
-      }
-    },
-
-    /**
-     * 将大模型 NPC（BOT_LLM）加入下一局等待列表（后端 /dpRoom/addLlmBot）。
-     */
-    async addLlmBot() {
-      if (!this.roomId) return
-      this.$store.commit('dpGame/SET_BOT_STATE', { llmBotAdding: true, llmBotAddedTip: '' })
-      try {
-        var res = await this.$http.post('/dpRoom/addLlmBot', null, {
-          params: {roomId: this.roomId}
-        })
-        if (res.data === 'ok') {
-          this.$store.commit('dpGame/SET_BOT_STATE', {
-            llmBotAddedTip:
-              '已请求在下一局加入 BOT_LLM，请等待本局结束后自动入座（需配置服务端方舟密钥）。'
-          })
-        } else {
-          this.$store.commit('dpGame/SET_BOT_STATE', {
-            llmBotAddedTip: '添加大模型 NPC 失败：' + res.data
-          })
-        }
-      } catch (e) {
-        this.$store.commit('dpGame/SET_BOT_STATE', {
-          llmBotAddedTip: '网络错误：' + (e && e.message ? e.message : e)
-        })
-      } finally {
-        this.$store.commit('dpGame/SET_BOT_STATE', { llmBotAdding: false })
+        var idle = {}
+        if (tipKey === 'demoBot') idle.demoBotAdding = false
+        else if (tipKey === 'maniacBot') idle.maniacBotAdding = false
+        else if (tipKey === 'tagBot') idle.tagBotAdding = false
+        else if (tipKey === 'sharkBot') idle.sharkBotAdding = false
+        else if (tipKey === 'llmBot') idle.llmBotAdding = false
+        this.$store.commit('dpGame/SET_BOT_STATE', idle)
       }
     },
 

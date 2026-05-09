@@ -112,11 +112,7 @@
           :llm-bot-adding="vm.llmBotAdding"
           :llm-bot-added-tip="vm.llmBotAddedTip"
           @close="vm.closeOwnerHubPanel"
-          @add-demo-bot="vm.addDemoBot"
-          @add-maniac-bot="vm.addManiacBot"
-          @add-tag-bot="vm.addTagBot"
-          @add-shark-bot="vm.addSharkBot"
-          @add-llm-bot="vm.addLlmBot"
+          @confirm-add-npcs="vm.confirmAddOwnerNpcs"
           @transfer-owner="vm.doTransferOwner"
           @kick-player="vm.doKickPlayer"
       />
