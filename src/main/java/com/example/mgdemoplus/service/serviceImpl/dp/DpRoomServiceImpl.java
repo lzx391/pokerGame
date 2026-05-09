@@ -929,6 +929,24 @@ public class DpRoomServiceImpl {
         return true;
     }
 
+    /**
+     * 取消“下一局加入”：从 {@link DpRoomBO#getWaitNextHand()} 移除昵称。
+     */
+    public boolean cancelReadyNextHand(String roomId, String nickname, Integer userId) {
+        DpRoomBO r = roomMap.get(roomId);
+        if (r == null) return false;
+        Integer uid = resolveAndValidateUserId(userId, nickname);
+        if (uid != null) {
+            r.putRegisteredDpUserId(nickname, uid);
+        }
+        List<String> waiters = r.getWaitNextHand();
+        if (waiters == null || waiters.isEmpty()) {
+            return true;
+        }
+        waiters.remove(nickname);
+        return true;
+    }
+
     public boolean toggleReady(String roomId, String nickname) {
         DpRoomBO r = roomMap.get(roomId);
         if (r == null) return false;

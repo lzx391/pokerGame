@@ -1091,7 +1091,7 @@ export default {
       this.navigateHomeIfNeeded()
     },
 
-    // ---- 观众：报名在下一局加入 ----
+    // ---- 观众：报名 / 取消下一局加入（再点一次从候补列表移除）----
     async readyNextHand() {
       if (!this.user) return
       try {
@@ -1099,12 +1099,26 @@ export default {
         if (this.user.userId != null && this.user.userId !== '') {
           rp.userId = this.user.userId
         }
+        if (this.nextHandReady) {
+          var cancelRes = await this.$http.post('/dpRoom/cancelReadyNextHand', null, {
+            params: rp
+          })
+          if (cancelRes.data === 'ok') {
+            this.$store.commit('dpGame/SET_NEXT_HAND_READY', false)
+            this.$message.success('已取消下一局报名')
+            await this.loadGame()
+          } else {
+            this.$message.error('取消失败：' + cancelRes.data)
+          }
+          return
+        }
         var res = await this.$http.post('/dpRoom/readyNextHand', null, {
           params: rp
         })
         if (res.data === 'ok') {
           this.$store.commit('dpGame/SET_NEXT_HAND_READY', true)
           this.$message.success('已报名下一局，将在下一局开局时自动加入对局')
+          await this.loadGame()
         } else {
           this.$message.error('报名失败：' + res.data)
         }

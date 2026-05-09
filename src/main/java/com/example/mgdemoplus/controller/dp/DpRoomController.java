@@ -167,6 +167,15 @@ public class DpRoomController {
     }
 
     /**
+     * 观战玩家：取消下一局加入，从候补列表移除。
+     */
+    @PostMapping("/cancelReadyNextHand")
+    public String cancelReadyNextHand(@RequestParam String roomId, @RequestParam String nickname,
+                                      @RequestParam(required = false) Integer userId) {
+        return dpRoomService.cancelReadyNextHand(roomId, nickname, userId) ? "ok" : "fail";
+    }
+
+    /**
      * 结算后筹码为 0 的玩家补码到初始筹码。
      */
     @PostMapping("/rebuy")

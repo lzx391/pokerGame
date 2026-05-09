@@ -94,11 +94,11 @@
         <button
             v-if="showSpectatorPrepare"
             type="button"
-            class="dp-btn dp-btn--success dp-top-bar__btn"
-            :disabled="nextHandReady"
+            class="dp-btn dp-top-bar__btn"
+            :class="nextHandReady ? 'dp-btn--ghost' : 'dp-btn--success'"
             @click="$emit('ready-next-hand')"
         >
-          {{ nextHandReady ? '已报名下一局' : '下一局加入对局' }}
+          {{ nextHandReady ? '取消下一局报名' : '下一局加入对局' }}
         </button>
         <button type="button" class="dp-btn dp-btn--danger dp-top-bar__btn" @click="$emit('exit')">
           退出对局
