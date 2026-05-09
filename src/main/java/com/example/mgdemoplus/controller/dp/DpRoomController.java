@@ -79,6 +79,20 @@ public class DpRoomController {
         }
         return ResultUtil.error().data("message", outcome);
     }
+
+    /**
+     * 大厅快速匹配（需登录）：公开房、满员优先；进房后局中则 {@link DpRoomServiceImpl#readyNextHand}，未开局则标记准备。
+     */
+    @PostMapping("/quickMatch2")
+    public ResultUtil quickMatch2(@RequestParam String nickname,
+                                   @RequestParam(required = false) Integer userId) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String jwtNickname = auth != null ? auth.getName() : null;
+        if (jwtNickname == null || !jwtNickname.equals(nickname)) {
+            return ResultUtil.error().data("message", "token 与当前昵称不一致");
+        }
+        return dpRoomService.quickMatchJoinAndReady(nickname, userId);
+    }
 /**
  * 该房间内玩家是否能准备成功的接口
  * */

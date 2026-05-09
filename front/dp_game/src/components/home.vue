@@ -41,6 +41,9 @@
       <section class="dp-lobby-panel home-actions">
         <h3 class="dp-lobby-panel__title home-actions__title">快捷入口</h3>
         <div class="btns">
+          <button type="button" class="dp-btn dp-btn--success" :disabled="quickMatchLoading" @click="quickMatch">
+            {{ quickMatchLoading ? '匹配中…' : '快速匹配' }}
+          </button>
           <button type="button" class="dp-btn dp-btn--primary" @click="goCreateRoom">创建房间</button>
           <button type="button" class="dp-btn dp-btn--ghost" @click="goHandHistory">历史对局</button>
           <button type="button" class="dp-btn dp-btn--ghost" @click="goMusicUpload">曲库上传</button>
@@ -143,7 +146,7 @@ import '@/styles/dp-game-themes.css'
 import '@/styles/dp-lobby-shell.css'
 import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
-import { dpResultSuccess, dpResultMessage } from '@/utils/dpApiResult'
+import { dpResultSuccess, dpResultData, dpResultMessage } from '@/utils/dpApiResult'
 import GamePlayGuideModal from '@/components/GamePlayGuideModal.vue'
 import { mapGetters } from 'vuex'
 import {
@@ -174,7 +177,8 @@ export default {
         maxPlayers: '',
         password: 'any'
       },
-      useFilterQuery: false
+      useFilterQuery: false,
+      quickMatchLoading: false
     }
   },
   computed: {
@@ -239,6 +243,37 @@ export default {
     },
     goCreateRoom() {
       this.$router.push('/create-room')
+    },
+    async quickMatch() {
+      if (!this.user || !this.user.nickname) {
+        alert('请先登录后再快速匹配')
+        return
+      }
+      this.quickMatchLoading = true
+      try {
+        const params = { nickname: this.user.nickname }
+        if (this.user.userId != null && this.user.userId !== '') {
+          params.userId = this.user.userId
+        }
+        const res = await this.$http.post('/dpRoom/quickMatch2', null, { params })
+        const body = res.data
+        if (!dpResultSuccess(body)) {
+          alert(dpResultMessage(body))
+          return
+        }
+        const data = dpResultData(body) || {}
+        const roomId = data.roomId || ''
+        if (!roomId) {
+          alert('匹配成功但未返回房间号')
+          return
+        }
+        this.$router.push('/room/' + roomId)
+      } catch (e) {
+        console.error('quickMatch', e)
+        alert('网络错误，请稍后重试')
+      } finally {
+        this.quickMatchLoading = false
+      }
     },
     /** 与当前 filters 是否应走 MyBatis 查询一致（用于搜索按钮） */
     filtersActiveFromForm() {

@@ -11,9 +11,12 @@ import com.example.mgdemoplus.mapper.dp.DpUserMapper;
 import com.example.mgdemoplus.service.dp.DpHandHistoryObservedService;
 import com.example.mgdemoplus.service.dp.DpHandHistoryPersistService;
 import com.example.mgdemoplus.service.dp.DpRoomHallService;
+import com.example.mgdemoplus.utils.ResultUtil;
 import com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator;
 import com.example.mgdemoplus.websocket.DpGameRoomPushService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -22,6 +25,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class DpRoomServiceImpl {
+    private static final Logger log = LoggerFactory.getLogger(DpRoomServiceImpl.class);
+
     private final Map<String, DpRoomBO> roomMap = new ConcurrentHashMap<>();
     private final DpHandHistoryPersistService observedHandPersistService;
     private final DpLlmNpcDecisionService llmNpcDecisionService;
@@ -689,16 +694,24 @@ public class DpRoomServiceImpl {
 
     /**
      * 前端传入的 userId 必须与昵称在 dp_user 中一致，否则忽略（防伪造）。
+     * 校验依赖数据库；若 Mapper/JDBC 异常则记录日志并返回 null，避免因「已写完内存状态却因校验抛错」导致 500
+     * （典型：游戏中进房的观众已写入 spectators，再查库失败）。
      */
     private Integer resolveAndValidateUserId(Integer requestedUserId, String nickname) {
         if (requestedUserId == null || nickname == null) {
             return null;
         }
-        DpUser u = dpUserMapper.selectById(requestedUserId);
-        if (u == null || !nickname.equals(u.getNickname())) {
+        try {
+            DpUser u = dpUserMapper.selectById(requestedUserId);
+            if (u == null || !nickname.equals(u.getNickname())) {
+                return null;
+            }
+            return requestedUserId;
+        } catch (Exception e) {
+            log.warn("resolveAndValidateUserId db error userId={}, nickname={}: {}",
+                    requestedUserId, nickname, e.toString());
             return null;
         }
-        return requestedUserId;
     }
 
     /**
@@ -843,6 +856,8 @@ public class DpRoomServiceImpl {
             return "密码错误";
         }
         if (r.isPlaying()) {
+            // 先做 userId 校验（可能访问 DB）；避免先写入 spectators 再抛错导致「人在房里但接口 500」
+            Integer uid = resolveAndValidateUserId(userId, nickname);
             // 游戏中途进来：作为观众进入，记录到观众席名单
             // 为了保证“每次重新进入都是干净状态”，这里先确保不再保留上一轮的下一局预约状态
             //游戏已开局则获取等待者列表，如果有自己就抹除掉，这是防御进来之后准备，然后退出去再进的时候直接被拉入下一把，因为准备列表还有自己
@@ -863,7 +878,6 @@ public class DpRoomServiceImpl {
             if (!DpNpcEngine.isBotNickname(nickname)) {
                 r.touchSpectatorPresence(nickname, System.currentTimeMillis());
             }
-            Integer uid = resolveAndValidateUserId(userId, nickname);
             if (uid != null) {
                 r.putRegisteredDpUserId(nickname, uid);
             }
@@ -945,6 +959,200 @@ public class DpRoomServiceImpl {
         }
         waiters.remove(nickname);
         return true;
+    }
+
+    /**
+     * 大厅快速匹配：公开房、按「越接近满员越优先」选房；对单房间加锁后完成进房 + 准备，避免两人抢最后一席的竞态。
+     * <p>
+     * 空位口径（与产品一致）：{@code 人数上限 − 桌上非离线座次 − waitNextHand.size() > 0}。
+     * 「非离线」：本手未离座且（机器人 或 心跳未超时）。若与 {@link #readyNextHand} 的硬上限校验仍不一致，本方法在加锁后会以
+     * {@code readyNextHand} 为准，失败则回滚（新加入但尚未在房内的用户会 {@link #exitRoom}）。
+     */
+    public ResultUtil quickMatchJoinAndReady(String nickname, Integer userId) {
+        if (nickname == null || nickname.isBlank()) {
+            return ResultUtil.error().data("message", "昵称无效");
+        }
+        DpRoomBO existing = findRoomContainingNickname(nickname);
+        if (existing != null) {
+            String err;
+            synchronized (existing) {
+                err = finishQuickMatchForExistingPresence(existing, nickname, userId);
+            }
+            if (err != null) {
+                return ResultUtil.error().data("message", err);
+            }
+            syncLobbyForRoomId(existing.getRoomId());
+            return ResultUtil.ok()
+                    .data("roomId", existing.getRoomId())
+                    .data("message", "你已在该房间，已更新准备状态");
+        }
+
+        long sortTime = System.currentTimeMillis();
+        List<DpRoomBO> candidates = new ArrayList<>();
+        for (DpRoomBO r : roomMap.values()) {
+            if (r.isPasswordProtected()) {
+                continue;
+            }
+            if (quickMatchVacancy(r, sortTime) <= 0) {
+                continue;
+            }
+            candidates.add(r);
+        }
+        candidates.sort((a, b) -> {
+            int fa = quickMatchFillScore(a, sortTime);
+            int fb = quickMatchFillScore(b, sortTime);
+            if (fb != fa) {
+                return Integer.compare(fb, fa);
+            }
+            return a.getRoomId().compareTo(b.getRoomId());
+        });
+
+        for (DpRoomBO r : candidates) {
+            //快匹入口
+            synchronized (r) {
+                long now = System.currentTimeMillis();
+                if (r.isPasswordProtected() || quickMatchVacancy(r, now) <= 0) {
+                    continue;
+                }
+                boolean wasPresent = nicknamePresentInRoom(r, nickname);
+                String join = joinRoom(r.getRoomId(), nickname, userId, null);
+                if (!"ok".equals(join) && !"游戏已开始".equals(join)) {
+                    continue;
+                }
+                if (r.isPlaying()) {
+                    if (!readyNextHand(r.getRoomId(), nickname, userId)) {
+                        if (!wasPresent) {
+                            exitRoom(r.getRoomId(), nickname);
+                        }
+                        continue;
+                    }
+                } else {
+                    if (!ensureLobbyReady(r, nickname)) {
+                        if (!wasPresent) {
+                            exitRoom(r.getRoomId(), nickname);
+                        }
+                        continue;
+                    }
+                }
+                syncLobbyForRoomId(r.getRoomId());
+                return ResultUtil.ok().data("roomId", r.getRoomId()).data("message", "ok");
+            }
+        }
+        return ResultUtil.error().data("message", "暂无可匹配的公开房间");
+    }
+
+    /** 席上且本手未标记离座视为「在场上」。 */
+    private static boolean isSeatedAlive(DpRoomBO r, String nickname) {
+        if (r == null || r.getPlayers() == null || nickname == null) {
+            return false;
+        }
+        for (DpPlayer p : r.getPlayers()) {
+            if (p != null && nickname.equals(p.getNickname()) && !p.isLeftThisHand()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private DpRoomBO findRoomContainingNickname(String nickname) {
+        if (nickname == null) {
+            return null;
+        }
+        for (DpRoomBO r : roomMap.values()) {
+            List<String> specs = r.getSpectators();
+            if (specs != null && specs.contains(nickname)) {
+                return r;
+            }
+            if (r.getPlayers() != null) {
+                for (DpPlayer p : r.getPlayers()) {
+                    if (p != null && nickname.equals(p.getNickname())) {
+                        return r;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private static boolean nicknamePresentInRoom(DpRoomBO r, String nickname) {
+        if (r == null || nickname == null) {
+            return false;
+        }
+        List<String> specs = r.getSpectators();
+        if (specs != null && specs.contains(nickname)) {
+            return true;
+        }
+        if (r.getPlayers() != null) {
+            for (DpPlayer p : r.getPlayers()) {
+                if (p != null && nickname.equals(p.getNickname())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 桌上「占名额」的玩家数（快捷匹配口径）：{@code leftThisHand} 不占；真人需心跳存活；NPC 视为始终在线。
+     */
+    private static int seatedNonOfflineCount(DpRoomBO r, long nowMs) {
+        if (r == null || r.getPlayers() == null) {
+            return 0;
+        }
+        long hb = DpRoomBO.getHeartTimeout();
+        int n = 0;
+        for (DpPlayer p : r.getPlayers()) {
+            if (p == null || p.isLeftThisHand()) {
+                continue;
+            }
+            if (DpNpcEngine.isBotPlayer(p)) {
+                n++;
+                continue;
+            }
+            if (nowMs - p.getLastHeartBeat() <= hb) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    private static int waitNextHandSize(DpRoomBO r) {
+        List<String> w = r.getWaitNextHand();
+        return w == null ? 0 : w.size();
+    }
+
+    private static int quickMatchVacancy(DpRoomBO r, long nowMs) {
+        return r.getMaxSeatCount() - seatedNonOfflineCount(r, nowMs) - waitNextHandSize(r);
+    }
+
+    private static int quickMatchFillScore(DpRoomBO r, long nowMs) {
+        return seatedNonOfflineCount(r, nowMs) + waitNextHandSize(r);
+    }
+
+    /** 未开局：将玩家标记为已准备（开局前准备），找不到座位则 false。 */
+    private static boolean ensureLobbyReady(DpRoomBO r, String nickname) {
+        if (r == null || r.isPlaying() || nickname == null) {
+            return false;
+        }
+        for (DpPlayer p : r.getPlayers()) {
+            if (p != null && nickname.equals(p.getNickname())) {
+                if (!p.isReady()) {
+                    p.setReady(true);
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String finishQuickMatchForExistingPresence(DpRoomBO r, String nickname, Integer userId) {
+        if (r.isPlaying()) {
+            if (isSeatedAlive(r, nickname)) {
+                return null;
+            }
+            return readyNextHand(r.getRoomId(), nickname, userId) ? null : "候补已满，请稍后再试";
+        }
+        return ensureLobbyReady(r, nickname) ? null : "准备失败";
     }
 
     public boolean toggleReady(String roomId, String nickname) {
