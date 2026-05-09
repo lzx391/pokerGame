@@ -6,6 +6,7 @@ import com.example.mgdemoplus.entity.dp.DpRoom;
 import com.example.mgdemoplus.service.dp.DpRoomHallService;
 import com.example.mgdemoplus.service.serviceImpl.dp.DpRoomServiceImpl;
 import com.example.mgdemoplus.utils.ResultUtil;
+import com.example.mgdemoplus.service.serviceImpl.dp.DpRoomServiceImpl.KickPlayersBatchResult;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -124,6 +125,32 @@ public class DpRoomController {
     @PostMapping("/kickPlayer")
     public String kickPlayer(@RequestParam String roomId,@RequestParam String nickname){
        return dpRoomService.kickPlayer(roomId,nickname) ? "ok":"fail";
+    }
+
+    /**
+     * 房主批量踢人至观众席；{@code nicknames} 为英文逗号分隔（会去重，顺序执行，大厅最多同步一次）。
+     */
+    @PostMapping("/kickPlayersBatch")
+    public ResultUtil kickPlayersBatch(@RequestParam String roomId, @RequestParam String nicknames) {
+        KickPlayersBatchResult batch = dpRoomService.kickPlayersBatch(roomId, nicknames);
+        if (batch.getAttempted() == 0) {
+            return ResultUtil.error().data("message", "未包含有效玩家昵称");
+        }
+        if (batch.getSuccessCount() == 0) {
+            return ResultUtil.error()
+                    .data("message", "未能踢出任何玩家（请确认均在座）")
+                    .data("successCount", 0)
+                    .data("failCount", batch.getFailCount())
+                    .data("failedNicknames", batch.getFailedNicknames());
+        }
+        ResultUtil ok = ResultUtil.ok();
+        ok.data("successCount", batch.getSuccessCount());
+        ok.data("failCount", batch.getFailCount());
+        ok.data("failedNicknames", batch.getFailedNicknames());
+        if (batch.getFailCount() > 0) {
+            ok.data("message", "部分玩家未能踢出");
+        }
+        return ok;
     }
     @PostMapping("/heartbeat")
     public void heartbeat(@RequestParam String roomId, @RequestParam String nickname) {

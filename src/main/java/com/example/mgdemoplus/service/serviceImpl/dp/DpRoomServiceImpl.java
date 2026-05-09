@@ -407,48 +407,120 @@ public class DpRoomServiceImpl {
     }
 
     /**
-     * 房主踢人至观众席
-     *
+     * 房主踢人至观众席（单人单请求）
      */
     public boolean kickPlayer(String roomId, String nickname) {
+        boolean ok = kickOnePlayerWithoutLobbySync(roomId, nickname);
+        if (ok) {
+            syncLobbyForRoomId(roomId);
+        }
+        return ok;
+    }
+
+    /**
+     * 房主批量踢人：昵称用英文逗号分隔，去重后顺序执行，成功至少一人时统一同步大厅一次。
+     */
+    public KickPlayersBatchResult kickPlayersBatch(String roomId, String nicknamesCsv) {
+        KickPlayersBatchResult out = new KickPlayersBatchResult();
+        if (roomId == null || roomId.isBlank()) {
+            return out;
+        }
+        if (nicknamesCsv == null || nicknamesCsv.isBlank()) {
+            return out;
+        }
+        LinkedHashSet<String> unique = new LinkedHashSet<>();
+        for (String part : nicknamesCsv.split(",")) {
+            if (part == null) {
+                continue;
+            }
+            String t = part.trim();
+            if (!t.isEmpty()) {
+                unique.add(t);
+            }
+        }
+        if (unique.isEmpty()) {
+            return out;
+        }
+        out.attempted = unique.size();
+        boolean anyOk = false;
+        for (String nickname : unique) {
+            if (kickOnePlayerWithoutLobbySync(roomId, nickname)) {
+                out.successCount++;
+                anyOk = true;
+            } else {
+                out.failCount++;
+                out.failedNicknames.add(nickname);
+            }
+        }
+        if (anyOk) {
+            syncLobbyForRoomId(roomId);
+        }
+        return out;
+    }
+
+    /**
+     * 单次踢人核心逻辑，不触发大厅同步（供 {@link #kickPlayer} 与 {@link #kickPlayersBatch} 复用）。
+     */
+    private boolean kickOnePlayerWithoutLobbySync(String roomId, String nickname) {
         DpRoomBO r = roomMap.get(roomId);
+        if (r == null) {
+            return false;
+        }
         int idx = -1;
         List<DpPlayer> ps = r.getPlayers();
-        for (int i = 0; i < ps.size(); i++) {//找到这个人的下标返回
+        for (int i = 0; i < ps.size(); i++) {
             DpPlayer p = ps.get(i);
             if (p.getNickname().equals(nickname)) {
                 idx = i;
                 break;
             }
         }
-        if (idx != -1) {
-            if (r.getCurrentActorIndex() == idx) {
-                // fold 会将该玩家标记为弃牌并轮到下一个人
-                fold(roomId, nickname);
-            } else {
-                // 非当前行动玩家，直接视为弃牌
-                if (!ps.get(idx).isFold()) {
-                    ps.get(idx).setFold(true);
-                }
-            }
-            ps.get(idx).setReady(false);
-            ps.get(idx).setLeftThisHand(true);
-            if(!DpNpcEngine.isBotPlayer(ps.get(idx))){//如果是机器人直接删掉，如果不是就踢到观众席
-                List<String> spectators = getNewSpectators(r);
-                if(!spectators.contains(nickname)){
-                    spectators.add(nickname);
-                }
-                if (!DpNpcEngine.isBotNickname(nickname)) {
-                    r.touchSpectatorPresence(nickname, System.currentTimeMillis());
-                }
-            }
-            syncLobbyForRoomId(roomId);
-            return true;
-        } else {
+        if (idx == -1) {
             return false;
         }
+        if (r.getCurrentActorIndex() == idx) {
+            fold(roomId, nickname);
+        } else {
+            if (!ps.get(idx).isFold()) {
+                ps.get(idx).setFold(true);
+            }
+        }
+        ps.get(idx).setReady(false);
+        ps.get(idx).setLeftThisHand(true);
+        if (!DpNpcEngine.isBotPlayer(ps.get(idx))) {
+            List<String> spectators = getNewSpectators(r);
+            if (!spectators.contains(nickname)) {
+                spectators.add(nickname);
+            }
+            if (!DpNpcEngine.isBotNickname(nickname)) {
+                r.touchSpectatorPresence(nickname, System.currentTimeMillis());
+            }
+        }
+        return true;
+    }
 
+    /** 批量踢人结果 */
+    public static final class KickPlayersBatchResult {
+        private int attempted;
+        private int successCount;
+        private int failCount;
+        private final List<String> failedNicknames = new ArrayList<>();
 
+        public int getAttempted() {
+            return attempted;
+        }
+
+        public int getSuccessCount() {
+            return successCount;
+        }
+
+        public int getFailCount() {
+            return failCount;
+        }
+
+        public List<String> getFailedNicknames() {
+            return failedNicknames;
+        }
     }
 
     //======== 获取观众席防null版本 =========

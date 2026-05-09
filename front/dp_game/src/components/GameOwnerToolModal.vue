@@ -156,28 +156,65 @@
 
       <div style="margin-bottom:10px; font-size:13px; color:#333;">
         <span v-if="ownerToolType === 'transfer'">选择桌上玩家或观众成为新房主：</span>
-        <span v-else>选择一名玩家踢出本局并移至观众席：</span>
+        <span v-else>勾选一名或多名在座玩家，批量踢出本局并移至观众席：</span>
       </div>
 
       <div v-if="ownerActionPlayers.length === 0" style="font-size:13px; color:#999;">
         当前没有可操作的玩家。
       </div>
-      <div v-else style="margin-bottom:12px;">
-        <select
-          :value="ownerActionTarget"
-          style="width:100%; padding:6px 8px; border-radius:4px; border:1px solid #d9d9d9; font-size:13px;"
-          @input="$emit('update:ownerActionTarget', $event.target.value)"
-        >
-          <option disabled value="">请选择玩家</option>
-          <option
-            v-for="p in ownerActionPlayers"
-            :key="'owner-tool-' + p.nickname"
-            :value="p.nickname"
+      <template v-else>
+        <div v-if="ownerToolType === 'transfer'" style="margin-bottom:12px;">
+          <select
+            :value="ownerActionTarget"
+            style="width:100%; padding:6px 8px; border-radius:4px; border:1px solid #d9d9d9; font-size:13px;"
+            @input="$emit('update:ownerActionTarget', $event.target.value)"
           >
-            {{ displayNickname(p.nickname) }}
-          </option>
-        </select>
-      </div>
+            <option disabled value="">请选择玩家</option>
+            <option
+              v-for="p in ownerActionPlayers"
+              :key="'owner-tool-' + p.nickname"
+              :value="p.nickname"
+            >
+              {{ displayNickname(p.nickname) }}
+            </option>
+          </select>
+        </div>
+        <div v-else style="margin-bottom:12px;">
+          <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; font-size:12px;">
+            <button
+              type="button"
+              style="padding:4px 10px; border-radius:4px; border:1px solid #d9d9d9; background:#fff; cursor:pointer;"
+              @click="selectAllKickable"
+            >
+              全选
+            </button>
+            <button
+              type="button"
+              style="padding:4px 10px; border-radius:4px; border:1px solid #d9d9d9; background:#fff; cursor:pointer;"
+              @click="clearKickSelection"
+            >
+              全不选
+            </button>
+            <span style="color:#8c8c8c; line-height:28px;">已选 {{ kickSelectionNicknames.length }} 人</span>
+          </div>
+          <div
+            style="max-height:200px; overflow-y:auto; padding:8px; border:1px solid #f0f0f0; border-radius:6px; background:#fafafa;"
+          >
+            <label
+              v-for="p in ownerActionPlayers"
+              :key="'kick-row-' + p.nickname"
+              style="display:flex; align-items:center; gap:10px; padding:6px 4px; cursor:pointer; font-size:13px;"
+            >
+              <input
+                type="checkbox"
+                :checked="isKickNicknameSelected(p.nickname)"
+                @change="onKickCheck(p.nickname, $event.target.checked)"
+              >
+              <span>{{ displayNickname(p.nickname) }}</span>
+            </label>
+          </div>
+        </div>
+      </template>
 
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:4px;">
         <button
@@ -199,11 +236,11 @@
         <button
           v-else
           type="button"
-          :disabled="!ownerActionTarget"
-          :style="confirmStyle(ownerActionTarget, '#ff4d4f')"
-          @click="$emit('kick-player')"
+          :disabled="kickSelectionNicknames.length === 0"
+          :style="confirmStyle(kickSelectionNicknames.length > 0, '#ff4d4f')"
+          @click="$emit('kick-players', kickSelectionNicknames.slice())"
         >
-          确认踢出
+          批量踢出（{{ kickSelectionNicknames.length }}）
         </button>
       </div>
     </div>
@@ -225,6 +262,16 @@ export default {
         call: 1,
         maniac: 1,
         llm: 1
+      },
+      /** 踢人页多选（在座玩家 nickname） */
+      kickSelectionNicknames: []
+    }
+  },
+  watch: {
+    ownerActionPlayers: {
+      deep: true,
+      handler () {
+        this.pruneKickSelection()
       }
     }
   },
@@ -312,6 +359,34 @@ export default {
     }
   },
   methods: {
+    isKickNicknameSelected (nick) {
+      return this.kickSelectionNicknames.indexOf(nick) >= 0
+    },
+    onKickCheck (nick, checked) {
+      var i = this.kickSelectionNicknames.indexOf(nick)
+      if (checked) {
+        if (i < 0) this.kickSelectionNicknames.push(nick)
+      } else if (i >= 0) {
+        this.kickSelectionNicknames.splice(i, 1)
+      }
+    },
+    selectAllKickable () {
+      this.kickSelectionNicknames = this.ownerActionPlayers.map(function (p) {
+        return p.nickname
+      })
+    },
+    clearKickSelection () {
+      this.kickSelectionNicknames = []
+    },
+    pruneKickSelection () {
+      var allowed = {}
+      for (var i = 0; i < this.ownerActionPlayers.length; i++) {
+        allowed[this.ownerActionPlayers[i].nickname] = true
+      }
+      this.kickSelectionNicknames = this.kickSelectionNicknames.filter(function (n) {
+        return !!allowed[n]
+      })
+    },
     displayNickname: dpDisplayNickname,
     clampCount (raw, max) {
       var n = parseInt(raw, 10)

@@ -119,6 +119,7 @@ import dpGameFullscreenMixin from '../mixins/dpGameFullscreenMixin'
 import dpGameActionCountdownMixin from '../mixins/dpGameActionCountdownMixin'
 import { dpGamePlayerBoxStyle } from '../utils/dpGamePlayerBoxStyle'
 import { ensureDpUserIdInStorage } from '../utils/dpEnsureUserId'
+import { dpResultSuccess, dpResultData, dpResultMessage } from '../utils/dpApiResult'
 import { mapState, mapGetters } from 'vuex'
 
 export default {
@@ -895,28 +896,77 @@ export default {
       }
     },
 
-    // ---- 房主：踢人到观众席（通过弹窗选择玩家） ----
-    async doKickPlayer() {
-      if (!this.ownerActionTarget) {
-        this.$message.warning('请先选择要踢出的玩家')
+    // ---- 房主：踢人到观众席（可多选批量） ----
+    async doKickPlayers (nicknames) {
+      var raw = [].concat(nicknames || []).filter(Boolean)
+      var seen = {}
+      var list = []
+      for (var i = 0; i < raw.length; i++) {
+        var n = raw[i]
+        if (seen[n]) continue
+        seen[n] = true
+        list.push(n)
+      }
+      if (!list.length) {
+        this.$message.warning('请至少选择一名要踢出的玩家')
         return
       }
+      var preview = list.slice(0, 8).map(function (n) {
+        return dpDisplayNickname(n)
+      }).join('、')
+      if (list.length > 8) preview += ' …'
       try {
         await this.dpConfirm(
-          '确定将 [' + dpDisplayNickname(this.ownerActionTarget) + '] 踢出本局并移至观众席吗？',
-          '踢出玩家'
+          '确定将以下 ' +
+            list.length +
+            ' 人踢出本局并移至观众席吗？\n\n' +
+            preview,
+          '批量踢出'
         )
       } catch (e) {
         return
       }
       try {
-        var res = await this.$http.post('/dpRoom/kickPlayer', null, {
-          params: {roomId: this.roomId, nickname: this.ownerActionTarget}
+        var res = await this.$http.post('/dpRoom/kickPlayersBatch', null, {
+          params: { roomId: this.roomId, nicknames: list.join(',') }
         })
-        if (res.data !== 'ok') {
-          this.$message.error('踢人失败：' + res.data)
+        var body = res.data
+        if (!dpResultSuccess(body)) {
+          var errData = body && body.data ? body.data : {}
+          var fn = errData.failedNicknames || []
+          var msg = dpResultMessage(body)
+          if (fn.length) {
+            msg +=
+              '：' +
+              fn
+                .map(function (n) {
+                  return dpDisplayNickname(n)
+                })
+                .join('、')
+          }
+          this.$message.error(msg)
         } else {
-          this.$message.success('已将 [' + dpDisplayNickname(this.ownerActionTarget) + '] 踢至观众席')
+          var d = dpResultData(body) || {}
+          var fc = d.failCount != null ? d.failCount : 0
+          if (fc > 0) {
+            var failedNicks = d.failedNicknames || []
+            var detail = failedNicks
+              .map(function (n) {
+                return dpDisplayNickname(n)
+              })
+              .join('、')
+            this.$message.warning(
+              '已踢出 ' +
+                (d.successCount != null ? d.successCount : list.length - fc) +
+                ' 人，另有 ' +
+                fc +
+                ' 人未成功：' +
+                detail
+            )
+          } else {
+            var okn = d.successCount != null ? d.successCount : list.length
+            this.$message.success('已将 ' + okn + ' 人踢至观众席')
+          }
         }
         await this.loadGame()
         this.closeOwnerHubPanel()

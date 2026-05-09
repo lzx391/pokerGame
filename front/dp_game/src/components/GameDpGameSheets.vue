@@ -118,7 +118,7 @@
           @close="vm.closeOwnerHubPanel"
           @confirm-add-npcs="vm.confirmAddOwnerNpcs"
           @transfer-owner="vm.doTransferOwner"
-          @kick-player="vm.doKickPlayer"
+          @kick-players="vm.doKickPlayers"
       />
     </game-bottom-sheet>
   </div>
