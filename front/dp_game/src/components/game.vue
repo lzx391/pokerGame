@@ -153,7 +153,7 @@ export default {
 
   computed: {
     ...mapState('dpGame', [
-      'gameUiTheme', 'customThemeBase', 'customThemeOverrides', 'ecoMode', 'gameThemeOptions', 'roomId', 'user', 'currentHandSeed', 'owner', 'players', 'playing', 'stage', 'communityCards', 'pot', 'pots', 'currentBetToCall', 'lastRaiseIncrement', 'actIndex', 'spectators', 'raiseAmount', 'selectedWinners', 'potWinners', 'nextHandReady', 'loading', 'communityCardsFlipState', 'communityCardsFlipComplete', 'seatChatTextByNick', 'chatInputDraft', 'showPlayGuideModal', 'playGuideTab', 'showSpectatorModal', 'showHandHistoryModal', 'showMusicBoxModal', 'musicTracks', 'musicTracksLoading', 'musicTracksError', 'roomMusicState', 'showOwnerHubSheet', 'ownerToolType', 'ownerActionTarget', 'demoBotAdding', 'demoBotAddedTip', 'maniacBotAdding', 'maniacBotAddedTip', 'tagBotAdding', 'tagBotAddedTip', 'sharkBotAdding', 'sharkBotAddedTip', 'llmBotAdding', 'llmBotAddedTip', 'ownerRevealAll', 'showMobileHandSheet', 'showMobileActionSheet', 'heroHoleDealIntroDone', 'chipLeaderNicknames'
+      'gameUiTheme', 'customThemeBase', 'customThemeOverrides', 'ecoMode', 'gameThemeOptions', 'roomId', 'user', 'currentHandSeed', 'owner', 'players', 'playing', 'stage', 'communityCards', 'pot', 'pots', 'currentBetToCall', 'lastRaiseIncrement', 'actIndex', 'spectators', 'raiseAmount', 'selectedWinners', 'potWinners', 'nextHandReady', 'loading', 'communityCardsFlipState', 'communityCardsFlipComplete', 'seatChatTextByNick', 'chatInputDraft', 'showPlayGuideModal', 'playGuideTab', 'showSpectatorModal', 'showHandHistoryModal', 'showMusicBoxModal', 'musicTracks', 'musicTracksLoading', 'musicTracksError', 'roomMusicState', 'showOwnerHubSheet', 'ownerToolType', 'ownerActionTarget', 'demoBotAdding', 'demoBotAddedTip', 'maniacBotAdding', 'maniacBotAddedTip', 'tagBotAdding', 'tagBotAddedTip', 'lagBotAdding', 'lagBotAddedTip', 'nitBotAdding', 'nitBotAddedTip', 'callBotAdding', 'callBotAddedTip', 'llmBotAdding', 'llmBotAddedTip', 'ownerRevealAll', 'showMobileHandSheet', 'showMobileActionSheet', 'heroHoleDealIntroDone', 'chipLeaderNicknames'
     ]),
     ...mapGetters('dpGame', [
       'effectiveThemeForCss', 'customThemeInlineStyle', 'handRankReference', 'stageCN', 'isOwner', 'isMyTurn', 'myPlayer', 'showSpectatorPrepareBlock', 'myReady', 'myChips', 'myBet', 'callAmount', 'smallBlind', 'bigBlind', 'lastRaiseIncrementEffective', 'minTotalToRaise', 'minRaise', 'allPotsHaveWinners', 'inSettledStage', 'ownerActionPlayers', 'playersDisplayOrder', 'viewerSeatedAtTable', 'holeDealPlayerCountForAnim', 'heroDockRow', 'dealerDisplayIndex', 'showdownHandLeaderNicknames', 'spectatorSeatChatEntries', 'tableActionActorDisplayName', 'mobileHeroDockActive', 'showHeroViewHandButton', 'showHeroSeatOnTable', 'showBottomHeroDock'
@@ -926,10 +926,7 @@ export default {
     },
 
     /**
-     * 房主神器：按数量将 NPC 加入下一局等待列表。
-     * - FISH / MANIAC / TAG：POST /dpRoom/addRuleNpcBatch
-     * - LLM：多次 POST /dpRoom/addLlmBot（每次独立 uuid）
-     * - BOT_Shark：固定昵称，服务端 waitNextHand 去重，仅 1 个有效
+     * 房主神器：按数量将 NPC 加入下一局等待列表（规则档走 addRuleNpcBatch）。
      */
     async confirmAddOwnerNpcs (payload) {
       if (!this.roomId || !payload) return
@@ -938,29 +935,30 @@ export default {
       if (isNaN(count) || count < 1) count = 1
       if (count > 9) count = 9
 
+      var ruleStore = {
+        FISH: { prefix: 'demoBot' },
+        MANIAC: { prefix: 'maniacBot' },
+        TAG: { prefix: 'tagBot' },
+        LAG: { prefix: 'lagBot' },
+        NIT: { prefix: 'nitBot' },
+        CALL: { prefix: 'callBot' }
+      }
+
       var adding = {}
       var tipEmpty = {}
-      var tipKey = ''
+      var tipPrefix = ''
       var run = null
 
       if (type === 'rule') {
         var arch = String(payload.archetype || 'FISH').toUpperCase().replace(/^BOT_/, '')
-        if (arch === 'FISH') {
-          tipKey = 'demoBot'
-          adding.demoBotAdding = true
-          tipEmpty.demoBotAddedTip = ''
-        } else if (arch === 'MANIAC') {
-          tipKey = 'maniacBot'
-          adding.maniacBotAdding = true
-          tipEmpty.maniacBotAddedTip = ''
-        } else if (arch === 'TAG') {
-          tipKey = 'tagBot'
-          adding.tagBotAdding = true
-          tipEmpty.tagBotAddedTip = ''
-        } else {
+        var rs = ruleStore[arch]
+        if (!rs) {
           this.$message.warning('不支持的机器人类型')
           return
         }
+        tipPrefix = rs.prefix
+        adding[tipPrefix + 'Adding'] = true
+        tipEmpty[tipPrefix + 'AddedTip'] = ''
         run = async function () {
           var res = await this.$http.post('/dpRoom/addRuleNpcBatch', null, {
             params: { roomId: this.roomId, archetype: arch, count: count }
@@ -971,7 +969,7 @@ export default {
           return '添加失败：' + res.data
         }.bind(this)
       } else if (type === 'llm') {
-        tipKey = 'llmBot'
+        tipPrefix = 'llmBot'
         adding.llmBotAdding = true
         tipEmpty.llmBotAddedTip = ''
         run = async function () {
@@ -996,19 +994,6 @@ export default {
           }
           return '添加大模型 NPC 失败：' + (lastErr || 'fail')
         }.bind(this)
-      } else if (type === 'shark') {
-        tipKey = 'sharkBot'
-        adding.sharkBotAdding = true
-        tipEmpty.sharkBotAddedTip = ''
-        run = async function () {
-          var res = await this.$http.post('/dpRoom/addSharkBot', null, {
-            params: { roomId: this.roomId }
-          })
-          if (res.data === 'ok') {
-            return '已请求在下一局加入 BOT_Shark（固定昵称，队列不重复），请等待本局结束。'
-          }
-          return '添加失败：' + res.data
-        }.bind(this)
       } else {
         return
       }
@@ -1017,28 +1002,15 @@ export default {
       try {
         var msg = await run()
         var tipPatch = {}
-        if (tipKey === 'demoBot') tipPatch.demoBotAddedTip = msg
-        else if (tipKey === 'maniacBot') tipPatch.maniacBotAddedTip = msg
-        else if (tipKey === 'tagBot') tipPatch.tagBotAddedTip = msg
-        else if (tipKey === 'sharkBot') tipPatch.sharkBotAddedTip = msg
-        else if (tipKey === 'llmBot') tipPatch.llmBotAddedTip = msg
+        tipPatch[tipPrefix + 'AddedTip'] = msg
         this.$store.commit('dpGame/SET_BOT_STATE', tipPatch)
       } catch (e) {
         var errPatch = {}
-        var errText = '网络错误：' + (e && e.message ? e.message : e)
-        if (tipKey === 'demoBot') errPatch.demoBotAddedTip = errText
-        else if (tipKey === 'maniacBot') errPatch.maniacBotAddedTip = errText
-        else if (tipKey === 'tagBot') errPatch.tagBotAddedTip = errText
-        else if (tipKey === 'sharkBot') errPatch.sharkBotAddedTip = errText
-        else if (tipKey === 'llmBot') errPatch.llmBotAddedTip = errText
+        errPatch[tipPrefix + 'AddedTip'] = '网络错误：' + (e && e.message ? e.message : e)
         this.$store.commit('dpGame/SET_BOT_STATE', errPatch)
       } finally {
         var idle = {}
-        if (tipKey === 'demoBot') idle.demoBotAdding = false
-        else if (tipKey === 'maniacBot') idle.maniacBotAdding = false
-        else if (tipKey === 'tagBot') idle.tagBotAdding = false
-        else if (tipKey === 'sharkBot') idle.sharkBotAdding = false
-        else if (tipKey === 'llmBot') idle.llmBotAdding = false
+        idle[tipPrefix + 'Adding'] = false
         this.$store.commit('dpGame/SET_BOT_STATE', idle)
       }
     },

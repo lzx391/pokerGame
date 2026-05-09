@@ -161,8 +161,11 @@ final class DpNpcUnifiedPreflopStrategy {
         if (t == DpNpcEngine.BotType.LAG) {
             return 1;
         }
-        if (t == DpNpcEngine.BotType.FISH || t == DpNpcEngine.BotType.CALL) {
+        if (t == DpNpcEngine.BotType.FISH) {
             return 1;
+        }
+        if (t == DpNpcEngine.BotType.CALL) {
+            return 2;
         }
         if (t == DpNpcEngine.BotType.NIT) {
             return -2;

@@ -67,8 +67,12 @@ function initialState() {
     maniacBotAddedTip: '',
     tagBotAdding: false,
     tagBotAddedTip: '',
-    sharkBotAdding: false,
-    sharkBotAddedTip: '',
+    lagBotAdding: false,
+    lagBotAddedTip: '',
+    nitBotAdding: false,
+    nitBotAddedTip: '',
+    callBotAdding: false,
+    callBotAddedTip: '',
     llmBotAdding: false,
     llmBotAddedTip: '',
     ownerRevealAll: false,
@@ -432,7 +436,9 @@ export default {
       state.demoBotAddedTip = ''
       state.maniacBotAddedTip = ''
       state.tagBotAddedTip = ''
-      state.sharkBotAddedTip = ''
+      state.lagBotAddedTip = ''
+      state.nitBotAddedTip = ''
+      state.callBotAddedTip = ''
       state.llmBotAddedTip = ''
     },
     CLOSE_OWNER_HUB: function (state) {
@@ -455,8 +461,12 @@ export default {
       if (payload.maniacBotAddedTip !== undefined) state.maniacBotAddedTip = payload.maniacBotAddedTip
       if (payload.tagBotAdding !== undefined) state.tagBotAdding = payload.tagBotAdding
       if (payload.tagBotAddedTip !== undefined) state.tagBotAddedTip = payload.tagBotAddedTip
-      if (payload.sharkBotAdding !== undefined) state.sharkBotAdding = payload.sharkBotAdding
-      if (payload.sharkBotAddedTip !== undefined) state.sharkBotAddedTip = payload.sharkBotAddedTip
+      if (payload.lagBotAdding !== undefined) state.lagBotAdding = payload.lagBotAdding
+      if (payload.lagBotAddedTip !== undefined) state.lagBotAddedTip = payload.lagBotAddedTip
+      if (payload.nitBotAdding !== undefined) state.nitBotAdding = payload.nitBotAdding
+      if (payload.nitBotAddedTip !== undefined) state.nitBotAddedTip = payload.nitBotAddedTip
+      if (payload.callBotAdding !== undefined) state.callBotAdding = payload.callBotAdding
+      if (payload.callBotAddedTip !== undefined) state.callBotAddedTip = payload.callBotAddedTip
       if (payload.llmBotAdding !== undefined) state.llmBotAdding = payload.llmBotAdding
       if (payload.llmBotAddedTip !== undefined) state.llmBotAddedTip = payload.llmBotAddedTip
     },

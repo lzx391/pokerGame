@@ -32,15 +32,14 @@
           实验功能：加入演示 NPC
         </div>
         <div style="font-size:12px; color:#8c8c8c; margin-bottom:6px;">
-          你可以在下一局加入不同风格的机器人玩家，当前支持：
+          下一局可加入规则 NPC：
           <span style="font-weight:bold;">BOT_FISH</span>、
           <span style="font-weight:bold;">BOT_TAG</span>、
           <span style="font-weight:bold;">BOT_LAG</span>、
           <span style="font-weight:bold;">BOT_NIT</span>、
           <span style="font-weight:bold;">BOT_CALL</span>、
-          <span style="font-weight:bold;">BOT_MANIAC</span>，
-          兼容旧昵称 <span style="font-weight:bold;">BOT_Shark</span>，
-          以及 <span style="font-weight:bold;">BOT_LLM</span>（大模型）。
+          <span style="font-weight:bold;">BOT_MANIAC</span>；
+          另有 <span style="font-weight:bold;">BOT_LLM</span>（大模型）。
           服务端会为 BOT 生成唯一后缀；JSON 里仍是完整 nickname，牌桌上展示为前缀 + uuid 去横线后的前 4 位。
           先调数量（1～9，受房间空位限制），再点「确认添加」。
         </div>
@@ -82,52 +81,11 @@
               type="button"
               :disabled="row.adding"
               :style="confirmNpcStyle(row.btnColor, !row.adding)"
-              @click="emitConfirmRule(row.archetype)"
+              @click="emitConfirmRule(row)"
             >
               {{ row.adding ? '提交中…' : '确认添加' }}
             </button>
             <span v-if="row.tip" style="flex:1 1 220px; color:#595959;">{{ row.tip }}</span>
-          </div>
-
-          <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:12px;">
-            <span style="min-width:148px; font-weight:600; color:#722ed1;">聪明猫 BOT_Shark（旧版）</span>
-            <span style="font-size:11px; color:#8c8c8c;">固定昵称，报名队列最多 1 个</span>
-            <span style="display:inline-flex; align-items:center; gap:4px;">
-              <button
-                type="button"
-                class="owner-npc-count-btn"
-                :disabled="sharkBotAdding || npcCounts.shark <= 1"
-                @click="bumpNpcCount('shark', -1, 1)"
-              >
-                −
-              </button>
-              <input
-                v-model.number="npcCounts.shark"
-                type="number"
-                min="1"
-                max="1"
-                class="owner-npc-count-input"
-                :disabled="sharkBotAdding"
-                @change="normalizeNpcCount('shark', 1)"
-              >
-              <button
-                type="button"
-                class="owner-npc-count-btn"
-                :disabled="sharkBotAdding || npcCounts.shark >= 1"
-                @click="bumpNpcCount('shark', 1, 1)"
-              >
-                +
-              </button>
-            </span>
-            <button
-              type="button"
-              :disabled="sharkBotAdding"
-              :style="confirmNpcStyle('#722ed1', !sharkBotAdding)"
-              @click="$emit('confirm-add-npcs', { type: 'shark', count: 1 })"
-            >
-              {{ sharkBotAdding ? '提交中…' : '确认添加' }}
-            </button>
-            <span v-if="sharkBotAddedTip" style="flex:1 1 220px; color:#595959;">{{ sharkBotAddedTip }}</span>
           </div>
 
           <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:12px;">
@@ -261,9 +219,11 @@ export default {
     return {
       npcCounts: {
         fish: 1,
-        maniac: 1,
         tag: 1,
-        shark: 1,
+        lag: 1,
+        nit: 1,
+        call: 1,
+        maniac: 1,
         llm: 1
       }
     }
@@ -282,8 +242,12 @@ export default {
     maniacBotAddedTip: { type: String, default: '' },
     tagBotAdding: { type: Boolean, default: false },
     tagBotAddedTip: { type: String, default: '' },
-    sharkBotAdding: { type: Boolean, default: false },
-    sharkBotAddedTip: { type: String, default: '' },
+    lagBotAdding: { type: Boolean, default: false },
+    lagBotAddedTip: { type: String, default: '' },
+    nitBotAdding: { type: Boolean, default: false },
+    nitBotAddedTip: { type: String, default: '' },
+    callBotAdding: { type: Boolean, default: false },
+    callBotAddedTip: { type: String, default: '' },
     llmBotAdding: { type: Boolean, default: false },
     llmBotAddedTip: { type: String, default: '' }
   },
@@ -300,15 +264,6 @@ export default {
           tip: this.demoBotAddedTip
         },
         {
-          id: 'maniac',
-          archetype: 'MANIAC',
-          label: '激进猫 BOT_MANIAC',
-          labelColor: '#cf1322',
-          btnColor: '#f5222d',
-          adding: this.maniacBotAdding,
-          tip: this.maniacBotAddedTip
-        },
-        {
           id: 'tag',
           archetype: 'TAG',
           label: '保守猫 BOT_TAG',
@@ -316,6 +271,42 @@ export default {
           btnColor: '#389e0d',
           adding: this.tagBotAdding,
           tip: this.tagBotAddedTip
+        },
+        {
+          id: 'lag',
+          archetype: 'LAG',
+          label: '松凶猫 BOT_LAG',
+          labelColor: '#c41d7f',
+          btnColor: '#eb2f96',
+          adding: this.lagBotAdding,
+          tip: this.lagBotAddedTip
+        },
+        {
+          id: 'nit',
+          archetype: 'NIT',
+          label: '紧弱猫 BOT_NIT',
+          labelColor: '#434343',
+          btnColor: '#8c8c8c',
+          adding: this.nitBotAdding,
+          tip: this.nitBotAddedTip
+        },
+        {
+          id: 'call',
+          archetype: 'CALL',
+          label: '跟注猫 BOT_CALL',
+          labelColor: '#10239e',
+          btnColor: '#2f54eb',
+          adding: this.callBotAdding,
+          tip: this.callBotAddedTip
+        },
+        {
+          id: 'maniac',
+          archetype: 'MANIAC',
+          label: '激进猫 BOT_MANIAC',
+          labelColor: '#cf1322',
+          btnColor: '#f5222d',
+          adding: this.maniacBotAdding,
+          tip: this.maniacBotAddedTip
         }
       ]
     }
@@ -333,12 +324,12 @@ export default {
     bumpNpcCount (key, delta, max) {
       this.npcCounts[key] = this.clampCount(this.clampCount(this.npcCounts[key], max) + delta, max)
     },
-    emitConfirmRule (archetype) {
-      var id = archetype === 'FISH' ? 'fish' : archetype === 'MANIAC' ? 'maniac' : 'tag'
+    emitConfirmRule (row) {
+      if (!row || !row.id || !row.archetype) return
       this.$emit('confirm-add-npcs', {
         type: 'rule',
-        archetype: archetype,
-        count: this.clampCount(this.npcCounts[id], 9)
+        archetype: row.archetype,
+        count: this.clampCount(this.npcCounts[row.id], 9)
       })
     },
     confirmNpcStyle (bg, enabled) {
