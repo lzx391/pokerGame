@@ -32,10 +32,18 @@ public class DpUserController {
     JwtTokenService jwtTokenService;
     @PostMapping("/registerUser")
     public ResultUtil registerUser(@RequestBody DpUser dpUser) {
-        
-        if (dpUserService.registerUser(dpUser) == 1) {
-            return ResultUtil.ok().data("message", "注册成功");
-        } else if (dpUserService.registerUser(dpUser) == 2) {
+        int code = dpUserService.registerUser(dpUser);
+        if (code == 1) {
+            String jti = UUID.randomUUID().toString();
+            String token = jwtTokenService.generateToken(dpUser.getNickname(), jti);
+            dpRedisLoginCacheService.setLoginJti(dpUser.getNickname(), jti);
+            return ResultUtil.ok()
+                    .data("message", "注册成功")
+                    .data("userId", dpUser.getId())
+                    .data("nickname", dpUser.getNickname())
+                    .data("token", token);
+        }
+        if (code == 2) {
             return ResultUtil.sensitiveUsername();
         }
         return ResultUtil.repeatUsername();
