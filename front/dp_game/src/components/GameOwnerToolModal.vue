@@ -89,7 +89,7 @@
           </div>
 
           <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:12px;">
-            <span style="min-width:148px; font-weight:600; color:#08979c;">大模型 BOT_LLM</span>
+            <span style="min-width:148px; font-weight:600; color:#08979c;">DeepSeek BOT_LLM</span>
             <span style="display:inline-flex; align-items:center; gap:4px;">
               <button
                 type="button"
@@ -284,7 +284,7 @@ export default {
         {
           id: 'nit',
           archetype: 'NIT',
-          label: '紧弱猫 BOT_NIT',
+          label: '胆小猫 BOT_NIT',
           labelColor: '#434343',
           btnColor: '#8c8c8c',
           adding: this.nitBotAdding,
@@ -293,7 +293,7 @@ export default {
         {
           id: 'call',
           archetype: 'CALL',
-          label: '跟注猫 BOT_CALL',
+          label: '头铁猫 BOT_CALL',
           labelColor: '#10239e',
           btnColor: '#2f54eb',
           adding: this.callBotAdding,
