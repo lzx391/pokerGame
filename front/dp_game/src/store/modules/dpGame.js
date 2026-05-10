@@ -37,6 +37,8 @@ function initialState() {
     lastRaiseIncrement: 10,
     actIndex: -1,
     spectators: [],
+    /** 已报名下一局上桌的昵称列表（与后端 waitNextHand 一致） */
+    waitNextHand: [],
     raiseAmount: 0,
     smallBlindChips: 5,
     bigBlindChips: 10,
@@ -52,6 +54,7 @@ function initialState() {
     showPlayGuideModal: false,
     playGuideTab: 'flow',
     showSpectatorModal: false,
+    showWaitNextHandModal: false,
     showHandHistoryModal: false,
     showMusicBoxModal: false,
     musicTracks: [],
@@ -351,6 +354,7 @@ export default {
       state.actIndex = room.currentActorIndex
       state.spectators = room.spectators || []
       var list = room.waitNextHand || []
+      state.waitNextHand = list.slice()
       var nick = state.user && state.user.nickname
       state.nextHandReady = !!(nick && list.indexOf(nick) !== -1)
       state.chipLeaderNicknames = room.chipLeaderNicknames || []
@@ -415,6 +419,7 @@ export default {
       if (payload.showPlayGuideModal !== undefined) state.showPlayGuideModal = payload.showPlayGuideModal
       if (payload.playGuideTab !== undefined) state.playGuideTab = payload.playGuideTab
       if (payload.showSpectatorModal !== undefined) state.showSpectatorModal = payload.showSpectatorModal
+      if (payload.showWaitNextHandModal !== undefined) state.showWaitNextHandModal = payload.showWaitNextHandModal
       if (payload.showHandHistoryModal !== undefined) state.showHandHistoryModal = payload.showHandHistoryModal
       if (payload.showMusicBoxModal !== undefined) state.showMusicBoxModal = payload.showMusicBoxModal
     },

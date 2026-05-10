@@ -19,7 +19,7 @@ public final class DpNpcFishStrategy {
     }
 
     public static BotAction decide(DpNpcRuleDecisionParams p) {
-        System.out.println("DpNpcFishStrategy");
+        // System.out.println("DpNpcFishStrategy");
         String stage = p.room.getCurrentStage();
 
         DpUtilSmartContext fishCallCtx = null;

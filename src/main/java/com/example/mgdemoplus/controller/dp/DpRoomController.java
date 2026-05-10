@@ -81,7 +81,8 @@ public class DpRoomController {
     }
 
     /**
-     * 大厅快速匹配（需登录）：公开房、满员优先；进房后局中则 {@link DpRoomServiceImpl#readyNextHand}，未开局则标记准备。
+     * 大厅快速匹配（需登录）：先尝试并进已有公开房；若无空位则入默认 FIFO 队列（小盲 5、9 人桌），满两名玩家服务端自动建新公开房。
+     * 排队中前端轮询 {@link #quickMatchPoll2}；离开时可选 {@link #quickMatchCancel2}。
      */
     @PostMapping("/quickMatch2")
     public ResultUtil quickMatch2(@RequestParam String nickname,
@@ -91,7 +92,32 @@ public class DpRoomController {
         if (jwtNickname == null || !jwtNickname.equals(nickname)) {
             return ResultUtil.error().data("message", "token 与当前昵称不一致");
         }
-        return dpRoomService.quickMatchJoinAndReady(nickname, userId);
+        return dpRoomService.quickMatchJoinQueueOrImmediate(nickname, userId);
+    }
+
+    /**
+     * 默认快匹排队轮询（需登录）：{@code MATCHED} 返回 {@code roomId}；{@code WAITING} 仍在队列；{@code IDLE} 不在队列（含超时或未入队）。
+     */
+    @GetMapping("/quickMatchPoll2")
+    public ResultUtil quickMatchPoll2(@RequestParam String nickname) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String jwtNickname = auth != null ? auth.getName() : null;
+        if (jwtNickname == null || !jwtNickname.equals(nickname)) {
+            return ResultUtil.error().data("message", "token 与当前昵称不一致");
+        }
+        return dpRoomService.quickMatchPollMatchedOrWaiting(nickname);
+    }
+
+    /** 取消默认快匹排队（无需在匹配成功后的房间再调）。 */
+    @PostMapping("/quickMatchCancel2")
+    public ResultUtil quickMatchCancel2(@RequestParam String nickname) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String jwtNickname = auth != null ? auth.getName() : null;
+        if (jwtNickname == null || !jwtNickname.equals(nickname)) {
+            return ResultUtil.error().data("message", "token 与当前昵称不一致");
+        }
+        boolean removed = dpRoomService.cancelDefaultQuickMatchWait(nickname);
+        return ResultUtil.ok().data("cancelled", removed);
     }
 /**
  * 该房间内玩家是否能准备成功的接口
@@ -198,7 +224,7 @@ public class DpRoomController {
     }
 
     /**
-     * 鱼式 NPC：服务端生成 {@code BOT_FISH_<uuid>} 加入下一局。
+     * 鱼式 NPC：服务端生成 {@code BOT_FISH_<房间序号>} 加入下一局。
      */
     @PostMapping("/addDemoBot")
     public String addDemoBot(@RequestParam String roomId) {
@@ -206,7 +232,7 @@ public class DpRoomController {
     }
 
     /**
-     * 疯子 NPC：{@code BOT_MANIAC_<uuid>}。
+     * 疯子 NPC：{@code BOT_MANIAC_<房间序号>}。
      */
     @PostMapping("/addManiacBot")
     public String addManiacBot(@RequestParam String roomId) {
@@ -222,33 +248,33 @@ public class DpRoomController {
     }
 
     /**
-     * 紧凶 NPC：{@code BOT_TAG_<uuid>}。
+     * 紧凶 NPC：{@code BOT_TAG_<房间序号>}。
      */
     @PostMapping("/addTagBot")
     public String addTagBot(@RequestParam String roomId) {
         return dpRoomService.addTagBotToNextHand(roomId) ? "ok" : "fail";
     }
 
-    /** 松凶 {@code BOT_LAG_<uuid>} */
+    /** 松凶 {@code BOT_LAG_<房间序号>} */
     @PostMapping("/addLagBot")
     public String addLagBot(@RequestParam String roomId) {
         return dpRoomService.addLagBotToNextHand(roomId) ? "ok" : "fail";
     }
 
-    /** 紧弱 Nit {@code BOT_NIT_<uuid>} */
+    /** 紧弱 Nit {@code BOT_NIT_<房间序号>} */
     @PostMapping("/addNitBot")
     public String addNitBot(@RequestParam String roomId) {
         return dpRoomService.addNitBotToNextHand(roomId) ? "ok" : "fail";
     }
 
-    /** 跟注站 {@code BOT_CALL_<uuid>} */
+    /** 跟注站 {@code BOT_CALL_<房间序号>} */
     @PostMapping("/addCallStationBot")
     public String addCallStationBot(@RequestParam String roomId) {
         return dpRoomService.addCallStationBotToNextHand(roomId) ? "ok" : "fail";
     }
 
     /**
-     * 批量添加同一档位 NPC（独立 uuid）。{@code archetype} 支持 TAG、LAG、NIT、FISH、CALL、MANIAC（或带 BOT_ 前缀）。
+     * 批量添加同一档位 NPC（共用房间内递增序号）。{@code archetype} 支持 TAG、LAG、NIT、FISH、CALL、MANIAC（或带 BOT_ 前缀）。
      */
     @PostMapping("/addRuleNpcBatch")
     public String addRuleNpcBatch(@RequestParam String roomId,
@@ -258,7 +284,7 @@ public class DpRoomController {
     }
 
     /**
-     * 大模型 NPC：{@code BOT_LLM_<uuid>}；需配置 ARK_API_KEY、ARK_ENDPOINT_ID。
+     * 大模型 NPC：{@code BOT_LLM_<房间序号>}；需配置 ARK_API_KEY、ARK_ENDPOINT_ID。
      */
     @PostMapping("/addLlmBot")
     public String addLlmBot(@RequestParam String roomId) {

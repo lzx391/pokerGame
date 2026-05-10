@@ -10,8 +10,9 @@
 
 ### 游戏与对局
 
-- **标准卡牌对战规则**：回合流程、最小操作、多玩家结算逻辑等在后端 `DpRoomServiceImpl` 等模块中实现；对局页通过轮询 + WebSocket 同步房间状态。房主神器「踢出至观众席」支持多选批量：`POST /dpRoom/kickPlayersBatch`（昵称英文逗号分隔，服务端去重后单次同步大厅）；单人仍用 `POST /dpRoom/kickPlayer`。
-- **多房间**：房间状态保存在进程内 `**ConcurrentHashMap`（`roomMap`）**；详见长文档中的 WebSocket 与房间说明。前端 `**/create-room`** 页可设置**房间基础积分**、**每人初始积分**与可选**进房密码**（仅存内存，重启失效）；大厅 `**/home`** 仅列表与加入。
+- **标准卡牌对战规则**：回合流程、最小操作、多玩家结算逻辑等在后端 `DpRoomServiceImpl` 等模块中实现；对局页通过轮询 + WebSocket 同步房间状态。房主神器「踢出至观众席」支持多选批量：`POST /dpRoom/kickPlayersBatch`（昵称英文逗号分隔，服务端去重后单次同步大厅）；单人仍用 `POST /dpRoom/kickPlayer`。**对局页顶栏**在「观众席」旁提供「等待名单」按钮（与观众席同为青色强调样式），点开可查看已报名「下一局加入对局」的玩家及候补顺序（与房间状态中的 `waitNextHand` 一致）。
+- **大厅快速匹配（含自动建房）**：`POST /dpRoom/quickMatch2` 先尝试进入已有**无密码公开房**（逻辑同原快匹）；若无空位则写入**本机内存 FIFO 队列**（小盲 5、大盲 10、初始 50 倍、最多 9 人、无密码），队列中每**满两人**自动建新桌：队首当房主并已准备，第二位 `joinRoom` 后同样准备，并由服务端**立即调用** `startGame`（等同创建房间页的「建好即开局」），直接进入首手。排队中轮询 `GET /dpRoom/quickMatchPoll2`，离开大厅可 `POST /dpRoom/quickMatchCancel2`；单条等待约 **3 分钟**未配上会被周期性任务移出队列（间隔 `mgdemoplus.dp-quick-match-prune-ms`，默认 30s）。
+- **多房间**：房间状态保存在进程内 `**ConcurrentHashMap`（`roomMap`）**；详见长文档中的 WebSocket 与房间说明。前端 `**/create-room`** 页可设置**房间基础积分**、**每人初始积分**与可选**进房密码**（仅存内存，重启失效），提交后会**自动调用开局并进入对局页**（房主可先单人上桌，他人从大厅加入）；大厅 `**/home`** 仅列表与加入；**`/room/:id`** 仍用于未开局时的加入/等人场景，若房间已在进行中则会自动转入 **`/game/:id`**。
 - **实时推送**：游戏页 WebSocket 路径形如 `**/ws/dp-game?roomId=...`**；有订阅者时才序列化推送，并与上次 JSON 去重以省流量。
 - **对局回放**：完整游戏对局记录可落库，支持按用户分页列表与详情（权限与卡牌信息展示规则见 `docs` 下说明）。
 - **大厅列表（单例版）**：`/dpRoom/publicRooms` 改为读 `dp_room_lobby` 单表（唯一数据源），返回结构保持 `{ list, total, page, pageSize }`；服务端在建房/进退房/踢人/房主变更/开局与房间销毁时同步摘要，分页查询使用 PageHelper + Redis 版本缓存（`mgdemo:cache:dpRoom:publicRooms:rev` 与 `mgdemo:cache:dpRoom:publicRooms:data:{rev}:{page}:{pageSize}`），变更时通过 `INCR rev + SCAN 删除旧 data 键` 失效，失败仅记录日志不阻断业务。带筛选的 `/dpRoom/publicRooms/query` 共用同一 `rev`，结果键为 `mgdemo:cache:dpRoom:lobbyQuery:data:{rev}:{paramHash}`（`paramHash` 为规范化查询串的 SHA-256 前 16 位十六进制），TTL 与 `mgdemoplus.cache.dp-room-public-rooms-ttl-seconds` 一致。

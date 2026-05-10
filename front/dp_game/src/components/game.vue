@@ -21,6 +21,7 @@
         :pot="pot"
         :current-bet-to-call="currentBetToCall"
         :spectator-count="spectators.length"
+        :wait-next-hand-count="waitNextHand.length"
         :is-fullscreen="layoutFullscreen"
         :show-spectator-prepare="showSpectatorPrepareBlock"
         :next-hand-ready="nextHandReady"
@@ -35,6 +36,7 @@
         :theme-options="gameThemeOptions"
         @show-play-guide="$store.commit('dpGame/SET_MODAL', { showPlayGuideModal: true, playGuideTab: 'flow' })"
         @show-spectators="$store.commit('dpGame/SET_MODAL', { showSpectatorModal: true })"
+        @show-wait-next-hand="$store.commit('dpGame/SET_MODAL', { showWaitNextHandModal: true })"
         @toggle-fullscreen="toggleDpFullscreen"
         @open-hand-history="openHandHistory"
         @open-music-box="$store.commit('dpGame/SET_MODAL', { showMusicBoxModal: true })"
@@ -165,7 +167,7 @@ export default {
 
   computed: {
     ...mapState('dpGame', [
-      'gameUiTheme', 'customThemeBase', 'customThemeOverrides', 'ecoMode', 'gameThemeOptions', 'roomId', 'user', 'currentHandSeed', 'owner', 'players', 'playing', 'stage', 'communityCards', 'pot', 'pots', 'currentBetToCall', 'lastRaiseIncrement', 'actIndex', 'spectators', 'raiseAmount', 'selectedWinners', 'potWinners', 'nextHandReady', 'loading', 'communityCardsFlipState', 'communityCardsFlipComplete', 'seatChatTextByNick', 'chatInputDraft', 'showPlayGuideModal', 'playGuideTab', 'showSpectatorModal', 'showHandHistoryModal', 'showMusicBoxModal', 'musicTracks', 'musicTracksLoading', 'musicTracksError', 'roomMusicState', 'showOwnerHubSheet', 'ownerToolType', 'ownerActionTarget', 'demoBotAdding', 'demoBotAddedTip', 'maniacBotAdding', 'maniacBotAddedTip', 'tagBotAdding', 'tagBotAddedTip', 'lagBotAdding', 'lagBotAddedTip', 'nitBotAdding', 'nitBotAddedTip', 'callBotAdding', 'callBotAddedTip', 'llmBotAdding', 'llmBotAddedTip', 'ownerRevealAll', 'showMobileHandSheet', 'showMobileActionSheet', 'heroHoleDealIntroDone', 'chipLeaderNicknames'
+      'gameUiTheme', 'customThemeBase', 'customThemeOverrides', 'ecoMode', 'gameThemeOptions', 'roomId', 'user', 'currentHandSeed', 'owner', 'players', 'playing', 'stage', 'communityCards', 'pot', 'pots', 'currentBetToCall', 'lastRaiseIncrement', 'actIndex', 'spectators', 'waitNextHand', 'raiseAmount', 'selectedWinners', 'potWinners', 'nextHandReady', 'loading', 'communityCardsFlipState', 'communityCardsFlipComplete', 'seatChatTextByNick', 'chatInputDraft', 'showPlayGuideModal', 'playGuideTab', 'showSpectatorModal', 'showWaitNextHandModal', 'showHandHistoryModal', 'showMusicBoxModal', 'musicTracks', 'musicTracksLoading', 'musicTracksError', 'roomMusicState', 'showOwnerHubSheet', 'ownerToolType', 'ownerActionTarget', 'demoBotAdding', 'demoBotAddedTip', 'maniacBotAdding', 'maniacBotAddedTip', 'tagBotAdding', 'tagBotAddedTip', 'lagBotAdding', 'lagBotAddedTip', 'nitBotAdding', 'nitBotAddedTip', 'callBotAdding', 'callBotAddedTip', 'llmBotAdding', 'llmBotAddedTip', 'ownerRevealAll', 'showMobileHandSheet', 'showMobileActionSheet', 'heroHoleDealIntroDone', 'chipLeaderNicknames'
     ]),
     ...mapGetters('dpGame', [
       'effectiveThemeForCss', 'customThemeInlineStyle', 'handRankReference', 'stageCN', 'isOwner', 'isMyTurn', 'myPlayer', 'showSpectatorPrepareBlock', 'myReady', 'myChips', 'myBet', 'callAmount', 'smallBlind', 'bigBlind', 'lastRaiseIncrementEffective', 'minTotalToRaise', 'minRaise', 'allPotsHaveWinners', 'inSettledStage', 'ownerActionPlayers', 'playersDisplayOrder', 'viewerSeatedAtTable', 'holeDealPlayerCountForAnim', 'heroDockRow', 'dealerDisplayIndex', 'showdownHandLeaderNicknames', 'spectatorSeatChatEntries', 'tableActionActorDisplayName', 'mobileHeroDockActive', 'showHeroViewHandButton', 'showHeroSeatOnTable', 'showBottomHeroDock'

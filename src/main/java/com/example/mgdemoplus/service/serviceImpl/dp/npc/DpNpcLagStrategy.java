@@ -24,7 +24,7 @@ public final class DpNpcLagStrategy {
     }
 
     public static BotAction decide(DpNpcRuleDecisionParams p) {
-        System.out.println("DpNpcLagStrategy");
+        // System.out.println("DpNpcLagStrategy");
         DpRoomBO room = p.room;
         DpPlayer bot = p.bot;
         int chips = p.chips;

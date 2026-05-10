@@ -823,17 +823,20 @@ public final class DpNpcEngine {
         STYLE_PROFILE_MAP.put(NpcStyle.MANIAC, StyleProfile.presetManiac());
     }
 
-    /** {@code BOT_LLM} 或 {@code BOT_LLM_<uuid>} */
+    /** {@code BOT_LLM} 或 {@code BOT_LLM_<seq>} */
     public static boolean isLlmBotNickname(String name) {
         return name != null && (PREFIX_BOT_LLM.equals(name) || name.startsWith(PREFIX_BOT_LLM + "_"));
     }
 
     /**
-     * 生成规则 NPC 唯一昵称：{@code BOT_TAG_<uuid>} 等。
+     * 规则 NPC 昵称：{@code BOT_TAG_<序号>} 等；序号由 {@link com.example.mgdemoplus.bo.DpRoomBO#allocateBotNicknameSeqBatch(int)} 分配。
      */
-    public static String generateUniqueRuleBotNickname(BotType type) {
+    public static String ruleBotNickname(BotType type, int seq) {
         if (type == null) {
             throw new IllegalArgumentException("type");
+        }
+        if (seq <= 0) {
+            throw new IllegalArgumentException("seq must be positive");
         }
         String prefix;
         switch (type) {
@@ -859,14 +862,14 @@ public final class DpNpcEngine {
                 prefix = PREFIX_BOT_TAG;
                 break;
         }
-        return prefix + "_" + UUID.randomUUID();
+        return prefix + "_" + seq;
     }
 
     /**
      * 根据档位关键字生成昵称；{@code key} 可为 {@code TAG}、{@code BOT_TAG}、{@code lag} 等。
      */
-    public static String generateUniqueRuleBotNicknameForKey(String archetypeKey) {
-        return generateUniqueRuleBotNickname(botTypeFromArchetypeKey(archetypeKey));
+    public static String ruleBotNicknameForKey(String archetypeKey, int seq) {
+        return ruleBotNickname(botTypeFromArchetypeKey(archetypeKey), seq);
     }
 
     private static BotType botTypeFromArchetypeKey(String key) {
@@ -895,9 +898,12 @@ public final class DpNpcEngine {
         }
     }
 
-    /** LLM 多实例昵称 */
-    public static String generateUniqueLlmBotNickname() {
-        return PREFIX_BOT_LLM + "_" + UUID.randomUUID();
+    /** LLM 多实例昵称：{@code BOT_LLM_<序号>} */
+    public static String llmBotNickname(int seq) {
+        if (seq <= 0) {
+            throw new IllegalArgumentException("seq must be positive");
+        }
+        return PREFIX_BOT_LLM + "_" + seq;
     }
 
     private static BotType resolveRuleBotType(String nickname) {

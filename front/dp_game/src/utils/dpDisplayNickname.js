@@ -1,6 +1,6 @@
 /**
  * UI 展示昵称：服务端仍为完整 nickname（下注 / WS 逻辑必须用全称）。
- * - BOT_*_&lt;uuid&gt; → 前缀 + uuid 去横线后的前 4 字符（与 {@link com.example.mgdemoplus.service.serviceImpl.dp.DpNpcEngine#displayNicknameForUi} 对齐）
+ * - BOT_*_&lt;长 uuid&gt; → 前缀 + 去横线后前 4 字符；BOT_*_&lt;序号&gt; 较短时原样
  */
 const BOT_TRUNC_HEADS = [
   'BOT_MANIAC_',

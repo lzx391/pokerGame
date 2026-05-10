@@ -84,6 +84,14 @@
           音乐盒
         </button>
         <button
+            v-if="waitNextHandCount > 0"
+            type="button"
+            class="dp-btn dp-btn--cyan dp-top-bar__btn"
+            @click="$emit('show-wait-next-hand')"
+        >
+          等待名单（{{ waitNextHandCount }}）
+        </button>
+        <button
             v-if="spectatorCount > 0"
             type="button"
             class="dp-btn dp-btn--cyan dp-top-bar__btn"
@@ -117,6 +125,8 @@ export default {
     pot: { type: Number, required: true },
     currentBetToCall: { type: Number, required: true },
     spectatorCount: { type: Number, default: 0 },
+    /** 已报名下一局上桌的人数 */
+    waitNextHandCount: { type: Number, default: 0 },
     isFullscreen: { type: Boolean, default: false },
     /** 纯观众或本手已退：在顶栏内展示报名下一局 */
     showSpectatorPrepare: { type: Boolean, default: false },

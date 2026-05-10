@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class DpRoomBO {
     private String roomId;
@@ -122,6 +123,26 @@ public class DpRoomBO {
      * 用于下一局从 wait 列表拉人上桌时补全 {@link DpPlayer#setDpUserId}，不参与房间 JSON。
      */
     private final ConcurrentHashMap<String, Integer> registeredDpUserIdByNickname = new ConcurrentHashMap<>();
+
+    /**
+     * 本桌机器人昵称共用递增序号（各档位与大模型 BOT 占位均占用）；房间内唯一，重启房间后归零。
+     * 初始 0，首次分配从 1 起。
+     */
+    @JsonIgnore
+    private final AtomicInteger botNicknameSeq = new AtomicInteger(0);
+
+    /**
+     * 连续占用 {@code count} 个序号。
+     *
+     * @param count 须为正整数
+     * @return 本批的第一个序号（含），后续为 {@code first+1 .. first+count-1}
+     */
+    public int allocateBotNicknameSeqBatch(int count) {
+        if (count <= 0) {
+            throw new IllegalArgumentException("count must be positive");
+        }
+        return botNicknameSeq.addAndGet(count) - count + 1;
+    }
 
     public void putRegisteredDpUserId(String nickname, Integer dpUserId) {
         if (nickname == null || nickname.isEmpty() || dpUserId == null) {

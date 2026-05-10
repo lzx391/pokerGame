@@ -23,7 +23,7 @@
 
       <section class="dp-lobby-panel create-room-panel">
         <h1 class="create-room-panel__title">创建房间</h1>
-        <p class="create-room-panel__intro">在此设置本桌小猫小鱼干数（大猫自动为其 2 倍）、每人带入倍数（以大猫鱼干数为 1 倍）、一桌最多几名玩家（2～9）与可选进房密码，再进入房间等人。</p>
+        <p class="create-room-panel__intro">在此设置本桌小猫小鱼干数（大猫自动为其 2 倍）、每人带入倍数（以大猫鱼干数为 1 倍）、一桌最多几名玩家（2～9）与可选进房密码。创建后将直接开桌进入对局页，你可先独自上桌，朋友随时可从大厅加入。</p>
 
         <div class="create-room-fields">
           <label class="create-room-fields__row">
@@ -71,7 +71,7 @@
 
         <div class="create-room-actions">
           <button type="button" class="dp-btn dp-btn--primary" :disabled="submitting" @click="submit">
-            {{ submitting ? '创建中…' : '创建并进入房间' }}
+            {{ submitting ? '创建中…' : '创建并开桌' }}
           </button>
         </div>
       </section>
@@ -141,7 +141,23 @@ export default {
           params.userId = this.user.userId
         }
         const res = await this.$http.post('/dpRoom/createRoom', null, { params })
-        this.$router.replace('/room/' + res.data.roomId)
+        const roomId = res.data && res.data.roomId
+        if (!roomId) {
+          alert('创建失败：未返回房间号')
+          return
+        }
+        const startRes = await this.$http.post('/dpRoom/startGame', null, {
+          params: {
+            roomId: roomId,
+            ownerNickname: this.user.nickname
+          }
+        })
+        if (startRes.data !== 'ok') {
+          alert('房间已创建但开局未成功，请从大厅进入该房间后由房主点「开始游戏」')
+          this.$router.replace('/room/' + roomId)
+          return
+        }
+        this.$router.replace('/game/' + roomId)
       } catch (e) {
         console.error('createRoom', e)
         alert('创建失败，请检查网络或后端是否已启动')

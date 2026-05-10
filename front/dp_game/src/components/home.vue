@@ -178,7 +178,10 @@ export default {
         password: 'any'
       },
       useFilterQuery: false,
-      quickMatchLoading: false
+      quickMatchLoading: false,
+      /** 已入默认快匹队列，轮询 /quickMatchPoll2 直至 MATCHED */
+      quickMatchPolling: false,
+      quickMatchPollTimer: null
     }
   },
   computed: {
@@ -213,6 +216,12 @@ export default {
       console.log('正在销毁定时器')
       clearInterval(this.timer)
       this.timer = null
+    }
+    if (this.quickMatchPolling) {
+      this.cancelQuickMatchRemote()
+      this.stopQuickMatchPolling()
+      this.quickMatchPolling = false
+      this.quickMatchLoading = false
     }
   },
   methods: {
@@ -262,18 +271,71 @@ export default {
           return
         }
         const data = dpResultData(body) || {}
-        const roomId = data.roomId || ''
-        if (!roomId) {
-          alert('匹配成功但未返回房间号')
+        if (data.roomId) {
+          this.$router.push('/game/' + data.roomId)
           return
         }
-        this.$router.push('/room/' + roomId)
+        if (data.queued && data.state === 'WAITING') {
+          this.quickMatchPolling = true
+          this.startQuickMatchPolling()
+          return
+        }
+        alert('匹配响应异常，请稍后重试')
       } catch (e) {
         console.error('quickMatch', e)
         alert('网络错误，请稍后重试')
       } finally {
-        this.quickMatchLoading = false
+        if (!this.quickMatchPolling) {
+          this.quickMatchLoading = false
+        }
       }
+    },
+    stopQuickMatchPolling() {
+      if (this.quickMatchPollTimer != null) {
+        clearInterval(this.quickMatchPollTimer)
+        this.quickMatchPollTimer = null
+      }
+    },
+    cancelQuickMatchRemote() {
+      if (!this.user || !this.user.nickname) return
+      const params = { nickname: this.user.nickname }
+      this.$http.post('/dpRoom/quickMatchCancel2', null, { params }).catch(() => {})
+    },
+    startQuickMatchPolling() {
+      this.stopQuickMatchPolling()
+      const tick = async () => {
+        if (!this.user || !this.user.nickname) return
+        try {
+          const params = { nickname: this.user.nickname }
+          const res = await this.$http.get('/dpRoom/quickMatchPoll2', { params })
+          const body = res.data
+          if (!dpResultSuccess(body)) {
+            this.stopQuickMatchPolling()
+            this.quickMatchPolling = false
+            this.quickMatchLoading = false
+            alert(dpResultMessage(body))
+            return
+          }
+          const data = dpResultData(body) || {}
+          if (data.state === 'MATCHED' && data.roomId) {
+            this.stopQuickMatchPolling()
+            this.quickMatchPolling = false
+            this.quickMatchLoading = false
+            this.$router.push('/game/' + data.roomId)
+            return
+          }
+          if (data.state === 'IDLE') {
+            this.stopQuickMatchPolling()
+            this.quickMatchPolling = false
+            this.quickMatchLoading = false
+            alert(data.message || '已不在匹配队列（可能已超时）')
+          }
+        } catch (e) {
+          console.error('quickMatchPoll', e)
+        }
+      }
+      this.quickMatchPollTimer = setInterval(tick, 1600)
+      tick()
     },
     /** 与当前 filters 是否应走 MyBatis 查询一致（用于搜索按钮） */
     filtersActiveFromForm() {

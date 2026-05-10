@@ -1,7 +1,8 @@
 package com.example.mgdemoplus.utils.dp;
 
 /**
- * 规则 / LLM 机器人 {@code BOT_*_&lt;uuid&gt;} 在 JSON / UI 上的短显：uuid 去 {@code -} 后取前 4 字符。
+ * 规则 / LLM 机器人昵称在 UI 上的短显：
+ * {@code BOT_*_&lt;长 uuid&gt;} → 去 {@code -} 后取前 4 字符；{@code BOT_*_&lt;短序号&gt;} 原样展示。
  * 须与前端 {@code front/dp_game/src/utils/dpDisplayNickname.js} 保持一致。
  */
 public final class DpUtilNpcDisplayNickname {

@@ -17,6 +17,7 @@ import com.example.mgdemoplus.websocket.DpGameRoomPushService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -36,16 +37,46 @@ public class DpRoomServiceImpl {
     private final DpRoomHallService dpRoomHallService;
     private final ObjectMapper objectMapper;
 
+    /**
+     * 公开房瞬时快匹均无空位时的默认等待队列（单机内存）。
+     * 参数与 {@link #createRoom} 默认快匹建房一致：小盲 5、大盲 10、50 倍初始、公开、最多 9 人；FIFO，满二人自动建新桌并进房、准备。
+     */
+    private static final int DEFAULT_QM_SB = 5;
+    private static final int DEFAULT_QM_BB = 10;
+    private static final int DEFAULT_QM_STARTING_BB = 50;
+    private static final int DEFAULT_QM_MAX_SEATS = DpRoomBO.MAX_SEAT_COUNT;
+    /** 排队等候上限，超时移出队列（仅内存，不写库）。 */
+    private static final long DEFAULT_QM_WAIT_MS = 3L * 60L * 1000L;
+    /** 与 {@link #quickMatchJoinAndReady} 中「无候选公开房」文案保持一致，便于判断仅此时入队。 */
+    static final String MSG_NO_PUBLIC_ROOM = "暂无可匹配的公开房间";
+
+    private record DefaultQmWaitEntry(String nickname, Integer userId, long enqueuedMs) {}
+
+    private final Object defaultQmLock = new Object();
+    private final ArrayDeque<DefaultQmWaitEntry> defaultQmWaiters = new ArrayDeque<>();
+    /** 配对成功后暂存 nick → roomId，供 {@link #quickMatchPollMatchedOrWaiting} 消费一次 */
+    private final ConcurrentHashMap<String, String> defaultQmMatchedRoom = new ConcurrentHashMap<>();
+
     // 统一从 NPC 引擎中获取机器人昵称，避免散落魔法字符串
     public boolean addDemoBotToNextHand(String roomId) {
-        return readyNextHand(roomId, DpNpcEngine.generateUniqueRuleBotNickname(DpNpcEngine.BotType.FISH), null);
+        DpRoomBO r = roomMap.get(roomId);
+        if (r == null) {
+            return false;
+        }
+        int seq = r.allocateBotNicknameSeqBatch(1);
+        return readyNextHand(roomId, DpNpcEngine.ruleBotNickname(DpNpcEngine.BotType.FISH, seq), null);
     }
 
     /**
-     * 疯子 NPC：{@code BOT_MANIAC_<uuid>}。
+     * 疯子 NPC：{@code BOT_MANIAC_<房间序号>}。
      */
     public boolean addManiacBotToNextHand(String roomId) {
-        return readyNextHand(roomId, DpNpcEngine.generateUniqueRuleBotNickname(DpNpcEngine.BotType.MANIAC), null);
+        DpRoomBO r = roomMap.get(roomId);
+        if (r == null) {
+            return false;
+        }
+        int seq = r.allocateBotNicknameSeqBatch(1);
+        return readyNextHand(roomId, DpNpcEngine.ruleBotNickname(DpNpcEngine.BotType.MANIAC, seq), null);
     }
 
     /**
@@ -57,30 +88,50 @@ public class DpRoomServiceImpl {
     }
 
     /**
-     * 紧凶型 NPC：{@code BOT_TAG_<uuid>}。
+     * 紧凶型 NPC：{@code BOT_TAG_<房间序号>}。
      */
     public boolean addTagBotToNextHand(String roomId) {
-        return readyNextHand(roomId, DpNpcEngine.generateUniqueRuleBotNickname(DpNpcEngine.BotType.TAG), null);
+        DpRoomBO r = roomMap.get(roomId);
+        if (r == null) {
+            return false;
+        }
+        int seq = r.allocateBotNicknameSeqBatch(1);
+        return readyNextHand(roomId, DpNpcEngine.ruleBotNickname(DpNpcEngine.BotType.TAG, seq), null);
     }
 
     /** 松凶 LAG */
     public boolean addLagBotToNextHand(String roomId) {
-        return readyNextHand(roomId, DpNpcEngine.generateUniqueRuleBotNickname(DpNpcEngine.BotType.LAG), null);
+        DpRoomBO r = roomMap.get(roomId);
+        if (r == null) {
+            return false;
+        }
+        int seq = r.allocateBotNicknameSeqBatch(1);
+        return readyNextHand(roomId, DpNpcEngine.ruleBotNickname(DpNpcEngine.BotType.LAG, seq), null);
     }
 
     /** 紧弱 Nit */
     public boolean addNitBotToNextHand(String roomId) {
-        return readyNextHand(roomId, DpNpcEngine.generateUniqueRuleBotNickname(DpNpcEngine.BotType.NIT), null);
+        DpRoomBO r = roomMap.get(roomId);
+        if (r == null) {
+            return false;
+        }
+        int seq = r.allocateBotNicknameSeqBatch(1);
+        return readyNextHand(roomId, DpNpcEngine.ruleBotNickname(DpNpcEngine.BotType.NIT, seq), null);
     }
 
     /** 跟注站 */
     public boolean addCallStationBotToNextHand(String roomId) {
-        return readyNextHand(roomId, DpNpcEngine.generateUniqueRuleBotNickname(DpNpcEngine.BotType.CALL), null);
+        DpRoomBO r = roomMap.get(roomId);
+        if (r == null) {
+            return false;
+        }
+        int seq = r.allocateBotNicknameSeqBatch(1);
+        return readyNextHand(roomId, DpNpcEngine.ruleBotNickname(DpNpcEngine.BotType.CALL, seq), null);
     }
 
     /**
-     * 按档位连续添加 {@code count} 个规则 NPC（独立 uuid）；{@code archetypeKey} 参见
-     * {@link DpNpcEngine#generateUniqueRuleBotNicknameForKey(String)}。
+     * 按档位连续添加 {@code count} 个规则 NPC（共用房间内递增序号）；{@code archetypeKey} 参见
+     * {@link DpNpcEngine#ruleBotNicknameForKey(String, int)}。
      */
     public boolean addRuleNpcBatchToNextHand(String roomId, String archetypeKey, int count) {
         if (count <= 0) {
@@ -101,8 +152,9 @@ public class DpRoomServiceImpl {
         }
         int n = Math.min(count, cap);
         try {
+            int firstSeq = r.allocateBotNicknameSeqBatch(n);
             for (int i = 0; i < n; i++) {
-                String nick = DpNpcEngine.generateUniqueRuleBotNicknameForKey(archetypeKey);
+                String nick = DpNpcEngine.ruleBotNicknameForKey(archetypeKey, firstSeq + i);
                 if (!waiters.contains(nick)) {
                     waiters.add(nick);
                 }
@@ -114,10 +166,15 @@ public class DpRoomServiceImpl {
     }
 
     /**
-     * 将大模型 NPC 加入下一局；{@code BOT_LLM_<uuid>}，决策仅走 {@link DpLlmNpcDecisionService}。
+     * 将大模型 NPC 加入下一局；{@code BOT_LLM_<房间序号>}，决策仅走 {@link DpLlmNpcDecisionService}。
      */
     public boolean addLlmBotToNextHand(String roomId) {
-        return readyNextHand(roomId, DpNpcEngine.generateUniqueLlmBotNickname(), null);
+        DpRoomBO r = roomMap.get(roomId);
+        if (r == null) {
+            return false;
+        }
+        int seq = r.allocateBotNicknameSeqBatch(1);
+        return readyNextHand(roomId, DpNpcEngine.llmBotNickname(seq), null);
     }
     public DpRoomServiceImpl(
         //注入服务
@@ -919,15 +976,6 @@ public class DpRoomServiceImpl {
             r.putRegisteredDpUserId(nickname, uid);
         }
 
-        // 已经在桌上的玩家，不需要再标记下一局，直接视为成功
-//        for (DpPlayer p : r.getPlayers()) {
-//            // 已经在当前手牌里的活跃玩家（未标记离开）不需要再报名下一局；
-//            // 对于本手已离开的“僵尸位”（leftThisHand = true），依然允许作为观众报名下一局
-//            if (p.getNickname().equals(nickname) && !p.isLeftThisHand()) {
-//                return true;
-//            }
-//        }
-    
         List<String> waiters = r.getWaitNextHand();
         if (waiters == null) {
             waiters = new ArrayList<>();
@@ -1038,7 +1086,188 @@ public class DpRoomServiceImpl {
                 return ResultUtil.ok().data("roomId", r.getRoomId()).data("message", "ok");
             }
         }
-        return ResultUtil.error().data("message", "暂无可匹配的公开房间");
+        return ResultUtil.error().data("message", MSG_NO_PUBLIC_ROOM);
+    }
+
+    private static String quickMatchResultDetailMessage(ResultUtil r) {
+        if (r == null) {
+            return "";
+        }
+        Map<String, Object> d = r.getData();
+        if (d != null && d.get("message") != null) {
+            return String.valueOf(d.get("message"));
+        }
+        String m = r.getMessage();
+        return m != null ? m : "";
+    }
+
+    /**
+     * 大厅快匹：先尝试进入已有公开房；若无房可进则进入默认等待队列（小盲 5、最多 9 人公开桌），满两人自动创建默认房并排好准备。
+     */
+    public ResultUtil quickMatchJoinQueueOrImmediate(String nickname, Integer userId) {
+        ResultUtil immediate = quickMatchJoinAndReady(nickname, userId);
+        if (Boolean.TRUE.equals(immediate.getSuccess())) {
+            return immediate;
+        }
+        if (!MSG_NO_PUBLIC_ROOM.equals(quickMatchResultDetailMessage(immediate))) {
+            return immediate;
+        }
+        if (findRoomContainingNickname(nickname) != null) {
+            return quickMatchJoinAndReady(nickname, userId);
+        }
+        long now = System.currentTimeMillis();
+        synchronized (defaultQmLock) {
+            pruneDefaultQuickMatchQueueLockedWithoutReentry();
+            boolean already = false;
+            for (DefaultQmWaitEntry e : defaultQmWaiters) {
+                if (nickname.equals(e.nickname())) {
+                    already = true;
+                    break;
+                }
+            }
+            if (!already) {
+                defaultQmWaiters.addLast(new DefaultQmWaitEntry(nickname, userId, now));
+            }
+        }
+        tryDrainDefaultQuickMatchPairs();
+        return ResultUtil.ok()
+                .data("queued", true)
+                .data("state", "WAITING")
+                .data("message", "已加入匹配队列，凑齐另一名玩家后将自动建房");
+    }
+
+    /**
+     * 轮询：队列中为 {@code WAITING}；已配对则 {@code MATCHED} 并返回 {@code roomId}（单次消费）。
+     */
+    public ResultUtil quickMatchPollMatchedOrWaiting(String nickname) {
+        if (nickname == null || nickname.isBlank()) {
+            return ResultUtil.error().data("message", "昵称无效");
+        }
+        String rid = defaultQmMatchedRoom.remove(nickname);
+        if (rid != null && !rid.isEmpty()) {
+            return ResultUtil.ok()
+                    .data("state", "MATCHED")
+                    .data("roomId", rid);
+        }
+        synchronized (defaultQmLock) {
+            pruneDefaultQuickMatchQueueLockedWithoutReentry();
+            int i = 1;
+            for (DefaultQmWaitEntry e : defaultQmWaiters) {
+                if (nickname.equals(e.nickname())) {
+                    return ResultUtil.ok()
+                            .data("state", "WAITING")
+                            .data("queuePosition", i);
+                }
+                i++;
+            }
+        }
+        return ResultUtil.ok().data("state", "IDLE").data("message", "当前不在匹配队列中");
+    }
+
+    /** 离开默认快匹等待队列（例如关闭大厅）。 */
+    public boolean cancelDefaultQuickMatchWait(String nickname) {
+        if (nickname == null || nickname.isBlank()) {
+            return false;
+        }
+        synchronized (defaultQmLock) {
+            return defaultQmWaiters.removeIf(e -> nickname.equals(e.nickname()));
+        }
+    }
+
+    @Scheduled(fixedDelayString = "${mgdemoplus.dp-quick-match-prune-ms:30000}")
+    public void scheduledPruneDefaultQuickMatchQueue() {
+        synchronized (defaultQmLock) {
+            pruneDefaultQuickMatchQueueLockedWithoutReentry();
+        }
+    }
+
+    private void pruneDefaultQuickMatchQueueLockedWithoutReentry() {
+        long now = System.currentTimeMillis();
+        defaultQmWaiters.removeIf(
+                e -> now - e.enqueuedMs() > DEFAULT_QM_WAIT_MS || findRoomContainingNickname(e.nickname()) != null);
+    }
+
+    /**
+     * 从队列头按 FIFO 双人抽取并自动建房；不配在持有队列锁时进房。
+     */
+    private void tryDrainDefaultQuickMatchPairs() {
+        while (true) {
+            DefaultQmWaitEntry wa;
+            DefaultQmWaitEntry wb;
+            synchronized (defaultQmLock) {
+                pruneDefaultQuickMatchQueueLockedWithoutReentry();
+                if (defaultQmWaiters.size() < 2) {
+                    return;
+                }
+                wa = defaultQmWaiters.pollFirst();
+                wb = defaultQmWaiters.pollFirst();
+            }
+            if (wa == null || wb == null) {
+                return;
+            }
+            if (wa.nickname().equals(wb.nickname())) {
+                synchronized (defaultQmLock) {
+                    if (findRoomContainingNickname(wa.nickname()) == null) {
+                        defaultQmWaiters.addFirst(wa);
+                    }
+                }
+                continue;
+            }
+            if (findRoomContainingNickname(wa.nickname()) != null || findRoomContainingNickname(wb.nickname()) != null) {
+                synchronized (defaultQmLock) {
+                    if (findRoomContainingNickname(wa.nickname()) == null) {
+                        defaultQmWaiters.addLast(wa);
+                    }
+                    if (findRoomContainingNickname(wb.nickname()) == null) {
+                        defaultQmWaiters.addLast(wb);
+                    }
+                }
+                continue;
+            }
+            try {
+                pairDefaultQuickMatchWaitersInNewRoom(wa, wb);
+            } catch (Exception ex) {
+                log.warn("default quick-match pair failed: {}", ex.toString());
+                synchronized (defaultQmLock) {
+                    if (findRoomContainingNickname(wa.nickname()) == null) {
+                        defaultQmWaiters.addLast(wa);
+                    }
+                    if (findRoomContainingNickname(wb.nickname()) == null) {
+                        defaultQmWaiters.addLast(wb);
+                    }
+                }
+            }
+        }
+    }
+
+    private void pairDefaultQuickMatchWaitersInNewRoom(DefaultQmWaitEntry wa, DefaultQmWaitEntry wb) {
+        DpRoomBO room = createRoom(
+                wa.nickname(),
+                wa.userId(),
+                DEFAULT_QM_SB,
+                DEFAULT_QM_BB,
+                DEFAULT_QM_STARTING_BB,
+                null,
+                DEFAULT_QM_MAX_SEATS);
+        String roomId = room.getRoomId();
+        synchronized (room) {
+            String joinMsg = joinRoom(roomId, wb.nickname(), wb.userId(), null);
+            if (!"ok".equals(joinMsg)) {
+                throw new IllegalStateException("joinRoom second waiter: " + joinMsg);
+            }
+            ensureLobbyReady(room, wa.nickname());
+            ensureLobbyReady(room, wb.nickname());
+            // 与前端 CreateRoom 一致：建好房后直接开局并入首手；否则 playing=false，对局页停留在大厅态
+            if (!startGame(roomId, wa.nickname())) {
+                log.warn(
+                        "auto quick-match: startGame failed roomId={} owner={}",
+                        roomId,
+                        wa.nickname());
+            }
+        }
+        syncLobbyForRoomId(roomId);
+        defaultQmMatchedRoom.put(wa.nickname(), roomId);
+        defaultQmMatchedRoom.put(wb.nickname(), roomId);
     }
 
     /** 席上且本手未标记离座视为「在场上」。 */

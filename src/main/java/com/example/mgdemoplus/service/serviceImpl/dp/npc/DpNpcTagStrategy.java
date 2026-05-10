@@ -21,7 +21,7 @@ public final class DpNpcTagStrategy {
     }
 
     public static BotAction decide(DpNpcRuleDecisionParams p) {
-        System.out.println("DpNpcTagStrategy");
+        // System.out.println("DpNpcTagStrategy");
         BoardDanger bd = p.boardDanger;
         SimpleStrength st = p.strength;
         String stage = p.room.getCurrentStage();
