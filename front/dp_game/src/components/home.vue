@@ -41,8 +41,13 @@
       <section class="dp-lobby-panel home-actions">
         <h3 class="dp-lobby-panel__title home-actions__title">快捷入口</h3>
         <div class="btns">
-          <button type="button" class="dp-btn dp-btn--success" :disabled="quickMatchLoading" @click="quickMatch">
-            {{ quickMatchLoading ? '匹配中…' : '快速匹配' }}
+          <button
+            type="button"
+            class="dp-btn dp-btn--success"
+            :disabled="quickMatchLoading && !quickMatchPolling"
+            @click="onQuickMatchButtonClick"
+          >
+            {{ quickMatchPolling ? '取消匹配' : quickMatchLoading ? '匹配中…' : '快速匹配' }}
           </button>
           <button type="button" class="dp-btn dp-btn--primary" @click="goCreateRoom">创建房间</button>
           <button type="button" class="dp-btn dp-btn--ghost" @click="goHandHistory">历史对局</button>
@@ -253,6 +258,21 @@ export default {
     goCreateRoom() {
       this.$router.push('/create-room')
     },
+    /** 排队中再点一次：取消后端队列并停止轮询 */
+    async onQuickMatchButtonClick() {
+      if (this.quickMatchPolling) {
+        this.stopQuickMatchPolling()
+        this.quickMatchPolling = false
+        this.quickMatchLoading = false
+        try {
+          await this.cancelQuickMatchRemote()
+        } catch (e) {
+          console.error('quickMatchCancel', e)
+        }
+        return
+      }
+      await this.quickMatch()
+    },
     async quickMatch() {
       if (!this.user || !this.user.nickname) {
         alert('请先登录后再快速匹配')
@@ -297,9 +317,9 @@ export default {
       }
     },
     cancelQuickMatchRemote() {
-      if (!this.user || !this.user.nickname) return
+      if (!this.user || !this.user.nickname) return Promise.resolve()
       const params = { nickname: this.user.nickname }
-      this.$http.post('/dpRoom/quickMatchCancel2', null, { params }).catch(() => {})
+      return this.$http.post('/dpRoom/quickMatchCancel2', null, { params }).catch(() => {})
     },
     startQuickMatchPolling() {
       this.stopQuickMatchPolling()

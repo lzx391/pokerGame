@@ -57,6 +57,13 @@ public class DpRoomServiceImpl {
     /** 配对成功后暂存 nick → roomId，供 {@link #quickMatchPollMatchedOrWaiting} 消费一次 */
     private final ConcurrentHashMap<String, String> defaultQmMatchedRoom = new ConcurrentHashMap<>();
 
+    /**
+     * 串行化快匹写入 roomMap（扫公开房并进房、默认 FIFO 拉出两人 {@link #tryDrainDefaultQuickMatchPairs}
+     * 后到 {@link #createRoom}）。避免「已从队列摘下但尚未建房」的瞬间，同一玩家又因快匹或其它入口进了别的桌，
+     * 却仍为其再建一局导致重复占位或错乱。
+     */
+    private final Object dpQuickMatchAssignmentLock = new Object();
+
     // 统一从 NPC 引擎中获取机器人昵称，避免散落魔法字符串
     public boolean addDemoBotToNextHand(String roomId) {
         DpRoomBO r = roomMap.get(roomId);
@@ -906,9 +913,10 @@ public class DpRoomServiceImpl {
     }
 
     public String joinRoom(String roomId, String nickname, Integer userId, String roomPassword) {
-        
+
         DpRoomBO r = roomMap.get(roomId);
         if (r == null) return "房间不存在";
+        synchronized (r) {
         if (!r.matchesRoomPassword(roomPassword)) {
             return "密码错误";
         }
@@ -961,6 +969,7 @@ public class DpRoomServiceImpl {
         r.getPlayers().add(p);
         syncLobbyForRoomId(roomId);
         return "ok";
+        }
     }
 
     /**
@@ -970,6 +979,7 @@ public class DpRoomServiceImpl {
     public boolean readyNextHand(String roomId, String nickname, Integer userId) {
         DpRoomBO r = roomMap.get(roomId);
         if (r == null) return false;
+        synchronized (r) {
 
         Integer uid = resolveAndValidateUserId(userId, nickname);
         if (uid != null) {
@@ -989,6 +999,7 @@ public class DpRoomServiceImpl {
             waiters.add(nickname);
         }
         return true;
+        }
     }
 
     /**
@@ -997,6 +1008,7 @@ public class DpRoomServiceImpl {
     public boolean cancelReadyNextHand(String roomId, String nickname, Integer userId) {
         DpRoomBO r = roomMap.get(roomId);
         if (r == null) return false;
+        synchronized (r) {
         Integer uid = resolveAndValidateUserId(userId, nickname);
         if (uid != null) {
             r.putRegisteredDpUserId(nickname, uid);
@@ -1007,6 +1019,7 @@ public class DpRoomServiceImpl {
         }
         waiters.remove(nickname);
         return true;
+        }
     }
 
     /**
@@ -1020,73 +1033,75 @@ public class DpRoomServiceImpl {
         if (nickname == null || nickname.isBlank()) {
             return ResultUtil.error().data("message", "昵称无效");
         }
-        DpRoomBO existing = findRoomContainingNickname(nickname);
-        if (existing != null) {
-            String err;
-            synchronized (existing) {
-                err = finishQuickMatchForExistingPresence(existing, nickname, userId);
+        synchronized (dpQuickMatchAssignmentLock) {
+            DpRoomBO existing = findRoomContainingNickname(nickname);
+            if (existing != null) {
+                String err;
+                synchronized (existing) {
+                    err = finishQuickMatchForExistingPresence(existing, nickname, userId);
+                }
+                if (err != null) {
+                    return ResultUtil.error().data("message", err);
+                }
+                syncLobbyForRoomId(existing.getRoomId());
+                return ResultUtil.ok()
+                        .data("roomId", existing.getRoomId())
+                        .data("message", "你已在该房间，已更新准备状态");
             }
-            if (err != null) {
-                return ResultUtil.error().data("message", err);
-            }
-            syncLobbyForRoomId(existing.getRoomId());
-            return ResultUtil.ok()
-                    .data("roomId", existing.getRoomId())
-                    .data("message", "你已在该房间，已更新准备状态");
-        }
 
-        long sortTime = System.currentTimeMillis();
-        List<DpRoomBO> candidates = new ArrayList<>();
-        for (DpRoomBO r : roomMap.values()) {
-            if (r.isPasswordProtected()) {
-                continue;
-            }
-            if (quickMatchVacancy(r, sortTime) <= 0) {
-                continue;
-            }
-            candidates.add(r);
-        }
-        candidates.sort((a, b) -> {
-            int fa = quickMatchFillScore(a, sortTime);
-            int fb = quickMatchFillScore(b, sortTime);
-            if (fb != fa) {
-                return Integer.compare(fb, fa);
-            }
-            return a.getRoomId().compareTo(b.getRoomId());
-        });
-
-        for (DpRoomBO r : candidates) {
-            //快匹入口
-            synchronized (r) {
-                long now = System.currentTimeMillis();
-                if (r.isPasswordProtected() || quickMatchVacancy(r, now) <= 0) {
+            long sortTime = System.currentTimeMillis();
+            List<DpRoomBO> candidates = new ArrayList<>();
+            for (DpRoomBO r : roomMap.values()) {
+                if (r.isPasswordProtected()) {
                     continue;
                 }
-                boolean wasPresent = nicknamePresentInRoom(r, nickname);
-                String join = joinRoom(r.getRoomId(), nickname, userId, null);
-                if (!"ok".equals(join) && !"游戏已开始".equals(join)) {
+                if (quickMatchVacancy(r, sortTime) <= 0) {
                     continue;
                 }
-                if (r.isPlaying()) {
-                    if (!readyNextHand(r.getRoomId(), nickname, userId)) {
-                        if (!wasPresent) {
-                            exitRoom(r.getRoomId(), nickname);
-                        }
-                        continue;
-                    }
-                } else {
-                    if (!ensureLobbyReady(r, nickname)) {
-                        if (!wasPresent) {
-                            exitRoom(r.getRoomId(), nickname);
-                        }
-                        continue;
-                    }
-                }
-                syncLobbyForRoomId(r.getRoomId());
-                return ResultUtil.ok().data("roomId", r.getRoomId()).data("message", "ok");
+                candidates.add(r);
             }
+            candidates.sort((a, b) -> {
+                int fa = quickMatchFillScore(a, sortTime);
+                int fb = quickMatchFillScore(b, sortTime);
+                if (fb != fa) {
+                    return Integer.compare(fb, fa);
+                }
+                return a.getRoomId().compareTo(b.getRoomId());
+            });
+
+            for (DpRoomBO r : candidates) {
+                //快匹入口
+                synchronized (r) {
+                    long now = System.currentTimeMillis();
+                    if (r.isPasswordProtected() || quickMatchVacancy(r, now) <= 0) {
+                        continue;
+                    }
+                    boolean wasPresent = nicknamePresentInRoom(r, nickname);
+                    String join = joinRoom(r.getRoomId(), nickname, userId, null);
+                    if (!"ok".equals(join) && !"游戏已开始".equals(join)) {
+                        continue;
+                    }
+                    if (r.isPlaying()) {
+                        if (!readyNextHand(r.getRoomId(), nickname, userId)) {
+                            if (!wasPresent) {
+                                exitRoom(r.getRoomId(), nickname);
+                            }
+                            continue;
+                        }
+                    } else {
+                        if (!ensureLobbyReady(r, nickname)) {
+                            if (!wasPresent) {
+                                exitRoom(r.getRoomId(), nickname);
+                            }
+                            continue;
+                        }
+                    }
+                    syncLobbyForRoomId(r.getRoomId());
+                    return ResultUtil.ok().data("roomId", r.getRoomId()).data("message", "ok");
+                }
+            }
+            return ResultUtil.error().data("message", MSG_NO_PUBLIC_ROOM);
         }
-        return ResultUtil.error().data("message", MSG_NO_PUBLIC_ROOM);
     }
 
     private static String quickMatchResultDetailMessage(ResultUtil r) {
@@ -1192,48 +1207,51 @@ public class DpRoomServiceImpl {
      */
     private void tryDrainDefaultQuickMatchPairs() {
         while (true) {
-            DefaultQmWaitEntry wa;
-            DefaultQmWaitEntry wb;
-            synchronized (defaultQmLock) {
-                pruneDefaultQuickMatchQueueLockedWithoutReentry();
-                if (defaultQmWaiters.size() < 2) {
+            synchronized (dpQuickMatchAssignmentLock) {
+                DefaultQmWaitEntry wa;
+                DefaultQmWaitEntry wb;
+                synchronized (defaultQmLock) {
+                    pruneDefaultQuickMatchQueueLockedWithoutReentry();
+                    if (defaultQmWaiters.size() < 2) {
+                        return;
+                    }
+                    wa = defaultQmWaiters.pollFirst();
+                    wb = defaultQmWaiters.pollFirst();
+                }
+                if (wa == null || wb == null) {
                     return;
                 }
-                wa = defaultQmWaiters.pollFirst();
-                wb = defaultQmWaiters.pollFirst();
-            }
-            if (wa == null || wb == null) {
-                return;
-            }
-            if (wa.nickname().equals(wb.nickname())) {
-                synchronized (defaultQmLock) {
-                    if (findRoomContainingNickname(wa.nickname()) == null) {
-                        defaultQmWaiters.addFirst(wa);
+                if (wa.nickname().equals(wb.nickname())) {
+                    synchronized (defaultQmLock) {
+                        if (findRoomContainingNickname(wa.nickname()) == null) {
+                            defaultQmWaiters.addFirst(wa);
+                        }
                     }
+                    continue;
                 }
-                continue;
-            }
-            if (findRoomContainingNickname(wa.nickname()) != null || findRoomContainingNickname(wb.nickname()) != null) {
-                synchronized (defaultQmLock) {
-                    if (findRoomContainingNickname(wa.nickname()) == null) {
-                        defaultQmWaiters.addLast(wa);
+                if (findRoomContainingNickname(wa.nickname()) != null
+                        || findRoomContainingNickname(wb.nickname()) != null) {
+                    synchronized (defaultQmLock) {
+                        if (findRoomContainingNickname(wa.nickname()) == null) {
+                            defaultQmWaiters.addLast(wa);
+                        }
+                        if (findRoomContainingNickname(wb.nickname()) == null) {
+                            defaultQmWaiters.addLast(wb);
+                        }
                     }
-                    if (findRoomContainingNickname(wb.nickname()) == null) {
-                        defaultQmWaiters.addLast(wb);
-                    }
+                    continue;
                 }
-                continue;
-            }
-            try {
-                pairDefaultQuickMatchWaitersInNewRoom(wa, wb);
-            } catch (Exception ex) {
-                log.warn("default quick-match pair failed: {}", ex.toString());
-                synchronized (defaultQmLock) {
-                    if (findRoomContainingNickname(wa.nickname()) == null) {
-                        defaultQmWaiters.addLast(wa);
-                    }
-                    if (findRoomContainingNickname(wb.nickname()) == null) {
-                        defaultQmWaiters.addLast(wb);
+                try {
+                    pairDefaultQuickMatchWaitersInNewRoom(wa, wb);
+                } catch (Exception ex) {
+                    log.warn("default quick-match pair failed: {}", ex.toString());
+                    synchronized (defaultQmLock) {
+                        if (findRoomContainingNickname(wa.nickname()) == null) {
+                            defaultQmWaiters.addLast(wa);
+                        }
+                        if (findRoomContainingNickname(wb.nickname()) == null) {
+                            defaultQmWaiters.addLast(wb);
+                        }
                     }
                 }
             }
@@ -1388,6 +1406,8 @@ public class DpRoomServiceImpl {
         DpRoomBO r = roomMap.get(roomId);
         if (r == null) return false;
 
+        synchronized (r) {
+
         // 1. 首次开局前的准备：房间未开始
         if (!r.isPlaying()) {
             for (DpPlayer p : r.getPlayers()) {
@@ -1423,6 +1443,7 @@ public class DpRoomServiceImpl {
             }
         }
         return false;
+        }
     }
 
     private void checkAndStartNextHandAfterSettle(DpRoomBO r) {
@@ -1454,6 +1475,7 @@ public class DpRoomServiceImpl {
     public boolean exitRoom(String roomId, String nickname) {
         DpRoomBO r = roomMap.get(roomId);
         if (r == null) return false;
+        synchronized (r) {
         // 先从观众席中移除这个人（无论是否在牌桌上）
         List<String> spectators = r.getSpectators();
         // 同时清理该玩家在“下一局预约列表”中的记录，避免下次进来时仍然是预约状态
@@ -1524,6 +1546,7 @@ public class DpRoomServiceImpl {
 
         syncLobbyForRoomId(roomId);
         return true;
+        }
     }
 
 
@@ -1532,6 +1555,10 @@ public class DpRoomServiceImpl {
     public boolean startGame(String roomId, String ownerNickname) {
         DpRoomBO r = roomMap.get(roomId);
         if (r == null || !r.getOwner().equals(ownerNickname)) return false;
+        synchronized (r) {
+        if (!r.getOwner().equals(ownerNickname)) {
+            return false;
+        }
         r.setPlaying(true);
         r.setCurrentStage("preflop");
         r.setCommunityCards(new ArrayList<>());
@@ -1553,6 +1580,7 @@ public class DpRoomServiceImpl {
         r.getPlayers().get(0).setDealer(true);
         syncLobbyForRoomId(roomId);
         return newHand(roomId);
+        }
     }
 
     public boolean newHand(String roomId) {
@@ -2568,15 +2596,17 @@ public class DpRoomServiceImpl {
     public void heartbeat(String roomId, String nickname) {
         DpRoomBO r = roomMap.get(roomId);
         if (r == null) return;
-        long now = System.currentTimeMillis();
-        for (DpPlayer p : r.getPlayers()) {
-            if (p.getNickname().equals(nickname)) {
-                p.setLastHeartBeat(now);
+        synchronized (r) {
+            long now = System.currentTimeMillis();
+            for (DpPlayer p : r.getPlayers()) {
+                if (p.getNickname().equals(nickname)) {
+                    p.setLastHeartBeat(now);
+                }
             }
-        }
-        List<String> specs = r.getSpectators();
-        if (specs != null && specs.contains(nickname)) {
-            r.touchSpectatorPresence(nickname, now);
+            List<String> specs = r.getSpectators();
+            if (specs != null && specs.contains(nickname)) {
+                r.touchSpectatorPresence(nickname, now);
+            }
         }
     }
 }

@@ -121,7 +121,6 @@ import '../styles/dp-game-eco-mode.css'
 import GameTopBar from './GameTopBar.vue'
 import { holeDealOrderFromDealer as holeDealOrderFromDealerUtil } from '../utils/dpGameRoundTableLayout'
 import { dpDisplayNickname } from '../utils/dpDisplayNickname'
-import { playSettlementMusic, stopSettlementMusic } from '../utils/dpGameSettlementMusic'
 import { musicFileSrc } from '../utils/dpGameMusicUrl'
 import GameRoundTable from './GameRoundTable.vue'
 import GameHeroDockFooter from './GameHeroDockFooter.vue'
@@ -154,14 +153,20 @@ export default {
       communityCardsFlipCompleteTimer: null,
       gameWs: null,
       gameWsConnected: false,
+      /** 每开一条新连接前自增，用于丢弃旧 socket 的 onclose/onopen，避免顶替连接时误触重连 */
+      gameWsSession: 0,
+      wsReconnectTimer: null,
+      /** 已连续重连失败次数；成功 onopen 时清零 */
+      wsReconnectAttempt: 0,
+      /** 离房 / 解散 / 组件销毁后禁止再连 */
+      wsNoReconnect: false,
       pollTimer: null,
       backupPollTimer: null,
       heartbeatTimer: null,
       _seatChatTimers: null,
       _dpRoomClosedHandled: false,
       _lastRoomBgmUrl: '',
-      _lastRoomMusicWebPath: '',
-      _settlementMusicStartedForHand: null
+      _lastRoomMusicWebPath: ''
     }
   },
 
@@ -296,8 +301,7 @@ export default {
         bgm.removeAttribute('src')
       }
     } catch (e) { /* ignore */ }
-    stopSettlementMusic()
-    this.disconnectGameWs()
+    this.shutdownGameWsPermanently()
     if (this.pollTimer) clearInterval(this.pollTimer)
     if (this.backupPollTimer) clearInterval(this.backupPollTimer)
     if (this.heartbeatTimer) clearInterval(this.heartbeatTimer)
@@ -342,18 +346,91 @@ export default {
       return (secure ? 'wss:' : 'ws:') + '//' + window.location.host
     },
 
+    clearWsReconnectTimer() {
+      if (this.wsReconnectTimer != null) {
+        clearTimeout(this.wsReconnectTimer)
+        this.wsReconnectTimer = null
+      }
+    },
+
+    /**
+     * 永久关闭 WS（离房、解散、组件销毁）：取消重连并摘掉回调，避免 onclose 再 schedule。
+     */
+    shutdownGameWsPermanently() {
+      this.wsNoReconnect = true
+      this.clearWsReconnectTimer()
+      this.gameWsSession++
+      var w = this.gameWs
+      this.gameWs = null
+      this.gameWsConnected = false
+      if (w) {
+        w.onopen = null
+        w.onclose = null
+        w.onerror = null
+        w.onmessage = null
+        try {
+          w.close()
+        } catch (e) { /* ignore */ }
+      }
+    },
+
+    scheduleWsReconnect(sessionAtOpen) {
+      var self = this
+      if (self.wsNoReconnect) return
+      if (self.gameWsSession !== sessionAtOpen) return
+      var exp = Math.min(5, self.wsReconnectAttempt)
+      var delay = Math.min(30000, 1000 * Math.pow(2, exp))
+      var jitter = Math.floor(Math.random() * 400)
+      self.wsReconnectAttempt++
+      self.clearWsReconnectTimer()
+      self.wsReconnectTimer = setTimeout(function () {
+        self.wsReconnectTimer = null
+        if (self.wsNoReconnect) return
+        if (self.gameWsSession !== sessionAtOpen) return
+        var g = self.gameWs
+        if (g && (g.readyState === WebSocket.OPEN || g.readyState === WebSocket.CONNECTING)) return
+        self.connectGameWs()
+      }, delay + jitter)
+    },
+
     connectGameWs() {
-      this.disconnectGameWs()
+      var self = this
+      if (self.wsNoReconnect) return
+
+      self.clearWsReconnectTimer()
+
+      self.gameWsSession++
+      var sessionAtOpen = self.gameWsSession
+
+      if (self.gameWs) {
+        var old = self.gameWs
+        self.gameWs = null
+        old.onopen = null
+        old.onclose = null
+        old.onerror = null
+        old.onmessage = null
+        try {
+          old.close()
+        } catch (e) { /* ignore */ }
+      }
+      self.gameWsConnected = false
+
       // 开发服：走 /dp-ws → vue 代理转成后端 /ws（避免与 webpack HMR 的 /ws 冲突）
       var path = process.env.NODE_ENV === 'development' ? '/dp-ws/dp-game' : '/ws/dp-game'
-      var url = this.gameWsBaseUrl() + path + '?roomId=' + encodeURIComponent(this.roomId)
-        + '&nickname=' + encodeURIComponent(this.user.nickname)
+      var url = self.gameWsBaseUrl() + path + '?roomId=' + encodeURIComponent(self.roomId)
+        + '&nickname=' + encodeURIComponent(self.user.nickname)
       try {
         var ws = new WebSocket(url)
-        this.gameWs = ws
-        var self = this
+        self.gameWs = ws
         ws.onopen = function () {
+          if (self.gameWsSession !== sessionAtOpen || self.wsNoReconnect) {
+            try {
+              ws.close()
+            } catch (err) { /* ignore */ }
+            return
+          }
           self.gameWsConnected = true
+          self.wsReconnectAttempt = 0
         }
         ws.onmessage = function (ev) {
           try {
@@ -376,25 +453,20 @@ export default {
           }
         }
         ws.onclose = function () {
+          if (self.gameWsSession !== sessionAtOpen) return
           self.gameWsConnected = false
           if (self.gameWs === ws) self.gameWs = null
+          if (!self.wsNoReconnect) self.scheduleWsReconnect(sessionAtOpen)
         }
         ws.onerror = function (e) {
-          console.error('WebSocket 错误', e)
+          console.warn('WebSocket 错误（将按退避重试）', e)
         }
       } catch (e) {
         console.error('WebSocket 连接失败', e)
+        if (!self.wsNoReconnect && self.gameWsSession === sessionAtOpen) {
+          self.scheduleWsReconnect(sessionAtOpen)
+        }
       }
-    },
-
-    disconnectGameWs() {
-      if (this.gameWs) {
-        try {
-          this.gameWs.close()
-        } catch (e) { /* ignore */ }
-        this.gameWs = null
-      }
-      this.gameWsConnected = false
     },
 
     handleRoomClosedFromServer() {
@@ -411,7 +483,7 @@ export default {
         }
       } catch (e) { /* ignore */ }
       var self = this
-      this.disconnectGameWs()
+      this.shutdownGameWsPermanently()
       if (this.pollTimer) clearInterval(this.pollTimer)
       if (this.backupPollTimer) clearInterval(this.backupPollTimer)
       if (this.heartbeatTimer) clearInterval(this.heartbeatTimer)
@@ -608,28 +680,6 @@ export default {
         }
       }.bind(this))
     },
-
-    /**
-     * 摊牌/准备下一局阶段播放结算 BGM；进入新一手（preflop）或非结算街时停止。
-     */
-    // syncSettlementMusic() {
-    //   if (!this.playing) {
-    //     stopSettlementMusic()
-    //     this.syncRoomBgmAudio()
-    //     return
-    //   }
-    //   var st = this.stage
-    //   var seed = this.currentHandSeed
-    //   if (st === 'showdown' || st === 'settled') {
-    //     if (this._settlementMusicStartedForHand !== seed) {
-    //       this._settlementMusicStartedForHand = seed
-    //       playSettlementMusic()
-    //     }
-    //   } else {
-    //     stopSettlementMusic()
-    //   }
-    //   this.syncRoomBgmAudio()
-    // },
 
     // ---- 拉取房间状态 ----
     async loadGame() {
@@ -1099,8 +1149,10 @@ export default {
       } catch (err) {
         console.error('退出失败', err)
       }
-      clearInterval(this.pollTimer)
-      clearInterval(this.heartbeatTimer)
+      this.shutdownGameWsPermanently()
+      if (this.pollTimer) clearInterval(this.pollTimer)
+      if (this.backupPollTimer) clearInterval(this.backupPollTimer)
+      if (this.heartbeatTimer) clearInterval(this.heartbeatTimer)
       this.navigateHomeIfNeeded()
     },
 

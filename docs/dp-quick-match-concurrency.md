@@ -91,11 +91,17 @@ synchronized (r) {
 
 ---
 
-## 7. 小结（背三句就够）
+## 7. 额外一把「快匹分配锁」（`dpQuickMatchAssignmentLock`）
 
-1. **同一张桌子（同一个 `DpRoomBO`）**：同一时刻只允许一个请求在「进房 + 候补」这段里改它，所以用 `synchronized (r)`。  
+快匹除对每个候选房 `synchronized (r)` 外，还把 **`quickMatchJoinAndReady` 的主流程**（含扫 `roomMap`、尝试进房）与 **`tryDrainDefaultQuickMatchPairs` 里「从默认队列摘下两人 → `createRoom` / `joinRoom` / `startGame`」** 串在同一把 `dpQuickMatchAssignmentLock` 上。这样不会出现：玩家 A 已被队列逻辑「摘出」但新房尚未建好时，另一条请求又让 A 进了别的公开桌，却仍按旧配对再为 A 建一桌的错乱窗口。
+
+服务端 **`joinRoom` / `readyNextHand` / `exitRoom`** 等对名单与席位的写入也在 **`synchronized (同一 DpRoomBO)`** 内完成（与快匹里包在 `synchronized(r)` 的块可重入叠加），避免大厅「加入房间」与快匹并发写同一 `players` 列表。
+
+## 8. 小结（背三句就够）
+
+1. **同一张桌子（同一个 `DpRoomBO`）**：同一时刻只允许一个请求在「进房 + 候补」这段里改它，所以用 `synchronized (r)`（以及相关 API 内部的同对象锁）。  
 2. **下一个人**：等锁没了再进来，**重新看名额**，可能已经加不进——这是预期行为。  
-3. **不同桌子**：Different `r` → **不同锁**，可以并行。
+3. **不同桌子**：Different `r` → **不同锁**，可以并行；**默认 FIFO 配对**还与 `dpQuickMatchAssignmentLock` 配合，收窄跨请求的时间窗。
 
 若你想继续往深走，推荐阅读顺序：**本篇 → Java 入门书里的「线程与 `synchronized` / 监视器（intrinsic lock）」一章**；和本项目强相关时再对照 **`DpRoomServiceImpl`** 里的 `quickMatchJoinAndReady` 读一遍。
 
