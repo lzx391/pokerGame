@@ -966,7 +966,10 @@ export default {
     },
     onClick() {
       if (!this.player.leftThisHand) {
-        this.$emit('card-click', this.player.nickname)
+        this.$emit('card-click', {
+          nickname: this.player.nickname,
+          userId: this.player.userId
+        })
       }
     }
   }

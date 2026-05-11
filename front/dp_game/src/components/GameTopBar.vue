@@ -79,6 +79,15 @@
           房主操作
         </button>
         <button
+            v-if="canInviteFriend"
+            type="button"
+            class="dp-btn dp-top-bar__btn dp-top-bar__btn--ghost"
+            aria-label="邀请好友进房"
+            @click="$emit('open-invite-friend')"
+        >
+          邀请好友
+        </button>
+        <button
             type="button"
             class="dp-btn dp-top-bar__btn dp-top-bar__btn--ghost"
             @click="$emit('open-hand-history')"
@@ -152,6 +161,8 @@ export default {
     ecoMode: { type: Boolean, required: true },
     /** 是否在顶栏显示「房主操作」入口 */
     isOwner: { type: Boolean, default: false },
+    /** 局内未离座成员或观众：可邀请互为好友进房 */
+    canInviteFriend: { type: Boolean, default: false },
     themeOptions: {
       type: Array,
       default: function () {

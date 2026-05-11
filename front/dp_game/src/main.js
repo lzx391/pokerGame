@@ -15,6 +15,7 @@ import './styles/dp-auth-shell.css'
 import './styles/dp-game-responsive-type.css'
 import './styles/dp-game-layout-tiers.css'
 import './styles/dp-game-element-ui.css'
+import './styles/dp-social-lists.css'
 import ElementUI, { Message } from 'element-ui'
 import 'element-ui/lib/theme-chalk/index.css';
 Vue.config.productionTip = false

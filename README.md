@@ -15,6 +15,7 @@
 - **多房间**：房间状态保存在进程内 `**ConcurrentHashMap`（`roomMap`）**；详见长文档中的 WebSocket 与房间说明。前端 `**/create-room`** 页可设置**房间基础积分**、**每人初始积分**与可选**进房密码**（仅存内存，重启失效），提交后会**自动调用开局并进入对局页**（房主可先单人上桌，他人从大厅加入）；大厅 `**/home`** 仅列表与加入；**`/room/:id`** 仍用于未开局时的加入/等人场景，若房间已在进行中则会自动转入 **`/game/:id`**。
 - **实时推送**：游戏页 WebSocket 路径形如 `**/ws/dp-game?roomId=...`**；有订阅者时才序列化推送，并与上次 JSON 去重以省流量。
 - **对局回放**：完整游戏对局记录可落库，支持按用户分页列表与详情（权限与卡牌信息展示规则见 `docs` 下说明）。
+- **好友 / 邮箱邀请（REST MVP）**：`userId` 维度双向好友、`/dp/mailbox` 合并待处理好友申请与进房邀请、**仅房主**可向互为好友的成员发 **60 秒**有效进房邀约；同意后 **绕过密码以观众进房**。超员与反骚扰未做，`仅大厅可见邮箱` 仅前端约定；接口与表结构见 [docs/dp_friend_mailbox_mvp.md](docs/dp_friend_mailbox_mvp.md)。**前端大厅（`front/dp_game/home`）**：右上角 **邮箱** + 数字红点（`GET /dp/mailbox/unread-count`，并每约 6 秒轮询一次）、**好友** 抽屉拉 `GET /dp/friends`；**红点策略**：仅「打开邮箱即隐藏」不做，红点始终跟服务端未处理条数，读完不点处理也不会假清零；截图自测流程：① 登录进大厅见红点 ② 点邮箱看两类待办 ③ 点好友看图里 id/昵称 ④ 同意进房邀请后跳转 `/game/:roomId`。**API 路径常量**：`front/dp_game/src/api/api.dpSocial.js`；状态：`Vuex` 模块 `dpMailbox`。
 - **大厅列表（单例版）**：`/dpRoom/publicRooms` 改为读 `dp_room_lobby` 单表（唯一数据源），返回结构保持 `{ list, total, page, pageSize }`；服务端在建房/进退房/踢人/房主变更/开局与房间销毁时同步摘要，分页查询使用 PageHelper + Redis 版本缓存（`mgdemo:cache:dpRoom:publicRooms:rev` 与 `mgdemo:cache:dpRoom:publicRooms:data:{rev}:{page}:{pageSize}`），变更时通过 `INCR rev + SCAN 删除旧 data 键` 失效，失败仅记录日志不阻断业务。带筛选的 `/dpRoom/publicRooms/query` 共用同一 `rev`，结果键为 `mgdemo:cache:dpRoom:lobbyQuery:data:{rev}:{paramHash}`（`paramHash` 为规范化查询串的 SHA-256 前 16 位十六进制），TTL 与 `mgdemoplus.cache.dp-room-public-rooms-ttl-seconds` 一致。
 
 ### 用户与账号

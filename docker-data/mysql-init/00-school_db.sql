@@ -6,3 +6,4 @@ SOURCE /docker-schema/dp_observed_hand_history.sql;
 SOURCE /docker-schema/dp_observed_hand_participant.sql;
 SOURCE /docker-schema/dp_shark_opponent_profile.sql;
 SOURCE /docker-schema/dp_music_track.sql;
+SOURCE /docker-schema/dp_friend_social.sql;

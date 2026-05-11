@@ -212,6 +212,17 @@ export default {
         return p.nickname === nick
       })
     },
+    /** 与后端 {@code canActiveMemberInviteFriends} 一致：未离座上桌真人或观众（非机器人）可发进房邀请 */
+    canInviteFriend: function (state, getters) {
+      var u = state.user
+      var nick = u && u.nickname
+      if (!nick) return false
+      if (isDpBotNickname(nick)) return false
+      var mp = getters.myPlayer
+      if (mp && !mp.leftThisHand) return true
+      var specs = state.spectators || []
+      return specs.indexOf(nick) !== -1
+    },
     holeDealPlayerCountForAnim: function (state) {
       if (!state.players || !state.players.length) return 1
       return state.players.length

@@ -49,8 +49,7 @@
 | **[WEBSOCKET.md](WEBSOCKET.md)** | 对局页 WebSocket 地址、与轮询/心跳分工、推送内容、聊天与音乐同步协议、多实例扩展注意点。 |
 | **[DpMusicWebPath.md](DpMusicWebPath.md)** | 曲库 `webPath`、磁盘目录、`/music/**` 与开发代理试听流程。 |
 | **[dp-quick-match-concurrency.md](dp-quick-match-concurrency.md)** | 大厅快速匹配里 `synchronized(房间)` 在解决什么问题、谁先谁后、单机与多实例注意点（零基础向）。 |
-
----
+| **[dp_friend_mailbox_mvp.md](dp_friend_mailbox_mvp.md)** | **好友 + 邮箱邀请（REST）**：`/dp/*` 双向申请、房主 60 秒进房邀约、观众进房免密；已知限制（超员/反骚扰/仅大厅可见前端约定）。 |
 
 ## 数据持久化与牌谱
 

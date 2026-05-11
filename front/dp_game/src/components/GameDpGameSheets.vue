@@ -121,6 +121,19 @@
           @kick-players="vm.doKickPlayers"
       />
     </game-bottom-sheet>
+    <game-player-social-sheet
+        v-if="vm.playerSocialOpen && vm.playerSocialTarget"
+        :visible="true"
+        :target="vm.playerSocialTarget"
+        @close="vm.closePlayerSocialSheet"
+    />
+    <game-invite-friend-sheet
+        v-if="vm.inviteFriendOpen"
+        :visible="true"
+        :room-id="vm.roomId"
+        :my-user-id="inviteFriendMyUserId"
+        @close="vm.closeInviteFriendSheet"
+    />
   </div>
 </template>
 
@@ -130,6 +143,8 @@ import GamePlayerCard from './GamePlayerCard.vue'
 import GameActionPanel from './GameActionPanel.vue'
 import GameOwnerPanel from './GameOwnerPanel.vue'
 import GameOwnerToolModal from './GameOwnerToolModal.vue'
+import GamePlayerSocialSheet from './GamePlayerSocialSheet.vue'
+import GameInviteFriendSheet from './GameInviteFriendSheet.vue'
 
 export default {
   name: 'GameDpGameSheets',
@@ -138,12 +153,19 @@ export default {
     GamePlayerCard,
     GameActionPanel,
     GameOwnerPanel,
-    GameOwnerToolModal
+    GameOwnerToolModal,
+    GamePlayerSocialSheet,
+    GameInviteFriendSheet
   },
   inject: ['dpGameView'],
   computed: {
     vm: function () {
       return this.dpGameView
+    },
+    inviteFriendMyUserId: function () {
+      var u = this.vm && this.vm.user
+      var n = u && u.userId != null && u.userId !== '' ? Number(u.userId) : 0
+      return isNaN(n) || n <= 0 ? 0 : n
     }
   }
 }

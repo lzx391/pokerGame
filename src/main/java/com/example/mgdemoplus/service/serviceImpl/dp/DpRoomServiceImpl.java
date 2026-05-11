@@ -1006,13 +1006,43 @@ public class DpRoomServiceImpl {
         return roomId != null && roomMap.containsKey(roomId);
     }
 
-    /** 指定昵称是否为该房房主（进房邀请仅限房主发起）。 */
+    /** 指定昵称是否为该房房主。 */
     public boolean isRoomOwnerNickname(String roomId, String nickname) {
         if (roomId == null || nickname == null) {
             return false;
         }
         DpRoomBO r = roomMap.get(roomId);
         return r != null && nickname.equals(r.getOwner());
+    }
+
+    /**
+     * 是否可由当前用户向好友发起进房邀请：须在目标房内，且为观众席真人，或桌上真人且本手未离座；机器人不可发起。
+     */
+    public boolean canActiveMemberInviteFriends(String roomId, String nickname) {
+        if (roomId == null || nickname == null || nickname.isBlank()) {
+            return false;
+        }
+        if (DpNpcEngine.isBotNickname(nickname)) {
+            return false;
+        }
+        DpRoomBO r = roomMap.get(roomId);
+        if (r == null) {
+            return false;
+        }
+        synchronized (r) {
+            List<String> spectators = r.getSpectators();
+            if (spectators != null && spectators.contains(nickname)) {
+                return true;
+            }
+            if (r.getPlayers() != null) {
+                for (DpPlayer p : r.getPlayers()) {
+                    if (p != null && nickname.equals(p.getNickname())) {
+                        return !p.isLeftThisHand() && !DpNpcEngine.isBotPlayer(p);
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     /**

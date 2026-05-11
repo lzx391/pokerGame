@@ -162,6 +162,62 @@ body[data-dp-game-theme] .el-dialog__footer {
   border-top: 1px solid var(--dp-panel-border);
 }
 
+/* ---------- Drawer（好友抽屉等 append-to-body） ---------- */
+body[data-dp-game-theme] .el-drawer {
+  background: var(--dp-panel-bg);
+  box-shadow: var(--dp-panel-shadow);
+}
+
+body[data-dp-game-theme] .el-drawer__header {
+  padding: clamp(14px, 3.5vw, 18px) clamp(14px, 4vw, 20px);
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--dp-panel-border);
+  color: var(--dp-text-primary);
+}
+
+body[data-dp-game-theme] .el-drawer__title {
+  color: var(--dp-text-primary);
+}
+
+body[data-dp-game-theme] .el-drawer__close-btn,
+body[data-dp-game-theme] .el-drawer__header .el-drawer__close-btn {
+  color: var(--dp-text-muted);
+}
+
+body[data-dp-game-theme] .el-drawer__close-btn:focus,
+body[data-dp-game-theme] .el-drawer__close-btn:hover {
+  color: var(--dp-text-primary);
+}
+
+body[data-dp-game-theme] .el-drawer__body {
+  background: transparent;
+  color: var(--dp-text-primary);
+}
+
+body[data-dp-game-theme] .el-drawer:focus {
+  outline: none;
+}
+
+/* ---------- Select / 下拉（邀请好友、表单） ---------- */
+body[data-dp-game-theme] .el-select-dropdown.el-popper,
+body[data-dp-game-theme] .el-select-dropdown {
+  background: var(--dp-panel-bg);
+  border-color: var(--dp-panel-border);
+}
+
+body[data-dp-game-theme] .el-select-dropdown__item {
+  color: var(--dp-text-primary);
+}
+
+body[data-dp-game-theme] .el-select-dropdown__item.hover,
+body[data-dp-game-theme] .el-select-dropdown__item:hover {
+  background: var(--dp-subpanel-bg);
+}
+
+body[data-dp-game-theme] .el-select-dropdown__list {
+  padding: 4px 0;
+}
+
 /* ---------- 表单 / 输入（曲库上传、后续管理页等） ---------- */
 body[data-dp-game-theme] .el-form-item__label {
   color: var(--dp-text-secondary);

@@ -26,6 +26,7 @@
         :wait-next-hand-count="waitNextHand.length"
         :is-fullscreen="layoutFullscreen"
         :is-owner="isOwner"
+        :can-invite-friend="canInviteFriend"
         :show-spectator-prepare="showSpectatorPrepareBlock"
         :next-hand-ready="nextHandReady"
         :game-ui-theme="gameUiTheme"
@@ -44,6 +45,7 @@
         @open-hand-history="openHandHistory"
         @open-music-box="$store.commit('dpGame/SET_MODAL', { showMusicBoxModal: true })"
         @open-owner-hub="openOwnerHubSheet"
+        @open-invite-friend="openInviteFriendSheet"
         @exit="exitGame"
         @ready-next-hand="readyNextHand"
     />
@@ -125,7 +127,7 @@ import '../styles/dp-game-modals.css'
 import '../styles/dp-game-eco-mode.css'
 import GameTopBar from './GameTopBar.vue'
 import { holeDealOrderFromDealer as holeDealOrderFromDealerUtil } from '../utils/dpGameRoundTableLayout'
-import { dpDisplayNickname } from '../utils/dpDisplayNickname'
+import { dpDisplayNickname, isDpBotNickname } from '../utils/dpDisplayNickname'
 import { musicFileSrc } from '../utils/dpGameMusicUrl'
 import GameRoundTable from './GameRoundTable.vue'
 import GameHeroDockFooter from './GameHeroDockFooter.vue'
@@ -172,7 +174,10 @@ export default {
       _seatChatTimers: null,
       _dpRoomClosedHandled: false,
       _lastRoomBgmUrl: '',
-      _lastRoomMusicWebPath: ''
+      _lastRoomMusicWebPath: '',
+      playerSocialOpen: false,
+      playerSocialTarget: null,
+      inviteFriendOpen: false
     }
   },
 
@@ -181,7 +186,7 @@ export default {
       'gameUiTheme', 'customThemeBase', 'customThemeOverrides', 'ecoMode', 'gameThemeOptions', 'roomId', 'user', 'currentHandSeed', 'owner', 'players', 'playing', 'stage', 'communityCards', 'pot', 'pots', 'currentBetToCall', 'lastRaiseIncrement', 'actIndex', 'spectators', 'waitNextHand', 'raiseAmount', 'selectedWinners', 'potWinners', 'nextHandReady', 'loading', 'communityCardsFlipState', 'communityCardsFlipComplete', 'seatChatTextByNick', 'chatInputDraft', 'showPlayGuideModal', 'playGuideTab', 'showSpectatorModal', 'showWaitNextHandModal', 'showHandHistoryModal', 'showMusicBoxModal', 'musicTracks', 'musicTracksLoading', 'musicTracksError', 'roomMusicState', 'showOwnerHubSheet', 'ownerToolType', 'ownerActionTarget', 'demoBotAdding', 'demoBotAddedTip', 'maniacBotAdding', 'maniacBotAddedTip', 'tagBotAdding', 'tagBotAddedTip', 'lagBotAdding', 'lagBotAddedTip', 'nitBotAdding', 'nitBotAddedTip', 'callBotAdding', 'callBotAddedTip', 'llmBotAdding', 'llmBotAddedTip', 'ownerRevealAll', 'showMobileHandSheet', 'showMobileActionSheet', 'heroHoleDealIntroDone', 'chipLeaderNicknames'
     ]),
     ...mapGetters('dpGame', [
-      'effectiveThemeForCss', 'customThemeInlineStyle', 'handRankReference', 'stageCN', 'isOwner', 'isMyTurn', 'myPlayer', 'showSpectatorPrepareBlock', 'myReady', 'myChips', 'myBet', 'callAmount', 'smallBlind', 'bigBlind', 'lastRaiseIncrementEffective', 'minTotalToRaise', 'minRaise', 'allPotsHaveWinners', 'inSettledStage', 'ownerActionPlayers', 'playersDisplayOrder', 'viewerSeatedAtTable', 'holeDealPlayerCountForAnim', 'heroDockRow', 'dealerDisplayIndex', 'showdownHandLeaderNicknames', 'spectatorSeatChatEntries', 'tableActionActorDisplayName', 'mobileHeroDockActive', 'showHeroViewHandButton', 'showHeroSeatOnTable', 'showBottomHeroDock'
+      'effectiveThemeForCss', 'customThemeInlineStyle', 'handRankReference', 'stageCN', 'isOwner', 'canInviteFriend', 'isMyTurn', 'myPlayer', 'showSpectatorPrepareBlock', 'myReady', 'myChips', 'myBet', 'callAmount', 'smallBlind', 'bigBlind', 'lastRaiseIncrementEffective', 'minTotalToRaise', 'minRaise', 'allPotsHaveWinners', 'inSettledStage', 'ownerActionPlayers', 'playersDisplayOrder', 'viewerSeatedAtTable', 'holeDealPlayerCountForAnim', 'heroDockRow', 'dealerDisplayIndex', 'showdownHandLeaderNicknames', 'spectatorSeatChatEntries', 'tableActionActorDisplayName', 'mobileHeroDockActive', 'showHeroViewHandButton', 'showHeroSeatOnTable', 'showBottomHeroDock'
     ]),
     actionTimerProgressPct() {
       var t = Number(this.timeLeft)
@@ -827,9 +832,49 @@ export default {
       this.$store.commit('dpGame/TOGGLE_SELECTED_WINNER', nickname)
     },
 
-    // 统一的玩家卡片点击入口：仅用于摊牌选赢家（房主神器不再通过点卡片）
-    onPlayerCardClick(nickname) {
-      this.handleJudgeClick(nickname)
+    openInviteFriendSheet() {
+      if (!this.canInviteFriend) return
+      this.inviteFriendOpen = true
+    },
+    closeInviteFriendSheet() {
+      this.inviteFriendOpen = false
+    },
+    closePlayerSocialSheet() {
+      this.playerSocialOpen = false
+      this.playerSocialTarget = null
+    },
+    /**
+     * @param {string|{nickname:string,userId?:number}} payload
+     */
+    onPlayerCardClick(payload) {
+      var nickname = typeof payload === 'string'
+        ? payload
+        : (payload && payload.nickname)
+      if (!nickname) return
+
+      if (this.user && nickname === this.user.nickname) {
+        return
+      }
+
+      if (this.isOwner && this.stage === 'showdown' && (!this.pots || this.pots.length === 0)) {
+        this.handleJudgeClick(nickname)
+        return
+      }
+
+      if (isDpBotNickname(nickname)) {
+        this.$message.info('机器人不支持该功能')
+        return
+      }
+
+      var rawUid = typeof payload === 'object' && payload ? payload.userId : null
+      var uid = rawUid != null && rawUid !== '' ? Number(rawUid) : NaN
+      if (!uid || uid <= 0 || isNaN(uid)) {
+        this.$message.warning('无法获取该玩家的账号信息，请对方使用已登录账号进房后再试')
+        return
+      }
+
+      this.playerSocialTarget = { nickname: nickname, userId: uid }
+      this.playerSocialOpen = true
     },
 
     // ---- 按池选赢家 ----

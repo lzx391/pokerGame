@@ -1,6 +1,7 @@
 package com.example.mgdemoplus.entity.dp;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import com.example.mgdemoplus.utils.dp.DpUtilNpcDisplayNickname;
@@ -11,9 +12,11 @@ import java.util.List;
 public class DpPlayer {
     private String nickname;
     /**
-     * 登录用户主键（dp_user.id），由进房/预约下一局等接口可选传入；不入 JSON，供牌谱关联表写入。
+     * 登录用户主键（dp_user.id），由进房/预约下一局等接口可选传入；机器人通常为 null。
+     * 序列化为 {@code userId}，供前端好友申请、房主邀请等；牌谱等仍用同一字段。
      */
-    @JsonIgnore
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonProperty("userId")
     private Integer dpUserId;
     private boolean ready = false;
     private int chips = 500;       // 初始500积分 = 50BB
