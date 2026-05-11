@@ -184,9 +184,13 @@ export default {
       },
       useFilterQuery: false,
       quickMatchLoading: false,
-      /** 已入默认快匹队列，轮询 /quickMatchPoll2 直至 MATCHED */
+      /** 已入默认快匹队列，靠 /ws/dp-quick-match 推送直至 MATCHED */
       quickMatchPolling: false,
-      quickMatchPollTimer: null
+      quickMatchWs: null,
+      quickMatchWsSession: 0,
+      quickMatchWsNoReconnect: false,
+      quickMatchWsReconnectTimer: null,
+      quickMatchWsReconnectAttempt: 0
     }
   },
   computed: {
@@ -224,7 +228,7 @@ export default {
     }
     if (this.quickMatchPolling) {
       this.cancelQuickMatchRemote()
-      this.stopQuickMatchPolling()
+      this.disconnectQuickMatchWs()
       this.quickMatchPolling = false
       this.quickMatchLoading = false
     }
@@ -258,10 +262,10 @@ export default {
     goCreateRoom() {
       this.$router.push('/create-room')
     },
-    /** 排队中再点一次：取消后端队列并停止轮询 */
+    /** 排队中再点一次：断开快匹 WebSocket 并取消后端队列 */
     async onQuickMatchButtonClick() {
       if (this.quickMatchPolling) {
-        this.stopQuickMatchPolling()
+        this.disconnectQuickMatchWs()
         this.quickMatchPolling = false
         this.quickMatchLoading = false
         try {
@@ -273,12 +277,207 @@ export default {
       }
       await this.quickMatch()
     },
+    quickMatchWsBaseUrl() {
+      var secure = window.location.protocol === 'https:'
+      return (secure ? 'wss:' : 'ws:') + '//' + window.location.host
+    },
+    disconnectQuickMatchWs() {
+      this.quickMatchWsNoReconnect = true
+      this.clearQuickMatchWsReconnectTimer()
+      this.quickMatchWsReconnectAttempt = 0
+      this.quickMatchWsSession++
+      var w = this.quickMatchWs
+      this.quickMatchWs = null
+      if (w) {
+        w.onopen = null
+        w.onclose = null
+        w.onerror = null
+        w.onmessage = null
+        try {
+          w.close()
+        } catch (e) { /* ignore */ }
+      }
+    },
+    clearQuickMatchWsReconnectTimer() {
+      if (this.quickMatchWsReconnectTimer != null) {
+        clearTimeout(this.quickMatchWsReconnectTimer)
+        this.quickMatchWsReconnectTimer = null
+      }
+    },
+    /**
+     * 排队等待 MATCHED 时 WebSocket 断线：指数退避重连；成功后服务端 {@link pushQuickMatchLobbySnapshot} 会补发状态。
+     */
+    scheduleQuickMatchWsReconnect(sessionAtClose) {
+      var self = this
+      if (this.quickMatchWsNoReconnect) return
+      if (!this.quickMatchPolling) return
+      if (this.quickMatchWsSession !== sessionAtClose) return
+      this.clearQuickMatchWsReconnectTimer()
+      var exp = Math.min(5, this.quickMatchWsReconnectAttempt)
+      var delay = Math.min(30000, 1000 * Math.pow(2, exp))
+      var jitter = Math.floor(Math.random() * 400)
+      this.quickMatchWsReconnectAttempt++
+      this.quickMatchWsReconnectTimer = setTimeout(function () {
+        self.quickMatchWsReconnectTimer = null
+        if (self.quickMatchWsNoReconnect) return
+        if (!self.quickMatchPolling) return
+        if (self.quickMatchWsSession !== sessionAtClose) return
+        var g = self.quickMatchWs
+        if (g && (g.readyState === WebSocket.OPEN || g.readyState === WebSocket.CONNECTING)) return
+        self.reconnectQuickMatchWsWhileWaiting(sessionAtClose)
+      }, delay + jitter)
+    },
+    reconnectQuickMatchWsWhileWaiting(prevSession) {
+      var self = this
+      if (this.quickMatchWsNoReconnect || !this.quickMatchPolling) return
+      if (this.quickMatchWsSession !== prevSession) return
+      if (!this.user || !this.user.nickname || !this.user.token) return
+      this.quickMatchWsSession++
+      var sessionAtOpen = this.quickMatchWsSession
+      if (this.quickMatchWs) {
+        var old = this.quickMatchWs
+        this.quickMatchWs = null
+        old.onopen = null
+        old.onclose = null
+        old.onerror = null
+        old.onmessage = null
+        try {
+          old.close()
+        } catch (e) { /* ignore */ }
+      }
+      var path =
+        process.env.NODE_ENV === 'development' ? '/dp-ws/dp-quick-match' : '/ws/dp-quick-match'
+      var url =
+        this.quickMatchWsBaseUrl() +
+        path +
+        '?nickname=' +
+        encodeURIComponent(this.user.nickname) +
+        '&token=' +
+        encodeURIComponent(String(this.user.token))
+      var ws
+      try {
+        ws = new WebSocket(url)
+      } catch (e) {
+        this.scheduleQuickMatchWsReconnect(sessionAtOpen)
+        return
+      }
+      this.quickMatchWs = ws
+      ws.onopen = function () {
+        if (self.quickMatchWsSession !== sessionAtOpen || self.quickMatchWsNoReconnect) return
+        self.quickMatchWsReconnectAttempt = 0
+      }
+      ws.onerror = function () { /* onclose 里统一兜底重连 */ }
+      ws.onclose = function () {
+        if (self.quickMatchWsSession !== sessionAtOpen) return
+        if (self.quickMatchWs === ws) self.quickMatchWs = null
+        self.scheduleQuickMatchWsReconnect(sessionAtOpen)
+      }
+      ws.onmessage = function (ev) {
+        self.handleQuickMatchWsMessage(ev, sessionAtOpen)
+      }
+    },
+    connectQuickMatchWs() {
+      var self = this
+      return new Promise(function (resolve, reject) {
+        if (!self.user || !self.user.nickname) {
+          reject(new Error('no user'))
+          return
+        }
+        var tok = self.user.token ? String(self.user.token) : ''
+        if (!tok) {
+          reject(new Error('no token'))
+          return
+        }
+        self.disconnectQuickMatchWs()
+        self.quickMatchWsNoReconnect = false
+        var sessionAtOpen = ++self.quickMatchWsSession
+        var path =
+          process.env.NODE_ENV === 'development' ? '/dp-ws/dp-quick-match' : '/ws/dp-quick-match'
+        var url =
+          self.quickMatchWsBaseUrl() +
+          path +
+          '?nickname=' +
+          encodeURIComponent(self.user.nickname) +
+          '&token=' +
+          encodeURIComponent(tok)
+        var ws
+        try {
+          ws = new WebSocket(url)
+        } catch (e) {
+          reject(e)
+          return
+        }
+        self.quickMatchWs = ws
+        var settled = false
+        ws.onopen = function () {
+          if (self.quickMatchWsSession !== sessionAtOpen || self.quickMatchWsNoReconnect) return
+          if (settled) return
+          settled = true
+          self.quickMatchWsReconnectAttempt = 0
+          resolve()
+        }
+        ws.onerror = function () {
+          if (self.quickMatchWsSession !== sessionAtOpen) return
+          if (!settled) {
+            settled = true
+            reject(new Error('ws error'))
+          }
+        }
+        ws.onclose = function () {
+          if (self.quickMatchWsSession !== sessionAtOpen) return
+          if (!settled) {
+            settled = true
+            reject(new Error('ws closed before open'))
+            return
+          }
+          if (self.quickMatchWs === ws) self.quickMatchWs = null
+          self.scheduleQuickMatchWsReconnect(sessionAtOpen)
+        }
+        ws.onmessage = function (ev) {
+          self.handleQuickMatchWsMessage(ev, sessionAtOpen)
+        }
+      })
+    },
+    handleQuickMatchWsMessage(ev, sessionAtOpen) {
+      if (this.quickMatchWsSession !== sessionAtOpen) return
+      try {
+        var data = JSON.parse(ev.data)
+        if (data._ws !== 'quickMatch') return
+        if (data.state === 'MATCHED' && data.roomId) {
+          this.quickMatchPolling = false
+          this.quickMatchLoading = false
+          this.disconnectQuickMatchWs()
+          this.$router.push('/game/' + data.roomId)
+          return
+        }
+        if (data.state === 'IDLE') {
+          this.quickMatchPolling = false
+          this.quickMatchLoading = false
+          this.disconnectQuickMatchWs()
+          alert(data.message || '已不在匹配队列')
+        }
+      } catch (e) {
+        console.error('quickMatchWs message', e)
+      }
+    },
     async quickMatch() {
       if (!this.user || !this.user.nickname) {
         alert('请先登录后再快速匹配')
         return
       }
+      if (!this.user.token) {
+        alert('登录已失效，请重新登录')
+        return
+      }
       this.quickMatchLoading = true
+      try {
+        await this.connectQuickMatchWs()
+      } catch (e) {
+        console.error('quickMatch ws', e)
+        alert('匹配通道连接失败，请稍后重试')
+        this.quickMatchLoading = false
+        return
+      }
       try {
         const params = { nickname: this.user.nickname }
         if (this.user.userId != null && this.user.userId !== '') {
@@ -287,22 +486,25 @@ export default {
         const res = await this.$http.post('/dpRoom/quickMatch2', null, { params })
         const body = res.data
         if (!dpResultSuccess(body)) {
+          this.disconnectQuickMatchWs()
           alert(dpResultMessage(body))
           return
         }
         const data = dpResultData(body) || {}
         if (data.roomId) {
+          this.disconnectQuickMatchWs()
           this.$router.push('/game/' + data.roomId)
           return
         }
         if (data.queued && data.state === 'WAITING') {
           this.quickMatchPolling = true
-          this.startQuickMatchPolling()
           return
         }
+        this.disconnectQuickMatchWs()
         alert('匹配响应异常，请稍后重试')
       } catch (e) {
         console.error('quickMatch', e)
+        this.disconnectQuickMatchWs()
         alert('网络错误，请稍后重试')
       } finally {
         if (!this.quickMatchPolling) {
@@ -310,52 +512,10 @@ export default {
         }
       }
     },
-    stopQuickMatchPolling() {
-      if (this.quickMatchPollTimer != null) {
-        clearInterval(this.quickMatchPollTimer)
-        this.quickMatchPollTimer = null
-      }
-    },
     cancelQuickMatchRemote() {
       if (!this.user || !this.user.nickname) return Promise.resolve()
       const params = { nickname: this.user.nickname }
       return this.$http.post('/dpRoom/quickMatchCancel2', null, { params }).catch(() => {})
-    },
-    startQuickMatchPolling() {
-      this.stopQuickMatchPolling()
-      const tick = async () => {
-        if (!this.user || !this.user.nickname) return
-        try {
-          const params = { nickname: this.user.nickname }
-          const res = await this.$http.get('/dpRoom/quickMatchPoll2', { params })
-          const body = res.data
-          if (!dpResultSuccess(body)) {
-            this.stopQuickMatchPolling()
-            this.quickMatchPolling = false
-            this.quickMatchLoading = false
-            alert(dpResultMessage(body))
-            return
-          }
-          const data = dpResultData(body) || {}
-          if (data.state === 'MATCHED' && data.roomId) {
-            this.stopQuickMatchPolling()
-            this.quickMatchPolling = false
-            this.quickMatchLoading = false
-            this.$router.push('/game/' + data.roomId)
-            return
-          }
-          if (data.state === 'IDLE') {
-            this.stopQuickMatchPolling()
-            this.quickMatchPolling = false
-            this.quickMatchLoading = false
-            alert(data.message || '已不在匹配队列（可能已超时）')
-          }
-        } catch (e) {
-          console.error('quickMatchPoll', e)
-        }
-      }
-      this.quickMatchPollTimer = setInterval(tick, 1600)
-      tick()
     },
     /** 与当前 filters 是否应走 MyBatis 查询一致（用于搜索按钮） */
     filtersActiveFromForm() {

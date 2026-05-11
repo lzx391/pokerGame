@@ -82,7 +82,7 @@ public class DpRoomController {
 
     /**
      * 大厅快速匹配（需登录）：先尝试并进已有公开房；若无空位则入默认 FIFO 队列（小盲 5、9 人桌），满两名玩家服务端自动建新公开房。
-     * 排队中前端轮询 {@link #quickMatchPoll2}；离开时可选 {@link #quickMatchCancel2}。
+     * 排队中由 {@code /ws/dp-quick-match} 推送状态；离开队列可 {@link #quickMatchCancel2}。
      */
     @PostMapping("/quickMatch2")
     public ResultUtil quickMatch2(@RequestParam String nickname,
@@ -93,19 +93,6 @@ public class DpRoomController {
             return ResultUtil.error().data("message", "token 与当前昵称不一致");
         }
         return dpRoomService.quickMatchJoinQueueOrImmediate(nickname, userId);
-    }
-
-    /**
-     * 默认快匹排队轮询（需登录）：{@code MATCHED} 返回 {@code roomId}；{@code WAITING} 仍在队列；{@code IDLE} 不在队列（含超时或未入队）。
-     */
-    @GetMapping("/quickMatchPoll2")
-    public ResultUtil quickMatchPoll2(@RequestParam String nickname) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String jwtNickname = auth != null ? auth.getName() : null;
-        if (jwtNickname == null || !jwtNickname.equals(nickname)) {
-            return ResultUtil.error().data("message", "token 与当前昵称不一致");
-        }
-        return dpRoomService.quickMatchPollMatchedOrWaiting(nickname);
     }
 
     /** 取消默认快匹排队（无需在匹配成功后的房间再调）。 */

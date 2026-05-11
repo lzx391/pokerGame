@@ -14,6 +14,7 @@ import com.example.mgdemoplus.service.dp.DpRoomHallService;
 import com.example.mgdemoplus.utils.ResultUtil;
 import com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator;
 import com.example.mgdemoplus.websocket.DpGameRoomPushService;
+import com.example.mgdemoplus.websocket.DpQuickMatchPushService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +37,7 @@ public class DpRoomServiceImpl {
     private final DpHandHistoryObservedService observedHandService;
     private final DpRoomHallService dpRoomHallService;
     private final ObjectMapper objectMapper;
+    private final DpQuickMatchPushService quickMatchPush;
 
     /**
      * 公开房瞬时快匹均无空位时的默认等待队列（单机内存）。
@@ -54,8 +56,6 @@ public class DpRoomServiceImpl {
 
     private final Object defaultQmLock = new Object();
     private final ArrayDeque<DefaultQmWaitEntry> defaultQmWaiters = new ArrayDeque<>();
-    /** 配对成功后暂存 nick → roomId，供 {@link #quickMatchPollMatchedOrWaiting} 消费一次 */
-    private final ConcurrentHashMap<String, String> defaultQmMatchedRoom = new ConcurrentHashMap<>();
 
     /**
      * 串行化快匹写入 roomMap（扫公开房并进房、默认 FIFO 拉出两人 {@link #tryDrainDefaultQuickMatchPairs}
@@ -191,7 +191,8 @@ public class DpRoomServiceImpl {
             DpUserMapper dpUserMapper,
             DpHandHistoryObservedService observedHandService,
             DpRoomHallService dpRoomHallService,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            DpQuickMatchPushService quickMatchPush
     ) {
         this.observedHandPersistService = observedHandPersistService;
         this.llmNpcDecisionService = llmNpcDecisionService;
@@ -200,6 +201,7 @@ public class DpRoomServiceImpl {
         this.observedHandService = observedHandService;
         this.dpRoomHallService = dpRoomHallService;
         this.objectMapper = objectMapper;
+        this.quickMatchPush = quickMatchPush;
         // 心跳清理 + 超时行动
         new Timer().scheduleAtFixedRate(new TimerTask() {
             @Override
@@ -246,13 +248,7 @@ public class DpRoomServiceImpl {
                             }
                         }
                     }
-                    int size = 0;//检测活人逻辑
-                    for (DpPlayer kickPlayer : room.getPlayers()) {
-                        if (!kickPlayer.isLeftThisHand() && !DpNpcEngine.isBotPlayer(kickPlayer)) {
-                            size += 1;
-//                            System.out.println("定时器检测："+kickPlayer.getNickname()+"是活人");
-                        }
-                    }
+                    int size = liveHumanTableCount(room);//检测活人逻辑（与 exitRoom / removeRoom 拆房口径一致）
 //                    System.out.println("定时器检测：人数："+size);
                         if (size == 0 && room.getSpectators().isEmpty()) {
                         System.out.println("定时器检测：房间：" + room.getRoomId() + "没活人了");
@@ -389,13 +385,31 @@ public class DpRoomServiceImpl {
         dpRoomHallService.upsertRoomSummary(room);
     }
 
+    /**
+     * 从 {@link #roomMap} 摘除房间。须在 {@link DpRoomBO} 监视器上与 {@link #joinRoom} 等串行，
+     * 避免「map 已删但仍在该对象上 join」的幽灵房竞态（退出与快匹交错时）。
+     */
     private void removeRoom(String roomId) {
         if (roomId == null || roomId.isEmpty()) {
             return;
         }
-        roomMap.remove(roomId);
-        dpRoomHallService.deleteRoomSummary(roomId);
-        gameRoomPushService.shutdownSubscriptionsForRoom(roomId);
+        DpRoomBO r = roomMap.get(roomId);
+        if (r == null) {
+            return;
+        }
+        synchronized (r) {
+            if (roomMap.get(roomId) != r) {
+                return;
+            }
+            // 与定时器/exit 一致：若在此期间又有人进房，则不删
+            if (liveHumanTableCount(r) > 0
+                    || (r.getSpectators() != null && !r.getSpectators().isEmpty())) {
+                return;
+            }
+            roomMap.remove(roomId);
+            dpRoomHallService.deleteRoomSummary(roomId);
+            gameRoomPushService.shutdownSubscriptionsForRoom(roomId);
+        }
     }
 
     /**
@@ -917,6 +931,9 @@ public class DpRoomServiceImpl {
         DpRoomBO r = roomMap.get(roomId);
         if (r == null) return "房间不存在";
         synchronized (r) {
+        if (roomMap.get(roomId) != r) {
+            return "房间不存在";
+        }
         if (!r.matchesRoomPassword(roomPassword)) {
             return "密码错误";
         }
@@ -1072,6 +1089,9 @@ public class DpRoomServiceImpl {
             for (DpRoomBO r : candidates) {
                 //快匹入口
                 synchronized (r) {
+                    if (roomMap.get(r.getRoomId()) != r) {
+                        continue;
+                    }
                     long now = System.currentTimeMillis();
                     if (r.isPasswordProtected() || quickMatchVacancy(r, now) <= 0) {
                         continue;
@@ -1116,6 +1136,46 @@ public class DpRoomServiceImpl {
         return m != null ? m : "";
     }
 
+    private void notifyQuickMatchTimedOut(List<String> nicknames) {
+        if (nicknames == null || nicknames.isEmpty()) {
+            return;
+        }
+        for (String n : nicknames) {
+            quickMatchPush.notifyIdle(n, "匹配等待超时");
+        }
+    }
+
+    /**
+     * 快匹 WebSocket 建连后补发当前状态（避免先 POST 再连接触发推送时客户端尚未注册会话）。
+     */
+    public void pushQuickMatchLobbySnapshot(String nickname) {
+        if (nickname == null || nickname.isBlank()) {
+            return;
+        }
+        List<String> qmTimedOut;
+        int queuePos = 0;
+        synchronized (defaultQmLock) {
+            qmTimedOut = pruneDefaultQuickMatchQueueLockedWithoutReentry();
+            int i = 1;
+            for (DefaultQmWaitEntry e : defaultQmWaiters) {
+                if (nickname.equals(e.nickname())) {
+                    queuePos = i;
+                    break;
+                }
+                i++;
+            }
+        }
+        notifyQuickMatchTimedOut(qmTimedOut);
+        if (queuePos > 0) {
+            quickMatchPush.notifyWaiting(nickname, queuePos);
+            return;
+        }
+        DpRoomBO inRoom = findRoomContainingNickname(nickname);
+        if (inRoom != null) {
+            quickMatchPush.notifyMatched(nickname, inRoom.getRoomId());
+        }
+    }
+
     /**
      * 大厅快匹：先尝试进入已有公开房；若无房可进则进入默认等待队列（小盲 5、最多 9 人公开桌），满两人自动创建默认房并排好准备。
      */
@@ -1131,8 +1191,9 @@ public class DpRoomServiceImpl {
             return quickMatchJoinAndReady(nickname, userId);
         }
         long now = System.currentTimeMillis();
+        List<String> qmTimedOut;
         synchronized (defaultQmLock) {
-            pruneDefaultQuickMatchQueueLockedWithoutReentry();
+            qmTimedOut = pruneDefaultQuickMatchQueueLockedWithoutReentry();
             boolean already = false;
             for (DefaultQmWaitEntry e : defaultQmWaiters) {
                 if (nickname.equals(e.nickname())) {
@@ -1144,39 +1205,26 @@ public class DpRoomServiceImpl {
                 defaultQmWaiters.addLast(new DefaultQmWaitEntry(nickname, userId, now));
             }
         }
+        notifyQuickMatchTimedOut(qmTimedOut);
         tryDrainDefaultQuickMatchPairs();
-        return ResultUtil.ok()
-                .data("queued", true)
-                .data("state", "WAITING")
-                .data("message", "已加入匹配队列，凑齐另一名玩家后将自动建房");
-    }
-
-    /**
-     * 轮询：队列中为 {@code WAITING}；已配对则 {@code MATCHED} 并返回 {@code roomId}（单次消费）。
-     */
-    public ResultUtil quickMatchPollMatchedOrWaiting(String nickname) {
-        if (nickname == null || nickname.isBlank()) {
-            return ResultUtil.error().data("message", "昵称无效");
-        }
-        String rid = defaultQmMatchedRoom.remove(nickname);
-        if (rid != null && !rid.isEmpty()) {
-            return ResultUtil.ok()
-                    .data("state", "MATCHED")
-                    .data("roomId", rid);
-        }
+        int queuePos = 0;
         synchronized (defaultQmLock) {
-            pruneDefaultQuickMatchQueueLockedWithoutReentry();
             int i = 1;
             for (DefaultQmWaitEntry e : defaultQmWaiters) {
                 if (nickname.equals(e.nickname())) {
-                    return ResultUtil.ok()
-                            .data("state", "WAITING")
-                            .data("queuePosition", i);
+                    queuePos = i;
+                    break;
                 }
                 i++;
             }
         }
-        return ResultUtil.ok().data("state", "IDLE").data("message", "当前不在匹配队列中");
+        if (queuePos > 0) {
+            quickMatchPush.notifyWaiting(nickname, queuePos);
+        }
+        return ResultUtil.ok()
+                .data("queued", true)
+                .data("state", "WAITING")
+                .data("message", "已加入匹配队列，凑齐另一名玩家后将自动建房");
     }
 
     /** 离开默认快匹等待队列（例如关闭大厅）。 */
@@ -1184,22 +1232,45 @@ public class DpRoomServiceImpl {
         if (nickname == null || nickname.isBlank()) {
             return false;
         }
+        boolean removed;
         synchronized (defaultQmLock) {
-            return defaultQmWaiters.removeIf(e -> nickname.equals(e.nickname()));
+            removed = defaultQmWaiters.removeIf(e -> nickname.equals(e.nickname()));
         }
+        if (removed) {
+            quickMatchPush.notifyIdle(nickname, "已取消匹配");
+        }
+        return removed;
     }
 
     @Scheduled(fixedDelayString = "${mgdemoplus.dp-quick-match-prune-ms:30000}")
     public void scheduledPruneDefaultQuickMatchQueue() {
+        List<String> timedOut;
         synchronized (defaultQmLock) {
-            pruneDefaultQuickMatchQueueLockedWithoutReentry();
+            timedOut = pruneDefaultQuickMatchQueueLockedWithoutReentry();
         }
+        notifyQuickMatchTimedOut(timedOut);
     }
 
-    private void pruneDefaultQuickMatchQueueLockedWithoutReentry() {
+    /**
+     * 在已持有或可安全使用 {@link #defaultQmLock} 的上下文中调用：移除超时或已在房内者；
+     *
+     * @return 仅因<strong>等待超时</strong>被移出队列的昵称（用于 {@link #notifyQuickMatchTimedOut}）
+     */
+    private List<String> pruneDefaultQuickMatchQueueLockedWithoutReentry() {
         long now = System.currentTimeMillis();
-        defaultQmWaiters.removeIf(
-                e -> now - e.enqueuedMs() > DEFAULT_QM_WAIT_MS || findRoomContainingNickname(e.nickname()) != null);
+        List<String> timedOut = new ArrayList<>();
+        defaultQmWaiters.removeIf(e -> {
+            boolean tooLong = now - e.enqueuedMs() > DEFAULT_QM_WAIT_MS;
+            boolean inRoom = findRoomContainingNickname(e.nickname()) != null;
+            if (tooLong || inRoom) {
+                if (tooLong) {
+                    timedOut.add(e.nickname());
+                }
+                return true;
+            }
+            return false;
+        });
+        return timedOut;
     }
 
     /**
@@ -1208,16 +1279,19 @@ public class DpRoomServiceImpl {
     private void tryDrainDefaultQuickMatchPairs() {
         while (true) {
             synchronized (dpQuickMatchAssignmentLock) {
+                List<String> qmTimedOut;
                 DefaultQmWaitEntry wa;
                 DefaultQmWaitEntry wb;
                 synchronized (defaultQmLock) {
-                    pruneDefaultQuickMatchQueueLockedWithoutReentry();
+                    qmTimedOut = pruneDefaultQuickMatchQueueLockedWithoutReentry();
                     if (defaultQmWaiters.size() < 2) {
+                        notifyQuickMatchTimedOut(qmTimedOut);
                         return;
                     }
                     wa = defaultQmWaiters.pollFirst();
                     wb = defaultQmWaiters.pollFirst();
                 }
+                notifyQuickMatchTimedOut(qmTimedOut);
                 if (wa == null || wb == null) {
                     return;
                 }
@@ -1284,8 +1358,8 @@ public class DpRoomServiceImpl {
             }
         }
         syncLobbyForRoomId(roomId);
-        defaultQmMatchedRoom.put(wa.nickname(), roomId);
-        defaultQmMatchedRoom.put(wb.nickname(), roomId);
+        quickMatchPush.notifyMatched(wa.nickname(), roomId);
+        quickMatchPush.notifyMatched(wb.nickname(), roomId);
     }
 
     /** 席上且本手未标记离座视为「在场上」。 */
@@ -1359,6 +1433,21 @@ public class DpRoomServiceImpl {
             if (nowMs - p.getLastHeartBeat() <= hb) {
                 n++;
             }
+        }
+        return n;
+    }
+
+    /** 桌上非僵尸、非机器人真人数量（与心跳无关；与定时空房清理 / {@link #removeRoom} 口径一致）。 */
+    private static int liveHumanTableCount(DpRoomBO room) {
+        if (room == null || room.getPlayers() == null) {
+            return 0;
+        }
+        int n = 0;
+        for (DpPlayer p : room.getPlayers()) {
+            if (p == null || p.isLeftThisHand() || DpNpcEngine.isBotPlayer(p)) {
+                continue;
+            }
+            n++;
         }
         return n;
     }
@@ -1495,7 +1584,15 @@ public class DpRoomServiceImpl {
 
                 giveOwner(roomId, nickname);
             }
+            if (roomMap.get(roomId) != r) {
+                return true;
+            }
             boolean removed = r.getPlayers().removeIf(p -> p.getNickname().equals(nickname));
+            if (liveHumanTableCount(r) == 0
+                    && (r.getSpectators() == null || r.getSpectators().isEmpty())) {
+                removeRoom(roomId);
+                return true;
+            }
             syncLobbyForRoomId(roomId);
             return removed;
         }

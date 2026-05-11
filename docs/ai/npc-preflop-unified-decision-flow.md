@@ -122,22 +122,26 @@ DpNpcUnifiedPreflopStrategy.decide(
 - `round((vpip - 0.30) * 5)`、`round(callStation)`、`-round(foldToPressure * 0.8)`、`round(mood)`；  
 - `clampInt(1, 8)`；再 **`rangeLevel += rangeLevelBonus(botType)`**（TAG=0，Shark+1，Maniac+2），再 clamp。
 
-### 4.5 阈值 `RangeThreshold`
+### 4.5 范围表（`RangeThreshold` → 13×13 矩阵）
 
-`thresholdsFor(position, rangeLevel)` 产出五个 **`HandGroup` 上限**：
+类加载时用 `thresholdsFor(position, rangeLevel)` 生成五个 **`HandGroup` 上限**，并 **一次性填进** `byte[13][13]` 切片（值为 **1=在范围内 / 0=否**），与原先 `isGroupAtMost(groupOf(hole), max)` **等价**：
 
-- `openMaxGroup` — UNOPENED 是否 open  
-- `vsOpenContinueMaxGroup` — FACING_OPEN 是否继续  
-- `vsOpen3BetValueMaxGroup` — FACING_OPEN 价值 3bet 资格与概率分支  
-- `vs3BetContinueMaxGroup` — FACING_3BET 是否继续  
-- `vs3Bet4BetValueMaxGroup` — FACING_3BET 价值 4bet 分支  
+- `openAllow` — UNOPENED 是否 open  
+- `vsOpenContinueAllow` — FACING_OPEN 是否继续  
+- `vsOpen3BetValueAllow` — FACING_OPEN 价值 3bet 资格与概率分支  
+- `vs3BetContinueAllow` — FACING_3BET 是否继续  
+- `vs3Bet4BetValueAllow` — FACING_3BET 价值 4bet 分支  
 
-EARLY 会对 `vsOpen3BetValue` 再收紧一档（见源码）。
+维度：**`TablePosition.ordinal()`（4）× `rangeLevel`（1～8 → 下标 0～7）× 13×13**。另有面对 4bet+ 的三张固定表（原 `G4` 便宜跟注、`G2` jam、「恰 G3」中段），见 `facing4Bet*`。
+
+**查表约定**（与常见范围图一致）：矩阵下标 = **牌点 − 2**（2→0 … A→12）；**对角**为对子；**`i > j`** 为**杂色**（高牌 `i+2`、低牌 `j+2`）；**`i < j`** 为**同色**（高牌 `j+2`、低牌 `i+2`）。运行时 `matrixAllows(slice, hole)` 按手牌是否同花选对角/下三角/上三角。
+
+EARLY 仍会对 `vsOpen3BetValue` 再收紧一档（体现在对应矩阵切片中）。
 
 ### 4.6 手牌桶 `HandGroup`（G1～G8）
 
-- **`g = groupOf(hole)`**：由两张牌的 **数值 rank（2～14）**、**对子**、**同花**、**间隔 gap** 等规则归类（非翻后 `SimpleStrength`）。  
-- **`isGroupAtMost(g, maxAllowed)`**：`g.ordinal() <= maxAllowed.ordinal` 表示在允许范围内。
+- **`groupOf(hole)`**：仍由两张牌的 **数值 rank（2～14）**、**对子**、**同花**、**间隔 gap** 等规则归类；**静态填表**与 **3bet/4bet 诈唬候选**（如 G4/G5、G3/G4）仍依赖它。  
+- 主决策路径上「在不在范围里」已改为 **矩阵 0/1**，不再每手做 `isGroupAtMost` + 阈值比较。
 
 **失真说明**：同一桶内组合真实胜率不同（如部分同结构连张），这是 **8 桶抽象**的代价；细则见源码 `groupOf`。
 
@@ -145,30 +149,30 @@ EARLY 会对 `vsOpen3BetValue` 再收紧一档（见源码）。
 
 ## 5. 分场景子流程（动作层）
 
-以下假定 **`th`**、`rangeLevel`、`spot` 已由上文算完。
+以下假定 **`rangeLevel`、位置下标、`spot`、对应 13×13 切片** 已由上文算完。
 
 ### 5.1 `FACING_4BET` → `decideFacing4Bet`
 
-输入侧重：`callRatio`、`effStackBB`、`g`、`tier`、`mood`、`random`；输出 **FOLD / CALL_OR_CHECK / RAISE / ALL_IN**（含便宜跟注、强牌 jam 等分支）。
+输入侧重：`callRatio`、`effStackBB`、`hole`、`tier`、`mood`、`random`；便宜跟注 / jam / G3 分支用 **`facing4Bet*`** 三张固定表 + `matrixAllows`；输出 **FOLD / CALL_OR_CHECK / RAISE / ALL_IN**。
 
 ### 5.2 `UNOPENED` → `decideUnopened`
 
-- `canOpen = isGroupAtMost(g, th.openMaxGroup)`；否 → **`CALL_OR_CHECK, 0`**。  
-- 是 → `openSizeBB = baseOpenSizeBB(position, activePlayers, effStackBB, mood, random)`（**2～4BB** 档位 + jitter），再 `raiseAmount = min(chips, openSizeBB * bb)`，`roundToSB` → **`RAISE`**。
+- `canOpen = matrixAllows(openAllow[pos][level], hole)`；否 → **`CALL_OR_CHECK, 0`**。  
+- 是 → `openSizeBB = baseOpenSizeBB(activePlayers, effStackBB, mood, random)`（**2～4BB** 档位 + jitter），再 `raiseAmount = min(chips, openSizeBB * bb)`，`roundToSB` → **`RAISE`**。
 
 **尺度与六旋钮**：open **倍数/档位**不直接乘 `vpip/pfr`；`mood` 参与 `baseOpenSizeBB` 的 jitter。
 
 ### 5.3 `FACING_OPEN` → `decideFacingOpen`
 
-1. `canContinue` vs `vsOpenContinueMaxGroup` → 否 **FOLD**。  
-2. `can3BetValue` / `can3BetBluff`（bluff 需 `tier == LOOSE_OR_AGGRO` 等）。  
+1. `canContinue = matrixAllows(vsOpenContinueAllow[...], hole)` → 否 **FOLD**。  
+2. `can3BetValue = matrixAllows(vsOpen3BetValueAllow[...], hole)` / `can3BetBluff`（仍用 `groupOf` → `is3BetBluffCandidate`，bluff 需 `tier == LOOSE_OR_AGGRO` 等）。  
 3. `base3betProb`：价值 **0.62**，bluff **0.16**，否则 **0**；盲注 **+0.06**；**+ mood×0.04**；再 **× pfrAggressionScale(pfr)**（`0.35 + 0.65*pfr`），`clamp01`。  
 4. `random < base3betProb` → **`compute3BetAmount`** → **RAISE**；否则 **CALL_OR_CHECK**。
 
 ### 5.4 `FACING_3BET` → `decideFacing3Bet`
 
-1. `canContinue` vs `vs3BetContinueMaxGroup` → 否 **FOLD**。  
-2. `value4bet` / `bluff4bet`（bluff 对 `tier` 与 `effStackBB` 有要求）。  
+1. `canContinue = matrixAllows(vs3BetContinueAllow[...], hole)` → 否 **FOLD**。  
+2. `value4bet = matrixAllows(vs3Bet4BetValueAllow[...], hole)` / `bluff4bet`（仍用 `groupOf` → `is4BetBluffCandidate`，bluff 对 `tier` 与 `effStackBB` 有要求）。  
 3. 若 **`callRatio >= 0.35` 且非 value4bet**：高压支路（深码小概率 call，否则 fold 概率与 `callRatio`、`mood`）→ **FOLD / CALL**。  
 4. 否则 **`fourBetProb`** × **mood/位置** × **`pfrAggressionScale(pfr)`**，抽样 **4bet**；价值浅码可能 **ALL_IN**；否则 **CALL**。
 
@@ -192,10 +196,11 @@ EARLY 会对 `vsOpen3BetValue` 再收紧一档（见源码）。
 |------|------|
 | `DpRoomServiceImpl.java` | 定时任务 → `decideActionIfReady` / `NpcAction` |
 | `DpNpcEngine.java` | `decideActionIfReady`、`decideBotAction`、`StyleProfile` / `BotType` / `getStyleByBotType` |
-| `DpNpcUnifiedPreflopStrategy.java` | 统一翻前：`decide`、`spotBy`、`computePreflopLateFactor`、`computeRangeLevel`、`thresholdsFor`、`groupOf`、各 `decideFacing*` |
+| `DpNpcUnifiedPreflopStrategy.java` | 统一翻前：`decide`、`spotBy`、`computePreflopLateFactor`、`computeRangeLevel`、`thresholdsFor`（类加载时填矩阵）、`groupOf`、`matrixAllows`、各 `decideFacing*` |
 
 ---
 
 ## 8. 修订记录
 
-- 文档 initial：与当前仓库统一翻前实现一致；若后续改 `spotBy`、阈值或 `groupOf`，请同步更新本节与 §4。
+- 文档 initial：与当前仓库统一翻前实现一致；若后续改 `spotBy`、阈值或 `groupOf`，请同步更新本节与 §4。  
+- **2026-05-11**：主路径改为 **13×13 预计算查表**（位置 × `rangeLevel` × 局面）；`thresholdsFor` 仅用于生成矩阵。

@@ -11,12 +11,15 @@ import java.util.Map;
 import java.util.Random;
 
 /**
- * 规则 NPC 共用翻前：G1–G8 手牌分组 + 单一阈值表；{@code rangeLevel} 由 vpip、人数、有效筹码深度、
- * callStation、foldToPressure、mood 驱动；3bet/4bet 侵略性由 pfr 缩放；{@link DpNpcEngine.BotType}
- * 做小幅档位加成（MANIAC +2、LAG/FISH/CALL +1、NIT −2）。
+ * 规则 NPC 共用翻前：底层仍用 G1–G8 的 {@link #groupOf} 对手牌分类；开局、面对 open/3bet 的「在不在范围里」
+ * 由 <b>13×13 固定查表</b> 实现：{@code rangeLevel(1~8)} × {@link DpNpcEngine.TablePosition}（4 类）× 各局面一张表，
+ * 单元格 1=可（沿用旧阈值语义）、0=否；<b>对子占对角</b>，<b>下三角</b>（行&gt;列）为<strong>杂色</strong>，
+ * <b>上三角</b>（行&lt;列）为<strong>同色</strong>（高牌点在下标较大的一侧）。
+ * {@code rangeLevel} 由 vpip、人数、有效筹码深度、callStation、foldToPressure、mood 驱动；3bet/4bet 侵略性由 pfr 缩放；
+ * {@link DpNpcEngine.BotType} 做小幅档位加成（MANIAC +2、LAG/FISH/CALL +1、NIT −2）。
  *
  * <p>
- * <b>位置只进一档</b>：离散 {@link DpNpcEngine.TablePosition} 仅用于 {@link #thresholdsFor}（与 {@code rangeLevel} 一起决定各局面手牌阈值）；
+ * <b>位置只进一档</b>：离散 {@link DpNpcEngine.TablePosition} 只决定查哪一维位置表（与 {@code rangeLevel} 一起选矩阵切片）；
  * 开局加注倍数、3bet/4bet 体量与再加注概率<strong>不按座位二次缩放</strong>，避免与阈值表双重叠加。
  *
  * <p>
@@ -67,8 +70,45 @@ final class DpNpcUnifiedPreflopStrategy {
         UNKNOWN
     }
 
+    /** 牌点 2…A 映射到矩阵下标 0…12。 */
+    private static final int RANK_DIM = 13;
+
+    /** 与 {@link DpNpcEngine.TablePosition#ordinal()} 一致：EARLY, MIDDLE, LATE, BLINDS。 */
+    private static final int POS_DIM = 4;
+
+    /** {@code rangeLevel 1~8} → 矩阵下标 {@code 0~7}。 */
+    private static final int LEVEL_DIM = 8;
+
     /**
-     * 先通过竞争者数、码量、风格算出粗范围，再与位置阈值表结合，按手牌定档并据当前局面决策。
+     * 无人加注：是否允许 open（原 {@code RangeThreshold.openMaxGroup}）。
+     * {@code openAllow[posOrdinal][rangeLevel-1][row][col]}。
+     */
+    private static final byte[][][][] openAllow = new byte[POS_DIM][LEVEL_DIM][RANK_DIM][RANK_DIM];
+
+    /** 面对 open：是否跟注延续（原 {@code vsOpenContinueMaxGroup}）。 */
+    private static final byte[][][][] vsOpenContinueAllow = new byte[POS_DIM][LEVEL_DIM][RANK_DIM][RANK_DIM];
+
+    /** 面对 open：价值 3bet 资格（原 {@code vsOpen3BetValueMaxGroup}）。 */
+    private static final byte[][][][] vsOpen3BetValueAllow = new byte[POS_DIM][LEVEL_DIM][RANK_DIM][RANK_DIM];
+
+    /** 面对 3bet：是否延续（原 {@code vs3BetContinueMaxGroup}）。 */
+    private static final byte[][][][] vs3BetContinueAllow = new byte[POS_DIM][LEVEL_DIM][RANK_DIM][RANK_DIM];
+
+    /** 面对 3bet：价值 4bet 资格（原 {@code vs3Bet4BetValueMaxGroup}）。 */
+    private static final byte[][][][] vs3Bet4BetValueAllow = new byte[POS_DIM][LEVEL_DIM][RANK_DIM][RANK_DIM];
+
+    /** 面对 4bet+：pot-odds 便宜时「强到 G4 及以上」跟进（与原 {@code HandGroup.G4} 上限一致）。 */
+    private static final byte[][] facing4BetPotOddsCallAllow = new byte[RANK_DIM][RANK_DIM];
+
+    /** 面对 4bet+：Jam 阈值 G2 及以下（最强档，与原一致）。 */
+    private static final byte[][] facing4BetJamAllow = new byte[RANK_DIM][RANK_DIM];
+
+    /** 面对 4bet+：中段处理分支（恰好 G3）。 */
+    private static final byte[][] facing4BetMidG3Allow = new byte[RANK_DIM][RANK_DIM];
+
+    /**
+     * 先通过竞争者数、码量、风格算出粗范围（{@code rangeLevel}），再结合位置与各局面<strong>矩阵切片</strong>决定是否入池；
+     * 诈唬候选仍用手牌分组 G4/G5、G3/G4。
      */
     static DpNpcEngine.BotAction decide(
             DpRoomBO room,
@@ -121,29 +161,34 @@ final class DpNpcUnifiedPreflopStrategy {
         int rangeLevel = computeRangeLevel(activePlayers, effStackBB, vpip, callStation, foldToPressure, mood);
         rangeLevel += rangeLevelBonus(botType);
         rangeLevel = clampInt(rangeLevel, 1, 8);
-        // 位置只管「阈值表 / 松紧档」一档；开局加注额、3bet/4bet 概率与倍数不再单独按座位二次调节
-        RangeThreshold th = thresholdsFor(position, rangeLevel);
+        // 位置 + rangeLevel → 矩阵切片；开局加注额、3bet/4bet 概率与倍数不再单独按座位二次调节
+        int posIdx = position.ordinal();
+        int levelIdx = rangeLevel - 1;
 
-        HandGroup g = groupOf(hole);//根据手牌获取当前所处范围
+        HandGroup g = groupOf(hole);
 
         // === 终局规则：到 4bet 往后收敛到 all-in / call / fold ===
         if (spot == PreflopSpot.FACING_4BET) {
-            return decideFacing4Bet(hero, bb, sb, callAmount, callRatio, effStackBB, g, tier, mood, random);
+            return decideFacing4Bet(hero, bb, sb, callAmount, callRatio, effStackBB, hole, tier, mood, random);
         }
 
         // === 无人加注：open / limp-check / fold ===
         if (spot == PreflopSpot.UNOPENED) {
-            return decideUnopened(hero, bb, sb, activePlayers, effStackBB, g, th, mood, random);
+            return decideUnopened(hero, bb, sb, activePlayers, effStackBB, hole, openAllow[posIdx][levelIdx], mood,
+                    random);
         }
 
         // === 面对 open：call / 3bet / fold ===
         if (spot == PreflopSpot.FACING_OPEN) {
-            return decideFacingOpen(room, hero, bb, sb, callAmount, effStackBB, g, th, tier, mood, pfr, random);
+            return decideFacingOpen(room, hero, bb, sb, callAmount, effStackBB, hole, g,
+                    vsOpenContinueAllow[posIdx][levelIdx], vsOpen3BetValueAllow[posIdx][levelIdx], tier, mood, pfr,
+                    random);
         }
 
         // === 你 open 后被 3bet：call / 4bet / fold ===
         if (spot == PreflopSpot.FACING_3BET) {
-            return decideFacing3Bet(room, hero, bb, sb, callAmount, callRatio, effStackBB, g, th, tier, mood, pfr,
+            return decideFacing3Bet(room, hero, bb, sb, callAmount, callRatio, effStackBB, hole, g,
+                    vs3BetContinueAllow[posIdx][levelIdx], vs3Bet4BetValueAllow[posIdx][levelIdx], tier, mood, pfr,
                     random);
         }
 
@@ -189,11 +234,11 @@ final class DpNpcUnifiedPreflopStrategy {
             int sb,
             int activePlayers,
             double effStackBB,
-            HandGroup g,
-            RangeThreshold th,
+            HoleInfo hole,
+            byte[][] openSlice,
             double mood,
             Random random) {
-        boolean canOpen = isGroupAtMost(g, th.openMaxGroup);
+        boolean canOpen = matrixAllows(openSlice, hole);
         if (!canOpen) {
             // 盲注位：很多时候可以直接过牌免费看翻牌
             return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
@@ -215,18 +260,20 @@ final class DpNpcUnifiedPreflopStrategy {
             int sb,
             int callAmount,
             double effStackBB,
+            HoleInfo hole,
             HandGroup g,
-            RangeThreshold th,
+            byte[][] vsOpenContinueSlice,
+            byte[][] vsOpen3BetValueSlice,
             VillainTier tier,
             double mood,
             double pfr,
             Random random) {
-        boolean canContinue = isGroupAtMost(g, th.vsOpenContinueMaxGroup);
+        boolean canContinue = matrixAllows(vsOpenContinueSlice, hole);
         if (!canContinue) {
             return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.FOLD, 0);
         }
 
-        boolean can3BetValue = isGroupAtMost(g, th.vsOpen3BetValueMaxGroup);
+        boolean can3BetValue = matrixAllows(vsOpen3BetValueSlice, hole);
         boolean can3BetBluff = is3BetBluffCandidate(g) && tier == VillainTier.LOOSE_OR_AGGRO;
 
         double base3betProb = can3BetValue ? 0.62 : (can3BetBluff ? 0.16 : 0.0);
@@ -253,20 +300,22 @@ final class DpNpcUnifiedPreflopStrategy {
             int callAmount,
             double callRatio,
             double effStackBB,
+            HoleInfo hole,
             HandGroup g,
-            RangeThreshold th,
+            byte[][] vs3BetContinueSlice,
+            byte[][] vs3Bet4BetValueSlice,
             VillainTier tier,
             double mood,
             double pfr,
             Random random) {
         // continue range：比面对 open 更紧
-        boolean canContinue = isGroupAtMost(g, th.vs3BetContinueMaxGroup);
+        boolean canContinue = matrixAllows(vs3BetContinueSlice, hole);
         if (!canContinue) {
             return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.FOLD, 0);
         }
 
         // 价值 4bet：顶级强牌
-        boolean value4bet = isGroupAtMost(g, th.vs3Bet4BetValueMaxGroup);
+        boolean value4bet = matrixAllows(vs3Bet4BetValueSlice, hole);
         boolean bluff4bet = is4BetBluffCandidate(g) && tier == VillainTier.LOOSE_OR_AGGRO && effStackBB >= 18;
 
         // 面对较大 3bet（成本高）时减少花活
@@ -310,7 +359,7 @@ final class DpNpcUnifiedPreflopStrategy {
             int callAmount,
             double callRatio,
             double effStackBB,
-            HandGroup g,
+            HoleInfo hole,
             VillainTier tier,
             double mood,
             Random random) {
@@ -322,7 +371,7 @@ final class DpNpcUnifiedPreflopStrategy {
         else
             potOdds = callAmount * 1.0 / denom;
         if (callAmount > 0 && potOdds <= 0.18) {
-            if (isGroupAtMost(g, HandGroup.G4)) {
+            if (matrixAllows(facing4BetPotOddsCallAllow, hole)) {
                 return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
             }
             if (random.nextDouble() < 0.40) {
@@ -331,7 +380,7 @@ final class DpNpcUnifiedPreflopStrategy {
             return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.FOLD, 0);
         }
 
-        boolean jamValue = isGroupAtMost(g, HandGroup.G2);
+        boolean jamValue = matrixAllows(facing4BetJamAllow, hole);
         if (jamValue) {
             // 对松凶玩家稍微更愿意打光；对紧玩家给一点平跟空间（更像真人）
             double jamProb = (tier == VillainTier.TIGHT_OR_NIT) ? 0.70 : 0.82;
@@ -346,7 +395,7 @@ final class DpNpcUnifiedPreflopStrategy {
         }
 
         // 中强牌：更多平跟/弃牌
-        if (isGroupAtMost(g, HandGroup.G3)) {
+        if (matrixAllows(facing4BetMidG3Allow, hole)) {
             double foldP = 0.35 + 0.25 * Math.min(1.0, callRatio);
             if (tier == VillainTier.TIGHT_OR_NIT)
                 foldP += 0.10;
@@ -421,7 +470,7 @@ final class DpNpcUnifiedPreflopStrategy {
         return roundToSB(raiseAmount, sb, hero.getChips());
     }
 
-    /** 开局加注倍数（以大盲计）；松紧已由 {@link #thresholdsFor} 体现，此处仅用人数 / 深度 / mood 微调体量。 */
+    /** 开局加注倍数（以大盲计）；松紧已由开局范围矩阵 {@link #openAllow} 体现，此处仅用人数 / 深度 / mood 微调体量。 */
     private static int baseOpenSizeBB(
             int activePlayers,
             double effStackBB,
@@ -797,6 +846,77 @@ final class DpNpcUnifiedPreflopStrategy {
             return HandGroup.G7;
 
         return HandGroup.G8;
+    }
+
+    private static int rankToIndex(int rank) {
+        return rank - 2;
+    }
+
+    /**
+     * 13×13 范围表查表：下标 = 牌点 − 2（2→0 … A→12）。
+     * <ul>
+     * <li>对子：对角 {@code [i][i]}</li>
+     * <li>杂色（非同花）：{@code i > j}，高牌点 {@code i+2}、低牌点 {@code j+2}</li>
+     * <li>同色：{@code i < j}，高牌点 {@code j+2}、低牌点 {@code i+2}</li>
+     * </ul>
+     */
+    private static boolean matrixAllows(byte[][] m, HoleInfo h) {
+        if (m == null || h == null || !h.valid) {
+            return false;
+        }
+        int ia = rankToIndex(h.r1);
+        int ib = rankToIndex(h.r2);
+        int hi = Math.max(ia, ib);
+        int lo = Math.min(ia, ib);
+        if (hi < 0 || hi >= RANK_DIM || lo < 0 || lo >= RANK_DIM) {
+            return false;
+        }
+        if (hi == lo) {
+            return m[hi][hi] != 0;
+        }
+        if (h.suited) {
+            return m[lo][hi] != 0;
+        }
+        return m[hi][lo] != 0;
+    }
+
+    private static HandGroup handGroupAtMatrixCell(int row, int col) {
+        if (row == col) {
+            int r = row + 2;
+            return groupOf(new HoleInfo(true, r, r, false));
+        }
+        if (row > col) {
+            return groupOf(new HoleInfo(true, row + 2, col + 2, false));
+        }
+        return groupOf(new HoleInfo(true, col + 2, row + 2, true));
+    }
+
+    /** @param exact 为 {@code true} 时仅当 {@code group == maxAllowed} 置 1（面对 4bet 的「恰 G3」分支）。 */
+    private static void fillRangeSlice(byte[][] m, HandGroup maxAllowed, boolean exact) {
+        for (int i = 0; i < RANK_DIM; i++) {
+            for (int j = 0; j < RANK_DIM; j++) {
+                HandGroup gCell = handGroupAtMatrixCell(i, j);
+                boolean ok = exact ? (gCell == maxAllowed) : isGroupAtMost(gCell, maxAllowed);
+                m[i][j] = (byte) (ok ? 1 : 0);
+            }
+        }
+    }
+
+    static {
+        for (int pos = 0; pos < POS_DIM; pos++) {
+            DpNpcEngine.TablePosition tp = DpNpcEngine.TablePosition.values()[pos];
+            for (int lv = 0; lv < LEVEL_DIM; lv++) {
+                RangeThreshold th = thresholdsFor(tp, lv + 1);
+                fillRangeSlice(openAllow[pos][lv], th.openMaxGroup, false);
+                fillRangeSlice(vsOpenContinueAllow[pos][lv], th.vsOpenContinueMaxGroup, false);
+                fillRangeSlice(vsOpen3BetValueAllow[pos][lv], th.vsOpen3BetValueMaxGroup, false);
+                fillRangeSlice(vs3BetContinueAllow[pos][lv], th.vs3BetContinueMaxGroup, false);
+                fillRangeSlice(vs3Bet4BetValueAllow[pos][lv], th.vs3Bet4BetValueMaxGroup, false);
+            }
+        }
+        fillRangeSlice(facing4BetPotOddsCallAllow, HandGroup.G4, false);
+        fillRangeSlice(facing4BetJamAllow, HandGroup.G2, false);
+        fillRangeSlice(facing4BetMidG3Allow, HandGroup.G3, true);
     }
 
     private static int countActivePlayers(DpRoomBO room) {
