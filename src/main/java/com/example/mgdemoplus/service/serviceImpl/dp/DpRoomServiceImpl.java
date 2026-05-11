@@ -183,6 +183,7 @@ public class DpRoomServiceImpl {
         int seq = r.allocateBotNicknameSeqBatch(1);
         return readyNextHand(roomId, DpNpcEngine.llmBotNickname(seq), null);
     }
+    //轮询入口
     public DpRoomServiceImpl(
         //注入服务
             DpHandHistoryPersistService observedHandPersistService,
@@ -305,7 +306,6 @@ public class DpRoomServiceImpl {
                         }
                         // 只要有机器人准备状态被更新，就检查是否可以直接开下一局
                         if (botTouched) {
-                       
                             checkAndStartNextHandAfterSettle(room);
                         }
                     }
@@ -1015,6 +1015,9 @@ public class DpRoomServiceImpl {
         if (!waiters.contains(nickname)) {
             waiters.add(nickname);
         }
+        if (r.isPlaying() && "settled".equals(r.getCurrentStage())) {
+            checkAndStartNextHandAfterSettle(r);
+        }
         return true;
         }
     }
@@ -1452,6 +1455,64 @@ public class DpRoomServiceImpl {
         return n;
     }
 
+    /** settled 阶段：桌上可参与下一手的真人（非僵尸、非机器人、筹码 ≥ 大盲）。 */
+    private static int settleCapableLiveHumansCount(DpRoomBO r) {
+        if (r == null || r.getPlayers() == null) {
+            return 0;
+        }
+        int n = 0;
+        for (DpPlayer p : r.getPlayers()) {
+            if (p == null || p.isLeftThisHand() || DpNpcEngine.isBotPlayer(p)) {
+                continue;
+            }
+            if (p.getChips() >= r.getBigBlindChips()) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    private static int settleReadyLiveHumansCount(DpRoomBO r) {
+        if (r == null || r.getPlayers() == null) {
+            return 0;
+        }
+        int n = 0;
+        for (DpPlayer p : r.getPlayers()) {
+            if (p == null || p.isLeftThisHand() || DpNpcEngine.isBotPlayer(p)) {
+                continue;
+            }
+            if (p.getChips() < r.getBigBlindChips()) {
+                continue;
+            }
+            if (p.isReady()) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    /** 未离座且筹码够的 Bot 是否全部已准备（用于「桌上无真人」时仅 NPC 桌的自动开牌）。 */
+    private static boolean allSeatedCapableBotsReady(DpRoomBO r) {
+        if (r == null || r.getPlayers() == null) {
+            return false;
+        }
+        int need = 0;
+        int ok = 0;
+        for (DpPlayer p : r.getPlayers()) {
+            if (p == null || p.isLeftThisHand() || !DpNpcEngine.isBotPlayer(p)) {
+                continue;
+            }
+            if (p.getChips() < r.getBigBlindChips()) {
+                continue;
+            }
+            need++;
+            if (p.isReady()) {
+                ok++;
+            }
+        }
+        return need > 0 && need == ok;
+    }
+
     private static int waitNextHandSize(DpRoomBO r) {
         List<String> w = r.getWaitNextHand();
         return w == null ? 0 : w.size();
@@ -1535,30 +1596,139 @@ public class DpRoomServiceImpl {
         }
     }
 
+    /**
+     * settled：看「该准备的真人是否齐了 / 是否仅靠候补或机器上桌」——能开就 {@link #newHand}。
+     * <p>
+     * 为何 {@link #autoSettle} 进入 settled 后也要调用：候补可能在<strong>上一局</strong>就已进 {@code waitNextHand}，
+     * 结算这一刻<strong>不会</strong>再走 HTTP {@link #readyNextHand}；若只在「准备下一把」接口里检测，
+     * 就容易出现只能靠<strong>取消再加入</strong>（再调一次接口）才能开局的情况。
+     * 桌上有人且靠「点准备」齐人的场景仍由 {@link #toggleReady} 等路径覆盖。
+     * <p>
+     * 触发：{@link #autoSettle} 写入 settled、候补 {@link #readyNextHand}、真人 {@link #toggleReady}、
+     * 构造器里机器人自动准备、准备超时 {@link #handleReadyTimeout}。
+     */
     private void checkAndStartNextHandAfterSettle(DpRoomBO r) {
-        int size = 0;
-        int size1 = 0;
-        //算所有场上有能力准备下一场的人数（筹码 ≥ 大盲）
-        for (DpPlayer player : r.getPlayers()) {
-            if (player.getChips() >= r.getBigBlindChips() && !DpNpcEngine.isBotPlayer(player)) {
-                size += 1;
-            }
+        if (r == null || !r.isPlaying()) {
+            return;
         }
-        //算已经准备的人数
-        for (DpPlayer player : r.getPlayers()) {
-            if (player.isReady() && !DpNpcEngine.isBotPlayer(player)) {
-                size1 += 1;
-            }
+        if (!"settled".equals(r.getCurrentStage())) {
+            return;
         }
-        // 如果当前没有任何有能力继续玩的真人玩家（size==0），
-        // 不在这里自动开新局，改由结算阶段的超时逻辑 handleReadyTimeout 统一处理
-//       if (size == 0) {
-//            return;
-//        }
-        //如果有能力的人齐了就可以开始newHand了，拉人踢人开场
-        if (size == size1) {
+
+        int humanCap = settleCapableLiveHumansCount(r);
+        System.out.println("humanCap:"+humanCap);
+        int humanReady = settleReadyLiveHumansCount(r);
+        System.out.println("humanReady:"+humanReady);
+        List<String> waiters = r.getWaitNextHand();
+        int w = waiters == null ? 0 : waiters.size();
+
+        if (humanCap > 0) {
+            if (humanReady == humanCap) {
+                newHand(r.getRoomId());
+            }
+            return;
+        }
+        if (w >= 1) {
+            newHand(r.getRoomId());
+            return;
+        }
+        if (allSeatedCapableBotsReady(r)) {
             newHand(r.getRoomId());
         }
+    }
+
+    /**
+     * 准备超时前先踢人：筹码 &lt; 大盲的上桌→观众席；未点准备的上桌→观众席；并清准备倒计时。
+     *
+     * @return 筹码筛完后上桌已空则为 false（并已收局）；否则为 true，可继续 {@link #checkAndStartNextHandAfterSettle}。
+     */
+    private boolean pruneSettledTableForReadyTimeout(DpRoomBO r) {
+        List<DpPlayer> players = r.getPlayers();
+        if (players == null || players.isEmpty()) {
+            r.setPlaying(false);
+            r.setReadyDeadline(0L);
+            return false;
+        }
+
+        List<String> spectators = r.getSpectators();
+        if (spectators == null) {
+            spectators = new ArrayList<>();
+            r.setSpectators(spectators);
+        }
+        List<DpPlayer> afterChips = new ArrayList<>();
+        for (DpPlayer p : players) {
+            if (p.getChips() < r.getBigBlindChips()) {
+                if (!spectators.contains(p.getNickname())) {
+                    spectators.add(p.getNickname());
+                    if (!DpNpcEngine.isBotPlayer(p)) {
+                        r.touchSpectatorPresence(p.getNickname(), System.currentTimeMillis());
+                    }
+                }
+            } else {
+                afterChips.add(p);
+            }
+        }
+        r.setPlayers(afterChips);
+        players = afterChips;
+        if (players.isEmpty()) {
+            r.setPlaying(false);
+            r.setReadyDeadline(0L);
+            return false;
+        }
+
+        List<DpPlayer> remain = new ArrayList<>();
+        List<String> kicked = new ArrayList<>();
+        for (DpPlayer p : players) {
+            if (p.isReady()) {
+                remain.add(p);
+            } else {
+                kicked.add(p.getNickname());
+            }
+        }
+
+        spectators = r.getSpectators();
+        if (spectators == null) {
+            spectators = new ArrayList<>();
+            r.setSpectators(spectators);
+        }
+        for (String name : kicked) {
+            if (!spectators.contains(name)) {
+                spectators.add(name);
+                if (!DpNpcEngine.isBotNickname(name)) {
+                    r.touchSpectatorPresence(name, System.currentTimeMillis());
+                }
+            }
+        }
+
+        r.setPlayers(remain);
+        r.setReadyDeadline(0L);
+        return true;
+    }
+
+    /** 上一手房主已不在本手上桌名单时，把房主移交给桌上第一位真人，否则交给第一个座位。 */
+    private void ensureOwnerAlignedWithSeatedPlayers(DpRoomBO r) {
+        if (r == null) {
+            return;
+        }
+        List<DpPlayer> ps = r.getPlayers();
+        if (ps == null || ps.isEmpty()) {
+            return;
+        }
+        String ow = r.getOwner();
+        if (ow != null) {
+            for (DpPlayer p : ps) {
+                if (ow.equals(p.getNickname())) {
+                    return;
+                }
+            }
+        }
+        for (DpPlayer p : ps) {
+            if (!DpNpcEngine.isBotPlayer(p)) {
+                r.setOwner(p.getNickname());
+                return;
+            }
+        }
+        r.setOwner(ps.get(0).getNickname());
     }
 
     public boolean exitRoom(String roomId, String nickname) {
@@ -1688,6 +1858,22 @@ public class DpRoomServiceImpl {
         // 把上一局观战并标记“下一局加入”的玩家，加入到本局的玩家列表中，并更新观众列表
 // 检测是否有积分不足的玩家，清理到观众厅，都在getAllCanPlayer方法里
         r.setPlayers(getAllCanPlayer(r));
+        ensureOwnerAlignedWithSeatedPlayers(r);
+
+        List<DpPlayer> ps = r.getPlayers();
+        if (ps == null || ps.isEmpty()) {
+            r.setPlaying(false);
+            r.setCurrentStage("preflop");
+            r.setCommunityCards(new ArrayList<>());
+            r.setDeck(new ArrayList<>());
+            r.setPot(0);
+            r.setCurrentBetToCall(0);
+            r.setPots(new ArrayList<>());
+            r.setCurrentActorIndex(-1);
+            r.setReadyDeadline(0L);
+            syncLobbyForRoomId(roomId);
+            return false;
+        }
 
         // 为本手牌生成一个稳定的随机种子：基于当前时间与房间号混合
         long seedBase = System.currentTimeMillis();
@@ -1711,7 +1897,6 @@ public class DpRoomServiceImpl {
         r.setLastRaiseIncrement(r.getBigBlindChips());
         r.setReadyDeadline(0L);
         int did = 0;//庄家索引
-        List<DpPlayer> ps = r.getPlayers();
         for (DpPlayer p : ps) {//这里需要及时重置状态
             p.setFold(false);
             p.setBet(0);
@@ -2228,6 +2413,17 @@ public class DpRoomServiceImpl {
         r.setChipLeaderNicknames(leaders);
     }
 
+    /** 本手结算收尾：从 players 移除已离线占位，与 {@link #autoSettle} 主路径及零底池捷径一致。 */
+    private static void removeLeftThisHandZombiesAfterHand(DpRoomBO r) {
+        if (r == null) {
+            return;
+        }
+        List<DpPlayer> ps = r.getPlayers();
+        if (ps != null && !ps.isEmpty()) {
+            ps.removeIf(DpPlayer::isLeftThisHand);
+        }
+    }
+
     /**
      * 自动结算当前房间：为每个池按牌力选出赢家并分配筹码，然后进入结算完成/准备下一局阶段。
      */
@@ -2254,7 +2450,9 @@ public class DpRoomServiceImpl {
             }
             DpNpcStreetActionLog.clearHand(r);
             observedHandService.clearHand(r);
+            removeLeftThisHandZombiesAfterHand(r);
             refreshChipLeaderNicknames(r);
+            checkAndStartNextHandAfterSettle(r);
             return;
         }
 
@@ -2549,11 +2747,7 @@ public class DpRoomServiceImpl {
         DpNpcStreetActionLog.clearHand(r);
         observedHandService.clearHand(r);
 
-        // 结算完成后，先清理本手中已离开的“僵尸位”玩家
-        List<DpPlayer> currentPlayers = r.getPlayers();
-        if (currentPlayers != null && !currentPlayers.isEmpty()) {
-            currentPlayers.removeIf(DpPlayer::isLeftThisHand);//这里双冒号的作用是调用DpPlayer类中的isLeftThisHand方法
-        }
+        removeLeftThisHandZombiesAfterHand(r);
 
         refreshChipLeaderNicknames(r);
 
@@ -2564,109 +2758,24 @@ public class DpRoomServiceImpl {
         for (DpPlayer p : r.getPlayers()) {
             p.setReady(false);
         }
+        // checkAndStartNextHandAfterSettle(r);
     }
     /**
-     * 结算后准备阶段到时间：未准备的玩家被踢到观众席，准备好的玩家自动开下一局。
-     * 先让积分不足大盲的人去观众厅，再按准备状态分人，避免输光的被强行带入下一把。
+     * 结算准备倒计时到期：先 {@link #pruneSettledTableForReadyTimeout}，再 {@link #checkAndStartNextHandAfterSettle}
+     *（其中条件满足时会自行 {@link #newHand}）。
      */
     private void handleReadyTimeout(DpRoomBO r) {
-        if (r == null || !r.isPlaying()) return;
-        if (!"settled".equals(r.getCurrentStage())) return;
-
-        List<DpPlayer> players = r.getPlayers();
-        if (players == null || players.isEmpty()) {
-            r.setPlaying(false);
-            r.setReadyDeadline(0L);
+        System.out.println("结算准备倒计时到期");
+        if (r == null || !r.isPlaying()) {
             return;
         }
-
-        // 先让积分 < 大盲的真人玩家去观众厅（没补码的不能参与下一局）
-        List<String> spectators = r.getSpectators();
-        if (spectators == null) {
-            spectators = new ArrayList<>();
-            r.setSpectators(spectators);
-        }
-        List<DpPlayer> afterChips = new ArrayList<>();
-        for (DpPlayer p : players) {
-            if (p.getChips() < r.getBigBlindChips()) {
-                if (!spectators.contains(p.getNickname())) {
-                    spectators.add(p.getNickname());
-                    if (!DpNpcEngine.isBotPlayer(p)) {
-                        r.touchSpectatorPresence(p.getNickname(), System.currentTimeMillis());
-                    }
-                }
-            } else {
-                afterChips.add(p);
-            }
-        }
-        r.setPlayers(afterChips);
-        players = afterChips;
-        if (players.isEmpty()) {
-            r.setPlaying(false);
-            r.setReadyDeadline(0L);
+        if (!"settled".equals(r.getCurrentStage())) {
             return;
         }
-
-        List<DpPlayer> remain = new ArrayList<>();
-        List<String> kicked = new ArrayList<>();
-        for (DpPlayer p : players) {
-            if (p.isReady()) {
-                remain.add(p);
-            } else {
-                kicked.add(p.getNickname());
-            }
-        }
-
-        // 把未准备的人移到观众席
-        spectators = r.getSpectators();
-        if (spectators == null) {
-            spectators = new ArrayList<>();
-            r.setSpectators(spectators);
-        }
-        for (String name : kicked) {
-            if (!spectators.contains(name)) {
-                spectators.add(name);
-                if (!DpNpcEngine.isBotNickname(name)) {
-                    r.touchSpectatorPresence(name, System.currentTimeMillis());
-                }
-            }
-        }
-
-        r.setPlayers(remain);
-        r.setReadyDeadline(0L);
-
-        // 计算下一手理论上的人数：当前已准备的玩家 + 报名下一手的观众(waitNextHand)
-        int nextCount = remain.size();
-        List<String> waiters = r.getWaitNextHand();
-        if (waiters != null) {
-            nextCount += waiters.size();
-        }
-
-        // 如果下一手总人数仍不足 2 个：
-        if (nextCount < 2) {
-            // 1）桌上有人已准备，或仅有观众报名下一手：均允许单人娱乐局（否则空桌+waitNextHand 会误走结束对局，newHand 不执行）
-            boolean hasWaiters = waiters != null && !waiters.isEmpty();
-            if (remain.size() >= 1 || hasWaiters) {
-                // 清掉准备倒计时，直接开新一局（仍然按正常德扑流程发牌/算牌力）
-                r.setReadyDeadline(0L);
-                newHand(r.getRoomId());
-                return;
-            }
-
-            // 2）没有任何玩家时，结束对局并清空状态
-            r.setPlaying(false);
-            r.setCurrentStage("preflop");
-            r.setCommunityCards(new ArrayList<>());
-            r.setDeck(new ArrayList<>());
-            r.setPot(0);
-            r.setCurrentBetToCall(0);
-            r.setPots(new ArrayList<>());
-            r.setCurrentActorIndex(-1);
+        if (!pruneSettledTableForReadyTimeout(r)) {
             return;
         }
-
-        // 下一手有足够玩家（当前准备好的 + 报名的观众），自动开新一局
-        newHand(r.getRoomId());
+        checkAndStartNextHandAfterSettle(r);
     }
     /**
      * 结算后筹码不足大盲（10）的玩家补码到初始筹码。
