@@ -66,6 +66,7 @@
 
 ```text
 synchronized (dpQuickMatchAssignmentLock) {
+    tryFlushDefaultQuickMatchWaitersIntoPublicRooms(); // 先入公开桌（FIFO 快照轮询 + quickMatchJoinAndReady）
     synchronized (defaultQmLock) {
         prune…
         if (size < 2) return;
@@ -73,9 +74,11 @@ synchronized (dpQuickMatchAssignmentLock) {
     }
     notifyQuickMatchTimedOut(本段 prune 得到的超时列表);
     // 此处已不再持有 defaultQmLock
-    pairDefaultQuickMatchWaitersInNewRoom(wa, wb); // 内含 createRoom、joinRoom…
+    pairDefaultQuickMatchWaitersInNewRoom(wa, wb); // 内含 createRoom、joinRoom…；末尾再次 tryFlush
 }
 ```
+
+手动创建**公开**房（`createRoom` 无密码）或在**公开**房 `exitRoom` 释放快匹可读空位后，会**在未持房间锁**的前提下轻量调用一次 `tryDrainDefaultQuickMatchPairs()`，以便队列中等待者立刻重扫 `roomMap`。注意：`tryDrain` 内已持 `dpQuickMatchAssignmentLock` 时调用的 `createRoom` 不会递归再进 `tryDrain`（`ThreadLocal` 深度避免同线程死锁），改为在 `pairDefaultQuickMatchWaitersInNewRoom` 尾部直接 `tryFlush`。
 
 ### 4.3 死锁风险（结论）
 
@@ -133,10 +136,11 @@ synchronized (dpQuickMatchAssignmentLock) {
 
 ### 6.2 `tryDrainDefaultQuickMatchPairs()`
 
-- 外层占 **`dpQuickMatchAssignmentLock`**；内层占 **`defaultQmLock`** 做 `prune`、`poll`。  
+- 外层占 **`dpQuickMatchAssignmentLock`**；在每个「配对周期」开头先执行 **`tryFlushDefaultQuickMatchWaitersIntoPublicRooms()`**：在队列锁内只做 `prune` 与快照，在锁外对快照按 FIFO 逐个调用 **`quickMatchJoinAndReady`**（与 `quickMatchJoinQueueOrImmediate` 首轮进公开桌一致）；成功者出队并 **`notifyMatched`**。整轮若无人成功则不再重试该阶段，避免队首长期挤不进时死循环；有人成功则再来一轮直到某轮零成功。  
+- 内层占 **`defaultQmLock`** 做 `prune`、`poll`。  
 - 若 `wa`、`wb` 同昵称 → 将一人回队头（若未在房）。  
 - 若其一已在房 → 按规则把「未在房者」重新 `addLast` 或丢弃回队。  
-- 否则 **`pairDefaultQuickMatchWaitersInNewRoom(wa, wb)`**；异常时尝试把两人重新加入队列（若仍未在房）。
+- 否则 **`pairDefaultQuickMatchWaitersInNewRoom(wa, wb)`**；异常时尝试把两人重新加入队列（若仍未在房）。配对成功并推送两人 `MATCHED` 后， **`pair` 方法末尾再一次 `tryFlush`**，使「刚建好的默认快匹桌」上仍空位时第三人可立即进桌。
 
 ### 6.3 `pairDefaultQuickMatchWaitersInNewRoom(wa, wb)`
 
@@ -250,6 +254,14 @@ A/B：home.vue 收到 MATCHED → 断开快匹 WS → 进入 /game/{roomId}
 
 **谁触发建房？**  
 **后入队的那次请求**里的 `tryDrain`（或任意一次使 `size>=2` 的 `tryDrain`）完成 **`pair`**；**不是**「第一人 HTTP 返回后再由第二人单独建房通知第一人」的分离模型，而是 **同一次 `tryDrain` 内建房并对两人推送**。
+
+### 9.1 仅一人在队 + 他人新建公开桌
+
+若当时只有玩家 A 在默认 FIFO（`tryDrain` 不足两人，不会走「两人建房」），随后玩家 B **手动创建**无密码、且快匹可见空位规则下的公开桌，则在以下时机之一会先执行 **`tryFlushDefaultQuickMatchWaitersIntoPublicRooms()`**（与首轮 `quickMatchJoinAndReady` 扫房一致），使 A 入 B 的桌并收到 **`MATCHED`**，而无需再等第二名排队者与 A 拼对建房：
+
+- 任意一次 `tryDrainDefaultQuickMatchPairs` 的配对周期开头（含他人 `POST quickMatch2` 入队后触发的 `tryDrain`）；
+- 手动 `createRoom`（公开）完成后的轻量 `tryDrain`；
+- 公开房 `exitRoom` 在**释放房间锁之后**触发的轻量 `tryDrain`（避免与 `dpQuickMatchAssignmentLock` 交叉死锁）。
 
 ---
 
