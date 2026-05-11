@@ -13,6 +13,7 @@ import './styles/dp-game-themes.css'
 import './styles/dp-lobby-shell.css'
 import './styles/dp-auth-shell.css'
 import './styles/dp-game-responsive-type.css'
+import './styles/dp-game-layout-tiers.css'
 import './styles/dp-game-element-ui.css'
 import ElementUI, { Message } from 'element-ui'
 import 'element-ui/lib/theme-chalk/index.css';

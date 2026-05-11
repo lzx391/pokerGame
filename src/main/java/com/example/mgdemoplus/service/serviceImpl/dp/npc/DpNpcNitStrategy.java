@@ -60,6 +60,14 @@ public final class DpNpcNitStrategy {
                 && (st == SimpleStrength.WEAK || st == SimpleStrength.MEDIUM)) {
             tagCommitFactor *= 0.85;
         }
+        if (!"preflop".equals(stage)) {
+            double spr = DpNpcEngine.computeHeroPotSpr(p.room, p.bot);
+            if (spr < 2.5 && (st == SimpleStrength.MONSTER || st == SimpleStrength.STRONG)) {
+                tagCommitFactor = Math.min(0.92, tagCommitFactor * 1.05);
+            } else if (spr > 14.0 && (st == SimpleStrength.WEAK || st == SimpleStrength.MEDIUM)) {
+                tagCommitFactor *= 0.85;
+            }
+        }
         if (tagCommitFactor < 0.15) {
             tagCommitFactor = 0.15;
         }
@@ -80,12 +88,23 @@ public final class DpNpcNitStrategy {
             baseFold = 0.35;
         }
         baseFold = Math.min(1.0, baseFold * 1.18 + 0.04);
+        baseFold = Math.min(
+                1.0,
+                baseFold + DpNpcEngine.multiwayFoldProbBoost(ctx.activeVillains, p.checkRaiseFear));
 
         double potOdds = ctx.potOdds;
-        if (st == SimpleStrength.WEAK && potOdds > 0.6) {
-            baseFold = Math.min(1.0, baseFold + 0.2);
-        } else if (potOdds < 0.25 && (st == SimpleStrength.MEDIUM || st == SimpleStrength.STRONG)) {
-            baseFold = Math.max(0.0, baseFold * 0.75);
+        baseFold = DpNpcEngine.adjustFoldProbForEquityVsPotOdds(
+                baseFold,
+                callAmount,
+                potOdds,
+                ctx.equityEst,
+                ctx.activeVillains,
+                1.12);
+        if (st == SimpleStrength.WEAK && potOdds > 0.58) {
+            baseFold = Math.min(1.0, baseFold + 0.08);
+        } else if (potOdds > 0 && potOdds < 0.22
+                && (st == SimpleStrength.MEDIUM || st == SimpleStrength.STRONG)) {
+            baseFold = Math.max(0.0, baseFold * 0.9);
         }
 
         ActionCredibility tagCred = ctx.credibility;
@@ -134,6 +153,12 @@ public final class DpNpcNitStrategy {
             } else {
                 return new BotAction(BotActionType.CALL_OR_CHECK, 0);
             }
+            if (!"preflop".equals(stage) && st == SimpleStrength.MEDIUM) {
+                double sprC = DpNpcEngine.computeHeroPotSpr(p.room, p.bot);
+                if (sprC > 15.0) {
+                    factor *= 0.84;
+                }
+            }
             counterTag = ctx.counterStrategy;
             if (counterTag != null && counterTag.moreThinValue
                     && (st == SimpleStrength.MEDIUM || st == SimpleStrength.STRONG
@@ -147,6 +172,9 @@ public final class DpNpcNitStrategy {
                 aggroFactor *= 0.8;
             }
             valueBetProb *= aggroFactor;
+            if (ctx.activeVillains >= 2 && st == SimpleStrength.MEDIUM) {
+                valueBetProb *= 0.72;
+            }
             valueBetProb = DpNpcEngine.applySoftNoise(
                     Math.min(0.95, Math.max(0.05, valueBetProb)),
                     RuleNpcConfig.PROB_NOISE_DELTA,
@@ -195,6 +223,13 @@ public final class DpNpcNitStrategy {
             aggroFactorRaise *= 1.05;
         }
         raiseProb *= aggroFactorRaise;
+        if (ctx.activeVillains >= 2) {
+            if (st == SimpleStrength.WEAK) {
+                raiseProb *= 0.42;
+            } else if (st == SimpleStrength.MEDIUM) {
+                raiseProb *= 0.76;
+            }
+        }
         raiseProb = DpNpcEngine.applySoftNoise(
                 Math.min(0.9, Math.max(0.05, raiseProb)),
                 RuleNpcConfig.PROB_NOISE_DELTA,
@@ -225,6 +260,12 @@ public final class DpNpcNitStrategy {
         int target = callAmount + extra;
         if (!"river".equals(stage) && st == SimpleStrength.MEDIUM) {
             target = (int) Math.round(target * 0.8);
+        }
+        if (!"preflop".equals(stage)) {
+            double sprR = DpNpcEngine.computeHeroPotSpr(p.room, p.bot);
+            if (sprR > 11.0 && (st == SimpleStrength.MEDIUM || st == SimpleStrength.WEAK)) {
+                target = (int) Math.round(target * 0.87);
+            }
         }
 
         int raiseAmount = Math.min(p.chips, target);
@@ -277,18 +318,21 @@ public final class DpNpcNitStrategy {
         if (heroInvestAfter > tagCommitThreshold) {
             double y = p.random.nextDouble();
             if (st == SimpleStrength.STRONG || st == SimpleStrength.MONSTER) {
+                y = DpNpcEngine.skewCommitThresholdRandom(y, ctx, callAmount, 1.05, false);
                 if (y < 0.8) {
                     return new BotAction(BotActionType.CALL_OR_CHECK, 0);
                 } else {
                     return new BotAction(BotActionType.ALL_IN, p.chips);
                 }
             } else if (st == SimpleStrength.MEDIUM) {
+                y = DpNpcEngine.skewCommitThresholdRandom(y, ctx, callAmount, 1.05, true);
                 if (y < 0.7) {
                     return new BotAction(BotActionType.CALL_OR_CHECK, 0);
                 } else {
                     return new BotAction(BotActionType.FOLD, 0);
                 }
             } else {
+                y = DpNpcEngine.skewCommitThresholdRandom(y, ctx, callAmount, 1.05, false);
                 if (y < 0.85) {
                     return new BotAction(BotActionType.FOLD, 0);
                 } else {

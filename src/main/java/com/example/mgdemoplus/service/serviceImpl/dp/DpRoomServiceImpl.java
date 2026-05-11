@@ -611,7 +611,7 @@ public class DpRoomServiceImpl {
         List<String> spectators = r.getSpectators();
         if (spectators == null) {
             spectators = new ArrayList<>();
-            return spectators;
+            r.setSpectators(spectators);
         }
         return spectators;
     }
@@ -1616,9 +1616,9 @@ public class DpRoomServiceImpl {
         }
 
         int humanCap = settleCapableLiveHumansCount(r);
-        System.out.println("humanCap:"+humanCap);
+        // System.out.println("humanCap:"+humanCap);
         int humanReady = settleReadyLiveHumansCount(r);
-        System.out.println("humanReady:"+humanReady);
+        // System.out.println("humanReady:"+humanReady);
         List<String> waiters = r.getWaitNextHand();
         int w = waiters == null ? 0 : waiters.size();
 
@@ -1705,7 +1705,11 @@ public class DpRoomServiceImpl {
         return true;
     }
 
-    /** 上一手房主已不在本手上桌名单时，把房主移交给桌上第一位真人，否则交给第一个座位。 */
+    /**
+     * 上一手房主已不在本手上桌名单时：若房主仍在观众席（本局未上桌但仍在房内观战），保留 {@code owner}；
+     * 否则把房主移交给桌上第一位真人，再没有则交给第一个座位。
+     * <p>注意：玩家彻底退房时由 {@link #exitRoom}/{@link #giveOwner} 先从观众席移除再移交，不会与本条冲突。
+     */
     private void ensureOwnerAlignedWithSeatedPlayers(DpRoomBO r) {
         if (r == null) {
             return;
@@ -1720,6 +1724,12 @@ public class DpRoomServiceImpl {
                 if (ow.equals(p.getNickname())) {
                     return;
                 }
+            }
+            // 主动离座等：真人房主在 spectators 中但不在本局上桌列表，不视为丧失房主资格
+            List<String> spectators = r.getSpectators();
+            if (spectators != null && !ow.isEmpty() && spectators.contains(ow)
+                    && !DpNpcEngine.isBotNickname(ow)) {
+                return;
             }
         }
         for (DpPlayer p : ps) {
@@ -1973,6 +1983,11 @@ public class DpRoomServiceImpl {
         List<DpPlayer> canPlay = new ArrayList<>();
         for (DpPlayer p : r.getPlayers()) {
             if (p.isLeftThisHand()) {
+                // 与 kick 离座一致：本手已离桌的真人进入观众席，避免 newHand 时仅因未入列表而“消失”
+                if (!DpNpcEngine.isBotPlayer(p) && !spectators.contains(p.getNickname())) {
+                    spectators.add(p.getNickname());
+                    r.touchSpectatorPresence(p.getNickname(), System.currentTimeMillis());
+                }
                 continue;
             }
             if (p.getChips() < r.getBigBlindChips()) {

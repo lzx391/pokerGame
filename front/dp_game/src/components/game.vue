@@ -2,6 +2,7 @@
   <div
       ref="gameRoot"
       class="dp-game-root"
+      :data-dp-layout-tier="layoutTier"
       :class="{
         'dp-game-root--pseudo-fs': pseudoFullscreen,
         'dp-game-root--layout-fs': layoutFullscreen,
@@ -11,8 +12,9 @@
       :style="customThemeInlineStyle"
       :data-dp-eco-mode="ecoMode ? 'true' : 'false'"
       :data-dp-stage="stage"
+      :data-dp-orientation="layoutOrientation"
   >
-    <!-- 新布局：顶栏 | 主区(圆桌整块 scale 适配视口、不纵向滚) | 底栏(文档流占位，不再 position:fixed 遮挡桌面) -->
+    <!-- 顶栏 | 主区(牌桌) | 底栏 —— 三块同级 flex，无额外嵌套 -->
     <div class="dp-game-layout">
     <header class="dp-game-layout__header">
     <game-top-bar
@@ -23,6 +25,7 @@
         :spectator-count="spectators.length"
         :wait-next-hand-count="waitNextHand.length"
         :is-fullscreen="layoutFullscreen"
+        :is-owner="isOwner"
         :show-spectator-prepare="showSpectatorPrepareBlock"
         :next-hand-ready="nextHandReady"
         :game-ui-theme="gameUiTheme"
@@ -40,6 +43,7 @@
         @toggle-fullscreen="toggleDpFullscreen"
         @open-hand-history="openHandHistory"
         @open-music-box="$store.commit('dpGame/SET_MODAL', { showMusicBoxModal: true })"
+        @open-owner-hub="openOwnerHubSheet"
         @exit="exitGame"
         @ready-next-hand="readyNextHand"
     />
@@ -51,13 +55,15 @@
         class="dp-game-layout__main dp-game-layout__main--fit-table"
         :class="{ 'dp-game-layout__main--settlement-scroll': stage === 'showdown' || stage === 'settled' }"
     >
-    <!-- <div v-if="playing" class="dp-game-hint">
-      各人手牌与公共牌均由发牌位（D）发出
-    </div> -->
-
-    <div class="dp-game-table-fit">
-      <div class="dp-game-table-fit__clip" :style="tableFitClipStyleObj">
-        <div ref="tableFitInner" class="dp-game-table-fit__inner">
+    <p
+        v-if="layoutTier === 'phone' && layoutOrientation === 'portrait'"
+        class="dp-game-layout__portrait-hint"
+        role="status"
+    >
+      横屏可获得更大牌桌视野，建议旋转手机并全屏游玩。
+    </p>
+    <div class="dp-game-table-fit" :style="tableFitClipStyleObj">
+      <div ref="tableFitInner" class="dp-game-table-fit__inner">
           <game-round-table
               :chip-leader-nicknames="chipLeaderNicknames"
               :players-display-order="playersDisplayOrder"
@@ -89,7 +95,6 @@
               @card-click="onPlayerCardClick"
           />
         </div>
-      </div>
     </div>
 
     </main>
@@ -129,13 +134,14 @@ import GameDpGameSheets from './GameDpGameSheets.vue'
 import dpGameFullscreenMixin from '../mixins/dpGameFullscreenMixin'
 import dpGameTableFitMixin from '../mixins/dpGameTableFitMixin'
 import dpGameActionCountdownMixin from '../mixins/dpGameActionCountdownMixin'
+import dpGameLayoutTierMixin from '../mixins/dpGameLayoutTierMixin'
 import { dpGamePlayerBoxStyle } from '../utils/dpGamePlayerBoxStyle'
 import { ensureDpUserIdInStorage } from '../utils/dpEnsureUserId'
 import { dpResultSuccess, dpResultData, dpResultMessage } from '../utils/dpApiResult'
 import { mapState, mapGetters } from 'vuex'
 
 export default {
-  mixins: [dpGameFullscreenMixin, dpGameTableFitMixin, dpGameActionCountdownMixin],
+  mixins: [dpGameFullscreenMixin, dpGameTableFitMixin, dpGameActionCountdownMixin, dpGameLayoutTierMixin],
   provide() {
     return {
       dpGameView: this

@@ -27,6 +27,7 @@
 
 - **规则型策略机器人**：多种风格（无分级「难度噪声」），包含回合策略、行为逻辑、对手习惯记忆等（概要见 [docs/ai/npc-engine/README.md](docs/ai/npc-engine/README.md)）。**翻前**仅由 `DpNpcUnifiedPreflopStrategy` 处理：起手牌语义仍为 G1–G8，`rangeLevel`、简化位置、`PreflopSpot` 对应局面在运行时查 **预计算的 13×13 表**（对角=对子，行&gt;列为杂色、行&lt;列为同色，值为 1/0）；`groupOf` 仍用于填表逻辑与少量诈唬分支；另有 `StyleProfile`（vpip、pfr、callStation、foldToPressure、mood）、`lateFactor`、`raiseLevel` 与 BotType 小档偏移等；**各 BotType 策略类不再单独处理翻前**，若统一翻前返回 null（异常局面）则引擎兜底过牌/跟注。**细数据流**见 [docs/ai/npc-preflop-unified-decision-flow.md](docs/ai/npc-preflop-unified-decision-flow.md)。**翻后**由 `DpNpcEngine#decideBotAction` 组装 `DpNpcRuleDecisionParams` 后按 `BotType` 进入 `npc` 包六个类：`DpNpcFishStrategy`、`DpNpcCallStrategy`、`DpNpcLagStrategy`、`DpNpcManiacStrategy`、`DpNpcTagStrategy`、`DpNpcNitStrategy`（各文件自包含，便于按风格独立演进）；`BOT_LLM` 仍单独走局面包与方舟接口。
 - **大模型玩家（可选）**：`BOT_LLM` 通过兼容 OpenAI 的 Chat 接口实现 AI 决策，需配置 `ARK_API_KEY`、`ARK_ENDPOINT_ID` 等（见 [README.en.md](README.en.md) 中大模型小节与 [docs/ENV_README.md](docs/ENV_README.md)）。默认开启 `**ARK_RESPONSE_JSON_OBJECT`**（`response_format=json_object`）以压缩正文；模型须返回含 **action / chips_to_add / brief_reason** 的 JSON（**brief_reason** 为 1～2 句决策理由，控制台会单独打印）。在 **thinking 仍开启** 的前提下，将 `**ARK_REASONING_EFFORT`** 从 `**high**` 改为 `**medium**` 或 `**low**` 可明显缩短服务端思维链耗时。**日志**：控制台中的「只看模型思考」用 Spring `**logging.level`**，`application.yml` 里已注释示例：`com.example.mgdemoplus.dp.BotLlmReasoning` 专打 reasoning，其它可把 `DpLlmNpcDecisionService` 或 `root` 调低。喂给模型的 user 包顺序为 **M→T→H→E**：`M` 含盲注、`rl`（加注层级，非 ante）及 `**SBseat`/`BBseat`**；`T` 为座位序下的昵称、剩余筹码、本街已下；`**H` 的 `pot`/`call`/`stack` 为服务端真值**（键名 `hero`、`stage`、`stack` 等）；`**E`** 为可读键名的对手摘要；`**rk=**` 与 `**hsl=**` 仍为成牌相关真值说明。`**rk**` 对「公牌已成对、手牌未中该对、仅拼踢脚」的情形会在 `DpUtilHandEvaluator.toSimpleStrength` 中封顶为 **MEDIUM/WEAK**，避免误标成 STRONG。
+- **BOT_LLM 行式局面包（v1）**：`street_action_esc` 与本行的 `call_amount_chips` 对齐表述（面对档位、英雄本街已下、还须支付并列，他人动作为「本街贡献」以免把他人注额误当跟注额）；同窗内若 `ctx.call_amount` 或 `pot_odds` 与房间重算不一致会打 WARN。模型返回的 `brief_reason` 在日志侧可按 `stage_en` 做轻量规范化；`【模型调用耗时】` 日志附带 `reasoningChars` 便于对照纠结长度与尾延迟。
 
 ### 其它功能
 
@@ -45,11 +46,12 @@
 | 数据       | **MySQL 8**（库名默认 `**school_db`**）、**Redis 7**                                                                                                    |
 | 构建与部署    | **Maven**、**Docker** / **Docker Compose**、**Nginx**（反向代理与 WS 转发）                                                                                 |
 
+对局页布局为 **顶栏 / `<main>` 牌桌区 / 底栏** 同级 flex；`main` 同时承担桌面面板样式，牌桌缩放裁切只在一层 `.dp-game-table-fit` 上。根节点通过 **`data-dp-layout-tier`** / **`data-dp-stage`** / **`data-dp-orientation`** 与 `dp-game-shell.css`、`dp-game-layout-tiers.css` 中的 **CSS 变量**联动（全屏顶距 `--dp-game-fs-extra-pad-top`、摊牌主区最小高度 `--dp-game-settlement-main-min-h` 等）；缩放原点与居中逻辑见 `dpGameTableFitMixin.js`。细节见 `front/dp_game/docs/GAME_LAYOUT_TUNING_README.md`。
 
 ### 前端「猫咪派对」展示包装（仅文案与 UI）
 
 - 登录成功后会请求在大厅展示**玩法说明**弹窗（`CatTutorialDialog.vue`，`append-to-body`）；样式与当前**界面主题**一致：`body[data-dp-game-theme]` 上的 `--dp-*` 与 `**dp-game-element-ui.css`** 中对 `el-dialog` 的覆盖（避免暗色主题下浅色字叠在白底上）。可选「不再自动弹出」，仍可通过大厅 **玩法说明** 打开。
-- **界面主题**：预设多套 + 可选「**自定义**」（选一预设作底 + **强调色**，派生若干 `--dp-*` 覆盖；`dp_game_ui_theme` + `dp_game_custom_theme` 存 **localStorage**，非数据库）。自定义模式下配色编辑区 **默认收起**，用 **「展开配色」** 打开、**「收起配色」** 合上。
+- **界面主题**：预设多套（含 **万圣惊魂** `halloween`：暗夜 + 南瓜橙 / 幽紫 氛围）+ 可选「**自定义**」（选一预设作底 + **强调色**，派生若干 `--dp-*` 覆盖；`dp_game_ui_theme` + `dp_game_custom_theme` 存 **localStorage**，非数据库）。自定义模式下配色编辑区 **默认收起**，用 **「展开配色」** 打开、**「收起配色」** 合上。
 - 术语与本地存储键名集中在 `**front/dp_game/src/constants/dpCatThemeCopy.js`**（如：发牌猫、小猫 SC / 大猫 BC、小鱼干；对局阶段展示为翻前圈 / 翻后圈 / 半决赛 / 决赛圈 / 结算阶段）；**不改变**后端 API、请求参数或 WebSocket 载荷字段名。
 
 ---

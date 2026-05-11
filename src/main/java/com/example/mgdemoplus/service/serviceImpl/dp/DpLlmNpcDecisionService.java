@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,32 +39,23 @@ public class DpLlmNpcDecisionService {
     private static final Logger LOG_REASONING = LoggerFactory.getLogger("com.example.mgdemoplus.dp.BotLlmReasoning");
 
     /**
-     * BOT_LLM 系统提示：强制信任局面包数值、禁止复算与重构行动顺序；解析侧只取正文中的 JSON 对象。
+     * BOT_LLM 系统提示：纪律、教学与输出契约；局面数值仅见 user 快照（见 {@link LlmNpcUserSnapshot}）。
      */
-    private static final String LLM_SYSTEM_PROMPT = String.join("\n",
-            "你是无限注德州扑克AI引擎。你只接收一份已权威解析的【局面包】，禁止重新计算任何数字。",
-            "行动纪律：",
-            "- 你还须支付=0 → 只能CALL_OR_CHECK或RAISE/ALL_IN，绝不可FOLD。",
-            "- 你还须支付>0 → 比对【胜率估计】与【跟注胜率门槛】：胜率≥门槛 → CALL_OR_CHECK；胜率<门槛 → 通常FOLD，但若对手风格为MANIAC/LOOSE或摊牌诈唬偏好≥0.65，或对策含bluffCatch/callDown，且胜率差距≤0.03，优先跟注抓诈。",
-            "- 翻前决策：看位置、前面对手动作、自己手牌，按GTO表行动。",
-            "- 翻后决策：先判断牌面干燥/湿润，再划分手牌梯队（强/中等/听牌/空气），然后根据对手行动、性格、赔率和胜率估计，按GTO+剥削策略决定动作。",
-            "- RAISE必须给出具体尺度（跟满后额外加多少）。价值加注或半诈唬加注。",
-            "输出格式：",
-            "行动步骤只写简要推理，然后给出一个JSON对象，键：action (FOLD|CALL_OR_CHECK|RAISE|ALL_IN), chips_to_add (整数), brief_reason (≤120字中文)。",
-            "- FOLD或CALL_OR_CHECK时chips_to_add=0；CALL_OR_CHECK: >0为跟注，=0为过牌。",
-            "- RAISE时chips_to_add为跟满后额外加的筹码。ALL_IN时chips_to_add为全下总额(通常为后手筹码)。",
-            "禁止输出markdown、代码块、多余文字。",
-            "绝对规则：",
-            "1. 局面包中的底池金额、你还须支付、胜率估计等均为唯一真实值，你不得质疑、不得重新计算。",
-            "2. 行动顺序已在局面包中权威描述（谁已行动、现在轮到谁），你不得自行重构或猜测顺序。",
-            "3. 小盲/大盲/庄位的标识已在局面包中给出，你直接使用即可，无需验证。",
-            "4. 思考必须简短，直接引述局面包中的数值，禁止复述完整牌面。",
-            "5. 当跟注是数学上强制要求时（胜率≥赔率），必须跟注，不准编造理由弃牌。"
-    );
+    private static final String LLM_SYSTEM_PROMPT = """
+            你是无限注德州扑克（NLHE）决策引擎。user 消息是一条固定格式的局面快照：首行 v1|BOT_LLM|snap，接着键名表，一行 ----，再按同序逐行给出值。键名表永远相同；从 ---- 的下一行起才随对局变化。
+            快照字段提示（勿在回复中复述整表）：stage_en=街英文；hero_seat_label_zh=相对庄家座位中文；raise_level_rl=本街加注层级；street_action_esc 内数字为各座本街贡献/面对档位；你还须支付**唯一**以 call_amount_chips 为准，禁止把他人本街贡献误当跟注额。equity_gate_*、pot_odds_value、pot_odds_rule_tag、equity_estimate、impl 等均在**同一冻结时刻**与 call_amount_chips、pot_chips 对齐，禁止用心算重算来否定快照。pot_odds_rule_tag：OFF=勿比赔（八字：零跟注勿比 pot_odds）；ON=须比赔（八字：有跟注对齐胜率）。equity_gate_rule_tag=PAY0_NO_FOLD_GATE 表示无「跟注赔率门槛」、不得仅因 equity 低而 FOLD；PAY_GT0_USE_IMPL 时 equity_gate_impl_ratio 为跟注所需胜率门槛近似值；>>ACT_HERO<<=轮到你；空字段用 —。
+            【快照冻结纪律（单行）】call_amount_chips、equity_gate_*、pot_odds_*、equity_estimate 同帧自洽；禁止纠结 ON/OFF 定义超过一句；禁止论证 street_action_esc 与 call_amount_chips 矛盾——二者已按面对档位与本街已下核对。
+            【快照真值纪律】胜率估计、赔率、SPR、hsl/rk、对手风格档、线路可信度、计数器关键词、挤压风险文案等均为服务端快照真值；禁止与常识比对以论证快照错；禁止因怀疑快照而拉长推理；禁止复述整份 user。
+            【行动】你还须支付（见快照 call_amount_chips）=0：仅可 CALL_OR_CHECK（过牌/看牌，chips_to_add=0）或 RAISE/ALL_IN，禁止 FOLD。call_amount>0：一般比较 equity_estimate 与 equity_gate_impl_ratio；该跟则 CALL_OR_CHECK；该弃则 FOLD；但若对手偏 MANIAC/LOOSE 或 showdown_bluffiness≥0.65 或 counter_strategy_kw 含 bluffCatch/callDown 且 equity 与门槛差距≤0.03，可优先考虑跟注抓诈。数学上必须跟注时（胜率不低于门槛）不得编造理由弃牌。
+            【策略】翻前综合位置、前序行动、手牌结构与加注层级，按 GTO 粗表+合理剥削；翻后先干/湿面与听牌环境，再把手牌分强/中/听牌/空气，结合对手范围、下注尺度、可信度与 SPR 决策。进攻：价值与半诈唬用 RAISE，须给出具体再加注额。全下：仅当选择 ALL_IN；chips_to_add 为全下总额（通常后手）。
+            【成牌标签】hsl_en 为服务端最佳成牌英文标签，勿推翻。PAIR_OF_x：若 hsl 为 PAIR_OF_某点且底牌不含该点，多为板对弱踢脚，勿口述为顶对。
+            【输出】先极短内部思考（禁止长篇独白/自我辩论快照），然后**仅一行** JSON 对象：{action,chips_to_add,brief_reason}；action（FOLD|CALL_OR_CHECK|RAISE|ALL_IN）；chips_to_add（整数）；brief_reason（≤120 字中文，与 action、stage_en **一致**）。brief_reason **必须出现**当前街中文名之一（翻前/翻牌/转牌/河牌，与 stage_en 对应）；preflop 时禁止把「翻后/河牌/转牌/翻牌圈/在翻牌/到翻牌」当成当前已发生语境（「便宜看翻牌」类意图除外）。FOLD/CALL_OR_CHECK 时 chips_to_add=0；CALL_OR_CHECK 且需跟注时由解析侧规范化；RAISE：chips_to_add=面对档位之上的再加；ALL_IN：chips_to_add=全下总额。禁止 markdown、代码围栏、多余 JSON 外套或口癖；除该行 JSON 外禁止任何字符。
+            """.stripIndent();
     /** 轮到 BOT_LLM 后、发起方舟请求前的额外等待；0 表示不人为拖延（总耗时几乎全在 API 侧）。 */
     private static final long PRE_API_DELAY_MS = 0L;
     /** 控制台打印 reasoning_content 上限，避免上万字刷屏；不影响 API 侧真实思考长度。 */
     private static final int REASONING_LOG_MAX_CHARS = 2000;
+    /** BOT_LLM 并发：固定 4 线程；一桌多 BOT_LLM 同时思考时会排队，拉长尾延迟（与模型本身长尾叠加）。增大线程会抬高供应商并发与费用风险，需产品与预算评估。 */
     private static final Pattern JSON_BLOCK = Pattern.compile("```(?:json)?\\s*([\\s\\S]*?)```",
             Pattern.CASE_INSENSITIVE);
 
@@ -286,7 +278,15 @@ public class DpLlmNpcDecisionService {
         }
         LOG.debug("======== [BOT_LLM] 输入 system ========\n{}", LLM_SYSTEM_PROMPT);
         LOG.debug("======== [BOT_LLM] 输入 user ========\n{}", userPrompt);
+        if (LOG.isDebugEnabled()) {
+            int stableChars = LlmNpcUserSnapshot.STABLE_PREFIX_LENGTH;
+            int ulen = userPrompt.length();
+            String head = ulen >= stableChars ? userPrompt.substring(0, stableChars) : userPrompt;
+            LOG.debug("[BOT_LLM] prompt_metrics systemChars={} userChars={} stablePrefixChars={} stablePrefixHash={}",
+                    LLM_SYSTEM_PROMPT.length(), ulen, stableChars, Integer.toHexString(head.hashCode()));
+        }
         long t0 = System.nanoTime();
+        int reasoningChars = 0;
         try {
             // 把大模型key id 提示词 信息包输入进去
             LlmNpc.LlmReply reply = llmNpc.chatMessagesDetailed(
@@ -295,20 +295,25 @@ public class DpLlmNpcDecisionService {
                     llmResponseJsonObject);
             String raw = reply == null ? "" : reply.finalText();
             String reasoning = reply == null ? "" : reply.reasoningText();
-            
+            reasoningChars = reasoning == null ? 0 : reasoning.length();
+
             LOG.debug("======== [BOT_LLM] 模型返回原文 ========\n{}", raw == null ? "(null)" : raw);
             if (reasoning != null && !reasoning.isBlank()) {
                 String r = reasoning.strip();
                 if (r.length() > REASONING_LOG_MAX_CHARS) {
-                    r = r.substring(0, REASONING_LOG_MAX_CHARS) + " …(控制台已截断，约 " + reasoning.length()
-                            + " 字；缩短思考请将环境变量 ARK_REASONING_EFFORT 设为 medium 或 low)";
+                    r = r.substring(0, REASONING_LOG_MAX_CHARS) + " …(控制台已截断；全文 reasoning_chars≈"
+                            + reasoningChars + ")";
                 }
                 LOG_REASONING.info("======== [BOT_LLM] 模型思考 ========\n{}", r);
             }
             LlmParseResult parsed = parseModelReply(raw);
             DpNpcEngine.BotAction action = parsed == null ? null : parsed.action();
             if (parsed != null && parsed.briefReason() != null && !parsed.briefReason().isBlank()) {
-                LOG.info("[BOT_LLM] 决策理由(brief_reason)={}", parsed.briefReason());
+                String shown = normalizeBriefReasonForStage(parsed.briefReason(), stage);
+                if (!shown.equals(parsed.briefReason())) {
+                    LOG.warn("[BOT_LLM] brief_reason 与 stage 矛盾或缺街名，已展示规范化：{}", shown);
+                }
+                LOG.info("[BOT_LLM] 决策理由(brief_reason)={}", shown);
             }
             if (action == null && raw != null && !raw.isBlank()) {
                 LOG.warn("[BOT_LLM] 提示：模型有正文但 JSON 未解析成动作，主线程将打印【本地决策】");
@@ -323,7 +328,8 @@ public class DpLlmNpcDecisionService {
             return null;
         } finally {
             long modelWallMs = (System.nanoTime() - t0) / 1_000_000L;
-            LOG.info("[BOT_LLM] 【模型调用耗时】HTTP+解析={}s room={} stage={}", modelWallMs/1000, roomId, stage);
+            LOG.info("[BOT_LLM] 【模型调用耗时】HTTP+解析={}ms room={} stage={} reasoningChars={}",
+                    modelWallMs, roomId, stage, reasoningChars);
         }
     }
 
@@ -343,189 +349,9 @@ public class DpLlmNpcDecisionService {
         return n;
     }
 
-    // 已学习，构建喂给AI的信息包（权威数值摘要 + 本街行动序 + smartContext 映射块）
-    private String buildUserPrompt(DpRoomBO room, DpPlayer bot, LlmNpcGameContext ctx) {
-        StringBuilder sb = new StringBuilder(2048);
-        sb.append("【BOT_LLM 局面包】\n");
-        sb.append("当前阶段: ").append(room.getCurrentStage()).append('\n');
-        sb.append("你的位置: ").append(getPositionName(room, bot)).append('\n');
-        String holeLine = heroHoleCardsLine(bot, ctx);
-        sb.append("你的手牌(与服务端胜率所用一致): ").append(holeLine).append('\n');
-
-        int callAmount = Math.max(0, room.getCurrentBetToCall() - bot.getBet());
-        int potNow = room.getPot();
-        int potAfterCall = potNow + callAmount;
-        sb.append("当前底池: ").append(potNow).append('\n');
-        sb.append("你还须支付: ").append(callAmount).append(" (如跟注)\n");
-        sb.append("跟注后总底池: ").append(potAfterCall).append('\n');
-        sb.append("你的后手筹码: ").append(bot.getChips()).append('\n');
-        sb.append("盲注结构: 小盲=").append(room.getSmallBlindChips())
-                .append(" 大盲=").append(room.getBigBlindChips())
-                .append(" 本街加注层级rl=").append(room.getRaiseLevel())
-                .append("（0=尚无人抬注 1=面对开局加注 2=面对3bet 3=面对4bet或更高）\n");
-
-        sb.append("本街行动顺序 (从庄位下一座位起沿座位环，已权威记录):\n");
-        sb.append(buildActionHistory(room, bot));
-
-        sb.append("小盲玩家: ").append(getBlindPlayerNickname(room, true)).append('\n');
-        sb.append("大盲玩家: ").append(getBlindPlayerNickname(room, false)).append('\n');
-        sb.append("庄位玩家: ").append(getDealerPlayerNickname(room)).append('\n');
-
-        if (ctx != null) {
-            sb.append('\n').append(ctx.toPromptBlock());
-        }
-        sb.append("\n【注意】以上所有数字和行动顺序均为真实游戏状态，请直接使用，无需重新推导。\n");
-        return sb.toString();
-    }
-
-    /** 优先使用 Context 中的底牌标签（与胜率/hsl 同源），否则退回房间手牌列表。 */
-    private static String heroHoleCardsLine(DpPlayer bot, LlmNpcGameContext ctx) {
-        if (ctx != null) {
-            String h = ctx.getHoleCardsText();
-            if (h != null && !h.isBlank()) {
-                return h.trim();
-            }
-        }
-        return cardsToString(bot.getHoleCards());
-    }
-
-    private static String cardsToString(List<String> cards) {
-        if (cards == null || cards.isEmpty()) {
-            return "无";
-        }
-        return String.join(" ", cards).trim();
-    }
-
-    private static String getPositionName(DpRoomBO room, DpPlayer bot) {
-        List<DpPlayer> ps = room.getPlayers();
-        if (ps == null) {
-            return "未知";
-        }
-        int idx = ps.indexOf(bot);
-        if (idx < 0) {
-            return "未知";
-        }
-        if (bot.isDealer()) {
-            return "按钮位(BTN)";
-        }
-        int did = room.getLastDealerIndex();
-        if (did >= 0 && ps.size() >= 2) {
-            int sbIdx = (did + 1) % ps.size();
-            int bbIdx = (did + 2) % ps.size();
-            if (idx == sbIdx) {
-                return "小盲位(SB)";
-            }
-            if (idx == bbIdx) {
-                return "大盲位(BB)";
-            }
-            int dist = (idx - did + ps.size()) % ps.size();
-            if (dist <= 2) {
-                return "前位";
-            }
-            if (dist <= ps.size() - 2) {
-                return "中位";
-            }
-            return "后位";
-        }
-        return "未知";
-    }
-
-    private String buildActionHistory(DpRoomBO room, DpPlayer hero) {
-        StringBuilder sb = new StringBuilder();
-        List<DpPlayer> ps = room.getPlayers();
-        if (ps == null || ps.isEmpty()) {
-            return sb.toString();
-        }
-        int n = ps.size();
-        int did = room.getLastDealerIndex();
-        if (did < 0 || did >= n) {
-            did = 0;
-        }
-        int bbIdx = n >= 2 ? (did + 2) % n : -1;
-        DpPlayer bbPlayer = bbIdx >= 0 ? ps.get(bbIdx) : null;
-        int start = (did + 1) % n;
-        String stage = room.getCurrentStage();
-        int bbChips = Math.max(1, room.getBigBlindChips());
-
-        for (int i = 0; i < n; i++) {
-            int idx = (start + i) % n;
-            DpPlayer p = ps.get(idx);
-            if (p == null || p.isLeftThisHand()) {
-                continue;
-            }
-            if (p == hero) {
-                sb.append(">> 轮到你行动 <<\n");
-                continue;
-            }
-            String actionDesc;
-            if (p.isFold()) {
-                actionDesc = "弃牌";
-            } else if (p.isAllIn()) {
-                actionDesc = "全下(" + p.getBet() + ")";
-            } else if (p.getBet() > 0) {
-                boolean preflopBbPost = "preflop".equals(stage)
-                        && p == bbPlayer
-                        && p.getBet() == bbChips
-                        && room.getCurrentBetToCall() <= bbChips;
-                if (preflopBbPost) {
-                    actionDesc = "大盲注(" + bbChips + ")";
-                } else {
-                    actionDesc = "下注/加注至 " + p.getBet();
-                }
-            } else if (p.isActed()) {
-                actionDesc = "过牌";
-            } else {
-                actionDesc = "尚未行动(本轮)";
-            }
-            sb.append(p.getNickname()).append(": ").append(actionDesc).append('\n');
-        }
-        return sb.toString();
-    }
-
-    private static String getBlindPlayerNickname(DpRoomBO room, boolean smallBlind) {
-        BlindSeatNames b = resolveBlindSeatNames(room);
-        if (b == null) {
-            return "?";
-        }
-        return smallBlind ? b.sbNick() : b.bbNick();
-    }
-
-    private static String getDealerPlayerNickname(DpRoomBO room) {
-        List<DpPlayer> ps = room.getPlayers();
-        if (ps == null) {
-            return "?";
-        }
-        for (DpPlayer p : ps) {
-            if (p != null && p.isDealer()) {
-                String nick = p.getNickname();
-                return nick != null ? nick : "?";
-            }
-        }
-        return "?";
-    }
-
-    private record BlindSeatNames(String sbNick, String bbNick) {}
-
-    /** 本手小盲/大盲昵称，与 {@link DpRoomServiceImpl} 庄位后 (D+1)/(D+2) 一致；人不足 2 则返回 null。 */
-    private static BlindSeatNames resolveBlindSeatNames(DpRoomBO room) {
-        if (room == null) {
-            return null;
-        }
-        List<DpPlayer> ps = room.getPlayers();
-        if (ps == null || ps.size() < 2) {
-            return null;
-        }
-        int did = room.getLastDealerIndex();
-        if (did < 0 || did >= ps.size()) {
-            return null;
-        }
-        int sbIdx = (did + 1) % ps.size();
-        int bbIdx = (did + 2) % ps.size();
-        DpPlayer sbp = ps.get(sbIdx);
-        DpPlayer bbp = ps.get(bbIdx);
-        String sbn = sbp != null && sbp.getNickname() != null ? sbp.getNickname() : "?";
-        String bbn = bbp != null && bbp.getNickname() != null ? bbp.getNickname() : "?";
-        return new BlindSeatNames(sbn, bbn);
+    /** 单一局面包出口：键表固定 + ---- 后值行（见 {@link LlmNpcUserSnapshot}）。 */
+    private static String buildUserPrompt(DpRoomBO room, DpPlayer bot, LlmNpcGameContext ctx) {
+        return LlmNpcUserSnapshot.formatUserPayload(room, bot, ctx);
     }
 
     /** 解析结果 + 来源；briefReason 来自 JSON 的 brief_reason，仅日志展示。 */
@@ -650,6 +476,58 @@ public class DpLlmNpcDecisionService {
             }
         }
         return -1;
+    }
+
+    private static String stageZhForBrief(String stageEn) {
+        if (stageEn == null || stageEn.isBlank()) {
+            return "";
+        }
+        return switch (stageEn.toLowerCase(Locale.ROOT)) {
+            case "preflop" -> "翻前";
+            case "flop" -> "翻牌";
+            case "turn" -> "转牌";
+            case "river" -> "河牌";
+            default -> "";
+        };
+    }
+
+    /**
+     * 日志展示用：补足当前街中文标签，并在明显与 stage_en 矛盾时收束措辞（不改动已解析的 action）。
+     */
+    private static String normalizeBriefReasonForStage(String reason, String stageEn) {
+        if (reason == null || reason.isBlank()) {
+            return reason;
+        }
+        String s = reason.trim();
+        final int cap = 300;
+        if (s.length() > cap) {
+            s = s.substring(0, cap) + "…";
+        }
+        String tag = stageZhForBrief(stageEn);
+        String out = s;
+        if (!tag.isEmpty() && !out.contains(tag)) {
+            out = "【" + tag + "】" + out;
+        }
+        String low = stageEn == null ? "" : stageEn.toLowerCase(Locale.ROOT);
+        if (!"preflop".equals(low)) {
+            return out;
+        }
+        boolean badToken = out.contains("翻后") || out.contains("河牌") || out.contains("转牌");
+        boolean badFlopCtx = out.contains("翻牌圈") || out.contains("在翻牌") || out.contains("到翻牌");
+        if (!badToken && !badFlopCtx) {
+            return out;
+        }
+        String cleaned = out;
+        for (String w : new String[] {"翻后", "河牌", "转牌", "翻牌圈", "在翻牌", "到翻牌"}) {
+            cleaned = cleaned.replace(w, "");
+        }
+        cleaned = cleaned.replace("  ", " ").trim();
+        if (cleaned.isEmpty() || cleaned.equals("【翻前】")) {
+            cleaned = "【翻前】理由与阶段冲突已收敛，按快照决策。";
+        } else if (!cleaned.contains("翻前")) {
+            cleaned = "【翻前】" + cleaned;
+        }
+        return cleaned;
     }
 
     /** 模型输出的简短理由；仅用于日志，不参与下注逻辑。 */

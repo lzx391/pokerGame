@@ -188,7 +188,7 @@ public final class DpLlmNpcContextMapper {
                     .append(" 后位=").append(v.behindHero)
                     .append(" stackBB=").append(String.format("%.1f", v.stackBB))
                     .append(" 风格=").append(tier)
-                    .append(" 本街加注=").append(v.hasRaisedThisStreet)
+                    .append(" 已加注本街=").append(v.hasRaisedThisStreet)
                     .append('\n');
         }
         return sb.toString().trim();

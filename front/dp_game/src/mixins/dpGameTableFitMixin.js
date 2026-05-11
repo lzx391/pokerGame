@@ -4,11 +4,18 @@
  *
  * 注意：flex + align-items:center 下若 clip 不按主区拉满宽，width:100% 的牌桌会退化成极窄
  * min-content，scrollWidth 过小，出现「中间一条」——测量前须用主区 clientWidth 撑开 inner。
+ *
+ * 可用宽高须用主区**内容盒**（client 减 padding）：否则会把 padding 算进「能放牌桌」的高，
+ * 缩放比偏大，flex 居中 + overflow:hidden 时易裁掉 12 点方向（平板/窄窗 ≤900px 无大屏 padding 时更明显）。
+ * .dp-game-table-fit 的 padding-top 须在扣 mh/mw 时一并减掉（与 margin 同理）。
+ *
+ * 缩放原点须为「顶水平居中」（50% 0）：若用 top left，等比缩小后绘制贴在布局框左侧，
+ * 而裁剪框按 flex 水平居中切「中间窗口」，会裁掉牌桌左侧，表现为整桌挤到左边且不对称。
  */
 export default {
   data: function () {
     return {
-      tableFitClipStyleObj: { width: "100%", overflow: "hidden" },
+      tableFitClipStyleObj: { width: "100%", maxWidth: "100%", overflow: "visible" },
       _tableFitRaf: null,
       _tableFitRoMain: null,
       _tableFitRoInner: null,
@@ -140,8 +147,22 @@ export default {
         return
       }
 
-      var mw = main.clientWidth
-      var mh = main.clientHeight
+      var cs = window.getComputedStyle(main)
+      var pl = parseFloat(cs.paddingLeft) || 0
+      var pr = parseFloat(cs.paddingRight) || 0
+      var pt = parseFloat(cs.paddingTop) || 0
+      var pb = parseFloat(cs.paddingBottom) || 0
+      var mw = main.clientWidth - pl - pr
+      var mh = main.clientHeight - pt - pb
+      /* dp-game-shell：.dp-game-table-fit 外 margin-top 下移桌面时必须扣掉，否则会按过高 mh 缩放再裁切 */
+      var outer = inner.parentElement
+      if (outer && outer.classList && outer.classList.contains("dp-game-table-fit")) {
+        var fm = window.getComputedStyle(outer)
+        mw -= (parseFloat(fm.marginLeft) || 0) + (parseFloat(fm.marginRight) || 0)
+        mh -= (parseFloat(fm.marginTop) || 0) + (parseFloat(fm.marginBottom) || 0)
+        mw -= (parseFloat(fm.paddingLeft) || 0) + (parseFloat(fm.paddingRight) || 0)
+        mh -= (parseFloat(fm.paddingTop) || 0) + (parseFloat(fm.paddingBottom) || 0)
+      }
       if (mw < 4 || mh < 4) return
 
       /* 先按主区宽度撑开，再量自然宽高（避免 width:100% 在窄父级下塌成一条） */
@@ -160,7 +181,7 @@ export default {
       }
       if (nw < 4 || nh < 4) return
 
-      var pad = 8
+      var pad = 16
       var sx = (mw - pad) / nw
       var sy = (mh - pad) / nh
       var s = sx < sy ? sx : sy
@@ -170,14 +191,19 @@ export default {
       if (s >= 0.999) {
         st.removeProperty("width")
         st.removeProperty("height")
-        this.tableFitClipStyleObj = { width: "100%", overflow: "hidden" }
+        this.tableFitClipStyleObj = {
+          width: "100%",
+          maxWidth: "100%",
+          overflow: "visible",
+        }
         return
       }
 
-      var wClip = Math.max(1, Math.floor(nw * s))
-      var hClip = Math.max(1, Math.floor(nh * s))
+      /* 竖向余量：上牌 translate(-50%,-50%) + clip 舍入 */
+      var wClip = Math.max(1, Math.ceil(nw * s) + 2)
+      var hClip = Math.max(1, Math.ceil(nh * s) + 44)
       st.transform = "scale(" + s + ")"
-      st.transformOrigin = "top left"
+      st.transformOrigin = "50% 0"
       st.width = nw + "px"
       st.height = nh + "px"
       this.tableFitClipStyleObj = {

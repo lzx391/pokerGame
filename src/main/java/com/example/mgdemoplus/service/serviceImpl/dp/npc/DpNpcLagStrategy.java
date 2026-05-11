@@ -61,6 +61,12 @@ public final class DpNpcLagStrategy {
             maniCommitFactor *= 0.85;
         }
         maniCommitFactor *= looseAggroMul;
+        if (!"preflop".equals(stage)) {
+            double sprL = DpNpcEngine.computeHeroPotSpr(room, bot);
+            if (sprL > 13.0 && (strength == SimpleStrength.WEAK || strength == SimpleStrength.MEDIUM)) {
+                maniCommitFactor *= 0.9;
+            }
+        }
         if (maniCommitFactor < 0.1) {
             maniCommitFactor = 0.1;
         }
@@ -75,6 +81,10 @@ public final class DpNpcLagStrategy {
             if (strength == SimpleStrength.WEAK) {
                 allInProb -= 0.25;
                 foldProb += 0.25;
+            }
+            if (strength == SimpleStrength.WEAK && ctx.activeVillains >= 2) {
+                allInProb -= 0.12;
+                foldProb += 0.08;
             }
             ActionCredibility maniCred = ctx.credibility;
             double maniShowdownBluff = ctx.showdownBluffiness;
@@ -94,6 +104,14 @@ public final class DpNpcLagStrategy {
             if (allInProb > 0.98) {
                 allInProb = 0.98;
             }
+            foldProb = DpNpcEngine.adjustFoldProbForEquityVsPotOdds(
+                    foldProb,
+                    callAmount,
+                    ctx.potOdds,
+                    ctx.equityEst,
+                    ctx.activeVillains,
+                    0.78);
+            foldProb = Math.min(0.5, Math.max(0.03, foldProb));
             double x = p.random.nextDouble();
             if (x < foldProb) {
                 return new BotAction(BotActionType.FOLD, 0);
@@ -123,6 +141,11 @@ public final class DpNpcLagStrategy {
                 raiseProb *= 0.9;
             }
             raiseProb = Math.max(0.5, Math.min(0.98, raiseProb));
+
+            if (ctx.activeVillains >= 2 && strength == SimpleStrength.WEAK) {
+                raiseProb *= 0.68;
+                raiseProb = Math.max(0.45, raiseProb);
+            }
 
             if (r < raiseProb) {
                 int maxMulti;
@@ -171,8 +194,18 @@ public final class DpNpcLagStrategy {
         if (maniFoldProb < 0.0) {
             maniFoldProb = 0.0;
         }
-        if (maniFoldProb > 0.5) {
-            maniFoldProb = 0.5;
+        maniFoldProb += DpNpcEngine.multiwayFoldProbBoost(ctx.activeVillains, p.checkRaiseFear);
+        if (callAmount > 0) {
+            maniFoldProb = DpNpcEngine.adjustFoldProbForEquityVsPotOdds(
+                    maniFoldProb,
+                    callAmount,
+                    ctx.potOdds,
+                    ctx.equityEst,
+                    ctx.activeVillains,
+                    0.78);
+        }
+        if (maniFoldProb > 0.58) {
+            maniFoldProb = 0.58;
         }
         if (callAmount > 0 && p.random.nextDouble() < maniFoldProb) {
             return new BotAction(BotActionType.FOLD, 0);
@@ -205,11 +238,24 @@ public final class DpNpcLagStrategy {
             int heroInvestAfterRaise = bot.getBet() + raiseAmount;
             if (heroInvestAfterRaise >= maniCommitThreshold) {
                 double y = p.random.nextDouble();
+                y = DpNpcEngine.skewCommitThresholdRandom(y, ctx, callAmount, 0.88, true);
+                if (strength == SimpleStrength.WEAK) {
+                    if (ctx.activeVillains >= 2) {
+                        return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+                    }
+                    if (y < 0.9) {
+                        return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+                    }
+                    return new BotAction(BotActionType.FOLD, 0);
+                }
                 if (DpNpcEngine.shouldSkipAggressiveActionByPlan(bot, stage)) {
                     if (y < 0.55) {
                         return new BotAction(BotActionType.CALL_OR_CHECK, 0);
                     }
                     return new BotAction(BotActionType.FOLD, 0);
+                }
+                if (strength == SimpleStrength.MEDIUM && ctx.activeVillains >= 2 && y < 0.62) {
+                    return new BotAction(BotActionType.CALL_OR_CHECK, 0);
                 }
                 if (y < 0.7) {
                     return new BotAction(BotActionType.ALL_IN, chips);
@@ -221,7 +267,9 @@ public final class DpNpcLagStrategy {
             }
             int bb = room.getBigBlindChips();
             if (bb > 0 && room.getPot() > bb * 20 && p.random.nextDouble() < 0.4) {
-                if (!DpNpcEngine.shouldSkipAggressiveActionByPlan(bot, stage)) {
+                if (!DpNpcEngine.shouldSkipAggressiveActionByPlan(bot, stage)
+                        && ctx.activeVillains <= 1
+                        && strength != SimpleStrength.WEAK) {
                     return new BotAction(BotActionType.ALL_IN, chips);
                 }
             }
@@ -232,6 +280,14 @@ public final class DpNpcLagStrategy {
             return new BotAction(BotActionType.RAISE, raiseAmount);
         }
         if (DpNpcEngine.shouldSkipAggressiveActionByPlan(bot, stage)) {
+            return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+        }
+        if (strength == SimpleStrength.WEAK) {
+            return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+        }
+        if (ctx.activeVillains >= 2
+                && strength != SimpleStrength.MONSTER
+                && strength != SimpleStrength.STRONG) {
             return new BotAction(BotActionType.CALL_OR_CHECK, 0);
         }
         return new BotAction(BotActionType.ALL_IN, chips);

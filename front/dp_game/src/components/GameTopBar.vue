@@ -70,6 +70,15 @@
           玩法说明
         </button>
         <button
+            v-if="isOwner"
+            type="button"
+            class="dp-btn dp-top-bar__btn dp-top-bar__btn--owner"
+            aria-label="房主操作"
+            @click="$emit('open-owner-hub')"
+        >
+          房主操作
+        </button>
+        <button
             type="button"
             class="dp-btn dp-top-bar__btn dp-top-bar__btn--ghost"
             @click="$emit('open-hand-history')"
@@ -141,6 +150,8 @@ export default {
       }
     },
     ecoMode: { type: Boolean, required: true },
+    /** 是否在顶栏显示「房主操作」入口 */
+    isOwner: { type: Boolean, default: false },
     themeOptions: {
       type: Array,
       default: function () {

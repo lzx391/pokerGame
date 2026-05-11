@@ -13,6 +13,7 @@ import com.example.mgdemoplus.service.serviceImpl.dp.npc.DpNpcTagStrategy;
 import com.example.mgdemoplus.service.serviceImpl.dp.npc.LlmNpcGameContext;
 import com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator;
 import com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator.HandStrength;
+import static com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator.isPlayingBoardPairOnly;
 import com.example.mgdemoplus.utils.dp.DpUtilNpcDisplayNickname;
 import com.example.mgdemoplus.utils.dp.DpUtilSmartContext;
 
@@ -269,11 +270,13 @@ public final class DpNpcEngine {
     public static final boolean NPC_SOFT_NOISE_ENABLED = false;
 
     /**
-     * 为 true：机器人 fold/call/raise 等抽样使用 {@code currentHandSeed ^ 座位} 固定种子，便于同一手牌复现决策序列。<br>
-     * 为 false（默认）：每次决策 {@code new Random()}，与 handSeed 无关。<br>
-     * 注意：{@code currentHandSeed} 仍会写入房间，供前端发牌动画 key、牌谱、LLM 对齐等使用，并非「发牌种子」。
+     * 为 true：机器人 fold/call/raise 等抽样使用 {@code currentHandSeed ^ 座位} 固定种子，便于同一手牌复现决策序列。
+     * 为 false：每次决策 {@code new Random()}，与 handSeed 无关。
+     * <p>
+     * 当前工程默认值见字段字面量（勿依赖本注释中的「默认」字样与实际不符）。
+     * </p>
      */
-    public static final boolean NPC_HAND_SEED_FOR_DECISIONS = false;
+    public static final boolean NPC_HAND_SEED_FOR_DECISIONS = true;
 
     /**
      * 机器人类型：与 {@link NpcStyle} 一一对应，决策参数取自 {@link #STYLE_PROFILE_MAP}，
@@ -428,7 +431,7 @@ public final class DpNpcEngine {
                 planStrength = SimpleStrength.MEDIUM;
         }
 
-        switch (strength) {
+        switch (planStrength) {
             case MONSTER:
             case STRONG:
                 if (boardDanger == BoardDanger.DRY) {
@@ -1241,11 +1244,12 @@ public final class DpNpcEngine {
     }
 
     /**
-     * 是否属于“公共牌主导”的最佳牌型：
-     * - true：hero 的最佳 5 张牌完全不使用任何手牌（纯公共牌）。
+     * 是否属于“公共牌主导”或等同牌力几乎全来自公面：
+     * - 河牌及以后：hero 的最佳 5 张牌完全不使用任何手牌（纯公共牌成牌）。
+     * - Flop/Turn：无法出现「5 张全在公面」，则退化为「公对面仅拼踢脚」等弱相对牌力情形。
      *
      * <p>
-     * 用于 Shark 翻后避免误判“公共牌很强 = 我很强”。
+     * 用于翻后 HandPlan 避免误判「板很强 = 我很强」。
      * </p>
      */
     static boolean isBoardDominantBestHand(DpRoomBO room, DpPlayer hero) {
@@ -1253,20 +1257,36 @@ public final class DpNpcEngine {
             return false;
         List<String> board = room.getCommunityCards();
         List<String> hole = hero.getHoleCards();
-        if (board == null || board.size() < 5 || hole == null || hole.size() < 2) {
+        if (board == null || board.size() < 3 || hole == null || hole.size() < 2) {
             return false;
         }
-        List<String> all = new ArrayList<>();
+        List<String> all = new ArrayList<>(hole);
         all.addAll(board);
-        all.addAll(hole);
-        List<String> best5 = DpUtilHandEvaluator.getBestHandCards(all);
-        if (best5 == null || best5.size() != 5) {
-            return false;
+        HandStrength hs = evaluateBestHand(all);
+        if (board.size() >= 5) {
+            List<String> best5 = DpUtilHandEvaluator.getBestHandCards(all);
+            if (best5 == null || best5.size() != 5) {
+                return false;
+            }
+            String h1 = hole.get(0);
+            String h2 = hole.get(1);
+            boolean usedHole = (h1 != null && best5.contains(h1)) || (h2 != null && best5.contains(h2));
+            return !usedHole;
         }
-        String h1 = hole.get(0);
-        String h2 = hole.get(1);
-        boolean usedHole = (h1 != null && best5.contains(h1)) || (h2 != null && best5.contains(h2));
-        return !usedHole;
+        return hs != null && isPlayingBoardPairOnly(hs, hole, board);
+    }
+
+    /**
+     * 多人底池（含 hero 在内 ≥3 人仍在局）时，在基础弃牌概率上追加的增量，随 {@code activeVillains}（仅 villains 人数）
+     * 与 {@code foldToPressure} 缩放；0 表示不加。
+     */
+    public static double multiwayFoldProbBoost(int activeVillains, double foldToPressure) {
+        if (activeVillains < 2) {
+            return 0.0;
+        }
+        double depth = Math.min(1.0, (activeVillains - 1) / 3.0);
+        double fear = Math.max(0.0, Math.min(1.0, foldToPressure));
+        return RuleNpcConfig.MULTIWAY_FOLD_BOOST * depth * (0.45 + 0.55 * fear);
     }
 
     private static SimpleStrength estimateCurrentStrength(DpRoomBO room, DpPlayer bot) {
@@ -1557,6 +1577,92 @@ public final class DpNpcEngine {
             return 0.0;
         }
         return callAmount * 1.0 / denom;
+    }
+
+    /**
+     * Hero 剩余可投入筹码相对当前底池的比值（粗略可玩深度代理；非与单一对手对齐的严格 SPR）。
+     * 用于翻后压注/过控尺度和投入意愿微调。
+     */
+    public static double computeHeroPotSpr(DpRoomBO room, DpPlayer hero) {
+        if (room == null || hero == null) {
+            return 8.0;
+        }
+        int pot = room.getPot();
+        int denom = Math.max(1, pot);
+        return hero.getChips() * 1.0 / denom;
+    }
+
+    /**
+     * 用粗粒度胜率桶与底池赔率对齐，修正弃牌概率（TAG/NIT/Fish/Call 以及 LAG/Maniac 面对下注或全下时的轻量接入）。
+     *
+     * @param equityBehindBoostScale 当我们「明显落后赔率」时，对 {@link RuleNpcConfig#EQUITY_FOLD_BOOST} 的缩放：
+     *                               TAG≈1.0，NIT≈1.12，Fish≈0.55，Call≈0.72，LAG≈0.78，Maniac≈0.52
+     */
+    public static double adjustFoldProbForEquityVsPotOdds(
+            double baseFold,
+            int callAmount,
+            double potOdds,
+            double equityEst,
+            int activeVillains,
+            double equityBehindBoostScale) {
+        if (callAmount <= 0 || potOdds <= 0) {
+            return baseFold;
+        }
+        if (equityEst <= 0) {
+            return baseFold;
+        }
+        double eps = RuleNpcConfig.EQUITY_POTODDS_EPS;
+        double margin = RuleNpcConfig.EQUITY_POTODDS_MARGIN;
+        double mw = 1.0 + 0.22 * Math.max(0, activeVillains - 1);
+        equityBehindBoostScale = Math.max(0.0, Math.min(1.5, equityBehindBoostScale));
+        if (equityEst + eps < potOdds - margin) {
+            return Math.min(1.0, baseFold + RuleNpcConfig.EQUITY_FOLD_BOOST * mw * equityBehindBoostScale);
+        }
+        if (equityEst > potOdds + margin + eps) {
+            return Math.max(0.0, baseFold * RuleNpcConfig.EQUITY_FOLD_SHRINK);
+        }
+        return baseFold;
+    }
+
+    /**
+     * 超阈值/大额投入随机支路：按胜率桶 vs 底池赔率平移 [0,1) 均匀抽样 y，弱化数学上离谱的 jam/fold/call 组合。
+     *
+     * @param badIncreasesY {@code true}：落后赔率时增大 y（适用于「y 越大越偏向弃牌/靠后支路」，如 LAG 尾树）；<br>
+     *                        {@code false}：落后赔率时减小 y（适用于「y 越小越保守」，如 TAG 强牌 y&lt;0.8 为跟注控池）。
+     */
+    public static double skewCommitThresholdRandom(
+            double y,
+            DpUtilSmartContext ctx,
+            int callAmount,
+            double shiftScale,
+            boolean badIncreasesY) {
+        if (callAmount <= 0 || ctx == null) {
+            return y;
+        }
+        double po = ctx.potOdds;
+        double eq = ctx.equityEst;
+        if (po <= 0 || eq <= 0) {
+            return y;
+        }
+        shiftScale = Math.max(0.0, Math.min(1.5, shiftScale));
+        double eps = RuleNpcConfig.EQUITY_POTODDS_EPS;
+        double margin = RuleNpcConfig.EQUITY_POTODDS_MARGIN;
+        double mw = 1.0 + 0.12 * Math.max(0, ctx.activeVillains - 1);
+        double d = 0.11 * shiftScale * mw;
+        if (eq + eps < po - margin) {
+            if (badIncreasesY) {
+                y = Math.min(1.0, y + d);
+            } else {
+                y = Math.max(0.0, y - d);
+            }
+        } else if (eq > po + margin + eps) {
+            if (badIncreasesY) {
+                y = Math.max(0.0, y - d);
+            } else {
+                y = Math.min(1.0, y + d);
+            }
+        }
+        return y;
     }
 
     /**

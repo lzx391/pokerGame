@@ -1,11 +1,11 @@
 package com.example.mgdemoplus.service.serviceImpl.dp.npc;
 
-import java.util.Locale;
 import java.util.Objects;
 
 /**
  * 供 {@link LlmNpc} 使用的对局摘要：由 {@code DpLlmNpcContextMapper}
  * 从 {@code DpUtilSmartContext} 与房间状态拼装，避免 {@code npc} 包直接依赖引擎内部类型。
+ * 局面包正文由 {@link com.example.mgdemoplus.service.serviceImpl.dp.LlmNpcUserSnapshot} 统一格式化。
  */
 public final class LlmNpcGameContext {
 
@@ -105,135 +105,121 @@ public final class LlmNpcGameContext {
         this.squeezeRiskSummary = squeezeRiskSummary != null ? squeezeRiskSummary : "";
     }
 
-    /** 与服务端胜率/成牌计算一致的底牌英文标签串（空格分隔）。供局面包首部引用，避免与下行「服务端块」不一致。 */
+    /** 与服务端胜率/成牌计算一致的底牌英文标签串（空格分隔）。 */
     public String getHoleCardsText() {
         return holeCardsText;
     }
 
-    /**
-     * 中文结构化局面正文（由 smartContext 映射字段拼装，不改变情报来源）。
-     * hsl 仍为服务端英文标签，便于与评测器一致。
-     */
-    public String toPromptBlock() {
-        String board = communityCardsText == null || communityCardsText.isEmpty() ? "（尚无）" : communityCardsText;
-        String hole = holeCardsText == null || holeCardsText.isEmpty() ? "（尚无）" : holeCardsText;
-        String hsl = handStrengthLine == null || handStrengthLine.isEmpty() ? "—" : handStrengthLine;
-        String agg = aggressorNickname.isEmpty() ? "无" : aggressorNickname;
-        String ctr = counterStrategySummary.isEmpty() ? "无" : counterStrategySummary;
-        String stageZh = zhStage(stage);
-        String posZh = zhTablePosition(tablePosition);
-        String rkZh = zhRk(simpleStrength);
-        String credZh = zhCred(actionCredibility);
-
-        double spr = potChips > 0 ? (heroChips * 1.0 / potChips) : 0.0;
-        String implExplain;
-        if (callAmountChips <= 0) {
-            implExplain = "不适用（本轮你还须支付为 0：底池赔率列的 0 表示不要拿去和胜率估计比弃跟）";
-        } else {
-            int denom = potChips + callAmountChips;
-            double impl = denom > 0 ? (callAmountChips * 1.0 / denom) : 0.0;
-            implExplain = String.format(Locale.ROOT,
-                    "%.4f（门槛含义：长期要能获利，胜率一般需不低于该比例；应与下行「底池赔率」一致）",
-                    impl);
-        }
-        String potOddsExplain = callAmountChips > 0
-                ? "可与「胜率估计」对照：若底池赔率明显高于胜率估计，跟注多偏亏损。"
-                : "本轮不适用（你还须支付为 0）。";
-
-        StringBuilder sb = new StringBuilder(900);
-        sb.append("【街道】").append(stageZh).append('\n');
-        sb.append("【你是】").append(heroNickname).append("｜抽象位置：").append(posZh).append("（仅供参考）\n");
-        sb.append("【底池与支付】当前底池=").append(potChips)
-                .append("｜你还须支付才能跟满本轮最高注=").append(callAmountChips)
-                .append("｜你剩余后手=").append(heroChips).append('\n');
-        sb.append(String.format(Locale.ROOT, "【筹码深度】SPR≈%.2f（你的后手÷当前底池；底池为 0 时记 0）\n", spr));
-        sb.append("【跟注胜率门槛】").append(implExplain).append('\n');
-        sb.append(String.format(Locale.ROOT, "【底池赔率】%.2f｜%s\n", potOdds, potOddsExplain));
-        sb.append(String.format(Locale.ROOT,
-                "【胜率估计】%.2f（服务端估算：rk 四档 + 翻前手牌结构 + 翻后成牌类型校正；非蒙特卡洛精确胜率）\n",
-                equityEstimate));
-        sb.append("【你的底牌】").append(hole).append('\n');
-        sb.append("【公共牌】").append(board).append('\n');
-        sb.append("【服务端认定的最佳成牌英文标签】").append(hsl).append("（以此为准，勿自行推翻）\n");
-        sb.append("【强度桶 rk】").append(simpleStrength).append("｜").append(rkZh).append('\n');
-        sb.append("【PAIR_OF_x 提示】若标签为 PAIR_OF_某点且你的底牌不含该点，多为「板对弱踢脚」，勿口述成顶对。\n");
-        sb.append("【最近下注或加注者】").append(agg).append('\n');
-        sb.append("【主对手风格档】").append(villainRangeTier).append("（原文勿改写成口语绰号）\n");
-        sb.append(String.format(Locale.ROOT, "【线路可信度】%s｜%s｜【摊牌诈唬偏好】%.2f\n",
-                actionCredibility, credZh, showdownBluffiness));
-        sb.append("【仍在局的活跃对手人数】").append(activeVillains).append('\n');
-        sb.append("【你身后人数】紧凶=").append(tightBehindCount)
-                .append("｜深码=").append(deepBehindCount)
-                .append("｜短码=").append(shortBehindCount).append('\n');
-        sb.append("【对策关键词】").append(ctr).append('\n');
-        sb.append("【挤压风险】").append(squeezeRiskSummary.isEmpty() ? "（无）" : squeezeRiskSummary).append('\n');
-        boolean hasStacks = villainMinStackChips > 0 || villainMaxStackChips > 0 || villainAvgStackChips > 0;
-        if (hasStacks) {
-            sb.append(String.format(Locale.ROOT,
-                    "【对手后手概况】最低=%d｜最高=%d｜平均=%d（筹码；BB 口径最低=%.1f 最高=%.1f 平均=%.1f）\n",
-                    villainMinStackChips,
-                    villainMaxStackChips,
-                    villainAvgStackChips,
-                    villainMinStackBb,
-                    villainMaxStackBb,
-                    villainAvgStackBb));
-        }
-        if (multiwayVillainsSummary != null && !multiwayVillainsSummary.isBlank() && !"(无)".equals(
-                multiwayVillainsSummary.trim())) {
-            sb.append("【多路对手摘要】\n").append(multiwayVillainsSummary).append('\n');
-        }
-        return sb.toString();
+    public String getStage() {
+        return stage;
     }
 
-    private static String zhStage(String st) {
-        if (st == null || st.isEmpty()) {
-            return "未知";
-        }
-        return switch (st) {
-            case "preflop" -> "翻前";
-            case "flop" -> "翻牌";
-            case "turn" -> "转牌";
-            case "river" -> "河牌";
-            default -> st;
-        };
+    public int getPotChips() {
+        return potChips;
     }
 
-    private static String zhTablePosition(String pos) {
-        if (pos == null || pos.isEmpty()) {
-            return "未知";
-        }
-        return switch (pos) {
-            case "EARLY" -> "前位";
-            case "MIDDLE" -> "中位";
-            case "LATE" -> "后位";
-            case "BLINDS" -> "盲注位";
-            default -> pos;
-        };
+    public int getCallAmountChips() {
+        return callAmountChips;
     }
 
-    private static String zhRk(String rk) {
-        if (rk == null || rk.isEmpty()) {
-            return "未知桶";
-        }
-        return switch (rk) {
-            case "WEAK" -> "弱";
-            case "MEDIUM" -> "中";
-            case "STRONG" -> "强";
-            case "MONSTER" -> "极强";
-            default -> rk;
-        };
+    public int getHeroChips() {
+        return heroChips;
     }
 
-    private static String zhCred(String c) {
-        if (c == null || c.isEmpty()) {
-            return "未知";
-        }
-        return switch (c) {
-            case "LOW" -> "偏低（线路偏怪异或不稳定）";
-            case "MEDIUM" -> "中等";
-            case "HIGH" -> "偏高（更像扎实价值）";
-            default -> c;
-        };
+    public String getHeroNickname() {
+        return heroNickname;
+    }
+
+    public String getCommunityCardsText() {
+        return communityCardsText;
+    }
+
+    public String getTablePosition() {
+        return tablePosition;
+    }
+
+    public String getSimpleStrength() {
+        return simpleStrength;
+    }
+
+    public String getHandStrengthLine() {
+        return handStrengthLine;
+    }
+
+    public String getAggressorNickname() {
+        return aggressorNickname;
+    }
+
+    public String getVillainRangeTier() {
+        return villainRangeTier;
+    }
+
+    public String getActionCredibility() {
+        return actionCredibility;
+    }
+
+    public double getShowdownBluffiness() {
+        return showdownBluffiness;
+    }
+
+    public double getPotOdds() {
+        return potOdds;
+    }
+
+    public double getEquityEstimate() {
+        return equityEstimate;
+    }
+
+    public int getVillainMinStackChips() {
+        return villainMinStackChips;
+    }
+
+    public int getVillainMaxStackChips() {
+        return villainMaxStackChips;
+    }
+
+    public int getVillainAvgStackChips() {
+        return villainAvgStackChips;
+    }
+
+    public double getVillainMinStackBb() {
+        return villainMinStackBb;
+    }
+
+    public double getVillainMaxStackBb() {
+        return villainMaxStackBb;
+    }
+
+    public double getVillainAvgStackBb() {
+        return villainAvgStackBb;
+    }
+
+    public int getActiveVillains() {
+        return activeVillains;
+    }
+
+    public String getMultiwayVillainsSummary() {
+        return multiwayVillainsSummary;
+    }
+
+    public int getTightBehindCount() {
+        return tightBehindCount;
+    }
+
+    public int getDeepBehindCount() {
+        return deepBehindCount;
+    }
+
+    public int getShortBehindCount() {
+        return shortBehindCount;
+    }
+
+    public String getCounterStrategySummary() {
+        return counterStrategySummary;
+    }
+
+    public String getSqueezeRiskSummary() {
+        return squeezeRiskSummary;
     }
 
     /**

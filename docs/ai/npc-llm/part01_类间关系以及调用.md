@@ -21,7 +21,7 @@
 1. 游戏轮询到 BOT 行动点，进入 `DpLlmNpcDecisionService.decideActionIfReady(...)`。  
 2. 通过 `DpNpcEngine.buildLlmNpcGameSnapshot(...)` 获取牌局摘要。  
 3. `DpLlmNpcContextMapper.map(...)` 生成 `LlmNpcGameContext`。  
-4. `LlmNpcGameContext.toPromptBlock()` + 静态前缀拼成 user prompt。  
+4. `LlmNpcUserSnapshot.formatUserPayload(room, bot, ctx)` 生成固定键表 + `----` + 值行的 user 正文；纪律在 `DpLlmNpcDecisionService` 的 `LLM_SYSTEM_PROMPT`。  
 5. `LlmNpc.chatMessagesDetailed(...)` 请求方舟，返回正文 + reasoning。  
 6. `DpLlmNpcDecisionService` 解析 JSON 动作并做 `normalizeAndClamp(...)`。  
 7. 若超时/解析失败/快照过期，统一回退 `fallback(...)`，保证可执行。  

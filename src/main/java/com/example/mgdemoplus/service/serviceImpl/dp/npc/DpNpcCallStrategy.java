@@ -54,6 +54,20 @@ public final class DpNpcCallStrategy {
             if (fishCallPlan == HandPlanType.GIVE_UP) {
                 foldBase = Math.min(1.0, foldBase + 0.06);
             }
+            if (fishCallCtx != null) {
+                foldBase = Math.min(
+                        1.0,
+                        foldBase + DpNpcEngine.multiwayFoldProbBoost(
+                                fishCallCtx.activeVillains,
+                                p.checkRaiseFear));
+                foldBase = DpNpcEngine.adjustFoldProbForEquityVsPotOdds(
+                        foldBase,
+                        p.callAmount,
+                        fishCallCtx.potOdds,
+                        fishCallCtx.equityEst,
+                        fishCallCtx.activeVillains,
+                        0.72);
+            }
             if (fishCallCtx != null && fishCallCtx.potOdds > 0
                     && fishCallCtx.potOdds < 0.34 && p.callRatio < 0.55
                     && (p.strength == SimpleStrength.MEDIUM || p.strength == SimpleStrength.STRONG
@@ -101,6 +115,9 @@ public final class DpNpcCallStrategy {
                 bluffProb *= 1.12;
             } else if (fishCallPlan == HandPlanType.GIVE_UP) {
                 bluffProb *= 0.42;
+            }
+            if (fishCallCtx != null && fishCallCtx.activeVillains >= 2) {
+                bluffProb *= 0.48;
             }
             bluffProb = DpNpcEngine.applySoftNoise(
                     Math.min(0.6, Math.max(0.0, bluffProb)),
@@ -150,6 +167,19 @@ public final class DpNpcCallStrategy {
                 multi = 2.5;
             } else {
                 multi = 2.0;
+            }
+            if (fishCallCtx != null && fishCallCtx.activeVillains >= 2) {
+                if (p.strength == SimpleStrength.WEAK) {
+                    multi *= 0.65;
+                } else if (p.strength == SimpleStrength.MEDIUM) {
+                    multi *= 0.82;
+                }
+            }
+            if (fishCallCtx != null && p.callAmount > 0) {
+                double sprC = DpNpcEngine.computeHeroPotSpr(p.room, p.bot);
+                if (sprC > 14.0) {
+                    multi *= 0.91;
+                }
             }
             int targetByRaise = (int) Math.round(p.callAmount * multi);
             int targetByPot = (int) Math.round(pot * 0.6);

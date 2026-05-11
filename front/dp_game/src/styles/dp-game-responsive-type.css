@@ -1,74 +1,22 @@
 /**
  * 窄屏整体略缩字号与已定好的 px 控件（不改组件结构）。
- * 与 max-width: 600px / 360px 对齐；宽屏全屏另有单独缩放（见文末）。
+ * 对局路由（/game）的全页 zoom 与三档断点已迁至 **dp-game-layout-tiers.css**（data-dp-layout-tier），
+ * 此处仅保留非对局页的 .full-page 及登录区 .app-container 规则。
  *
  * 说明：子级大量直接使用 px，仅靠根节点 font-size 无法联动，故用 zoom。
- * 仅对「整页根」缩放：#app .full-page 的直接子 .dp-game-root，避免嵌套组件（如
- * DpThemePicker 根上也带 .dp-game-root）被二次缩放；登录/注册用 .app-container。
- * 不挂 body，减少影响挂在 body 上的 Element 弹层。
- *
- * 横屏手机若再限制 max-height，部分机型全屏高度 >500 会匹配失败，仍套用 0.86；
- * 故横屏带状区仅用 max-width:932 + orientation，不再卡高度。
+ * 仅对「整页根」缩放：#app .full-page 的直接子 .dp-game-root，避免嵌套组件被二次缩放。
  */
 
 @media (max-width: 600px) {
-  #app .full-page > .dp-game-root,
+  #app .full-page:not(.full-page--dp-game) > .dp-game-root,
   #app.app--auth .app-container {
     zoom: 0.94;
-  }
-  #app .full-page--dp-game > .dp-game-root {
-    zoom: 0.86;
-  }
-  #app .full-page--dp-game > .dp-game-root:fullscreen,
-  #app .full-page--dp-game > .dp-game-root:-webkit-full-screen,
-  #app .full-page--dp-game > .dp-game-root:-moz-full-screen,
-  #app .full-page--dp-game > .dp-game-root.dp-game-root--layout-fs {
-    zoom: 0.68;
   }
 }
 
 @media (max-width: 360px) {
-  #app .full-page > .dp-game-root,
+  #app .full-page:not(.full-page--dp-game) > .dp-game-root,
   #app.app--auth .app-container {
     zoom: 0.88;
-  }
-  #app .full-page--dp-game > .dp-game-root {
-    zoom: 0.8;
-  }
-  #app .full-page--dp-game > .dp-game-root:fullscreen,
-  #app .full-page--dp-game > .dp-game-root:-webkit-full-screen,
-  #app .full-page--dp-game > .dp-game-root:-moz-full-screen,
-  #app .full-page--dp-game > .dp-game-root.dp-game-root--layout-fs {
-    zoom: 0.6;
-  }
-}
-
-@media (min-width: 601px) {
-  #app .full-page--dp-game > .dp-game-root:fullscreen,
-  #app .full-page--dp-game > .dp-game-root:-webkit-full-screen,
-  #app .full-page--dp-game > .dp-game-root:-moz-full-screen,
-  #app .full-page--dp-game > .dp-game-root.dp-game-root--layout-fs {
-    zoom: 0.86;
-  }
-}
-
-@media (min-width: 1440px) {
-  #app .full-page--dp-game > .dp-game-root:fullscreen,
-  #app .full-page--dp-game > .dp-game-root:-webkit-full-screen,
-  #app .full-page--dp-game > .dp-game-root:-moz-full-screen,
-  #app .full-page--dp-game > .dp-game-root.dp-game-root--layout-fs {
-    zoom: 0.78;
-  }
-}
-
-/**
- * 手机横屏全屏：宽度常 >600；本段写在宽屏全屏之后以便覆盖 0.86。
- */
-@media (orientation: landscape) and (max-width: 932px) {
-  #app .full-page--dp-game > .dp-game-root:fullscreen,
-  #app .full-page--dp-game > .dp-game-root:-webkit-full-screen,
-  #app .full-page--dp-game > .dp-game-root:-moz-full-screen,
-  #app .full-page--dp-game > .dp-game-root.dp-game-root--layout-fs {
-    zoom: 0.52;
   }
 }

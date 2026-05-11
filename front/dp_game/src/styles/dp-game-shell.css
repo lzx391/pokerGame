@@ -31,6 +31,25 @@
   color: var(--dp-text-primary);
   text-align: left;
 
+  /* ========== 对局骨架布局 token（dp-game-layout-tiers / table-fit mixin / 全屏类协同覆盖） ========== */
+  /* 全屏或伪全屏时追加在主区顶部的空隙，减轻顶栏与圆桌上沿座位叠挡（desktop 下由 tiers 提高默认值） */
+  --dp-game-fs-extra-pad-top: 0px;
+  /* 牌桌面板(.fit-table)水平内边距；table-fit mixin 用 clientWidth 扣减，勿再在别处复制 Magic Number */
+  --dp-game-main-fit-pad-x: 12px;
+  --dp-game-main-fit-pad-bottom: 12px;
+  /* 叠加在 tier 变量 --dp-game-main-pad-top 之上的面板顶距基数（面板楣带圆角时的留白） */
+  --dp-game-main-fit-pad-top-extra: 16px;
+  /* 裁剪容器 .dp-game-table-fit 相对面板下移量（table-fit mixin 量高时会扣除 margin-top） */
+  --dp-game-table-fit-margin-top: 20px;
+  /* .dp-game-table-fit 顶内边距：上牌越过 layout 上沿时先进此区；顶栏 z-index 高于 main，伸出部分否则会「像被顶栏挡住」 */
+  --dp-game-table-fit-pad-top: clamp(36px, 7vmin, 92px);
+  /* 摊牌/结算滚动主区的可视高度下限，防止 flex 链收紧后主区只剩一条缝 */
+  --dp-game-settlement-main-min-h: min(38dvh, 420px);
+  /* 底栏占位下限（Hero Dock 空时也保留一行触觉高度，便于 flex 分栏稳定） */
+  --dp-game-footer-min-height: 0px;
+  /* 圆桌布局盒顶内边距：12 点座位 translate(-50%,-50%) 会伸出盒子上沿，避免被 .dp-game-table-fit overflow:hidden 裁掉 */
+  --dp-table-layout-pad-top: clamp(14px, 3.2vmin, 36px);
+
   /* 扑克牌背 / 占位：默认深灰赌场风；童话主题在 dp-game-themes 中覆盖 */
   --dp-card-back-highlight: radial-gradient(circle at 50% 45%, rgba(255, 255, 255, 0.12) 0%, transparent 42%);
   --dp-card-back-pattern-1: repeating-linear-gradient(
@@ -101,67 +120,140 @@
   width: 100%;
   box-sizing: border-box;
   min-height: 0;
+  flex: 1 1 auto;
+  /* 勿整体 overflow:hidden：会连同绝对定位座位一起「横切」手牌与台呢上沿 */
+  overflow-x: hidden;
+  overflow-y: visible;
 }
 
 .dp-game-layout__header {
   flex-shrink: 0;
   width: 100%;
   box-sizing: border-box;
-  /* 圆桌含 z-index，避免座位区叠在顶栏之上造成「顶栏挡内容」错觉 */
   position: relative;
-  z-index: 20;
+  /* 仅压底栏/侧栏错觉时略抬高即可；勿高于主区，否则顶栏粉色底会盖住下面矩形里探出手牌 */
+  z-index: 1;
 }
 
-/* 圆桌区：全屏/伪全屏时由父链给高度，仅此区域纵向滚动 */
+/* 圆桌区（中栏）：顶栏之下；非对局页仍可单独用 padding-top */
 .dp-game-layout__main {
   flex: 1 1 auto;
   min-height: 0;
   width: 100%;
   box-sizing: border-box;
+  position: relative;
+  z-index: 0;
   overflow-x: hidden;
   overflow-y: visible;
+  padding-top: var(--dp-game-main-pad-top, 0px);
+}
+
+/* 对局中栏：一块面板 + 牌桌；ref=gameMain 与牌桌缩放测量同框 */
+.dp-game-root .dp-game-layout__main.dp-game-layout__main--fit-table {
+  padding-top: calc(
+    var(--dp-game-main-fit-pad-top-extra) + var(--dp-game-main-pad-top, 0px) + var(--dp-game-fs-extra-pad-top, 0px)
+  );
+  padding-left: var(--dp-game-main-fit-pad-x);
+  padding-right: var(--dp-game-main-fit-pad-x);
+  padding-bottom: var(--dp-game-main-fit-pad-bottom);
+  border-radius: 14px;
+  background: var(--dp-panel-bg);
+  border: 1px solid var(--dp-panel-border, rgba(0, 0, 0, 0.12));
+  box-shadow: var(--dp-panel-shadow, 0 2px 12px rgba(0, 0, 0, 0.06));
+  overflow-x: hidden;
+  overflow-y: visible;
+  position: relative;
+  z-index: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
 }
 
 .dp-game-layout__footer {
   flex-shrink: 0;
   width: 100%;
   box-sizing: border-box;
+  min-height: var(--dp-game-footer-min-height);
 }
 
 /*
- * 牌桌适配：主区不纵向滚动，由 JS 按视口对 .dp-game-table-fit__inner 做 scale（见 dpGameTableFitMixin）。
+ * data-dp-layout-tier：主面板内边距（与 JS layoutTier 同名；若产品收敛为「桌面/移动」两档，可删 tablet 规则并把 phone/tablet 变量合并）
  */
-.dp-game-root .dp-game-layout__main.dp-game-layout__main--fit-table {
-  overflow: hidden !important;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+.dp-game-root[data-dp-layout-tier='tablet'] {
+  --dp-game-main-fit-pad-x: 10px;
 }
 
+.dp-game-root[data-dp-layout-tier='phone'] {
+  --dp-game-main-fit-pad-x: 8px;
+  --dp-game-main-fit-pad-bottom: 10px;
+  --dp-game-table-fit-pad-top: clamp(26px, 6vmin, 72px);
+}
+
+/* phone + 竖屏：收紧竖向占位，略抬面板顶基数（提示条见 .dp-game-layout__portrait-hint） */
+.dp-game-root[data-dp-layout-tier='phone'][data-dp-orientation='portrait'] {
+  --dp-game-main-fit-pad-top-extra: 12px;
+}
+
+/* 竖屏提示：仅占主区顶部一条，不改动顶栏/底栏同级三区结构 */
+.dp-game-layout__portrait-hint {
+  flex-shrink: 0;
+  align-self: stretch;
+  box-sizing: border-box;
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--dp-text-secondary);
+  background: color-mix(in srgb, var(--dp-panel-bg) 92%, transparent);
+  border: 1px solid var(--dp-panel-border);
+}
+
+@supports not (background: color-mix(in srgb, red, blue)) {
+  .dp-game-layout__portrait-hint {
+    background: var(--dp-panel-bg);
+  }
+}
+
+/* 摊牌/结算滚动主区：保证可视高度（变量默认见 .dp-game-root） */
+.dp-game-root[data-dp-stage='showdown'] .dp-game-layout__main.dp-game-layout__main--fit-table.dp-game-layout__main--settlement-scroll,
+.dp-game-root[data-dp-stage='settled'] .dp-game-layout__main.dp-game-layout__main--fit-table.dp-game-layout__main--settlement-scroll {
+  min-height: var(--dp-game-settlement-main-min-h);
+}
+
+.dp-game-root[data-dp-layout-tier='tablet'][data-dp-stage='showdown'],
+.dp-game-root[data-dp-layout-tier='tablet'][data-dp-stage='settled'] {
+  --dp-game-settlement-main-min-h: min(40dvh, 480px);
+}
+
+.dp-game-root[data-dp-layout-tier='phone'][data-dp-stage='showdown'],
+.dp-game-root[data-dp-layout-tier='phone'][data-dp-stage='settled'] {
+  --dp-game-settlement-main-min-h: min(48dvh, 560px);
+}
+
+/*
+ * 牌桌适配：由 JS 对 .dp-game-table-fit__inner 做 scale（裁剪框绑在 .dp-game-table-fit 上）
+ */
 .dp-game-table-fit {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-height: 0;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   align-self: stretch;
   box-sizing: border-box;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-}
-
-.dp-game-table-fit__clip {
-  flex: 0 0 auto;
-  width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-  max-width: 100%;
 }
 
 .dp-game-table-fit__inner {
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
+  flex-shrink: 0;
 }
 
 /*
@@ -179,93 +271,27 @@
   align-items: flex-start;
   flex: 1 1 auto;
   min-height: min-content;
-}
-
-.dp-game-root .dp-game-layout__main--settlement-scroll .dp-game-table-fit__clip {
   overflow: visible !important;
   width: 100% !important;
   max-width: none !important;
   height: auto !important;
 }
 
-/* 手机 / 小屏平板：与全屏同一套「根封顶 + 仅主区滚」，底栏在视口下沿占位，不盖桌面 */
-@media (max-width: 900px) {
-  .dp-game-root {
-    display: flex;
-    flex-direction: column;
-    min-height: 100dvh;
-    min-height: -webkit-fill-available;
-    max-height: 100dvh;
-    max-height: 100svh;
-    overflow: hidden;
-  }
-
-  .dp-game-root > .dp-game-layout {
-    flex: 1 1 auto;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .dp-game-root .dp-game-layout__main {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-x: hidden;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
+/* 主区内圆桌整块下移（与 mixin 约定：须在量高时扣掉 .dp-game-table-fit 外 margin） */
+.dp-game-root .dp-game-layout__main.dp-game-layout__main--fit-table > .dp-game-table-fit {
+  flex: 0 1 auto;
+  min-height: min-content;
+  width: 100%;
+  margin-top: var(--dp-game-table-fit-margin-top);
+  margin-bottom: 0;
+  padding-top: var(--dp-game-table-fit-pad-top);
+  box-sizing: border-box;
 }
 
-/*
- * 宽屏：与窄屏同一套「根视口封顶 + 仅主区滚」，避免摊牌/结算时 12 点方向座位被裁切且 scrollTop 不可为负；
- * 圆桌在主区内 margin:auto 垂直居中，减少「中间空、上下挤」的失调感。
- */
-@media (min-width: 901px) {
-  .dp-game-root {
-    display: flex;
-    flex-direction: column;
-    min-height: 100dvh;
-    min-height: -webkit-fill-available;
-    max-height: 100dvh;
-    max-height: 100svh;
-    overflow: hidden;
-  }
-
-  .dp-game-root > .dp-game-layout {
-    flex: 1 1 auto;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .dp-game-root .dp-game-layout__main {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-x: hidden;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    display: flex;
-    flex-direction: column;
-    /* 大屏：圆桌整体上移易贴顶栏，主区顶内边距拉开与顶栏距离（与摊牌/结算的 data-dp-stage 顶留白叠加时后者特异性更高） */
-    padding-top: clamp(80px, 3.2vmin, 1000px);
-    /* scroll-padding-top: clamp(14px, 2.8vmin, 32px); */
-  }
-
-  .dp-game-root .dp-game-layout__main > .dp-game-table-fit {
-    flex: 0 1 auto;
-    min-height: min-content;
-    width: 100%;
-    margin-top: auto;
-    margin-bottom: auto;
-  }
-
-  .dp-game-root .dp-game-layout__main > .dp-game-table-fit .dp-game-table {
-    flex: 0 1 auto;
-    min-height: min-content;
-    width: 100%;
-  }
+.dp-game-root .dp-game-layout__main.dp-game-layout__main--fit-table > .dp-game-table-fit .dp-game-table {
+  flex: 0 1 auto;
+  min-height: min-content;
+  width: 100%;
 }
 
 /* 摊牌/结算顶留白：见文件末尾「SETTLEMENT_TOP_SPACING」统一调高特异性（须含 .dp-game-layout__main--fit-table） */
@@ -301,7 +327,8 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: visible;
 }
 
 .dp-game-root:fullscreen .dp-game-layout__main,
@@ -319,7 +346,8 @@
 .dp-game-root:-webkit-full-screen .dp-game-layout__main.dp-game-layout__main--fit-table,
 .dp-game-root.dp-game-root--layout-fs .dp-game-layout__main.dp-game-layout__main--fit-table,
 .dp-game-root.dp-game-root--pseudo-fs .dp-game-layout__main.dp-game-layout__main--fit-table {
-  overflow: hidden !important;
+  overflow-x: hidden;
+  overflow-y: visible;
 }
 
 .dp-game-root:fullscreen .dp-game-layout__main.dp-game-layout__main--fit-table.dp-game-layout__main--settlement-scroll,
@@ -354,25 +382,6 @@
   flex-direction: column;
   margin-top: 4px;
   margin-bottom: 6px;
-}
-
-/* 宽屏全屏：主区已 flex，圆桌用 auto 边距垂直居中（覆盖上一段固定 margin，避免与 ≥901px 布局冲突） */
-@media (min-width: 901px) {
-  .dp-game-root:fullscreen .dp-game-layout__main > .dp-game-table-fit,
-  .dp-game-root:-webkit-full-screen .dp-game-layout__main > .dp-game-table-fit,
-  .dp-game-root.dp-game-root--layout-fs .dp-game-layout__main > .dp-game-table-fit,
-  .dp-game-root.dp-game-root--pseudo-fs .dp-game-layout__main > .dp-game-table-fit {
-    margin-top: auto;
-    margin-bottom: auto;
-  }
-
-  .dp-game-root:fullscreen .dp-game-layout__main,
-  .dp-game-root:-webkit-full-screen .dp-game-layout__main,
-  .dp-game-root.dp-game-root--layout-fs .dp-game-layout__main,
-  .dp-game-root.dp-game-root--pseudo-fs .dp-game-layout__main {
-    display: flex;
-    flex-direction: column;
-  }
 }
 
 .dp-game-root:fullscreen .dp-game-table__layout,
@@ -576,6 +585,7 @@
   max-width: min(680px, 100%);
   margin: 0 auto;
   min-height: clamp(260px, min(78vw, 52dvh), 500px);
+  padding-top: var(--dp-table-layout-pad-top);
   padding-bottom: 8px;
 }
 .dp-game-table__felt {
@@ -633,6 +643,11 @@
   pointer-events: none;
   background: var(--dp-table-felt-texture);
   opacity: var(--dp-table-felt-texture-opacity);
+}
+
+/* 非节能：台呢纹理层略提亮（节能模式仍用主题原 --dp-table-felt-texture-opacity，不动 eco 逻辑） */
+.dp-game-root:not([data-dp-eco-mode='true']) .dp-game-table__felt::before {
+  opacity: min(0.96, calc(var(--dp-table-felt-texture-opacity) + 0.1));
 }
 
 /* 非节能：加厚围边、台呢明暗与绒感层次（不增动画，仅静态质感） */
@@ -955,7 +970,8 @@
 
 .dp-game-table__seat {
   position: absolute;
-  z-index: 3;
+  /* 高于中央公共牌区(z-index:2)，避免透明/叠层时像有层「蒙在座位上」 */
+  z-index: 20;
   width: max-content;
   max-width: min(36vw, 168px);
   transform: translate(-50%, -50%);
@@ -1099,13 +1115,7 @@
   animation: dp-mobile-action-pulse 1s ease-in-out infinite;
 }
 
-.dp-game-mobile-hero-bar__btn--owner {
-  background: var(--dp-owner-purple-bg);
-  color: var(--dp-owner-purple-fg);
-  border-color: transparent;
-}
-
-/* 底栏：查看手牌 + 房主操作 同一组 */
+/* 底栏：主动离座 + 查看手牌 同一组（评论右侧） */
 .dp-game-mobile-hero-bar__owner-cluster {
   display: flex;
   flex-direction: row;
@@ -1120,11 +1130,7 @@
   max-width: min(104px, 26vw);
 }
 
-.dp-game-mobile-hero-bar__owner-cluster .dp-game-mobile-hero-bar__btn--owner {
-  max-width: min(100px, 26vw);
-}
-
-/* 宽屏内联手牌行：查看手牌 + 房主操作（与聊天、手牌区同一行） */
+/* 宽屏内联手牌行：主动离座 + 查看手牌（与聊天、手牌区同一行） */
 .dp-game-hero-action-row__owner-cluster {
   display: flex;
   flex-direction: row;
@@ -2099,7 +2105,7 @@
 }
 
 .dp-top-bar__title {
-  font-size: 18px;
+  font-size: var(--dp-game-top-title-fs, 18px);
   font-weight: bold;
   color: var(--dp-text-primary);
   line-height: 1.3;
@@ -2115,7 +2121,7 @@
 }
 
 .dp-top-bar__sub {
-  font-size: 14px;
+  font-size: var(--dp-game-top-sub-fs, 14px);
   color: var(--dp-text-secondary);
   line-height: 1.35;
 }
@@ -2169,13 +2175,19 @@
 
 .dp-top-bar__btn {
   padding: 8px 12px;
-  font-size: 12px;
+  font-size: var(--dp-game-top-btn-fs, 12px);
 }
 
 .dp-top-bar__btn--ghost {
   background: var(--dp-btn-ghost-bg);
   border: 1px solid var(--dp-btn-ghost-border);
   color: var(--dp-btn-ghost-fg);
+}
+
+.dp-top-bar__btn--owner {
+  background: var(--dp-owner-purple-bg);
+  color: var(--dp-owner-purple-fg);
+  border: 1px solid transparent;
 }
 
 /* 全屏：顶栏横铺容器宽；字号与按钮略缩（须保留与根节点 safe-area 成对的 margin/padding-top，勿单删） */
