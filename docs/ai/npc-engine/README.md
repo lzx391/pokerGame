@@ -1,4 +1,4 @@
-# DP 德州扑克 · NPC 引擎笔记（整理版）
+# DP 对局 NPC 引擎（规则型）文档索引：`DpNpcEngine` · Fish／Maniac／TAG／Shark
 
 本目录是后端 **规则型 NPC**（`BOT_Fish` / `BOT_Maniac` / `BOT_Tag` / `BOT_Shark`）的实现说明。  
 游戏整体协议与房间流程仍以仓库根目录下的 `docs/DPGAME.md` 为准；这里只讲 **AI 决策与相关类**。

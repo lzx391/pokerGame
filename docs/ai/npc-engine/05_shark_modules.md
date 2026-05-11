@@ -1,4 +1,4 @@
-# 5. Shark 专属模块详解
+# Shark 专属类：翻前模块、剥削剧本、`LearningLab` 与持久化
 
 以下类均在包 `com.example.mgdemoplus.service.serviceImpl.dp` 下（与 `DpNpcEngine` 同包或相邻），除非另注。
 

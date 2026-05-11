@@ -1,4 +1,4 @@
-# 1. 总览：普通 NPC 与 Shark、调用链
+# NPC 引擎总览：普通 BOT 与 Shark、从房间服务到 `BotAction`
 
 ## 1.1 两类机器人（按实现复杂度分）
 

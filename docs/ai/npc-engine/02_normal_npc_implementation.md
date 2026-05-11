@@ -1,4 +1,4 @@
-# 2. 普通 NPC（Fish / Maniac / TAG）逐步实现说明
+# 普通 NPC（`BOT_Fish` / `BOT_Maniac` / `BOT_Tag`）在 `decideBotAction` 中的逐步实现
 
 下文按 **`decideBotAction` 里实际执行顺序** 描述（文件：`DpNpcEngine.java`）。
 

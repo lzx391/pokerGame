@@ -1,4 +1,4 @@
-# 环境变量、`application.properties` 与 `.env` 说明
+# 环境与配置：`application.properties`、根目录 `.env`、JWT、方舟 LLM（BOT_LLM）
 
 本文说明本仓库里：**Spring 如何读 `application.properties`**、**根目录 `.env` 如何生效**、以及 **JWT**、**方舟 LLM（BOT_LLM）** 的配置方式。变量清单以仓库根目录 **`.env.example`** 为准。
 

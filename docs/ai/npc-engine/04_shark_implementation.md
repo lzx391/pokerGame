@@ -1,4 +1,4 @@
-# 4. Shark（`BOT_Shark`）逐步实现说明
+# Shark（`BOT_Shark`）：`case SHARK` 翻前 / 翻后与 `DpNpcSharkStrategy`
 
 代码路径：`DpNpcEngine.decideBotAction` → `case SHARK` → 翻前模块 / 翻后 **`DpNpcSharkStrategy.decide`**。
 

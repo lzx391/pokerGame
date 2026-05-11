@@ -1,4 +1,4 @@
-# 3. 普通 NPC 涉及模块详解
+# 普通 NPC 共用能力：`DpNpcEngine` · `DpUtilHandEvaluator` · `StyleProfile`
 
 ## 3.1 `DpNpcEngine`（主文件）
 

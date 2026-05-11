@@ -1,4 +1,4 @@
-# 快速匹配里的「并发锁」：零基础说明
+# 大厅快速匹配：单房 `synchronized` 与队列竞态说明（零基础）
 
 本篇只讲：**大厅快速匹配**（`DpRoomServiceImpl#quickMatchJoinAndReady`、`POST /dpRoom/quickMatch2`）里，为什么要对**单个房间**加锁、`synchronized` 在干什么、和第一个人办完第二个人会怎么样。不要求你学过操作系统或 JVM internals。
 

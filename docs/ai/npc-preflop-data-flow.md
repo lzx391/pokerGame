@@ -1,4 +1,4 @@
-# 规则 NPC 翻前决策：数据流与参数说明
+# 规则 NPC 翻前：统一策略下的数据流水线（G1–G8、`PreflopSpot`）
 
 本文描述 **`DpNpcUnifiedPreflopStrategy`** 与 **`DpNpcEngine`** 在翻前阶段的调用链、参与字段、局面分型与手牌分桶（G1–G8），便于对照代码与调参。
 

@@ -1,4 +1,4 @@
-# DP 对局落库说明（牌谱 / 参与者 / Shark 记忆）
+# 牌谱与会话持久化：`dp_observed_hand_*`、参与者与 Shark 记忆表
 
 本文说明 **哪些数据会写入 MySQL、在什么时机写、与 `BOT_Shark` 的关系**，以及失败时的行为。实现类以 `com.example.mgdemoplus.service.serviceImpl.dp` 包为主。
 

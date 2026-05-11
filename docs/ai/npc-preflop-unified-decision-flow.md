@@ -1,4 +1,4 @@
-# 规则 NPC 统一翻前决策 · 数据流向（精细版）
+# 规则 NPC 统一翻前：精细数据流向（调用链、`Spot`、`lateFactor`、`rangeLevel`）
 
 本文描述 **`DpNpcUnifiedPreflopStrategy`** 与 **`DpNpcEngine.decideBotAction`** 在 **`stage == preflop`** 时的完整调用链、参与字段与方法分支。**不包含** `BOT_LLM`（走 `DpLlmNpcDecisionService`）。
 

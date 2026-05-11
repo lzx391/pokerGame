@@ -1,4 +1,4 @@
-# DP 曲库：`webPath` 与试听访问流程
+# DP 曲库 `webPath`：磁盘落盘、`GET /music/**` 试听与开发代理
 
 本文说明 **曲库元数据表 `dp_music_track` 里的 `web_path`** 如何对应 **磁盘上的文件**，以及前端 `<audio>` / 对局 BGM 如何通过 HTTP 拿到音频。**不涉及** `GET /dpMusic/list` 的 JSON 字段细节；列表接口只返回「逻辑路径」，真正播放是另一条 **静态资源** 链路。
 

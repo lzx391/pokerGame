@@ -1,4 +1,4 @@
-# 规则 NPC 统一翻前决策：数据流与参与参数
+# 规则 NPC 统一翻前：参数、流程与数据源（对齐 `BOT_Fish/Maniac/Tag/Shark`，不含 `BOT_LLM`）
 
 本文描述 **`BOT_Fish` / `BOT_Maniac` / `BOT_Tag` / `BOT_Shark`** 在 **`preflop`** 阶段的端到端数据通路、参与字段与方法分支。**`BOT_LLM`** 不走此链路（见 `DpLlmNpcDecisionService`）。
 

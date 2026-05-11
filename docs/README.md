@@ -1,4 +1,4 @@
-# MGDemoPlus 文档索引
+# MGDemoPlus：`docs/` 专题文档总索引
 
 本页是仓库 **`docs/`** 目录的**总导航**：按主题归类，并简要说明每篇文档解决什么问题、适合谁读。更偏「产品 + 运维 + 长变更记录」的说明见 **[README.ch.md](../README.ch.md)**（中文）与 **[README.en.md](../README.en.md)**（英文，同结构）；英文快速入门见 **[README.md](../README.md)**。
 
@@ -99,3 +99,9 @@
 ## 前端 DP 游戏专题（`front/dp_game/docs`）
 
 对局页布局、主题、CSS 变量等见 **[front/dp_game/docs/README.md](../front/dp_game/docs/README.md)**（前端文档索引，与本页互补）。
+
+---
+
+## 文件顶部一级标题（`#`）说明
+
+本篇各表格内的简介已与对应 `.md` 文件开头的**单行 Markdown 一级标题**一致；从 IDE 大纲跳转时请以该 `# …` 为准（文件名保持不变）。

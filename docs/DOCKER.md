@@ -1,4 +1,4 @@
-# Docker 与本地配置说明
+# Docker Compose 部署：本地构建、`docker-compose.hub` 仅镜像部署与端口映射
 
 ## 代码上 Gitee 和 Docker 打包是两件事
 
