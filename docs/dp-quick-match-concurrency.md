@@ -97,7 +97,14 @@ synchronized (r) {
 
 服务端 **`joinRoom` / `readyNextHand` / `exitRoom`** 等对名单与席位的写入也在 **`synchronized (同一 DpRoomBO)`** 内完成（与快匹里包在 `synchronized(r)` 的块可重入叠加），避免大厅「加入房间」与快匹并发写同一 `players` 列表。
 
-## 8. 小结（背三句就够）
+## 8. 快匹「可进桌」索引与锁顺序（避免死锁）
+
+进程内另有 `JoinableQuickMatchRoomIndex`（桶 = **缺几人**，缺得越少越优先，等价于历史上按「填充分」从高到低扫 `roomMap`）。索引在自带的 `indexLock` 内更新。
+
+- **不要做**：已经拿着 **`synchronized(某个 DpRoomBO)`**（单房 intrinsic 监视器）时再去改索引（`addOrRefresh`/`remove`/rebuild）。否则锁序会变成「监视器 → 索引锁」，与 **`dpQuickMatchAssignmentLock` → 索引 →（再进房时）单房监视器** 的推荐路径相反，极端情况会饿死或死锁。实现上：**先写完 BO**，**退出**单房临界区后再 `refresh`/再 `syncLobbyForRoomId`。
+- **建议记住**：全局固定为 **`dpQuickMatchAssignmentLock`（若在快分配路径上）→ 释放单房监视器后再碰索引锁 → （需要时）单房监视器**。详见 `JoinableQuickMatchRoomIndex` 类头 JavaDoc。
+
+## 9. 小结（背三句就够）
 
 1. **同一张桌子（同一个 `DpRoomBO`）**：同一时刻只允许一个请求在「进房 + 候补」这段里改它，所以用 `synchronized (r)`（以及相关 API 内部的同对象锁）。  
 2. **下一个人**：等锁没了再进来，**重新看名额**，可能已经加不进——这是预期行为。  

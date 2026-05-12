@@ -181,7 +181,7 @@
    - 提示：避免与宿主机 3306 冲突（README）。
 
 2. **数据库初始化脚本如何进入容器首次建表？**  
-   - 提示：`docker-data/mysql-init` 与 `src/main/resources/db/*.sql`。
+   - 提示：表结构单一来源为 **`src/main/resources/db/migration/`**（Flyway）；Compose 不再挂载 Docker init SQL。
 
 3. **健康检查与日志：生产环境你会加什么？**  
    - 提示：Actuator、集中日志、指标；本项目可按需扩展。

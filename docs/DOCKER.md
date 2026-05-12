@@ -16,7 +16,7 @@
 2. 云服务器装好 Docker（含 `docker compose`）后，**`git clone`** 仓库到某个目录，进入**仓库根目录**，执行：  
    `docker compose up -d --build`
 
-**和 Hub 的关系**：若你希望**服务器上不 clone 仓库、只拉镜像**，见下方 **「仅镜像部署」**（需先把 `dpgame-mysql`、`dpgame-nginx` 与应用镜像一并推到 Hub，并用 `docker-compose.hub.yml`）。
+**和 Hub 的关系**：若你希望**服务器上不 clone 仓库、只拉镜像**，见下方 **「仅镜像部署」**（需先把 **`dpgame`、`dpgame-nginx`** 推到 Hub；MySQL 使用官方 **`mysql:8.0`**，表结构由应用内 **Flyway** 在启动时迁移，见 `src/main/resources/db/migration/`）。
 
 **示例（仓库名、分支以你实际为准）：**
 
@@ -32,7 +32,7 @@ docker compose up -d --build
 
 ## 仅镜像部署（不 clone 仓库）
 
-思路：**建表 SQL 打进 MySQL 镜像**（`Dockerfile.mysql`），**Nginx 配置打进 Nginx 镜像**（`Dockerfile.nginx`），应用仍用 **`Dockerfile` 构建的 `dpgame` 镜像**。编排用 **`docker-compose.hub.yml`**：只有 `image:`，无 `build:`，无 `./docker-data`、`./src/...` 等宿主机挂载。
+思路：**Nginx 配置打进 Nginx 镜像**（`Dockerfile.nginx`），应用用 **`Dockerfile` 构建的 `dpgame` 镜像**（内含 Flyway 脚本）。**MySQL 使用官方 `mysql:8.0` 镜像**，仅通过环境变量创建空库 `school_db`；**建表、改表全部由应用启动时 Flyway 执行**（`classpath:db/migration`）。编排用 **`docker-compose.hub.yml`**：只有 `image:`，无 `build:`，无 `./docker-data`、`./src/...` 等宿主机挂载。
 
 **服务器上仍需有「这一份」YAML**（从 U 盘拷贝、浏览器下载、或 `wget` Gitee 原始文件均可），不是 Git 专属；**不需要**整份源码目录。
 
@@ -44,16 +44,14 @@ export REG=1933886418
 export TAG=v1.0.0
 
 docker build -t $REG/dpgame:$TAG .
-docker build -f Dockerfile.mysql -t $REG/dpgame-mysql:$TAG .
 docker build -f Dockerfile.nginx -t $REG/dpgame-nginx:$TAG .
 
 docker login
 docker push $REG/dpgame:$TAG
-docker push $REG/dpgame-mysql:$TAG
 docker push $REG/dpgame-nginx:$TAG
 ```
 
-**Windows（PowerShell）**：仓库根目录先执行一次 **`docker login`**，再运行 **`.\build-push-hub.ps1`**（等同上表三次 build + 三次 push）。可选改版本： **`.\build-push-hub.ps1 -Tag v1.0.1`**（须与 `docker-compose.hub.yml` 里 `IMAGE_TAG` 一致）。
+**Windows（PowerShell）**：仓库根目录先执行一次 **`docker login`**，再运行 **`.\build-push-hub.ps1`**（等同上表两次 build + 两次 push）。可选改版本： **`.\build-push-hub.ps1 -Tag v1.0.1`**（须与业务上使用的 `IMAGE_TAG` 一致）。
 
 ### 2. 云服务器（只装 Docker / Compose）
 
@@ -70,7 +68,7 @@ docker compose -f docker-compose.hub.yml up -d
 
 ### 3. 表结构变更后
 
-若 `src/main/resources/db/` 下 SQL 有增改，需**重新构建并推送 `dpgame-mysql` 镜像**；已有 MySQL 数据卷不会自动重跑 init，需自行迁移或 `docker compose down -v` 清空 `mysql_data`（**会删库**）。
+在仓库中新增 **Flyway 版本脚本**（`src/main/resources/db/migration/V*__*.sql`），**重新构建并推送 `dpgame` 镜像**即可；MySQL 仅持久化数据，**不重跑镜像内 init**。若同一库已由旧方式建好表再跑 Flyway V1，可能冲突——开发机可对 `mysql_data` 执行 **`docker compose down -v`** 清空卷重来（**会删库**）；生产须有独立迁移预案。
 
 ### 4. 上传目录权限（持久方案）
 
@@ -132,10 +130,10 @@ jdbc:mysql://localhost:3307/school_db?useSSL=false&allowPublicKeyRetrieval=true&
 
 ## 数据库初始化与后续变更
 
-- **首次**：Compose 里 MySQL 使用命名卷 `mysql_data`。若该卷**从未初始化过**，镜像会执行 `docker-data/mysql-init/00-school_db.sql`，并按顺序 `SOURCE` 仓库内 `src/main/resources/db/*.sql`，在 `school_db` 中建表。
-- **`docker-entrypoint-initdb.d` 只跑一次**：仅在数据目录**空**（MySQL 第一次初始化）时执行。若你以前已经跑过 MySQL 容器，**删表、删库、DROP DATABASE** 都不会再触发 init；要复现「第一次能不能建表」，必须**删掉整个 MySQL 数据卷**，让下次启动从零初始化。
+- **空库**：Compose 里 MySQL 使用命名卷 **`mysql_data`**（及官方镜像的 **`MYSQL_DATABASE=school_db`**）。**不再使用** `docker-entrypoint-initdb.d` / 宿主挂载初始化 SQL。**应用首次连库时**，**Flyway** 按 `spring.flyway.locations`（`classpath:db/migration`）执行脚本，生成业务表及 **`flyway_schema_history`**。
+- **沿用旧卷的开发者**：若该卷内的 `school_db` **早已用历史 init 脚本建过表**，再启动带 **V1** 的新镜像，Flyway 可能报「对象已存在」等错误。处理方式：开发环境 **`docker compose down -v` 删卷重来**（**删除卷会清空数据库，勿用于生产无误删授权**）；或改用 baseline / 手工对齐 Flyway 历史（须单独约定）。**生产变更前务必备份。**
 
-### 想清空数据卷、重新验证「首次建表」
+### 想清空数据卷、重新验证「从零建表」
 
 在仓库根目录执行（会**删除该卷内所有 MySQL 数据**，包括 `school_db` 里已有数据）：
 
@@ -144,14 +142,14 @@ docker compose down -v
 docker compose up --build
 ```
 
-`-v` 会移除 compose 声明的卷（含 `mysql_data`）。下次 `up` 时 MySQL 会重新初始化并再次执行 init SQL。
-本地开发只起mysql和redis的服务  
+`-v` 会移除 compose 声明的卷（含 `mysql_data`）。下次 `up` 时 MySQL 初始化空库，**应用启动后 Flyway 再建表**。
+本地开发只起 mysql 和 redis 的服务  
 ```bash
 docker compose up -d mysql redis
 ```
-若你**不想删卷**、只想清空某库里的表，可连 `localhost:3307` 手工 `DROP TABLE` / 重建库——**那只相当于清理数据**，**不会**再跑一遍 `mysql-init`；要验证 init 脚本，仍须 `down -v`。
+若你**不想删卷**、只想清空某库里的表，可连 `localhost:3307` 手工处理——**那只是数据清理**；要与 Flyway 版本历史一致仍需参考 Flyway 文档或删卷重来（开发机）。
 
-- **后续表结构变更**：建议在仓库中维护**增量 SQL**（如 `db/migrations/`），成员 pull 后在本地对 Docker 库（3307）或本机库执行；勿依赖向 `mysql-init` 增文件来更新已有数据卷（不会再次自动执行）。
+- **后续表结构变更**：在 **`src/main/resources/db/migration/`** 递增版本号文件（如 `V2__add_column.sql`），发版随应用 JAR/Docker 镜像发布即可。
 
 更简要的入口说明见仓库根目录 `README.md` 中的「Docker 部署」小节。
 --- 
@@ -161,9 +159,10 @@ docker compose up -d mysql redis
 
 ### 小结：`docker-compose.yml` 与 `docker-compose.hub.yml`
 
-- **开发常用 `docker-compose.yml`**：可本地 `build` 应用；MySQL 初始化脚本、上传目录等通过 **`./docker-data`、`./src/...`** 等绑定挂载引用仓库内文件，改起来直观。MySQL 等业务数据仍落在 Compose 声明的**命名卷**（如 `mysql_data`）里，并不等同于「所有数据都在 `docker-data` 文件夹」。
-- **仅镜像部署用 `docker-compose.hub.yml`**：不在服务器上 `build`，只拉 Hub 上的 **`dpgame`、`dpgame-mysql`、`dpgame-nginx`**；MySQL、Redis、上传目录等用**命名卷**持久化，**数据在服务器本机**由 Docker 管理。镜像从 Hub 拉取；**卷内数据不会上传到 Hub**。
-- **为何要三个镜像**：若只推送应用镜像，新机器上没有仓库里的建表 SQL 与 Nginx 配置；用 **`Dockerfile.mysql` / `Dockerfile.nginx`** 把二者打进镜像后，才能在**不 clone 仓库**的情况下 `pull` 并跑通整套服务。
+- **开发常用 `docker-compose.yml`**：可本地 `build` 应用；上传目录通过 **`./docker-data/uploads`** 等绑定挂载。MySQL 等业务数据落在 Compose **命名卷**（`mysql_data`），表结构仍由应用 **Flyway** 迁移。
+- **仅镜像部署用 `docker-compose.hub.yml`**：不在服务器上 `build`，拉 Hub 上的 **`dpgame`、`dpgame-nginx`**，**MySQL 为官方 `mysql:8.0`**；Redis、上传目录等用**命名卷**持久化。**卷内数据不会上传到 Hub**。
+- **为何要两个业务镜像**：`dpgame` 内置前后端与 Flyway；`dpgame-nginx` 含站点与 TLS 前置配置。**MySQL** 不再定制镜像，与应用职责分离。
 ---
-build的时候，dockerignore说的不算，只有Dockerfile里写入的才真正打包到镜像里，当你看docker-compose.hub.yml文件时会发现每个XX前面都会有一个image配置，redis用的是官方image,而mysql和nginx是需要自己定制的，所以单开了两个镜像，这就是为啥要单门打包mysql和nginx才能完整的跑起来  
-总结一下就是Dockerfile只是项目代码，不全，没有redis，mysql,nginx配置，redis不需要定制，mysql和nginx需要再补上配置，所以要单独再打包俩镜像
+build的时候，dockerignore说的不算，只有Dockerfile里写入的才真正打包到镜像里，当你看docker-compose.hub.yml文件时会发现每个服务前有 image：`redis` 用官方镜像；`mysql` 用官方 **`mysql:8.0`**；`app`/`nginx` 用 Hub 自建镜像。**表结构打在 `dpgame` JAR 的 `db/migration` 里，由 Flyway 在运行时应用。**
+
+总结一下就是Dockerfile只是项目代码，不全，没有redis；mysql 用官方镜像空库；nginx 需自定义配置故单独镜像；Flyway 随应用镜像升级。

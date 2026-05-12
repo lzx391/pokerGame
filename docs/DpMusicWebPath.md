@@ -96,7 +96,7 @@ MusicUpload.vue  audioSrc("/music/a.mp3")
 默认：`file:P:/javaworkspace/DPGameFiles/music/`。  
 Docker 等环境见 `docker-compose.yml` 中的 `MGDEMOPLUS_MUSIC_FILE_LOCATION`。
 
-建表脚本：`src/main/resources/db/dp_music_track.sql`。
+建表脚本：`src/main/resources/db/migration/V1__init_schema.sql`（Flyway，含 `dp_music_track`）。
 
 ---
 

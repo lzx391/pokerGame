@@ -1,9 +1,0 @@
-# 将建表 SQL 打入 MySQL 镜像，便于云服务器仅 pull 镜像、无需挂载仓库目录。
-# 顺序须与 docker-data/mysql-init/00-school_db.sql 中 SOURCE 顺序一致。
-FROM mysql:8.0
-COPY src/main/resources/db/dp_user.sql /docker-entrypoint-initdb.d/01_dp_user.sql
-COPY src/main/resources/db/dp_observed_hand_history.sql /docker-entrypoint-initdb.d/02_dp_observed_hand_history.sql
-COPY src/main/resources/db/dp_observed_hand_participant.sql /docker-entrypoint-initdb.d/03_dp_observed_hand_participant.sql
-COPY src/main/resources/db/dp_shark_opponent_profile.sql /docker-entrypoint-initdb.d/04_dp_shark_opponent_profile.sql
-COPY src/main/resources/db/dp_music_track.sql /docker-entrypoint-initdb.d/05_dp_music_track.sql
-COPY src/main/resources/db/dp_room_lobby.sql /docker-entrypoint-initdb.d/06_dp_room_lobby.sql

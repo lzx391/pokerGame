@@ -44,7 +44,7 @@
 | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 后端       | Java **17**、**Spring Boot 3.5**、Spring Web / Security / WebSocket、**MyBatis-Plus**、**PageHelper**、**Druid**、MySQL 驱动、**Lettuce**（Redis）、**JJWT** |
 | 前端（卡牌游戏） | **Vue 2**、Vue Router、**Vuex**、**Element UI**、axios（源码目录 `**front/dp_game`**）                                                                     |
-| 数据       | **MySQL 8**（库名默认 `**school_db`**）、**Redis 7**                                                                                                    |
+| 数据       | **MySQL 8**（库名默认 `**school_db`**）、**Redis 7**，表结构 **Flyway**（`classpath:db/migration`）                                                                                                    |
 | 构建与部署    | **Maven**、**Docker** / **Docker Compose**、**Nginx**（反向代理与 WS 转发）                                                                                 |
 
 对局页布局为 **顶栏 / `<main>` 牌桌区 / 底栏** 同级 flex；`main` 同时承担桌面面板样式，牌桌缩放裁切只在一层 `.dp-game-table-fit` 上。根节点通过 **`data-dp-layout-tier`** / **`data-dp-stage`** / **`data-dp-orientation`** 与 `dp-game-shell.css`、`dp-game-layout-tiers.css` 中的 **CSS 变量**联动（全屏顶距 `--dp-game-fs-extra-pad-top`、摊牌主区最小高度 `--dp-game-settlement-main-min-h` 等）；缩放原点与居中逻辑见 `dpGameTableFitMixin.js`。细节见 `front/dp_game/docs/GAME_LAYOUT_TUNING_README.md`。
@@ -93,8 +93,9 @@ docker compose -f docker-compose.hub.yml up -d
 docker compose up --build
 ```
 
-**GitHub 自动构建镜像（可选）**：推送分支 `**desensitization`** 时由 GitHub Actions 构建并推送 `1933886418/dpgame*:v1.0.1` 三镜像（与 `build-push-hub.ps1`、默认 `docker-compose.hub.yml` 的 `**IMAGE_TAG=v1.0.1**` 一致，**不**另打 `latest`）；亦可在 **Actions** 里手动运行。仓库 **Secrets** 中配置 `**DOCKERHUB_TOKEN`** 即可；工作流见 `[.github/workflows/docker-publish.yml](.github/workflows/docker-publish.yml)`。
+**GitHub 自动构建镜像（可选）**：推送分支 `**desensitization**` 时由 GitHub Actions 构建并推送 `1933886418/dpgame*:v1.0.1` 与 **`dpgame-nginx`**（与 `build-push-hub.ps1`、Hub 编排一致；MySQL 用官方 **`mysql:8.0`**，**不**推送 MySQL 镜像）；亦可在 **Actions** 里手动运行。仓库 **Secrets** 中配置 `**DOCKERHUB_TOKEN`** 即可；工作流见 `[.github/workflows/docker-publish.yml](.github/workflows/docker-publish.yml)`。
 
+- **数据库（Flyway）**：`docker compose up` 后 MySQL 仅为**空库** `school_db`；**建表由应用启动时 Flyway** 执行 `classpath:db/migration`（见 `spring.flyway.locations`）。库内应有业务表及 **`flyway_schema_history`**。若本地**旧**命名卷里的表是以前 **Docker init** 建的，新版本首次跑 Flyway **V1** 可能报错「表已存在」——开发机可对 `mysql_data` **`docker compose down -v`** 删卷重来（**清空数据**；生产务必另做备份与迁移方案）。
 - **经 Nginx**：浏览器打开 **[http://localhost](http://localhost)**（见 [docs/NGINX.md](docs/NGINX.md)）
 - **直连应用**：**[http://localhost:8088](http://localhost:8088)**（前端为 **hash 路由**，例如 `**/#/login`**）
 
@@ -134,7 +135,7 @@ MGDemoPlus/
 ├── docker-data/
 ├── docker-compose.yml
 ├── docker-compose.hub.yml
-├── Dockerfile / Dockerfile.mysql / Dockerfile.nginx
+├── Dockerfile / Dockerfile.nginx
 ├── pom.xml
 ├── README.md                               # 本文件：中文 + 英文短版
 ├── README.ch.md                            # 中文长说明（运维与迭代记录）
@@ -200,7 +201,7 @@ A **Spring Boot** web demo centered on **multiplayer online strategy card play**
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Backend              | Java **17**, **Spring Boot 3.5**, Web / Security / WebSocket, **MyBatis-Plus**, **PageHelper**, **Druid**, MySQL driver, **Lettuce** (Redis), **JJWT** |
 | Frontend (card game) | **Vue 2**, Vue Router, **Vuex**, **Element UI**, axios (`front/dp_game`)                                                                               |
-| Data                 | **MySQL 8** (default DB `**school_db`**), **Redis 7**                                                                                                  |
+| Data                 | **MySQL 8** (default DB `**school_db`**), **Redis 7**, **Flyway** (`classpath:db/migration`)
 | Build / Ops          | **Maven**, **Docker** / **Compose**, **Nginx**                                                                                                         |
 
 
@@ -231,8 +232,9 @@ From repo root:
 docker compose up --build
 ```
 
-**GitHub Actions (optional)** — On push to `**desensitization`**, workflows build/push `**1933886418/dpgame*:v1.0.1**` only (matches `build-push-hub.ps1` / default `**IMAGE_TAG=v1.0.1**`; no `**latest**` tag). Configure `**DOCKERHUB_TOKEN**`. See `[.github/workflows/docker-publish.yml](.github/workflows/docker-publish.yml)`.
+**GitHub Actions (optional)** — On push to `**desensitization`**, workflows build/push **`1933886418/dpgame*:v1.0.1**` and **`dpgame-nginx`** (MySQL stays official `mysql:8.0`; no Hub MySQL image). Configure `**DOCKERHUB_TOKEN**`. See `[.github/workflows/docker-publish.yml](.github/workflows/docker-publish.yml)`.
 
+- **DB (Flyway)**: After `docker compose up --build`, MySQL is an empty `school_db`; **Flyway** creates tables from `classpath:db/migration` when the app starts (`flyway_schema_history` appears). Old **`mysql_data`** volumes seeded by Docker init may conflict with **V1**—dev: `docker compose down -v` to reset (**data loss**); production: backup/migrate consciously.
 - Via Nginx: **[http://localhost](http://localhost)** — [docs/NGINX.md](docs/NGINX.md)
 - Direct app: **[http://localhost:8088](http://localhost:8088)** — hash routes, e.g. `**/#/login`**
 

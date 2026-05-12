@@ -14,7 +14,7 @@
 
 ## 表结构
 
-参见 `src/main/resources/db/dp_friend_social.sql`（手动执行或 Docker 初始化 `SOURCE`）。
+表结构参见 `src/main/resources/db/migration/V1__init_schema.sql`（Flyway；应用启动时自动执行）。
 
 ---
 

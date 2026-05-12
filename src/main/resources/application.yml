@@ -1,6 +1,8 @@
 spring:
   application:
     name: MGDemoPlus
+  flyway:
+    locations: classpath:db/migration
   autoconfigure:
     exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
   datasource:
@@ -35,12 +37,14 @@ mgdemoplus:
     music-list-ttl-seconds: ${MGDEMOPLUS_CACHE_MUSIC_LIST_TTL_SECONDS:300} # 曲库列表 Redis 缓存 TTL（秒）；上传成功后会主动删缓存键。
   dp-lobby-reconcile-enabled: true # DP 大厅表 dp_room_lobby 与内存 roomMap 对齐（清幽灵房）；单机房模型默认开启，多实例请设 false
   dp-lobby-reconcile-ms: 60000 # 对齐间隔（毫秒）；启动时也会立即跑一轮
+  dp-quick-match-prune-ms: 30000 # 默认快匹等待队列：清理超时/已在房内的条目（毫秒，fixedDelay）
   images:
     file-location: ${MGDEMOPLUS_IMAGES_FILE_LOCATION:file:P:/javaworkspace/DPGameFiles/} # 头像等上传文件落盘目录（与 WebConfig `/images/**` 一致）；Docker 用环境变量 MGDEMOPLUS_IMAGES_FILE_LOCATION 覆盖
   music:
     file-location: ${MGDEMOPLUS_MUSIC_FILE_LOCATION:file:P:/javaworkspace/DPGameFiles/music/} # 曲库音频（与 WebConfig `/music/**`、DpMusicController 一致）；可设 MGDEMOPLUS_MUSIC_FILE_LOCATION
 
 mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
   configuration:
     # StdOutImpl 会刷屏打印每条 SQL；需要看 SQL 时改为 Slf4jImpl 并设 logging.level 下对应 Mapper 包为 DEBUG
     log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
@@ -55,13 +59,24 @@ server:
 
 # 只盯大模型 SLF4J：root 安静，只放开下面两个 Logger。（MyBatis 已用 Slf4j；SQL 默认不刷。）
 # System.out（SHARK、flop 阶段、SqlSession 等）不受此配置控制 → 终端搜索 [BOT_LLM] 或 BotLlmReasoning。
-logging:
-  level:
-    root: WARN
-    com.example.mgdemoplus.dp.BotLlmReasoning: INFO
-    com.example.mgdemoplus.service.serviceImpl.dp.DpLlmNpcDecisionService: DEBUG
-    org.springframework: WARN
-    com.alibaba.druid: WARN
+# 日志文件：避免 Cursor 终端滚动顶掉历史；可用环境变量 LOG_FILE 覆盖路径。
+# logging:
+#   charset:
+#     file: UTF-8
+#   file:
+#     name: ${LOG_FILE:logs/mgdemoplus.log}
+#   logback:
+#     rollingpolicy:
+#       max-file-size: 50MB
+#       max-history: 14
+#       total-size-cap: 1GB
+#   level:
+#     root: WARN
+#     com.example.mgdemoplus.dp.BotLlmReasoning: INFO
+#     com.example.mgdemoplus.service.serviceImpl.dp.DpNpcEngine: INFO
+#     com.example.mgdemoplus.service.serviceImpl.dp.DpLlmNpcDecisionService: DEBUG
+#     org.springframework: WARN
+#     com.alibaba.druid: WARN
 # 只要思考、不要【已发起】【采用】：把 DpLlmNpcDecisionService 改成 WARN。
 # 要查 SQL：com.example.mgdemoplus.mapper: DEBUG。
 
