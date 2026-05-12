@@ -98,7 +98,10 @@ export default {
           return { ok: false, message: dpResultMessage(body) }
         }
         var d = dpResultData(body) || {}
-        commit('SET_FRIENDS', dpFriendsInviteEligible(d.friends))
+        // data 通常为 { friends: [...] }；兼容误将数组放在 data 根上的响应
+        var raw =
+          Array.isArray(d.friends) ? d.friends : Array.isArray(d) ? d : []
+        commit('SET_FRIENDS', dpFriendsInviteEligible(raw))
         return { ok: true }
       } catch (e) {
         console.error('dpMailbox/fetchFriends', e)

@@ -835,6 +835,7 @@ export default {
     openInviteFriendSheet() {
       if (!this.canInviteFriend) return
       this.inviteFriendOpen = true
+      this.scheduleReparentElementUiLayersIntoFullscreenRoot()
     },
     closeInviteFriendSheet() {
       this.inviteFriendOpen = false
