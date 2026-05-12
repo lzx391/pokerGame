@@ -14,9 +14,9 @@ public interface DpRoomLobbyMapper {
 
     @Insert("""
             INSERT INTO dp_room_lobby
-            (room_id, owner_nickname, room_status, player_count, small_blind_chips, big_blind_chips, starting_stack_bb, password_protected)
+            (room_id, owner_nickname, room_status, player_count, small_blind_chips, big_blind_chips, starting_stack_bb, password_protected, max_seat_count)
             VALUES
-            (#{roomId}, #{owner}, 0, #{playerSize}, #{smallBlindChips}, #{bigBlindChips}, #{startingStackBb}, #{passwordProtected})
+            (#{roomId}, #{owner}, 0, #{playerSize}, #{smallBlindChips}, #{bigBlindChips}, #{startingStackBb}, #{passwordProtected}, #{maxSeatCount})
             """)
     int insertRoomSummary(DpRoom row);
 
@@ -28,7 +28,8 @@ public interface DpRoomLobbyMapper {
                 small_blind_chips = #{smallBlindChips},
                 big_blind_chips = #{bigBlindChips},
                 starting_stack_bb = #{startingStackBb},
-                password_protected = #{passwordProtected}
+                password_protected = #{passwordProtected},
+                max_seat_count = #{maxSeatCount}
             WHERE room_id = #{roomId}
             """)
     int updateRoomSummary(DpRoom row);
@@ -47,7 +48,8 @@ public interface DpRoomLobbyMapper {
                    small_blind_chips AS smallBlindChips,
                    big_blind_chips AS bigBlindChips,
                    starting_stack_bb AS startingStackBb,
-                   password_protected AS passwordProtected
+                   password_protected AS passwordProtected,
+                   max_seat_count AS maxSeatCount
             FROM dp_room_lobby
             WHERE room_status = 0
             ORDER BY created_at DESC

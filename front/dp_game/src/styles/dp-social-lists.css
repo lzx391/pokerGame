@@ -1,0 +1,154 @@
+/**
+ * 好友名单 / 消息邮箱条目：单列卡片流，与大堂 .dp-lobby-panel 使用同一套 --dp-* 令牌。
+ * （挂到 append-to-body 的弹层上时依赖 body[data-dp-game-theme] 已由 main.js 同步。）
+ */
+
+.dp-social-sheet {
+  box-sizing: border-box;
+}
+
+.dp-social-sheet__hint {
+  margin: 0 0 14px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--dp-text-muted);
+}
+
+.dp-social-sheet--drawer {
+  display: flex;
+  flex-direction: column;
+  min-height: min(72dvh, 560px);
+}
+
+.dp-social-sheet--dialog {
+  max-width: 32rem;
+  margin: 0 auto;
+}
+
+@media (max-width: 699px) {
+  .dp-social-sheet--dialog {
+    max-width: none;
+  }
+}
+
+.dp-social-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.dp-social-list__item {
+  box-sizing: border-box;
+  margin: 0;
+  padding: clamp(12px, 3.2vw, 16px) clamp(12px, 3.5vw, 16px);
+  border-radius: clamp(10px, 2.2vw, 12px);
+  border: 1px solid var(--dp-subpanel-border);
+  background: var(--dp-subpanel-bg);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  min-width: 0;
+}
+
+.dp-social-list__text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dp-social-list__primary {
+  font-size: clamp(15px, 3.8vw, 17px);
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--dp-text-primary);
+  word-break: break-word;
+}
+
+.dp-social-list__secondary {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--dp-text-secondary);
+  word-break: break-word;
+}
+
+button.dp-social-list__idline {
+  appearance: none;
+  -webkit-appearance: none;
+  align-self: flex-start;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--dp-text-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  max-width: 100%;
+  text-align: left;
+}
+
+button.dp-social-list__idline:hover,
+button.dp-social-list__idline:focus-visible {
+  color: var(--dp-accent);
+  outline: none;
+}
+
+.dp-social-list__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (max-width: 699px) {
+  .dp-social-list__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dp-social-list__actions .el-button {
+    width: 100%;
+    margin: 0 !important;
+  }
+
+  .dp-social-list__actions .el-button + .el-button {
+    margin-top: 0 !important;
+    margin-left: 0 !important;
+  }
+}
+
+@media (min-width: 700px) {
+  .dp-social-list__actions {
+    justify-content: flex-end;
+  }
+}
+
+.home-mailbox-dialog .el-dialog__body {
+  padding: 12px clamp(12px, 4vw, 18px) 18px !important;
+}
+
+@media (max-width: 699px) {
+  body[data-dp-game-theme] .home-mailbox-dialog.el-dialog {
+    width: calc(100vw - clamp(16px, 5vw, 24px)) !important;
+    max-width: calc(100vw - clamp(16px, 5vw, 24px));
+    margin-bottom: 2vh !important;
+  }
+
+  body[data-dp-game-theme] .home-friends-drawer.el-drawer {
+    width: 100% !important;
+  }
+}
+
+.home-friends-drawer .el-drawer__body {
+  padding: 12px clamp(12px, 4vw, 18px) max(20px, env(safe-area-inset-bottom, 0px));
+}

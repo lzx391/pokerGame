@@ -58,18 +58,12 @@ public class DpPlayerStats {
         private long finalStrengthValue;
 
         /**
-         * 是否在“Shark 也摊牌”的前提下，当前玩家摊牌牌力属于明显偏弱：
-         * - 只认可高牌/一对（finalRankCategory <= 2）
-         * - 且精确牌力严格小于 Shark（包含 kicker 比较）
-         *
-         * <p>用途：让 Shark 的学习统计更贴近你说的“弱牌摊牌 / 空气诈唬摊牌”。</p>
+         * @deprecated 历史 Shark 对线摊牌字段；弱摊牌比例已改用牌型大类，不再读写。
          */
         private boolean showdownWeakVsShark;
 
         /**
-         * 本手摊牌是否存在“与 Shark 的精确比较样本”。
-         * - true：Shark 与该玩家都去摊牌（且有评估结果），则可用 {@link #showdownWeakVsShark} 做统计
-         * - false：说明本手不是“对 Shark 的摊牌”，不应混入 Shark 的 WEAK 样本
+         * @deprecated 历史 Shark 对线摊牌字段；弱摊牌比例已改用牌型大类，不再读写。
          */
         private boolean comparedToSharkAtShowdown;
 
@@ -339,10 +333,9 @@ public class DpPlayerStats {
     /**
      * 最近若干手中，“亮出较弱摊牌牌力”的比例。
      *
-     * <p>优化版（用于 Shark 学习）：</p>
      * <ul>
-     *   <li>弱牌：仅统计到“一对”为止（finalRankCategory <= 2），不把两对/三条算作“弱”。</li>
-     *   <li>过滤公共牌主导：若最终最佳 5 张牌完全不使用手牌（boardDominantShowdown==true），则该次摊牌不计入样本。</li>
+     *   <li>弱牌：仅统计到“一对”为止（finalRankCategory {@code <= 2}），不把两对/三条算作“弱”。</li>
+     *   <li>过滤公共牌主导：若最终最佳 5 张牌完全不使用手牌（boardDominantShowdown），则该次摊牌不计入样本。</li>
      * </ul>
      */
     public double getRecentShowdownWeakRatio(int windowSize) {
@@ -354,7 +347,7 @@ public class DpPlayerStats {
     }
 
     /**
-     * 给 Shark 学习调试用：返回弱摊牌比例的“分子/分母/过滤信息”。
+     * 调试用：返回弱摊牌比例的“分子/分母/过滤信息”。
      */
     public ShowdownWeakStats getRecentShowdownWeakStats(int windowSize) {
         ShowdownWeakStats out = new ShowdownWeakStats();
@@ -372,13 +365,9 @@ public class DpPlayerStats {
                 out.skippedBoardDominant++;
                 continue;
             }
-            // Shark 学习的 WEAK：只统计“对 Shark 有意义的样本”（双方都摊牌且可比较）
-            if (!hand.isComparedToSharkAtShowdown()) {
-                out.skippedNotVsShark++;
-                continue;
-            }
             out.sample++;
-            if (hand.isShowdownWeakVsShark()) {
+            // “弱摊牌”：至多一对（与历史 Shark 对线逻辑中的弱牌阈值一致）
+            if (finalCat <= 2) {
                 out.weakCount++;
             }
         }
@@ -389,6 +378,7 @@ public class DpPlayerStats {
         public int sample;
         public int weakCount;
         public int skippedBoardDominant;
+        /** @deprecated 历史字段兼容；新版本弱摊牌统计不再使用，应保持为 0。 */
         public int skippedNotVsShark;
 
         public double ratio() {

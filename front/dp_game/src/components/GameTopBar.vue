@@ -70,6 +70,24 @@
           玩法说明
         </button>
         <button
+            v-if="isOwner"
+            type="button"
+            class="dp-btn dp-top-bar__btn dp-top-bar__btn--owner"
+            aria-label="房主操作"
+            @click="$emit('open-owner-hub')"
+        >
+          房主操作
+        </button>
+        <button
+            v-if="canInviteFriend"
+            type="button"
+            class="dp-btn dp-top-bar__btn dp-top-bar__btn--ghost"
+            aria-label="邀请好友进房"
+            @click="$emit('open-invite-friend')"
+        >
+          邀请好友
+        </button>
+        <button
             type="button"
             class="dp-btn dp-top-bar__btn dp-top-bar__btn--ghost"
             @click="$emit('open-hand-history')"
@@ -84,6 +102,14 @@
           音乐盒
         </button>
         <button
+            v-if="waitNextHandCount > 0"
+            type="button"
+            class="dp-btn dp-btn--cyan dp-top-bar__btn"
+            @click="$emit('show-wait-next-hand')"
+        >
+          等待名单（{{ waitNextHandCount }}）
+        </button>
+        <button
             v-if="spectatorCount > 0"
             type="button"
             class="dp-btn dp-btn--cyan dp-top-bar__btn"
@@ -94,11 +120,11 @@
         <button
             v-if="showSpectatorPrepare"
             type="button"
-            class="dp-btn dp-btn--success dp-top-bar__btn"
-            :disabled="nextHandReady"
+            class="dp-btn dp-top-bar__btn"
+            :class="nextHandReady ? 'dp-btn--ghost' : 'dp-btn--success'"
             @click="$emit('ready-next-hand')"
         >
-          {{ nextHandReady ? '已报名下一局' : '下一局加入对局' }}
+          {{ nextHandReady ? '取消下一局报名' : '下一局加入对局' }}
         </button>
         <button type="button" class="dp-btn dp-btn--danger dp-top-bar__btn" @click="$emit('exit')">
           退出对局
@@ -117,6 +143,8 @@ export default {
     pot: { type: Number, required: true },
     currentBetToCall: { type: Number, required: true },
     spectatorCount: { type: Number, default: 0 },
+    /** 已报名下一局上桌的人数 */
+    waitNextHandCount: { type: Number, default: 0 },
     isFullscreen: { type: Boolean, default: false },
     /** 纯观众或本手已退：在顶栏内展示报名下一局 */
     showSpectatorPrepare: { type: Boolean, default: false },
@@ -131,6 +159,10 @@ export default {
       }
     },
     ecoMode: { type: Boolean, required: true },
+    /** 是否在顶栏显示「房主操作」入口 */
+    isOwner: { type: Boolean, default: false },
+    /** 局内未离座成员或观众：可邀请互为好友进房 */
+    canInviteFriend: { type: Boolean, default: false },
     themeOptions: {
       type: Array,
       default: function () {

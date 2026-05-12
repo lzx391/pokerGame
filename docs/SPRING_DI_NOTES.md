@@ -1,4 +1,4 @@
-# Spring 依赖注入复习笔记
+# Spring Dependency Injection：`@Autowired` vs constructor injection（cheat sheet）
 
 面向日常复习：构造器注入、`@Autowired`、与若依常见写法的对照，并结合本仓库 WebSocket 相关类举例。
 

@@ -4,7 +4,7 @@
 #   - 经 Nginx：https://localhost（无域名场景一般为自签证书，浏览器会提示证书不受信任）
 #   - 直连应用：http://localhost:8088  （路由为 hash，地址形如 /#/login）
 #
-# 数据库：首次启动自动在 school_db 中建表（./docker-data/mysql-init + src/main/resources/db）
+# 数据库：MySQL 仅创建空库 school_db（命名卷 mysql_data）；表结构由应用启动时 Flyway（classpath:db/migration）迁移。
 # 图片上传目录：./docker-data/uploads 映射到容器内 /data/mgdemo-files
 # Redis：应用经内部网络连接 redis:6379；宿主机调试可用 localhost:6380（避免占满本机 6379）
 
@@ -19,9 +19,6 @@ services:
       - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./docker-data/mysql-init:/docker-entrypoint-initdb.d:ro
-      # 与 00-school_db.sql 中 SOURCE 路径一致，避免重复拷贝建表 SQL
-      - ./src/main/resources/db:/docker-schema:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" || exit 1"]
       interval: 5s

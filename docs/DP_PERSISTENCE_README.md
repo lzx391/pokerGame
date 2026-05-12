@@ -1,4 +1,4 @@
-# DP 对局落库说明（牌谱 / 参与者 / Shark 记忆）
+# 牌谱与会话持久化：`dp_observed_hand_*`、参与者与 Shark 记忆表
 
 本文说明 **哪些数据会写入 MySQL、在什么时机写、与 `BOT_Shark` 的关系**，以及失败时的行为。实现类以 `com.example.mgdemoplus.service.serviceImpl.dp` 包为主。
 
@@ -56,7 +56,7 @@
 
 ### 2.4 表结构与约束
 
-- 建表脚本：`src/main/resources/db/dp_observed_hand_history.sql`
+- 建表脚本：`src/main/resources/db/migration/V1__init_schema.sql`（Flyway；`dp_observed_hand_history`）
 - 唯一键：`UNIQUE (room_id, hand_seed)` —— 同一房间、同一手种子 **只能有一条**；重复插入会失败并被 catch 打日志。
 - `payload_json`：MySQL `JSON` 类型；内容与内存 `ObservedHandRecord` 对齐（座位、街、行动、池、洞牌、盈亏）。
 
@@ -82,10 +82,10 @@
 
 ### 3.3 约束与失败
 
-- 唯一键：`(hand_history_id, nickname_snapshot)`（见 `dp_observed_hand_participant.sql`）。
+- 唯一键：`(hand_history_id, nickname_snapshot)`（见 `V1__init_schema.sql` 中 `dp_observed_hand_participant`）。
 - 每名参与者 **单独 try/catch**：单行失败只打 warn，不影响其他人或其它表。
 
-脚本路径：`src/main/resources/db/dp_observed_hand_participant.sql`（**未建外键**，由应用保证 `hand_history_id` 合法）。
+- 建表：`src/main/resources/db/migration/V1__init_schema.sql`（Flyway；**未建外键**，由应用保证 `hand_history_id` 合法）。
 
 ---
 
@@ -97,7 +97,7 @@
 - **`learned_json`**：`DpNpcSharkLearningLab` 导出的旋钮与分桶样本（`exportLearnedSnapshot`）。
 - 主键：**玩家昵称** `player_nickname` —— **跨房间**识别同一人。
 
-建表：`src/main/resources/db/dp_shark_opponent_profile.sql`，写入为 **UPSERT**（`ON DUPLICATE KEY UPDATE`）。
+建表：`src/main/resources/db/migration/V1__init_schema.sql`，写入为 **UPSERT**（`ON DUPLICATE KEY UPDATE`）。
 
 ### 4.2 何时从库读到内存（hydrate）？
 
@@ -162,7 +162,7 @@
 
 ## 7. 运维与排错要点
 
-1. **表未建**：插入失败仅日志，游戏照常；需在目标库执行 `src/main/resources/db/` 下对应 SQL。
+1. **表未建 / Flyway 未跑通**：插入失败仅日志，游戏照常；新环境应 **`docker compose up` 后由应用 Flyway 自动建表**；若旧库与 V1 冲突见主 README 删卷或迁移说明。
 2. **唯一键冲突**：同一 `(room_id, hand_seed)` 重复插入牌谱主表会失败；通常不应在同手结算里调用两次 `save` 除非逻辑变更。
 3. **隐私**：`payload_json` 含 **全桌洞牌**（服务端视角）；详情接口对「他人弃牌」等做了展示限制，**库内仍为全量**，备份与权限需单独管控。
 4. **昵称变更**：参与者存 `nickname_snapshot`；用户改名后旧牌谱仍按旧昵称关联，与 readme 说明一致。
@@ -180,7 +180,7 @@
 | 学习旋钮（内存） | `DpNpcSharkLearningLab` |
 | 结算编排 | `DpRoomServiceImpl#autoSettle`、`#newHand`、`joinRoom` |
 | Mapper | `DpObservedHandHistoryMapper`、`DpObservedHandParticipantMapper`、`DpSharkOpponentProfileMapper` |
-| SQL | `db/dp_observed_hand_history.sql`、`db/dp_observed_hand_participant.sql`、`db/dp_shark_opponent_profile.sql` |
+| SQL | `src/main/resources/db/migration/V1__init_schema.sql`（含牌谱主表、参与者、Shark profile） |
 
 ---
 

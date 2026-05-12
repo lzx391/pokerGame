@@ -100,8 +100,8 @@ public final class DpLlmNpcContextMapper {
     private static String buildSqueezeRiskSummary(int callAmount, int bigBlindChips,
             List<DpNpcEngine.MultiwayVillainInfo> list) {
         int bb = Math.max(1, bigBlindChips);
-        double shortBb = DpNpcEngine.SharkConfig.SHORT_STACK_BB;
-        double deepBb = DpNpcEngine.SharkConfig.DEEP_STACK_MIN_BB;
+        double shortBb = DpNpcEngine.RuleNpcConfig.SHORT_STACK_BB;
+        double deepBb = DpNpcEngine.RuleNpcConfig.DEEP_STACK_MIN_BB;
         if (callAmount <= 0) {
             return "不适用（本轮你还须支付为 0：无「跟注后被身后加注」问题）。";
         }
@@ -188,7 +188,7 @@ public final class DpLlmNpcContextMapper {
                     .append(" 后位=").append(v.behindHero)
                     .append(" stackBB=").append(String.format("%.1f", v.stackBB))
                     .append(" 风格=").append(tier)
-                    .append(" 本街加注=").append(v.hasRaisedThisStreet)
+                    .append(" 已加注本街=").append(v.hasRaisedThisStreet)
                     .append('\n');
         }
         return sb.toString().trim();

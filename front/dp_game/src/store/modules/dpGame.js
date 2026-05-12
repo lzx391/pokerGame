@@ -37,6 +37,8 @@ function initialState() {
     lastRaiseIncrement: 10,
     actIndex: -1,
     spectators: [],
+    /** 已报名下一局上桌的昵称列表（与后端 waitNextHand 一致） */
+    waitNextHand: [],
     raiseAmount: 0,
     smallBlindChips: 5,
     bigBlindChips: 10,
@@ -52,6 +54,7 @@ function initialState() {
     showPlayGuideModal: false,
     playGuideTab: 'flow',
     showSpectatorModal: false,
+    showWaitNextHandModal: false,
     showHandHistoryModal: false,
     showMusicBoxModal: false,
     musicTracks: [],
@@ -67,15 +70,18 @@ function initialState() {
     maniacBotAddedTip: '',
     tagBotAdding: false,
     tagBotAddedTip: '',
-    sharkBotAdding: false,
-    sharkBotAddedTip: '',
+    lagBotAdding: false,
+    lagBotAddedTip: '',
+    nitBotAdding: false,
+    nitBotAddedTip: '',
+    callBotAdding: false,
+    callBotAddedTip: '',
     llmBotAdding: false,
     llmBotAddedTip: '',
     ownerRevealAll: false,
     showMobileHandSheet: false,
     showMobileActionSheet: false,
     heroHoleDealIntroDone: false,
-    _settlementMusicStartedForHand: null,
     /** 后端 autoSettle 后写入的「场上积分并列最高」昵称，未结算过为空 */
     chipLeaderNicknames: []
   }
@@ -205,6 +211,17 @@ export default {
       return state.players.some(function (p) {
         return p.nickname === nick
       })
+    },
+    /** 与后端 {@code canActiveMemberInviteFriends} 一致：未离座上桌真人或观众（非机器人）可发进房邀请 */
+    canInviteFriend: function (state, getters) {
+      var u = state.user
+      var nick = u && u.nickname
+      if (!nick) return false
+      if (isDpBotNickname(nick)) return false
+      var mp = getters.myPlayer
+      if (mp && !mp.leftThisHand) return true
+      var specs = state.spectators || []
+      return specs.indexOf(nick) !== -1
     },
     holeDealPlayerCountForAnim: function (state) {
       if (!state.players || !state.players.length) return 1
@@ -347,6 +364,7 @@ export default {
       state.actIndex = room.currentActorIndex
       state.spectators = room.spectators || []
       var list = room.waitNextHand || []
+      state.waitNextHand = list.slice()
       var nick = state.user && state.user.nickname
       state.nextHandReady = !!(nick && list.indexOf(nick) !== -1)
       state.chipLeaderNicknames = room.chipLeaderNicknames || []
@@ -411,6 +429,7 @@ export default {
       if (payload.showPlayGuideModal !== undefined) state.showPlayGuideModal = payload.showPlayGuideModal
       if (payload.playGuideTab !== undefined) state.playGuideTab = payload.playGuideTab
       if (payload.showSpectatorModal !== undefined) state.showSpectatorModal = payload.showSpectatorModal
+      if (payload.showWaitNextHandModal !== undefined) state.showWaitNextHandModal = payload.showWaitNextHandModal
       if (payload.showHandHistoryModal !== undefined) state.showHandHistoryModal = payload.showHandHistoryModal
       if (payload.showMusicBoxModal !== undefined) state.showMusicBoxModal = payload.showMusicBoxModal
     },
@@ -432,7 +451,9 @@ export default {
       state.demoBotAddedTip = ''
       state.maniacBotAddedTip = ''
       state.tagBotAddedTip = ''
-      state.sharkBotAddedTip = ''
+      state.lagBotAddedTip = ''
+      state.nitBotAddedTip = ''
+      state.callBotAddedTip = ''
       state.llmBotAddedTip = ''
     },
     CLOSE_OWNER_HUB: function (state) {
@@ -455,8 +476,12 @@ export default {
       if (payload.maniacBotAddedTip !== undefined) state.maniacBotAddedTip = payload.maniacBotAddedTip
       if (payload.tagBotAdding !== undefined) state.tagBotAdding = payload.tagBotAdding
       if (payload.tagBotAddedTip !== undefined) state.tagBotAddedTip = payload.tagBotAddedTip
-      if (payload.sharkBotAdding !== undefined) state.sharkBotAdding = payload.sharkBotAdding
-      if (payload.sharkBotAddedTip !== undefined) state.sharkBotAddedTip = payload.sharkBotAddedTip
+      if (payload.lagBotAdding !== undefined) state.lagBotAdding = payload.lagBotAdding
+      if (payload.lagBotAddedTip !== undefined) state.lagBotAddedTip = payload.lagBotAddedTip
+      if (payload.nitBotAdding !== undefined) state.nitBotAdding = payload.nitBotAdding
+      if (payload.nitBotAddedTip !== undefined) state.nitBotAddedTip = payload.nitBotAddedTip
+      if (payload.callBotAdding !== undefined) state.callBotAdding = payload.callBotAdding
+      if (payload.callBotAddedTip !== undefined) state.callBotAddedTip = payload.callBotAddedTip
       if (payload.llmBotAdding !== undefined) state.llmBotAdding = payload.llmBotAdding
       if (payload.llmBotAddedTip !== undefined) state.llmBotAddedTip = payload.llmBotAddedTip
     },

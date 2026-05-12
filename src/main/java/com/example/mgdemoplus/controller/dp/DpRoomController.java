@@ -6,15 +6,18 @@ import com.example.mgdemoplus.entity.dp.DpRoom;
 import com.example.mgdemoplus.service.dp.DpRoomHallService;
 import com.example.mgdemoplus.service.serviceImpl.dp.DpRoomServiceImpl;
 import com.example.mgdemoplus.utils.ResultUtil;
+import com.example.mgdemoplus.service.serviceImpl.dp.DpRoomServiceImpl.KickPlayersBatchResult;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.web.server.ResponseStatusException;
 
 
 @RestController
@@ -34,8 +37,13 @@ public class DpRoomController {
                              @RequestParam(required = false, defaultValue = "5") int smallBlindChips,
                              @RequestParam(required = false, defaultValue = "10") int bigBlindChips,
                              @RequestParam(required = false, defaultValue = "50") int startingStackBb,
+                             @RequestParam(required = false, defaultValue = "9") int maxSeatCount,
                              @RequestParam(required = false) String roomPassword) {
-        return dpRoomService.createRoom(nickname, userId, smallBlindChips, bigBlindChips, startingStackBb, roomPassword);
+        if (maxSeatCount < DpRoomBO.MIN_SEAT_COUNT
+                || maxSeatCount > DpRoomBO.MAX_SEAT_COUNT) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "人数上限需在 2～9 之间");
+        }
+        return dpRoomService.createRoom(nickname, userId, smallBlindChips, bigBlindChips, startingStackBb, roomPassword, maxSeatCount);
     }
 
     @GetMapping("/getNowRoom")
@@ -70,6 +78,33 @@ public class DpRoomController {
             return ResultUtil.ok().data("message", outcome);
         }
         return ResultUtil.error().data("message", outcome);
+    }
+
+    /**
+     * 大厅快速匹配（需登录）：先尝试并进已有公开房；若无空位则入默认 FIFO 队列（小盲 5、9 人桌），满两名玩家服务端自动建新公开房。
+     * 排队中由 {@code /ws/dp-quick-match} 推送状态；离开队列可 {@link #quickMatchCancel2}。
+     */
+    @PostMapping("/quickMatch2")
+    public ResultUtil quickMatch2(@RequestParam String nickname,
+                                   @RequestParam(required = false) Integer userId) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String jwtNickname = auth != null ? auth.getName() : null;
+        if (jwtNickname == null || !jwtNickname.equals(nickname)) {
+            return ResultUtil.error().data("message", "token 与当前昵称不一致");
+        }
+        return dpRoomService.quickMatchJoinQueueOrImmediate(nickname, userId);
+    }
+
+    /** 取消默认快匹排队（无需在匹配成功后的房间再调）。 */
+    @PostMapping("/quickMatchCancel2")
+    public ResultUtil quickMatchCancel2(@RequestParam String nickname) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String jwtNickname = auth != null ? auth.getName() : null;
+        if (jwtNickname == null || !jwtNickname.equals(nickname)) {
+            return ResultUtil.error().data("message", "token 与当前昵称不一致");
+        }
+        boolean removed = dpRoomService.cancelDefaultQuickMatchWait(nickname);
+        return ResultUtil.ok().data("cancelled", removed);
     }
 /**
  * 该房间内玩家是否能准备成功的接口
@@ -118,6 +153,32 @@ public class DpRoomController {
     public String kickPlayer(@RequestParam String roomId,@RequestParam String nickname){
        return dpRoomService.kickPlayer(roomId,nickname) ? "ok":"fail";
     }
+
+    /**
+     * 房主批量踢人至观众席；{@code nicknames} 为英文逗号分隔（会去重，顺序执行，大厅最多同步一次）。
+     */
+    @PostMapping("/kickPlayersBatch")
+    public ResultUtil kickPlayersBatch(@RequestParam String roomId, @RequestParam String nicknames) {
+        KickPlayersBatchResult batch = dpRoomService.kickPlayersBatch(roomId, nicknames);
+        if (batch.getAttempted() == 0) {
+            return ResultUtil.error().data("message", "未包含有效玩家昵称");
+        }
+        if (batch.getSuccessCount() == 0) {
+            return ResultUtil.error()
+                    .data("message", "未能踢出任何玩家（请确认均在座）")
+                    .data("successCount", 0)
+                    .data("failCount", batch.getFailCount())
+                    .data("failedNicknames", batch.getFailedNicknames());
+        }
+        ResultUtil ok = ResultUtil.ok();
+        ok.data("successCount", batch.getSuccessCount());
+        ok.data("failCount", batch.getFailCount());
+        ok.data("failedNicknames", batch.getFailedNicknames());
+        if (batch.getFailCount() > 0) {
+            ok.data("message", "部分玩家未能踢出");
+        }
+        return ok;
+    }
     @PostMapping("/heartbeat")
     public void heartbeat(@RequestParam String roomId, @RequestParam String nickname) {
         dpRoomService.heartbeat(roomId, nickname);
@@ -133,6 +194,15 @@ public class DpRoomController {
     }
 
     /**
+     * 观战玩家：取消下一局加入，从候补列表移除。
+     */
+    @PostMapping("/cancelReadyNextHand")
+    public String cancelReadyNextHand(@RequestParam String roomId, @RequestParam String nickname,
+                                      @RequestParam(required = false) Integer userId) {
+        return dpRoomService.cancelReadyNextHand(roomId, nickname, userId) ? "ok" : "fail";
+    }
+
+    /**
      * 结算后筹码为 0 的玩家补码到初始筹码。
      */
     @PostMapping("/rebuy")
@@ -141,8 +211,7 @@ public class DpRoomController {
     }
 
     /**
-     * 将简单鱼式 NPC（BOT_Fish，原 BOT_Demo）加入到指定房间的「下一局加入」列表中。
-     * 主要用于当前阶段验证机器人流程是否正常工作，后续可扩展为通用添加机器人接口。
+     * 鱼式 NPC：服务端生成 {@code BOT_FISH_<房间序号>} 加入下一局。
      */
     @PostMapping("/addDemoBot")
     public String addDemoBot(@RequestParam String roomId) {
@@ -150,7 +219,7 @@ public class DpRoomController {
     }
 
     /**
-     * 将疯子型 NPC（BOT_Maniac）加入到指定房间的「下一局加入」列表中。
+     * 疯子 NPC：{@code BOT_MANIAC_<房间序号>}。
      */
     @PostMapping("/addManiacBot")
     public String addManiacBot(@RequestParam String roomId) {
@@ -158,7 +227,7 @@ public class DpRoomController {
     }
 
     /**
-     * 将聪明型 NPC（BOT_Shark）加入到指定房间的「下一局加入」列表中。
+     * 兼容旧前端：固定昵称 BOT_Shark（紧凶）。
      */
     @PostMapping("/addSharkBot")
     public String addSharkBot(@RequestParam String roomId) {
@@ -166,16 +235,43 @@ public class DpRoomController {
     }
 
     /**
-     * 将紧凶型 NPC（BOT_Tag）加入到指定房间的「下一局加入」列表中。
-     * 该机器人打得相对紧凶，但不像 Shark 那样根据对手历史动态调整策略。
+     * 紧凶 NPC：{@code BOT_TAG_<房间序号>}。
      */
     @PostMapping("/addTagBot")
     public String addTagBot(@RequestParam String roomId) {
         return dpRoomService.addTagBotToNextHand(roomId) ? "ok" : "fail";
     }
 
+    /** 松凶 {@code BOT_LAG_<房间序号>} */
+    @PostMapping("/addLagBot")
+    public String addLagBot(@RequestParam String roomId) {
+        return dpRoomService.addLagBotToNextHand(roomId) ? "ok" : "fail";
+    }
+
+    /** 紧弱 Nit {@code BOT_NIT_<房间序号>} */
+    @PostMapping("/addNitBot")
+    public String addNitBot(@RequestParam String roomId) {
+        return dpRoomService.addNitBotToNextHand(roomId) ? "ok" : "fail";
+    }
+
+    /** 跟注站 {@code BOT_CALL_<房间序号>} */
+    @PostMapping("/addCallStationBot")
+    public String addCallStationBot(@RequestParam String roomId) {
+        return dpRoomService.addCallStationBotToNextHand(roomId) ? "ok" : "fail";
+    }
+
     /**
-     * 将大模型 NPC（BOT_LLM）加入下一局；需配置环境变量 ARK_API_KEY、ARK_ENDPOINT_ID。
+     * 批量添加同一档位 NPC（共用房间内递增序号）。{@code archetype} 支持 TAG、LAG、NIT、FISH、CALL、MANIAC（或带 BOT_ 前缀）。
+     */
+    @PostMapping("/addRuleNpcBatch")
+    public String addRuleNpcBatch(@RequestParam String roomId,
+            @RequestParam String archetype,
+            @RequestParam(defaultValue = "1") int count) {
+        return dpRoomService.addRuleNpcBatchToNextHand(roomId, archetype, count) ? "ok" : "fail";
+    }
+
+    /**
+     * 大模型 NPC：{@code BOT_LLM_<房间序号>}；需配置 ARK_API_KEY、ARK_ENDPOINT_ID。
      */
     @PostMapping("/addLlmBot")
     public String addLlmBot(@RequestParam String roomId) {

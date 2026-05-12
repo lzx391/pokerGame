@@ -2,6 +2,7 @@
   <div
       ref="gameRoot"
       class="dp-game-root"
+      :data-dp-layout-tier="layoutTier"
       :class="{
         'dp-game-root--pseudo-fs': pseudoFullscreen,
         'dp-game-root--layout-fs': layoutFullscreen,
@@ -11,8 +12,9 @@
       :style="customThemeInlineStyle"
       :data-dp-eco-mode="ecoMode ? 'true' : 'false'"
       :data-dp-stage="stage"
+      :data-dp-orientation="layoutOrientation"
   >
-    <!-- 新布局：顶栏 | 主区(仅此滚动圆桌) | 底栏(文档流占位，不再 position:fixed 遮挡桌面) -->
+    <!-- 顶栏 | 主区(牌桌) | 底栏 —— 三块同级 flex，无额外嵌套 -->
     <div class="dp-game-layout">
     <header class="dp-game-layout__header">
     <game-top-bar
@@ -21,7 +23,10 @@
         :pot="pot"
         :current-bet-to-call="currentBetToCall"
         :spectator-count="spectators.length"
+        :wait-next-hand-count="waitNextHand.length"
         :is-fullscreen="layoutFullscreen"
+        :is-owner="isOwner"
+        :can-invite-friend="canInviteFriend"
         :show-spectator-prepare="showSpectatorPrepareBlock"
         :next-hand-ready="nextHandReady"
         :game-ui-theme="gameUiTheme"
@@ -35,50 +40,64 @@
         :theme-options="gameThemeOptions"
         @show-play-guide="$store.commit('dpGame/SET_MODAL', { showPlayGuideModal: true, playGuideTab: 'flow' })"
         @show-spectators="$store.commit('dpGame/SET_MODAL', { showSpectatorModal: true })"
+        @show-wait-next-hand="$store.commit('dpGame/SET_MODAL', { showWaitNextHandModal: true })"
         @toggle-fullscreen="toggleDpFullscreen"
         @open-hand-history="openHandHistory"
         @open-music-box="$store.commit('dpGame/SET_MODAL', { showMusicBoxModal: true })"
+        @open-owner-hub="openOwnerHubSheet"
+        @open-invite-friend="openInviteFriendSheet"
         @exit="exitGame"
         @ready-next-hand="readyNextHand"
     />
 
     </header>
 
-    <main class="dp-game-layout__main">
-    <!-- <div v-if="playing" class="dp-game-hint">
-      各人手牌与公共牌均由发牌位（D）发出
-    </div> -->
-
-    <game-round-table
-        :chip-leader-nicknames="chipLeaderNicknames"
-        :players-display-order="playersDisplayOrder"
-        :show-table-action-timer="showTableActionTimer"
-        :time-left="timeLeft"
-        :timer-actor-name="tableActionActorDisplayName"
-        :timer-urgency="tableActionTimerUrgency"
-        :timer-progress-pct="actionTimerProgressPct"
-        :eco-mode="ecoMode"
-        :community-cards="communityCards"
-        :community-cards-flip-state="communityCardsFlipState"
-        :viewer-seated-at-table="viewerSeatedAtTable"
-        :hero-hole-deal-intro-done="heroHoleDealIntroDone"
-        :show-hero-seat-on-table="showHeroSeatOnTable"
-        :act-index="actIndex"
-        :stage="stage"
-        :community-cards-flip-complete="communityCardsFlipComplete"
-        :is-owner="isOwner"
-        :owner-reveal-all="ownerRevealAll"
-        :my-nickname="user ? user.nickname : ''"
-        :current-hand-seed="currentHandSeed"
-        :hole-deal-player-count-for-anim="holeDealPlayerCountForAnim"
-        :showdown-hand-leader-nicknames="showdownHandLeaderNicknames"
-        :dealer-display-index="dealerDisplayIndex"
-        :get-player-box-style="getPlayerBoxStyle"
-        :hole-deal-order-from-dealer="holeDealOrderFromDealer"
-        :seat-chat-text-for="seatChatTextFor"
-        @hole-deal-intro-complete="$store.commit('dpGame/SET_HERO_HOLE_DEAL', true)"
-        @card-click="onPlayerCardClick"
-    />
+    <main
+        ref="gameMain"
+        class="dp-game-layout__main dp-game-layout__main--fit-table"
+        :class="{ 'dp-game-layout__main--settlement-scroll': stage === 'showdown' || stage === 'settled' }"
+    >
+    <p
+        v-if="layoutTier === 'phone' && layoutOrientation === 'portrait'"
+        class="dp-game-layout__portrait-hint"
+        role="status"
+    >
+      横屏可获得更大牌桌视野，建议旋转手机并全屏游玩。
+    </p>
+    <div class="dp-game-table-fit" :style="tableFitClipStyleObj">
+      <div ref="tableFitInner" class="dp-game-table-fit__inner">
+          <game-round-table
+              :chip-leader-nicknames="chipLeaderNicknames"
+              :players-display-order="playersDisplayOrder"
+              :show-table-action-timer="showTableActionTimer"
+              :time-left="timeLeft"
+              :timer-actor-name="tableActionActorDisplayName"
+              :timer-urgency="tableActionTimerUrgency"
+              :timer-progress-pct="actionTimerProgressPct"
+              :eco-mode="ecoMode"
+              :community-cards="communityCards"
+              :community-cards-flip-state="communityCardsFlipState"
+              :viewer-seated-at-table="viewerSeatedAtTable"
+              :hero-hole-deal-intro-done="heroHoleDealIntroDone"
+              :show-hero-seat-on-table="showHeroSeatOnTable"
+              :act-index="actIndex"
+              :stage="stage"
+              :community-cards-flip-complete="communityCardsFlipComplete"
+              :is-owner="isOwner"
+              :owner-reveal-all="ownerRevealAll"
+              :my-nickname="user ? user.nickname : ''"
+              :current-hand-seed="currentHandSeed"
+              :hole-deal-player-count-for-anim="holeDealPlayerCountForAnim"
+              :showdown-hand-leader-nicknames="showdownHandLeaderNicknames"
+              :dealer-display-index="dealerDisplayIndex"
+              :get-player-box-style="getPlayerBoxStyle"
+              :hole-deal-order-from-dealer="holeDealOrderFromDealer"
+              :seat-chat-text-for="seatChatTextFor"
+              @hole-deal-intro-complete="$store.commit('dpGame/SET_HERO_HOLE_DEAL', true)"
+              @card-click="onPlayerCardClick"
+          />
+        </div>
+    </div>
 
     </main>
 
@@ -108,21 +127,23 @@ import '../styles/dp-game-modals.css'
 import '../styles/dp-game-eco-mode.css'
 import GameTopBar from './GameTopBar.vue'
 import { holeDealOrderFromDealer as holeDealOrderFromDealerUtil } from '../utils/dpGameRoundTableLayout'
-import { dpDisplayNickname } from '../utils/dpDisplayNickname'
-import { playSettlementMusic, stopSettlementMusic } from '../utils/dpGameSettlementMusic'
+import { dpDisplayNickname, isDpBotNickname } from '../utils/dpDisplayNickname'
 import { musicFileSrc } from '../utils/dpGameMusicUrl'
 import GameRoundTable from './GameRoundTable.vue'
 import GameHeroDockFooter from './GameHeroDockFooter.vue'
 import GameDpFloatingModals from './GameDpFloatingModals.vue'
 import GameDpGameSheets from './GameDpGameSheets.vue'
 import dpGameFullscreenMixin from '../mixins/dpGameFullscreenMixin'
+import dpGameTableFitMixin from '../mixins/dpGameTableFitMixin'
 import dpGameActionCountdownMixin from '../mixins/dpGameActionCountdownMixin'
+import dpGameLayoutTierMixin from '../mixins/dpGameLayoutTierMixin'
 import { dpGamePlayerBoxStyle } from '../utils/dpGamePlayerBoxStyle'
 import { ensureDpUserIdInStorage } from '../utils/dpEnsureUserId'
+import { dpResultSuccess, dpResultData, dpResultMessage } from '../utils/dpApiResult'
 import { mapState, mapGetters } from 'vuex'
 
 export default {
-  mixins: [dpGameFullscreenMixin, dpGameActionCountdownMixin],
+  mixins: [dpGameFullscreenMixin, dpGameTableFitMixin, dpGameActionCountdownMixin, dpGameLayoutTierMixin],
   provide() {
     return {
       dpGameView: this
@@ -140,6 +161,13 @@ export default {
       communityCardsFlipCompleteTimer: null,
       gameWs: null,
       gameWsConnected: false,
+      /** 每开一条新连接前自增，用于丢弃旧 socket 的 onclose/onopen，避免顶替连接时误触重连 */
+      gameWsSession: 0,
+      wsReconnectTimer: null,
+      /** 已连续重连失败次数；成功 onopen 时清零 */
+      wsReconnectAttempt: 0,
+      /** 离房 / 解散 / 组件销毁后禁止再连 */
+      wsNoReconnect: false,
       pollTimer: null,
       backupPollTimer: null,
       heartbeatTimer: null,
@@ -147,16 +175,18 @@ export default {
       _dpRoomClosedHandled: false,
       _lastRoomBgmUrl: '',
       _lastRoomMusicWebPath: '',
-      _settlementMusicStartedForHand: null
+      playerSocialOpen: false,
+      playerSocialTarget: null,
+      inviteFriendOpen: false
     }
   },
 
   computed: {
     ...mapState('dpGame', [
-      'gameUiTheme', 'customThemeBase', 'customThemeOverrides', 'ecoMode', 'gameThemeOptions', 'roomId', 'user', 'currentHandSeed', 'owner', 'players', 'playing', 'stage', 'communityCards', 'pot', 'pots', 'currentBetToCall', 'lastRaiseIncrement', 'actIndex', 'spectators', 'raiseAmount', 'selectedWinners', 'potWinners', 'nextHandReady', 'loading', 'communityCardsFlipState', 'communityCardsFlipComplete', 'seatChatTextByNick', 'chatInputDraft', 'showPlayGuideModal', 'playGuideTab', 'showSpectatorModal', 'showHandHistoryModal', 'showMusicBoxModal', 'musicTracks', 'musicTracksLoading', 'musicTracksError', 'roomMusicState', 'showOwnerHubSheet', 'ownerToolType', 'ownerActionTarget', 'demoBotAdding', 'demoBotAddedTip', 'maniacBotAdding', 'maniacBotAddedTip', 'tagBotAdding', 'tagBotAddedTip', 'sharkBotAdding', 'sharkBotAddedTip', 'llmBotAdding', 'llmBotAddedTip', 'ownerRevealAll', 'showMobileHandSheet', 'showMobileActionSheet', 'heroHoleDealIntroDone', 'chipLeaderNicknames'
+      'gameUiTheme', 'customThemeBase', 'customThemeOverrides', 'ecoMode', 'gameThemeOptions', 'roomId', 'user', 'currentHandSeed', 'owner', 'players', 'playing', 'stage', 'communityCards', 'pot', 'pots', 'currentBetToCall', 'lastRaiseIncrement', 'actIndex', 'spectators', 'waitNextHand', 'raiseAmount', 'selectedWinners', 'potWinners', 'nextHandReady', 'loading', 'communityCardsFlipState', 'communityCardsFlipComplete', 'seatChatTextByNick', 'chatInputDraft', 'showPlayGuideModal', 'playGuideTab', 'showSpectatorModal', 'showWaitNextHandModal', 'showHandHistoryModal', 'showMusicBoxModal', 'musicTracks', 'musicTracksLoading', 'musicTracksError', 'roomMusicState', 'showOwnerHubSheet', 'ownerToolType', 'ownerActionTarget', 'demoBotAdding', 'demoBotAddedTip', 'maniacBotAdding', 'maniacBotAddedTip', 'tagBotAdding', 'tagBotAddedTip', 'lagBotAdding', 'lagBotAddedTip', 'nitBotAdding', 'nitBotAddedTip', 'callBotAdding', 'callBotAddedTip', 'llmBotAdding', 'llmBotAddedTip', 'ownerRevealAll', 'showMobileHandSheet', 'showMobileActionSheet', 'heroHoleDealIntroDone', 'chipLeaderNicknames'
     ]),
     ...mapGetters('dpGame', [
-      'effectiveThemeForCss', 'customThemeInlineStyle', 'handRankReference', 'stageCN', 'isOwner', 'isMyTurn', 'myPlayer', 'showSpectatorPrepareBlock', 'myReady', 'myChips', 'myBet', 'callAmount', 'smallBlind', 'bigBlind', 'lastRaiseIncrementEffective', 'minTotalToRaise', 'minRaise', 'allPotsHaveWinners', 'inSettledStage', 'ownerActionPlayers', 'playersDisplayOrder', 'viewerSeatedAtTable', 'holeDealPlayerCountForAnim', 'heroDockRow', 'dealerDisplayIndex', 'showdownHandLeaderNicknames', 'spectatorSeatChatEntries', 'tableActionActorDisplayName', 'mobileHeroDockActive', 'showHeroViewHandButton', 'showHeroSeatOnTable', 'showBottomHeroDock'
+      'effectiveThemeForCss', 'customThemeInlineStyle', 'handRankReference', 'stageCN', 'isOwner', 'canInviteFriend', 'isMyTurn', 'myPlayer', 'showSpectatorPrepareBlock', 'myReady', 'myChips', 'myBet', 'callAmount', 'smallBlind', 'bigBlind', 'lastRaiseIncrementEffective', 'minTotalToRaise', 'minRaise', 'allPotsHaveWinners', 'inSettledStage', 'ownerActionPlayers', 'playersDisplayOrder', 'viewerSeatedAtTable', 'holeDealPlayerCountForAnim', 'heroDockRow', 'dealerDisplayIndex', 'showdownHandLeaderNicknames', 'spectatorSeatChatEntries', 'tableActionActorDisplayName', 'mobileHeroDockActive', 'showHeroViewHandButton', 'showHeroSeatOnTable', 'showBottomHeroDock'
     ]),
     actionTimerProgressPct() {
       var t = Number(this.timeLeft)
@@ -282,8 +312,7 @@ export default {
         bgm.removeAttribute('src')
       }
     } catch (e) { /* ignore */ }
-    stopSettlementMusic()
-    this.disconnectGameWs()
+    this.shutdownGameWsPermanently()
     if (this.pollTimer) clearInterval(this.pollTimer)
     if (this.backupPollTimer) clearInterval(this.backupPollTimer)
     if (this.heartbeatTimer) clearInterval(this.heartbeatTimer)
@@ -328,18 +357,91 @@ export default {
       return (secure ? 'wss:' : 'ws:') + '//' + window.location.host
     },
 
+    clearWsReconnectTimer() {
+      if (this.wsReconnectTimer != null) {
+        clearTimeout(this.wsReconnectTimer)
+        this.wsReconnectTimer = null
+      }
+    },
+
+    /**
+     * 永久关闭 WS（离房、解散、组件销毁）：取消重连并摘掉回调，避免 onclose 再 schedule。
+     */
+    shutdownGameWsPermanently() {
+      this.wsNoReconnect = true
+      this.clearWsReconnectTimer()
+      this.gameWsSession++
+      var w = this.gameWs
+      this.gameWs = null
+      this.gameWsConnected = false
+      if (w) {
+        w.onopen = null
+        w.onclose = null
+        w.onerror = null
+        w.onmessage = null
+        try {
+          w.close()
+        } catch (e) { /* ignore */ }
+      }
+    },
+
+    scheduleWsReconnect(sessionAtOpen) {
+      var self = this
+      if (self.wsNoReconnect) return
+      if (self.gameWsSession !== sessionAtOpen) return
+      var exp = Math.min(5, self.wsReconnectAttempt)
+      var delay = Math.min(30000, 1000 * Math.pow(2, exp))
+      var jitter = Math.floor(Math.random() * 400)
+      self.wsReconnectAttempt++
+      self.clearWsReconnectTimer()
+      self.wsReconnectTimer = setTimeout(function () {
+        self.wsReconnectTimer = null
+        if (self.wsNoReconnect) return
+        if (self.gameWsSession !== sessionAtOpen) return
+        var g = self.gameWs
+        if (g && (g.readyState === WebSocket.OPEN || g.readyState === WebSocket.CONNECTING)) return
+        self.connectGameWs()
+      }, delay + jitter)
+    },
+
     connectGameWs() {
-      this.disconnectGameWs()
+      var self = this
+      if (self.wsNoReconnect) return
+
+      self.clearWsReconnectTimer()
+
+      self.gameWsSession++
+      var sessionAtOpen = self.gameWsSession
+
+      if (self.gameWs) {
+        var old = self.gameWs
+        self.gameWs = null
+        old.onopen = null
+        old.onclose = null
+        old.onerror = null
+        old.onmessage = null
+        try {
+          old.close()
+        } catch (e) { /* ignore */ }
+      }
+      self.gameWsConnected = false
+
       // 开发服：走 /dp-ws → vue 代理转成后端 /ws（避免与 webpack HMR 的 /ws 冲突）
       var path = process.env.NODE_ENV === 'development' ? '/dp-ws/dp-game' : '/ws/dp-game'
-      var url = this.gameWsBaseUrl() + path + '?roomId=' + encodeURIComponent(this.roomId)
-        + '&nickname=' + encodeURIComponent(this.user.nickname)
+      var url = self.gameWsBaseUrl() + path + '?roomId=' + encodeURIComponent(self.roomId)
+        + '&nickname=' + encodeURIComponent(self.user.nickname)
       try {
         var ws = new WebSocket(url)
-        this.gameWs = ws
-        var self = this
+        self.gameWs = ws
         ws.onopen = function () {
+          if (self.gameWsSession !== sessionAtOpen || self.wsNoReconnect) {
+            try {
+              ws.close()
+            } catch (err) { /* ignore */ }
+            return
+          }
           self.gameWsConnected = true
+          self.wsReconnectAttempt = 0
         }
         ws.onmessage = function (ev) {
           try {
@@ -362,25 +464,20 @@ export default {
           }
         }
         ws.onclose = function () {
+          if (self.gameWsSession !== sessionAtOpen) return
           self.gameWsConnected = false
           if (self.gameWs === ws) self.gameWs = null
+          if (!self.wsNoReconnect) self.scheduleWsReconnect(sessionAtOpen)
         }
         ws.onerror = function (e) {
-          console.error('WebSocket 错误', e)
+          console.warn('WebSocket 错误（将按退避重试）', e)
         }
       } catch (e) {
         console.error('WebSocket 连接失败', e)
+        if (!self.wsNoReconnect && self.gameWsSession === sessionAtOpen) {
+          self.scheduleWsReconnect(sessionAtOpen)
+        }
       }
-    },
-
-    disconnectGameWs() {
-      if (this.gameWs) {
-        try {
-          this.gameWs.close()
-        } catch (e) { /* ignore */ }
-        this.gameWs = null
-      }
-      this.gameWsConnected = false
     },
 
     handleRoomClosedFromServer() {
@@ -397,7 +494,7 @@ export default {
         }
       } catch (e) { /* ignore */ }
       var self = this
-      this.disconnectGameWs()
+      this.shutdownGameWsPermanently()
       if (this.pollTimer) clearInterval(this.pollTimer)
       if (this.backupPollTimer) clearInterval(this.backupPollTimer)
       if (this.heartbeatTimer) clearInterval(this.heartbeatTimer)
@@ -595,28 +692,6 @@ export default {
       }.bind(this))
     },
 
-    /**
-     * 摊牌/准备下一局阶段播放结算 BGM；进入新一手（preflop）或非结算街时停止。
-     */
-    // syncSettlementMusic() {
-    //   if (!this.playing) {
-    //     stopSettlementMusic()
-    //     this.syncRoomBgmAudio()
-    //     return
-    //   }
-    //   var st = this.stage
-    //   var seed = this.currentHandSeed
-    //   if (st === 'showdown' || st === 'settled') {
-    //     if (this._settlementMusicStartedForHand !== seed) {
-    //       this._settlementMusicStartedForHand = seed
-    //       playSettlementMusic()
-    //     }
-    //   } else {
-    //     stopSettlementMusic()
-    //   }
-    //   this.syncRoomBgmAudio()
-    // },
-
     // ---- 拉取房间状态 ----
     async loadGame() {
       this.$store.commit('dpGame/SET_LOADING', true)
@@ -757,9 +832,50 @@ export default {
       this.$store.commit('dpGame/TOGGLE_SELECTED_WINNER', nickname)
     },
 
-    // 统一的玩家卡片点击入口：仅用于摊牌选赢家（房主神器不再通过点卡片）
-    onPlayerCardClick(nickname) {
-      this.handleJudgeClick(nickname)
+    openInviteFriendSheet() {
+      if (!this.canInviteFriend) return
+      this.inviteFriendOpen = true
+      this.scheduleReparentElementUiLayersIntoFullscreenRoot()
+    },
+    closeInviteFriendSheet() {
+      this.inviteFriendOpen = false
+    },
+    closePlayerSocialSheet() {
+      this.playerSocialOpen = false
+      this.playerSocialTarget = null
+    },
+    /**
+     * @param {string|{nickname:string,userId?:number}} payload
+     */
+    onPlayerCardClick(payload) {
+      var nickname = typeof payload === 'string'
+        ? payload
+        : (payload && payload.nickname)
+      if (!nickname) return
+
+      if (this.user && nickname === this.user.nickname) {
+        return
+      }
+
+      if (this.isOwner && this.stage === 'showdown' && (!this.pots || this.pots.length === 0)) {
+        this.handleJudgeClick(nickname)
+        return
+      }
+
+      if (isDpBotNickname(nickname)) {
+        this.$message.info('机器人不支持该功能')
+        return
+      }
+
+      var rawUid = typeof payload === 'object' && payload ? payload.userId : null
+      var uid = rawUid != null && rawUid !== '' ? Number(rawUid) : NaN
+      if (!uid || uid <= 0 || isNaN(uid)) {
+        this.$message.warning('无法获取该玩家的账号信息，请对方使用已登录账号进房后再试')
+        return
+      }
+
+      this.playerSocialTarget = { nickname: nickname, userId: uid }
+      this.playerSocialOpen = true
     },
 
     // ---- 按池选赢家 ----
@@ -895,28 +1011,77 @@ export default {
       }
     },
 
-    // ---- 房主：踢人到观众席（通过弹窗选择玩家） ----
-    async doKickPlayer() {
-      if (!this.ownerActionTarget) {
-        this.$message.warning('请先选择要踢出的玩家')
+    // ---- 房主：踢人到观众席（可多选批量） ----
+    async doKickPlayers (nicknames) {
+      var raw = [].concat(nicknames || []).filter(Boolean)
+      var seen = {}
+      var list = []
+      for (var i = 0; i < raw.length; i++) {
+        var n = raw[i]
+        if (seen[n]) continue
+        seen[n] = true
+        list.push(n)
+      }
+      if (!list.length) {
+        this.$message.warning('请至少选择一名要踢出的玩家')
         return
       }
+      var preview = list.slice(0, 8).map(function (n) {
+        return dpDisplayNickname(n)
+      }).join('、')
+      if (list.length > 8) preview += ' …'
       try {
         await this.dpConfirm(
-          '确定将 [' + dpDisplayNickname(this.ownerActionTarget) + '] 踢出本局并移至观众席吗？',
-          '踢出玩家'
+          '确定将以下 ' +
+            list.length +
+            ' 人踢出本局并移至观众席吗？\n\n' +
+            preview,
+          '批量踢出'
         )
       } catch (e) {
         return
       }
       try {
-        var res = await this.$http.post('/dpRoom/kickPlayer', null, {
-          params: {roomId: this.roomId, nickname: this.ownerActionTarget}
+        var res = await this.$http.post('/dpRoom/kickPlayersBatch', null, {
+          params: { roomId: this.roomId, nicknames: list.join(',') }
         })
-        if (res.data !== 'ok') {
-          this.$message.error('踢人失败：' + res.data)
+        var body = res.data
+        if (!dpResultSuccess(body)) {
+          var errData = body && body.data ? body.data : {}
+          var fn = errData.failedNicknames || []
+          var msg = dpResultMessage(body)
+          if (fn.length) {
+            msg +=
+              '：' +
+              fn
+                .map(function (n) {
+                  return dpDisplayNickname(n)
+                })
+                .join('、')
+          }
+          this.$message.error(msg)
         } else {
-          this.$message.success('已将 [' + dpDisplayNickname(this.ownerActionTarget) + '] 踢至观众席')
+          var d = dpResultData(body) || {}
+          var fc = d.failCount != null ? d.failCount : 0
+          if (fc > 0) {
+            var failedNicks = d.failedNicknames || []
+            var detail = failedNicks
+              .map(function (n) {
+                return dpDisplayNickname(n)
+              })
+              .join('、')
+            this.$message.warning(
+              '已踢出 ' +
+                (d.successCount != null ? d.successCount : list.length - fc) +
+                ' 人，另有 ' +
+                fc +
+                ' 人未成功：' +
+                detail
+            )
+          } else {
+            var okn = d.successCount != null ? d.successCount : list.length
+            this.$message.success('已将 ' + okn + ' 人踢至观众席')
+          }
         }
         await this.loadGame()
         this.closeOwnerHubPanel()
@@ -926,144 +1091,92 @@ export default {
     },
 
     /**
-     * 将 DEMO 型 NPC（服务端昵称为 BOT_Fish，界面展示为 BOT_Lag）加入下一局等待列表。
-     * 当前用于基础难度练习与流程验证。
+     * 房主神器：按数量将 NPC 加入下一局等待列表（规则档走 addRuleNpcBatch）。
      */
-    async addDemoBot() {
-      if (!this.roomId) return
-      this.$store.commit('dpGame/SET_BOT_STATE', { demoBotAdding: true, demoBotAddedTip: '' })
-      try {
-        var res = await this.$http.post('/dpRoom/addDemoBot', null, {
-          params: {roomId: this.roomId}
-        })
-        if (res.data === 'ok') {
-          this.$store.commit('dpGame/SET_BOT_STATE', {
-            demoBotAddedTip: '已请求在下一局加入 BOT_Lag，请等待本局结束后自动入座。'
-          })
-        } else {
-          this.$store.commit('dpGame/SET_BOT_STATE', { demoBotAddedTip: '添加 NPC 失败：' + res.data })
-        }
-      } catch (e) {
-        this.$store.commit('dpGame/SET_BOT_STATE', {
-          demoBotAddedTip: '网络错误：' + (e && e.message ? e.message : e)
-        })
-      } finally {
-        this.$store.commit('dpGame/SET_BOT_STATE', { demoBotAdding: false })
-      }
-    },
+    async confirmAddOwnerNpcs (payload) {
+      if (!this.roomId || !payload) return
+      var type = payload.type
+      var count = parseInt(payload.count, 10)
+      if (isNaN(count) || count < 1) count = 1
+      if (count > 9) count = 9
 
-    /**
-     * 将疯子型 NPC（BOT_Maniac）加入下一局等待列表。
-     */
-    async addManiacBot() {
-      if (!this.roomId) return
-      this.$store.commit('dpGame/SET_BOT_STATE', { maniacBotAdding: true, maniacBotAddedTip: '' })
-      try {
-        var res = await this.$http.post('/dpRoom/addManiacBot', null, {
-          params: {roomId: this.roomId}
-        })
-        if (res.data === 'ok') {
-          this.$store.commit('dpGame/SET_BOT_STATE', {
-            maniacBotAddedTip: '已请求在下一局加入 BOT_Maniac，请等待本局结束后自动入座。'
-          })
-        } else {
-          this.$store.commit('dpGame/SET_BOT_STATE', {
-            maniacBotAddedTip: '添加疯子 NPC 失败：' + res.data
-          })
-        }
-      } catch (e) {
-        this.$store.commit('dpGame/SET_BOT_STATE', {
-          maniacBotAddedTip: '网络错误：' + (e && e.message ? e.message : e)
-        })
-      } finally {
-        this.$store.commit('dpGame/SET_BOT_STATE', { maniacBotAdding: false })
+      var ruleStore = {
+        FISH: { prefix: 'demoBot' },
+        MANIAC: { prefix: 'maniacBot' },
+        TAG: { prefix: 'tagBot' },
+        LAG: { prefix: 'lagBot' },
+        NIT: { prefix: 'nitBot' },
+        CALL: { prefix: 'callBot' }
       }
-    },
 
-    /**
-     * 将紧凶型 NPC（BOT_Tag）加入下一局等待列表。
-     * 该机器人打得相对紧凶，但不会像 Shark 那样根据对手历史动态调整策略。
-     */
-    async addTagBot() {
-      if (!this.roomId) return
-      this.$store.commit('dpGame/SET_BOT_STATE', { tagBotAdding: true, tagBotAddedTip: '' })
-      try {
-        var res = await this.$http.post('/dpRoom/addTagBot', null, {
-          params: {roomId: this.roomId}
-        })
-        if (res.data === 'ok') {
-          this.$store.commit('dpGame/SET_BOT_STATE', {
-            tagBotAddedTip: '已请求在下一局加入 BOT_Tag，请等待本局结束后自动入座。'
-          })
-        } else {
-          this.$store.commit('dpGame/SET_BOT_STATE', {
-            tagBotAddedTip: '添加紧凶 NPC 失败：' + res.data
-          })
+      var adding = {}
+      var tipEmpty = {}
+      var tipPrefix = ''
+      var run = null
+
+      if (type === 'rule') {
+        var arch = String(payload.archetype || 'FISH').toUpperCase().replace(/^BOT_/, '')
+        var rs = ruleStore[arch]
+        if (!rs) {
+          this.$message.warning('不支持的机器人类型')
+          return
         }
-      } catch (e) {
-        this.$store.commit('dpGame/SET_BOT_STATE', {
-          tagBotAddedTip: '网络错误：' + (e && e.message ? e.message : e)
-        })
-      } finally {
-        this.$store.commit('dpGame/SET_BOT_STATE', { tagBotAdding: false })
+        tipPrefix = rs.prefix
+        adding[tipPrefix + 'Adding'] = true
+        tipEmpty[tipPrefix + 'AddedTip'] = ''
+        run = async function () {
+          var res = await this.$http.post('/dpRoom/addRuleNpcBatch', null, {
+            params: { roomId: this.roomId, archetype: arch, count: count }
+          })
+          if (res.data === 'ok') {
+            return '已请求在下一局加入最多 ' + count + ' 个 ' + arch + '（受空位限制；每人独立编号），请等待本局结束。'
+          }
+          return '添加失败：' + res.data
+        }.bind(this)
+      } else if (type === 'llm') {
+        tipPrefix = 'llmBot'
+        adding.llmBotAdding = true
+        tipEmpty.llmBotAddedTip = ''
+        run = async function () {
+          var ok = 0
+          var lastErr = ''
+          for (var i = 0; i < count; i++) {
+            var res = await this.$http.post('/dpRoom/addLlmBot', null, {
+              params: { roomId: this.roomId }
+            })
+            if (res.data === 'ok') {
+              ok++
+            } else {
+              lastErr = String(res.data)
+              break
+            }
+          }
+          if (ok === count) {
+            return '已请求在下一局加入 ' + count + ' 个 BOT_LLM，请等待本局结束（需配置服务端方舟密钥）。'
+          }
+          if (ok > 0) {
+            return '仅成功添加 ' + ok + '/' + count + ' 个：' + (lastErr || '席位可能已满')
+          }
+          return '添加大模型 NPC 失败：' + (lastErr || 'fail')
+        }.bind(this)
+      } else {
+        return
       }
-    },
 
-    /**
-     * 将聪明型 NPC（BOT_Shark）加入下一局等待列表。
-     * 该机器人会根据对手最近几手的行为粗略判断其风格，调整自己的盖牌/跟投/加投倾向。
-     */
-    async addSharkBot() {
-      if (!this.roomId) return
-      this.$store.commit('dpGame/SET_BOT_STATE', { sharkBotAdding: true, sharkBotAddedTip: '' })
+      this.$store.commit('dpGame/SET_BOT_STATE', Object.assign({}, adding, tipEmpty))
       try {
-        var res = await this.$http.post('/dpRoom/addSharkBot', null, {
-          params: {roomId: this.roomId}
-        })
-        if (res.data === 'ok') {
-          this.$store.commit('dpGame/SET_BOT_STATE', {
-            sharkBotAddedTip: '已请求在下一局加入 BOT_Shark，请等待本局结束后自动入座。'
-          })
-        } else {
-          this.$store.commit('dpGame/SET_BOT_STATE', {
-            sharkBotAddedTip: '添加聪明 NPC 失败：' + res.data
-          })
-        }
+        var msg = await run()
+        var tipPatch = {}
+        tipPatch[tipPrefix + 'AddedTip'] = msg
+        this.$store.commit('dpGame/SET_BOT_STATE', tipPatch)
       } catch (e) {
-        this.$store.commit('dpGame/SET_BOT_STATE', {
-          sharkBotAddedTip: '网络错误：' + (e && e.message ? e.message : e)
-        })
+        var errPatch = {}
+        errPatch[tipPrefix + 'AddedTip'] = '网络错误：' + (e && e.message ? e.message : e)
+        this.$store.commit('dpGame/SET_BOT_STATE', errPatch)
       } finally {
-        this.$store.commit('dpGame/SET_BOT_STATE', { sharkBotAdding: false })
-      }
-    },
-
-    /**
-     * 将大模型 NPC（BOT_LLM）加入下一局等待列表（后端 /dpRoom/addLlmBot）。
-     */
-    async addLlmBot() {
-      if (!this.roomId) return
-      this.$store.commit('dpGame/SET_BOT_STATE', { llmBotAdding: true, llmBotAddedTip: '' })
-      try {
-        var res = await this.$http.post('/dpRoom/addLlmBot', null, {
-          params: {roomId: this.roomId}
-        })
-        if (res.data === 'ok') {
-          this.$store.commit('dpGame/SET_BOT_STATE', {
-            llmBotAddedTip:
-              '已请求在下一局加入 BOT_LLM，请等待本局结束后自动入座（需配置服务端方舟密钥）。'
-          })
-        } else {
-          this.$store.commit('dpGame/SET_BOT_STATE', {
-            llmBotAddedTip: '添加大模型 NPC 失败：' + res.data
-          })
-        }
-      } catch (e) {
-        this.$store.commit('dpGame/SET_BOT_STATE', {
-          llmBotAddedTip: '网络错误：' + (e && e.message ? e.message : e)
-        })
-      } finally {
-        this.$store.commit('dpGame/SET_BOT_STATE', { llmBotAdding: false })
+        var idle = {}
+        idle[tipPrefix + 'Adding'] = false
+        this.$store.commit('dpGame/SET_BOT_STATE', idle)
       }
     },
 
@@ -1088,12 +1201,14 @@ export default {
       } catch (err) {
         console.error('退出失败', err)
       }
-      clearInterval(this.pollTimer)
-      clearInterval(this.heartbeatTimer)
+      this.shutdownGameWsPermanently()
+      if (this.pollTimer) clearInterval(this.pollTimer)
+      if (this.backupPollTimer) clearInterval(this.backupPollTimer)
+      if (this.heartbeatTimer) clearInterval(this.heartbeatTimer)
       this.navigateHomeIfNeeded()
     },
 
-    // ---- 观众：报名在下一局加入 ----
+    // ---- 观众：报名 / 取消下一局加入（再点一次从候补列表移除）----
     async readyNextHand() {
       if (!this.user) return
       try {
@@ -1101,12 +1216,26 @@ export default {
         if (this.user.userId != null && this.user.userId !== '') {
           rp.userId = this.user.userId
         }
+        if (this.nextHandReady) {
+          var cancelRes = await this.$http.post('/dpRoom/cancelReadyNextHand', null, {
+            params: rp
+          })
+          if (cancelRes.data === 'ok') {
+            this.$store.commit('dpGame/SET_NEXT_HAND_READY', false)
+            this.$message.success('已取消下一局报名')
+            await this.loadGame()
+          } else {
+            this.$message.error('取消失败：' + cancelRes.data)
+          }
+          return
+        }
         var res = await this.$http.post('/dpRoom/readyNextHand', null, {
           params: rp
         })
         if (res.data === 'ok') {
           this.$store.commit('dpGame/SET_NEXT_HAND_READY', true)
           this.$message.success('已报名下一局，将在下一局开局时自动加入对局')
+          await this.loadGame()
         } else {
           this.$message.error('报名失败：' + res.data)
         }

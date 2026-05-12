@@ -1,4 +1,4 @@
-# 2. 普通 NPC（Fish / Maniac / TAG）逐步实现说明
+# 普通 NPC（`BOT_Fish` / `BOT_Maniac` / `BOT_Tag`）在 `decideBotAction` 中的逐步实现
 
 下文按 **`decideBotAction` 里实际执行顺序** 描述（文件：`DpNpcEngine.java`）。
 
@@ -9,9 +9,9 @@
 1. **`callAmount`**：`max(0, currentBetToCall - bot.bet)`。
 2. **`callRatio`**：跟注额相对剩余筹码比例（用于大压力场景）。
 3. **`position`**：`getTablePosition` → `EARLY` / `MIDDLE` / `LATE` / `BLINDS`。
-4. **`rawStrength` → `strength`**：`estimateCurrentStrength` 再经 **`applyStrengthNoise`**（由 `NpcDifficulty` 决定噪声幅度）。
+4. **`strength`**：`estimateCurrentStrength` 直接作为决策用牌力档（无难度噪声）。
 5. **`boardDanger`**：`evaluateBoardDanger(communityCards)` → `DRY` / `WET`。
-6. **`mood`**：`DpPlayer.getMood()`，结算输赢会改，影响概率与思考时间。
+6. **`mood`**：默认 **`NPC_MOOD_ENABLED == false`** 时恒视为 0；为 true 时读 `DpPlayer.getMood()`，结算可增减，影响概率与思考延迟。
 7. **`StyleProfile`**：由 `getStyleByBotType(type)` 取 `NpcStyle`，再查 `STYLE_PROFILE_MAP`。分支里会用到 `preflopTightness`、`aggression`、`bluffFrequency`、`callStation`、`stealBlindFrequency`、`checkRaiseFear` 等字段。
 
 ---

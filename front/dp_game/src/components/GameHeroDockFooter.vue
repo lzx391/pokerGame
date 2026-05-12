@@ -13,21 +13,11 @@
           @send="vm.sendRoomChat"
       />
       <div
-          v-if="vm.isOwner"
+          v-if="vm.viewerSeatedAtTable && vm.heroDockRow"
           class="dp-game-hero-action-row__owner-cluster"
-          aria-label="房主操作"
+          aria-label="离座与手牌"
       >
         <button
-            v-if="vm.heroDockRow && vm.showHeroViewHandButton"
-            type="button"
-            class="dp-game-hero-action-row__owner-btn dp-game-hero-action-row__owner-btn--hand"
-            data-dp-hero-deal-target
-            @click="$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileHandSheet: true })"
-        >
-          查看手牌
-        </button>
-        <button
-            v-if="vm.heroDockRow"
             type="button"
             class="dp-game-hero-action-row__owner-btn"
             @click="vm.doLeaveSeat"
@@ -35,11 +25,13 @@
           主动离座
         </button>
         <button
+            v-if="vm.showHeroViewHandButton"
             type="button"
-            class="dp-game-hero-action-row__owner-btn"
-            @click="vm.openOwnerHubSheet"
+            class="dp-game-hero-action-row__owner-btn dp-game-hero-action-row__owner-btn--hand"
+            data-dp-hero-deal-target
+            @click="$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileHandSheet: true })"
         >
-          房主操作
+          查看手牌
         </button>
       </div>
       <div
@@ -120,21 +112,11 @@
           @send="vm.sendRoomChat"
       />
       <div
-          v-if="vm.isOwner"
+          v-if="vm.viewerSeatedAtTable && vm.heroDockRow"
           class="dp-game-mobile-hero-bar__owner-cluster"
-          aria-label="房主操作"
+          aria-label="离座与手牌"
       >
         <button
-            v-if="vm.heroDockRow && vm.showHeroViewHandButton"
-            type="button"
-            class="dp-game-mobile-hero-bar__btn"
-            data-dp-hero-deal-target
-            @click="$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileHandSheet: true })"
-        >
-          查看手牌
-        </button>
-        <button
-            v-if="vm.heroDockRow"
             type="button"
             class="dp-game-mobile-hero-bar__btn"
             @click="vm.doLeaveSeat"
@@ -142,30 +124,15 @@
           主动离座
         </button>
         <button
+            v-if="vm.showHeroViewHandButton"
             type="button"
-            class="dp-game-mobile-hero-bar__btn dp-game-mobile-hero-bar__btn--owner"
-            @click="vm.openOwnerHubSheet"
+            class="dp-game-mobile-hero-bar__btn"
+            data-dp-hero-deal-target
+            @click="$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileHandSheet: true })"
         >
-          房主操作
+          查看手牌
         </button>
       </div>
-      <button
-          v-if="vm.heroDockRow && !vm.isOwner && vm.showHeroViewHandButton"
-          type="button"
-          class="dp-game-mobile-hero-bar__btn"
-          data-dp-hero-deal-target
-          @click="$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileHandSheet: true })"
-      >
-        查看手牌
-      </button>
-      <button
-          v-if="vm.heroDockRow && !vm.isOwner"
-          type="button"
-          class="dp-game-mobile-hero-bar__btn"
-          @click="vm.doLeaveSeat"
-      >
-        主动离座
-      </button>
       <button
           v-if="vm.isMyTurn"
           type="button"

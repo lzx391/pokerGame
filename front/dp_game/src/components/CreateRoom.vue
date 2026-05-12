@@ -23,17 +23,17 @@
 
       <section class="dp-lobby-panel create-room-panel">
         <h1 class="create-room-panel__title">创建房间</h1>
-        <p class="create-room-panel__intro">在此设置本桌开局小猫/大猫小鱼干数、每人带入倍数（以大猫鱼干数为 1 倍）与可选进房密码，再进入房间等人。</p>
+        <p class="create-room-panel__intro">在此设置本桌小猫小鱼干数（大猫自动为其 2 倍）、每人带入倍数（以大猫鱼干数为 1 倍）、一桌最多几名玩家（2～9）与可选进房密码。创建后将直接开桌进入对局页，你可先独自上桌，朋友随时可从大厅加入。</p>
 
         <div class="create-room-fields">
           <label class="create-room-fields__row">
             <span class="create-room-fields__label">小猫（SC）</span>
             <input v-model.number="smallBlind" type="number" min="1" class="create-room-fields__input" />
           </label>
-          <label class="create-room-fields__row">
+          <div class="create-room-fields__row">
             <span class="create-room-fields__label">大猫（BC）</span>
-            <input v-model.number="bigBlind" type="number" min="2" class="create-room-fields__input" />
-          </label>
+            <span class="create-room-fields__derived" title="始终为小猫的 2 倍">{{ computedBigBlindChips }}</span>
+          </div>
           <label class="create-room-fields__row">
             <span class="create-room-fields__label">每人初始（倍）</span>
             <input
@@ -45,6 +45,18 @@
             />
           </label>
           <p class="create-room-fields__hint">初始小鱼干 = 大猫鱼干数 × 倍数；之后补满也回到该深度。</p>
+          <label class="create-room-fields__row">
+            <span class="create-room-fields__label">人数上限</span>
+            <input
+              v-model.number="maxSeatCount"
+              type="number"
+              min="2"
+              max="9"
+              class="create-room-fields__input"
+              title="一桌最多几名玩家；含已上桌与预约下一局的总人数"
+            />
+          </label>
+          <p class="create-room-fields__hint">2～9 人；达到上限后无法再进桌或预约下一局。</p>
           <label class="create-room-fields__row create-room-fields__row--full">
             <span class="create-room-fields__label">房间密码（可选）</span>
             <input
@@ -59,7 +71,7 @@
 
         <div class="create-room-actions">
           <button type="button" class="dp-btn dp-btn--primary" :disabled="submitting" @click="submit">
-            {{ submitting ? '创建中…' : '创建并进入房间' }}
+            {{ submitting ? '创建中…' : '创建并开桌' }}
           </button>
         </div>
       </section>
@@ -80,10 +92,16 @@ export default {
     return {
       user: {},
       smallBlind: 5,
-      bigBlind: 10,
       startingStackBb: 50,
+      maxSeatCount: 9,
       roomPassword: '',
       submitting: false
+    }
+  },
+  computed: {
+    computedBigBlindChips() {
+      var sc = Math.max(1, Number(this.smallBlind) || 5)
+      return sc * 2
     }
   },
   async created() {
@@ -106,11 +124,15 @@ export default {
       if (this.submitting) return
       this.submitting = true
       try {
+        var sc = Math.max(1, Number(this.smallBlind) || 5)
+        var cap = Math.round(Number(this.maxSeatCount) || 9)
+        cap = Math.min(9, Math.max(2, cap))
         const params = {
           nickname: this.user.nickname,
-          smallBlindChips: Math.max(1, Number(this.smallBlind) || 5),
-          bigBlindChips: Math.max(2, Number(this.bigBlind) || 10),
-          startingStackBb: Math.max(5, Number(this.startingStackBb) || 50)
+          smallBlindChips: sc,
+          bigBlindChips: sc * 2,
+          startingStackBb: Math.max(5, Number(this.startingStackBb) || 50),
+          maxSeatCount: cap
         }
         if (this.roomPassword) {
           params.roomPassword = this.roomPassword
@@ -119,7 +141,23 @@ export default {
           params.userId = this.user.userId
         }
         const res = await this.$http.post('/dpRoom/createRoom', null, { params })
-        this.$router.replace('/room/' + res.data.roomId)
+        const roomId = res.data && res.data.roomId
+        if (!roomId) {
+          alert('创建失败：未返回房间号')
+          return
+        }
+        const startRes = await this.$http.post('/dpRoom/startGame', null, {
+          params: {
+            roomId: roomId,
+            ownerNickname: this.user.nickname
+          }
+        })
+        if (startRes.data !== 'ok') {
+          alert('房间已创建但开局未成功，请从大厅进入该房间后由房主点「开始游戏」')
+          this.$router.replace('/room/' + roomId)
+          return
+        }
+        this.$router.replace('/game/' + roomId)
       } catch (e) {
         console.error('createRoom', e)
         alert('创建失败，请检查网络或后端是否已启动')
@@ -195,6 +233,16 @@ export default {
   border: 1px solid var(--dp-subpanel-border);
   background: var(--dp-panel-bg);
   color: var(--dp-text-primary);
+  font-size: 14px;
+}
+.create-room-fields__derived {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px dashed var(--dp-subpanel-border);
+  background: var(--dp-panel-bg);
+  color: var(--dp-text-muted);
   font-size: 14px;
 }
 .create-room-actions {

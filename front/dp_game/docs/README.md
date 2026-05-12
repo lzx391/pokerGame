@@ -9,6 +9,7 @@
 | 文档 | 简介 |
 |------|------|
 | **[GAME_LAYOUT_TUNING_README.md](GAME_LAYOUT_TUNING_README.md)** | 对局页**顶栏 / 圆桌 / 底栏**间距与 `dp-game-shell.css` 相关调参说明；宽屏与窄屏下主区滚动、圆桌垂直居中等布局约定。 |
+| **[前端布局高对比度调试法.md](前端布局高对比度调试法.md)** | 用**高对比轮廓 / 夸张间距**快速判断「样式是否命中」「裁剪发生在哪一层」的布局排查套路（outline 探针、与二分排除的关系）；调试完成后务必删除临时样式。 |
 | **[THEME_BINDING_README.md](THEME_BINDING_README.md)** | **`game.vue` 与各子组件**如何继承 `--dp-*` 主题变量；`data-dp-game-theme` 与 **`document.body` 同步**（Element UI 弹层）；**节能模式**与主题正交；**新增主题**时需在哪些文件登记与自检。 |
 
 ---

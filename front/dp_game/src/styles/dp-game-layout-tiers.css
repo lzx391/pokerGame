@@ -1,0 +1,107 @@
+/**
+ * 对局页三档布局（与 dpGameLayoutTierMixin 联动：.dp-game-root[data-dp-layout-tier]）
+ *
+ * 断点（与 computeDpLayoutTier 一致）：
+ * - desktop：视口宽 ≥1025（大屏优先用宽度，不必看短边）。
+ * - tablet：641～1024。
+ * - phone：宽 ≤640，或「典型手机横屏」短边 ≤480 且长边 ≤1100（宽可能超过 640）。
+ *
+ * PR 说明：若产品要收敛为「桌面 / 移动」两档，建议保留 JS 三档但将 tablet 变量与 desktop 对齐，
+ * 或改 mixin 为（宽≤900 或 短边≤600）→ mobile；本文件按三档维护更易渐进收紧参数。
+ *
+ * 对局页结构：顶栏 header | 主区 main（圆桌）| 底栏 footer——同级文档流，顶栏不盖桌面。
+ *
+ * 本文件规则仅挂在 #app.app--dp-game .full-page--dp-game，避免影响大厅/建房等其它 .dp-game-root 页。
+ */
+
+/*
+ * 仅对局路由全页：单列 flex 封顶 + 默认档位变量（desktop）
+ */
+#app.app--dp-game .full-page--dp-game > .dp-game-root {
+  display: flex;
+  flex-direction: column;
+  max-height: 100dvh;
+  max-height: 100svh;
+  overflow: hidden;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  --dp-game-main-pad-top: clamp(24px, 3vmin, 120px);
+  --dp-game-top-title-fs: 18px;
+  --dp-game-top-sub-fs: 14px;
+  --dp-game-top-btn-fs: 13px;
+  --dp-game-table-layout-min-h: clamp(260px, min(78vw, 52dvh), 500px);
+  --dp-zoom-game: 1;
+}
+
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='tablet'] {
+  --dp-game-main-pad-top: clamp(8px, 1.6vmin, 40px);
+  --dp-game-top-title-fs: 16px;
+  --dp-game-top-sub-fs: 13px;
+  --dp-game-top-btn-fs: 12px;
+  --dp-game-table-layout-min-h: clamp(220px, min(72vw, 46dvh), 420px);
+}
+
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='phone'] {
+  --dp-game-main-pad-top: clamp(2px, 1vmin, 12px);
+  --dp-game-top-title-fs: 14px;
+  --dp-game-top-sub-fs: 12px;
+  --dp-game-top-btn-fs: 11px;
+  --dp-game-table-layout-min-h: clamp(180px, min(68vw, 42dvh), 360px);
+  --dp-card-base-width: 30px;
+  --dp-card-base-height: 43px;
+  --dp-card-base-font-size: 13px;
+  --dp-card-base-radius: 4px;
+  --dp-zoom-game: 0.92;
+  /* 手机底栏最少占位，避免 flex 主区忽高忽矮触发 fit 抖动 */
+  --dp-game-footer-min-height: 44px;
+}
+
+/* 进入对局后锁整页滚动（由 mixin 打 class） */
+html.dp-game-no-scroll,
+body.dp-game-no-scroll {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+
+/* 仅对局链路上的根：整体缩放由档位控制（替代原 responsive-type 里多条重复 zoom） */
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='phone'] {
+  zoom: var(--dp-zoom-game);
+}
+
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='phone']:fullscreen,
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='phone']:-webkit-full-screen,
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='phone']:-moz-full-screen,
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='phone'].dp-game-root--layout-fs {
+  zoom: min(0.88, var(--dp-zoom-game));
+}
+
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='desktop']:fullscreen,
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='desktop']:-webkit-full-screen,
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='desktop']:-moz-full-screen,
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='desktop'].dp-game-root--layout-fs {
+  zoom: 0.9;
+  /* 与 dp-game-shell 中 --dp-game-fs-extra-pad-top 叠加：全屏桌面略抬高牌桌，减轻顶栏压住上牌 */
+  --dp-game-fs-extra-pad-top: 12px;
+}
+
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='tablet']:fullscreen,
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='tablet']:-webkit-full-screen,
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='tablet']:-moz-full-screen,
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='tablet'].dp-game-root--layout-fs {
+  zoom: 0.92;
+  --dp-game-fs-extra-pad-top: 10px;
+}
+
+/* 圆桌占位高度：按档收紧 */
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier] .dp-game-table__layout {
+  min-height: var(--dp-game-table-layout-min-h);
+}
+
+@media (min-width: 768px) {
+  #app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='desktop'] .dp-game-table__layout {
+    min-height: clamp(232px, min(70vw, 42dvh), 420px);
+  }
+  #app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='tablet'] .dp-game-table__layout {
+    min-height: clamp(210px, min(68vw, 40dvh), 400px);
+  }
+}

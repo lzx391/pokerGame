@@ -1,4 +1,4 @@
-# JWT 说明（MGDemoPlus）
+# JWT 鉴权与白名单：`JwtTokenService`、`SecurityConfig`、前端 axios 带 token
 
 ## JwtTokenService
 

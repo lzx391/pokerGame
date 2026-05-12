@@ -70,8 +70,9 @@
 
 #### 酒馆档强度（BOT_Fish，2026-03-25）
 
-- **背景**：原先 `BOT_Fish` 使用 `NpcDifficulty.EASY`，读牌/底池赔率噪声很高（约 35%/40%），容易“看错牌力”，整体比《大镖客 2》酒馆 NPC 更弱、更好欺负。
-- **调整**：`BOT_Fish` 改为 **`MEDIUM` 难度**（并略收紧 `MEDIUM`/`HARD` 的噪声），`LOOSE_FUN` 风格提高激进度与诈唬频率、略收跟注站倾向；`DEMO` 分支翻后略提高加注倾向。仍弱于 `BOT_Shark`（PRO），但更接近单机酒馆桌的压迫感。若需要 **更菜的演示鱼**，可再把 `decideBotAction` 里 `case DEMO` 的难度改回 `EASY`。
+- **规则型 NPC 读牌/赔率**：已不再按「难度档」对牌力或底池赔率加人为噪声；`estimateCurrentStrength` 与 `computePotOdds` 一律用真值，强弱差异主要来自 `NpcStyle`/`StyleProfile` 与各 bot 分支逻辑。**情绪 `mood`**：默认关闭（`DpNpcEngine.NPC_MOOD_ENABLED = false`），决策按 mood=0，结算也不再改写机器人 mood；若要恢复，将该常量改为 `true`。
+- **决策概率抖动**：`applySoftNoise` 由 `DpNpcEngine.NPC_SOFT_NOISE_ENABLED` 控制（默认 `false`，已关闭 ±`PROB_NOISE_DELTA`）；与发牌/洗牌无关。
+- **机器人决策随机**：`NPC_HAND_SEED_FOR_DECISIONS` 默认 `false`，每次行动 `new Random()`；房间的 `currentHandSeed` 仍用于前端动画 key、牌谱等，**不是发牌种子**，洗牌在 `newDeck()` 里单独 `Collections.shuffle`。
 
 #### Shark（BOT_Shark）现在会“翻前按局势调范围”
 
@@ -98,7 +99,7 @@
 
 桌上存在 `BOT_Shark` 时：
 
-- **持久化表**：执行 `src/main/resources/db/dp_shark_opponent_profile.sql` 建表 `dp_shark_opponent_profile`（主键为玩家昵称）。
+- **持久化表**：`dp_shark_opponent_profile` 定义于 Flyway `src/main/resources/db/migration/V1__init_schema.sql`（启动时自动迁移；主键为玩家昵称）。
 - **存什么**：`PlayerStats`（累计入池/加注/摊牌等 + 最近 10 手窗口）与 `DpNpcSharkLearningLab` 的全部旋钮及分桶样本；**不按房间 ID**，只按昵称，适配随机房间号。
 - **何时写入**：每手正常结算后，`DpNpcSharkOpponentMemoryService.persistOpponentsAfterHand` 在 `onHandSettled` 之后执行。
 - **何时读入**：玩家 `joinRoom` 上桌时、以及每手 `newHand` 盲注就绪后，若 `playerStatsMap` 尚无该昵称则 `hydrate` 从 DB 加载。
@@ -133,7 +134,7 @@
 ### 牌谱与用户关联（2026-03-30）
 
 - **落库思路（牌谱 / 参与者 / Shark 记忆表）**：[docs/DP_PERSISTENCE_README.md](docs/DP_PERSISTENCE_README.md)。
-- **表**：`src/main/resources/db/dp_observed_hand_participant.sql`（多对多拆解；**不设数据库外键**）。需在已有 `dp_observed_hand_history` 的库上执行建表。
+- **表**：`dp_observed_hand_participant` 定义于 `src/main/resources/db/migration/V1__init_schema.sql`（多对多拆解；**不设数据库外键**）。
 - **user_id**：列上**可为 NULL**；入库时优先用内存 `dpUserId`，否则按 **昵称** 查 `dp_user`（昵称全局唯一时可补全）；仍无账号则只存 `nickname_snapshot`。机器人不占行。
 - **前端**：`GET /dpUser/loginProfile`、`POST /dpUser/registerUser` 返回统一 `ResultUtil`（`success` / `code` / `message` / `data`）；登录成功时 `data` 含 `userId`、`nickname`、`token`。前端用 `userId` 写入 `localStorage`；**创建房间 / 加入房间 / 观众「下一局加入」** 可带可选 `userId`（与昵称须与 `dp_user` 一致才采纳），界面只展示昵称。
 - **JWT 全局鉴权（2026-04-07）**：引入 `spring-boot-starter-security`，`SecurityConfig` + `JwtAuthenticationFilter` 对除白名单外的请求要求 `Authorization: Bearer`；未登录返回 HTTP 401 JSON。白名单含：登录/注册、`/ws/**`、静态资源、`GET /dpRoom/getNowRoom`、`GET /dpRoom/getAllRooms2`、`GET /dpMusic/list`（旁观/分享链接与曲库列表）；详见 [docs/JWT.md](docs/JWT.md)。前端 `main.js`：axios **请求**拦截器自动带 token（登录/注册请求除外）；**响应**拦截器对 HTTP 401 弹窗提示、清 `userInfo` 并跳转登录页。
@@ -149,7 +150,7 @@
 
 ### 曲库 BGM（2026-04-01）
 
-- **表**：在 `school_db` 执行 `src/main/resources/db/dp_music_track.sql` 建表 `dp_music_track`。
+- **表**：`dp_music_track` 由 Flyway `V1__init_schema.sql` 在 `school_db` 中建表。
 - **文件目录**：默认 `P:/javaworkspace/DPGameFiles/music/`（`mgdemoplus.music.file-location`），HTTP 映射 `/music/**`；Docker 可用环境变量 `MGDEMOPLUS_MUSIC_FILE_LOCATION`（见 `docker-compose.yml`）。
 - **接口**：`POST /dpMusic/upload`（multipart：`file` 必填；可选 `displayName`、`sortOrder`、`userId`）写入磁盘并入库；`GET /dpMusic/list` 返回已上架曲目（供对局音乐盒拉列表）。
 - **前端**：登录后大厅点「曲库上传」进入 `/#/music-upload`，可试听已入库曲目（开发环境经 `/dev-api` 代理访问 `/music/...`）。
@@ -166,16 +167,16 @@
 
 ### Docker 部署
 
-- **云服务器要「全套」和本机一致**：用 **`git clone`** 拉**整个仓库**（含 `docker-compose.yml`、初始化 SQL 等），再执行 `docker compose up -d --build`；**Docker Hub 不能代替 Git 拉代码**。步骤与说明见 [docs/DOCKER.md](docs/DOCKER.md) 中的「云服务器和本机一样「全套」」。
-- **仅拉镜像、不 clone 仓库**：使用 **`docker-compose.hub.yml`**，并预先在 Hub 上推送 **`dpgame`、`dpgame-mysql`、`dpgame-nginx`** 三镜像（见 [docs/DOCKER.md](docs/DOCKER.md)「仅镜像部署」）；服务器上只需该 YAML + `docker compose -f docker-compose.hub.yml pull` 与 `docker compose -f docker-compose.hub.yml up -d`（**不要**加 `--build`）。
+- **云服务器要「全套」和本机一致**：用 **`git clone`** 拉**整个仓库**（含 `docker-compose.yml` 等），再执行 `docker compose up -d --build`；**Docker Hub 不能代替 Git 拉代码**。步骤与说明见 [docs/DOCKER.md](docs/DOCKER.md) 中的「云服务器和本机一样「全套」」。
+- **仅拉镜像、不 clone 仓库**：使用 **`docker-compose.hub.yml`**，并预先在 Hub 上推送 **`dpgame`、`dpgame-nginx`**；**MySQL 使用官方 `mysql:8.0`**，表结构由应用启动时 **Flyway** 迁移（见 [docs/DOCKER.md](docs/DOCKER.md)「仅镜像部署」）。服务器上只需该 YAML + `docker compose -f docker-compose.hub.yml pull` 与 `docker compose -f docker-compose.hub.yml up -d`（**不要**加 `--build`）。
 - **Docker Hub：什么时候推镜像、什么时候用 `docker-compose.hub.yml`（速览）**
-  - **什么时候要推到 Hub**：在**有完整源码**的机器上，只要你改了需要打进镜像的内容（根目录 **`Dockerfile`**、**`Dockerfile.mysql`**、**`Dockerfile.nginx`**、应用或前端代码、`docker/nginx` 配置、初始化 SQL 等），并希望**另一台只拉镜像、不拉 Git 的机器**跑新版本，就需要在该机器上 **重新构建并推送** 对应镜像（通常三个一起推，保证版本一致）。
+  - **什么时候要推到 Hub**：在**有完整源码**的机器上，只要你改了需要打进镜像的内容（根目录 **`Dockerfile`**、**`Dockerfile.nginx`**、应用或前端代码、`docker/nginx` 配置、**`src/main/resources/db/migration/`** 下 Flyway 脚本等），并希望**另一台只拉镜像、不拉 Git 的机器**跑新版本，就需要在该机器上 **重新构建并推送** `dpgame` 与 `dpgame-nginx`（**版本标签一致**）。
   - **怎么推**：先执行 **`docker login`**。Windows 在仓库根目录运行 **`.\build-push-hub.ps1`**（可用 **`-Tag v1.0.1`** 等自定义标签）；Linux / macOS 用 [docs/DOCKER.md](docs/DOCKER.md)「仅镜像部署」里与 `REG` / `TAG` 对应的 **`docker build`** / **`docker push`** 命令。部署端 `.env` 里的 **`IMAGE_TAG`**（或 compose 默认值）须与本次推送的**标签一致**。
   - **什么时候在服务器上用 `docker-compose.hub.yml`**：目标环境**不** `git clone` 仓库、只安装 Docker 与 Compose、**只从 Hub 拉镜像**部署时，把 **`docker-compose.hub.yml`** 放到任意目录（可从本仓库拷贝或下载单文件），同目录可选 **`.env`** 配置 `DOCKER_REGISTRY`、`IMAGE_TAG`、`MYSQL_ROOT_PASSWORD`、`REDIS_PASSWORD` 等，再 **`pull` + `up -d`**。编排里只有 **`image:`**，没有 **`build:`**，因此服务器上**不需要**源码目录。
-  - **和默认 `docker-compose.yml` 的区别**：默认文件在**仓库根目录**用 **`build:`** 本地构建并常挂载 `./docker-data`、SQL 等；**Hub 方式**把配置和 SQL 已打进镜像，适合「只拷一个 YAML 就部署」。
+  - **和默认 `docker-compose.yml` 的区别**：默认文件在**仓库根目录**用 **`build:`** 本地构建并常挂载 `./docker-data/uploads`；**Hub 方式**把 Nginx 与应用打进镜像（**DDL 随应用 JAR 内 Flyway**），MySQL 为官方镜像，适合「只拷一个 YAML + `.env` 就部署」。
 - **详细说明**（Git 与打包关系、`WebConfig` / 驱动 / 前端生产地址、DBeaver 连接串等）：见 [docs/DOCKER.md](docs/DOCKER.md)。
 - **Nginx 反向代理**（Compose 内 `nginx` 服务、80 端口、WebSocket 转发）：见 [docs/NGINX.md](docs/NGINX.md)。
 - **一键（MySQL + Redis + 应用 + Nginx）**：仓库根目录执行 `docker compose up --build`；浏览器可打开 **`http://localhost`**（经 Nginx）或 **`http://localhost:8088`**（直连应用；前端为 hash 路由，形如 `/#/login`）。默认 MySQL root 密码为 `mgdemo_root`，可通过环境变量 `MYSQL_ROOT_PASSWORD` 修改。容器内 MySQL 对 **宿主机** 映射为 **`localhost:3307`**（避免与本机已占用的 **3306** 冲突）；应用容器仍通过内部网络访问 `mysql:3306`。**Redis**：Compose 内服务名 `redis`，数据卷 `redis_data`；默认口令 **`mgdemo_redis`**（可用环境变量 **`REDIS_PASSWORD`** 覆盖，须与 `SPRING_DATA_REDIS_PASSWORD` 一致）。宿主机连接容器内 Redis 用 **`localhost:6380`**（映射到容器 6379，避免与本机独立 Redis 的 6379 冲突）。仅 `docker run` 单容器时需自行提供 Redis 或设置 `SPRING_DATA_REDIS_*` 指向已有实例。
 - **仅构建后端镜像**：`docker build -t mgdemoplus .`，运行示例：  
   `docker run -p 8088:8088 -e SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/school_db?useSSL=false -e SPRING_DATASOURCE_USERNAME=root -e SPRING_DATASOURCE_PASSWORD=你的密码 -e MGDEMOPLUS_IMAGES_FILE_LOCATION=file:/data/mgdemo-files/ -v 本机目录:/data/mgdemo-files mgdemoplus`
-- **说明**：`Dockerfile` 会编译 `front/dp_game` 并把 `dist` 打进 jar 的 `static`，与 API、WebSocket 同端口；本机开发默认上传目录为 `P:/javaworkspace/DPGameFiles/`（配置项 `mgdemoplus.images.file-location`）。`/images/**` 在容器内默认为 `/data/mgdemo-files`（compose 已映射到 `./docker-data/uploads`）。**数据库表**：`docker compose` 首次创建 MySQL 数据卷时，会自动执行 `docker-data/mysql-init/00-school_db.sql`，并按顺序 `SOURCE` 仓库内 `src/main/resources/db/*.sql` 在 `school_db` 中建表（若你已有旧的 `mysql_data` 卷且当时未建表，需 `docker compose down -v` 清空卷后重建，或手工在库里执行这些 SQL）。**勿把含真实密钥的 `application.properties` 依赖进镜像**；LLM 等密钥请用环境变量 `ARK_API_KEY`、`ARK_ENDPOINT_ID` 等在 compose 中注入。
+- **说明**：`Dockerfile` 会编译 `front/dp_game` 并把 `dist` 打进 jar 的 `static`，与 API、WebSocket 同端口；本机开发默认上传目录为 `P:/javaworkspace/DPGameFiles/`（配置项 `mgdemoplus.images.file-location`）。`/images/**` 在容器内默认为 `/data/mgdemo-files`（compose 已映射到 `./docker-data/uploads`）。**数据库**：MySQL 命名卷仅存数据；**`school_db` 内建表改表全部由应用 Flyway**（`classpath:db/migration`）在启动时执行。若 **`mysql_data` 曾为旧 Docker init 所建**，升级后 Flyway **V1** 可能与已有表冲突，开发机可用 `docker compose down -v` 删卷重来（**会清空库**）；生产须自备备份与迁移策略。**勿把含真实密钥的 `application.properties` 依赖进镜像**；LLM 等密钥请用环境变量 `ARK_API_KEY`、`ARK_ENDPOINT_ID` 等在 compose 中注入。

@@ -38,6 +38,9 @@ public class DpRoomLobby {
     @TableField("password_protected")
     private Boolean passwordProtected;
 
+    @TableField("max_seat_count")
+    private Integer maxSeatCount;
+
     @TableField("created_at")
     private LocalDateTime createdAt;
 
@@ -103,6 +106,14 @@ public class DpRoomLobby {
 
     public void setPasswordProtected(Boolean passwordProtected) {
         this.passwordProtected = passwordProtected;
+    }
+
+    public Integer getMaxSeatCount() {
+        return maxSeatCount;
+    }
+
+    public void setMaxSeatCount(Integer maxSeatCount) {
+        this.maxSeatCount = maxSeatCount;
     }
 
     public LocalDateTime getCreatedAt() {

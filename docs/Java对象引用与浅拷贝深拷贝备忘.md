@@ -1,4 +1,4 @@
-# Java：对象引用、`roomMap` 与浅拷贝 / 深拷贝（备忘）
+# Java 引用与拷贝备忘：`roomMap`、Jackson 快照与深浅拷贝辨析
 
 面向：**已经会写 Java，但对「变量里到底存了什么」容易想当然** 的同学。  
 本仓库里 **`DpRoomServiceImpl`** 从 **`roomMap`** 取房间、再传给各种方法改状态，以及 **`deepCopyRoomForSnapshot`** 用 Jackson 做快照，都和下面这套概念直接相关。

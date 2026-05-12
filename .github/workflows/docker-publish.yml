@@ -1,16 +1,19 @@
-# 推送 Docker Hub 镜像，等同于根目录 build-push-hub.ps1（仅标签 IMAGE_TAG，例如 v1.0.1，不打 latest）
+# 推送 Docker Hub 镜像，等同于根目录 build-push-hub.ps1（仅 dpgame + dpgame-nginx；仅标签 IMAGE_TAG，不打 latest）
+#
+# 与「本机是否 docker build」无关：只要下面 on.push 命中的分支有 push，就由 GitHub 云端构建推送。
 #
 # Secrets（仅此一项即可；用户名已写死为下方 DOCKER_NS）：
 #   DOCKERHUB_TOKEN — Docker Hub「Personal access token」
 #
 # 可选：若希望用户名也不出现在文件里，可把 login 的 username 改成 ${{ secrets.DOCKERHUB_USERNAME }}，并在仓库里同名配置。
 #
-# 触发：push 到分支 desensitization，或在 Actions 里手动 Run workflow。
+# 触发：按需修改 branches（当前示例 desensitization-pre）；亦可删去整个 push，只保留 workflow_dispatch 改为「仅手动打镜像」。
 name: Docker build & push
 
 on:
   push:
-    branches: [desensitization]
+    branches:
+      - desensitization-pre
   workflow_dispatch:
 
 # 同一分支上新触发时取消尚未结束的旧运行，只保留最新一次构建推送
@@ -35,8 +38,6 @@ jobs:
         include:
           - name: dpgame
             dockerfile: Dockerfile
-          - name: dpgame-mysql
-            dockerfile: Dockerfile.mysql
           - name: dpgame-nginx
             dockerfile: Dockerfile.nginx
 

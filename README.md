@@ -1,6 +1,6 @@
-# MGDemoPlus
+# MGDemoPlus(此版本为npc前瞻版)
 
-基于 **Spring Boot** 的 Web 演示项目，核心是**多人实时在线卡牌对战 / 多人联机策略卡牌演示**：多房间、实时对战、AI 智能玩家、对局回放、可选火山方舟大模型决策玩家等。前端 **`front/dp_game`** 为 **Vue 2 + Vue Router + Vuex + Element UI**，构建产物由 **`Dockerfile`** 打进后端 JAR，与 REST、WebSocket **同端口**发布。
+基于 **Spring Boot** 的 Web 演示项目，核心是**多人实时在线卡牌对战 / 多人联机策略卡牌演示**：多房间、实时对战、AI 智能玩家、对局回放、可选火山方舟大模型决策玩家等。前端 `**front/dp_game`** 为 **Vue 2 + Vue Router + Vuex + Element UI**，构建产物由 `**Dockerfile`** 打进后端 JAR，与 REST、WebSocket **同端口**发布。
 
 **长说明（环境变量、WebSocket、AI 玩家、对局回放、Docker 等）：** 中文 **[README.ch.md](README.ch.md)** · 英文 **[README.en.md](README.en.md)**（同结构对照）。
 
@@ -10,22 +10,25 @@
 
 ### 游戏与对局
 
-- **标准卡牌对战规则**：回合流程、最小操作、多玩家结算逻辑等在后端 `DpRoomServiceImpl` 等模块中实现；对局页通过轮询 + WebSocket 同步房间状态。
-- **多房间**：房间状态保存在进程内 **`ConcurrentHashMap`（`roomMap`）**；详见长文档中的 WebSocket 与房间说明。前端 **`/create-room`** 页可设置**房间基础积分**、**每人初始积分**与可选**进房密码**（仅存内存，重启失效）；大厅 **`/home`** 仅列表与加入。
-- **实时推送**：游戏页 WebSocket 路径形如 **`/ws/dp-game?roomId=...`**；有订阅者时才序列化推送，并与上次 JSON 去重以省流量。
+- **标准卡牌对战规则**：回合流程、最小操作、多玩家结算逻辑等在后端 `DpRoomServiceImpl` 等模块中实现；对局页通过轮询 + WebSocket 同步房间状态。房主神器「踢出至观众席」支持多选批量：`POST /dpRoom/kickPlayersBatch`（昵称英文逗号分隔，服务端去重后单次同步大厅）；单人仍用 `POST /dpRoom/kickPlayer`。**对局页顶栏**在「观众席」旁提供「等待名单」按钮（与观众席同为青色强调样式），点开可查看已报名「下一局加入对局」的玩家及候补顺序（与房间状态中的 `waitNextHand` 一致）。
+- **大厅快速匹配（含自动建房）**：`POST /dpRoom/quickMatch2` 先尝试进入已有**无密码公开房**（逻辑同原快匹）；若无空位则写入**本机内存 FIFO 队列**（小盲 5、大盲 10、初始 50 倍、最多 9 人、无密码），队列中每**满两人**自动建新桌：队首当房主并已准备，第二位 `joinRoom` 后同样准备，并由服务端**立即调用** `startGame`（等同创建房间页的「建好即开局」），直接进入首手。**排队中**由 `WebSocket` 路径 **`/ws/dp-quick-match`**（`?nickname=&token=`）推送 `WAITING` / `MATCHED` / `IDLE`；离开队列可 **`POST /dpRoom/quickMatchCancel2`**；单条等待约 **3 分钟**未配上会被周期性任务移出队列（间隔 `mgdemoplus.dp-quick-match-prune-ms`，默认 30s）。**并发**：`joinRoom` / 候补 / `exitRoom` / 开局前准备等按 `DpRoomBO` 监视器串行化同一房间内的写操作；快匹扫房 + 默认队列「拉两人建房」另用 `dpQuickMatchAssignmentLock` 与单房锁配合，减轻同时点匹配时「明明有空位却失败 / 准备失败」的竞态（仍仅保证单 JVM 内一致，多实例部署需另行设计）。
+- **多房间**：房间状态保存在进程内 `**ConcurrentHashMap`（`roomMap`）**；详见长文档中的 WebSocket 与房间说明。前端 `**/create-room`** 页可设置**房间基础积分**、**每人初始积分**与可选**进房密码**（仅存内存，重启失效），提交后会**自动调用开局并进入对局页**（房主可先单人上桌，他人从大厅加入）；大厅 `**/home`** 仅列表与加入；**`/room/:id`** 仍用于未开局时的加入/等人场景，若房间已在进行中则会自动转入 **`/game/:id`**。
+- **实时推送**：游戏页 WebSocket 路径形如 `**/ws/dp-game?roomId=...`**；有订阅者时才序列化推送，并与上次 JSON 去重以省流量。
 - **对局回放**：完整游戏对局记录可落库，支持按用户分页列表与详情（权限与卡牌信息展示规则见 `docs` 下说明）。
+- **好友 / 邮箱邀请（REST MVP）**：`userId` 维度双向好友、`/dp/mailbox` 合并待处理好友申请与进房邀请、**仅房主**可向互为好友的成员发 **60 秒**有效进房邀约；同意后 **绕过密码以观众进房**。超员与反骚扰未做，`仅大厅可见邮箱` 仅前端约定；接口与表结构见 [docs/dp_friend_mailbox_mvp.md](docs/dp_friend_mailbox_mvp.md)。**前端大厅（`front/dp_game/home`）**：右上角 **邮箱** + 数字红点（`GET /dp/mailbox/unread-count`，并每约 6 秒轮询一次）、**好友** 抽屉拉 `GET /dp/friends`；**红点策略**：仅「打开邮箱即隐藏」不做，红点始终跟服务端未处理条数，读完不点处理也不会假清零；截图自测流程：① 登录进大厅见红点 ② 点邮箱看两类待办 ③ 点好友看图里 id/昵称 ④ 同意进房邀请后跳转 `/game/:roomId`。**API 路径常量**：`front/dp_game/src/api/api.dpSocial.js`；状态：`Vuex` 模块 `dpMailbox`。
 - **大厅列表（单例版）**：`/dpRoom/publicRooms` 改为读 `dp_room_lobby` 单表（唯一数据源），返回结构保持 `{ list, total, page, pageSize }`；服务端在建房/进退房/踢人/房主变更/开局与房间销毁时同步摘要，分页查询使用 PageHelper + Redis 版本缓存（`mgdemo:cache:dpRoom:publicRooms:rev` 与 `mgdemo:cache:dpRoom:publicRooms:data:{rev}:{page}:{pageSize}`），变更时通过 `INCR rev + SCAN 删除旧 data 键` 失效，失败仅记录日志不阻断业务。带筛选的 `/dpRoom/publicRooms/query` 共用同一 `rev`，结果键为 `mgdemo:cache:dpRoom:lobbyQuery:data:{rev}:{paramHash}`（`paramHash` 为规范化查询串的 SHA-256 前 16 位十六进制），TTL 与 `mgdemoplus.cache.dp-room-public-rooms-ttl-seconds` 一致。
 
 ### 用户与账号
 
-- **认证**：**Spring Security** + **JWT**（`Authorization: Bearer`）；白名单含登录注册、`/ws/**`、部分房间只读接口等（完整列表见 [docs/JWT.md](docs/JWT.md)）。
+- **认证**：**Spring Security** + **JWT**（`Authorization: Bearer`）；白名单含登录注册、`/ws/`**、部分房间只读接口等（完整列表见 [docs/JWT.md](docs/JWT.md)）。
 - **密码**：服务端对密码做 **bcrypt** 摘要后入库（详见 [docs/DpUserPassword.md](docs/DpUserPassword.md)）。
 - **虚拟积分**：演示用途，不涉及真实货币。
 
 ### AI 智能玩家
 
-- **规则型策略机器人**：多种风格与难度，包含回合策略、行为逻辑、对手习惯记忆等（概要见 [docs/ai/npc-engine/README.md](docs/ai/npc-engine/README.md)）。
-- **大模型玩家（可选）**：`BOT_LLM` 通过兼容 OpenAI 的 Chat 接口实现 AI 决策，需配置 `ARK_API_KEY`、`ARK_ENDPOINT_ID` 等（见 [README.en.md](README.en.md) 中大模型小节与 [docs/ENV_README.md](docs/ENV_README.md)）。默认开启 **`ARK_RESPONSE_JSON_OBJECT`**（`response_format=json_object`）以压缩正文；模型须返回含 **action / chips_to_add / brief_reason** 的 JSON（**brief_reason** 为 1～2 句决策理由，控制台会单独打印）。在 **thinking 仍开启** 的前提下，将 **`ARK_REASONING_EFFORT`** 从 **`high`** 改为 **`medium`** 或 **`low`** 可明显缩短服务端思维链耗时。**日志**：控制台中的「只看模型思考」用 Spring **`logging.level`**，`application.yml` 里已注释示例：`com.example.mgdemoplus.dp.BotLlmReasoning` 专打 reasoning，其它可把 `DpLlmNpcDecisionService` 或 `root` 调低。喂给模型的 user 包顺序为 **M→T→H→E**：`M` 含盲注、`rl`（加注层级，非 ante）及 **`SBseat`/`BBseat`**；`T` 为座位序下的昵称、剩余筹码、本街已下；**`H` 的 `pot`/`call`/`stack` 为服务端真值**（键名 `hero`、`stage`、`stack` 等）；**`E`** 为可读键名的对手摘要；**`rk=`** 与 **`hsl=`** 仍为成牌相关真值说明。**`rk`** 对「公牌已成对、手牌未中该对、仅拼踢脚」的情形会在 `DpUtilHandEvaluator.toSimpleStrength` 中封顶为 **MEDIUM/WEAK**，避免误标成 STRONG。
+- **规则型策略机器人**：多种风格（无分级「难度噪声」），包含回合策略、行为逻辑、对手习惯记忆等（概要见 [docs/ai/npc-engine/README.md](docs/ai/npc-engine/README.md)）。**翻前**仅由 `DpNpcUnifiedPreflopStrategy` 处理：起手牌语义仍为 G1–G8，`rangeLevel`、简化位置、`PreflopSpot` 对应局面在运行时查 **预计算的 13×13 表**（对角=对子，行&gt;列为杂色、行&lt;列为同色，值为 1/0）；`groupOf` 仍用于填表逻辑与少量诈唬分支；另有 `StyleProfile`（vpip、pfr、callStation、foldToPressure、mood）、`lateFactor`、`raiseLevel` 与 BotType 小档偏移等；**各 BotType 策略类不再单独处理翻前**，若统一翻前返回 null（异常局面）则引擎兜底过牌/跟注。**细数据流**见 [docs/ai/npc-preflop-unified-decision-flow.md](docs/ai/npc-preflop-unified-decision-flow.md)。**翻后**由 `DpNpcEngine#decideBotAction` 组装 `DpNpcRuleDecisionParams` 后按 `BotType` 进入 `npc` 包六个类：`DpNpcFishStrategy`、`DpNpcCallStrategy`、`DpNpcLagStrategy`、`DpNpcManiacStrategy`、`DpNpcTagStrategy`、`DpNpcNitStrategy`（各文件自包含，便于按风格独立演进）；`BOT_LLM` 仍单独走局面包与方舟接口。
+- **大模型玩家（可选）**：`BOT_LLM` 通过兼容 OpenAI 的 Chat 接口实现 AI 决策，需配置 `ARK_API_KEY`、`ARK_ENDPOINT_ID` 等（见 [README.en.md](README.en.md) 中大模型小节与 [docs/ENV_README.md](docs/ENV_README.md)）。默认开启 `**ARK_RESPONSE_JSON_OBJECT`**（`response_format=json_object`）以压缩正文；模型须返回含 **action / chips_to_add / brief_reason** 的 JSON（**brief_reason** 为 1～2 句决策理由，控制台会单独打印）。在 **thinking 仍开启** 的前提下，将 `**ARK_REASONING_EFFORT`** 从 `**high**` 改为 `**medium**` 或 `**low**` 可明显缩短服务端思维链耗时。**日志**：控制台中的「只看模型思考」用 Spring `**logging.level`**，`application.yml` 里已注释示例：`com.example.mgdemoplus.dp.BotLlmReasoning` 专打 reasoning，其它可把 `DpLlmNpcDecisionService` 或 `root` 调低。喂给模型的 user 包顺序为 **M→T→H→E**：`M` 含盲注、`rl`（加注层级，非 ante）及 `**SBseat`/`BBseat`**；`T` 为座位序下的昵称、剩余筹码、本街已下；`**H` 的 `pot`/`call`/`stack` 为服务端真值**（键名 `hero`、`stage`、`stack` 等）；`**E`** 为可读键名的对手摘要；`**rk=**` 与 `**hsl=**` 仍为成牌相关真值说明。`**rk**` 对「公牌已成对、手牌未中该对、仅拼踢脚」的情形会在 `DpUtilHandEvaluator.toSimpleStrength` 中封顶为 **MEDIUM/WEAK**，避免误标成 STRONG。
+- **BOT_LLM 行式局面包（v1）**：`street_action_esc` 与本行的 `call_amount_chips` 对齐表述（面对档位、英雄本街已下、还须支付并列，他人动作为「本街贡献」以免把他人注额误当跟注额）；同窗内若 `ctx.call_amount` 或 `pot_odds` 与房间重算不一致会打 WARN。模型返回的 `brief_reason` 在日志侧可按 `stage_en` 做轻量规范化；`【模型调用耗时】` 日志附带 `reasoningChars` 便于对照纠结长度与尾延迟。
 
 ### 其它功能
 
@@ -36,18 +39,21 @@
 
 ## 技术架构
 
-| 层级        | 技术                                                                                                                                               |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 后端        | Java **17**、**Spring Boot 3.5**、Spring Web / Security / WebSocket、**MyBatis-Plus**、**PageHelper**、**Druid**、MySQL 驱动、**Lettuce**（Redis）、**JJWT** |
-| 前端（卡牌游戏） | **Vue 2**、Vue Router、**Vuex**、**Element UI**、axios（源码目录 **`front/dp_game`**）                                                                     |
-| 数据        | **MySQL 8**（库名默认 **`school_db`**）、**Redis 7**                                                                                                    |
-| 构建与部署     | **Maven**、**Docker** / **Docker Compose**、**Nginx**（反向代理与 WS 转发）                                                                                 |
+
+| 层级       | 技术                                                                                                                                               |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 后端       | Java **17**、**Spring Boot 3.5**、Spring Web / Security / WebSocket、**MyBatis-Plus**、**PageHelper**、**Druid**、MySQL 驱动、**Lettuce**（Redis）、**JJWT** |
+| 前端（卡牌游戏） | **Vue 2**、Vue Router、**Vuex**、**Element UI**、axios（源码目录 `**front/dp_game`**）                                                                     |
+| 数据       | **MySQL 8**（库名默认 `**school_db`**）、**Redis 7**，表结构 **Flyway**（`classpath:db/migration`）                                                                                                    |
+| 构建与部署    | **Maven**、**Docker** / **Docker Compose**、**Nginx**（反向代理与 WS 转发）                                                                                 |
+
+对局页布局为 **顶栏 / `<main>` 牌桌区 / 底栏** 同级 flex；`main` 同时承担桌面面板样式，牌桌缩放裁切只在一层 `.dp-game-table-fit` 上。根节点通过 **`data-dp-layout-tier`** / **`data-dp-stage`** / **`data-dp-orientation`** 与 `dp-game-shell.css`、`dp-game-layout-tiers.css` 中的 **CSS 变量**联动（全屏顶距 `--dp-game-fs-extra-pad-top`、摊牌主区最小高度 `--dp-game-settlement-main-min-h` 等）；缩放原点与居中逻辑见 `dpGameTableFitMixin.js`。细节见 `front/dp_game/docs/GAME_LAYOUT_TUNING_README.md`。
 
 ### 前端「猫咪派对」展示包装（仅文案与 UI）
 
-- 登录成功后会请求在大厅展示**玩法说明**弹窗（`CatTutorialDialog.vue`，`append-to-body`）；样式与当前**界面主题**一致：`body[data-dp-game-theme]` 上的 `--dp-*` 与 **`dp-game-element-ui.css`** 中对 `el-dialog` 的覆盖（避免暗色主题下浅色字叠在白底上）。可选「不再自动弹出」，仍可通过大厅 **玩法说明** 打开。
-- **界面主题**：预设多套 + 可选「**自定义**」（选一预设作底 + **强调色**，派生若干 `--dp-*` 覆盖；`dp_game_ui_theme` + `dp_game_custom_theme` 存 **localStorage**，非数据库）。自定义模式下配色编辑区 **默认收起**，用 **「展开配色」** 打开、**「收起配色」** 合上。
-- 术语与本地存储键名集中在 **`front/dp_game/src/constants/dpCatThemeCopy.js`**（如：发牌猫、小猫 SC / 大猫 BC、小鱼干；对局阶段展示为翻前圈 / 翻后圈 / 半决赛 / 决赛圈 / 结算阶段）；**不改变**后端 API、请求参数或 WebSocket 载荷字段名。
+- 登录成功后会请求在大厅展示**玩法说明**弹窗（`CatTutorialDialog.vue`，`append-to-body`）；样式与当前**界面主题**一致：`body[data-dp-game-theme]` 上的 `--dp-*` 与 `**dp-game-element-ui.css`** 中对 `el-dialog` 的覆盖（避免暗色主题下浅色字叠在白底上）。可选「不再自动弹出」，仍可通过大厅 **玩法说明** 打开。
+- **界面主题**：预设多套（含 **万圣惊魂** `halloween`：暗夜 + 南瓜橙 / 幽紫 氛围）+ 可选「**自定义**」（选一预设作底 + **强调色**，派生若干 `--dp-*` 覆盖；`dp_game_ui_theme` + `dp_game_custom_theme` 存 **localStorage**，非数据库）。自定义模式下配色编辑区 **默认收起**，用 **「展开配色」** 打开、**「收起配色」** 合上。
+- 术语与本地存储键名集中在 `**front/dp_game/src/constants/dpCatThemeCopy.js`**（如：发牌猫、小猫 SC / 大猫 BC、小鱼干；对局阶段展示为翻前圈 / 翻后圈 / 半决赛 / 决赛圈 / 结算阶段）；**不改变**后端 API、请求参数或 WebSocket 载荷字段名。
 
 ---
 
@@ -87,12 +93,13 @@ docker compose -f docker-compose.hub.yml up -d
 docker compose up --build
 ```
 
-**GitHub 自动构建镜像（可选）**：推送分支 **`desensitization`** 时由 GitHub Actions 构建并推送 `1933886418/dpgame*:v1.0.1` 三镜像（与 `build-push-hub.ps1`、默认 `docker-compose.hub.yml` 的 **`IMAGE_TAG=v1.0.1`** 一致，**不**另打 `latest`）；亦可在 **Actions** 里手动运行。仓库 **Secrets** 中配置 **`DOCKERHUB_TOKEN`** 即可；工作流见 [`.github/workflows/docker-publish.yml`](.github/workflows/docker-publish.yml)。
+**GitHub 自动构建镜像（可选）**：推送分支 `**desensitization**` 时由 GitHub Actions 构建并推送 `1933886418/dpgame*:v1.0.1` 与 **`dpgame-nginx`**（与 `build-push-hub.ps1`、Hub 编排一致；MySQL 用官方 **`mysql:8.0`**，**不**推送 MySQL 镜像）；亦可在 **Actions** 里手动运行。仓库 **Secrets** 中配置 `**DOCKERHUB_TOKEN`** 即可；工作流见 `[.github/workflows/docker-publish.yml](.github/workflows/docker-publish.yml)`。
 
+- **数据库（Flyway）**：`docker compose up` 后 MySQL 仅为**空库** `school_db`；**建表由应用启动时 Flyway** 执行 `classpath:db/migration`（见 `spring.flyway.locations`）。库内应有业务表及 **`flyway_schema_history`**。若本地**旧**命名卷里的表是以前 **Docker init** 建的，新版本首次跑 Flyway **V1** 可能报错「表已存在」——开发机可对 `mysql_data` **`docker compose down -v`** 删卷重来（**清空数据**；生产务必另做备份与迁移方案）。
 - **经 Nginx**：浏览器打开 **[http://localhost](http://localhost)**（见 [docs/NGINX.md](docs/NGINX.md)）
-- **直连应用**：**[http://localhost:8088](http://localhost:8088)**（前端为 **hash 路由**，例如 **`/#/login`**）
+- **直连应用**：**[http://localhost:8088](http://localhost:8088)**（前端为 **hash 路由**，例如 `**/#/login`**）
 
-默认 MySQL root 密码见 `docker-compose.yml` / `.env`（默认 **`mgdemo_root`**）；宿主机连接 MySQL 一般为 **`localhost:3307`**，Redis 为 **`localhost:6380`**（见 [docs/DOCKER.md](docs/DOCKER.md)）。
+默认 MySQL root 密码见 `docker-compose.yml` / `.env`（默认 `**mgdemo_root**`）；宿主机连接 MySQL 一般为 `**localhost:3307**`，Redis 为 `**localhost:6380**`（见 [docs/DOCKER.md](docs/DOCKER.md)）。
 
 ### 3. 本机开发（后端 + 前端分离）
 
@@ -112,7 +119,7 @@ npm install
 npm run dev
 ```
 
-开发环境代理与接口前缀以项目内 `vue.config.js` 为准（常见为 **`/dev-api`** 转发到后端）。
+开发环境代理与接口前缀以项目内 `vue.config.js` 为准（常见为 `**/dev-api**` 转发到后端）。
 
 **大厅与对局 UI 主题**：游戏大厅（`/home`）、房间内（`/room/:id`）、曲库上传（`/music-upload`）、历史对局列表与详情与对局页共用同一套主题选项与本地持久化键；**登录 / 注册**在 `App.vue` 中同样可选择主题（`dp-auth-shell.css`）。`document.body[data-dp-game-theme]` 由 `main.js` 在路由与主题变更时统一维护，以便 Element UI 弹层配色一致。说明见 `front/dp_game/docs/THEME_BINDING_README.md` 第 6～7 节。
 
@@ -128,7 +135,7 @@ MGDemoPlus/
 ├── docker-data/
 ├── docker-compose.yml
 ├── docker-compose.hub.yml
-├── Dockerfile / Dockerfile.mysql / Dockerfile.nginx
+├── Dockerfile / Dockerfile.nginx
 ├── pom.xml
 ├── README.md                               # 本文件：中文 + 英文短版
 ├── README.ch.md                            # 中文长说明（运维与迭代记录）
@@ -157,7 +164,7 @@ MGDemoPlus/
 
 ## English
 
-A **Spring Boot** web demo centered on **multiplayer online strategy card play**—multi-room sessions, real-time battle, AI players, session replay, and optional Volcengine Ark LLM-based players. The **`front/dp_game`** UI is **Vue 2 + Vue Router + Vuex + Element UI**; production builds are embedded into the Spring Boot JAR by **`Dockerfile`**, served on the **same port** as REST and WebSocket.
+A **Spring Boot** web demo centered on **multiplayer online strategy card play**—multi-room sessions, real-time battle, AI players, session replay, and optional Volcengine Ark LLM-based players. The `**front/dp_game`** UI is **Vue 2 + Vue Router + Vuex + Element UI**; production builds are embedded into the Spring Boot JAR by `**Dockerfile`**, served on the **same port** as REST and WebSocket.
 
 **Long-form maintenance notes:** Chinese **[README.ch.md](README.ch.md)** · English **[README.en.md](README.en.md)** (same structure).
 
@@ -166,14 +173,14 @@ A **Spring Boot** web demo centered on **multiplayer online strategy card play**
 #### Gameplay
 
 - **Card battle rules**: Turn flow, minimum actions, and multiplayer settlement logic are implemented server-side (e.g. `DpRoomServiceImpl`); the room UI uses polling plus WebSocket for state.
-- **Rooms**: In-memory **`ConcurrentHashMap` (`roomMap`)**; see long docs for WebSocket and room lifecycle.
-- **Push**: Game WebSocket path pattern **`/ws/dp-game?roomId=...`**; serializes only when subscribers exist and de-duplicates JSON vs last push.
+- **Rooms**: In-memory `**ConcurrentHashMap` (`roomMap`)**; see long docs for WebSocket and room lifecycle.
+- **Push**: Game WebSocket path pattern `**/ws/dp-game?roomId=...`**; serializes only when subscribers exist and de-duplicates JSON vs last push.
 - **Session replay**: Full match records can be persisted; user-scoped paged list and detail (permissions and card-info display rules in `docs`).
 - **Public lobby (single-table source)**: `/dpRoom/publicRooms` reads `dp_room_lobby` as the single source of truth, response shape `{ list, total, page, pageSize }`; summaries sync on create/join/leave/kick/owner change/start/destroy; paging uses PageHelper + Redis revision cache (`mgdemo:cache:dpRoom:publicRooms:rev`, `mgdemo:cache:dpRoom:publicRooms:data:{rev}:{page}:{pageSize}`), invalidated via `INCR rev` + `SCAN` to drop old data keys; failures are logged only. Filtered `/dpRoom/publicRooms/query` shares the same `rev`; keys `mgdemo:cache:dpRoom:lobbyQuery:data:{rev}:{paramHash}` (`paramHash` = first 16 hex chars of SHA-256 of normalized query string), TTL matches `mgdemoplus.cache.dp-room-public-rooms-ttl-seconds`.
 
 #### Accounts
 
-- **Auth**: **Spring Security** + **JWT** (`Authorization: Bearer`); whitelist covers login/register, `/ws/**`, some read-only room APIs—full list in [docs/JWT.md](docs/JWT.md).
+- **Auth**: **Spring Security** + **JWT** (`Authorization: Bearer`); whitelist covers login/register, `/ws/`**, some read-only room APIs—full list in [docs/JWT.md](docs/JWT.md).
 - **Passwords**: **bcrypt** digest stored server-side—see [docs/DpUserPassword.md](docs/DpUserPassword.md).
 - **Virtual points only**: Demo use; no real currency.
 
@@ -189,12 +196,14 @@ A **Spring Boot** web demo centered on **multiplayer online strategy card play**
 
 ### Stack
 
-| Layer | Tech |
-|--------|------|
-| Backend | Java **17**, **Spring Boot 3.5**, Web / Security / WebSocket, **MyBatis-Plus**, **PageHelper**, **Druid**, MySQL driver, **Lettuce** (Redis), **JJWT** |
-| Frontend (card game) | **Vue 2**, Vue Router, **Vuex**, **Element UI**, axios (`front/dp_game`) |
-| Data | **MySQL 8** (default DB **`school_db`**), **Redis 7** |
-| Build / Ops | **Maven**, **Docker** / **Compose**, **Nginx** |
+
+| Layer                | Tech                                                                                                                                                   |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Backend              | Java **17**, **Spring Boot 3.5**, Web / Security / WebSocket, **MyBatis-Plus**, **PageHelper**, **Druid**, MySQL driver, **Lettuce** (Redis), **JJWT** |
+| Frontend (card game) | **Vue 2**, Vue Router, **Vuex**, **Element UI**, axios (`front/dp_game`)                                                                               |
+| Data                 | **MySQL 8** (default DB `**school_db`**), **Redis 7**, **Flyway** (`classpath:db/migration`)
+| Build / Ops          | **Maven**, **Docker** / **Compose**, **Nginx**                                                                                                         |
+
 
 ### Requirements
 
@@ -223,12 +232,13 @@ From repo root:
 docker compose up --build
 ```
 
-**GitHub Actions (optional)** — On push to **`desensitization`**, workflows build/push **`1933886418/dpgame*:v1.0.1`** only (matches `build-push-hub.ps1` / default **`IMAGE_TAG=v1.0.1`**; no **`latest`** tag). Configure **`DOCKERHUB_TOKEN`**. See [`.github/workflows/docker-publish.yml`](.github/workflows/docker-publish.yml).
+**GitHub Actions (optional)** — On push to `**desensitization`**, workflows build/push **`1933886418/dpgame*:v1.0.1**` and **`dpgame-nginx`** (MySQL stays official `mysql:8.0`; no Hub MySQL image). Configure `**DOCKERHUB_TOKEN**`. See `[.github/workflows/docker-publish.yml](.github/workflows/docker-publish.yml)`.
 
-- Via Nginx: **http://localhost** — [docs/NGINX.md](docs/NGINX.md)
-- Direct app: **http://localhost:8088** — hash routes, e.g. **`/#/login`**
+- **DB (Flyway)**: After `docker compose up --build`, MySQL is an empty `school_db`; **Flyway** creates tables from `classpath:db/migration` when the app starts (`flyway_schema_history` appears). Old **`mysql_data`** volumes seeded by Docker init may conflict with **V1**—dev: `docker compose down -v` to reset (**data loss**); production: backup/migrate consciously.
+- Via Nginx: **[http://localhost](http://localhost)** — [docs/NGINX.md](docs/NGINX.md)
+- Direct app: **[http://localhost:8088](http://localhost:8088)** — hash routes, e.g. `**/#/login`**
 
-MySQL on host is typically **`localhost:3307`**, Redis **`localhost:6380`** ([docs/DOCKER.md](docs/DOCKER.md)).
+MySQL on host is typically `**localhost:3307**`, Redis `**localhost:6380**` ([docs/DOCKER.md](docs/DOCKER.md)).
 
 #### 3. Local dev (split)
 
@@ -246,7 +256,7 @@ npm install
 npm run dev
 ```
 
-Use `vue.config.js` dev proxy (often **`/dev-api`**) to hit the API.
+Use `vue.config.js` dev proxy (often `**/dev-api**`) to hit the API.
 
 ### Repo layout (overview)
 

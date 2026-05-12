@@ -52,29 +52,31 @@
 
 搜索 **`.dp-game-layout__main`**。
 
-### 3.1 宽屏（窗口宽度 ≥ 901px）时：主区顶部的「大块留白」
+### 3.1 对局 `/game`：主区顶距（三档变量）
 
-在 **`@media (min-width: 901px)`** 里有：
+非结算阶段，主区顶部留白来自 **`dp-game-shell.css`** 中的 **`padding-top: var(--dp-game-main-pad-top, 0px)`**，实际数值由 **`front/dp_game/src/styles/dp-game-layout-tiers.css`** 按 **`data-dp-layout-tier`**（phone / tablet / desktop）设不同 **`--dp-game-main-pad-top`**。
 
-```css
-padding-top: clamp(80px, 3.2vmin, 1000px);
-```
+**想整体拉近/拉远圆桌与顶栏**：改 **`dp-game-layout-tiers.css`** 里对应档位那一行的 **`clamp(...)`**（详见同仓库 **`GAME_LAYOUT_TUNING_README.md`** 第 10 节）。
 
-含义（通俗说）：
+### 3.2 摊牌 / 结算阶段：主区离顶栏（结算参数在哪）
 
-- **`clamp(最小, 中间随屏幕变, 最大)`**：实际值会在最小和最大之间，中间用 `3.2vmin` 跟着屏幕缩放。
-- 这里是为了：**大屏上圆桌不要贴顶栏**，和顶栏之间留出稳定空隙。
-- **想拉近顶栏和圆桌**：把 **80** 调小，或把 **3.2vmin** 调小（例如改成 `2.5vmin`）。
-- **想拉远**：把 **80** 调大，或把 **3.2vmin** 调大。
+**一定要改 **`dp-game-shell.css` 文件最末尾** 注释为 `SETTLEMENT_TOP_SPACING` 的那一段**（约在文件结尾、`dp-room-bgm` 样式后面）。
 
-### 3.2 摊牌 / 结算阶段： extra 顶留白
+原因：对局页的 `<main>` **固定带有类名** **`dp-game-layout__main--fit-table`**。若只写：
 
-选择器带 **`[data-dp-stage='showdown']`**、**`settled`** 时，主区会再加大 **`padding-top`**，避免 12 点方向座位上的牌型文字被裁掉。  
-若你改宽屏的 `padding-top`，有时也要看一眼这两段是否还够用。
+`.dp-game-root[data-dp-stage='settled'] .dp-game-layout__main { padding-top: ... }`
 
-### 3.3 手机窄屏（≤900px）
+**特异性不够**，会被别的 `.fit-table` 规则压住，浏览器里看起来就像「怎么改都不生效」。**正确写法必须带上** `.dp-game-layout__main--fit-table`，与工程里当前选择器保持一致。
 
-主区**没有**上面那条很大的 `padding-top`，顶栏到圆桌的距离主要靠 **顶栏 `margin-bottom` + 圆桌 `margin-top`**。
+- **`padding-top`**：调 **`clamp(第一个数, …)`** 里最左边的数（例如 `140px`、`176px`），越大整张桌子离顶栏越远；**你手滑滚动、看「离顶栏多远」时改它就够。**
+- **`scroll-padding-top`**：只参与 **滚动算法里的「最佳可视区」**（主要是 **`scrollIntoView()`**、**`scroll-snap`** 等对滚动位置的计算），**不会**像普通 `padding` 那样把内容顶下去。当前对局前端 **没有** 使用 scroll-snap / scrollIntoView，所以改到 `900px` 也常 **完全看不出变化**；需要顶边空白请改上面的 **`padding-top`**。
+
+矮横屏在同一文件里用 **`@media (max-width: 1024px) and (max-height: 560px)`** 再叠一档更大的 `padding-top`。
+
+### 3.3 与各档位的关系
+
+- **phone** 档会额外缩小顶栏字号、牌尺寸与整页 **`zoom`**（仍在一屏内优先），变量同在 **`dp-game-layout-tiers.css`**。
+- 牌桌 **`transform: scale`** 的可用宽高由 **`dpGameTableFitMixin.js`** 按主区**内容盒**计算。
 
 ---
 
@@ -140,7 +142,7 @@ margin: 8px 0 18px;  /* 上 右 下 左（左右为 0） */
 1. **先定设备**：用手机竖屏、横屏、电脑宽屏各看一眼；不同 **`@media`** 可能各管一段。
 2. **改「顶栏和圆桌」**：
    - 优先动 **`.dp-top-bar` 的 `margin-bottom`**（全局最直观）。
-   - 宽屏再动 **`.dp-game-layout__main` 的 `padding-top`（≥901px 那段）**。
+   - **对局 `/game`**：三档变量在 **`dp-game-layout-tiers.css`**（`--dp-game-main-pad-top` 等）；通用兜底仍在 **`dp-game-shell.css`**。
    - 再微调 **`.dp-game-table` 的 `margin` 第一个数**。
 3. **改「圆桌和底部操作区」**：动 **`.dp-game-table` 的 `margin` 第三个数**，以及 **`.dp-game-hero-action-row`** 的上下 margin。
 4. **改一页后刷新**，全屏/非全屏各试一次；刘海机再试一次。
@@ -157,11 +159,27 @@ margin: 8px 0 18px;  /* 上 右 下 左（左右为 0） */
 | 顶栏组件结构 | `front/dp_game/src/components/GameTopBar.vue` |
 | 圆桌组件结构 | `front/dp_game/src/components/GameRoundTable.vue` |
 | 底部手牌与操作 | `front/dp_game/src/components/GameHeroDockFooter.vue` |
+| 牌桌按视口 scale 适配（内容盒量高） | `front/dp_game/src/mixins/dpGameTableFitMixin.js` |
+| 三档布局（phone / tablet / desktop） | `front/dp_game/src/styles/dp-game-layout-tiers.css`、`front/dp_game/src/mixins/dpGameLayoutTierMixin.js` |
 | 整页外壳（/game 铺满） | `front/dp_game/src/App.vue` |
 
 ---
 
-## 10. CSS 小词典（只看这一节也能改）
+## 10. 三档设备标准（对局 /game 专用）
+
+对局根节点带 **`data-dp-layout-tier`**（由 `dpGameLayoutTierMixin.js` 随窗口更新）：
+
+| 档位 | 大致判断 |
+|------|-----------|
+| **phone** | 宽度 ≤640px；或「短边 ≤480 且长边 ≤1100」（常见手机横屏全屏） |
+| **tablet** | 宽度 641～1024px |
+| **desktop** | 宽度 ≥1025px |
+
+**主区顶距、顶栏字号、圆桌最小高度、整页 zoom** 等集中在 **`dp-game-layout-tiers.css`** 的 CSS 变量（如 `--dp-game-main-pad-top`、`--dp-game-top-title-fs`）。顶栏与圆桌在 **`game.vue`** 中为 **`header` | `main` | `footer` 同级 flex**，不是顶栏浮在桌面上。进入对局会为 `html`/`body` 加 **`dp-game-no-scroll`** 以减少整页滚动；浏览器全屏仍由 **`dpGameFullscreenMixin`** 在挂载时尝试进入。
+
+---
+
+## 11. CSS 小词典（只看这一节也能改）
 
 | 术语 | 意思 |
 |------|------|

@@ -1,4 +1,4 @@
-# DP 曲库：`webPath` 与试听访问流程
+# DP 曲库 `webPath`：磁盘落盘、`GET /music/**` 试听与开发代理
 
 本文说明 **曲库元数据表 `dp_music_track` 里的 `web_path`** 如何对应 **磁盘上的文件**，以及前端 `<audio>` / 对局 BGM 如何通过 HTTP 拿到音频。**不涉及** `GET /dpMusic/list` 的 JSON 字段细节；列表接口只返回「逻辑路径」，真正播放是另一条 **静态资源** 链路。
 
@@ -96,7 +96,7 @@ MusicUpload.vue  audioSrc("/music/a.mp3")
 默认：`file:P:/javaworkspace/DPGameFiles/music/`。  
 Docker 等环境见 `docker-compose.yml` 中的 `MGDEMOPLUS_MUSIC_FILE_LOCATION`。
 
-建表脚本：`src/main/resources/db/dp_music_track.sql`。
+建表脚本：`src/main/resources/db/migration/V1__init_schema.sql`（Flyway，含 `dp_music_track`）。
 
 ---
 
