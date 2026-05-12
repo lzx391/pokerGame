@@ -1,4 +1,4 @@
-# MGDemoPlus(此版本为npc前瞻版)
+# MGDemoPlus(此版本为稳定主版本)
 
 基于 **Spring Boot** 的 Web 演示项目，核心是**多人实时在线卡牌对战 / 多人联机策略卡牌演示**：多房间、实时对战、AI 智能玩家、对局回放、可选火山方舟大模型决策玩家等。前端 `**front/dp_game`** 为 **Vue 2 + Vue Router + Vuex + Element UI**，构建产物由 `**Dockerfile`** 打进后端 JAR，与 REST、WebSocket **同端口**发布。
 
