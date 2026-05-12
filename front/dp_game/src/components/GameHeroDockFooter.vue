@@ -66,13 +66,18 @@
             'dp-game-inline-action-slot--solo': !vm.heroDockRow || !vm.showBottomHeroDock
           }"
       >
-        <game-action-panel
-            v-if="vm.isMyTurn || vm.inSettledStage"
-            :settled-prepare="vm.inSettledStage"
-            :ready-time-left="vm.readyTimeLeft"
+        <game-settled-prepare-bar
+            v-if="vm.inSettledStage"
             :my-ready="vm.myReady"
+            :ready-time-left="vm.readyTimeLeft"
+            :my-chips="vm.myChips"
+            :big-blind="vm.bigBlind"
+            @toggle-ready="vm.toggleReady"
+            @rebuy="vm.rebuy"
+        />
+        <game-action-panel
+            v-else-if="vm.isMyTurn"
             :time-left="vm.timeLeft"
-            :current-bet-to-call="vm.currentBetToCall"
             :my-bet="vm.myBet"
             :call-amount="vm.callAmount"
             :small-blind="vm.smallBlind"
@@ -88,8 +93,6 @@
             @raise="vm.doRaise"
             @all-in="vm.doAllIn"
             @fold="vm.doFold"
-            @toggle-ready="vm.toggleReady"
-            @rebuy="vm.rebuy"
         />
         <div
             v-else-if="vm.heroDockRow"
@@ -99,58 +102,71 @@
       </div>
     </div>
 
+    <!--
+      窄屏 / 全屏底栏：单行 — 聊天+发送（左自适应）与离座/看手牌/行动或准备（右）同高对齐；数值仅顶栏。
+    -->
     <div
         v-if="vm.heroDockRow || vm.isMyTurn || vm.inSettledStage || vm.isOwner"
         class="dp-game-mobile-hero-bar"
         aria-label="手牌与行动"
     >
-      <game-room-chat-bar
-          v-if="vm.viewerSeatedAtTable"
-          :value="vm.chatInputDraft"
-          variant="mobile"
-          @input="$store.commit('dpGame/SET_CHAT_DRAFT', $event)"
-          @send="vm.sendRoomChat"
-      />
-      <div
-          v-if="vm.viewerSeatedAtTable && vm.heroDockRow"
-          class="dp-game-mobile-hero-bar__owner-cluster"
-          aria-label="离座与手牌"
-      >
-        <button
-            type="button"
-            class="dp-game-mobile-hero-bar__btn"
-            @click="vm.doLeaveSeat"
+      <div class="dp-game-mobile-hero-bar__inline">
+        <div
+            class="dp-game-mobile-hero-bar__dock-row"
+            :class="{ 'dp-game-mobile-hero-bar__dock-row--no-chat': !vm.viewerSeatedAtTable }"
         >
-          主动离座
-        </button>
-        <button
-            v-if="vm.showHeroViewHandButton"
-            type="button"
-            class="dp-game-mobile-hero-bar__btn"
-            data-dp-hero-deal-target
-            @click="$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileHandSheet: true })"
-        >
-          查看手牌
-        </button>
+          <game-room-chat-bar
+              v-if="vm.viewerSeatedAtTable"
+              class="dp-game-mobile-hero-bar__chat"
+              :value="vm.chatInputDraft"
+              variant="mobile"
+              @input="$store.commit('dpGame/SET_CHAT_DRAFT', $event)"
+              @send="vm.sendRoomChat"
+          />
+          <div
+              class="dp-game-mobile-hero-bar__lower"
+              aria-label="底栏操作"
+          >
+          <button
+              v-if="vm.viewerSeatedAtTable && vm.heroDockRow"
+              type="button"
+              class="dp-game-mobile-hero-bar__btn dp-game-mobile-hero-bar__btn--toolbar"
+              @click="vm.doLeaveSeat"
+          >
+            主动离座
+          </button>
+          <button
+              v-if="vm.viewerSeatedAtTable && vm.heroDockRow && vm.showHeroViewHandButton"
+              type="button"
+              class="dp-game-mobile-hero-bar__btn dp-game-mobile-hero-bar__btn--toolbar"
+              data-dp-hero-deal-target
+              @click="$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileHandSheet: true })"
+          >
+            查看手牌
+          </button>
+          <button
+              v-if="vm.isMyTurn"
+              type="button"
+              class="dp-game-mobile-hero-bar__btn dp-game-mobile-hero-bar__btn--toolbar dp-game-mobile-hero-bar__btn--action"
+              :class="{ 'dp-game-mobile-hero-bar__btn--urgent': vm.timeLeft <= 10 }"
+              :aria-label="'打开行动抽屉，倒计时 ' + vm.timeLeft + ' 秒'"
+              @click="$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileActionSheet: true })"
+          >
+            行动（{{ vm.timeLeft }}s）
+          </button>
+          <button
+              v-if="vm.inSettledStage"
+              type="button"
+              class="dp-game-mobile-hero-bar__btn dp-game-mobile-hero-bar__btn--toolbar dp-game-mobile-hero-bar__btn--action"
+              :class="{ 'dp-game-mobile-hero-bar__btn--urgent': vm.readyTimeLeft <= 8 }"
+              :aria-label="'打开结算准备抽屉，倒计时 ' + vm.readyTimeLeft + ' 秒'"
+              @click="$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileActionSheet: true })"
+          >
+            准备（{{ vm.readyTimeLeft }}s）
+          </button>
+          </div>
+        </div>
       </div>
-      <button
-          v-if="vm.isMyTurn"
-          type="button"
-          class="dp-game-mobile-hero-bar__btn dp-game-mobile-hero-bar__btn--action"
-          :class="{ 'dp-game-mobile-hero-bar__btn--urgent': vm.timeLeft <= 10 }"
-          @click="$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileActionSheet: true })"
-      >
-        行动（{{ vm.timeLeft }}s）
-      </button>
-      <button
-          v-if="vm.inSettledStage"
-          type="button"
-          class="dp-game-mobile-hero-bar__btn dp-game-mobile-hero-bar__btn--action"
-          :class="{ 'dp-game-mobile-hero-bar__btn--urgent': vm.readyTimeLeft <= 8 }"
-          @click="$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileActionSheet: true })"
-      >
-        准备（{{ vm.readyTimeLeft }}s）
-      </button>
     </div>
 
     <div
@@ -171,10 +187,11 @@
 import GameRoomChatBar from './GameRoomChatBar.vue'
 import GamePlayerCard from './GamePlayerCard.vue'
 import GameActionPanel from './GameActionPanel.vue'
+import GameSettledPrepareBar from './GameSettledPrepareBar.vue'
 
 export default {
   name: 'GameHeroDockFooter',
-  components: { GameRoomChatBar, GamePlayerCard, GameActionPanel },
+  components: { GameRoomChatBar, GamePlayerCard, GameActionPanel, GameSettledPrepareBar },
   inject: ['dpGameView'],
   computed: {
     vm: function () {

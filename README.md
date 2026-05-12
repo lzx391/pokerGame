@@ -62,7 +62,7 @@ flowchart LR
 
 - **对局页** WebSocket：**`/ws/dp-game`**；**快匹**队列：**`/ws/dp-quick-match`**（[`WebSocketGameRoomConfig.java`](src/main/java/com/example/mgdemoplus/config/WebSocketGameRoomConfig.java)）；说明见 [docs/WEBSOCKET.md](docs/WEBSOCKET.md)。
 - 大厅相关 REST：控制器 **`@RequestMapping("/dpRoom")`**，含 **`quickMatch2`** / **`quickMatchCancel2`** / **`publicRooms`** / **`publicRooms/query`**（[`DpRoomController.java`](src/main/java/com/example/mgdemoplus/controller/dp/DpRoomController.java)）。
-- 大厅快匹 `quickMatch2` / 取消与「满两人自动建房」流程见 [docs/dp-quick-match-flow.md](docs/dp-quick-match-flow.md)。
+- 大厅快匹 `quickMatch2` / 取消与 `DpQuickMatchPairingCoordinator#attemptPairing`（经 `DpRoomServiceImpl` 封装）消费队列、`JoinableQuickMatchRoomIndex` 对齐说明见 [docs/dp-quick-match-flow.md](docs/dp-quick-match-flow.md)。
 - 单 JVM 内并发与锁策略见 [docs/dp-quick-match-concurrency.md](docs/dp-quick-match-concurrency.md)。
 - 快匹队列单条等待超时约 **3 分钟**（`DEFAULT_QM_WAIT_MS`，[`DpRoomServiceImpl.java`](src/main/java/com/example/mgdemoplus/service/serviceImpl/dp/DpRoomServiceImpl.java)）。
 

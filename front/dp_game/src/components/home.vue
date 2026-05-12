@@ -239,10 +239,22 @@
             </div>
             <div class="dp-social-list__actions">
               <el-button
+                v-if="friendShowFollow(f)"
+                type="success"
+                plain
+                size="mini"
+                :loading="friendFollowBusy(f.userId)"
+                :disabled="friendFollowOtherBusy(f.userId)"
+                @click="onFollowFriend(f)"
+              >
+                跟随
+              </el-button>
+              <el-button
                 type="danger"
                 plain
                 size="mini"
                 :loading="friendRemoveBusy(f.userId)"
+                :disabled="friendFollowAnyBusy()"
                 @click="onRemoveFriend(f)"
               >
                 删除
@@ -350,7 +362,7 @@ import '@/styles/dp-game-themes.css'
 import '@/styles/dp-lobby-shell.css'
 import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
-import { dpFriendPresenceRowClass, dpFriendPresenceStatusText } from '@/utils/dpFriendPresence'
+import { dpFriendPresenceRowClass, dpFriendPresenceStatusText, dpFriendPresenceBucket } from '@/utils/dpFriendPresence'
 import { dpSocialDisplayNickname } from '@/utils/dpSocialDisplayName'
 import { dpResultSuccess, dpResultData, dpResultMessage } from '@/utils/dpApiResult'
 import GamePlayGuideModal from '@/components/GamePlayGuideModal.vue'
@@ -361,6 +373,8 @@ import {
   isCatTutorialDismissedPermanently,
   setCatTutorialDismissedPermanently
 } from '@/constants/dpCatThemeCopy'
+import { exitLobbyQuickMatchSilently } from '@/utils/dpLobbyQuickMatchExit'
+import { postQuickMatchCancel2 } from '@/utils/dpQuickMatchExit'
 
 export default {
   components: { GamePlayGuideModal },
@@ -399,7 +413,9 @@ export default {
       mailboxTickTimer: null,
       /** 大厅静默轮询未读数量（毫秒） */
       unreadPollMs: 6000,
-      unreadPollTimer: null
+      unreadPollTimer: null,
+      /** 好友列表「跟随」连点防护：好友 dp_user.id */
+      friendFollowBusyUserId: null
     }
   },
   computed: {
@@ -449,12 +465,10 @@ export default {
     }
     this.clearUnreadPollTimer()
     this.stopMailboxTick()
-    if (this.quickMatchPolling) {
-      this.cancelQuickMatchRemote()
-      this.disconnectQuickMatchWs()
-      this.quickMatchPolling = false
-      this.quickMatchLoading = false
-    }
+    this.quickMatchPolling = false
+    this.quickMatchLoading = false
+    this.disconnectQuickMatchWs()
+    postQuickMatchCancel2(this.$http, this.user)
   },
   methods: {
     ...mapActions('dpMailbox', [
@@ -465,7 +479,8 @@ export default {
       'acceptFriend',
       'rejectFriend',
       'acceptRoomInvite',
-      'rejectRoomInvite'
+      'rejectRoomInvite',
+      'followFriendToTheirRoom'
     ]),
     friendRemoveBusy(userId) {
       var id = userId != null ? String(userId) : ''
@@ -486,6 +501,21 @@ export default {
     },
     friendPresenceLine(f) {
       return dpFriendPresenceStatusText(f)
+    },
+    friendShowFollow(f) {
+      return dpFriendPresenceBucket(f) === 'in_game'
+    },
+    friendFollowBusy(userId) {
+      var uid = userId != null ? Number(userId) : 0
+      return isFinite(uid) && uid > 0 && this.friendFollowBusyUserId === uid
+    },
+    friendFollowOtherBusy(userId) {
+      if (this.friendFollowBusyUserId == null) return false
+      var uid = userId != null ? Number(userId) : 0
+      return isFinite(uid) && uid > 0 && this.friendFollowBusyUserId !== uid
+    },
+    friendFollowAnyBusy() {
+      return this.friendFollowBusyUserId != null
     },
     friendRequestPrimaryName(row) {
       return dpSocialDisplayNickname(row && row.fromNickname, row && row.fromUserId, '未知用户')
@@ -590,6 +620,31 @@ export default {
         alert(r.message)
       }
     },
+    async onFollowFriend(f) {
+      var uid = f && f.userId != null ? Number(f.userId) : 0
+      if (!isFinite(uid) || uid <= 0) return
+      if (this.friendFollowBusyUserId != null) return
+      if (dpFriendPresenceBucket(f) !== 'in_game') return
+      if (!this.user || !this.user.token) {
+        alert('请先登录')
+        return
+      }
+      this.friendFollowBusyUserId = uid
+      try {
+        await this.exitQuickMatchBeforeRoomAction()
+        const res = await this.followFriendToTheirRoom({ http: this.$http, friendUserId: uid })
+        if (!res || !res.ok) return
+        var rid = res.roomId != null && res.roomId !== '' ? String(res.roomId).trim() : ''
+        if (!rid) {
+          alert('未返回房间号')
+          return
+        }
+        this.friendsDrawerVisible = false
+        this.$router.push('/game/' + rid)
+      } finally {
+        this.friendFollowBusyUserId = null
+      }
+    },
     async onRemoveFriend(f) {
       var uid = f && f.userId != null ? Number(f.userId) : 0
       if (!isFinite(uid) || uid <= 0) return
@@ -659,20 +714,30 @@ export default {
     goMusicUpload() {
       this.$router.push('/music-upload')
     },
-    goCreateRoom() {
+    async goCreateRoom() {
+      await this.exitQuickMatchBeforeRoomAction()
       this.$router.push('/create-room')
+    },
+    /**
+     * 创建/加入房间前：断开 /ws/dp-quick-match（若仍存在）并联调取消接口，降低前后端并发态。
+     * 幂等；取消失败仅日志，不阻塞后续导航或 join/create。
+     */
+    async exitQuickMatchBeforeRoomAction() {
+      var self = this
+      await exitLobbyQuickMatchSilently(this.$http, this.user, {
+        resetQuickMatchUiFlags: function () {
+          self.quickMatchPolling = false
+          self.quickMatchLoading = false
+        },
+        disconnectQuickMatchWs: function () {
+          self.disconnectQuickMatchWs()
+        }
+      })
     },
     /** 排队中再点一次：断开快匹 WebSocket 并取消后端队列 */
     async onQuickMatchButtonClick() {
       if (this.quickMatchPolling) {
-        this.disconnectQuickMatchWs()
-        this.quickMatchPolling = false
-        this.quickMatchLoading = false
-        try {
-          await this.cancelQuickMatchRemote()
-        } catch (e) {
-          console.error('quickMatchCancel', e)
-        }
+        await this.exitQuickMatchBeforeRoomAction()
         return
       }
       await this.quickMatch()
@@ -913,9 +978,7 @@ export default {
       }
     },
     cancelQuickMatchRemote() {
-      if (!this.user || !this.user.nickname) return Promise.resolve()
-      const params = { nickname: this.user.nickname }
-      return this.$http.post('/dpRoom/quickMatchCancel2', null, { params }).catch(() => {})
+      return postQuickMatchCancel2(this.$http, this.user)
     },
     /** 与当前 filters 是否应走 MyBatis 查询一致（用于搜索按钮） */
     filtersActiveFromForm() {
@@ -984,6 +1047,7 @@ export default {
       }
     },
     async joinRoom(roomDto) {
+      await this.exitQuickMatchBeforeRoomAction()
       const roomId = typeof roomDto === 'string' ? roomDto : roomDto.roomId
       let roomPassword = ''
       if (roomDto && roomDto.passwordProtected) {

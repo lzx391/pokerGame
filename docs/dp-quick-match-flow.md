@@ -19,7 +19,7 @@
 | 层级 | 路径 / 类 | 说明 |
 |------|-----------|------|
 | HTTP 控制器 | `DpRoomController` | `POST /dpRoom/quickMatch2`、`POST /dpRoom/quickMatchCancel2` |
-| 核心服务 | `DpRoomServiceImpl` | 公开房快匹、入队、`tryDrain` 双人建房、修剪队列、`pushQuickMatchLobbySnapshot`、推送触发 |
+| 核心服务 | `DpRoomServiceImpl` + `DpQuickMatchPairingCoordinator` | 公开房快匹、默认 FIFO 队列入队、`attemptPairing`/冲桌与批量建新桌、修剪队列、`pushQuickMatchLobbySnapshot`、推送触发 |
 | WebSocket 配置 | `WebSocketGameRoomConfig` | 注册 `/ws/dp-quick-match` |
 | WS 握手 | `DpQuickMatchWebSocketHandler` | 校验 query `nickname` + `token`（JWT subject 必等于昵称），注册会话并补发快照 |
 | WS 推送 | `DpQuickMatchPushService` | `nickname → Set<WebSocketSession>`，JSON 推送 `WAITING` / `MATCHED` / `IDLE` |
@@ -44,47 +44,40 @@
 
 **内存结构：**
 
-- `DefaultQmWaitEntry`：`record (String nickname, Integer userId, long enqueuedMs)`，入队时间用于超时判断。
-- `defaultQmWaiters`：`ArrayDeque<DefaultQmWaitEntry>`，**FIFO**。
+- `DpQuickMatchWaitEntry`：`record (String nickname, Integer userId, long enqueuedMs)`，入队时间用于超时判断。
+- `defaultQmWaiters`：`ArrayDeque<DpQuickMatchWaitEntry>`，**FIFO**。
 - `defaultQmLock`：保护队列的 **所有** 与 `defaultQmWaiters` / `prune` 相关的临界区。
-- `dpQuickMatchAssignmentLock`：**公开房扫房并进房**、以及 **从队列 `poll` 后直到 `pairDefaultQuickMatchWaitersInNewRoom` 完成** 的串行化锁（避免与别的快匹/进房交错导致重复占位）。
-
+- `dpQuickMatchAssignmentLock`：串 **`quickMatchJoinAndReady`** 与 **`attemptQuickMatchPairing()`**（其对 `DpQuickMatchPairingCoordinator#attemptPairing` 的封装），与同线程重入相容；收窄「谁先写 `roomMap`」的窗口。
+- `DpQuickMatchPairingCoordinator`：**单入口** `attemptPairing()` —— 每轮 **冲公开桌**（历史 `tryFlush`，仍在队锁内 `prune`+快照、锁外 `quickMatchJoinAndReady`）→ 有房则按索引 **填空位** → 必要时 **批量建新桌**。同路径若同时要单房监视器与 `defaultQmLock`：**先房后队**（见该类 JavaDoc）。
+- **建房 / HTTP 大厅进房兜底**：`createRoom`、`joinRoom` 入口在主业前幂等 **`cancelDefaultQuickMatchWait(nickname)`**，避免邀友链路与大厅快匹 FIFO 并排占坑（不要求与邀友 WS 等业务互斥错误）。
 ---
 
 ## 4. 锁与并发（必读）
 
-### 4.1 两把锁的分工
+### 4.1 锁的分工（摘要）
 
-| 锁 | 用途 |
-|----|------|
-| `dpQuickMatchAssignmentLock` | `quickMatchJoinAndReady` 全程；`tryDrainDefaultQuickMatchPairs` 的外层（含 `createRoom`、`joinRoom`、`pair…`） |
-| `defaultQmLock` | 仅队列：`prune`、入队、`pollFirst` / 失败回滚入队 等 |
+| 锁 / 构件 | 用途 |
+|-----------|------|
+| `dpQuickMatchAssignmentLock` | `quickMatchJoinAndReady` 全程；`attemptQuickMatchPairing`（包装协调器整条循环）外层；可与 `quickMatchJoinAndReady` **重入** |
+| `defaultQmLock` | **仅队列**：`prune`、入队、`poll` / 批量 `poll`、失败插回队头队尾 |
+| `synchronized(DpRoomBO)` | 单间房内进房 / 准备 / 名额与 `waitNextHand` 一致性 |
+| 协调器 **`pairingDepth`** | **仅协调器内部**：外层 `attemptPairing` 正常跑循环；从内层公开 `createRoom` 再次触发的配对只跑 **flush 冲公开桌**，避免递归批量建房与同线程锁序问题（取代旧 `ThreadLocal` tryDrain 深度） |
 
-设计约束（源码注释）：**不在持有 `defaultQmLock` 时进房** —— `tryDrain` 内在 **`poll` 出 `wa`、`wb` 并释放 `defaultQmLock` 之后**，才在 **`dpQuickMatchAssignmentLock` 内**执行 `pairDefaultQuickMatchWaitersInNewRoom`。
+### 4.2 **先房后队**（`defaultQmLock` 与单间监视器同路径时）
 
-### 4.2 `tryDrain` 内部的加锁顺序
+协调器 **`fillHeadIntoJoinableRoom`** 等路径：在需同时触碰 **单间 `DpRoomBO` 监视器** 与 **`defaultQmLock`** 时，必须先 `synchronized(r)`，再在 **已持房监视器** 的前提下 `synchronized(defaultQmLock)` 做批量 `poll`（见 `DpQuickMatchPairingCoordinator` 类注释表格）。
 
-```text
-synchronized (dpQuickMatchAssignmentLock) {
-    tryFlushDefaultQuickMatchWaitersIntoPublicRooms(); // 先入公开桌（FIFO 快照轮询 + quickMatchJoinAndReady）
-    synchronized (defaultQmLock) {
-        prune…
-        if (size < 2) return;
-        wa = pollFirst(); wb = pollFirst();
-    }
-    notifyQuickMatchTimedOut(本段 prune 得到的超时列表);
-    // 此处已不再持有 defaultQmLock
-    pairDefaultQuickMatchWaitersInNewRoom(wa, wb); // 内含 createRoom、joinRoom…；末尾再次 tryFlush
-}
-```
+### 4.3 冲公开桌与 HTTP 首轮快匹对齐
 
-手动创建**公开**房（`createRoom` 无密码）或在**公开**房 `exitRoom` 释放快匹可读空位后，会**在未持房间锁**的前提下轻量调用一次 `tryDrainDefaultQuickMatchPairs()`，以便队列中等待者立刻重扫 `roomMap`。注意：`tryDrain` 内已持 `dpQuickMatchAssignmentLock` 时调用的 `createRoom` 不会递归再进 `tryDrain`（`ThreadLocal` 深度避免同线程死锁），改为在 `pairDefaultQuickMatchWaitersInNewRoom` 尾部直接 `tryFlush`。
+历史约束不变：**不在持有 `defaultQmLock` 时进房**。`flushQueuedWaitersIntoJoinablePublicRooms`（由 `DpQuickMatchPairingHost` 在 Service 侧实现）：队内 `prune`+快照；**锁外**按 FIFO 对快照逐项 `quickMatchJoinAndReady`。与 `quickMatchJoinQueueOrImmediate` 入队前先跑的那轮 `quickMatchJoinAndReady` 语义对齐。
 
-### 4.3 死锁风险（结论）
+### 4.4 释座后触发配对
 
-当前 **不会** 出现「线程 A 持 `defaultQmLock` 等待 `dpQuickMatchAssignmentLock` 且 B 反向」的典型顺序：  
-`quickMatchJoinQueueOrImmediate` 是先 **`quickMatchJoinAndReady`（仅 assignment）**，再 **`defaultQmLock` 入队**，再 **`tryDrain`（先 assignment 再 defaultQm）**，与 `tryDrain` 的 **先 assignment 后 defaultQm** 一致，无交叉反序持锁。
+手动创建 **无密码公开房** 的 `createRoom` **末尾**，以及 **公开房** `exitRoom` **在释放房间监视器之后**（且业务成功释放了快匹可读空位相关状态时），调用 **`attemptQuickMatchPairing()`**，使 FIFO 与新空桌/索引立刻被协调器消费。该调用外层会占 `dpQuickMatchAssignmentLock`，与 §4.1 一致。
 
+### 4.5 典型死锁反例（如何避免）
+
+与同路径 **先 assignment 还是先房**无关的死锁关注点仍是：**不要在持单间监视器时去改 `JoinableQuickMatchRoomIndex`**；索引与大厅 upsert 在 **释房监视器之后** 执行（参见 [docs/dp-quick-match-concurrency.md](docs/dp-quick-match-concurrency.md) §8）。
 ---
 
 ## 5. HTTP 接口契约（`DpRoomController`）
@@ -128,26 +121,22 @@ synchronized (dpQuickMatchAssignmentLock) {
 
 4. **`notifyQuickMatchTimedOut`**：处理本次 `prune` 返回的 **超时昵称**（发 WS `IDLE`）。
 
-5. **`tryDrainDefaultQuickMatchPairs()`**：尝试 **连续** 配对直到队列不足两人（`while(true)` 循环）。
+5. **`attemptQuickMatchPairing()`** → **`DpQuickMatchPairingCoordinator#attemptPairing()`**（外层持 `dpQuickMatchAssignmentLock`）：循环「冲公开桌 → 有可进索引则填空位 → 否则队中多于 1 人时批量建新桌并落座」，直到本轮无进展。
 
 6. **再次 `defaultQmLock`**：计算本昵称的 **`queuePosition`（从 1 起）**。若仍在队列，则 **`quickMatchPush.notifyWaiting(nickname, queuePosition)`**。
 
 7. 返回 `queued=true`、`state=WAITING`。
 
-### 6.2 `tryDrainDefaultQuickMatchPairs()`
+### 6.2 `attemptQuickMatchPairing()` / `DpQuickMatchPairingCoordinator#attemptPairing()`
 
-- 外层占 **`dpQuickMatchAssignmentLock`**；在每个「配对周期」开头先执行 **`tryFlushDefaultQuickMatchWaitersIntoPublicRooms()`**：在队列锁内只做 `prune` 与快照，在锁外对快照按 FIFO 逐个调用 **`quickMatchJoinAndReady`**（与 `quickMatchJoinQueueOrImmediate` 首轮进公开桌一致）；成功者出队并 **`notifyMatched`**。整轮若无人成功则不再重试该阶段，避免队首长期挤不进时死循环；有人成功则再来一轮直到某轮零成功。  
-- 内层占 **`defaultQmLock`** 做 `prune`、`poll`。  
-- 若 `wa`、`wb` 同昵称 → 将一人回队头（若未在房）。  
-- 若其一已在房 → 按规则把「未在房者」重新 `addLast` 或丢弃回队。  
-- 否则 **`pairDefaultQuickMatchWaitersInNewRoom(wa, wb)`**；异常时尝试把两人重新加入队列（若仍未在房）。配对成功并推送两人 `MATCHED` 后， **`pair` 方法末尾再一次 `tryFlush`**，使「刚建好的默认快匹桌」上仍空位时第三人可立即进桌。
+- Service 私有方法 **`attemptQuickMatchPairing`** 包住协调器：**同一把** `dpQuickMatchAssignmentLock` 与 **`quickMatchJoinAndReady`** 可重入。  
+- 协调器：**先 flush**（`DpQuickMatchPairingHost#flushQueuedWaitersIntoJoinablePublicRooms`，即历史 **`tryFlush` 快照 + 锁外 `quickMatchJoinAndReady`**）→ **有可进公开桌**：按空缺自队头 `poll`，在 **先房后队** 前提下 `joinAndReadyWhileRoomLocked` → **索引无桌且队列至少两人**：单次最多 `MAX_NEW_ROOM_BATCH` 条出队建新桌（先入队者为房主，`createRoom` 已占位；协调器再在 `synchronized(room)` 内并进余下玩家），`afterRoomMutationRefreshQuickMatchIndex`、`notifyMatched`、`startGame`、再 flush 一圈。  
+- **嵌套调用**：从内层 **`createRoom`（公开）** 末尾再次 `attemptQuickMatchPairing()` 时，协调器 **`pairingDepth` &gt; 1** 的轮次只做 **flush**，不再进入批量建新桌路径（取代旧 **`ThreadLocal` tryDrain** 防抖）。
 
-### 6.3 `pairDefaultQuickMatchWaitersInNewRoom(wa, wb)`
+### 6.3 `createRoom` / `joinRoom` 与 FIFO 兜底
 
-1. **`createRoom(wa.nickname(), …)`**：房主为 **先入队** 的 `wa`（FIFO 队头）。  
-2. **`synchronized (room)`**：`joinRoom` 第二人 `wb`；`ensureLobbyReady` 两人；`startGame`（房主）。  
-3. **`syncLobbyForRoomId`**。  
-4. **`quickMatchPush.notifyMatched`** 对 `wa`、`wb` **各推一次**（配对结束时两人已在 `roomMap` 内，`pushQuickMatchLobbySnapshot` 亦可用 `findRoomContainingNickname` 兜底）。
+- **`createRoom`**、大厅 **`joinRoom`**：主业前 **`cancelDefaultQuickMatchWait(nickname)`**（幂等），减少邀友链路与 FIFO 双排。  
+- **无密码 `createRoom` 末尾**、公开房 **`exitRoom` 成功后** → **`attemptQuickMatchPairing()`**（参见 §4.4）。
 
 ### 6.4 `cancelDefaultQuickMatchWait(String nickname)`
 
@@ -243,25 +232,25 @@ synchronized (dpQuickMatchAssignmentLock) {
 
 ```text
 A：WS 连接 → register → snapshot WAITING(1) [若尚未 POST 则可能仍为后续状态]
-A：POST quickMatch2 → 入队 → tryDrain size<2 → HTTP 返回 WAITING → notifyWaiting(A,1)
+A：POST quickMatch2 → 入队 → attemptPairing：队 &lt;2 仅能 flush → HTTP 返回 WAITING → notifyWaiting(A,1)
 
 B：WS 连接 → …
-B：POST quickMatch2 → 入队 → tryDrain：poll A,B → pair → create+join → notifyMatched(A), notifyMatched(B)
+B：POST quickMatch2 → 入队 → attemptPairing：建新桌或对两人分配落座 → notifyMatched(A), notifyMatched(B)
 
 A/B：home.vue 收到 MATCHED → 断开快匹 WS → 进入 /game/{roomId}
 对局页：再起 /ws/dp-game（与快匹 WS 无关）
 ```
 
 **谁触发建房？**  
-**后入队的那次请求**里的 `tryDrain`（或任意一次使 `size>=2` 的 `tryDrain`）完成 **`pair`**；**不是**「第一人 HTTP 返回后再由第二人单独建房通知第一人」的分离模型，而是 **同一次 `tryDrain` 内建房并对两人推送**。
+**后入队的那次请求**里触发的 **`attemptQuickMatchPairing()`**（协调器 **`attemptPairing`** 在多轮进度环中择机走「批量建新桌」分支）完成 **建房与推送**；**不是**「第一人 HTTP 返回后再由第二人单独建房通知第一人」的分离模型，而是在 **外层 `dpQuickMatchAssignmentLock` 包装下**的一段协调回合内落成。
 
 ### 9.1 仅一人在队 + 他人新建公开桌
 
-若当时只有玩家 A 在默认 FIFO（`tryDrain` 不足两人，不会走「两人建房」），随后玩家 B **手动创建**无密码、且快匹可见空位规则下的公开桌，则在以下时机之一会先执行 **`tryFlushDefaultQuickMatchWaitersIntoPublicRooms()`**（与首轮 `quickMatchJoinAndReady` 扫房一致），使 A 入 B 的桌并收到 **`MATCHED`**，而无需再等第二名排队者与 A 拼对建房：
+若当时只有玩家 A 在默认 FIFO（**不足以建新桌或无第二参与者**），随后玩家 B **手动创建**无密码、且快匹可见空位规则下的公开桌，则在以下时机之一会先 **flush**（与首轮扫公开桌一致），使 A 入 B 的桌并收到 **`MATCHED`**：
 
-- 任意一次 `tryDrainDefaultQuickMatchPairs` 的配对周期开头（含他人 `POST quickMatch2` 入队后触发的 `tryDrain`）；
-- 手动 `createRoom`（公开）完成后的轻量 `tryDrain`；
-- 公开房 `exitRoom` 在**释放房间锁之后**触发的轻量 `tryDrain`（避免与 `dpQuickMatchAssignmentLock` 交叉死锁）。
+- 任意 **`attemptQuickMatchPairing()`**（含他人 `POST quickMatch2` 入队末尾触发）；  
+- **手动 `createRoom`（公开）完成后**；  
+- **公开房 `exitRoom` 释监视器成功后**。
 
 ---
 
@@ -269,7 +258,7 @@ A/B：home.vue 收到 MATCHED → 断开快匹 WS → 进入 /game/{roomId}
 
 1. **单机内存队列**：`defaultQmWaiters` 均在 **当前 JVM**。多实例负载均衡时，**除非**改为 Redis 等共享队列，否则 **不会出现「跨机拼桌」**。  
 2. **修剪与已在房**：`prune` 会把 **已在任意房间**（含 spectator / player）的等待者移出队列，**不**等同于「匹配失败」，可能与其它入口进房交错。  
-3. **`tryDrain` 早退分支** 中曾在持有 `defaultQmLock` 时调用 `notifyQuickMatchTimedOut`（源码现状）：主要影响 **持锁时间**，一般不影响正确性。  
+3. **协调器 prune**：`DpQuickMatchPairingHost#pruneQueueWhileLocked`（及冲桌快照前的 prune）会向超时者 **`notifyQuickMatchTimedOut`**；持锁粒度以源码为准。  
 4. **安全**：`/ws/**` 在 Spring Security 中为 **permitAll**；**快匹 WS 的鉴权完全依赖 Handler 内 JWT** —— 若 token 泄露，等同账号维度风险，与 HTTP Bearer 一致。
 
 ---

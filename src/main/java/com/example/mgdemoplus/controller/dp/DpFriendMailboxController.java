@@ -100,6 +100,25 @@ public class DpFriendMailboxController {
         return dpFriendSocialService.listFriends(me.getId());
     }
 
+    /**
+     * 互为好友且对方在某房间内时，当前用户以观众身份进入其房间（与邮箱「接受进房邀请」同属
+     * {@link com.example.mgdemoplus.service.serviceImpl.dp.DpRoomServiceImpl#joinRoomInviteAsSpectator}）。
+     */
+    @PostMapping("/friends/follow-room")
+    public ResultUtil followFriendToRoom(@RequestBody Map<String, Object> body) {
+        ResultUtil err = ResultUtil.error();
+        DpUser me = requireCurrentUser(err);
+        if (me == null) {
+            return err.data("message", err.getMessage());
+        }
+        Object raw = body != null ? body.get("friendUserId") : null;
+        int friendUserId = raw instanceof Number ? ((Number) raw).intValue() : -1;
+        if (friendUserId <= 0) {
+            return ResultUtil.error().data("message", "参数无效");
+        }
+        return dpFriendSocialService.followFriendToTheirRoom(me.getId(), me.getNickname(), friendUserId);
+    }
+
     @DeleteMapping("/friends/{friendUserId}")
     public ResultUtil removeFriend(@PathVariable("friendUserId") int friendUserId) {
         ResultUtil err = ResultUtil.error();
@@ -165,5 +184,37 @@ public class DpFriendMailboxController {
             return err.data("message", err.getMessage());
         }
         return dpFriendSocialService.rejectRoomInvite(me.getId(), id);
+    }
+
+    /**
+     * 只读：解析好友当前可跟随观战的房间号（与邀请进房所需的 {@code roomId} 字段一致）。
+     * 详见 {@link DpFriendSocialService#getFriendSpectateRoomContext}。
+     */
+    @GetMapping("/friends/{friendUserId}/spectate-room")
+    public ResultUtil friendSpectateRoom(@PathVariable("friendUserId") int friendUserId) {
+        ResultUtil err = ResultUtil.error();
+        DpUser me = requireCurrentUser(err);
+        if (me == null) {
+            return err.data("message", err.getMessage());
+        }
+        return dpFriendSocialService.getFriendSpectateRoomContext(me.getId(), friendUserId);
+    }
+
+    /**
+     * 跟随好友进房（观众）：内部仅调用 {@code joinRoomInviteAsSpectator}，与同意邮箱邀约共用实现。
+     */
+    @PostMapping("/room-follow/spectate")
+    public ResultUtil followFriendSpectate(@RequestBody Map<String, Object> body) {
+        ResultUtil err = ResultUtil.error();
+        DpUser me = requireCurrentUser(err);
+        if (me == null) {
+            return err.data("message", err.getMessage());
+        }
+        if (body == null) {
+            return ResultUtil.error().data("message", "缺少请求体");
+        }
+        Object raw = body.get("friendUserId");
+        int friendUserId = raw instanceof Number ? ((Number) raw).intValue() : -1;
+        return dpFriendSocialService.followFriendIntoRoomAsSpectator(me.getId(), me.getNickname(), friendUserId);
     }
 }

@@ -93,22 +93,23 @@ synchronized (r) {
 
 ## 7. 额外一把「快匹分配锁」（`dpQuickMatchAssignmentLock`）
 
-快匹除对每个候选房 `synchronized (r)` 外，还把 **`quickMatchJoinAndReady` 的主流程**（含扫 `roomMap`、尝试进房）与 **`tryDrainDefaultQuickMatchPairs` 里「从默认队列摘下两人 → `createRoom` / `joinRoom` / `startGame`」** 串在同一把 `dpQuickMatchAssignmentLock` 上。这样不会出现：玩家 A 已被队列逻辑「摘出」但新房尚未建好时，另一条请求又让 A 进了别的公开桌，却仍按旧配对再为 A 建一桌的错乱窗口。
+快匹仍把 **`quickMatchJoinAndReady` 全流程**（含扫 `roomMap`、对每个候选房 `synchronized(r)`）与 **`attemptQuickMatchPairing()`** ——其对 `DpQuickMatchPairingCoordinator#attemptPairing` 的封装 —— 串在同一监视器下（可重入）。协调器内部负责：**冲公开桌**（历史 `tryFlush` 语义，仍只在 `defaultQmLock` 内 `prune`+快照、锁外 `quickMatchJoinAndReady`）以及 **按需批量建新桌并进房**。这样不会出现：玩家 A 已被队列配对路径「摘下」尚未落座时，另一条 HTTP 快匹又让 A 进了别的公开桌却仍按队列再为 A 建一桌的错乱窗口。
 
 服务端 **`joinRoom` / `readyNextHand` / `exitRoom`** 等对名单与席位的写入也在 **`synchronized (同一 DpRoomBO)`** 内完成（与快匹里包在 `synchronized(r)` 的块可重入叠加），避免大厅「加入房间」与快匹并发写同一 `players` 列表。
 
-## 8. 快匹「可进桌」索引与锁顺序（避免死锁）
+## 8. 快匹「可进桌」索引与锁顺序（避免死锁；**先房后队**）
 
-进程内另有 `JoinableQuickMatchRoomIndex`（桶 = **缺几人**，缺得越少越优先，等价于历史上按「填充分」从高到低扫 `roomMap`）。索引在自带的 `indexLock` 内更新。
+进程内另有 `JoinableQuickMatchRoomIndex`（桶 = **缺几人**，缺得越少越优先）。索引在自带的 `indexLock` 内更新。
 
-- **不要做**：已经拿着 **`synchronized(某个 DpRoomBO)`**（单房 intrinsic 监视器）时再去改索引（`addOrRefresh`/`remove`/rebuild）。否则锁序会变成「监视器 → 索引锁」，与 **`dpQuickMatchAssignmentLock` → 索引 →（再进房时）单房监视器** 的推荐路径相反，极端情况会饿死或死锁。实现上：**先写完 BO**，**退出**单房临界区后再 `refresh`/再 `syncLobbyForRoomId`。
-- **建议记住**：全局固定为 **`dpQuickMatchAssignmentLock`（若在快分配路径上）→ 释放单房监视器后再碰索引锁 → （需要时）单房监视器**。详见 `JoinableQuickMatchRoomIndex` 类头 JavaDoc。
+- **不要做**：已经拿着 **`synchronized(某个 DpRoomBO)`**（单房 intrinsic 监视器）时再去改索引（`addOrRefresh`/`remove`/rebuild）。否则锁序会变成「监视器 → 索引锁」，与推荐的「写完 BO → **释房** → 索引 / 大厅」相反，极端情况会饿死或死锁。实现上：**先写完 BO**，**退出**单房临界区后再 `refresh`/再 `syncLobbyForRoomId`。
+- **`defaultQmLock`（队）与同一路径的单房监视器**：由 `DpQuickMatchPairingCoordinator` 约定：**同一代码路径若既要 `synchronized(r)` 又要 `synchronized(defaultQmLock)`，必须先获得 `r` 再获得 `defaultQmLock`（「**先房后队**」）**。冲公开桌（`flushQueuedWaitersIntoJoinablePublicRooms`）仍对齐历史：**不在持队锁时进房** —— 队内只做 `prune`+快照，锁外对每个等待者 `quickMatchJoinAndReady`。
+- **`dpQuickMatchAssignmentLock`**：包住 `attemptQuickMatchPairing`（协调器整条 pairing 循环可与 `quickMatchJoinAndReady` 重入同一把锁）；与「先房后队」是两层概念 —— assignment 收窄「谁来改 roomMap」，单房与队列顺序见上条与协调器表格。
 
 ## 9. 小结（背三句就够）
 
 1. **同一张桌子（同一个 `DpRoomBO`）**：同一时刻只允许一个请求在「进房 + 候补」这段里改它，所以用 `synchronized (r)`（以及相关 API 内部的同对象锁）。  
 2. **下一个人**：等锁没了再进来，**重新看名额**，可能已经加不进——这是预期行为。  
-3. **不同桌子**：Different `r` → **不同锁**，可以并行；**默认 FIFO 配对**还与 `dpQuickMatchAssignmentLock` 配合，收窄跨请求的时间窗。
+3. **不同桌子**：Different `r` → **不同锁**，可以并行；**默认 FIFO 配对**/`attemptPairing` 还与 `dpQuickMatchAssignmentLock` 配合，收窄跨请求的落座窗口。
 
 若你想继续往深走，推荐阅读顺序：**本篇 → Java 入门书里的「线程与 `synchronized` / 监视器（intrinsic lock）」一章**；和本项目强相关时再对照 **`DpRoomServiceImpl`** 里的 `quickMatchJoinAndReady` 读一遍。
 

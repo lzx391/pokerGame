@@ -4,6 +4,9 @@ import com.example.mgdemoplus.bo.DpObservedHandRecordBO;
 import com.example.mgdemoplus.bo.DpRoomBO;
 import com.example.mgdemoplus.dp.quickmatch.DpQuickMatchRoomSemantics;
 import com.example.mgdemoplus.dp.quickmatch.JoinableQuickMatchRoomIndex;
+import com.example.mgdemoplus.dp.quickmatch.pairing.DpQuickMatchPairingCoordinator;
+import com.example.mgdemoplus.dp.quickmatch.pairing.DpQuickMatchPairingHost;
+import com.example.mgdemoplus.dp.quickmatch.pairing.DpQuickMatchWaitEntry;
 import com.example.mgdemoplus.entity.dp.DpPlayer;
 import com.example.mgdemoplus.entity.dp.DpPot;
 import com.example.mgdemoplus.entity.dp.DpRoom;
@@ -28,7 +31,6 @@ import org.springframework.stereotype.Service;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 @Service
@@ -67,27 +69,24 @@ public class DpRoomServiceImpl {
     /** 与 {@link #quickMatchJoinAndReady} 中「无候选公开房」文案保持一致，便于判断仅此时入队。 */
     static final String MSG_NO_PUBLIC_ROOM = "暂无可匹配的公开房间";
 
-    private record DefaultQmWaitEntry(String nickname, Integer userId, long enqueuedMs) {
-    }
-
     private final Object defaultQmLock = new Object();
-    private final ArrayDeque<DefaultQmWaitEntry> defaultQmWaiters = new ArrayDeque<>();
+    private final ArrayDeque<DpQuickMatchWaitEntry> defaultQmWaiters = new ArrayDeque<>();
 
     /**
-     * 串行化快匹写入 roomMap（扫公开房并进房、默认 FIFO 拉出两人 {@link #tryDrainDefaultQuickMatchPairs}
-     * 后到 {@link #createRoom}）。避免「已从队列摘下但尚未建房」的瞬间，同一玩家又因快匹或其它入口进了别的桌，
-     * 却仍为其再建一局导致重复占位或错乱。
+     * 串行化快匹写入 roomMap：{@link #quickMatchJoinAndReady} 与
+     * {@link DpQuickMatchPairingCoordinator#attemptPairing()}（经 {@link #attemptQuickMatchPairing}）共用，
+     * 避免「已从队列摘下但尚未落座」与另一条快匹/扫房请求交错导致重复占位。
      */
     private final Object dpQuickMatchAssignmentLock = new Object();
 
-    /**
-     * {@link #tryDrainDefaultQuickMatchPairs()} 重入深度：当默认快匹配对链在已持有
-     * {@link #dpQuickMatchAssignmentLock} 时调用 {@link #createRoom}，禁止在 createRoom
-     * 末尾再套一层 tryDrain，否则同线程死锁。
-     * 其它入口（HTTP 手动建房）深度为 0，可在 createRoom 末尾安全触发 tryDrain。
-     */
-    private static final ThreadLocal<AtomicInteger> defaultQmTryDrainDepth = ThreadLocal
-            .withInitial(() -> new AtomicInteger(0));
+    private final DpQuickMatchPairingCoordinator qmPairingCoordinator = new DpQuickMatchPairingCoordinator(
+            new QuickMatchPairingHost());
+
+    private void attemptQuickMatchPairing() {
+        synchronized (dpQuickMatchAssignmentLock) {
+            qmPairingCoordinator.attemptPairing();
+        }
+    }
 
     // 统一从 NPC 引擎中获取机器人昵称，避免散落魔法字符串
     public boolean addDemoBotToNextHand(String roomId) {
@@ -930,6 +929,7 @@ public class DpRoomServiceImpl {
     public DpRoomBO createRoom(String ownerNickname, Integer ownerUserId,
             int smallBlindChips, int bigBlindChips, int startingStackBb, String roomPassword,
             int maxSeatCount) {
+        cancelDefaultQuickMatchWait(ownerNickname);
         String id = UUID.randomUUID().toString().substring(0, 8);// 随机生成的id?
         DpRoomBO r = new DpRoomBO();
         r.setRoomId(id);
@@ -968,9 +968,8 @@ public class DpRoomServiceImpl {
         roomMap.put(id, r);
         refreshJoinableQuickMatchIndexRoom(id, System.currentTimeMillis());
         syncLobbyForRoomId(id);
-        // 轻量：手动创建公开桌后，让默认 FIFO 队列可走 flush 进房；嵌套在 tryDrain/pair 内时避免再套 tryDrain（死锁）
-        if (roomPassword == null && defaultQmTryDrainDepth.get().get() == 0) {
-            tryDrainDefaultQuickMatchPairs();
+        if (roomPassword == null) {
+            attemptQuickMatchPairing();
         }
         if (uid != null) {
             friendPresence.markInGame(uid, "create_room");
@@ -1304,7 +1303,7 @@ public class DpRoomServiceImpl {
     }
 
     public String joinRoom(String roomId, String nickname, Integer userId, String roomPassword) {
-
+        cancelDefaultQuickMatchWait(nickname);
         DpRoomBO r = roomMap.get(roomId);
         if (r == null)
             return "房间不存在";
@@ -1367,6 +1366,7 @@ public class DpRoomServiceImpl {
      * 坐位是否已满不拦截观众（与本轮「超员不拦截」约定一致）。
      */
     public String joinRoomInviteAsSpectator(String roomId, String nickname, Integer userId) {
+        cancelDefaultQuickMatchWait(nickname);
         DpRoomBO r = roomMap.get(roomId);
         if (r == null) {
             return "房间不存在";
@@ -1625,7 +1625,7 @@ public class DpRoomServiceImpl {
         synchronized (defaultQmLock) {
             qmTimedOut = pruneDefaultQuickMatchQueueLockedWithoutReentry();
             int i = 1;
-            for (DefaultQmWaitEntry e : defaultQmWaiters) {
+            for (DpQuickMatchWaitEntry e : defaultQmWaiters) {
                 if (nickname.equals(e.nickname())) {
                     queuePos = i;
                     break;
@@ -1665,23 +1665,23 @@ public class DpRoomServiceImpl {
         synchronized (defaultQmLock) {
             qmTimedOut = pruneDefaultQuickMatchQueueLockedWithoutReentry();
             boolean already = false;
-            for (DefaultQmWaitEntry e : defaultQmWaiters) {
+            for (DpQuickMatchWaitEntry e : defaultQmWaiters) {
                 if (nickname.equals(e.nickname())) {
                     already = true;
                     break;
                 }
             }
             if (!already) {
-                defaultQmWaiters.addLast(new DefaultQmWaitEntry(nickname, userId, now));
+                defaultQmWaiters.addLast(new DpQuickMatchWaitEntry(nickname, userId, now));
             }
         }
 
         notifyQuickMatchTimedOut(qmTimedOut);
-        tryDrainDefaultQuickMatchPairs();
+        attemptQuickMatchPairing();
         int queuePos = 0;
         synchronized (defaultQmLock) {
             int i = 1;
-            for (DefaultQmWaitEntry e : defaultQmWaiters) {
+            for (DpQuickMatchWaitEntry e : defaultQmWaiters) {
                 if (nickname.equals(e.nickname())) {
                     queuePos = i;
                     break;
@@ -1744,64 +1744,6 @@ public class DpRoomServiceImpl {
         return timedOut;
     }
 
-    /**
-     * 在已持有 {@link #dpQuickMatchAssignmentLock} 的前提下调用（与
-     * {@link #quickMatchJoinAndReady} 同锁，可重入）。
-     * 将默认 FIFO 队列中仍在等待的玩家，按与首次快匹相同的 {@link #quickMatchJoinAndReady} 逻辑扫
-     * {@code roomMap}
-     * 进入已有公开桌；成功则出队并 WS 推 {@code MATCHED}（与双人建房路径一致）。
-     * <p>
-     * 不得在持有 {@link #defaultQmLock} 时进房：每轮仅在队列锁内 {@code prune}+快照，再在锁外对每个等待者尝试进房。
-     * <p>
-     * 终止：若一整轮按 FIFO 快照扫描下来无人成功进房则结束，避免队首因顺位挤不进时死循环；
-     * 若本轮有人成功则再开一轮，直至某轮零成功。
-     */
-    private void tryFlushDefaultQuickMatchWaitersIntoPublicRooms() {
-        while (true) {
-            List<String> qmTimedOut;
-            List<DefaultQmWaitEntry> snapshot;
-            synchronized (defaultQmLock) {
-                qmTimedOut = pruneDefaultQuickMatchQueueLockedWithoutReentry();
-                snapshot = new ArrayList<>(defaultQmWaiters);
-            }
-            notifyQuickMatchTimedOut(qmTimedOut);
-            if (snapshot.isEmpty()) {
-                return;
-            }
-            int roundSuccesses = 0;
-            for (DefaultQmWaitEntry e : snapshot) {
-                boolean stillInQueue;
-                synchronized (defaultQmLock) {
-                    stillInQueue = false;
-                    for (DefaultQmWaitEntry x : defaultQmWaiters) {
-                        if (e.nickname().equals(x.nickname())) {
-                            stillInQueue = true;
-                            break;
-                        }
-                    }
-                }
-                if (!stillInQueue) {
-                    continue;
-                }
-                ResultUtil res = quickMatchJoinAndReady(e.nickname(), e.userId());
-                if (!Boolean.TRUE.equals(res.getSuccess())) {
-                    continue;
-                }
-                synchronized (defaultQmLock) {
-                    defaultQmWaiters.removeIf(x -> e.nickname().equals(x.nickname()));
-                }
-                String roomId = quickMatchResultRoomId(res);
-                if (roomId != null) {
-                    quickMatchPush.notifyMatched(e.nickname(), roomId);
-                }
-                roundSuccesses++;
-            }
-            if (roundSuccesses == 0) {
-                return;
-            }
-        }
-    }
-
     private static String quickMatchResultRoomId(ResultUtil res) {
         if (res == null) {
             return null;
@@ -1811,106 +1753,6 @@ public class DpRoomServiceImpl {
             return null;
         }
         return String.valueOf(d.get("roomId"));
-    }
-
-    /**
-     * 从队列头按 FIFO 双人抽取并自动建房；不在持有 {@link #defaultQmLock} 时进房，
-     * poll 出两人并释放队列锁后再建房。进入本方法前会先 flush 公开桌，使「无房入队后发公开桌」的等待者能及时进桌。
-     */
-    private void tryDrainDefaultQuickMatchPairs() {
-        defaultQmTryDrainDepth.get().incrementAndGet();
-        try {
-            while (true) {
-                synchronized (dpQuickMatchAssignmentLock) {
-                    tryFlushDefaultQuickMatchWaitersIntoPublicRooms();
-                    List<String> qmTimedOut;
-                    DefaultQmWaitEntry wa;
-                    DefaultQmWaitEntry wb;
-                    synchronized (defaultQmLock) {
-                        qmTimedOut = pruneDefaultQuickMatchQueueLockedWithoutReentry();
-                        if (defaultQmWaiters.size() < 2) {
-                            notifyQuickMatchTimedOut(qmTimedOut);
-                            return;
-                        }
-                        wa = defaultQmWaiters.pollFirst();
-                        wb = defaultQmWaiters.pollFirst();
-                    }
-                    notifyQuickMatchTimedOut(qmTimedOut);
-                    if (wa == null || wb == null) {
-                        return;
-                    }
-                    // 防昵称重复
-                    if (wa.nickname().equals(wb.nickname())) {
-                        synchronized (defaultQmLock) {
-                            if (findRoomContainingNickname(wa.nickname()) == null) {
-                                defaultQmWaiters.addFirst(wa);
-                            }
-                        }
-                        continue;
-                    }
-                    // 检查wa或wb是否已在房间，如果已在房间则将不在房间的wa和/或wb重新加入等待队列，并跳过本轮配对
-                    if (findRoomContainingNickname(wa.nickname()) != null
-                            || findRoomContainingNickname(wb.nickname()) != null) {
-                        synchronized (defaultQmLock) {
-                            if (findRoomContainingNickname(wa.nickname()) == null) {
-                                defaultQmWaiters.addLast(wa);
-                            }
-                            if (findRoomContainingNickname(wb.nickname()) == null) {
-                                defaultQmWaiters.addLast(wb);
-                            }
-                        }
-                        continue;
-                    }
-
-                    try {
-                        pairDefaultQuickMatchWaitersInNewRoom(wa, wb);
-                    } catch (Exception ex) {
-                        log.warn("default quick-match pair failed: {}", ex.toString());
-                        synchronized (defaultQmLock) {
-                            if (findRoomContainingNickname(wa.nickname()) == null) {
-                                defaultQmWaiters.addLast(wa);
-                            }
-                            if (findRoomContainingNickname(wb.nickname()) == null) {
-                                defaultQmWaiters.addLast(wb);
-                            }
-                        }
-                    }
-                }
-            }
-        } finally {
-            defaultQmTryDrainDepth.get().decrementAndGet();
-        }
-    }
-
-    private void pairDefaultQuickMatchWaitersInNewRoom(DefaultQmWaitEntry wa, DefaultQmWaitEntry wb) {
-        DpRoomBO room = createRoom(
-                wa.nickname(),
-                wa.userId(),
-                DEFAULT_QM_SB,
-                DEFAULT_QM_BB,
-                DEFAULT_QM_STARTING_BB,
-                null,
-                DEFAULT_QM_MAX_SEATS);
-        String roomId = room.getRoomId();
-        String joinMsg;
-        synchronized (room) {
-            joinMsg = joinRoomMutateAssumeLocked(roomId, wb.nickname(), wb.userId(), null, room);
-            if (!"ok".equals(joinMsg)) {
-                throw new IllegalStateException("joinRoom second waiter: " + joinMsg);
-            }
-            ensureLobbyReady(room, wa.nickname());
-            ensureLobbyReady(room, wb.nickname());
-        }
-        refreshQmIndexAfterJoinOutcomeOutsideRoomLock(roomId, joinMsg);
-        if (!startGame(roomId, wa.nickname())) {
-            log.warn(
-                    "auto quick-match: startGame failed roomId={} owner={}",
-                    roomId,
-                    wa.nickname());
-        }
-        quickMatchPush.notifyMatched(wa.nickname(), roomId);
-        quickMatchPush.notifyMatched(wb.nickname(), roomId);
-        tryFlushDefaultQuickMatchWaitersIntoPublicRooms();
     }
 
     /** 席上且本手未标记离座视为「在场上」。 */
@@ -1924,6 +1766,16 @@ public class DpRoomServiceImpl {
             }
         }
         return false;
+    }
+
+    /**
+     * 好友「跟随进房」等：按好友昵称查其当前所在内存房间（在座或观众席）。
+     *
+     * @return 房间号；未在任一房内则 null
+     */
+    public String findRoomIdContainingNickname(String nickname) {
+        DpRoomBO r = findRoomContainingNickname(nickname);
+        return r != null ? r.getRoomId() : null;
     }
 
     private DpRoomBO findRoomContainingNickname(String nickname) {
@@ -1944,6 +1796,14 @@ public class DpRoomServiceImpl {
             }
         }
         return null;
+    }
+
+    /**
+     * 昵称在座或未离座观众列表中时返回房间号；否则 null。单机内存口径，供好友跟随解析目标房间。
+     */
+    public String findActiveRoomIdForNickname(String nickname) {
+        DpRoomBO r = findRoomContainingNickname(nickname);
+        return r != null ? r.getRoomId() : null;
     }
 
     private static boolean nicknamePresentInRoom(DpRoomBO r, String nickname) {
@@ -2349,7 +2209,7 @@ public class DpRoomServiceImpl {
             presenceTryMarkIdleFullyLeft(nickname, presenceHintUid, r, "exit_room");
         }
         if (wasPublic && result) {
-            tryDrainDefaultQuickMatchPairs();
+            attemptQuickMatchPairing();
         }
         return result;
     }
@@ -3429,6 +3289,183 @@ public class DpRoomServiceImpl {
             List<String> specs = r.getSpectators();
             if (specs != null && specs.contains(nickname)) {
                 r.touchSpectatorPresence(nickname, now);
+            }
+        }
+    }
+
+    private final class QuickMatchPairingHost implements DpQuickMatchPairingHost {
+
+        @Override
+        public Object defaultQmLock() {
+            return DpRoomServiceImpl.this.defaultQmLock;
+        }
+
+        @Override
+        public Map<String, DpRoomBO> roomMap() {
+            return DpRoomServiceImpl.this.roomMap;
+        }
+
+        @Override
+        public JoinableQuickMatchRoomIndex joinableQuickMatchRoomIndex() {
+            return DpRoomServiceImpl.this.joinableQuickMatchRoomIndex;
+        }
+
+        @Override
+        public long nowMillis() {
+            return System.currentTimeMillis();
+        }
+
+        @Override
+        public List<String> pruneQueueWhileLocked() {
+            List<String> timed = pruneDefaultQuickMatchQueueLockedWithoutReentry();
+            notifyQuickMatchTimedOut(timed);
+            return timed;
+        }
+
+        @Override
+        public int defaultQueueSizeWhileLocked() {
+            return defaultQmWaiters.size();
+        }
+
+        @Override
+        public List<DpQuickMatchWaitEntry> pollHeadWhileLocked(int maxTake) {
+            if (maxTake <= 0 || defaultQmWaiters.isEmpty()) {
+                return List.of();
+            }
+            int n = Math.min(maxTake, defaultQmWaiters.size());
+            List<DpQuickMatchWaitEntry> out = new ArrayList<>(n);
+            for (int i = 0; i < n; i++) {
+                DpQuickMatchWaitEntry e = defaultQmWaiters.pollFirst();
+                if (e != null) {
+                    out.add(e);
+                }
+            }
+            return out;
+        }
+
+        @Override
+        public void unshiftHeadWhileLocked(List<DpQuickMatchWaitEntry> entries) {
+            if (entries == null || entries.isEmpty()) {
+                return;
+            }
+            for (int i = entries.size() - 1; i >= 0; i--) {
+                defaultQmWaiters.addFirst(entries.get(i));
+            }
+        }
+
+        @Override
+        public void addTailWhileLocked(List<DpQuickMatchWaitEntry> entries) {
+            if (entries == null || entries.isEmpty()) {
+                return;
+            }
+            for (DpQuickMatchWaitEntry e : entries) {
+                defaultQmWaiters.addLast(e);
+            }
+        }
+
+        @Override
+        public boolean nicknameAlreadyInSomeRoom(String nickname) {
+            return findRoomContainingNickname(nickname) != null;
+        }
+
+        @Override
+        public void joinAndReadyWhileRoomLocked(DpRoomBO room, DpQuickMatchWaitEntry entry) {
+            String joinMsg = joinRoomMutateAssumeLocked(
+                    room.getRoomId(),
+                    entry.nickname(),
+                    entry.userId(),
+                    null,
+                    room);
+            if (!"ok".equals(joinMsg) && !"游戏已开始".equals(joinMsg)) {
+                throw new IllegalStateException("quick match join: " + joinMsg);
+            }
+            if (room.isPlaying()) {
+                if (!applyReadyNextHandWhileLocked(room, entry.nickname(), entry.userId())) {
+                    throw new IllegalStateException("quick match readyNextHand failed");
+                }
+            } else {
+                if (!ensureLobbyReady(room, entry.nickname())) {
+                    throw new IllegalStateException("quick match ensureLobbyReady failed");
+                }
+            }
+        }
+
+        @Override
+        public DpRoomBO createDefaultQuickMatchRoomForPairing(DpQuickMatchWaitEntry owner) {
+            return createRoom(
+                    owner.nickname(),
+                    owner.userId(),
+                    DEFAULT_QM_SB,
+                    DEFAULT_QM_BB,
+                    DEFAULT_QM_STARTING_BB,
+                    null,
+                    DEFAULT_QM_MAX_SEATS);
+        }
+
+        @Override
+        public void startGameForQuickMatchRoom(String roomId, String ownerNickname) {
+            if (!DpRoomServiceImpl.this.startGame(roomId, ownerNickname)) {
+                log.warn(
+                        "auto quick-match: startGame failed roomId={} owner={}",
+                        roomId,
+                        ownerNickname);
+            }
+        }
+
+        @Override
+        public void notifyQuickMatchMatched(String nickname, String roomId) {
+            quickMatchPush.notifyMatched(nickname, roomId);
+        }
+
+        @Override
+        public void afterRoomMutationRefreshQuickMatchIndex(String roomId, String joinDetailMessageOrNull) {
+            refreshQmIndexAfterJoinOutcomeOutsideRoomLock(roomId, joinDetailMessageOrNull);
+        }
+
+        @Override
+        public void flushQueuedWaitersIntoJoinablePublicRooms() {
+            while (true) {
+                List<String> qmTimedOut;
+                List<DpQuickMatchWaitEntry> snapshot;
+                synchronized (defaultQmLock) {
+                    qmTimedOut = pruneDefaultQuickMatchQueueLockedWithoutReentry();
+                    snapshot = new ArrayList<>(defaultQmWaiters);
+                }
+                notifyQuickMatchTimedOut(qmTimedOut);
+                if (snapshot.isEmpty()) {
+                    return;
+                }
+                int roundSuccesses = 0;
+                for (DpQuickMatchWaitEntry e : snapshot) {
+                    boolean stillInQueue;
+                    synchronized (defaultQmLock) {
+                        stillInQueue = false;
+                        for (DpQuickMatchWaitEntry x : defaultQmWaiters) {
+                            if (e.nickname().equals(x.nickname())) {
+                                stillInQueue = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!stillInQueue) {
+                        continue;
+                    }
+                    ResultUtil res = quickMatchJoinAndReady(e.nickname(), e.userId());
+                    if (!Boolean.TRUE.equals(res.getSuccess())) {
+                        continue;
+                    }
+                    synchronized (defaultQmLock) {
+                        defaultQmWaiters.removeIf(x -> e.nickname().equals(x.nickname()));
+                    }
+                    String rid = quickMatchResultRoomId(res);
+                    if (rid != null) {
+                        quickMatchPush.notifyMatched(e.nickname(), rid);
+                    }
+                    roundSuccesses++;
+                }
+                if (roundSuccesses == 0) {
+                    return;
+                }
             }
         }
     }

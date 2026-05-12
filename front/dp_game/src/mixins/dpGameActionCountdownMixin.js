@@ -1,5 +1,5 @@
 /**
- * 行动 30s 与结算准备倒计时（与 GameActionPanel / 桌面圆环共用 timeLeft）。
+ * 行动 30s 与结算准备倒计时（行动区圆环用 timeLeft；结算准备用 readyTimeLeft → GameSettledPrepareBar）。
  */
 export default {
   data: function () {

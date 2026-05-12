@@ -48,6 +48,10 @@
         @open-invite-friend="openInviteFriendSheet"
         @exit="exitGame"
         @ready-next-hand="readyNextHand"
+        :show-hero-economy="topBarShowHeroEconomy"
+        :hero-my-chips="myChips"
+        :hero-economy-secondary-label="topBarHeroEconomySecondaryLabel"
+        :hero-economy-secondary-value="topBarHeroEconomySecondaryValue"
     />
 
     </header>
@@ -202,6 +206,22 @@ export default {
     },
     showTableActionTimer() {
       return this.actionCountdownShouldRun()
+    },
+    /** 顶栏展示本人持有/本轮/还需补（与原底栏筹码条同期机一致，避免重复） */
+    topBarShowHeroEconomy() {
+      return !!(this.viewerSeatedAtTable && this.heroDockRow)
+    },
+    topBarHeroEconomySecondaryLabel() {
+      if (this.isMyTurn && !this.inSettledStage && (Number(this.callAmount) || 0) > 0) {
+        return '还需补'
+      }
+      return '本轮'
+    },
+    topBarHeroEconomySecondaryValue() {
+      if (this.isMyTurn && !this.inSettledStage && (Number(this.callAmount) || 0) > 0) {
+        return Number(this.callAmount) || 0
+      }
+      return Number(this.myBet) || 0
     }
   },
 
@@ -712,14 +732,25 @@ export default {
       }
     },
 
-    // ---- 准备/取消准备 ----
+    // ---- 准备/取消准备（与 readyNextHand 一致：ok 才 commit 本地态、提示、loadGame）----
     async toggleReady() {
+      if (!this.user) return
+      var wasReady = this.myReady
       try {
         var res = await this.$http.post('/dpRoom/toggleReady', null, {
-          params: {roomId: this.roomId, nickname: this.user.nickname}
+          params: { roomId: this.roomId, nickname: this.user.nickname }
         })
-        if (res.data !== 'ok') this.$message.error('操作失败')
-        await this.loadGame()
+        if (res.data === 'ok') {
+          this.$store.commit('dpGame/PATCH_MY_PLAYER_READY', !wasReady)
+          if (wasReady) {
+            this.$message.success('已取消准备')
+          } else {
+            this.$message.success('已准备下一局')
+          }
+          await this.loadGame()
+        } else {
+          this.$message.error('操作失败：' + res.data)
+        }
       } catch (err) {
         this.$message.error('网络错误: ' + err.message)
       }

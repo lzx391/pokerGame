@@ -43,12 +43,18 @@
         body-modifier="action"
         @close="$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileActionSheet: false })"
     >
-      <game-action-panel
-          :settled-prepare="vm.inSettledStage"
-          :ready-time-left="vm.readyTimeLeft"
+      <game-settled-prepare-bar
+          v-if="vm.inSettledStage"
           :my-ready="vm.myReady"
+          :ready-time-left="vm.readyTimeLeft"
+          :my-chips="vm.myChips"
+          :big-blind="vm.bigBlind"
+          @toggle-ready="vm.toggleReady"
+          @rebuy="vm.rebuy"
+      />
+      <game-action-panel
+          v-else
           :time-left="vm.timeLeft"
-          :current-bet-to-call="vm.currentBetToCall"
           :my-bet="vm.myBet"
           :call-amount="vm.callAmount"
           :small-blind="vm.smallBlind"
@@ -64,8 +70,6 @@
           @raise="vm.doRaise"
           @all-in="vm.doAllIn"
           @fold="vm.doFold"
-          @toggle-ready="vm.toggleReady"
-          @rebuy="vm.rebuy"
       />
     </game-bottom-sheet>
 
@@ -141,6 +145,7 @@
 import GameBottomSheet from './GameBottomSheet.vue'
 import GamePlayerCard from './GamePlayerCard.vue'
 import GameActionPanel from './GameActionPanel.vue'
+import GameSettledPrepareBar from './GameSettledPrepareBar.vue'
 import GameOwnerPanel from './GameOwnerPanel.vue'
 import GameOwnerToolModal from './GameOwnerToolModal.vue'
 import GamePlayerSocialSheet from './GamePlayerSocialSheet.vue'
@@ -152,6 +157,7 @@ export default {
     GameBottomSheet,
     GamePlayerCard,
     GameActionPanel,
+    GameSettledPrepareBar,
     GameOwnerPanel,
     GameOwnerToolModal,
     GamePlayerSocialSheet,

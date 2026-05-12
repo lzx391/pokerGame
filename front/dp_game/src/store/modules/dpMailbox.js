@@ -180,6 +180,28 @@ export default {
         commit('SET_ACTION_BUSY', null)
       }
     },
+    async followFriendToTheirRoom({ dispatch }, { http, friendUserId }) {
+      var api = dpSocialApi(http)
+      var uid = friendUserId != null ? Number(friendUserId) : 0
+      if (!isFinite(uid) || uid <= 0) {
+        return { ok: false }
+      }
+      try {
+        var res = await api.followFriendRoom(uid)
+        var body = res.data
+        var d = dpResultData(body) || {}
+        if (!dpResultSuccess(body)) {
+          alert(dpResultMessage(body))
+          return { ok: false, roomId: d.roomId }
+        }
+        await dispatch('fetchUnreadCount', { http }).catch(function () {})
+        return { ok: true, roomId: d.roomId }
+      } catch (e) {
+        console.error('followFriendToTheirRoom', e)
+        alert('网络错误')
+        return { ok: false }
+      }
+    },
     async acceptRoomInvite({ dispatch, commit }, { http, id }) {
       var api = dpSocialApi(http)
       commit('SET_ACTION_BUSY', 'r:' + id)

@@ -234,7 +234,8 @@
 }
 
 /*
- * 牌桌适配：由 JS 对 .dp-game-table-fit__inner 做 scale（裁剪框绑在 .dp-game-table-fit 上）
+ * 牌桌适配：由 JS 对 .dp-game-table-fit__inner 做 scale（裁剪框绑在 .dp-game-table-fit 上）。
+ * align-self:center：缩放后裁剪框宽 wClip 常小于主区，主区为 column flex 时若 stretch，固定宽子项贴交叉轴起点→整桌靠左；100% 宽时与满宽观感一致。
  */
 .dp-game-table-fit {
   flex: 0 1 auto;
@@ -242,7 +243,7 @@
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  align-self: stretch;
+  align-self: center;
   box-sizing: border-box;
   display: flex;
   align-items: flex-start;
@@ -1038,28 +1039,35 @@
   display: none !important;
 }
 
-/* 底栏：默认隐藏；≤600px 或 全屏/伪全屏时显示。随 footer 文档流排在圆桌下方，不再 fixed 盖桌面 */
+/* 底栏：默认隐藏；≤600px 或 全屏/伪全屏时显示。footer 文档流；筹码经济与 CTA 同栏自洽（见 GAME_LAYOUT_TUNING_README §5.1）。 */
 .dp-game-mobile-hero-bar {
   display: none;
   box-sizing: border-box;
+  /* 聊天输入 / 发送 / 离座 / 手牌 / 行动 同一触达高度，避免一栏里高低不齐 */
+  --dp-mobile-dock-ctrl-h: 44px;
 }
 
 @media (max-width: 600px) {
   .dp-game-mobile-hero-bar {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     flex-wrap: nowrap;
     align-items: stretch;
-    justify-content: center;
-    gap: 8px;
+    justify-content: flex-start;
+    gap: 0;
     position: relative;
     left: auto;
     right: auto;
     bottom: auto;
     z-index: 6;
     width: 100%;
-    padding: 8px max(10px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px));
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.2) 60%, transparent);
+    padding: 6px max(10px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px));
+    /* 克制底缘遮罩：随主题 panel，避免大块纯黑半透明 */
+    background: linear-gradient(
+      to top,
+      color-mix(in srgb, var(--dp-panel-bg) 88%, transparent) 0%,
+      color-mix(in srgb, var(--dp-panel-bg) 0%, transparent) 100%
+    );
     pointer-events: none;
   }
 }
@@ -1068,19 +1076,23 @@
 .dp-game-root:fullscreen .dp-game-mobile-hero-bar,
 .dp-game-root:-webkit-full-screen .dp-game-mobile-hero-bar {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   flex-wrap: nowrap;
   align-items: stretch;
-  justify-content: center;
-  gap: 8px;
+  justify-content: flex-start;
+  gap: 0;
   position: relative;
   left: auto;
   right: auto;
   bottom: auto;
   z-index: 6;
   width: 100%;
-  padding: 8px max(10px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px));
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.2) 60%, transparent);
+  padding: 6px max(10px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px));
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--dp-panel-bg) 88%, transparent) 0%,
+    color-mix(in srgb, var(--dp-panel-bg) 0%, transparent) 100%
+  );
   pointer-events: none;
 }
 
@@ -1088,21 +1100,83 @@
   pointer-events: auto;
 }
 
+/* 底栏内层：单行 dock（聊天+按钮）；个人数值仅顶栏 */
+.dp-game-mobile-hero-bar__inline {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+/* 参考产品：输入+发送 与 离座/看手牌/行动 同一横排、等高 */
+.dp-game-mobile-hero-bar__dock-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: clamp(8px, 2.4vw, 16px);
+  width: 100%;
+  min-width: 0;
+  min-height: var(--dp-mobile-dock-ctrl-h, 44px);
+  box-sizing: border-box;
+}
+
+.dp-game-mobile-hero-bar__dock-row--no-chat {
+  justify-content: flex-end;
+}
+
+.dp-game-mobile-hero-bar__dock-row .dp-game-mobile-hero-bar__chat.dp-game-room-chat__bar--mobile-dock {
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+  max-width: none;
+  box-sizing: border-box;
+}
+
+.dp-game-mobile-hero-bar__lower {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: 6px;
+  flex: 0 0 auto;
+  width: auto;
+  max-width: none;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.dp-game-mobile-hero-bar__dock-row .dp-game-mobile-hero-bar__lower {
+  flex: 0 0 auto;
+}
+
 .dp-game-mobile-hero-bar__btn {
   flex: 0 1 auto;
   min-width: 0;
-  max-width: min(132px, 30vw);
+  max-width: none;
   border: 1px solid var(--dp-panel-border);
   border-radius: 10px;
-  padding: 10px 10px;
+  padding: 0 min(12px, 3vw);
+  min-height: var(--dp-mobile-dock-ctrl-h, 44px);
+  height: auto;
+  box-sizing: border-box;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   touch-action: manipulation;
-  background: var(--dp-panel-bg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 次要 ghost surface：压住底部遮罩 */
+  background: color-mix(in srgb, var(--dp-panel-bg) 94%, transparent);
   color: var(--dp-text-primary);
   box-shadow: var(--dp-panel-shadow);
-  align-self: center;
+  align-self: stretch;
 }
 
 .dp-game-mobile-hero-bar__btn--action {
@@ -1111,23 +1185,68 @@
   border-color: transparent;
 }
 
-.dp-game-mobile-hero-bar__btn--urgent {
-  animation: dp-mobile-action-pulse 1s ease-in-out infinite;
-}
-
-/* 底栏：主动离座 + 查看手牌 同一组（评论右侧） */
-.dp-game-mobile-hero-bar__owner-cluster {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 6px;
+/* 右侧操作组：宽度随文案，与参考图一致（不等分整行） */
+.dp-game-mobile-hero-bar__btn--toolbar {
   flex: 0 1 auto;
   min-width: 0;
+  max-width: min(42vw, 9.5rem);
+  font-size: clamp(11px, 3vw, 14px);
+  font-weight: 600;
+  padding: 0 clamp(5px, 1.6vw, 10px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.dp-game-mobile-hero-bar__owner-cluster .dp-game-mobile-hero-bar__btn {
-  max-width: min(104px, 26vw);
+/* 极窄：缩小间距与字号；仍优先单行（全屏横屏一般宽度足够） */
+@media (max-width: 360px) {
+  .dp-game-mobile-hero-bar__dock-row {
+    gap: 6px;
+  }
+
+  .dp-game-mobile-hero-bar__btn--toolbar {
+    font-size: clamp(10px, 2.8vw, 13px);
+    max-width: min(46vw, 10rem);
+    padding: 0 4px;
+  }
+}
+
+@media (max-width: 304px) {
+  .dp-game-mobile-hero-bar__dock-row {
+    gap: 4px;
+  }
+
+  .dp-game-mobile-hero-bar__btn--toolbar {
+    font-size: 10px;
+    padding: 0 3px;
+  }
+}
+
+@media (max-width: 260px) {
+  .dp-game-mobile-hero-bar__dock-row {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+
+  .dp-game-mobile-hero-bar__dock-row .dp-game-mobile-hero-bar__chat {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .dp-game-mobile-hero-bar__dock-row .dp-game-mobile-hero-bar__lower {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+  }
+
+  .dp-game-mobile-hero-bar__btn--toolbar {
+    flex: 1 1 0;
+    max-width: none;
+  }
+}
+
+.dp-game-mobile-hero-bar__btn--urgent {
+  animation: dp-mobile-action-pulse 1s ease-in-out infinite;
 }
 
 /* 宽屏内联手牌行：主动离座 + 查看手牌（与聊天、手牌区同一行） */
@@ -1172,6 +1291,12 @@
   }
   50% {
     box-shadow: 0 0 14px 3px rgba(250, 173, 20, 0.25);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dp-game-mobile-hero-bar__btn--urgent {
+    animation: none;
   }
 }
 
@@ -2131,6 +2256,28 @@
   font-weight: bold;
 }
 
+/* 手机/全屏：统计行内本人持有 + 本轮/还需补（与房间/阶段、池、需对齐同一顶栏流式排布） */
+.dp-top-bar__hero-eco {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 4px;
+  font-size: 0.95em;
+  color: var(--dp-text-primary);
+  line-height: 1.35;
+}
+
+.dp-top-bar__hero-eco-stash,
+.dp-top-bar__hero-eco-secondary {
+  white-space: nowrap;
+}
+
+.dp-top-bar__hero-eco-strong {
+  color: var(--dp-accent);
+  font-weight: 700;
+  margin-left: 2px;
+}
+
 .dp-top-bar__settings-wrap {
   position: relative;
   flex-shrink: 0;
@@ -2154,6 +2301,26 @@
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+/* 顶栏第二行：窄屏横滑，避免「退出全屏 / 玩法说明 / …」把布局顶爆 */
+@media (max-width: 600px) {
+  .dp-top-bar__row--actions .dp-top-bar__actions {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .dp-top-bar__row--actions .dp-top-bar__actions::-webkit-scrollbar {
+    height: 4px;
+  }
 }
 
 .dp-top-bar__spectator-hint {
@@ -2373,11 +2540,12 @@
   border: 1px solid var(--dp-panel-border);
 }
 
-.dp-action-panel--settled {
+/* 结算阶段准备：与顶栏「下一局加入」同款 dp-btn + success/ghost，独立于行动大盘 */
+.dp-settled-prepare-bar {
   margin-top: 0;
 }
 
-.dp-action-panel__settled-title {
+.dp-settled-prepare-bar__hint {
   font-size: 14px;
   font-weight: bold;
   text-align: center;
@@ -2386,43 +2554,18 @@
   line-height: 1.35;
 }
 
-.dp-action-panel__settled-count {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-
-.dp-action-panel__settled-count-label {
-  font-size: 12px;
-  color: var(--dp-text-muted);
-}
-
-.dp-action-panel__settled-chips {
-  text-align: center;
-  font-size: 13px;
-  color: var(--dp-text-secondary);
-  margin-bottom: 8px;
-}
-
-.dp-action-panel__settled-chips strong {
-  font-weight: bold;
-  color: var(--dp-accent);
-}
-
-.dp-action-panel__settled-actions {
+.dp-settled-prepare-bar__actions {
   display: flex;
   justify-content: center;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-.dp-action-panel__settled-btn {
+.dp-settled-prepare-bar__btn {
   touch-action: manipulation;
 }
 
-.dp-action-panel__settled-btn--dim {
+.dp-settled-prepare-bar__btn--dim {
   opacity: 0.45;
 }
 
@@ -2431,63 +2574,6 @@
   color: var(--dp-warning);
   font-weight: bold;
   margin-bottom: 10px;
-}
-
-.dp-action-panel__stack-pair {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 8px 12px;
-  margin-bottom: 10px;
-}
-
-.dp-action-panel__stack-pair--settled {
-  margin-bottom: 8px;
-}
-
-.dp-action-panel__stack-pill {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 5px 10px;
-  border-radius: 8px;
-  font-size: 13px;
-  background: var(--dp-subpanel-bg);
-  border: 1px solid var(--dp-subpanel-border);
-  color: var(--dp-text-secondary);
-}
-
-.dp-action-panel__stack-pill strong {
-  font-weight: 800;
-  font-family: ui-monospace, 'Cascadia Code', monospace;
-  color: var(--dp-text-primary);
-  font-variant-numeric: tabular-nums;
-}
-
-.dp-action-panel__bet-pill {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 5px 10px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 800;
-  border: 2px solid var(--dp-danger);
-  background: linear-gradient(
-    165deg,
-    color-mix(in srgb, var(--dp-danger) 22%, var(--dp-panel-bg)) 0%,
-    color-mix(in srgb, var(--dp-pot) 12%, var(--dp-panel-bg)) 100%
-  );
-  color: var(--dp-pot);
-  font-variant-numeric: tabular-nums;
-}
-
-.dp-action-panel__meta {
-  font-size: 13px;
-  color: var(--dp-text-secondary);
-  text-align: center;
-  margin-bottom: 8px;
 }
 
 .dp-action-panel__raise-hint {
@@ -2876,15 +2962,6 @@
   color: var(--dp-text-muted);
 }
 
-.dp-timer-ring--sm {
-  width: 32px;
-  height: 32px;
-}
-
-.dp-timer-ring--sm .dp-timer-ring__text {
-  font-size: 14px;
-}
-
 .dp-btn--success {
   padding: 8px 16px;
   border: none;
@@ -3026,27 +3103,39 @@
   align-self: stretch;
 }
 
-/* 与「查看手牌 / 行动」同一底栏（窄屏、全屏） */
+/* 与底栏 dock 单行同高：拉伸填满行高 */
 .dp-game-room-chat__bar--mobile-dock {
   flex: 1 1 0;
   min-width: 0;
   width: auto;
   margin: 0;
-  padding: 6px 8px;
+  padding: 0 8px;
   gap: 6px;
-  align-self: center;
+  align-self: stretch;
+  min-height: var(--dp-mobile-dock-ctrl-h, 44px);
+  align-items: stretch;
 }
 
 .dp-game-room-chat__bar--mobile-dock .dp-game-room-chat__input {
   font-size: 13px;
-  padding: 6px 8px;
+  padding: 0 10px;
   min-width: 0;
+  min-height: var(--dp-mobile-dock-ctrl-h, 44px);
+  box-sizing: border-box;
+  align-self: stretch;
 }
 
 .dp-game-room-chat__bar--mobile-dock .dp-game-room-chat__send {
   font-size: 12px;
-  padding: 6px 10px;
+  padding: 0 12px;
   flex-shrink: 0;
+  min-height: var(--dp-mobile-dock-ctrl-h, 44px);
+  min-width: 3.25rem;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
 }
 
 .dp-game-room-chat__input {

@@ -115,7 +115,15 @@ export default {
       return !!getters.myPlayer.leftThisHand
     },
     myReady: function (state, getters) {
-      return getters.myPlayer ? getters.myPlayer.ready : false
+      var p = getters.myPlayer
+      if (!p) return false
+      var r = p.ready
+      var ir = p.isReady
+      return !!(
+        r === true || r === 1
+        || (typeof r === 'string' && r.toLowerCase() === 'true')
+        || ir === true || ir === 1
+      )
     },
     myChips: function (state, getters) {
       return getters.myPlayer ? getters.myPlayer.chips : 0
@@ -345,6 +353,19 @@ export default {
     SET_ECO_MODE: function (state, on) {
       state.ecoMode = !!on
       writeEcoMode(!!on)
+    },
+    /**
+     * 结算阶段点准备/取消后先乐观改本人 ready，避免 WS/HTTP 过期整表快照把 UI 打回旧态。
+     */
+    PATCH_MY_PLAYER_READY(state, value) {
+      var nick = state.user && state.user.nickname
+      if (!nick || !state.players || !state.players.length) return
+      for (var i = 0; i < state.players.length; i++) {
+        if (state.players[i] && state.players[i].nickname === nick) {
+          Vue.set(state.players[i], 'ready', !!value)
+          return
+        }
+      }
     },
     APPLY_ROOM: function (state, room) {
       state.owner = room.owner

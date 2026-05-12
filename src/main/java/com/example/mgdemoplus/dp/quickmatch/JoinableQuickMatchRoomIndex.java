@@ -42,6 +42,9 @@ import java.util.function.Predicate;
  *   <li>推荐调用序：{@code synchronized(dpQuickMatchAssignmentLock)} → 本索引 mutate →（再对候选房 {@code synchronized(r)}），
  *       与 {@code DpRoomServiceImpl#quickMatchJoinAndReady} 一致。</li>
  *   <li>若索引方法与房锁交叉：全局固定为 <b>分配锁 → 本索引锁 → 房间锁</b>；禁止「房锁 → 索引锁」。</li>
+ *   <li><b>新快匹配对协调器</b>（{@code dp.quickmatch.pairing.DpQuickMatchPairingCoordinator}）约定：凡<strong>同一路径</strong>既要
+ *       {@code synchronized(DpRoomBO)} 又要 {@code defaultQmLock}，必须 <b>先房锁、再队列锁</b>。本索引的 {@code indexLock}
+ *       仍<strong>不要</strong>在持房锁时获取；与队列锁的层级无关。</li>
  * </ul>
  *
  * @see DpQuickMatchRoomSemantics

@@ -308,7 +308,45 @@ public class DpFriendSocialService {
         return ResultUtil.ok().data("count", c1 + c2);
     }
 
+    /**
+     * 大厅好友列表「跟随」：互为好友且好友在某房内时，与接受进房邀请相同，令当前用户以观众入会（免密）。
+     */
     @Transactional(rollbackFor = Exception.class)
+    public ResultUtil followFriendToTheirRoom(int currentUserId, String currentNickname, int friendUserId) {
+        if (friendUserId <= 0 || friendUserId == currentUserId) {
+            return ResultUtil.error().data("message", "参数无效");
+        }
+        if (currentNickname == null || currentNickname.isBlank()) {
+            return ResultUtil.error().data("message", "用户昵称无效");
+        }
+        String cn = currentNickname.trim();
+        int lo = Math.min(currentUserId, friendUserId);
+        int hi = Math.max(currentUserId, friendUserId);
+        if (countFriendLinksBetween(lo, hi) == 0) {
+            return ResultUtil.error().data("message", "已非好友，无法跟随进房");
+        }
+        DpUser friend = dpUserMapper.selectById(friendUserId);
+        if (friend == null || friend.getNickname() == null || friend.getNickname().isBlank()) {
+            return ResultUtil.error().data("message", "好友不存在");
+        }
+        String friendNick = friend.getNickname().trim();
+        String roomId = dpRoomService.findRoomIdContainingNickname(friendNick);
+        if (roomId == null || roomId.isBlank()) {
+            return ResultUtil.error().data("message", "好友不在房间内");
+        }
+        if (!dpRoomService.dpRoomExistsInMemory(roomId)) {
+            return ResultUtil.error().data("message", "房间已不存在").data("roomId", roomId);
+        }
+        String join = dpRoomService.joinRoomInviteAsSpectator(roomId, cn, currentUserId);
+        if (!"ok".equals(join) && !"游戏已开始".equals(join)) {
+            return ResultUtil.error().data("message", join).data("roomId", roomId);
+        }
+        return ResultUtil.ok()
+                .data("message", "已跟随进房")
+                .data("roomId", roomId)
+                .data("observeNote", join);
+    }
+
     public ResultUtil acceptRoomInvite(int currentUserId, String currentNickname, long inviteId) {
         touchExpireRoomInvites();
         DpRoomInviteRow inv = roomInviteMapper.selectById(inviteId);
@@ -380,6 +418,70 @@ public class DpFriendSocialService {
             return ResultUtil.ok().data("message", "邀请状态已变更");
         }
         return ResultUtil.ok().data("message", "已拒绝");
+    }
+
+    /**
+     * 只读：互为好友且对方在房内且具备与「发起进房邀请」相同的成员身份时返回 {@code roomId}
+     * （字段与 {@link #createRoomInvite} 所需 {@code roomId} 一致）。
+     * <p>数据来源：内存房间 {@link DpRoomServiceImpl#findActiveRoomIdForNickname}
+     * + {@link DpRoomServiceImpl#canActiveMemberInviteFriends}；非 DB。</p>
+     */
+    public ResultUtil getFriendSpectateRoomContext(int viewerUserId, int friendUserId) {
+        return resolveFriendSpectateRoomTarget(viewerUserId, friendUserId);
+    }
+
+    /**
+     * 跟随好友以观众进房：校验通过后仅调用 {@link DpRoomServiceImpl#joinRoomInviteAsSpectator}，
+     * 与 {@link #acceptRoomInvite} 共用同一进房实现。
+     */
+    public ResultUtil followFriendIntoRoomAsSpectator(int viewerUserId, String viewerNickname, int friendUserId) {
+        ResultUtil target = resolveFriendSpectateRoomTarget(viewerUserId, friendUserId);
+        if (!Boolean.TRUE.equals(target.getSuccess())) {
+            return target;
+        }
+        Map<String, Object> d = target.getData();
+        String roomId = d != null && d.get("roomId") != null ? String.valueOf(d.get("roomId")) : "";
+        String join = dpRoomService.joinRoomInviteAsSpectator(roomId, viewerNickname, viewerUserId);
+        if (!"ok".equals(join) && !"游戏已开始".equals(join)) {
+            return ResultUtil.error().data("message", join).data("roomId", roomId);
+        }
+        return ResultUtil.ok().data("message", "已跟随并进房").data("roomId", roomId).data("observeNote", join);
+    }
+
+    /**
+     * @return success 时 {@code data.roomId} 非空；失败文案与邀请链路可对齐的尽量对齐（房间缺失、{@code joinRoomInviteAsSpectator} 返回值等）。
+     */
+    private ResultUtil resolveFriendSpectateRoomTarget(int viewerUserId, int friendUserId) {
+        if (viewerUserId <= 0 || friendUserId <= 0) {
+            return ResultUtil.error().data("message", "用户 id 无效");
+        }
+        if (viewerUserId == friendUserId) {
+            return ResultUtil.error().data("message", "不能邀请自己");
+        }
+        int lo = Math.min(viewerUserId, friendUserId);
+        int hi = Math.max(viewerUserId, friendUserId);
+        if (countFriendLinksBetween(lo, hi) == 0) {
+            return ResultUtil.error().data("message", "仅互为好友可邀请");
+        }
+        DpUser friend = dpUserMapper.selectById(friendUserId);
+        if (friend == null) {
+            return ResultUtil.error().data("message", "被邀请用户不存在");
+        }
+        String fn = friend.getNickname();
+        if (fn == null || fn.isBlank()) {
+            return ResultUtil.error().data("message", "用户不存在或未同步");
+        }
+        String roomId = dpRoomService.findActiveRoomIdForNickname(fn.trim());
+        if (roomId == null || roomId.isBlank()) {
+            return ResultUtil.error().data("message", "好友不在房间内");
+        }
+        if (!dpRoomService.dpRoomExistsInMemory(roomId)) {
+            return ResultUtil.error().data("message", "房间已不存在").data("roomId", roomId);
+        }
+        if (!dpRoomService.canActiveMemberInviteFriends(roomId, fn.trim())) {
+            return ResultUtil.error().data("message", "仅局内未离座成员或观众可发起进房邀请").data("roomId", roomId);
+        }
+        return ResultUtil.ok().data("roomId", roomId);
     }
 
     private DpFriendRequestRow selectFriendRequestByPair(int fromUserId, int toUserId) {
