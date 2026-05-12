@@ -3,6 +3,8 @@ spring:
     name: MGDemoPlus
   flyway:
     locations: classpath:db/migration
+    # 库已有业务表但从未跑过 Flyway（无 flyway_schema_history）时启用；首次会在当前库打 baseline 再执行更高版本脚本。
+    baseline-on-migrate: true
   autoconfigure:
     exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
   datasource:

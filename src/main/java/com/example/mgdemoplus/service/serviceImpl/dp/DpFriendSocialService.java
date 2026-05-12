@@ -10,6 +10,8 @@ import com.example.mgdemoplus.mapper.dp.DpFriendLinkMapper;
 import com.example.mgdemoplus.mapper.dp.DpFriendRequestMapper;
 import com.example.mgdemoplus.mapper.dp.DpRoomInviteMapper;
 import com.example.mgdemoplus.mapper.dp.DpUserMapper;
+import com.example.mgdemoplus.dp.presence.DpFriendPresenceState;
+import com.example.mgdemoplus.service.dp.DpFriendPresenceService;
 import com.example.mgdemoplus.utils.ResultUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -47,6 +49,8 @@ public class DpFriendSocialService {
     private DpUserMapper dpUserMapper;
     @Autowired
     private DpRoomServiceImpl dpRoomService;
+    @Autowired
+    private DpFriendPresenceService friendPresenceService;
 
     /** 将已到期的进房邀请标为 EXPIRED（列表/计数/处理前调用）。 */
     public void touchExpireRoomInvites() {
@@ -176,6 +180,7 @@ public class DpFriendSocialService {
         touchExpireRoomInvites();
         List<DpFriendLinkRow> rows = friendLinkMapper.listFriendsOfUser(currentUserId);
         List<Map<String, Object>> items = new ArrayList<>();
+        List<Integer> presenceEligibleFriendIds = new ArrayList<>();
         Set<Integer> seenFriendIds = new LinkedHashSet<>();
         for (DpFriendLinkRow fl : rows) {
             Integer fid = fl.getFriendUserId();
@@ -190,6 +195,20 @@ public class DpFriendSocialService {
             m.put("nickname", fl.getFriendNickname());
             m.put("friendship_status", ACCEPTED);
             items.add(m);
+            presenceEligibleFriendIds.add(fid);
+        }
+        Map<Integer, DpFriendPresenceState> presenceByFriend =
+                friendPresenceService.getEffectiveMany(presenceEligibleFriendIds);
+        for (int i = 0; i < items.size(); i++) {
+            Map<String, Object> m = items.get(i);
+            if (!ACCEPTED.equals(m.get("friendship_status"))) {
+                continue;
+            }
+            Integer fid = presenceEligibleFriendIds.get(i);
+            DpFriendPresenceState st = presenceByFriend.get(fid);
+            if (st != null) {
+                m.put("presence", st.name());
+            }
         }
         return ResultUtil.ok().data("friends", items);
     }

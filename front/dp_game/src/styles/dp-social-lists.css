@@ -56,6 +56,47 @@
   min-width: 0;
 }
 
+/**
+ * 好友空闲 / 游戏中（与 Element 成功色、危险色协调的浅色底；正文仍用 --dp-text-primary）。
+ */
+.dp-friend-row--presence-idle {
+  background: color-mix(in srgb, #67c23a 14%, var(--dp-subpanel-bg));
+  border-color: color-mix(in srgb, #67c23a 35%, var(--dp-subpanel-border));
+}
+
+.dp-friend-row--presence-ingame {
+  background: color-mix(in srgb, #f56c6c 14%, var(--dp-subpanel-bg));
+  border-color: color-mix(in srgb, #f56c6c 38%, var(--dp-subpanel-border));
+}
+
+/* 无 color-mix 时的回退（旧 WebView） */
+@supports not (background: color-mix(in srgb, red 10%, blue)) {
+  .dp-friend-row--presence-idle {
+    background: rgba(103, 194, 58, 0.12);
+    border-color: rgba(103, 194, 58, 0.45);
+  }
+
+  .dp-friend-row--presence-ingame {
+    background: rgba(245, 108, 108, 0.12);
+    border-color: rgba(245, 108, 108, 0.45);
+  }
+}
+
+.dp-social-list__presence {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+}
+
+.dp-friend-row--presence-idle .dp-social-list__presence {
+  color: #529b2e;
+}
+
+.dp-friend-row--presence-ingame .dp-social-list__presence {
+  color: #dd6161;
+}
+
 .dp-social-list__text {
   display: flex;
   flex-direction: column;

@@ -210,6 +210,7 @@
       append-to-body
       custom-class="home-friends-drawer"
       size="380px"
+      @open="onFriendsDrawerOpen"
     >
       <div class="dp-social-sheet dp-social-sheet--drawer">
         <p v-if="friendsLoading" class="dp-social-sheet__hint">加载中…</p>
@@ -218,10 +219,14 @@
           <li
             v-for="f in friends"
             :key="'friend-' + f.userId"
-            class="dp-social-list__item"
+            :class="['dp-social-list__item', friendPresenceRowClass(f)]"
           >
             <div class="dp-social-list__text">
               <div class="dp-social-list__primary">{{ friendPrimaryName(f) }}</div>
+              <div
+                v-if="friendPresenceLine(f)"
+                class="dp-social-list__presence"
+              >{{ friendPresenceLine(f) }}</div>
               <button
                 v-if="f.userId != null && f.userId !== ''"
                 type="button"
@@ -345,6 +350,7 @@ import '@/styles/dp-game-themes.css'
 import '@/styles/dp-lobby-shell.css'
 import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
+import { dpFriendPresenceRowClass, dpFriendPresenceStatusText } from '@/utils/dpFriendPresence'
 import { dpSocialDisplayNickname } from '@/utils/dpSocialDisplayName'
 import { dpResultSuccess, dpResultData, dpResultMessage } from '@/utils/dpApiResult'
 import GamePlayGuideModal from '@/components/GamePlayGuideModal.vue'
@@ -475,6 +481,12 @@ export default {
     friendPrimaryName(f) {
       return dpSocialDisplayNickname(f && f.nickname, f && f.userId, '未知好友')
     },
+    friendPresenceRowClass(f) {
+      return dpFriendPresenceRowClass(f)
+    },
+    friendPresenceLine(f) {
+      return dpFriendPresenceStatusText(f)
+    },
     friendRequestPrimaryName(row) {
       return dpSocialDisplayNickname(row && row.fromNickname, row && row.fromUserId, '未知用户')
     },
@@ -516,6 +528,7 @@ export default {
     bootstrapSocial() {
       var http = this.$http
       this.fetchUnreadCount({ http }).catch(() => {})
+      this.fetchFriends({ http }).catch(() => {})
       this.clearUnreadPollTimer()
       var self = this
       this.unreadPollTimer = setInterval(function () {
@@ -568,8 +581,11 @@ export default {
         return
       }
       this.friendsDrawerVisible = true
+    },
+    async onFriendsDrawerOpen() {
+      if (!this.user || !this.user.token) return
       var http = this.$http
-      const r = await this.fetchFriends({ http })
+      var r = await this.fetchFriends({ http })
       if (r && r.ok === false && r.message) {
         alert(r.message)
       }

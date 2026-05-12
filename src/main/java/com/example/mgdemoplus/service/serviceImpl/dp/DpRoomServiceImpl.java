@@ -10,6 +10,7 @@ import com.example.mgdemoplus.entity.dp.DpRoom;
 import com.example.mgdemoplus.entity.dp.DpPlayerStats;
 import com.example.mgdemoplus.entity.dp.DpUser;
 import com.example.mgdemoplus.mapper.dp.DpUserMapper;
+import com.example.mgdemoplus.service.dp.DpFriendPresenceService;
 import com.example.mgdemoplus.service.dp.DpHandHistoryObservedService;
 import com.example.mgdemoplus.service.dp.DpHandHistoryPersistService;
 import com.example.mgdemoplus.service.dp.DpRoomHallService;
@@ -43,6 +44,7 @@ public class DpRoomServiceImpl {
     private final DpRoomHallService dpRoomHallService;
     private final ObjectMapper objectMapper;
     private final DpQuickMatchPushService quickMatchPush;
+    private final DpFriendPresenceService friendPresence;
 
     /**
      * 无密码公开房快匹「缺人数」索引；在 {@link #syncLobbyForRoomId}（及退房删除摘要）链路之前由本类维护。
@@ -218,7 +220,8 @@ public class DpRoomServiceImpl {
             DpHandHistoryObservedService observedHandService,
             DpRoomHallService dpRoomHallService,
             ObjectMapper objectMapper,
-            DpQuickMatchPushService quickMatchPush) {
+            DpQuickMatchPushService quickMatchPush,
+            DpFriendPresenceService friendPresence) {
         this.observedHandPersistService = observedHandPersistService;
         this.llmNpcDecisionService = llmNpcDecisionService;
         this.gameRoomPushService = gameRoomPushService;
@@ -227,6 +230,7 @@ public class DpRoomServiceImpl {
         this.dpRoomHallService = dpRoomHallService;
         this.objectMapper = objectMapper;
         this.quickMatchPush = quickMatchPush;
+        this.friendPresence = friendPresence;
         // 心跳清理 + 超时行动
         new Timer().scheduleAtFixedRate(new TimerTask() {
             @Override
@@ -249,7 +253,10 @@ public class DpRoomServiceImpl {
                                 giveOwner(room.getRoomId(), p.getNickname());
                             }
                             System.out.println("未收到" + p.getNickname() + "的心跳,已移除房间");
+                            String hbNick = p.getNickname();
+                            Integer hbUid = p.getDpUserId();
                             it.remove();
+                            presenceTryMarkIdleFullyLeft(hbNick, hbUid, room, "heartbeat_evict_player");
                             lobbyDirty = true;
                         }
                     }
@@ -552,7 +559,7 @@ public class DpRoomServiceImpl {
             dropped = tryUnregisterEmptyRoomAssumeLocked(r, roomId);
         }
         if (dropped) {
-            finalizeHallAfterRoomRemoved(roomId);
+            finalizeHallAfterRoomRemovedWithPresenceSnapshot(roomId, r);
         }
     }
 
@@ -676,7 +683,7 @@ public class DpRoomServiceImpl {
             outcome = applyGiveOwnerWhileRoomLocked(room, ownerNickname);
         }
         if (outcome.droppedFromRoomMap) {
-            finalizeHallAfterRoomRemoved(roomId);
+            finalizeHallAfterRoomRemovedWithPresenceSnapshot(roomId, room);
         } else if (outcome.ownerFieldChanged) {
             refreshJoinableQmIndexThenSyncLobby(roomId);
         }
@@ -965,6 +972,9 @@ public class DpRoomServiceImpl {
         if (roomPassword == null && defaultQmTryDrainDepth.get().get() == 0) {
             tryDrainDefaultQuickMatchPairs();
         }
+        if (uid != null) {
+            friendPresence.markInGame(uid, "create_room");
+        }
         return r;
     }
 
@@ -988,6 +998,110 @@ public class DpRoomServiceImpl {
                     requestedUserId, nickname, e.toString());
             return null;
         }
+    }
+
+    /**
+     * Presence 解析：优先校验通过的请求 userId；否则房内登记；再兜底 dp_user（避免仅有昵称链路无法落键）。
+     */
+    private Integer resolvePresenceUserIdPreferHint(String nickname, Integer hintedUserId, DpRoomBO room) {
+        if (nickname == null || DpNpcEngine.isBotNickname(nickname)) {
+            return null;
+        }
+        Integer validated = resolveAndValidateUserId(hintedUserId, nickname);
+        if (validated != null) {
+            return validated;
+        }
+        if (room != null && room.getRegisteredDpUserId(nickname) != null) {
+            return room.getRegisteredDpUserId(nickname);
+        }
+        try {
+            DpUser row = dpUserMapper.selectByNickname(nickname);
+            return row != null ? row.getId() : null;
+        } catch (Exception e) {
+            log.warn("resolvePresenceUserIdPreferHint db error nickname={}: {}", nickname, e.toString());
+            return null;
+        }
+    }
+
+    private void presenceMarkInGameHuman(DpRoomBO r, String nickname, Integer requestedUserId, String trigger) {
+        Integer uid = resolvePresenceUserIdPreferHint(nickname, requestedUserId, r);
+        if (uid != null) {
+            friendPresence.markInGame(uid, trigger);
+        }
+    }
+
+    /**
+     * 当昵称已不在任何房间的 players/spectators 中时置 IDLE（离房幂等；多路径重复调用无害）。
+     */
+    private void presenceTryMarkIdleFullyLeft(String nickname, Integer hintedUserId, DpRoomBO roomHint, String trigger) {
+        if (nickname == null || DpNpcEngine.isBotNickname(nickname)) {
+            return;
+        }
+        if (findRoomContainingNickname(nickname) != null) {
+            return;
+        }
+        Integer uid = resolvePresenceUserIdPreferHint(nickname, hintedUserId, roomHint);
+        if (uid != null) {
+            friendPresence.markIdle(uid, trigger);
+        }
+    }
+
+    private void presenceMarkIdleAllHumansOnRoomSnapshot(DpRoomBO r, String trigger) {
+        if (r == null) {
+            return;
+        }
+        LinkedHashSet<Integer> seenUserIds = new LinkedHashSet<>();
+        if (r.getPlayers() != null) {
+            for (DpPlayer p : r.getPlayers()) {
+                if (p == null || DpNpcEngine.isBotPlayer(p)) {
+                    continue;
+                }
+                Integer uid = p.getDpUserId() != null ? p.getDpUserId()
+                        : resolvePresenceUserIdPreferHint(p.getNickname(), null, r);
+                if (uid != null && seenUserIds.add(uid)) {
+                    friendPresence.markIdle(uid, trigger);
+                }
+            }
+        }
+        List<String> specs = r.getSpectators();
+        if (specs != null) {
+            for (String nick : specs) {
+                if (nick == null || DpNpcEngine.isBotNickname(nick)) {
+                    continue;
+                }
+                Integer uid = resolvePresenceUserIdPreferHint(nick, null, r);
+                if (uid != null && seenUserIds.add(uid)) {
+                    friendPresence.markIdle(uid, trigger);
+                }
+            }
+        }
+    }
+
+    /**
+     * 须在持房监视器内、退房状态变更<b>之前</b>调用，以保留 registered / 座上的 userId 提示。
+     */
+    private Integer resolvePresenceHintBeforeExitMutationLocked(DpRoomBO r, String nickname) {
+        if (r == null || nickname == null) {
+            return null;
+        }
+        Integer id = r.getRegisteredDpUserId(nickname);
+        if (id != null) {
+            return id;
+        }
+        List<DpPlayer> ps = r.getPlayers();
+        if (ps != null) {
+            for (DpPlayer p : ps) {
+                if (p != null && nickname.equals(p.getNickname())) {
+                    return p.getDpUserId();
+                }
+            }
+        }
+        return null;
+    }
+
+    private void finalizeHallAfterRoomRemovedWithPresenceSnapshot(String roomId, DpRoomBO corpse) {
+        presenceMarkIdleAllHumansOnRoomSnapshot(corpse, "room_map_remove");
+        finalizeHallAfterRoomRemoved(roomId);
     }
 
     /**
@@ -1155,6 +1269,7 @@ public class DpRoomServiceImpl {
             if (uid != null) {
                 r.putRegisteredDpUserId(nickname, uid);
             }
+            presenceMarkInGameHuman(r, nickname, userId, "join_room_mutate");
             return "游戏已开始";
         }
         if (r.getPlayers().size() >= r.getMaxSeatCount()) {
@@ -1169,6 +1284,7 @@ public class DpRoomServiceImpl {
             r.putRegisteredDpUserId(nickname, uid);
         }
         r.getPlayers().add(p);
+        presenceMarkInGameHuman(r, nickname, userId, "join_room_mutate");
         return "ok";
     }
 
@@ -1315,6 +1431,9 @@ public class DpRoomServiceImpl {
                 }
             }
         }
+        if ("ok".equals(outcome) || "游戏已开始".equals(outcome)) {
+            presenceMarkInGameHuman(r, nickname, userId, "join_room_invite_spectator");
+        }
         refreshJoinableQmIndexThenSyncLobby(roomId);
         return outcome;
     }
@@ -1413,6 +1532,7 @@ public class DpRoomServiceImpl {
                 if (err != null) {
                     return ResultUtil.error().data("message", err);
                 }
+                presenceMarkInGameHuman(existing, nickname, userId, "quick_match_already_in_room");
                 refreshJoinableQmIndexThenSyncLobby(existing.getRoomId());
                 return ResultUtil.ok()
                         .data("roomId", existing.getRoomId())
@@ -2155,7 +2275,9 @@ public class DpRoomServiceImpl {
         GiveOwnerMutationOutcome giveAgg = GiveOwnerMutationOutcome.none();
         boolean lobbyTouch = false;
         boolean droppedEmpty = false;
+        Integer presenceHintUid = null;
         synchronized (r) {
+            presenceHintUid = resolvePresenceHintBeforeExitMutationLocked(r, nickname);
             List<String> spectators = r.getSpectators();
             List<String> waiters = r.getWaitNextHand();
             if (spectators != null) {
@@ -2216,12 +2338,15 @@ public class DpRoomServiceImpl {
             }
         }
         if (droppedEmpty) {
-            finalizeHallAfterRoomRemoved(roomId);
+            finalizeHallAfterRoomRemovedWithPresenceSnapshot(roomId, r);
         } else {
             refreshJoinableQuickMatchIndexRoom(roomId, System.currentTimeMillis());
             if (lobbyTouch || giveAgg.ownerFieldChanged) {
                 syncLobbyForRoomId(roomId);
             }
+        }
+        if (!droppedEmpty) {
+            presenceTryMarkIdleFullyLeft(nickname, presenceHintUid, r, "exit_room");
         }
         if (wasPublic && result) {
             tryDrainDefaultQuickMatchPairs();
@@ -2873,13 +2998,24 @@ public class DpRoomServiceImpl {
     }
 
     /** 本手结算收尾：从 players 移除已离线占位，与 {@link #autoSettle} 主路径及零底池捷径一致。 */
-    private static void removeLeftThisHandZombiesAfterHand(DpRoomBO r) {
+    private void removeLeftThisHandZombiesAfterHand(DpRoomBO r) {
         if (r == null) {
             return;
         }
         List<DpPlayer> ps = r.getPlayers();
-        if (ps != null && !ps.isEmpty()) {
-            ps.removeIf(DpPlayer::isLeftThisHand);
+        if (ps == null || ps.isEmpty()) {
+            return;
+        }
+        List<DpPlayer> humanZombies = new ArrayList<>();
+        for (DpPlayer p : ps) {
+            if (p != null && p.isLeftThisHand() && !DpNpcEngine.isBotPlayer(p)) {
+                humanZombies.add(p);
+            }
+        }
+        ps.removeIf(DpPlayer::isLeftThisHand);
+        for (DpPlayer p : humanZombies) {
+            presenceTryMarkIdleFullyLeft(
+                    p.getNickname(), p.getDpUserId(), r, "hand_settle_zombie_removed");
         }
     }
 
