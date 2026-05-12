@@ -1,0 +1,75 @@
+# 推送 Docker Hub 镜像，等同于根目录 build-push-hub.ps1（仅 dpgame + dpgame-nginx；仅标签 IMAGE_TAG，不打 latest）
+#
+# 与「本机是否 docker build」无关：只要下面 on.push 命中的分支有 push，就由 GitHub 云端构建推送。
+#
+# Secrets（仅此一项即可；用户名已写死为下方 DOCKER_NS）：
+#   DOCKERHUB_TOKEN — Docker Hub「Personal access token」
+#
+# 可选：若希望用户名也不出现在文件里，可把 login 的 username 改成 ${{ secrets.DOCKERHUB_USERNAME }}，并在仓库里同名配置。
+#
+# 触发：按需修改 branches（当前示例 desensitization-pre）；亦可删去整个 push，只保留 workflow_dispatch 改为「仅手动打镜像」。
+name: Docker build & push
+
+on:
+  push:
+    branches:
+      - desensitization-pre
+  workflow_dispatch:
+
+# 同一分支上新触发时取消尚未结束的旧运行，只保留最新一次构建推送
+concurrency:
+  group: docker-publish-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # 与 build-push-hub.ps1 / docker-compose.hub.yml 默认命名空间、标签一致
+  DOCKER_NS: "1933886418"
+  IMAGE_TAG: "v1.0.1"
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: dpgame
+            dockerfile: Dockerfile
+          - name: dpgame-nginx
+            dockerfile: Dockerfile.nginx
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Docker Hub login
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKER_NS }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build tag list (${{ matrix.name }})
+        id: tags
+        shell: bash
+        env:
+          NS: ${{ env.DOCKER_NS }}
+          TAG: ${{ env.IMAGE_TAG }}
+          IMG_NAME: ${{ matrix.name }}
+        run: |
+          IMG="${NS}/${IMG_NAME}"
+          {
+            echo "tags<<EOF"
+            echo "${IMG}:${TAG}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and push ${{ matrix.name }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}

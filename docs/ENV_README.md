@@ -1,4 +1,4 @@
-# 环境变量、`application.properties` 与 `.env` 说明
+# 环境与配置：`application.properties`、根目录 `.env`、JWT、方舟 LLM（BOT_LLM）
 
 本文说明本仓库里：**Spring 如何读 `application.properties`**、**根目录 `.env` 如何生效**、以及 **JWT**、**方舟 LLM（BOT_LLM）** 的配置方式。变量清单以仓库根目录 **`.env.example`** 为准。
 
@@ -34,8 +34,8 @@
 
 ## 4. 方舟 LLM（BOT_LLM）
 
-- **`application.properties`**：`dp.llm.ark.*=${ARK_*:…}`。
-- **`DpLlmNpcDecisionService`** 仅 **`@Value("${dp.llm.ark.*}")`**，构造 **`LlmNpc`**。  
+- **`application.yml`**：`dp.llm.ark.*=${ARK_*:…}`（含 **`response-json-object`**，对应环境变量 **`ARK_RESPONSE_JSON_OBJECT`**，默认 `true`：请求体带 `response_format=json_object`；若接入点返回 400 可设为 `false`，仍由解析器容错提取动作）。
+- **`DpLlmNpcDecisionService`** **`@Value`** 注入后构造 **`LlmNpc`**。  
   **`ARK_*`** 来自 Spring 解析后的配置（含 `.env` → `System.setProperty` → 占位符）。
 
 ---

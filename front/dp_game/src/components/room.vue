@@ -43,7 +43,6 @@
             type="button"
             class="dp-btn dp-btn--primary"
             @click="start"
-            :disabled="!allReady"
           >
             开始游戏
           </button>
@@ -68,7 +67,6 @@ export default {
       roomId: '',
       room: null,
       user: {},
-      allReady: false,
       timer: null,
       heartbeatTimer: null
     }
@@ -116,7 +114,10 @@ export default {
           ownerNickname: this.user.nickname
         }
       })
-      alert(res.data)
+      if (res.data !== 'ok') {
+        alert('开局失败，请确认你是房主且房间仍有效')
+        return
+      }
       this.$router.push(`/game/${this.roomId}`)
     },
 
@@ -147,7 +148,6 @@ export default {
         }
 
         this.room = room
-        this.allReady = room.players.every((p) => p.ready)
 
         if (room.playing) {
           this.$router.push('/game/' + this.roomId)

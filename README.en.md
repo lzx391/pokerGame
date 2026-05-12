@@ -70,8 +70,7 @@
 
 #### Saloon-style Fish (`BOT_Fish`, 2026-03-25)
 
-- **Before**: `EASY` noise too high—too weak vs saloon NPC feel.
-- **Now**: **`MEDIUM`**, tighter noise, `LOOSE_FUN` more aggressive; still below `BOT_Shark`. For weaker demo fish, set `case DEMO` back to `EASY` in `decideBotAction`.
+- **Rule NPCs**: No tiered difficulty noise on strength or pot odds—decisions use real strength and pot odds; style comes from `StyleProfile` and per-bot logic. **`mood`**: off by default (`DpNpcEngine.NPC_MOOD_ENABLED = false`); set `true` to restore post-hand mood updates and mood-weighted probabilities.
 
 #### Shark preflop ranges
 
@@ -131,7 +130,7 @@ Since 2026-03-18, Shark preflop uses **`DpNpcSharkPreflopStrategy.decideForShark
 
 ### Music BGM (2026-04-01)
 
-- **Table**: `dp_music_track.sql` in `school_db`.
+- **Table**: `dp_music_track` from Flyway `src/main/resources/db/migration/V1__init_schema.sql` in `school_db`.
 - **Path**: Default `P:/javaworkspace/DPGameFiles/music/` (`mgdemoplus.music.file-location`); HTTP `/music/**`; Docker: `MGDEMOPLUS_MUSIC_FILE_LOCATION`.
 - **APIs**: `POST /dpMusic/upload`; `GET /dpMusic/list`.
 - **Front**: `/#/music-upload` after login.
@@ -148,15 +147,15 @@ Since 2026-03-18, Shark preflop uses **`DpNpcSharkPreflopStrategy.decideForShark
 
 ### Docker
 
-- **Full server deploy (same as local dev)**: **`git clone`** the **entire** repo (includes `docker-compose.yml`, init SQL), then `docker compose up -d --build`—**Docker Hub cannot replace Git** for source ([docs/DOCKER.md](docs/DOCKER.md)).
-- **Images only (no clone)**: Use **`docker-compose.hub.yml`** with pre-pushed **`dpgame`**, **`dpgame-mysql`**, **`dpgame-nginx`** ([docs/DOCKER.md](docs/DOCKER.md) “image-only deploy”); on server: `docker compose -f docker-compose.hub.yml pull` and `up -d` (**no** `--build`).
+- **Full server deploy (same as local dev)**: **`git clone`** the **entire** repo (includes `docker-compose.yml`), then `docker compose up -d --build`—**Docker Hub cannot replace Git** for source ([docs/DOCKER.md](docs/DOCKER.md)).
+- **Images only (no clone)**: Use **`docker-compose.hub.yml`** with pre-pushed **`dpgame`**, **`dpgame-nginx`**; MySQL is official **`mysql:8.0`**, schema from app **Flyway** ([docs/DOCKER.md](docs/DOCKER.md) “image-only deploy”); on server: `docker compose -f docker-compose.hub.yml pull` and `up -d` (no `--build`).
 - **Docker Hub cheat sheet**
-  - **When to push**: After changing anything that goes into the image (root **`Dockerfile`**, **`Dockerfile.mysql`**, **`Dockerfile.nginx`**, app/front code, `docker/nginx`, init SQL, etc.) and you want another machine to **pull only**—rebuild and push (usually all three images together).
+  - **When to push**: After changing anything that goes into the image (root **`Dockerfile`**, **`Dockerfile.nginx`**, app/front code, `docker/nginx`, **`src/main/resources/db/migration/`** Flyway scripts, etc.) and you want another machine to **pull only**—rebuild and push **`dpgame`** + **`dpgame-nginx`** with the **same tag**.
   - **How**: `docker login`; on Windows from repo root **`.\build-push-hub.ps1`** (optional `-Tag v1.0.1`); Linux/macOS: see **`docker build` / `docker push`** in [docs/DOCKER.md](docs/DOCKER.md) for `REG`/`TAG`. **`IMAGE_TAG`** in deploy `.env` must match the pushed tag.
-  - **When to use `docker-compose.hub.yml`**: Target has Docker + Compose only, **no** `git clone`—place the YAML anywhere (copy or download), optional **`.env`** for `DOCKER_REGISTRY`, `IMAGE_TAG`, `MYSQL_ROOT_PASSWORD`, `REDIS_PASSWORD`, then **`pull` + `up -d`**. Compose uses **`image:`** only, **no** **`build:``**—no source tree needed.
-  - **vs default `docker-compose.yml`**: Default uses **`build:`** at repo root, often mounts `./docker-data`; Hub flow bakes config/SQL into images for “copy one YAML” deploys.
+  - **When to use `docker-compose.hub.yml`**: Target has Docker + Compose only, **no** `git clone`—place the YAML anywhere (copy or download), optional **`.env`** for `DOCKER_REGISTRY`, `IMAGE_TAG`, `MYSQL_ROOT_PASSWORD`, `REDIS_PASSWORD`, then **`pull` + `up -d`**. Compose uses **`image:`** only, **no** **`build:`**—no source tree needed.
+  - **vs default `docker-compose.yml`**: Default uses **`build:`** at repo root, mounts `./docker-data/uploads`; Hub flow bakes Nginx + app (DDL packaged for **Flyway**); MySQL is stock `mysql:8.0`.
 - **More**: Git vs packaging, `WebConfig`, drivers, prod front URL, DBeaver—[docs/DOCKER.md](docs/DOCKER.md). **Nginx** (port 80, WS proxy): [docs/NGINX.md](docs/NGINX.md).
 - **One-shot (MySQL + Redis + app + Nginx)**: From repo root `docker compose up --build`; open **`http://localhost`** (via Nginx) or **`http://localhost:8088`** (direct app; hash routes, e.g. `/#/login`). Default MySQL root password `mgdemo_root` (override `MYSQL_ROOT_PASSWORD`). Host MySQL **`localhost:3307`** (avoids 3306 conflict); app uses `mysql:3306` inside Docker network. **Redis** service `redis`, volume `redis_data`, default password **`mgdemo_redis`** (override **`REDIS_PASSWORD`**, must match `SPRING_DATA_REDIS_PASSWORD`). Host Redis **`localhost:6380`** (mapped from container 6379). Single `docker run` app container needs Redis or `SPRING_DATA_REDIS_*` yourself.
 - **Backend image only**: `docker build -t mgdemoplus .`, example run:
   `docker run -p 8088:8088 -e SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/school_db?useSSL=false -e SPRING_DATASOURCE_USERNAME=root -e SPRING_DATASOURCE_PASSWORD=<your-password> -e MGDEMOPLUS_IMAGES_FILE_LOCATION=file:/data/mgdemo-files/ -v <host-dir>:/data/mgdemo-files mgdemoplus`
-- **Notes**: `Dockerfile` builds `front/dp_game` into the JAR `static` alongside API/WS; dev default uploads `P:/javaworkspace/DPGameFiles/` (`mgdemoplus.images.file-location`); `/images/**` in container defaults `/data/mgdemo-files` (compose maps `./docker-data/uploads`). **DB tables**: first MySQL volume runs `docker-data/mysql-init/00-school_db.sql` then `SOURCE`s `src/main/resources/db/*.sql` into `school_db`; old `mysql_data` volume without tables may need `docker compose down -v` or manual SQL. **Do not** bake real secrets into `application.properties` in images—inject LLM keys via `ARK_API_KEY`, `ARK_ENDPOINT_ID`, etc. in compose.
+- **Notes**: `Dockerfile` builds `front/dp_game` into the JAR `static` alongside API/WS; dev default uploads `P:/javaworkspace/DPGameFiles/` (`mgdemoplus.images.file-location`); `/images/**` in container defaults `/data/mgdemo-files` (compose maps `./docker-data/uploads`). **DB**: named volume stores data only; **`school_db` DDL/DML migrations run via Flyway** at startup (`classpath:db/migration`). If **`mysql_data` was populated by the old Docker init**, Flyway **V1** may fail on duplicate objects—in dev use `docker compose down -v` (**wipes DB**); production needs backup/migration planning. **Do not** bake real secrets into `application.properties` in images—inject LLM keys via `ARK_API_KEY`, `ARK_ENDPOINT_ID`, etc. in compose.

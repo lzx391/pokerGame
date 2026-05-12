@@ -1,0 +1,22 @@
+/**
+ * 窄屏整体略缩字号与已定好的 px 控件（不改组件结构）。
+ * 对局路由（/game）的全页 zoom 与三档断点已迁至 **dp-game-layout-tiers.css**（data-dp-layout-tier），
+ * 此处仅保留非对局页的 .full-page 及登录区 .app-container 规则。
+ *
+ * 说明：子级大量直接使用 px，仅靠根节点 font-size 无法联动，故用 zoom。
+ * 仅对「整页根」缩放：#app .full-page 的直接子 .dp-game-root，避免嵌套组件被二次缩放。
+ */
+
+@media (max-width: 600px) {
+  #app .full-page:not(.full-page--dp-game) > .dp-game-root,
+  #app.app--auth .app-container {
+    zoom: 0.94;
+  }
+}
+
+@media (max-width: 360px) {
+  #app .full-page:not(.full-page--dp-game) > .dp-game-root,
+  #app.app--auth .app-container {
+    zoom: 0.88;
+  }
+}

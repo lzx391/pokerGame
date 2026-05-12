@@ -1,4 +1,4 @@
-# JSON、Map 与序列化：接口与存库备忘
+# JSON、`Map`、`Result`：序列化与服务端／前端对齐备忘
 
 本文档整理后端与前端协作时常见的几个概念，便于日后查阅。与项目里 `Result`、`Map<String, Object>`、以及牌谱 `payload_json` 等用法对应。
 

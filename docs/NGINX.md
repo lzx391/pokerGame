@@ -1,4 +1,4 @@
-# 接入 Nginx（反向代理）
+# Nginx 反向代理：`/`→应用、`/ws/`→同源 WebSocket（Docker Compose）
 
 本仓库在 **Docker Compose** 里增加了 **Nginx** 服务：对外只暴露 **80** 端口，把 HTTP 与 **WebSocket** 转发到同一网络内的 **`app:8088`**（Spring Boot 仍负责 API、静态资源、对局 WS）。
 

@@ -12,6 +12,11 @@
         :spectators="vm.spectators"
         @close="$store.commit('dpGame/SET_MODAL', { showSpectatorModal: false })"
     />
+    <game-wait-next-hand-modal
+        :visible="vm.showWaitNextHandModal"
+        :wait-next-hand="vm.waitNextHand"
+        @close="$store.commit('dpGame/SET_MODAL', { showWaitNextHandModal: false })"
+    />
     <game-hand-history-modal
         :visible="vm.showHandHistoryModal"
         :game-ui-theme="vm.effectiveThemeForCss"
@@ -33,6 +38,7 @@
 <script>
 import GamePlayGuideModal from './GamePlayGuideModal.vue'
 import GameSpectatorModal from './GameSpectatorModal.vue'
+import GameWaitNextHandModal from './GameWaitNextHandModal.vue'
 import GameHandHistoryModal from './GameHandHistoryModal.vue'
 import GameMusicBoxModal from './GameMusicBoxModal.vue'
 
@@ -41,6 +47,7 @@ export default {
   components: {
     GamePlayGuideModal,
     GameSpectatorModal,
+    GameWaitNextHandModal,
     GameHandHistoryModal,
     GameMusicBoxModal
   },

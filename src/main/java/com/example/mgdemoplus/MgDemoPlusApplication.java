@@ -55,6 +55,7 @@ public class MgDemoPlusApplication {
             } else {
                 out.println(" :: DPGAME ::");
             }
+            
             out.println();
         });
         app.run(args);

@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class DpRoomBO {
     private String roomId;
@@ -51,6 +52,11 @@ public class DpRoomBO {
     /** 默认每人带入深度（用大盲计）：{@code startingChips = bigBlindChips × startingStackBb} */
     public static final int DEFAULT_STARTING_STACK_BB = 50;
 
+    /** 一桌最多玩家数（建房时指定，合法区间 {@value #MIN_SEAT_COUNT}～{@value #MAX_SEAT_COUNT}）。 */
+    public static final int MIN_SEAT_COUNT = 2;
+    public static final int MAX_SEAT_COUNT = 9;
+    public static final int DEFAULT_MAX_SEAT_COUNT = MAX_SEAT_COUNT;
+
     /** 本桌小盲/大盲；逻辑与下注校验均使用实例值，不再使用静态全局盲注。 */
     private int smallBlindChips = DEFAULT_SMALL_BLIND_CHIPS;
     private int bigBlindChips = DEFAULT_BIG_BLIND_CHIPS;
@@ -66,6 +72,11 @@ public class DpRoomBO {
      * 进房密码（仅内存）；空或 null 表示不设密码。不下发 JSON。
      */
     private String roomPassword = "";
+
+    /**
+     * 人数上限：当前桌玩家数与「下一局」预约总人数不得超过该值（创建房间时写入）。
+     */
+    private int maxSeatCount = DEFAULT_MAX_SEAT_COUNT;
 
     // 行动顺序
     private int lastDealerIndex =0;
@@ -83,8 +94,8 @@ public class DpRoomBO {
     private long readyDeadline = 0L;
 
     /**
-     * 玩家行为统计：用于高级机器人（如 BOT_Shark）根据最近几手的表现
-     * 粗略揣测每个玩家是紧/松、凶/弱，从而调整自己的跟注/加注策略。
+     * 玩家行为统计：用于规则 NPC 根据最近几手的表现
+     * 粗略揣测每个玩家是紧/松、凶/弱，从而调整跟注/加注策略。
      * key 为玩家昵称，value 为该玩家的统计信息。
      */
     private Map<String, DpPlayerStats> playerStatsMap = new HashMap<>();
@@ -112,6 +123,26 @@ public class DpRoomBO {
      * 用于下一局从 wait 列表拉人上桌时补全 {@link DpPlayer#setDpUserId}，不参与房间 JSON。
      */
     private final ConcurrentHashMap<String, Integer> registeredDpUserIdByNickname = new ConcurrentHashMap<>();
+
+    /**
+     * 本桌机器人昵称共用递增序号（各档位与大模型 BOT 占位均占用）；房间内唯一，重启房间后归零。
+     * 初始 0，首次分配从 1 起。
+     */
+    @JsonIgnore
+    private final AtomicInteger botNicknameSeq = new AtomicInteger(0);
+
+    /**
+     * 连续占用 {@code count} 个序号。
+     *
+     * @param count 须为正整数
+     * @return 本批的第一个序号（含），后续为 {@code first+1 .. first+count-1}
+     */
+    public int allocateBotNicknameSeqBatch(int count) {
+        if (count <= 0) {
+            throw new IllegalArgumentException("count must be positive");
+        }
+        return botNicknameSeq.addAndGet(count) - count + 1;
+    }
 
     public void putRegisteredDpUserId(String nickname, Integer dpUserId) {
         if (nickname == null || nickname.isEmpty() || dpUserId == null) {
@@ -227,6 +258,14 @@ public class DpRoomBO {
 
     public void setRoomPassword(String roomPassword) {
         this.roomPassword = roomPassword == null ? "" : roomPassword.trim();
+    }
+
+    public int getMaxSeatCount() {
+        return maxSeatCount;
+    }
+
+    public void setMaxSeatCount(int maxSeatCount) {
+        this.maxSeatCount = maxSeatCount;
     }
 
     /** 加入房间时校验；未设密码时恒为 true。 */

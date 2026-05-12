@@ -10,6 +10,7 @@ export const GAME_UI_THEMES = [
   { id: 'ink', label: '水墨丹青' },
   { id: 'strawberry', label: '草莓甜心' },
   { id: 'cotton', label: '绵云轻柔' },
+  { id: 'halloween', label: '万圣惊魂' },
   /** 基于某一预设 + 自定义强调色，见 dpGameCustomTheme.js */
   { id: 'custom', label: '自定义' }
 ]

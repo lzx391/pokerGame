@@ -1,7 +1,7 @@
 package com.example.mgdemoplus.entity.dp;
 
 /**
- * 表 dp_shark_opponent_profile（MyBatis 读写）。
+ * 表 dp_shark_opponent_profile（MyBatis 映射保留；当前应用代码不再读写，仅供历史数据/手工运维）。
  */
 public class DpSharkOpponentProfile {
     private String playerNickname;

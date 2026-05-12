@@ -1,4 +1,4 @@
-# DP 德州扑克 · NPC 引擎笔记（整理版）
+# DP 对局 NPC 引擎（规则型）文档索引：`DpNpcEngine` · Fish／Maniac／TAG／Shark
 
 本目录是后端 **规则型 NPC**（`BOT_Fish` / `BOT_Maniac` / `BOT_Tag` / `BOT_Shark`）的实现说明。  
 游戏整体协议与房间流程仍以仓库根目录下的 `docs/DPGAME.md` 为准；这里只讲 **AI 决策与相关类**。
@@ -14,6 +14,7 @@
 
 | 文件 | 内容 |
 |------|------|
+| [npc-preflop-unified-decision-flow.md](../npc-preflop-unified-decision-flow.md) | **统一翻前**（`DpNpcUnifiedPreflopStrategy`）数据流向：入口、`Spot`、`lateFactor`、`rangeLevel`、分场景动作与加注尺度 |
 | [01_overview_and_entry.md](01_overview_and_entry.md) | 分类（普通 vs Shark）、调用链、核心类一览 |
 | [02_normal_npc_implementation.md](02_normal_npc_implementation.md) | 普通 NPC（Fish / Maniac / TAG）从入口到分支的逐步流程 |
 | [03_normal_npc_modules.md](03_normal_npc_modules.md) | 普通 NPC 共用模块：`DpUtilHandEvaluator`、`StyleProfile`、思考延迟等 |

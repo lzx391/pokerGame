@@ -1,4 +1,4 @@
-# 5. Shark 专属模块详解
+# Shark 专属类：翻前模块、剥削剧本、`LearningLab` 与持久化
 
 以下类均在包 `com.example.mgdemoplus.service.serviceImpl.dp` 下（与 `DpNpcEngine` 同包或相邻），除非另注。
 
@@ -63,7 +63,7 @@
 |------|------|
 | **职责** | 桌上有 **Shark** 时，在结算后把各对手的 `PlayerStats` + LearningLab 快照 **upsert** 到表 **`dp_shark_opponent_profile`**（主键昵称）。 |
 | **读取** | 玩家 `joinRoom` / 新一手 `newHand` 等时机 **hydrate** 回内存（若 `playerStatsMap` 尚无该昵称）。 |
-| **SQL** | `src/main/resources/db/dp_shark_opponent_profile.sql` |
+| **SQL** | `src/main/resources/db/migration/V1__init_schema.sql`（`dp_shark_opponent_profile`） |
 
 ---
 

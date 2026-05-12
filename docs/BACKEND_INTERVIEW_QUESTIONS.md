@@ -1,4 +1,4 @@
-# MGDemoPlus 后端面试题清单（基于本仓库）
+# MGDemoPlus 后端面试题库（贴合本仓库技术栈）
 
 本文档站在**面试官**角度，结合本项目的真实技术栈与实现方式整理问题，便于你准备 Java / Spring Boot 后端岗位面试。问题按主题分组，每题附带**可结合本项目的答法提示**（不要求背项目细节，但能把简历上的项目讲清楚会加分）。
 
@@ -181,7 +181,7 @@
    - 提示：避免与宿主机 3306 冲突（README）。
 
 2. **数据库初始化脚本如何进入容器首次建表？**  
-   - 提示：`docker-data/mysql-init` 与 `src/main/resources/db/*.sql`。
+   - 提示：表结构单一来源为 **`src/main/resources/db/migration/`**（Flyway）；Compose 不再挂载 Docker init SQL。
 
 3. **健康检查与日志：生产环境你会加什么？**  
    - 提示：Actuator、集中日志、指标；本项目可按需扩展。

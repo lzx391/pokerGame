@@ -12,7 +12,10 @@ import './styles/dp-game-themes.css'
 /* 尽早加载：大厅 #app.app--lobby 与 .dp-game-root 布局 */
 import './styles/dp-lobby-shell.css'
 import './styles/dp-auth-shell.css'
+import './styles/dp-game-responsive-type.css'
+import './styles/dp-game-layout-tiers.css'
 import './styles/dp-game-element-ui.css'
+import './styles/dp-social-lists.css'
 import ElementUI, { Message } from 'element-ui'
 import 'element-ui/lib/theme-chalk/index.css';
 Vue.config.productionTip = false

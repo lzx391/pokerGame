@@ -4,8 +4,11 @@ import com.example.mgdemoplus.bo.DpRoomBO;
 import com.example.mgdemoplus.entity.dp.DpPlayer;
 import com.example.mgdemoplus.service.serviceImpl.dp.npc.LlmNpcGameContext;
 import com.example.mgdemoplus.utils.dp.DpUtilSmartContext;
+import com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator;
+import com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator.HandStrength;
 import com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator.SimpleStrength;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -17,6 +20,7 @@ public final class DpLlmNpcContextMapper {
     private DpLlmNpcContextMapper() {
     }
 
+    /** 将引擎上下文映射为 LLM 可直接消费的扁平数据对象。 */
     public static LlmNpcGameContext map(
             DpRoomBO room,
             DpPlayer hero,
@@ -36,6 +40,7 @@ public final class DpLlmNpcContextMapper {
         int heroChips = hero != null ? hero.getChips() : 0;
         String pos = position != null ? position.name() : "";
         String str = strength != null ? strength.name() : "";
+        String hsl = resolveHandStrengthLineForLlm(room, hero, st);
 
         String aggressor = "";
         if (ctx.aggressor != null) {
@@ -54,8 +59,10 @@ public final class DpLlmNpcContextMapper {
 
         String multi = summarizeMultiway(ctx.multiwayVillains);
         String counter = summarizeCounter(ctx.counterStrategy);
+        String squeeze = buildSqueezeRiskSummary(callAmount, room != null ? room.getBigBlindChips() : 0,
+                ctx.multiwayVillains);
 
-        return new LlmNpcGameContext(//参数传入
+        return new LlmNpcGameContext(
                 st,
                 pot,
                 callAmount,
@@ -65,6 +72,7 @@ public final class DpLlmNpcContextMapper {
                 holes,
                 pos,
                 str,
+                hsl,
                 aggressor,
                 tier,
                 cred,
@@ -82,7 +90,79 @@ public final class DpLlmNpcContextMapper {
                 ctx.tightBehindCount,
                 ctx.deepBehindCount,
                 ctx.shortBehindCount,
-                counter);
+                counter,
+                squeeze);
+    }
+
+    /**
+     * 身后激进短码「跟注后被挤压/全下」风险摘要，供 BOT_LLM 与赔率一并阅读。
+     */
+    private static String buildSqueezeRiskSummary(int callAmount, int bigBlindChips,
+            List<DpNpcEngine.MultiwayVillainInfo> list) {
+        int bb = Math.max(1, bigBlindChips);
+        double shortBb = DpNpcEngine.RuleNpcConfig.SHORT_STACK_BB;
+        double deepBb = DpNpcEngine.RuleNpcConfig.DEEP_STACK_MIN_BB;
+        if (callAmount <= 0) {
+            return "不适用（本轮你还须支付为 0：无「跟注后被身后加注」问题）。";
+        }
+        if (list == null || list.isEmpty()) {
+            return "低（无多路摘要）。";
+        }
+        List<String> aggShortNicks = new ArrayList<>();
+        int aggShortCnt = 0;
+        int nitDeepBehind = 0;
+        for (DpNpcEngine.MultiwayVillainInfo v : list) {
+            if (v == null || !v.behindHero) {
+                continue;
+            }
+            boolean agg = v.tier == DpNpcEngine.VillainRangeTier.MANIAC
+                    || v.tier == DpNpcEngine.VillainRangeTier.LOOSE;
+            boolean shortStack = v.stackBB > 0 && v.stackBB <= shortBb;
+            if (agg && shortStack) {
+                aggShortCnt++;
+                if (v.nickname != null && !v.nickname.isBlank()) {
+                    aggShortNicks.add(v.nickname);
+                }
+            }
+            if ((v.tier == DpNpcEngine.VillainRangeTier.NIT || v.tier == DpNpcEngine.VillainRangeTier.TIGHT)
+                    && v.stackBB >= deepBb) {
+                nitDeepBehind++;
+            }
+        }
+        if (aggShortCnt > 0) {
+            String names = aggShortNicks.isEmpty() ? "（见多路摘要）" : String.join("、", aggShortNicks);
+            return String.format(
+                    "高｜身后尚有约≤%.0fBB 的激进短码共%d人，可能在你平跟后继续加注或全下：%s。边缘牌慎纯跟注，可考虑弃牌或以大块加注夺回主动权。",
+                    shortBb, aggShortCnt, names);
+        }
+        if (nitDeepBehind > 0 && callAmount >= 5 * bb) {
+            return "中｜身后有紧凶深码，面对较大跟注可能被冷加注挤压；中等牌力避免勉强跟注。";
+        }
+        return "低｜身后未见显著「激进+短码」组合（仍有被加注的可能，勿理解为零风险）。";
+    }
+
+    /**
+     * 与 {@link DpUtilHandEvaluator#evaluateBestHand(java.util.List)} 一致：翻前或无足够张数时不算五张成牌。
+     */
+    private static String resolveHandStrengthLineForLlm(DpRoomBO room, DpPlayer hero, String stage) {
+        String stg = stage != null ? stage : "";
+        if ("preflop".equals(stg)) {
+            return "PREFLOP";
+        }
+        List<String> hole = hero != null ? hero.getHoleCards() : null;
+        List<String> comm = room != null ? room.getCommunityCards() : null;
+        List<String> all = new ArrayList<>(6);
+        if (hole != null) {
+            all.addAll(hole);
+        }
+        if (comm != null) {
+            all.addAll(comm);
+        }
+        if (all.size() < 5) {
+            return "PREFLOP_OR_INCOMPLETE";
+        }
+        HandStrength hs = DpUtilHandEvaluator.evaluateBestHand(all);
+        return DpUtilHandEvaluator.describeHandStrengthForLlm(hs);
     }
 
     private static String formatCards(List<String> cards) {
@@ -108,7 +188,7 @@ public final class DpLlmNpcContextMapper {
                     .append(" 后位=").append(v.behindHero)
                     .append(" stackBB=").append(String.format("%.1f", v.stackBB))
                     .append(" 风格=").append(tier)
-                    .append(" 本街加注=").append(v.hasRaisedThisStreet)
+                    .append(" 已加注本街=").append(v.hasRaisedThisStreet)
                     .append('\n');
         }
         return sb.toString().trim();

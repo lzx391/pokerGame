@@ -167,6 +167,41 @@
   padding-bottom: 2px;
 }
 
+/* 等待上桌名单（与观众席弹窗共用列表壳） */
+.wait-next-hand-modal__hint {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--dp-text-secondary, #a8a8a8);
+}
+
+.wait-next-hand-modal__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-left: 2px;
+}
+
+.wait-next-hand-modal__ord {
+  flex-shrink: 0;
+  min-width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--dp-btn-cyan-bg, rgba(0, 180, 200, 0.25));
+  color: var(--dp-accent, #5ee3ff);
+  border: 1px solid var(--dp-subpanel-border, rgba(255, 255, 255, 0.12));
+}
+
+.wait-next-hand-modal__name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 /* 对局页：窄屏「查看手牌 / 行动」底部抽屉（由 game.vue 内联使用） */
 .dp-game-sheet-mask--bottom {
   position: fixed;

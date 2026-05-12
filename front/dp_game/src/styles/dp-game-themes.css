@@ -55,440 +55,950 @@ body[data-dp-game-theme='default'] {
   --dp-player-card-winner-bg: #f6ffed;
   --dp-player-card-winner-border: #52c41a;
   --dp-player-showdown-border: #d9d9d9;
+
+  /* 牌背 / 台呢：明亮赌场 + 淡青绿台呢 */
+  --dp-card-back-highlight: radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.72) 0%, transparent 46%);
+  --dp-card-back-pattern-1: repeating-linear-gradient(
+    45deg,
+    rgba(24, 144, 255, 0.12) 0px,
+    rgba(24, 144, 255, 0.12) 2px,
+    transparent 2px,
+    transparent 7px
+  );
+  --dp-card-back-pattern-2: repeating-linear-gradient(
+    -45deg,
+    rgba(0, 0, 0, 0.07) 0px,
+    rgba(0, 0, 0, 0.07) 1px,
+    transparent 1px,
+    transparent 8px
+  );
+  --dp-card-back-base: linear-gradient(152deg, #fafcff 0%, #e3f2fd 38%, #90caf9 92%);
+  --dp-card-back-fg: #1565c0;
+  --dp-card-back-border: rgba(24, 144, 255, 0.48);
+  --dp-card-back-border-inner: rgba(255, 255, 255, 0.65);
+  --dp-card-back-text-shadow: 0 1px 2px rgba(255, 255, 255, 0.85);
+  --dp-card-back-shadow-idle:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.55),
+    inset 0 -5px 12px rgba(25, 118, 210, 0.08),
+    0 2px 8px rgba(0, 0, 0, 0.08);
+  --dp-card-back-shadow-mid:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.65),
+    inset 0 -6px 14px rgba(25, 118, 210, 0.1),
+    0 2px 12px rgba(24, 144, 255, 0.15),
+    0 0 12px rgba(100, 181, 246, 0.2);
+  --dp-card-drop-shadow: drop-shadow(0 4px 10px rgba(25, 118, 210, 0.16));
+  --dp-card-back-hole-top: radial-gradient(ellipse 100% 68% at 38% 12%, rgba(255, 255, 255, 0.65) 0%, transparent 44%);
+  --dp-card-back-hole-stripe: repeating-linear-gradient(
+    -32deg,
+    transparent,
+    transparent 3px,
+    rgba(245, 124, 0, 0.06) 3px,
+    rgba(245, 124, 0, 0.06) 5px
+  );
+  --dp-card-frame-gold: rgba(245, 124, 0, 0.28);
+  --dp-card-frame-outer: rgba(24, 144, 255, 0.14);
+  --dp-table-felt-texture:
+    radial-gradient(ellipse 46% 36% at 48% 38%, rgba(255, 255, 255, 0.38) 0%, transparent 54%),
+    radial-gradient(ellipse 32% 28% at 72% 68%, rgba(200, 230, 201, 0.55) 0%, transparent 50%),
+    radial-gradient(ellipse 26% 22% at 18% 58%, rgba(129, 199, 132, 0.25) 0%, transparent 48%),
+    repeating-linear-gradient(125deg, transparent 0 5px, rgba(46, 125, 50, 0.07) 5px 6px),
+    repeating-linear-gradient(55deg, transparent 0 7px, rgba(24, 144, 255, 0.045) 7px 8px),
+    radial-gradient(ellipse 30% 28% at 50% 50%, rgba(255, 255, 255, 0.22) 0%, transparent 68%);
+  --dp-table-felt-texture-opacity: 0.42;
+  --dp-muck-tint: #e8f5e9;
+  --dp-muck-tint-deep: #81c784;
+  --dp-muck-mini-card: linear-gradient(145deg, #fafafa 0%, #e3f2fd 35%, #64b5f6 100%);
+  --dp-table-felt-spot: #c8e6c9;
+  --dp-table-felt-depth: #a5d6a7;
+  --dp-table-felt-inset-bottom: inset 0 -12px 32px rgba(46, 125, 50, 0.12);
+  --dp-table-felt-drop-shadow: 0 10px 28px rgba(27, 94, 32, 0.1);
+  --dp-table-felt-ring-dark: rgba(46, 125, 50, 0.08);
+  --dp-table-felt-inset-deep: inset 0 -20px 44px rgba(27, 94, 32, 0.1);
+  --dp-table-felt-rim-mix: rgba(220, 237, 220, 0.92);
+  --dp-table-felt-rim-outer: rgba(46, 125, 50, 0.18);
+  --dp-table-felt-drop-shadow-lg: 0 16px 40px rgba(27, 94, 32, 0.1);
+  --dp-table-felt-vignette: rgba(27, 94, 32, 0.06);
 }
 
-/* 科幻：深色底 + 青蓝霓虹描边 */
+/* 科幻：深色底 + 青蓝霓虹（光晕层次与对比收紧） */
 .dp-game-root[data-dp-game-theme='scifi'],
 body[data-dp-game-theme='scifi'] {
   --dp-font-ui: 'Segoe UI', 'Arial Narrow', 'Helvetica Neue', sans-serif;
-  --dp-game-bg: #070b14;
-  --dp-game-bg-image: linear-gradient(180deg, #0a1628 0%, #050810 45%, #0d1b2a 100%);
+  --dp-game-bg: #050810;
+  --dp-game-bg-image:
+    radial-gradient(ellipse 85% 48% at 50% -12%, rgba(0, 229, 255, 0.11) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 36% at 100% 58%, rgba(103, 58, 183, 0.09) 0%, transparent 46%),
+    linear-gradient(168deg, #071422 0%, #050810 44%, #0a1624 100%);
 
-  --dp-panel-bg: rgba(8, 24, 40, 0.94);
-  --dp-panel-border: rgba(0, 229, 255, 0.28);
+  --dp-panel-bg: rgba(7, 22, 38, 0.94);
+  --dp-panel-border: rgba(0, 212, 255, 0.22);
   --dp-panel-shadow:
-    0 0 28px rgba(0, 180, 220, 0.12),
-    inset 0 0 0 1px rgba(0, 229, 255, 0.1);
+    0 12px 40px rgba(0, 0, 0, 0.55),
+    0 0 32px rgba(0, 180, 220, 0.07),
+    inset 0 1px 0 rgba(0, 229, 255, 0.12);
 
-  --dp-text-primary: #e3f4fc;
-  --dp-text-secondary: #8bbbd4;
-  --dp-text-muted: #5a7a8c;
-  --dp-accent: #00e5ff;
-  --dp-pot: #ff2e88;
-  --dp-warning: #ffc107;
-  --dp-success: #00e676;
-  --dp-danger: #ff5252;
-  --dp-cyan: #26c6da;
+  --dp-text-primary: #e8f8ff;
+  --dp-text-secondary: #8ecae6;
+  --dp-text-muted: #5c7d91;
+  --dp-accent: #40e0ff;
+  --dp-pot: #ff4d9a;
+  --dp-warning: #ffd54f;
+  --dp-success: #69f0ae;
+  --dp-danger: #ff6d6d;
+  --dp-cyan: #4dd0e1;
 
-  --dp-btn-primary-bg: #0066aa;
-  --dp-btn-primary-fg: #e8fcff;
-  --dp-btn-raise-bg: #ff9100;
+  --dp-btn-primary-bg: linear-gradient(180deg, #0277bd 0%, #01579b 100%);
+  --dp-btn-primary-fg: #e1f5fe;
+  --dp-btn-raise-bg: linear-gradient(180deg, #ff9800 0%, #ef6c00 100%);
   --dp-btn-raise-fg: #1a0a00;
-  --dp-btn-allin-bg: #b71c1c;
+  --dp-btn-allin-bg: linear-gradient(180deg, #c62828 0%, #7f1212 100%);
   --dp-btn-allin-fg: #ffffff;
-  --dp-btn-ghost-bg: rgba(6, 28, 45, 0.95);
-  --dp-btn-ghost-border: #00bcd4;
-  --dp-btn-ghost-fg: #00e5ff;
+  --dp-btn-ghost-bg: rgba(4, 22, 38, 0.96);
+  --dp-btn-ghost-border: rgba(77, 208, 225, 0.4);
+  --dp-btn-ghost-fg: #80deea;
 
-  --dp-input-bg: rgba(4, 20, 36, 0.9);
-  --dp-input-border: rgba(0, 229, 255, 0.35);
-  --dp-timer-ring: #00e5ff;
-  --dp-timer-text: #ff4081;
+  --dp-input-bg: rgba(4, 18, 34, 0.92);
+  --dp-input-border: rgba(0, 212, 255, 0.3);
+  --dp-timer-ring: #18ffff;
+  --dp-timer-text: #ff80ab;
 
-  --dp-owner-purple-bg: #5e35b1;
-  --dp-owner-purple-fg: #ede7f6;
-  --dp-owner-orange-bg: #ff6f00;
-  --dp-owner-orange-fg: #1a0a00;
+  --dp-owner-purple-bg: linear-gradient(180deg, #5e35b1 0%, #4527a0 100%);
+  --dp-owner-purple-fg: #f3e5f5;
+  --dp-owner-orange-bg: linear-gradient(180deg, #f57c00 0%, #e65100 100%);
+  --dp-owner-orange-fg: #fff3e0;
 
-  --dp-subpanel-bg: rgba(4, 18, 32, 0.92);
-  --dp-subpanel-border: rgba(0, 229, 255, 0.18);
+  --dp-subpanel-bg: rgba(3, 16, 30, 0.94);
+  --dp-subpanel-border: rgba(0, 188, 212, 0.16);
 
-  --dp-player-card-bg: rgba(12, 32, 52, 0.96);
-  --dp-player-card-offline-bg: rgba(18, 28, 42, 0.75);
-  --dp-player-card-offline-border: #3d5a6b;
-  --dp-player-card-turn-bg: rgba(0, 88, 112, 0.4);
-  --dp-player-card-turn-border: #00e5ff;
-  --dp-player-border-me: #40c4ff;
-  --dp-player-card-winner-bg: rgba(0, 72, 56, 0.5);
-  --dp-player-card-winner-border: #00e676;
-  --dp-player-showdown-border: #546e7a;
+  --dp-player-card-bg: rgba(10, 34, 54, 0.97);
+  --dp-player-card-offline-bg: rgba(14, 24, 38, 0.82);
+  --dp-player-card-offline-border: #355a6e;
+  --dp-player-card-turn-bg: rgba(0, 96, 120, 0.38);
+  --dp-player-card-turn-border: #40e0ff;
+  --dp-player-border-me: #4fc3f7;
+  --dp-player-card-winner-bg: rgba(0, 80, 62, 0.48);
+  --dp-player-card-winner-border: #69f0ae;
+  --dp-player-showdown-border: #607d8b;
+
+  --dp-card-back-highlight: radial-gradient(circle at 48% 38%, rgba(0, 229, 255, 0.35) 0%, transparent 50%);
+  --dp-card-back-pattern-1: repeating-linear-gradient(
+    45deg,
+    rgba(0, 229, 255, 0.15) 0px,
+    rgba(0, 229, 255, 0.15) 2px,
+    transparent 2px,
+    transparent 6px
+  );
+  --dp-card-back-pattern-2: repeating-linear-gradient(
+    -45deg,
+    rgba(103, 58, 183, 0.16) 0px,
+    rgba(103, 58, 183, 0.16) 1px,
+    transparent 1px,
+    transparent 7px
+  );
+  --dp-card-back-base: linear-gradient(148deg, #0a1628 0%, #132f4a 42%, #4a148c 88%);
+  --dp-card-back-fg: #b2ebf2;
+  --dp-card-back-border: rgba(64, 224, 255, 0.48);
+  --dp-card-back-border-inner: rgba(255, 255, 255, 0.1);
+  --dp-card-back-text-shadow: 0 0 12px rgba(0, 229, 255, 0.35);
+  --dp-card-back-shadow-idle:
+    inset 0 0 0 1px rgba(64, 224, 255, 0.22),
+    inset 0 -6px 14px rgba(13, 71, 161, 0.45),
+    0 2px 10px rgba(0, 0, 0, 0.5);
+  --dp-card-back-shadow-mid:
+    inset 0 0 0 1px rgba(128, 222, 234, 0.35),
+    inset 0 -6px 16px rgba(74, 20, 140, 0.4),
+    0 2px 14px rgba(0, 188, 212, 0.22),
+    0 0 18px rgba(103, 58, 183, 0.28);
+  --dp-card-drop-shadow: drop-shadow(0 4px 14px rgba(0, 188, 255, 0.35));
+  --dp-card-back-hole-top: radial-gradient(ellipse 100% 70% at 42% 10%, rgba(0, 229, 255, 0.2) 0%, transparent 46%);
+  --dp-card-back-hole-stripe: repeating-linear-gradient(
+    -36deg,
+    transparent,
+    transparent 3px,
+    rgba(255, 145, 0, 0.08) 3px,
+    rgba(255, 145, 0, 0.08) 5px
+  );
+  --dp-card-frame-gold: rgba(0, 229, 255, 0.32);
+  --dp-card-frame-outer: rgba(25, 118, 210, 0.35);
+  --dp-table-felt-texture:
+    radial-gradient(ellipse 44% 34% at 50% 36%, rgba(0, 229, 255, 0.12) 0%, transparent 54%),
+    radial-gradient(ellipse 32% 28% at 76% 68%, rgba(103, 58, 183, 0.18) 0%, transparent 52%),
+    radial-gradient(ellipse 28% 22% at 16% 56%, rgba(255, 145, 0, 0.08) 0%, transparent 48%),
+    repeating-linear-gradient(122deg, transparent 0 5px, rgba(0, 188, 212, 0.08) 5px 6px),
+    repeating-linear-gradient(58deg, transparent 0 8px, rgba(103, 58, 183, 0.06) 8px 9px),
+    radial-gradient(ellipse 32% 30% at 50% 50%, rgba(0, 229, 255, 0.14) 0%, transparent 70%);
+  --dp-table-felt-texture-opacity: 0.52;
+  --dp-muck-tint: #132f4a;
+  --dp-muck-tint-deep: #00838f;
+  --dp-muck-mini-card: linear-gradient(145deg, #0d1b2a 0%, #1565c0 40%, #4a148c 100%);
+  --dp-table-felt-spot: #0d3d5c;
+  --dp-table-felt-depth: #061422;
+  --dp-table-felt-inset-bottom: inset 0 -12px 36px rgba(0, 188, 212, 0.14);
+  --dp-table-felt-drop-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+  --dp-table-felt-ring-dark: rgba(0, 151, 167, 0.15);
+  --dp-table-felt-inset-deep: inset 0 -22px 48px rgba(13, 71, 161, 0.35);
+  --dp-table-felt-rim-mix: rgba(0, 131, 143, 0.35);
+  --dp-table-felt-rim-outer: rgba(64, 224, 255, 0.2);
+  --dp-table-felt-drop-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.48);
+  --dp-table-felt-vignette: rgba(4, 12, 24, 0.45);
 }
 
-/* 暗黑哥特：暖灰字 + 酒红/旧金点缀 */
+/* 暗黑哥特：羊皮纸字色 + 烛金与干玫瑰描边 */
 .dp-game-root[data-dp-game-theme='gothic'],
 body[data-dp-game-theme='gothic'] {
   --dp-font-ui: Georgia, 'Times New Roman', Times, serif;
-  --dp-game-bg: #140a0f;
-  --dp-game-bg-image: radial-gradient(ellipse 120% 80% at 50% -20%, #2a1520 0%, #140a0f 50%, #0a0508 100%);
+  --dp-game-bg: #0f080c;
+  --dp-game-bg-image:
+    radial-gradient(ellipse 100% 72% at 50% -18%, rgba(60, 28, 48, 0.55) 0%, transparent 52%),
+    radial-gradient(ellipse 58% 42% at 88% 92%, rgba(40, 20, 12, 0.42) 0%, transparent 48%),
+    linear-gradient(180deg, #140a0f 0%, #0f080c 50%, #080406 100%);
 
-  --dp-panel-bg: #241820;
-  --dp-panel-border: rgba(139, 90, 110, 0.4);
+  --dp-panel-bg: #201620;
+  --dp-panel-border: rgba(180, 120, 90, 0.26);
   --dp-panel-shadow:
-    0 6px 28px rgba(0, 0, 0, 0.55),
-    inset 0 1px 0 rgba(201, 162, 39, 0.06);
+    0 10px 36px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(212, 175, 55, 0.08);
 
-  --dp-text-primary: #e8dcc8;
-  --dp-text-secondary: #b8a99a;
-  --dp-text-muted: #7d6e63;
-  --dp-accent: #c9a227;
-  --dp-pot: #c62828;
-  --dp-warning: #d4af37;
-  --dp-success: #6a994e;
-  --dp-danger: #9b2226;
-  --dp-cyan: #6b7280;
+  --dp-text-primary: #efe6d8;
+  --dp-text-secondary: #c4b5a3;
+  --dp-text-muted: #8a7b6e;
+  --dp-accent: #e0c975;
+  --dp-pot: #c42b2b;
+  --dp-warning: #e6c87c;
+  --dp-success: #7cb86a;
+  --dp-danger: #a52a2a;
+  --dp-cyan: #8a9099;
 
-  --dp-btn-primary-bg: #3d2a32;
-  --dp-btn-primary-fg: #f5ebe0;
-  --dp-btn-raise-bg: #6b4423;
-  --dp-btn-raise-fg: #f5ebe0;
-  --dp-btn-allin-bg: #4a0d14;
-  --dp-btn-allin-fg: #f5ebe0;
-  --dp-btn-ghost-bg: #2a1c24;
-  --dp-btn-ghost-border: #8b6914;
-  --dp-btn-ghost-fg: #d4af37;
+  --dp-btn-primary-bg: linear-gradient(180deg, #4a3038 0%, #2d1c24 100%);
+  --dp-btn-primary-fg: #faf5ef;
+  --dp-btn-raise-bg: linear-gradient(180deg, #7a4a28 0%, #4e2f18 100%);
+  --dp-btn-raise-fg: #faf5ef;
+  --dp-btn-allin-bg: linear-gradient(180deg, #4a0d14 0%, #2a060c 100%);
+  --dp-btn-allin-fg: #faf5ef;
+  --dp-btn-ghost-bg: #261a22;
+  --dp-btn-ghost-border: rgba(212, 175, 55, 0.42);
+  --dp-btn-ghost-fg: #e0c975;
 
-  --dp-input-bg: #1a1218;
-  --dp-input-border: #5c3d4a;
-  --dp-timer-ring: #c9a227;
-  --dp-timer-text: #c62828;
+  --dp-input-bg: #181018;
+  --dp-input-border: #5a4048;
+  --dp-timer-ring: #e0c975;
+  --dp-timer-text: #c42b2b;
 
-  --dp-owner-purple-bg: #4a3060;
-  --dp-owner-purple-fg: #ede4f0;
-  --dp-owner-orange-bg: #6b3d2e;
-  --dp-owner-orange-fg: #f5ebe0;
+  --dp-owner-purple-bg: linear-gradient(180deg, #4c3258 0%, #2d1c38 100%);
+  --dp-owner-purple-fg: #f3ebf5;
+  --dp-owner-orange-bg: linear-gradient(180deg, #5c3628 0%, #3a2218 100%);
+  --dp-owner-orange-fg: #faf0e6;
 
-  --dp-subpanel-bg: #1a1218;
-  --dp-subpanel-border: #4a3038;
+  --dp-subpanel-bg: #171018;
+  --dp-subpanel-border: #3d2832;
 
-  --dp-player-card-bg: #2a1c24;
-  --dp-player-card-offline-bg: #181018;
-  --dp-player-card-offline-border: #4a3a42;
-  --dp-player-card-turn-bg: #342428;
-  --dp-player-card-turn-border: #c9a227;
-  --dp-player-border-me: #8b5a6b;
-  --dp-player-card-winner-bg: #1c241c;
-  --dp-player-card-winner-border: #6a994e;
-  --dp-player-showdown-border: #5c4a52;
+  --dp-player-card-bg: #2a1e26;
+  --dp-player-card-offline-bg: #150c12;
+  --dp-player-card-offline-border: #4a3842;
+  --dp-player-card-turn-bg: #38242e;
+  --dp-player-card-turn-border: #e0c975;
+  --dp-player-border-me: #a67c8d;
+  --dp-player-card-winner-bg: #1a2418;
+  --dp-player-card-winner-border: #7cb86a;
+  --dp-player-showdown-border: #544048;
+
+  --dp-card-back-highlight: radial-gradient(circle at 50% 36%, rgba(224, 201, 117, 0.22) 0%, transparent 48%);
+  --dp-card-back-pattern-1: repeating-linear-gradient(
+    45deg,
+    rgba(196, 43, 43, 0.12) 0px,
+    rgba(196, 43, 43, 0.12) 2px,
+    transparent 2px,
+    transparent 6px
+  );
+  --dp-card-back-pattern-2: repeating-linear-gradient(
+    -45deg,
+    rgba(224, 201, 117, 0.1) 0px,
+    rgba(224, 201, 117, 0.1) 1px,
+    transparent 1px,
+    transparent 7px
+  );
+  --dp-card-back-base: linear-gradient(150deg, #1a0a12 0%, #3d1f28 40%, #2c1810 92%);
+  --dp-card-back-fg: #e0c975;
+  --dp-card-back-border: rgba(224, 201, 117, 0.5);
+  --dp-card-back-border-inner: rgba(255, 248, 235, 0.08);
+  --dp-card-back-text-shadow: 0 2px 6px rgba(0, 0, 0, 0.65);
+  --dp-card-back-shadow-idle:
+    inset 0 0 0 1px rgba(224, 201, 117, 0.18),
+    inset 0 -6px 14px rgba(40, 12, 18, 0.55),
+    0 2px 10px rgba(0, 0, 0, 0.55);
+  --dp-card-back-shadow-mid:
+    inset 0 0 0 1px rgba(238, 215, 140, 0.28),
+    inset 0 -6px 16px rgba(60, 20, 28, 0.5),
+    0 2px 14px rgba(139, 40, 50, 0.2),
+    0 0 16px rgba(196, 43, 43, 0.12);
+  --dp-card-drop-shadow: drop-shadow(0 4px 12px rgba(60, 16, 24, 0.5));
+  --dp-card-back-hole-top: radial-gradient(ellipse 100% 68% at 45% 12%, rgba(240, 210, 130, 0.15) 0%, transparent 44%);
+  --dp-card-back-hole-stripe: repeating-linear-gradient(
+    -38deg,
+    transparent,
+    transparent 3px,
+    rgba(80, 40, 50, 0.15) 3px,
+    rgba(80, 40, 50, 0.15) 5px
+  );
+  --dp-card-frame-gold: rgba(224, 201, 117, 0.34);
+  --dp-card-frame-outer: rgba(40, 16, 22, 0.55);
+  --dp-table-felt-texture:
+    radial-gradient(ellipse 44% 34% at 48% 36%, rgba(224, 201, 117, 0.08) 0%, transparent 54%),
+    radial-gradient(ellipse 32% 28% at 74% 68%, rgba(90, 40, 55, 0.25) 0%, transparent 52%),
+    radial-gradient(ellipse 28% 22% at 18% 58%, rgba(60, 30, 38, 0.35) 0%, transparent 48%),
+    repeating-linear-gradient(118deg, transparent 0 5px, rgba(90, 40, 55, 0.09) 5px 6px),
+    repeating-linear-gradient(62deg, transparent 0 7px, rgba(224, 201, 117, 0.055) 7px 8px),
+    radial-gradient(ellipse 28% 26% at 50% 50%, rgba(224, 201, 117, 0.1) 0%, transparent 72%);
+  --dp-table-felt-texture-opacity: 0.5;
+  --dp-muck-tint: #2d1818;
+  --dp-muck-tint-deep: #5c2a30;
+  --dp-muck-mini-card: linear-gradient(145deg, #1a0c10 0%, #3d2028 42%, #5c1e24 100%);
+  --dp-table-felt-spot: #3d2830;
+  --dp-table-felt-depth: #1f1018;
+  --dp-table-felt-inset-bottom: inset 0 -12px 36px rgba(90, 40, 55, 0.22);
+  --dp-table-felt-drop-shadow: 0 12px 36px rgba(0, 0, 0, 0.52);
+  --dp-table-felt-ring-dark: rgba(60, 24, 32, 0.35);
+  --dp-table-felt-inset-deep: inset 0 -22px 50px rgba(20, 8, 12, 0.55);
+  --dp-table-felt-rim-mix: rgba(100, 70, 50, 0.42);
+  --dp-table-felt-rim-outer: rgba(212, 184, 120, 0.22);
+  --dp-table-felt-drop-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.5);
+  --dp-table-felt-vignette: rgba(20, 6, 12, 0.5);
 }
 
-/* 澳门风云：赌桌墨绿台呢 + 金边丝绒感 + 筹码红绿点缀 */
+/* 澳门风云：墨绿台呢 + 香槟金边（面板纯色便于 color-mix 台呢融合） */
 .dp-game-root[data-dp-game-theme='macau'],
 body[data-dp-game-theme='macau'] {
   --dp-font-ui: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, 'Times New Roman', serif;
-  --dp-game-bg: #070a08;
+  --dp-game-bg: #060806;
   --dp-game-bg-image:
-    radial-gradient(ellipse 140% 90% at 50% 120%, rgba(12, 58, 42, 0.85) 0%, transparent 55%),
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(58, 42, 18, 0.45) 0%, transparent 50%),
-    linear-gradient(175deg, #0c0f0d 0%, #0a1210 35%, #050807 100%);
+    radial-gradient(ellipse 130% 88% at 50% 118%, rgba(18, 72, 52, 0.75) 0%, transparent 54%),
+    radial-gradient(ellipse 75% 48% at 50% -8%, rgba(72, 52, 22, 0.38) 0%, transparent 48%),
+    linear-gradient(175deg, #0e1210 0%, #08100c 38%, #040604 100%);
 
-  --dp-panel-bg: linear-gradient(160deg, rgba(18, 32, 26, 0.97) 0%, rgba(10, 22, 18, 0.98) 100%);
-  --dp-panel-border: rgba(198, 168, 75, 0.42);
+  --dp-panel-bg: rgba(14, 32, 26, 0.97);
+  --dp-panel-border: rgba(212, 184, 96, 0.38);
   --dp-panel-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.65),
-    0 0 0 1px rgba(198, 168, 75, 0.12),
-    inset 0 1px 0 rgba(230, 200, 106, 0.08);
+    0 10px 38px rgba(0, 0, 0, 0.68),
+    0 0 0 1px rgba(212, 184, 96, 0.1),
+    inset 0 1px 0 rgba(238, 210, 130, 0.09);
 
-  --dp-text-primary: #f2ebe0;
-  --dp-text-secondary: #b8c9b8;
-  --dp-text-muted: #6d7f72;
-  --dp-accent: #e6c86a;
-  --dp-pot: #e53935;
-  --dp-warning: #ffb300;
-  --dp-success: #2e7d32;
+  --dp-text-primary: #f7f2e8;
+  --dp-text-secondary: #aec4ae;
+  --dp-text-muted: #6a8a72;
+  --dp-accent: #ecd078;
+  --dp-pot: #ef4444;
+  --dp-warning: #ffc107;
+  --dp-success: #43a047;
   --dp-danger: #c62828;
-  --dp-cyan: #4db6ac;
+  --dp-cyan: #5fcfba;
 
-  --dp-btn-primary-bg: linear-gradient(180deg, #1b4d3e 0%, #0f2e26 100%);
-  --dp-btn-primary-fg: #fff8e7;
-  --dp-btn-raise-bg: linear-gradient(180deg, #b8860b 0%, #8b6914 100%);
-  --dp-btn-raise-fg: #1a1208;
-  --dp-btn-allin-bg: linear-gradient(180deg, #8b1538 0%, #4a0d1f 100%);
-  --dp-btn-allin-fg: #fff5f5;
-  --dp-btn-ghost-bg: rgba(12, 28, 22, 0.92);
-  --dp-btn-ghost-border: rgba(230, 200, 106, 0.55);
-  --dp-btn-ghost-fg: #e6c86a;
+  --dp-btn-primary-bg: linear-gradient(180deg, #1e5c48 0%, #0f3428 100%);
+  --dp-btn-primary-fg: #fffef5;
+  --dp-btn-raise-bg: linear-gradient(180deg, #c9a227 0%, #8b7214 100%);
+  --dp-btn-raise-fg: #1a1206;
+  --dp-btn-allin-bg: linear-gradient(180deg, #9b1c3a 0%, #4a1020 100%);
+  --dp-btn-allin-fg: #fff8f8;
+  --dp-btn-ghost-bg: rgba(10, 26, 20, 0.94);
+  --dp-btn-ghost-border: rgba(236, 208, 120, 0.48);
+  --dp-btn-ghost-fg: #ecd078;
 
-  --dp-input-bg: rgba(8, 22, 16, 0.95);
-  --dp-input-border: rgba(198, 168, 75, 0.35);
-  --dp-timer-ring: #e6c86a;
-  --dp-timer-text: #ff5252;
+  --dp-input-bg: rgba(8, 24, 18, 0.96);
+  --dp-input-border: rgba(212, 184, 96, 0.32);
+  --dp-timer-ring: #ecd078;
+  --dp-timer-text: #ff6b6b;
 
-  --dp-owner-purple-bg: linear-gradient(180deg, #4a2c5c 0%, #2d1a38 100%);
-  --dp-owner-purple-fg: #f3e8f8;
-  --dp-owner-orange-bg: linear-gradient(180deg, #c45c1a 0%, #7a3810 100%);
-  --dp-owner-orange-fg: #fff4e6;
+  --dp-owner-purple-bg: linear-gradient(180deg, #4f2e62 0%, #301c3c 100%);
+  --dp-owner-purple-fg: #f6edfa;
+  --dp-owner-orange-bg: linear-gradient(180deg, #c55f18 0%, #783208 100%);
+  --dp-owner-orange-fg: #fff5e6;
 
-  --dp-subpanel-bg: rgba(10, 26, 20, 0.94);
-  --dp-subpanel-border: rgba(77, 182, 172, 0.22);
+  --dp-subpanel-bg: rgba(8, 28, 20, 0.94);
+  --dp-subpanel-border: rgba(80, 180, 168, 0.26);
 
-  --dp-player-card-bg: rgba(14, 36, 28, 0.96);
-  --dp-player-card-offline-bg: rgba(8, 18, 14, 0.88);
-  --dp-player-card-offline-border: #3d5248;
-  --dp-player-card-turn-bg: rgba(30, 70, 52, 0.55);
-  --dp-player-card-turn-border: #e6c86a;
-  --dp-player-border-me: #4db6ac;
-  --dp-player-card-winner-bg: rgba(20, 52, 28, 0.65);
-  --dp-player-card-winner-border: #66bb6a;
-  --dp-player-showdown-border: rgba(198, 168, 75, 0.35);
+  --dp-player-card-bg: rgba(12, 40, 30, 0.97);
+  --dp-player-card-offline-bg: rgba(6, 20, 14, 0.9);
+  --dp-player-card-offline-border: #3a5c4c;
+  --dp-player-card-turn-bg: rgba(26, 78, 56, 0.52);
+  --dp-player-card-turn-border: #ecd078;
+  --dp-player-border-me: #64d8cb;
+  --dp-player-card-winner-bg: rgba(18, 58, 32, 0.62);
+  --dp-player-card-winner-border: #72c976;
+  --dp-player-showdown-border: rgba(212, 184, 96, 0.32);
+
+  --dp-card-back-highlight: radial-gradient(circle at 50% 38%, rgba(236, 208, 120, 0.28) 0%, transparent 48%);
+  --dp-card-back-pattern-1: repeating-linear-gradient(
+    45deg,
+    rgba(236, 208, 120, 0.14) 0px,
+    rgba(236, 208, 120, 0.14) 2px,
+    transparent 2px,
+    transparent 6px
+  );
+  --dp-card-back-pattern-2: repeating-linear-gradient(
+    -45deg,
+    rgba(20, 90, 70, 0.17) 0px,
+    rgba(20, 90, 70, 0.17) 1px,
+    transparent 1px,
+    transparent 7px
+  );
+  --dp-card-back-base: linear-gradient(152deg, #052018 0%, #0d3d2c 38%, #1a5c40 90%);
+  --dp-card-back-fg: #fff8e1;
+  --dp-card-back-border: rgba(236, 208, 120, 0.52);
+  --dp-card-back-border-inner: rgba(255, 255, 255, 0.1);
+  --dp-card-back-text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  --dp-card-back-shadow-idle:
+    inset 0 0 0 1px rgba(236, 208, 120, 0.22),
+    inset 0 -6px 14px rgba(0, 30, 22, 0.55),
+    0 2px 10px rgba(0, 0, 0, 0.48);
+  --dp-card-back-shadow-mid:
+    inset 0 0 0 1px rgba(255, 235, 180, 0.3),
+    inset 0 -6px 16px rgba(8, 48, 38, 0.5),
+    0 2px 14px rgba(236, 208, 120, 0.18),
+    0 0 16px rgba(67, 160, 71, 0.15);
+  --dp-card-drop-shadow: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.45));
+  --dp-card-back-hole-top: radial-gradient(ellipse 100% 70% at 40% 12%, rgba(255, 248, 220, 0.2) 0%, transparent 45%);
+  --dp-card-back-hole-stripe: repeating-linear-gradient(
+    -36deg,
+    transparent,
+    transparent 3px,
+    rgba(198, 40, 40, 0.08) 3px,
+    rgba(198, 40, 40, 0.08) 5px
+  );
+  --dp-card-frame-gold: rgba(236, 208, 120, 0.38);
+  --dp-card-frame-outer: rgba(12, 40, 28, 0.5);
+  --dp-table-felt-texture:
+    radial-gradient(ellipse 44% 34% at 48% 36%, rgba(236, 208, 120, 0.1) 0%, transparent 54%),
+    radial-gradient(ellipse 32% 28% at 72% 68%, rgba(46, 125, 50, 0.22) 0%, transparent 52%),
+    radial-gradient(ellipse 28% 22% at 18% 58%, rgba(27, 94, 32, 0.2) 0%, transparent 48%),
+    repeating-linear-gradient(118deg, transparent 0 5px, rgba(212, 184, 96, 0.08) 5px 6px),
+    repeating-linear-gradient(52deg, transparent 0 7px, rgba(46, 125, 50, 0.065) 7px 8px),
+    radial-gradient(ellipse 26% 24% at 50% 50%, rgba(255, 248, 220, 0.14) 0%, transparent 70%);
+  --dp-table-felt-texture-opacity: 0.52;
+  --dp-muck-tint: #0d2818;
+  --dp-muck-tint-deep: #1b5e20;
+  --dp-muck-mini-card: linear-gradient(145deg, #042a1c 0%, #1b5e20 38%, #fbc02d 100%);
+  --dp-table-felt-spot: #1e4d2e;
+  --dp-table-felt-depth: #0c2018;
+  --dp-table-felt-inset-bottom: inset 0 -12px 36px rgba(27, 94, 32, 0.22);
+  --dp-table-felt-drop-shadow: 0 12px 36px rgba(0, 0, 0, 0.48);
+  --dp-table-felt-ring-dark: rgba(46, 125, 50, 0.2);
+  --dp-table-felt-inset-deep: inset 0 -22px 50px rgba(0, 24, 18, 0.55);
+  --dp-table-felt-rim-mix: rgba(180, 150, 70, 0.38);
+  --dp-table-felt-rim-outer: rgba(212, 184, 96, 0.28);
+  --dp-table-felt-drop-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.45);
+  --dp-table-felt-vignette: rgba(0, 12, 8, 0.48);
 }
 
-/* 午夜蓝调：深海蓝 + 银灰高光，贵宾厅夜场 */
+/* 午夜蓝调：深海银蓝 + 顶光（贵宾厅夜景） */
 .dp-game-root[data-dp-game-theme='midnight'],
 body[data-dp-game-theme='midnight'] {
   --dp-font-ui: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
-  --dp-game-bg: #060d18;
+  --dp-game-bg: #050c16;
   --dp-game-bg-image:
-    radial-gradient(ellipse 100% 70% at 50% 0%, rgba(52, 84, 122, 0.35) 0%, transparent 55%),
-    linear-gradient(180deg, #0a1628 0%, #060d18 50%, #040810 100%);
+    radial-gradient(ellipse 100% 68% at 50% 0%, rgba(66, 102, 150, 0.38) 0%, transparent 54%),
+    radial-gradient(ellipse 45% 30% at 80% 88%, rgba(30, 58, 95, 0.2) 0%, transparent 48%),
+    linear-gradient(180deg, #0a1524 0%, #050c16 52%, #03060c 100%);
 
-  --dp-panel-bg: rgba(14, 26, 48, 0.94);
-  --dp-panel-border: rgba(144, 180, 220, 0.28);
+  --dp-panel-bg: rgba(12, 24, 46, 0.94);
+  --dp-panel-border: rgba(130, 170, 220, 0.26);
   --dp-panel-shadow:
-    0 10px 40px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    0 12px 44px rgba(0, 0, 0, 0.52),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
 
-  --dp-text-primary: #e8eef7;
-  --dp-text-secondary: #8fa3bf;
-  --dp-text-muted: #5c6b82;
-  --dp-accent: #90caf9;
-  --dp-pot: #ef5350;
-  --dp-warning: #ffca28;
-  --dp-success: #66bb6a;
-  --dp-danger: #e57373;
-  --dp-cyan: #4fc3f7;
+  --dp-text-primary: #eef3fb;
+  --dp-text-secondary: #9eb4d6;
+  --dp-text-muted: #627892;
+  --dp-accent: #a8d4ff;
+  --dp-pot: #f87171;
+  --dp-warning: #fcd34d;
+  --dp-success: #7dd87f;
+  --dp-danger: #fca5a5;
+  --dp-cyan: #67e8f9;
 
-  --dp-btn-primary-bg: #1565c0;
+  --dp-btn-primary-bg: linear-gradient(180deg, #1e5fae 0%, #124080 100%);
   --dp-btn-primary-fg: #f5f9ff;
-  --dp-btn-raise-bg: #5c6bc0;
+  --dp-btn-raise-bg: linear-gradient(180deg, #5c6bc0 0%, #3949ab 100%);
   --dp-btn-raise-fg: #ffffff;
-  --dp-btn-allin-bg: #b71c1c;
+  --dp-btn-allin-bg: linear-gradient(180deg, #b71c1c 0%, #6b1010 100%);
   --dp-btn-allin-fg: #ffffff;
-  --dp-btn-ghost-bg: rgba(12, 24, 44, 0.92);
-  --dp-btn-ghost-border: rgba(144, 202, 249, 0.45);
-  --dp-btn-ghost-fg: #90caf9;
+  --dp-btn-ghost-bg: rgba(10, 22, 42, 0.94);
+  --dp-btn-ghost-border: rgba(144, 202, 249, 0.4);
+  --dp-btn-ghost-fg: #a8d4ff;
 
-  --dp-input-bg: rgba(10, 22, 42, 0.95);
-  --dp-input-border: rgba(144, 180, 220, 0.32);
-  --dp-timer-ring: #b0bec5;
-  --dp-timer-text: #ef5350;
+  --dp-input-bg: rgba(8, 20, 40, 0.96);
+  --dp-input-border: rgba(130, 170, 220, 0.28);
+  --dp-timer-ring: #cfd8dc;
+  --dp-timer-text: #f87171;
 
-  --dp-owner-purple-bg: #3949ab;
+  --dp-owner-purple-bg: linear-gradient(180deg, #3949ab 0%, #283593 100%);
   --dp-owner-purple-fg: #e8eaf6;
-  --dp-owner-orange-bg: #5d4037;
+  --dp-owner-orange-bg: linear-gradient(180deg, #5d4037 0%, #3e2723 100%);
   --dp-owner-orange-fg: #efebe9;
 
-  --dp-subpanel-bg: rgba(8, 20, 40, 0.92);
-  --dp-subpanel-border: rgba(100, 130, 170, 0.25);
+  --dp-subpanel-bg: rgba(6, 18, 38, 0.93);
+  --dp-subpanel-border: rgba(92, 122, 158, 0.24);
 
-  --dp-player-card-bg: rgba(16, 32, 56, 0.96);
-  --dp-player-card-offline-bg: rgba(12, 22, 38, 0.85);
-  --dp-player-card-offline-border: #455a64;
-  --dp-player-card-turn-bg: rgba(30, 58, 95, 0.45);
-  --dp-player-card-turn-border: #90caf9;
-  --dp-player-border-me: #29b6f6;
-  --dp-player-card-winner-bg: rgba(27, 58, 42, 0.5);
-  --dp-player-card-winner-border: #66bb6a;
+  --dp-player-card-bg: rgba(14, 30, 54, 0.97);
+  --dp-player-card-offline-bg: rgba(10, 20, 36, 0.86);
+  --dp-player-card-offline-border: #405a6e;
+  --dp-player-card-turn-bg: rgba(28, 54, 92, 0.46);
+  --dp-player-card-turn-border: #a8d4ff;
+  --dp-player-border-me: #38bdf8;
+  --dp-player-card-winner-bg: rgba(24, 62, 44, 0.5);
+  --dp-player-card-winner-border: #7dd87f;
   --dp-player-showdown-border: #546e7a;
+
+  --dp-card-back-highlight: radial-gradient(circle at 48% 38%, rgba(168, 212, 255, 0.32) 0%, transparent 50%);
+  --dp-card-back-pattern-1: repeating-linear-gradient(
+    45deg,
+    rgba(100, 181, 246, 0.17) 0px,
+    rgba(100, 181, 246, 0.17) 2px,
+    transparent 2px,
+    transparent 6px
+  );
+  --dp-card-back-pattern-2: repeating-linear-gradient(
+    -45deg,
+    rgba(227, 242, 253, 0.1) 0px,
+    rgba(227, 242, 253, 0.1) 1px,
+    transparent 1px,
+    transparent 7px
+  );
+  --dp-card-back-base: linear-gradient(150deg, #0a1628 0%, #132f52 42%, #1a237e 90%);
+  --dp-card-back-fg: #e3f2fd;
+  --dp-card-back-border: rgba(144, 202, 249, 0.5);
+  --dp-card-back-border-inner: rgba(255, 255, 255, 0.12);
+  --dp-card-back-text-shadow: 0 0 10px rgba(100, 181, 246, 0.35);
+  --dp-card-back-shadow-idle:
+    inset 0 0 0 1px rgba(144, 202, 249, 0.2),
+    inset 0 -6px 14px rgba(13, 27, 62, 0.55),
+    0 2px 10px rgba(0, 0, 0, 0.5);
+  --dp-card-back-shadow-mid:
+    inset 0 0 0 1px rgba(187, 222, 251, 0.32),
+    inset 0 -6px 16px rgba(26, 35, 126, 0.45),
+    0 2px 14px rgba(66, 165, 245, 0.2),
+    0 0 18px rgba(121, 134, 203, 0.22);
+  --dp-card-drop-shadow: drop-shadow(0 4px 14px rgba(33, 150, 243, 0.3));
+  --dp-card-back-hole-top: radial-gradient(ellipse 100% 70% at 40% 10%, rgba(227, 242, 253, 0.22) 0%, transparent 46%);
+  --dp-card-back-hole-stripe: repeating-linear-gradient(
+    -35deg,
+    transparent,
+    transparent 3px,
+    rgba(179, 229, 252, 0.08) 3px,
+    rgba(179, 229, 252, 0.08) 5px
+  );
+  --dp-card-frame-gold: rgba(144, 202, 249, 0.35);
+  --dp-card-frame-outer: rgba(13, 71, 161, 0.4);
+  --dp-table-felt-texture:
+    radial-gradient(ellipse 44% 34% at 50% 36%, rgba(187, 222, 251, 0.14) 0%, transparent 54%),
+    radial-gradient(ellipse 32% 28% at 74% 68%, rgba(57, 73, 171, 0.2) 0%, transparent 52%),
+    radial-gradient(ellipse 28% 22% at 18% 58%, rgba(13, 71, 161, 0.18) 0%, transparent 48%),
+    repeating-linear-gradient(120deg, transparent 0 5px, rgba(66, 165, 245, 0.07) 5px 6px),
+    repeating-linear-gradient(60deg, transparent 0 8px, rgba(129, 177, 235, 0.05) 8px 9px),
+    radial-gradient(ellipse 30% 28% at 50% 50%, rgba(187, 222, 251, 0.16) 0%, transparent 72%);
+  --dp-table-felt-texture-opacity: 0.52;
+  --dp-muck-tint: #13294b;
+  --dp-muck-tint-deep: #283593;
+  --dp-muck-mini-card: linear-gradient(145deg, #0d1b2a 0%, #1565c0 40%, #3949ab 100%);
+  --dp-table-felt-spot: #1a2f52;
+  --dp-table-felt-depth: #0d1826;
+  --dp-table-felt-inset-bottom: inset 0 -12px 36px rgba(25, 118, 210, 0.16);
+  --dp-table-felt-drop-shadow: 0 12px 36px rgba(0, 0, 0, 0.48);
+  --dp-table-felt-ring-dark: rgba(13, 71, 161, 0.22);
+  --dp-table-felt-inset-deep: inset 0 -22px 50px rgba(8, 16, 40, 0.55);
+  --dp-table-felt-rim-mix: rgba(100, 130, 180, 0.32);
+  --dp-table-felt-rim-outer: rgba(129, 177, 235, 0.2);
+  --dp-table-felt-drop-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.45);
+  --dp-table-felt-vignette: rgba(4, 10, 28, 0.48);
 }
 
-/* 森荫秘境：苔绿深林 + 琥珀点缀 */
+/* 森荫秘境：苔绿景深 + 琥珀萤光 */
 .dp-game-root[data-dp-game-theme='forest'],
 body[data-dp-game-theme='forest'] {
   --dp-font-ui: 'Trebuchet MS', 'Lucida Grande', Verdana, Arial, sans-serif;
-  --dp-game-bg: #081208;
+  --dp-game-bg: #061008;
   --dp-game-bg-image:
-    radial-gradient(ellipse 90% 60% at 80% 100%, rgba(34, 68, 40, 0.5) 0%, transparent 50%),
-    radial-gradient(ellipse 70% 50% at 10% 20%, rgba(55, 90, 45, 0.25) 0%, transparent 45%),
-    linear-gradient(165deg, #0c1810 0%, #081208 100%);
+    radial-gradient(ellipse 88% 58% at 82% 96%, rgba(40, 88, 48, 0.45) 0%, transparent 50%),
+    radial-gradient(ellipse 65% 42% at 8% 18%, rgba(90, 120, 58, 0.22) 0%, transparent 46%),
+    radial-gradient(ellipse 35% 25% at 55% 8%, rgba(255, 193, 7, 0.06) 0%, transparent 40%),
+    linear-gradient(168deg, #0c1810 0%, #061008 100%);
 
-  --dp-panel-bg: rgba(18, 36, 26, 0.95);
-  --dp-panel-border: rgba(102, 140, 74, 0.4);
+  --dp-panel-bg: rgba(16, 38, 28, 0.95);
+  --dp-panel-border: rgba(120, 160, 92, 0.38);
   --dp-panel-shadow:
-    0 8px 28px rgba(0, 0, 0, 0.55),
-    inset 0 1px 0 rgba(180, 200, 120, 0.05);
+    0 10px 32px rgba(0, 0, 0, 0.52),
+    inset 0 1px 0 rgba(200, 220, 150, 0.06);
 
-  --dp-text-primary: #e8f0e4;
-  --dp-text-secondary: #9cb89a;
-  --dp-text-muted: #5d7258;
-  --dp-accent: #c5e1a5;
-  --dp-pot: #ff6f00;
-  --dp-warning: #ffb300;
-  --dp-success: #7cb342;
-  --dp-danger: #c62828;
+  --dp-text-primary: #ecf5ea;
+  --dp-text-secondary: #a8c9a4;
+  --dp-text-muted: #5e7a58;
+  --dp-accent: #d4e8b0;
+  --dp-pot: #ff8f00;
+  --dp-warning: #ffc107;
+  --dp-success: #8bc34a;
+  --dp-danger: #d32f2f;
   --dp-cyan: #80cbc4;
 
-  --dp-btn-primary-bg: #33691e;
-  --dp-btn-primary-fg: #f1f8e9;
-  --dp-btn-raise-bg: #f9a825;
+  --dp-btn-primary-bg: linear-gradient(180deg, #3d6b22 0%, #254014 100%);
+  --dp-btn-primary-fg: #f4fce8;
+  --dp-btn-raise-bg: linear-gradient(180deg, #f9a825 0%, #c77800 100%);
   --dp-btn-raise-fg: #1b1204;
-  --dp-btn-allin-bg: #3e2723;
+  --dp-btn-allin-bg: linear-gradient(180deg, #3e2723 0%, #1e1310 100%);
   --dp-btn-allin-fg: #ffccbc;
-  --dp-btn-ghost-bg: rgba(14, 32, 22, 0.92);
-  --dp-btn-ghost-border: rgba(197, 225, 165, 0.4);
-  --dp-btn-ghost-fg: #c5e1a5;
+  --dp-btn-ghost-bg: rgba(12, 30, 20, 0.94);
+  --dp-btn-ghost-border: rgba(212, 232, 176, 0.38);
+  --dp-btn-ghost-fg: #d4e8b0;
 
-  --dp-input-bg: rgba(12, 28, 18, 0.95);
-  --dp-input-border: rgba(102, 140, 74, 0.35);
-  --dp-timer-ring: #aed581;
-  --dp-timer-text: #ff6f00;
+  --dp-input-bg: rgba(10, 30, 18, 0.96);
+  --dp-input-border: rgba(120, 160, 92, 0.32);
+  --dp-timer-ring: #c5e1a5;
+  --dp-timer-text: #ff8f00;
 
-  --dp-owner-purple-bg: #4e342e;
+  --dp-owner-purple-bg: linear-gradient(180deg, #4e342e 0%, #321e1a 100%);
   --dp-owner-purple-fg: #efebe9;
-  --dp-owner-orange-bg: #6d4c41;
+  --dp-owner-orange-bg: linear-gradient(180deg, #6d4c41 0%, #422924 100%);
   --dp-owner-orange-fg: #fff8e1;
 
-  --dp-subpanel-bg: rgba(12, 30, 20, 0.93);
-  --dp-subpanel-border: rgba(76, 120, 72, 0.35);
+  --dp-subpanel-bg: rgba(10, 32, 20, 0.93);
+  --dp-subpanel-border: rgba(76, 120, 72, 0.32);
 
-  --dp-player-card-bg: rgba(22, 44, 30, 0.96);
-  --dp-player-card-offline-bg: rgba(14, 26, 18, 0.88);
-  --dp-player-card-offline-border: #4a6350;
-  --dp-player-card-turn-bg: rgba(40, 72, 44, 0.5);
-  --dp-player-card-turn-border: #c5e1a5;
-  --dp-player-border-me: #26a69a;
-  --dp-player-card-winner-bg: rgba(30, 60, 36, 0.55);
-  --dp-player-card-winner-border: #7cb342;
+  --dp-player-card-bg: rgba(20, 48, 32, 0.97);
+  --dp-player-card-offline-bg: rgba(12, 28, 18, 0.9);
+  --dp-player-card-offline-border: #4a6e52;
+  --dp-player-card-turn-bg: rgba(44, 82, 48, 0.48);
+  --dp-player-card-turn-border: #d4e8b0;
+  --dp-player-border-me: #26c6da;
+  --dp-player-card-winner-bg: rgba(28, 66, 38, 0.55);
+  --dp-player-card-winner-border: #8bc34a;
   --dp-player-showdown-border: #558b2f;
+
+  --dp-card-back-highlight: radial-gradient(circle at 50% 36%, rgba(212, 232, 176, 0.28) 0%, transparent 48%);
+  --dp-card-back-pattern-1: repeating-linear-gradient(
+    45deg,
+    rgba(85, 139, 47, 0.19) 0px,
+    rgba(85, 139, 47, 0.19) 2px,
+    transparent 2px,
+    transparent 6px
+  );
+  --dp-card-back-pattern-2: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 193, 7, 0.11) 0px,
+    rgba(255, 193, 7, 0.11) 1px,
+    transparent 1px,
+    transparent 7px
+  );
+  --dp-card-back-base: linear-gradient(152deg, #051208 0%, #1b2e16 40%, #33691e 90%);
+  --dp-card-back-fg: #f1f8e9;
+  --dp-card-back-border: rgba(174, 213, 129, 0.48);
+  --dp-card-back-border-inner: rgba(255, 255, 255, 0.08);
+  --dp-card-back-text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+  --dp-card-back-shadow-idle:
+    inset 0 0 0 1px rgba(174, 213, 129, 0.2),
+    inset 0 -6px 14px rgba(0, 24, 12, 0.55),
+    0 2px 10px rgba(0, 0, 0, 0.5);
+  --dp-card-back-shadow-mid:
+    inset 0 0 0 1px rgba(220, 237, 200, 0.28),
+    inset 0 -6px 16px rgba(27, 94, 32, 0.45),
+    0 2px 14px rgba(139, 195, 74, 0.18),
+    0 0 16px rgba(255, 193, 7, 0.1);
+  --dp-card-drop-shadow: drop-shadow(0 4px 14px rgba(27, 94, 32, 0.35));
+  --dp-card-back-hole-top: radial-gradient(ellipse 100% 68% at 42% 12%, rgba(255, 249, 196, 0.18) 0%, transparent 44%);
+  --dp-card-back-hole-stripe: repeating-linear-gradient(
+    -38deg,
+    transparent,
+    transparent 3px,
+    rgba(62, 39, 35, 0.12) 3px,
+    rgba(62, 39, 35, 0.12) 5px
+  );
+  --dp-card-frame-gold: rgba(255, 193, 7, 0.22);
+  --dp-card-frame-outer: rgba(27, 77, 32, 0.45);
+  --dp-table-felt-texture:
+    radial-gradient(ellipse 44% 34% at 48% 36%, rgba(200, 230, 180, 0.14) 0%, transparent 54%),
+    radial-gradient(ellipse 32% 28% at 74% 68%, rgba(46, 125, 50, 0.22) 0%, transparent 52%),
+    radial-gradient(ellipse 28% 22% at 18% 58%, rgba(27, 94, 32, 0.18) 0%, transparent 48%),
+    repeating-linear-gradient(124deg, transparent 0 5px, rgba(139, 195, 74, 0.08) 5px 6px),
+    repeating-linear-gradient(56deg, transparent 0 7px, rgba(255, 193, 7, 0.045) 7px 8px),
+    radial-gradient(ellipse 28% 26% at 50% 50%, rgba(255, 249, 196, 0.12) 0%, transparent 70%);
+  --dp-table-felt-texture-opacity: 0.52;
+  --dp-muck-tint: #1b2e16;
+  --dp-muck-tint-deep: #33691e;
+  --dp-muck-mini-card: linear-gradient(145deg, #0d1f0c 0%, #2e7d32 38%, #8bc34a 100%);
+  --dp-table-felt-spot: #2e4a28;
+  --dp-table-felt-depth: #0f1e0c;
+  --dp-table-felt-inset-bottom: inset 0 -12px 36px rgba(46, 125, 50, 0.2);
+  --dp-table-felt-drop-shadow: 0 12px 36px rgba(0, 0, 0, 0.48);
+  --dp-table-felt-ring-dark: rgba(27, 94, 32, 0.22);
+  --dp-table-felt-inset-deep: inset 0 -22px 50px rgba(10, 30, 14, 0.52);
+  --dp-table-felt-rim-mix: rgba(120, 150, 80, 0.4);
+  --dp-table-felt-rim-outer: rgba(85, 139, 47, 0.25);
+  --dp-table-felt-drop-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.42);
+  --dp-table-felt-vignette: rgba(8, 22, 10, 0.48);
 }
 
-/* 落日熔金：暮紫霞光 + 暖橙强调 */
+/* 落日熔金：暮光层次 + 洋红余晖（正文与强调拉开对比） */
 .dp-game-root[data-dp-game-theme='sunset'],
 body[data-dp-game-theme='sunset'] {
   --dp-font-ui: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-  --dp-game-bg: #140a12;
+  --dp-game-bg: #100818;
   --dp-game-bg-image:
-    radial-gradient(ellipse 120% 55% at 50% -5%, rgba(255, 112, 67, 0.22) 0%, transparent 50%),
-    radial-gradient(ellipse 80% 40% at 90% 30%, rgba(156, 39, 176, 0.12) 0%, transparent 45%),
-    linear-gradient(180deg, #1a0e18 0%, #120810 55%, #0a0608 100%);
+    radial-gradient(ellipse 115% 58% at 50% -6%, rgba(255, 108, 72, 0.28) 0%, transparent 50%),
+    radial-gradient(ellipse 72% 44% at 92% 28%, rgba(156, 39, 176, 0.16) 0%, transparent 46%),
+    radial-gradient(ellipse 40% 30% at 6% 72%, rgba(255, 61, 113, 0.08) 0%, transparent 42%),
+    linear-gradient(180deg, #1c0e1a 0%, #100818 54%, #080410 100%);
 
-  --dp-panel-bg: rgba(42, 24, 38, 0.94);
-  --dp-panel-border: rgba(255, 152, 120, 0.28);
+  --dp-panel-bg: rgba(46, 26, 42, 0.94);
+  --dp-panel-border: rgba(255, 160, 122, 0.26);
   --dp-panel-shadow:
-    0 10px 36px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 rgba(255, 183, 77, 0.06);
+    0 12px 40px rgba(0, 0, 0, 0.48),
+    inset 0 1px 0 rgba(255, 196, 120, 0.07);
 
-  --dp-text-primary: #fff3e0;
-  --dp-text-secondary: #ffcc80;
-  --dp-text-muted: #a1887f;
-  --dp-accent: #ffab40;
-  --dp-pot: #ff5252;
-  --dp-warning: #ffd54f;
-  --dp-success: #9ccc65;
-  --dp-danger: #ef5350;
-  --dp-cyan: #ff8a65;
+  --dp-text-primary: #fff5eb;
+  --dp-text-secondary: #f0b98c;
+  --dp-text-muted: #a89088;
+  --dp-accent: #ffb74d;
+  --dp-pot: #ff6b6b;
+  --dp-warning: #ffe082;
+  --dp-success: #aed581;
+  --dp-danger: #ff8a80;
+  --dp-cyan: #ffab91;
 
-  --dp-btn-primary-bg: #6a1b9a;
+  --dp-btn-primary-bg: linear-gradient(180deg, #7b1fa2 0%, #4a148c 100%);
   --dp-btn-primary-fg: #fce4ec;
-  --dp-btn-raise-bg: #ff6f00;
+  --dp-btn-raise-bg: linear-gradient(180deg, #ff6f00 0%, #e65100 100%);
   --dp-btn-raise-fg: #1a0500;
-  --dp-btn-allin-bg: #b71c1c;
+  --dp-btn-allin-bg: linear-gradient(180deg, #c62828 0%, #6d1010 100%);
   --dp-btn-allin-fg: #ffffff;
-  --dp-btn-ghost-bg: rgba(32, 18, 30, 0.92);
-  --dp-btn-ghost-border: rgba(255, 171, 64, 0.45);
-  --dp-btn-ghost-fg: #ffab40;
+  --dp-btn-ghost-bg: rgba(36, 20, 34, 0.93);
+  --dp-btn-ghost-border: rgba(255, 183, 77, 0.42);
+  --dp-btn-ghost-fg: #ffb74d;
 
-  --dp-input-bg: rgba(36, 20, 32, 0.95);
-  --dp-input-border: rgba(255, 152, 120, 0.3);
-  --dp-timer-ring: #ffab40;
-  --dp-timer-text: #ff5252;
+  --dp-input-bg: rgba(40, 22, 36, 0.96);
+  --dp-input-border: rgba(255, 152, 120, 0.28);
+  --dp-timer-ring: #ffb74d;
+  --dp-timer-text: #ff6b6b;
 
-  --dp-owner-purple-bg: #4a148c;
+  --dp-owner-purple-bg: linear-gradient(180deg, #4a148c 0%, #31106e 100%);
   --dp-owner-purple-fg: #e1bee7;
-  --dp-owner-orange-bg: #e65100;
+  --dp-owner-orange-bg: linear-gradient(180deg, #e65100 0%, #a63c00 100%);
   --dp-owner-orange-fg: #fff3e0;
 
-  --dp-subpanel-bg: rgba(34, 18, 30, 0.92);
-  --dp-subpanel-border: rgba(171, 71, 188, 0.25);
+  --dp-subpanel-bg: rgba(36, 20, 32, 0.92);
+  --dp-subpanel-border: rgba(186, 104, 200, 0.28);
 
-  --dp-player-card-bg: rgba(48, 28, 42, 0.96);
-  --dp-player-card-offline-bg: rgba(28, 16, 24, 0.88);
-  --dp-player-card-offline-border: #6d4c5a;
-  --dp-player-card-turn-bg: rgba(90, 40, 70, 0.4);
-  --dp-player-card-turn-border: #ffab40;
-  --dp-player-border-me: #ba68c8;
-  --dp-player-card-winner-bg: rgba(46, 74, 30, 0.45);
-  --dp-player-card-winner-border: #9ccc65;
+  --dp-player-card-bg: rgba(52, 30, 46, 0.97);
+  --dp-player-card-offline-bg: rgba(30, 16, 28, 0.9);
+  --dp-player-card-offline-border: #6d4c62;
+  --dp-player-card-turn-bg: rgba(100, 44, 78, 0.38);
+  --dp-player-card-turn-border: #ffb74d;
+  --dp-player-border-me: #ce93d8;
+  --dp-player-card-winner-bg: rgba(50, 78, 36, 0.46);
+  --dp-player-card-winner-border: #aed581;
   --dp-player-showdown-border: #8d6e63;
+
+  --dp-card-back-highlight: radial-gradient(circle at 46% 32%, rgba(255, 183, 77, 0.35) 0%, transparent 48%);
+  --dp-card-back-pattern-1: repeating-linear-gradient(
+    45deg,
+    rgba(171, 71, 188, 0.17) 0px,
+    rgba(171, 71, 188, 0.17) 2px,
+    transparent 2px,
+    transparent 6px
+  );
+  --dp-card-back-pattern-2: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 112, 67, 0.15) 0px,
+    rgba(255, 112, 67, 0.15) 1px,
+    transparent 1px,
+    transparent 7px
+  );
+  --dp-card-back-base: linear-gradient(148deg, #1a0520 0%, #4a148c 36%, #bf360c 92%);
+  --dp-card-back-fg: #ffe0b2;
+  --dp-card-back-border: rgba(255, 183, 77, 0.5);
+  --dp-card-back-border-inner: rgba(255, 255, 255, 0.1);
+  --dp-card-back-text-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
+  --dp-card-back-shadow-idle:
+    inset 0 0 0 1px rgba(255, 183, 77, 0.22),
+    inset 0 -6px 14px rgba(40, 12, 60, 0.5),
+    0 2px 10px rgba(0, 0, 0, 0.52);
+  --dp-card-back-shadow-mid:
+    inset 0 0 0 1px rgba(255, 204, 128, 0.32),
+    inset 0 -6px 16px rgba(74, 20, 140, 0.42),
+    0 2px 14px rgba(255, 112, 67, 0.22),
+    0 0 18px rgba(171, 71, 188, 0.2);
+  --dp-card-drop-shadow: drop-shadow(0 4px 14px rgba(123, 31, 162, 0.32));
+  --dp-card-back-hole-top: radial-gradient(ellipse 100% 72% at 48% 8%, rgba(255, 138, 101, 0.28) 0%, transparent 46%);
+  --dp-card-back-hole-stripe: repeating-linear-gradient(
+    -38deg,
+    transparent,
+    transparent 3px,
+    rgba(255, 255, 255, 0.06) 3px,
+    rgba(255, 255, 255, 0.06) 5px
+  );
+  --dp-card-frame-gold: rgba(255, 183, 77, 0.34);
+  --dp-card-frame-outer: rgba(74, 20, 140, 0.35);
+  --dp-table-felt-texture:
+    radial-gradient(ellipse 44% 34% at 50% 36%, rgba(255, 183, 77, 0.12) 0%, transparent 54%),
+    radial-gradient(ellipse 32% 28% at 74% 68%, rgba(106, 27, 154, 0.22) 0%, transparent 52%),
+    radial-gradient(ellipse 28% 22% at 18% 58%, rgba(191, 54, 12, 0.14) 0%, transparent 48%),
+    repeating-linear-gradient(119deg, transparent 0 5px, rgba(255, 112, 67, 0.075) 5px 6px),
+    repeating-linear-gradient(61deg, transparent 0 7px, rgba(106, 27, 154, 0.07) 7px 8px),
+    radial-gradient(ellipse 30% 28% at 50% 50%, rgba(255, 224, 180, 0.14) 0%, transparent 68%);
+  --dp-table-felt-texture-opacity: 0.52;
+  --dp-muck-tint: #311b92;
+  --dp-muck-tint-deep: #e65100;
+  --dp-muck-mini-card: linear-gradient(145deg, #311b92 0%, #6a1b9a 35%, #ff6f00 100%);
+  --dp-table-felt-spot: #4a1942;
+  --dp-table-felt-depth: #1a0a18;
+  --dp-table-felt-inset-bottom: inset 0 -12px 36px rgba(106, 27, 154, 0.2);
+  --dp-table-felt-drop-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+  --dp-table-felt-ring-dark: rgba(74, 20, 140, 0.2);
+  --dp-table-felt-inset-deep: inset 0 -22px 50px rgba(40, 10, 36, 0.52);
+  --dp-table-felt-rim-mix: rgba(180, 90, 60, 0.4);
+  --dp-table-felt-rim-outer: rgba(255, 152, 120, 0.24);
+  --dp-table-felt-drop-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.48);
+  --dp-table-felt-vignette: rgba(40, 8, 32, 0.48);
 }
 
-/* 水墨宣纸：浅纸色底 + 墨线 + 朱砂点缀 */
+/* 水墨宣纸：暖宣纸肌理 + 墨线格 + 朱砂点（阴影略温润） */
 .dp-game-root[data-dp-game-theme='ink'],
 body[data-dp-game-theme='ink'] {
   --dp-font-ui: 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
-  --dp-game-bg: #e8e4dc;
+  --dp-game-bg: #e5e0d6;
   --dp-game-bg-image:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, transparent 40%),
-    linear-gradient(90deg, rgba(0, 0, 0, 0.02) 1px, transparent 1px),
-    linear-gradient(rgba(0, 0, 0, 0.02) 1px, transparent 1px);
-  --dp-panel-bg: #faf8f4;
-  --dp-panel-border: rgba(44, 36, 32, 0.12);
-  --dp-panel-shadow: 0 2px 14px rgba(44, 36, 32, 0.08);
+    radial-gradient(ellipse 120% 50% at 50% 0%, rgba(255, 252, 245, 0.55) 0%, transparent 45%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.42) 0%, transparent 38%),
+    linear-gradient(90deg, rgba(42, 36, 32, 0.028) 1px, transparent 1px),
+    linear-gradient(rgba(42, 36, 32, 0.028) 1px, transparent 1px);
+  --dp-panel-bg: #faf7f0;
+  --dp-panel-border: rgba(42, 36, 32, 0.1);
+  --dp-panel-shadow:
+    0 4px 18px rgba(42, 36, 32, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
 
-  --dp-text-primary: #2a2420;
-  --dp-text-secondary: #5c534c;
-  --dp-text-muted: #8a8278;
-  --dp-accent: #8b2500;
+  --dp-text-primary: #252018;
+  --dp-text-secondary: #5a5248;
+  --dp-text-muted: #8e8478;
+  --dp-accent: #9a2710;
   --dp-pot: #b71c1c;
-  --dp-warning: #c17900;
+  --dp-warning: #b8860b;
   --dp-success: #2e7d32;
   --dp-danger: #c62828;
-  --dp-cyan: #00695c;
+  --dp-cyan: #0d5c52;
 
-  --dp-btn-primary-bg: #37474f;
+  --dp-btn-primary-bg: linear-gradient(180deg, #455a64 0%, #37474f 100%);
   --dp-btn-primary-fg: #eceff1;
-  --dp-btn-raise-bg: #c17900;
+  --dp-btn-raise-bg: linear-gradient(180deg, #c9953a 0%, #9a7224 100%);
   --dp-btn-raise-fg: #fffaf0;
-  --dp-btn-allin-bg: #6d1a1a;
+  --dp-btn-allin-bg: linear-gradient(180deg, #6d1a1a 0%, #3d1010 100%);
   --dp-btn-allin-fg: #ffebee;
-  --dp-btn-ghost-bg: #fffdf9;
-  --dp-btn-ghost-border: #8b2500;
-  --dp-btn-ghost-fg: #8b2500;
+  --dp-btn-ghost-bg: #fffdf8;
+  --dp-btn-ghost-border: #9a2710;
+  --dp-btn-ghost-fg: #9a2710;
 
   --dp-input-bg: #ffffff;
-  --dp-input-border: #bcaaa4;
+  --dp-input-border: #b0a090;
   --dp-timer-ring: #37474f;
   --dp-timer-text: #b71c1c;
 
-  --dp-owner-purple-bg: #4a148c;
+  --dp-owner-purple-bg: linear-gradient(180deg, #4a148c 0%, #31116d 100%);
   --dp-owner-purple-fg: #f3e5f5;
-  --dp-owner-orange-bg: #bf360c;
+  --dp-owner-orange-bg: linear-gradient(180deg, #bf360c 0%, #7f2408 100%);
   --dp-owner-orange-fg: #fff3e0;
 
-  --dp-subpanel-bg: #f3f0eb;
-  --dp-subpanel-border: #d7ccc8;
+  --dp-subpanel-bg: #f2ede4;
+  --dp-subpanel-border: #cfc4b8;
 
-  --dp-player-card-bg: #fffdf9;
-  --dp-player-card-offline-bg: #efebe7;
-  --dp-player-card-offline-border: #bcaaa4;
-  --dp-player-card-turn-bg: #fff8e1;
-  --dp-player-card-turn-border: #c17900;
+  --dp-player-card-bg: #fffdf8;
+  --dp-player-card-offline-bg: #efe8de;
+  --dp-player-card-offline-border: #b0a090;
+  --dp-player-card-turn-bg: #fff5e0;
+  --dp-player-card-turn-border: #c9953a;
   --dp-player-border-me: #1565c0;
-  --dp-player-card-winner-bg: #e8f5e9;
+  --dp-player-card-winner-bg: #e8f3e8;
   --dp-player-card-winner-border: #2e7d32;
-  --dp-player-showdown-border: #a1887f;
+  --dp-player-showdown-border: #9e8b7e;
+
+  --dp-card-back-highlight: radial-gradient(circle at 50% 40%, rgba(255, 253, 248, 0.65) 0%, transparent 46%);
+  --dp-card-back-pattern-1: repeating-linear-gradient(
+    45deg,
+    rgba(37, 32, 28, 0.08) 0px,
+    rgba(37, 32, 28, 0.08) 2px,
+    transparent 2px,
+    transparent 6px
+  );
+  --dp-card-back-pattern-2: repeating-linear-gradient(
+    -45deg,
+    rgba(154, 39, 16, 0.1) 0px,
+    rgba(154, 39, 16, 0.1) 1px,
+    transparent 1px,
+    transparent 7px
+  );
+  --dp-card-back-base: linear-gradient(154deg, #fffef9 0%, #f5f0e6 38%, #e8dcc8 92%);
+  --dp-card-back-fg: #5c4032;
+  --dp-card-back-border: rgba(154, 39, 16, 0.46);
+  --dp-card-back-border-inner: rgba(255, 255, 255, 0.55);
+  --dp-card-back-text-shadow: 0 1px 2px rgba(255, 255, 255, 0.75);
+  --dp-card-back-shadow-idle:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5),
+    inset 0 -5px 12px rgba(93, 64, 55, 0.06),
+    0 2px 8px rgba(55, 42, 36, 0.08);
+  --dp-card-back-shadow-mid:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.6),
+    inset 0 -6px 14px rgba(154, 39, 16, 0.08),
+    0 2px 12px rgba(93, 64, 55, 0.1),
+    0 0 12px rgba(183, 28, 28, 0.08);
+  --dp-card-drop-shadow: drop-shadow(0 4px 10px rgba(55, 42, 36, 0.12));
+  --dp-card-back-hole-top: radial-gradient(ellipse 100% 70% at 40% 14%, rgba(254, 249, 242, 0.7) 0%, transparent 44%);
+  --dp-card-back-hole-stripe: repeating-linear-gradient(
+    -34deg,
+    transparent,
+    transparent 3px,
+    rgba(13, 92, 82, 0.05) 3px,
+    rgba(13, 92, 82, 0.05) 5px
+  );
+  --dp-card-frame-gold: rgba(201, 149, 58, 0.32);
+  --dp-card-frame-outer: rgba(154, 39, 16, 0.14);
+  --dp-table-felt-texture:
+    radial-gradient(ellipse 46% 36% at 48% 38%, rgba(255, 255, 255, 0.35) 0%, transparent 54%),
+    radial-gradient(ellipse 32% 28% at 72% 68%, rgba(224, 216, 200, 0.45) 0%, transparent 50%),
+    radial-gradient(ellipse 26% 22% at 18% 58%, rgba(165, 214, 167, 0.22) 0%, transparent 48%),
+    repeating-linear-gradient(126deg, transparent 0 5px, rgba(93, 64, 55, 0.04) 5px 6px),
+    repeating-linear-gradient(54deg, transparent 0 7px, rgba(46, 125, 50, 0.035) 7px 8px),
+    radial-gradient(ellipse 32% 30% at 50% 50%, rgba(255, 253, 248, 0.2) 0%, transparent 68%);
+  --dp-table-felt-texture-opacity: 0.44;
+  --dp-muck-tint: #efebe0;
+  --dp-muck-tint-deep: #c9953a;
+  --dp-muck-mini-card: linear-gradient(145deg, #fffdf8 0%, #f0e6d8 35%, #8d6e63 100%);
+  --dp-table-felt-spot: #dcedc8;
+  --dp-table-felt-depth: #aed581;
+  --dp-table-felt-inset-bottom: inset 0 -12px 32px rgba(46, 125, 50, 0.12);
+  --dp-table-felt-drop-shadow: 0 10px 28px rgba(46, 74, 52, 0.1);
+  --dp-table-felt-ring-dark: rgba(46, 125, 50, 0.06);
+  --dp-table-felt-inset-deep: inset 0 -20px 44px rgba(27, 94, 32, 0.1);
+  --dp-table-felt-rim-mix: rgba(232, 224, 208, 0.92);
+  --dp-table-felt-rim-outer: rgba(93, 64, 55, 0.16);
+  --dp-table-felt-drop-shadow-lg: 0 16px 40px rgba(55, 42, 36, 0.08);
+  --dp-table-felt-vignette: rgba(62, 48, 40, 0.06);
 }
 
-/* 草莓软糖：粉嫩童话 + 草莓糖霜点缀（变量与 default 同级，节能模式仍走全局 dp-game-eco-mode.css） */
+/* 草莓软糖：糖霜渐变 + 玫粉层次（panel 须纯色以配合 color-mix） */
 .dp-game-root[data-dp-game-theme='strawberry'],
 body[data-dp-game-theme='strawberry'] {
   --dp-font-ui: 'Nunito', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  --dp-game-bg: #fff0f5;
+  --dp-game-bg: #fff5f9;
   --dp-game-bg-image:
-    radial-gradient(ellipse 110% 70% at 50% -15%, rgba(255, 182, 193, 0.55) 0%, transparent 52%),
-    radial-gradient(ellipse 60% 45% at 95% 85%, rgba(255, 105, 180, 0.14) 0%, transparent 50%),
-    radial-gradient(ellipse 50% 40% at 5% 60%, rgba(196, 181, 253, 0.12) 0%, transparent 45%),
-    linear-gradient(175deg, #fff8fc 0%, #ffe8f0 38%, #ffd6e8 100%);
+    radial-gradient(ellipse 105% 72% at 50% -14%, rgba(255, 182, 193, 0.52) 0%, transparent 52%),
+    radial-gradient(ellipse 58% 44% at 96% 86%, rgba(244, 114, 182, 0.16) 0%, transparent 50%),
+    radial-gradient(ellipse 48% 38% at 4% 58%, rgba(196, 181, 253, 0.14) 0%, transparent 46%),
+    linear-gradient(172deg, #fffafd 0%, #ffe8f2 36%, #ffd0e8 100%);
 
   /* 须为纯色：shell 里 color-mix(..., var(--dp-panel-bg)) 不能与渐变叠加 */
-  --dp-panel-bg: rgba(255, 228, 240, 0.98);
-  --dp-panel-border: rgba(236, 72, 153, 0.22);
+  --dp-panel-bg: rgba(255, 230, 242, 0.98);
+  --dp-panel-border: rgba(236, 72, 153, 0.2);
   --dp-panel-shadow:
-    0 8px 28px rgba(236, 72, 153, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    0 10px 32px rgba(236, 72, 153, 0.11),
+    inset 0 1px 0 rgba(255, 255, 255, 0.88);
 
-  --dp-text-primary: #4a2c3d;
-  --dp-text-secondary: #8b5a6f;
-  --dp-text-muted: #b87a92;
+  --dp-text-primary: #452c3d;
+  --dp-text-secondary: #86536a;
+  --dp-text-muted: #b07890;
   --dp-accent: #ec4899;
   --dp-pot: #db2777;
   --dp-warning: #f59e0b;
@@ -496,141 +1006,144 @@ body[data-dp-game-theme='strawberry'] {
   --dp-danger: #e11d48;
   --dp-cyan: #f472b6;
 
-  --dp-btn-primary-bg: linear-gradient(180deg, #f472b6 0%, #ec4899 100%);
+  --dp-btn-primary-bg: linear-gradient(180deg, #f9a8d4 0%, #ec4899 100%);
   --dp-btn-primary-fg: #ffffff;
-  --dp-btn-raise-bg: linear-gradient(180deg, #fcd34d 0%, #fbbf24 100%);
+  --dp-btn-raise-bg: linear-gradient(180deg, #fde68a 0%, #fbbf24 100%);
   --dp-btn-raise-fg: #422006;
-  --dp-btn-allin-bg: linear-gradient(180deg, #be123c 0%, #9f1239 100%);
+  --dp-btn-allin-bg: linear-gradient(180deg, #be123c 0%, #881337 100%);
   --dp-btn-allin-fg: #fff5f7;
-  --dp-btn-ghost-bg: rgba(255, 253, 255, 0.96);
-  --dp-btn-ghost-border: rgba(236, 72, 153, 0.4);
+  --dp-btn-ghost-bg: rgba(255, 253, 255, 0.97);
+  --dp-btn-ghost-border: rgba(236, 72, 153, 0.36);
   --dp-btn-ghost-fg: #db2777;
 
   --dp-input-bg: #ffffff;
-  --dp-input-border: rgba(236, 72, 153, 0.28);
+  --dp-input-border: rgba(236, 72, 153, 0.26);
   --dp-timer-ring: #f472b6;
   --dp-timer-text: #db2777;
 
-  --dp-owner-purple-bg: linear-gradient(180deg, #a855f7 0%, #7c3aed 100%);
+  --dp-owner-purple-bg: linear-gradient(180deg, #a78bfa 0%, #7c3aed 100%);
   --dp-owner-purple-fg: #faf5ff;
   --dp-owner-orange-bg: linear-gradient(180deg, #fb923c 0%, #ea580c 100%);
   --dp-owner-orange-fg: #fff7ed;
 
-  --dp-subpanel-bg: rgba(255, 240, 248, 0.94);
-  --dp-subpanel-border: rgba(251, 182, 206, 0.45);
+  --dp-subpanel-bg: rgba(255, 242, 250, 0.95);
+  --dp-subpanel-border: rgba(251, 182, 206, 0.42);
 
   /* 座位卡：须带明显玫粉色相；勿用近 255 的白，否则与落日融金深色座卡对比像「白卡片贴图」 */
-  --dp-player-card-bg: rgba(252, 214, 230, 0.96);
-  --dp-player-card-offline-bg: rgba(244, 200, 218, 0.9);
+  --dp-player-card-bg: rgba(252, 218, 232, 0.97);
+  --dp-player-card-offline-bg: rgba(246, 204, 220, 0.92);
   --dp-player-card-offline-border: #f472b6;
-  --dp-player-card-turn-bg: rgba(249, 168, 200, 0.58);
+  --dp-player-card-turn-bg: rgba(249, 168, 200, 0.55);
   --dp-player-card-turn-border: #ec4899;
-  --dp-player-border-me: #3b82f6;
-  --dp-player-card-winner-bg: rgba(167, 243, 208, 0.78);
+  --dp-player-border-me: #2563eb;
+  --dp-player-card-winner-bg: rgba(167, 243, 208, 0.82);
   --dp-player-card-winner-border: #059669;
   --dp-player-showdown-border: #f472b6;
 
   /* 牌背 / 牌框 / 弃牌堆：与哥特「全局深色牌背」同源变量，此处改为糖霜粉 */
-  --dp-card-back-highlight: radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.5) 0%, transparent 48%);
+  --dp-card-back-highlight: radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.52) 0%, transparent 48%);
   --dp-card-back-pattern-1: repeating-linear-gradient(
     45deg,
-    rgba(219, 39, 119, 0.08) 0px,
-    rgba(219, 39, 119, 0.08) 2px,
+    rgba(219, 39, 119, 0.11) 0px,
+    rgba(219, 39, 119, 0.11) 2px,
     transparent 2px,
     transparent 6px
   );
   --dp-card-back-pattern-2: repeating-linear-gradient(
     -45deg,
-    rgba(255, 255, 255, 0.14) 0px,
-    rgba(255, 255, 255, 0.14) 1px,
+    rgba(255, 255, 255, 0.22) 0px,
+    rgba(255, 255, 255, 0.22) 1px,
     transparent 1px,
     transparent 7px
   );
-  --dp-card-back-base: linear-gradient(155deg, #fff1f2 0%, #fbcfe8 42%, #f472b6 95%);
+  --dp-card-back-base: linear-gradient(152deg, #fff1f5 0%, #fce7f3 40%, #f472b6 94%);
   --dp-card-back-fg: #9d174d;
-  --dp-card-back-border: rgba(236, 72, 153, 0.45);
-  --dp-card-back-border-inner: rgba(255, 255, 255, 0.38);
-  --dp-card-back-text-shadow: 0 1px 2px rgba(255, 255, 255, 0.65);
+  --dp-card-back-border: rgba(236, 72, 153, 0.52);
+  --dp-card-back-border-inner: rgba(255, 255, 255, 0.4);
+  --dp-card-back-text-shadow: 0 1px 2px rgba(255, 255, 255, 0.68);
   --dp-card-back-shadow-idle:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
-    inset 0 -6px 14px rgba(219, 39, 119, 0.12),
-    0 2px 8px rgba(219, 39, 119, 0.2);
+    inset 0 0 0 1px rgba(255, 255, 255, 0.38),
+    inset 0 -6px 14px rgba(219, 39, 119, 0.1),
+    0 2px 8px rgba(219, 39, 119, 0.18);
   --dp-card-back-shadow-mid:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.45),
-    inset 0 -6px 16px rgba(219, 39, 119, 0.16),
-    0 2px 12px rgba(219, 39, 119, 0.28),
-    0 0 14px rgba(244, 114, 182, 0.28);
-  --dp-card-drop-shadow: drop-shadow(0 4px 12px rgba(219, 39, 119, 0.24));
-  --dp-card-back-hole-top: radial-gradient(ellipse 100% 70% at 35% 15%, rgba(255, 255, 255, 0.55) 0%, transparent 45%);
+    inset 0 0 0 1px rgba(255, 255, 255, 0.46),
+    inset 0 -6px 16px rgba(219, 39, 119, 0.14),
+    0 2px 12px rgba(219, 39, 119, 0.26),
+    0 0 14px rgba(244, 114, 182, 0.26);
+  --dp-card-drop-shadow: drop-shadow(0 4px 12px rgba(219, 39, 119, 0.22));
+  --dp-card-back-hole-top: radial-gradient(ellipse 100% 70% at 35% 15%, rgba(255, 255, 255, 0.58) 0%, transparent 45%);
   --dp-card-back-hole-stripe: repeating-linear-gradient(
     -35deg,
     transparent,
     transparent 3px,
-    rgba(219, 39, 119, 0.08) 3px,
-    rgba(219, 39, 119, 0.08) 5px
+    rgba(219, 39, 119, 0.07) 3px,
+    rgba(219, 39, 119, 0.07) 5px
   );
-  --dp-card-frame-gold: rgba(244, 114, 182, 0.42);
-  --dp-card-frame-outer: rgba(190, 24, 93, 0.22);
+  --dp-card-frame-gold: rgba(244, 114, 182, 0.4);
+  --dp-card-frame-outer: rgba(190, 24, 93, 0.2);
   --dp-table-felt-texture:
-    radial-gradient(ellipse 48% 38% at 50% 38%, rgba(255, 255, 255, 0.42) 0%, transparent 55%),
-    radial-gradient(ellipse 32% 28% at 72% 68%, rgba(251, 207, 232, 0.48) 0%, transparent 50%),
-    radial-gradient(ellipse 28% 22% at 22% 58%, rgba(255, 182, 193, 0.32) 0%, transparent 48%);
-  --dp-table-felt-texture-opacity: 0.5;
+    radial-gradient(ellipse 48% 38% at 50% 38%, rgba(255, 255, 255, 0.44) 0%, transparent 55%),
+    radial-gradient(ellipse 32% 28% at 72% 68%, rgba(251, 207, 232, 0.5) 0%, transparent 50%),
+    radial-gradient(ellipse 28% 22% at 22% 58%, rgba(255, 182, 193, 0.34) 0%, transparent 48%),
+    repeating-linear-gradient(121deg, transparent 0 5px, rgba(219, 39, 119, 0.065) 5px 6px),
+    repeating-linear-gradient(59deg, transparent 0 7px, rgba(244, 114, 182, 0.05) 7px 8px),
+    radial-gradient(ellipse 30% 28% at 50% 50%, rgba(255, 255, 255, 0.26) 0%, transparent 68%);
+  --dp-table-felt-texture-opacity: 0.52;
   --dp-muck-tint: #fbcfe8;
   --dp-muck-tint-deep: #f472b6;
-  --dp-muck-mini-card: linear-gradient(145deg, #fce7f3 0%, #fbcfe8 40%, #f472b6 100%);
+  --dp-muck-mini-card: linear-gradient(145deg, #fce7f3 0%, #fbcfe8 38%, #f472b6 100%);
 
   /* 圆桌台呢：粉玫系明暗 + 玫色阴影（shell 默认混 #0a1620 会在浅色主题上发灰黑） */
   --dp-table-felt-spot: #f9a8d4;
   --dp-table-felt-depth: #e598b3;
-  --dp-table-felt-inset-bottom: inset 0 -12px 36px rgba(219, 39, 119, 0.13);
-  --dp-table-felt-drop-shadow: 0 12px 32px rgba(219, 39, 119, 0.12);
-  --dp-table-felt-ring-dark: rgba(236, 72, 153, 0.09);
-  --dp-table-felt-inset-deep: inset 0 -22px 50px rgba(190, 24, 93, 0.14);
-  --dp-table-felt-rim-mix: rgba(255, 192, 210, 0.88);
-  --dp-table-felt-rim-outer: rgba(236, 72, 153, 0.22);
-  --dp-table-felt-drop-shadow-lg: 0 18px 44px rgba(219, 39, 119, 0.12);
-  --dp-table-felt-vignette: rgba(190, 24, 93, 0.09);
+  --dp-table-felt-inset-bottom: inset 0 -12px 36px rgba(219, 39, 119, 0.12);
+  --dp-table-felt-drop-shadow: 0 12px 32px rgba(219, 39, 119, 0.11);
+  --dp-table-felt-ring-dark: rgba(236, 72, 153, 0.08);
+  --dp-table-felt-inset-deep: inset 0 -22px 50px rgba(190, 24, 93, 0.12);
+  --dp-table-felt-rim-mix: rgba(255, 192, 210, 0.9);
+  --dp-table-felt-rim-outer: rgba(236, 72, 153, 0.2);
+  --dp-table-felt-drop-shadow-lg: 0 18px 44px rgba(219, 39, 119, 0.11);
+  --dp-table-felt-vignette: rgba(190, 24, 93, 0.08);
 }
 
-/* 棉花糖云：更浅的粉紫童话（与草莓软糖同系、偏云雾感） */
+/* 棉花糖云：更通透的雾紫 + 白粉高光（panel 须纯色） */
 .dp-game-root[data-dp-game-theme='cotton'],
 body[data-dp-game-theme='cotton'] {
   --dp-font-ui: 'Nunito', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  --dp-game-bg: #faf5ff;
+  --dp-game-bg: #fcfafc;
   --dp-game-bg-image:
-    radial-gradient(ellipse 100% 65% at 50% -10%, rgba(233, 213, 255, 0.55) 0%, transparent 48%),
-    radial-gradient(ellipse 70% 50% at 0% 100%, rgba(251, 207, 232, 0.2) 0%, transparent 50%),
-    linear-gradient(180deg, #fefcff 0%, #f5e8ff 45%, #ede9fe 100%);
+    radial-gradient(ellipse 102% 68% at 50% -8%, rgba(233, 213, 255, 0.5) 0%, transparent 48%),
+    radial-gradient(ellipse 68% 52% at 0% 100%, rgba(251, 207, 232, 0.18) 0%, transparent 50%),
+    linear-gradient(180deg, #ffffff 0%, #f7f2ff 44%, #ede9fe 100%);
 
-  --dp-panel-bg: rgba(236, 224, 255, 0.98);
-  --dp-panel-border: rgba(167, 139, 250, 0.22);
+  --dp-panel-bg: rgba(238, 230, 255, 0.98);
+  --dp-panel-border: rgba(167, 139, 250, 0.2);
   --dp-panel-shadow:
-    0 8px 28px rgba(167, 139, 250, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    0 10px 32px rgba(167, 139, 250, 0.09),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
 
-  --dp-text-primary: #3e2a45;
-  --dp-text-secondary: #7c6b8a;
-  --dp-text-muted: #a89bb5;
-  --dp-accent: #a855f7;
+  --dp-text-primary: #382a42;
+  --dp-text-secondary: #756586;
+  --dp-text-muted: #9f91ae;
+  --dp-accent: #9333ea;
   --dp-pot: #e11d48;
   --dp-warning: #fbbf24;
   --dp-success: #2dd4bf;
   --dp-danger: #f43f5e;
   --dp-cyan: #c084fc;
 
-  --dp-btn-primary-bg: linear-gradient(180deg, #c084fc 0%, #a855f7 100%);
+  --dp-btn-primary-bg: linear-gradient(180deg, #d8b4fe 0%, #a855f7 100%);
   --dp-btn-primary-fg: #ffffff;
-  --dp-btn-raise-bg: linear-gradient(180deg, #f9a8d4 0%, #ec4899 100%);
+  --dp-btn-raise-bg: linear-gradient(180deg, #fbcfe8 0%, #ec4899 100%);
   --dp-btn-raise-fg: #ffffff;
-  --dp-btn-allin-bg: linear-gradient(180deg, #be185d 0%, #9d174d 100%);
+  --dp-btn-allin-bg: linear-gradient(180deg, #be185d 0%, #831843 100%);
   --dp-btn-allin-fg: #fdf2f8;
-  --dp-btn-ghost-bg: rgba(255, 254, 255, 0.96);
-  --dp-btn-ghost-border: rgba(167, 139, 250, 0.4);
+  --dp-btn-ghost-bg: rgba(255, 254, 255, 0.97);
+  --dp-btn-ghost-border: rgba(167, 139, 250, 0.36);
   --dp-btn-ghost-fg: #9333ea;
 
   --dp-input-bg: #ffffff;
-  --dp-input-border: rgba(167, 139, 250, 0.3);
+  --dp-input-border: rgba(167, 139, 250, 0.28);
   --dp-timer-ring: #c084fc;
   --dp-timer-text: #e11d48;
 
@@ -639,78 +1152,206 @@ body[data-dp-game-theme='cotton'] {
   --dp-owner-orange-bg: linear-gradient(180deg, #f97316 0%, #c2410c 100%);
   --dp-owner-orange-fg: #fff7ed;
 
-  --dp-subpanel-bg: rgba(245, 240, 255, 0.94);
-  --dp-subpanel-border: rgba(196, 181, 253, 0.45);
+  --dp-subpanel-bg: rgba(247, 242, 255, 0.95);
+  --dp-subpanel-border: rgba(196, 181, 253, 0.42);
 
   /* 座位卡：淡紫云雾底，避免与 #fff 无差；与落日融金的深色座卡同为「有色相的面板」 */
-  --dp-player-card-bg: rgba(226, 214, 254, 0.96);
-  --dp-player-card-offline-bg: rgba(214, 202, 242, 0.9);
+  --dp-player-card-bg: rgba(230, 220, 252, 0.97);
+  --dp-player-card-offline-bg: rgba(216, 206, 244, 0.92);
   --dp-player-card-offline-border: #a78bfa;
-  --dp-player-card-turn-bg: rgba(196, 181, 253, 0.52);
+  --dp-player-card-turn-bg: rgba(196, 181, 253, 0.5);
   --dp-player-card-turn-border: #9333ea;
-  --dp-player-border-me: #0ea5e9;
-  --dp-player-card-winner-bg: rgba(153, 246, 228, 0.78);
+  --dp-player-border-me: #0284c7;
+  --dp-player-card-winner-bg: rgba(153, 246, 228, 0.82);
   --dp-player-card-winner-border: #0d9488;
   --dp-player-showdown-border: #c4b5fd;
 
-  --dp-card-back-highlight: radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.48) 0%, transparent 48%);
+  --dp-card-back-highlight: radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.5) 0%, transparent 48%);
   --dp-card-back-pattern-1: repeating-linear-gradient(
     45deg,
-    rgba(139, 92, 246, 0.09) 0px,
-    rgba(139, 92, 246, 0.09) 2px,
+    rgba(139, 92, 246, 0.12) 0px,
+    rgba(139, 92, 246, 0.12) 2px,
     transparent 2px,
     transparent 6px
   );
   --dp-card-back-pattern-2: repeating-linear-gradient(
     -45deg,
-    rgba(255, 255, 255, 0.12) 0px,
-    rgba(255, 255, 255, 0.12) 1px,
+    rgba(255, 255, 255, 0.2) 0px,
+    rgba(255, 255, 255, 0.2) 1px,
     transparent 1px,
     transparent 7px
   );
-  --dp-card-back-base: linear-gradient(155deg, #faf5ff 0%, #e9d5ff 40%, #c084fc 92%);
+  --dp-card-back-base: linear-gradient(152deg, #faf5ff 0%, #ede9ff 42%, #c084fc 90%);
   --dp-card-back-fg: #5b21b6;
-  --dp-card-back-border: rgba(167, 139, 250, 0.5);
-  --dp-card-back-border-inner: rgba(255, 255, 255, 0.35);
-  --dp-card-back-text-shadow: 0 1px 2px rgba(255, 255, 255, 0.55);
+  --dp-card-back-border: rgba(167, 139, 250, 0.54);
+  --dp-card-back-border-inner: rgba(255, 255, 255, 0.38);
+  --dp-card-back-text-shadow: 0 1px 2px rgba(255, 255, 255, 0.58);
   --dp-card-back-shadow-idle:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.32),
-    inset 0 -6px 14px rgba(124, 58, 237, 0.12),
-    0 2px 8px rgba(139, 92, 246, 0.18);
+    inset 0 0 0 1px rgba(255, 255, 255, 0.34),
+    inset 0 -6px 14px rgba(124, 58, 237, 0.1),
+    0 2px 8px rgba(139, 92, 246, 0.16);
   --dp-card-back-shadow-mid:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.42),
-    inset 0 -6px 16px rgba(124, 58, 237, 0.16),
-    0 2px 12px rgba(139, 92, 246, 0.26),
-    0 0 14px rgba(192, 132, 252, 0.3);
-  --dp-card-drop-shadow: drop-shadow(0 4px 12px rgba(139, 92, 246, 0.22));
-  --dp-card-back-hole-top: radial-gradient(ellipse 100% 70% at 35% 15%, rgba(255, 255, 255, 0.52) 0%, transparent 45%);
+    inset 0 0 0 1px rgba(255, 255, 255, 0.44),
+    inset 0 -6px 16px rgba(124, 58, 237, 0.14),
+    0 2px 12px rgba(139, 92, 246, 0.24),
+    0 0 14px rgba(192, 132, 252, 0.28);
+  --dp-card-drop-shadow: drop-shadow(0 4px 12px rgba(139, 92, 246, 0.2));
+  --dp-card-back-hole-top: radial-gradient(ellipse 100% 70% at 35% 15%, rgba(255, 255, 255, 0.54) 0%, transparent 45%);
   --dp-card-back-hole-stripe: repeating-linear-gradient(
     -35deg,
     transparent,
     transparent 3px,
-    rgba(139, 92, 246, 0.08) 3px,
-    rgba(139, 92, 246, 0.08) 5px
+    rgba(139, 92, 246, 0.07) 3px,
+    rgba(139, 92, 246, 0.07) 5px
   );
-  --dp-card-frame-gold: rgba(192, 132, 252, 0.4);
-  --dp-card-frame-outer: rgba(124, 58, 237, 0.22);
+  --dp-card-frame-gold: rgba(192, 132, 252, 0.38);
+  --dp-card-frame-outer: rgba(124, 58, 237, 0.2);
   --dp-table-felt-texture:
-    radial-gradient(ellipse 46% 36% at 48% 36%, rgba(255, 255, 255, 0.4) 0%, transparent 54%),
-    radial-gradient(ellipse 30% 26% at 75% 70%, rgba(233, 213, 255, 0.5) 0%, transparent 50%),
-    radial-gradient(ellipse 26% 22% at 18% 55%, rgba(196, 181, 253, 0.35) 0%, transparent 48%);
-  --dp-table-felt-texture-opacity: 0.48;
+    radial-gradient(ellipse 46% 36% at 48% 36%, rgba(255, 255, 255, 0.42) 0%, transparent 54%),
+    radial-gradient(ellipse 30% 26% at 75% 70%, rgba(233, 213, 255, 0.52) 0%, transparent 50%),
+    radial-gradient(ellipse 26% 22% at 18% 55%, rgba(196, 181, 253, 0.34) 0%, transparent 48%),
+    repeating-linear-gradient(123deg, transparent 0 5px, rgba(167, 139, 250, 0.065) 5px 6px),
+    repeating-linear-gradient(57deg, transparent 0 7px, rgba(192, 132, 252, 0.05) 7px 8px),
+    radial-gradient(ellipse 30% 28% at 50% 50%, rgba(255, 255, 255, 0.24) 0%, transparent 70%);
+  --dp-table-felt-texture-opacity: 0.5;
   --dp-muck-tint: #e9d5ff;
   --dp-muck-tint-deep: #c084fc;
-  --dp-muck-mini-card: linear-gradient(145deg, #faf5ff 0%, #e9d5ff 38%, #a855f7 100%);
+  --dp-muck-mini-card: linear-gradient(145deg, #faf5ff 0%, #e9d5ff 36%, #a855f7 100%);
 
   /* 圆桌台呢：淡紫云雾感，阴影用紫粉而非纯黑 */
   --dp-table-felt-spot: #ddd6fe;
   --dp-table-felt-depth: #b8a3dc;
-  --dp-table-felt-inset-bottom: inset 0 -12px 36px rgba(139, 92, 246, 0.11);
-  --dp-table-felt-drop-shadow: 0 12px 32px rgba(139, 92, 246, 0.1);
-  --dp-table-felt-ring-dark: rgba(167, 139, 250, 0.08);
-  --dp-table-felt-inset-deep: inset 0 -22px 50px rgba(124, 58, 237, 0.12);
-  --dp-table-felt-rim-mix: rgba(221, 214, 254, 0.92);
-  --dp-table-felt-rim-outer: rgba(139, 92, 246, 0.2);
-  --dp-table-felt-drop-shadow-lg: 0 18px 44px rgba(139, 92, 246, 0.11);
-  --dp-table-felt-vignette: rgba(124, 58, 237, 0.08);
+  --dp-table-felt-inset-bottom: inset 0 -12px 36px rgba(139, 92, 246, 0.1);
+  --dp-table-felt-drop-shadow: 0 12px 32px rgba(139, 92, 246, 0.09);
+  --dp-table-felt-ring-dark: rgba(167, 139, 250, 0.07);
+  --dp-table-felt-inset-deep: inset 0 -22px 50px rgba(124, 58, 237, 0.1);
+  --dp-table-felt-rim-mix: rgba(221, 214, 254, 0.94);
+  --dp-table-felt-rim-outer: rgba(139, 92, 246, 0.18);
+  --dp-table-felt-drop-shadow-lg: 0 18px 44px rgba(139, 92, 246, 0.1);
+  --dp-table-felt-vignette: rgba(124, 58, 237, 0.07);
+}
+
+/* 万圣惊魂：南瓜橙 / 幽紫 / 鬼火绿（与全局深色主题同一套光影逻辑） */
+.dp-game-root[data-dp-game-theme='halloween'],
+body[data-dp-game-theme='halloween'] {
+  --dp-font-ui: 'Trebuchet MS', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --dp-game-bg: #0a0510;
+  --dp-game-bg-image:
+    radial-gradient(ellipse 100% 58% at 50% -10%, rgba(255, 140, 40, 0.18) 0%, transparent 48%),
+    radial-gradient(ellipse 72% 48% at 94% 76%, rgba(124, 58, 237, 0.16) 0%, transparent 52%),
+    radial-gradient(ellipse 48% 38% at 5% 42%, rgba(52, 211, 153, 0.07) 0%, transparent 46%),
+    linear-gradient(175deg, #16081c 0%, #0a0510 46%, #040208 100%);
+
+  --dp-panel-bg: rgba(38, 18, 46, 0.96);
+  --dp-panel-border: rgba(251, 146, 60, 0.3);
+  --dp-panel-shadow:
+    0 12px 42px rgba(0, 0, 0, 0.58),
+    0 0 28px rgba(124, 58, 237, 0.09),
+    inset 0 1px 0 rgba(253, 186, 116, 0.08);
+
+  --dp-text-primary: #fff7ed;
+  --dp-text-secondary: #fdba74;
+  --dp-text-muted: #b4a3e8;
+  --dp-accent: #fb923c;
+  --dp-pot: #f87171;
+  --dp-warning: #fde047;
+  --dp-success: #4ade80;
+  --dp-danger: #ef4444;
+  --dp-cyan: #d8b4fe;
+
+  --dp-btn-primary-bg: linear-gradient(180deg, #7c3aed 0%, #4c1d95 100%);
+  --dp-btn-primary-fg: #faf5ff;
+  --dp-btn-raise-bg: linear-gradient(180deg, #fb923c 0%, #c2410c 100%);
+  --dp-btn-raise-fg: #fffbeb;
+  --dp-btn-allin-bg: linear-gradient(180deg, #991b1b 0%, #450a0a 100%);
+  --dp-btn-allin-fg: #fef2f2;
+  --dp-btn-ghost-bg: rgba(26, 10, 34, 0.95);
+  --dp-btn-ghost-border: rgba(251, 146, 60, 0.42);
+  --dp-btn-ghost-fg: #fde68a;
+
+  --dp-input-bg: rgba(26, 10, 34, 0.96);
+  --dp-input-border: rgba(192, 132, 252, 0.32);
+  --dp-timer-ring: #fb923c;
+  --dp-timer-text: #f87171;
+
+  --dp-owner-purple-bg: linear-gradient(180deg, #581c87 0%, #3b0764 100%);
+  --dp-owner-purple-fg: #f3e8ff;
+  --dp-owner-orange-bg: linear-gradient(180deg, #ea580c 0%, #9a3412 100%);
+  --dp-owner-orange-fg: #fff7ed;
+
+  --dp-subpanel-bg: rgba(30, 12, 38, 0.93);
+  --dp-subpanel-border: rgba(167, 139, 250, 0.26);
+
+  --dp-player-card-bg: rgba(50, 28, 60, 0.97);
+  --dp-player-card-offline-bg: rgba(28, 14, 36, 0.9);
+  --dp-player-card-offline-border: #6d28d9;
+  --dp-player-card-turn-bg: rgba(124, 58, 237, 0.3);
+  --dp-player-card-turn-border: #fb923c;
+  --dp-player-border-me: #38bdf8;
+  --dp-player-card-winner-bg: rgba(22, 62, 40, 0.52);
+  --dp-player-card-winner-border: #4ade80;
+  --dp-player-showdown-border: rgba(251, 146, 60, 0.42);
+
+  --dp-card-back-highlight: radial-gradient(circle at 50% 40%, rgba(251, 146, 60, 0.36) 0%, transparent 50%);
+  --dp-card-back-pattern-1: repeating-linear-gradient(
+    45deg,
+    rgba(124, 58, 237, 0.15) 0px,
+    rgba(124, 58, 237, 0.15) 2px,
+    transparent 2px,
+    transparent 6px
+  );
+  --dp-card-back-pattern-2: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 237, 213, 0.13) 0px,
+    rgba(255, 237, 213, 0.13) 1px,
+    transparent 1px,
+    transparent 7px
+  );
+  --dp-card-back-base: linear-gradient(148deg, #2e1064 0%, #4c1d95 36%, #9a3412 92%);
+  --dp-card-back-fg: #ffedd5;
+  --dp-card-back-border: rgba(251, 146, 60, 0.48);
+  --dp-card-back-border-inner: rgba(250, 250, 250, 0.14);
+  --dp-card-back-text-shadow: 0 1px 3px rgba(0, 0, 0, 0.65);
+  --dp-card-back-shadow-idle:
+    inset 0 0 0 1px rgba(251, 146, 60, 0.22),
+    inset 0 -6px 14px rgba(91, 33, 182, 0.34),
+    0 2px 10px rgba(0, 0, 0, 0.52);
+  --dp-card-back-shadow-mid:
+    inset 0 0 0 1px rgba(253, 186, 116, 0.36),
+    inset 0 -6px 16px rgba(76, 29, 149, 0.38),
+    0 2px 14px rgba(249, 115, 22, 0.24),
+    0 0 18px rgba(167, 139, 250, 0.26);
+  --dp-card-drop-shadow: drop-shadow(0 4px 14px rgba(124, 58, 237, 0.34));
+  --dp-card-back-hole-top: radial-gradient(ellipse 100% 70% at 40% 12%, rgba(251, 146, 60, 0.3) 0%, transparent 46%);
+  --dp-card-back-hole-stripe: repeating-linear-gradient(
+    -38deg,
+    transparent,
+    transparent 3px,
+    rgba(34, 197, 94, 0.07) 3px,
+    rgba(34, 197, 94, 0.07) 5px
+  );
+  --dp-card-frame-gold: rgba(251, 146, 60, 0.36);
+  --dp-card-frame-outer: rgba(67, 20, 7, 0.42);
+  --dp-table-felt-texture:
+    radial-gradient(ellipse 44% 34% at 48% 36%, rgba(251, 146, 60, 0.15) 0%, transparent 54%),
+    radial-gradient(ellipse 32% 28% at 74% 68%, rgba(76, 29, 149, 0.22) 0%, transparent 52%),
+    radial-gradient(ellipse 28% 22% at 18% 58%, rgba(34, 197, 94, 0.09) 0%, transparent 48%),
+    repeating-linear-gradient(117deg, transparent 0 5px, rgba(167, 139, 250, 0.08) 5px 6px),
+    repeating-linear-gradient(63deg, transparent 0 7px, rgba(249, 115, 22, 0.06) 7px 8px),
+    radial-gradient(ellipse 30% 28% at 50% 50%, rgba(253, 186, 116, 0.14) 0%, transparent 72%);
+  --dp-table-felt-texture-opacity: 0.54;
+  --dp-muck-tint: #4c1d95;
+  --dp-muck-tint-deep: #ea580c;
+  --dp-muck-mini-card: linear-gradient(145deg, #3b0764 0%, #5b21b6 38%, #c2410c 100%);
+
+  --dp-table-felt-spot: #312e81;
+  --dp-table-felt-depth: #1a0f2e;
+  --dp-table-felt-inset-bottom: inset 0 -12px 36px rgba(124, 58, 237, 0.16);
+  --dp-table-felt-drop-shadow: 0 12px 36px rgba(0, 0, 0, 0.52);
+  --dp-table-felt-ring-dark: rgba(91, 33, 182, 0.18);
+  --dp-table-felt-inset-deep: inset 0 -22px 50px rgba(30, 10, 40, 0.62);
+  --dp-table-felt-rim-mix: rgba(180, 83, 9, 0.48);
+  --dp-table-felt-rim-outer: rgba(249, 115, 22, 0.26);
+  --dp-table-felt-drop-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.52);
+  --dp-table-felt-vignette: rgba(12, 4, 18, 0.52);
 }

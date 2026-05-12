@@ -1,11 +1,11 @@
 package com.example.mgdemoplus.service.serviceImpl.dp.npc;
 
-import java.util.Locale;
 import java.util.Objects;
 
 /**
  * 供 {@link LlmNpc} 使用的对局摘要：由 {@code DpLlmNpcContextMapper}
  * 从 {@code DpUtilSmartContext} 与房间状态拼装，避免 {@code npc} 包直接依赖引擎内部类型。
+ * 局面包正文由 {@link com.example.mgdemoplus.service.serviceImpl.dp.LlmNpcUserSnapshot} 统一格式化。
  */
 public final class LlmNpcGameContext {
 
@@ -18,6 +18,8 @@ public final class LlmNpcGameContext {
     private final String holeCardsText;
     private final String tablePosition;
     private final String simpleStrength;
+    /** 服务器从七张牌算出的最佳成牌紧凑标签（英文 token），与大模型自检结果冲突时以此为真。 */
+    private final String handStrengthLine;
     private final String aggressorNickname;
     private final String villainRangeTier;
     private final String actionCredibility;
@@ -36,7 +38,12 @@ public final class LlmNpcGameContext {
     private final int deepBehindCount;
     private final int shortBehindCount;
     private final String counterStrategySummary;
+    /** 身后激进短码等对「平跟后被挤压」风险的简述（服务端推算）。 */
+    private final String squeezeRiskSummary;
 
+    /**
+     * 构造函数，初始化所有字段
+     */
     public LlmNpcGameContext(
             String stage,
             int potChips,
@@ -47,6 +54,7 @@ public final class LlmNpcGameContext {
             String holeCardsText,
             String tablePosition,
             String simpleStrength,
+            String handStrengthLine,
             String aggressorNickname,
             String villainRangeTier,
             String actionCredibility,
@@ -64,7 +72,8 @@ public final class LlmNpcGameContext {
             int tightBehindCount,
             int deepBehindCount,
             int shortBehindCount,
-            String counterStrategySummary) {
+            String counterStrategySummary,
+            String squeezeRiskSummary) {
         this.stage = stage != null ? stage : "";
         this.potChips = potChips;
         this.callAmountChips = callAmountChips;
@@ -74,6 +83,7 @@ public final class LlmNpcGameContext {
         this.holeCardsText = holeCardsText != null ? holeCardsText : "";
         this.tablePosition = tablePosition != null ? tablePosition : "";
         this.simpleStrength = simpleStrength != null ? simpleStrength : "";
+        this.handStrengthLine = handStrengthLine != null ? handStrengthLine : "";
         this.aggressorNickname = aggressorNickname != null ? aggressorNickname : "";
         this.villainRangeTier = villainRangeTier != null ? villainRangeTier : "";
         this.actionCredibility = actionCredibility != null ? actionCredibility : "";
@@ -92,6 +102,12 @@ public final class LlmNpcGameContext {
         this.deepBehindCount = deepBehindCount;
         this.shortBehindCount = shortBehindCount;
         this.counterStrategySummary = counterStrategySummary != null ? counterStrategySummary : "";
+        this.squeezeRiskSummary = squeezeRiskSummary != null ? squeezeRiskSummary : "";
+    }
+
+    /** 与服务端胜率/成牌计算一致的底牌英文标签串（空格分隔）。 */
+    public String getHoleCardsText() {
+        return holeCardsText;
     }
 
     public String getStage() {
@@ -118,16 +134,16 @@ public final class LlmNpcGameContext {
         return communityCardsText;
     }
 
-    public String getHoleCardsText() {
-        return holeCardsText;
-    }
-
     public String getTablePosition() {
         return tablePosition;
     }
 
     public String getSimpleStrength() {
         return simpleStrength;
+    }
+
+    public String getHandStrengthLine() {
+        return handStrengthLine;
     }
 
     public String getAggressorNickname() {
@@ -202,42 +218,15 @@ public final class LlmNpcGameContext {
         return counterStrategySummary;
     }
 
-    /**
-     * 塞进大模型 user 的紧凑局面块（英文键、无长中文），显著比早期版本省 token。
-     * 多人逐行明细、对手 min/max/avg 筹码等已省略——桌上列表已在 {@code DpLlmNpcDecisionService} 里提供。
-     */
-    public String toPromptBlock() {
-        String agg = aggressorNickname.isEmpty() ? "-" : aggressorNickname;
-        String ctr = counterStrategySummary.isEmpty() ? "-" : counterStrategySummary.replace(' ', '_');
-        // board= 即公共牌；翻前无牌时写 "-"，避免看成漏字段
-        String board = communityCardsText == null || communityCardsText.isEmpty() ? "-" : communityCardsText;
-        String hole = holeCardsText == null || holeCardsText.isEmpty() ? "-" : holeCardsText;
-        return String.format(
-                Locale.ROOT,
-                "H n=%s st=%s pot=%d call=%d stk=%d pos=%s rk=%s hole=%s board=%s\n"
-                        + "E agg=%s vt=%s cr=%s sb=%.2f po=%.2f eq=%.2f nv=%d tds=%d/%d/%d ctr=%s\n",
-                heroNickname,
-                stage,
-                potChips,
-                callAmountChips,
-                heroChips,
-                tablePosition,
-                simpleStrength,
-                hole,
-                board,
-                agg,
-                villainRangeTier,
-                actionCredibility,
-                showdownBluffiness,
-                potOdds,
-                equityEstimate,
-                activeVillains,
-                tightBehindCount,
-                deepBehindCount,
-                shortBehindCount,
-                ctr);
+    public String getSqueezeRiskSummary() {
+        return squeezeRiskSummary;
     }
 
+    /**
+     * 判断两个对象的字段值是否全部相等
+     * @param o 传入的比较对象
+     * @return 相等返回true，否则false
+     */
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -269,24 +258,30 @@ public final class LlmNpcGameContext {
                 && Objects.equals(holeCardsText, that.holeCardsText)
                 && Objects.equals(tablePosition, that.tablePosition)
                 && Objects.equals(simpleStrength, that.simpleStrength)
+                && Objects.equals(handStrengthLine, that.handStrengthLine)
                 && Objects.equals(aggressorNickname, that.aggressorNickname)
                 && Objects.equals(villainRangeTier, that.villainRangeTier)
                 && Objects.equals(actionCredibility, that.actionCredibility)
                 && Objects.equals(multiwayVillainsSummary, that.multiwayVillainsSummary)
-                && Objects.equals(counterStrategySummary, that.counterStrategySummary);
+                && Objects.equals(counterStrategySummary, that.counterStrategySummary)
+                && Objects.equals(squeezeRiskSummary, that.squeezeRiskSummary);
     }
 
+    /**
+     * 计算对象的hash值，便于作为key存储等
+     * @return hash值
+     */
     @Override
     public int hashCode() {
         return Objects.hash(
                 stage, potChips, callAmountChips, heroChips, heroNickname,
-                communityCardsText, holeCardsText, tablePosition, simpleStrength,
+                communityCardsText, holeCardsText, tablePosition, simpleStrength, handStrengthLine,
                 aggressorNickname, villainRangeTier, actionCredibility,
                 showdownBluffiness, potOdds, equityEstimate,
                 villainMinStackChips, villainMaxStackChips, villainAvgStackChips,
                 villainMinStackBb, villainMaxStackBb, villainAvgStackBb,
                 activeVillains, multiwayVillainsSummary,
                 tightBehindCount, deepBehindCount, shortBehindCount,
-                counterStrategySummary);
+                counterStrategySummary, squeezeRiskSummary);
     }
 }

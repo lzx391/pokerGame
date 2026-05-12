@@ -2,6 +2,7 @@ package com.example.mgdemoplus.mapper.dp;
 
 import com.example.mgdemoplus.entity.dp.DpUser;
 import org.apache.ibatis.annotations.Insert;
+import org.apache.ibatis.annotations.Options;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
@@ -9,7 +10,8 @@ import org.apache.ibatis.annotations.Update;
 @Mapper
 public interface DpUserMapper {
     @Insert("INSERT INTO dp_user (nickname,password) values (#{nickname},#{password})")
-    public  int registerUser (DpUser dpUser);
+    @Options(useGeneratedKeys = true, keyProperty = "id", keyColumn = "id")
+    public int registerUser(DpUser dpUser);
     @Select("select * from dp_user where id = #{id}")
     public DpUser selectById(int id);
     @Select("SELECT * from dp_user where nickname= #{nickname}" )

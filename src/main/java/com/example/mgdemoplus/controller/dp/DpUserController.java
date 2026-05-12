@@ -32,10 +32,18 @@ public class DpUserController {
     JwtTokenService jwtTokenService;
     @PostMapping("/registerUser")
     public ResultUtil registerUser(@RequestBody DpUser dpUser) {
-        
-        if (dpUserService.registerUser(dpUser) == 1) {
-            return ResultUtil.ok().data("message", "注册成功");
-        } else if (dpUserService.registerUser(dpUser) == 2) {
+        int code = dpUserService.registerUser(dpUser);
+        if (code == 1) {
+            String jti = UUID.randomUUID().toString();
+            String token = jwtTokenService.generateToken(dpUser.getNickname(), jti);
+            dpRedisLoginCacheService.setLoginJti(dpUser.getNickname(), jti);
+            return ResultUtil.ok()
+                    .data("message", "注册成功")
+                    .data("userId", dpUser.getId())
+                    .data("nickname", dpUser.getNickname())
+                    .data("token", token);
+        }
+        if (code == 2) {
             return ResultUtil.sensitiveUsername();
         }
         return ResultUtil.repeatUsername();
@@ -51,21 +59,7 @@ public class DpUserController {
      * 登录并返回 userId（供牌谱关联等使用）；成功 ok=true，失败 ok=false。
      * 与 {@link #loginUser} 并存，前端可改用本接口以拿到数字 id（界面仍只展示昵称）。
      */
-    // @GetMapping("/loginProfile")
-    // public Map<String, Object> loginProfile(@RequestParam String nickname,
-    // @RequestParam String password) {
-    // DpUser u = dpUserService.loginUserOrNull(nickname, password);
-    // Map<String, Object> m = new LinkedHashMap<>();
-    // if (u == null) {
-    // m.put("ok", false);
-    // m.put("message", "登录失败");
-    // return m;
-    // }
-    // m.put("ok", true);
-    // m.put("userId", u.getId());
-    // m.put("nickname", u.getNickname());
-    // return m;
-    // }
+
     @GetMapping("/loginProfile")
     public ResultUtil loginProfile(@RequestParam String nickname, @RequestParam String password) {
         DpUser u = dpUserService.loginUserOrNull(nickname, password);

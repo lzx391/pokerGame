@@ -121,9 +121,9 @@ public final class DpUtilHandEvaluator {
 
     /**
      * 判断是否存在“强顺子听牌”（近似双头顺子听牌）：在任意连续 4 个点数窗口中，
-     * 至少有 3 个不同点数出现，并且其中至少一个来自手牌。
+     * 至少有 4 个不同点数出现，并且其中至少一个来自手牌。
      *
-     * 这是一个简化模型：不追求覆盖所有复杂顺子听牌，只抓主要高 equity 情形。
+     * 仅抓双头顺听量级（≈8 张补牌），避免 3 点窗口误判为强听牌。
      */
     private static boolean hasStrongStraightDraw(List<String> holeCards, List<String> community) {
         List<ParsedCard> all = parseCardsWithSource(holeCards, community);
@@ -153,11 +153,61 @@ public final class DpUtilHandEvaluator {
                     hasHoleInWindow = true;
                 }
             }
-            if (distinctCnt >= 3 && hasHoleInWindow) {
+            // 至少 4 个不同点数落在同一 4 格窗口内 ≈ 双头顺听（8 张补牌量级）；避免 3 点“假顺听”抬档
+            if (distinctCnt >= 4 && hasHoleInWindow) {
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * 最佳成牌为「一对」，且该对的两张都来自公共牌、手牌未持该点数 —— 典型公对面仅拼踢脚，相对牌力差。
+     */
+    public static boolean isPlayingBoardPairOnly(HandStrength hs, List<String> holeCards,
+                                                 List<String> community) {
+        if (hs == null || hs.rankCategory != 2 || holeCards == null || community == null) {
+            return false;
+        }
+        if (hs.ranks == null || hs.ranks.isEmpty()) {
+            return false;
+        }
+        int pairRank = hs.ranks.get(0);
+        int onBoard = 0;
+        for (String c : community) {
+            if (getRankFromCard(c) == pairRank) {
+                onBoard++;
+            }
+        }
+        int inHole = 0;
+        for (String c : holeCards) {
+            if (getRankFromCard(c) == pairRank) {
+                inHole++;
+            }
+        }
+        return onBoard >= 2 && inHole == 0;
+    }
+
+    /**
+     * 公对面仅拼踢脚时，不得因宽松听牌提档到 STRONG；踢脚皆偏弱时再降到 WEAK。
+     */
+    private static SimpleStrength capPlayingBoardPair(SimpleStrength s, HandStrength hs,
+                                                      List<String> holeCards, List<String> community) {
+        if (!isPlayingBoardPairOnly(hs, holeCards, community)) {
+            return s;
+        }
+        SimpleStrength out = s;
+        if (out == SimpleStrength.MONSTER || out == SimpleStrength.STRONG) {
+            out = SimpleStrength.MEDIUM;
+        }
+        if (hs.ranks != null && hs.ranks.size() >= 3) {
+            int k1 = hs.ranks.get(1);
+            int k2 = hs.ranks.get(2);
+            if (k1 <= 9 && k2 <= 9 && out == SimpleStrength.MEDIUM) {
+                out = SimpleStrength.WEAK;
+            }
+        }
+        return out;
     }
 
     /**
@@ -554,37 +604,34 @@ public final class DpUtilHandEvaluator {
 
         int cat = hs.rankCategory;
         if ("flop".equals(stage) || "turn".equals(stage) || "river".equals(stage)) {
+            SimpleStrength out;
             // 先按已经成牌的牌型做一个基础划分
             if (cat >= 7) {
-                return SimpleStrength.MONSTER;
-            }
-            if (cat == 6 || cat == 5) {
-                return SimpleStrength.STRONG;
-            }
-            if (cat == 4 || cat == 3) {
-                return SimpleStrength.MEDIUM;
-            }
+                out = SimpleStrength.MONSTER;
+            } else if (cat == 6 || cat == 5) {
+                out = SimpleStrength.STRONG;
+            } else if (cat == 4 || cat == 3) {
+                out = SimpleStrength.MEDIUM;
+            } else {
+                // 剩下的就是“一对或高牌”这类相对弱的成牌，
+                // 在这里叠加“强听牌”信息，把有高 equity 的听牌提档。
+                boolean strongFlushDraw = hasStrongFlushDraw(holeCards, community);
+                boolean strongStraightDraw = hasStrongStraightDraw(holeCards, community);
+                boolean comboDraw = strongFlushDraw && strongStraightDraw;
 
-            // 剩下的就是“一对或高牌”这类相对弱的成牌，
-            // 在这里叠加“强听牌”信息，把有高 equity 的听牌提档。
-            boolean strongFlushDraw = hasStrongFlushDraw(holeCards, community);
-            boolean strongStraightDraw = hasStrongStraightDraw(holeCards, community);
-            boolean comboDraw = strongFlushDraw && strongStraightDraw;
-
-            if (comboDraw) {
-                // 顺子+同花的组合听牌：整体 equity 极高，视作强牌
-                return SimpleStrength.STRONG;
-            }
-            if (strongFlushDraw || strongStraightDraw) {
-                // 单一强听牌：flop 上视作中等牌力；到了 turn equity 更稳定，可提到强牌
-                if ("turn".equals(stage)) {
-                    return SimpleStrength.STRONG;
+                if (comboDraw) {
+                    out = SimpleStrength.STRONG;
+                } else if (strongFlushDraw || strongStraightDraw) {
+                    if ("turn".equals(stage)) {
+                        out = SimpleStrength.STRONG;
+                    } else {
+                        out = SimpleStrength.MEDIUM;
+                    }
                 } else {
-                    return SimpleStrength.MEDIUM;
+                    out = SimpleStrength.WEAK;
                 }
             }
-
-            return SimpleStrength.WEAK;
+            return capPlayingBoardPair(out, hs, holeCards, community);
         }
 
         // 其它阶段直接按档位粗分
@@ -664,7 +711,7 @@ public final class DpUtilHandEvaluator {
         if (a != null && e != null && a == 5 && e == 1) {
             return 5;
         }
-        return a;
+        return a != null ? a : 0;
     }
 
     /**
@@ -738,6 +785,77 @@ public final class DpUtilHandEvaluator {
             default:
                 return "";
         }
+    }
+
+    /**
+     * 供 LLM prompt 使用的紧凑英文牌型标签（基于服务器 7 选 5 的 {@link HandStrength}），
+     * 与 {@link #buildHandRankDetailZh(HandStrength)} 信息等价，避免模型自行从 hole 目测误读。
+     */
+    public static String describeHandStrengthForLlm(HandStrength hs) {
+        if (hs == null) {
+            return "-";
+        }
+        int cat = hs.rankCategory;
+        List<Integer> r = hs.ranks;
+        if (r == null || r.isEmpty()) {
+            return "-";
+        }
+        switch (cat) {
+            case 10:
+                return "ROYAL_FLUSH";
+            case 9:
+                return "STRAIGHT_FLUSH_" + rankTokenEn(straightTopDisplayRank(r)) + "_HIGH";
+            case 8:
+                return r.size() >= 2
+                        ? ("FOUR_OF_A_KIND_" + rankTokenEn(r.get(0)) + "_KICKER_" + rankTokenEn(r.get(1)))
+                        : ("FOUR_OF_A_KIND_" + rankTokenEn(r.get(0)));
+            case 7:
+                return r.size() >= 2
+                        ? ("FULL_HOUSE_" + rankTokenEn(r.get(0)) + "_OVER_" + rankTokenEn(r.get(1)))
+                        : ("FULL_HOUSE_" + rankTokenEn(r.get(0)));
+            case 6:
+                return "FLUSH_" + rankTokenEn(r.get(0)) + "_HIGH";
+            case 5:
+                return "STRAIGHT_" + rankTokenEn(straightTopDisplayRank(r)) + "_HIGH";
+            case 4:
+                return r.size() >= 1 ? ("THREE_OF_A_KIND_" + rankTokenEn(r.get(0))) : "THREE_OF_A_KIND";
+            case 3:
+                return r.size() >= 3
+                        ? ("TWO_PAIR_" + rankTokenEn(r.get(0)) + "_" + rankTokenEn(r.get(1)) + "_KICKER_"
+                                + rankTokenEn(r.get(2)))
+                        : "TWO_PAIR";
+            case 2:
+                return r.size() >= 1 ? ("PAIR_OF_" + rankTokenEn(r.get(0))) : "PAIR";
+            case 1:
+                return "HIGH_CARD_" + rankTokenEn(r.get(0));
+            default:
+                return "UNKNOWN";
+        }
+    }
+
+    private static String rankTokenEn(int rank) {
+        if (rank <= 0) {
+            return "?";
+        }
+        if (rank == 14) {
+            return "A";
+        }
+        if (rank == 13) {
+            return "K";
+        }
+        if (rank == 12) {
+            return "Q";
+        }
+        if (rank == 11) {
+            return "J";
+        }
+        if (rank == 10) {
+            return "T";
+        }
+        if (rank >= 2 && rank <= 9) {
+            return String.valueOf(rank);
+        }
+        return "?";
     }
 }
 

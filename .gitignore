@@ -39,3 +39,6 @@ build/
 
 ### Docker 运行时数据（上传的音/图等，体积大且因环境而异；compose 映射见 docker-data/uploads） ###
 docker-data/uploads/
+
+### 日志
+logs/

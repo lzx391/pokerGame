@@ -52,6 +52,9 @@ export default {
       if (this.isFullscreen && this.pseudoFullscreen) {
         this.setPseudoFullscreen(false)
       }
+      if (this.isFullscreen) {
+        this.scheduleReparentElementUiLayersIntoFullscreenRoot()
+      }
     },
     exitDpFullscreenIfActive: function () {
       var root = this.$refs.gameRoot
@@ -125,11 +128,19 @@ export default {
         if (!node || !node.parentNode || root.contains(node)) return
         root.appendChild(node)
       }
-      var w = 0
-      var wrappers = document.querySelectorAll('.el-message-box__wrapper')
-      for (w = 0; w < wrappers.length; w++) {
-        moveIfOutside(wrappers[w])
+      var moveAll = function (selector) {
+        var nodes = document.querySelectorAll(selector)
+        var i = 0
+        for (i = 0; i < nodes.length; i++) {
+          moveIfOutside(nodes[i])
+        }
       }
+      var w = 0
+      moveAll('.el-message-box__wrapper')
+      moveAll('.el-dialog__wrapper')
+      moveAll('.el-drawer__wrapper')
+      /* el-select / 部分下拉挂在 body，全屏时必须在 gameRoot 内才能看见 */
+      moveAll('.el-select-dropdown')
       var modals = document.getElementsByClassName('v-modal')
       for (w = 0; w < modals.length; w++) {
         moveIfOutside(modals[w])

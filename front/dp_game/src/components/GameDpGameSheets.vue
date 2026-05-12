@@ -107,20 +107,33 @@
           :maniac-bot-added-tip="vm.maniacBotAddedTip"
           :tag-bot-adding="vm.tagBotAdding"
           :tag-bot-added-tip="vm.tagBotAddedTip"
-          :shark-bot-adding="vm.sharkBotAdding"
-          :shark-bot-added-tip="vm.sharkBotAddedTip"
+          :lag-bot-adding="vm.lagBotAdding"
+          :lag-bot-added-tip="vm.lagBotAddedTip"
+          :nit-bot-adding="vm.nitBotAdding"
+          :nit-bot-added-tip="vm.nitBotAddedTip"
+          :call-bot-adding="vm.callBotAdding"
+          :call-bot-added-tip="vm.callBotAddedTip"
           :llm-bot-adding="vm.llmBotAdding"
           :llm-bot-added-tip="vm.llmBotAddedTip"
           @close="vm.closeOwnerHubPanel"
-          @add-demo-bot="vm.addDemoBot"
-          @add-maniac-bot="vm.addManiacBot"
-          @add-tag-bot="vm.addTagBot"
-          @add-shark-bot="vm.addSharkBot"
-          @add-llm-bot="vm.addLlmBot"
+          @confirm-add-npcs="vm.confirmAddOwnerNpcs"
           @transfer-owner="vm.doTransferOwner"
-          @kick-player="vm.doKickPlayer"
+          @kick-players="vm.doKickPlayers"
       />
     </game-bottom-sheet>
+    <game-player-social-sheet
+        v-if="vm.playerSocialOpen && vm.playerSocialTarget"
+        :visible="true"
+        :target="vm.playerSocialTarget"
+        @close="vm.closePlayerSocialSheet"
+    />
+    <game-invite-friend-sheet
+        v-if="vm.inviteFriendOpen"
+        :visible="true"
+        :room-id="vm.roomId"
+        :my-user-id="inviteFriendMyUserId"
+        @close="vm.closeInviteFriendSheet"
+    />
   </div>
 </template>
 
@@ -130,6 +143,8 @@ import GamePlayerCard from './GamePlayerCard.vue'
 import GameActionPanel from './GameActionPanel.vue'
 import GameOwnerPanel from './GameOwnerPanel.vue'
 import GameOwnerToolModal from './GameOwnerToolModal.vue'
+import GamePlayerSocialSheet from './GamePlayerSocialSheet.vue'
+import GameInviteFriendSheet from './GameInviteFriendSheet.vue'
 
 export default {
   name: 'GameDpGameSheets',
@@ -138,12 +153,19 @@ export default {
     GamePlayerCard,
     GameActionPanel,
     GameOwnerPanel,
-    GameOwnerToolModal
+    GameOwnerToolModal,
+    GamePlayerSocialSheet,
+    GameInviteFriendSheet
   },
   inject: ['dpGameView'],
   computed: {
     vm: function () {
       return this.dpGameView
+    },
+    inviteFriendMyUserId: function () {
+      var u = this.vm && this.vm.user
+      var n = u && u.userId != null && u.userId !== '' ? Number(u.userId) : 0
+      return isNaN(n) || n <= 0 ? 0 : n
     }
   }
 }

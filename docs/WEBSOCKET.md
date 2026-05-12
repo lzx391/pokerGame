@@ -1,4 +1,4 @@
-# WebSocket 简要说明与本项目「游戏对局」实现
+# 对局 WebSocket：链路概览、`/ws/dp-game` 与心跳、BGM／聊天载荷
 
 面向想入门、又想知道「在我们工程里具体怎么接到游戏页上」的读者。不要求先会网络协议细节。
 
@@ -94,6 +94,8 @@
 - **`pollTimer`（1 秒）**：仅当 **未连上 WS**（且非 `CONNECTING`）时才 **`loadGame()`**；一旦 **`gameWsConnected === true`**，**不再每秒 HTTP 拉房间**。  
 - **`backupPollTimer`（15 秒）**：在 **已连上 WS** 时低频 **`loadGame()`**，防止长连异常导致界面长期不更新。  
 - **`heartbeatTimer`（5 秒）**：只发 **`POST /dpRoom/heartbeat`**，**不会**顺带拉 `getNowRoom`。  
+- **`onclose`**：若非主动离房（见下），则按指数退避（约 1s→2s→…→封顶 30s，带少量随机抖动）**定时重连**；成功 `onopen` 后 backoff 归零。
+- **`beforeDestroy`、`exitGame`、房间 `roomClosed`**：标记不再重连、清定时器、`session++`、摘掉回调后 `close()`，避免离房仍自动连回。
 - **`onmessage`**：若 `_ws === 'roomClosed'` / `'chat'` / `'roomMusic'` 分别处理，否则 **`applyRoomFromServer`** 当房间快照。
 
 **重要**：房间快照走 WebSocket 时，请在 DevTools → Network → **WS** → **Messages** 里看；XHR 里不一定每秒有 `getNowRoom`（连上 WS 后前端会停高频轮询）。
@@ -147,8 +149,9 @@
 如有文档与实现不一致，以当前代码为准。
 --- 
 # 自己的笔记
+当session连接上的时候，通过sessionurl把房间id和玩家解析并存入session的Attributes中  
 首先用房间id和每个人的会话作为键值对存入roomSessions  
-然后用lastBroadcastPayloadBySession这个Map存会话和应推送的裁剪后的房间状态json，以下是大致实现思路：首先深拷贝一份房间状态(不是简单赋值，简单复制改的还是原来的房间，而深拷贝出来的房间信息后续怎么改都不影响原来roomMap里的房间状态)然后按昵称去裁剪信息，把其他人的信息设置成空，然后挂在lastBroadcastPayloadBySession里，等推送的时候按照昵称分别推送   
+然后用lastBroadcastPayloadBySession这个Map存会话和应推送的裁剪后的房间状态json，以下是大致实现思路：首先深拷贝一份房间状态(不是简单赋值，简单复制改的还是原来的房间，而深拷贝出来的房间信息后续怎么改都不影响原来roomMap里的房间状态)然后按session中Attributes中的昵称去裁剪信息，把其他人的信息设置成空，然后挂在lastBroadcastPayloadBySession里，等推送的时候按照昵称分别推送   
 getRoomSnapshotForViewer->通过房间id和昵称实现处理  
 snapshotForViewerFromLive->通过房间和昵称实现处理
 deepCopyRoomForSnapshot->深拷贝过程

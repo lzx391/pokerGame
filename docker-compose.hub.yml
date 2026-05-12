@@ -1,5 +1,5 @@
 # 仅使用 Docker Hub（或其它仓库）上的镜像，无需 git clone 仓库、无需本机挂载 SQL/nginx 配置。
-# 前置：已构建并推送 app、mysql、nginx 三个镜像（见 docs/DOCKER.md「仅镜像部署」）。
+# 前置：已构建并推送 app、nginx 镜像；MySQL 使用官方 mysql:8.0 空库，表结构由应用内 Flyway 迁移（见 docs/DOCKER.md）。
 #
 # 使用（在存放本文件的目录，或把本文件拷到服务器后）：
 #   docker compose -f docker-compose.hub.yml up -d
@@ -15,7 +15,7 @@
 
 services:
   mysql:
-    image: ${DOCKER_REGISTRY:-1933886418}/dpgame-mysql:${IMAGE_TAG:-v1.0.1}
+    image: mysql:8.0
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-mgdemo_root}
       MYSQL_DATABASE: school_db
@@ -74,6 +74,7 @@ services:
       ARK_BASE_URL: ${ARK_BASE_URL:-}
       ARK_REASONING_EFFORT: ${ARK_REASONING_EFFORT:-}
       ARK_THINKING_TYPE: ${ARK_THINKING_TYPE:-}
+      ARK_RESPONSE_JSON_OBJECT: ${ARK_RESPONSE_JSON_OBJECT:true}
       MGDEMOPLUS_CACHE_MUSIC_LIST_TTL_SECONDS: ${MGDEMOPLUS_CACHE_MUSIC_LIST_TTL_SECONDS:-300}
     volumes:
       - mgdemo_uploads:/data/mgdemo-files
