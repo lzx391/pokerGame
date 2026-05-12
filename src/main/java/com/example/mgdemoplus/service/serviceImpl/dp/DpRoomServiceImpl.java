@@ -1164,6 +1164,33 @@ public class DpRoomServiceImpl {
     }
 
     /**
+     * 是否仍为该房成员：桌上玩家、观众席、或下一局候补。用于快照/推送门禁，避免已被心跳剔除的用户仍看到房间 JSON。
+     */
+    public boolean isNicknameInRoom(DpRoomBO room, String nickname) {
+        if (room == null || nickname == null) {
+            return false;
+        }
+        String n = nickname.trim();
+        if (n.isEmpty()) {
+            return false;
+        }
+        List<DpPlayer> players = room.getPlayers();
+        if (players != null) {
+            for (DpPlayer p : players) {
+                if (p != null && n.equals(p.getNickname())) {
+                    return true;
+                }
+            }
+        }
+        List<String> spectators = room.getSpectators();
+        if (spectators != null && spectators.contains(n)) {
+            return true;
+        }
+        List<String> wait = room.getWaitNextHand();
+        return wait != null && wait.contains(n);
+    }
+
+    /**
      * 对外接口与 WebSocket 推送使用：在完整房间状态上按观看者身份隐藏他人底牌及相关推导字段，不修改内存中的房间实体。
      *
      * @param viewerNickname 当前连接者的昵称；null 或空则视为未认领身份，不展示任何玩家的真实底牌。
@@ -1171,6 +1198,10 @@ public class DpRoomServiceImpl {
     public DpRoomBO getRoomSnapshotForViewer(String roomId, String viewerNickname) {
         DpRoomBO live = getAllRooms(roomId);
         if (live == null) {
+            return null;
+        }
+        if (viewerNickname != null && !viewerNickname.trim().isEmpty()
+                && !isNicknameInRoom(live, viewerNickname)) {
             return null;
         }
         return snapshotForViewerFromLive(live, viewerNickname);

@@ -1,7 +1,6 @@
 package com.example.mgdemoplus.websocket;
 
 import com.example.mgdemoplus.bo.DpRoomBO;
-import com.example.mgdemoplus.entity.dp.DpPlayer;
 import com.example.mgdemoplus.service.serviceImpl.dp.DpRoomServiceImpl;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,7 +15,6 @@ import org.springframework.web.socket.WebSocketSession;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -169,7 +167,7 @@ public class DpGameRoomPushService {
             return;
         }
         DpRoomBO room = roomService.getAllRooms(roomId);
-        if (room == null || !isNicknameInRoom(room, nickname)) {
+        if (room == null || !roomService.isNicknameInRoom(room, nickname)) {
             return;
         }
         session.getAttributes().put("_chatLastMs", now);
@@ -210,7 +208,7 @@ public class DpGameRoomPushService {
             return;
         }
         DpRoomBO room = roomService.getAllRooms(roomId);
-        if (room == null || !isNicknameInRoom(room, nickname)) {
+        if (room == null || !roomService.isNicknameInRoom(room, nickname)) {
             return;
         }
 
@@ -318,6 +316,9 @@ public class DpGameRoomPushService {
                 String json;
                 if (live == null) {
                     json = ROOM_CLOSED;
+                } else if (nick != null && !nick.trim().isEmpty()
+                        && !roomService.isNicknameInRoom(live, nick.trim())) {
+                    json = ROOM_CLOSED;
                 } else {
                     DpRoomBO view = roomService.snapshotForViewerFromLive(live, nick);
                     json = objectMapper.writeValueAsString(view);
@@ -332,6 +333,14 @@ public class DpGameRoomPushService {
                         s.sendMessage(new TextMessage(json));
                     }
                     lastBroadcastPayloadBySession.put(s, json);
+                    if (ROOM_CLOSED.equals(json) && live != null) {
+                        removeSessionFromRoom(roomId, s);
+                        try {
+                            s.close(CloseStatus.GOING_AWAY);
+                        } catch (IOException ignored) {
+                            // ignore
+                        }
+                    }
                 } catch (IOException e) {
                     log.debug("WebSocket send failed, closing session", e);
                     removeSessionFromRoom(roomId, s);
@@ -407,19 +416,4 @@ public class DpGameRoomPushService {
         return rest.length() > 0 && rest.matches("[a-zA-Z0-9._-]+");
     }
 
-    /**
-     * 判断nickname是否在房间内，首次用于handleChatSend/handleRoomMusicSync。
-     */
-    private static boolean isNicknameInRoom(DpRoomBO room, String nickname) {
-        List<DpPlayer> players = room.getPlayers();
-        if (players != null) {
-            for (DpPlayer p : players) {
-                if (p != null && nickname.equals(p.getNickname())) {
-                    return true;
-                }
-            }
-        }
-        List<String> spectators = room.getSpectators();
-        return spectators != null && spectators.contains(nickname);
-    }
 }
