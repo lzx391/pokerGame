@@ -11,8 +11,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 好友「空闲 / 游戏中」Presence：<b>不入库</b>，单机 {@link ConcurrentHashMap} 存放。
- * Key 为用户 id（与 JWT / Redis 会话一致）。
+ * 好友房内态（在座或观众）：<b>不入库</b>，单机 {@link ConcurrentHashMap} 仅存 IDLE / IN_GAME。
+ * 站点级在线见 {@link DpSitePresenceService}；列表展示态由 {@link com.example.mgdemoplus.service.serviceImpl.dp.DpFriendSocialService#listFriends} 合成。
  */
 @Service
 public class DpFriendPresenceService {
@@ -21,15 +21,13 @@ public class DpFriendPresenceService {
 
     private final ConcurrentHashMap<Integer, DpFriendPresenceState> presenceByUserId = new ConcurrentHashMap<>();
 
-    /**
-     * 未出现在 map 中时视为 IDLE（隐含默认态，避免注册用户必须预热）。
-     */
+    /** 未出现在 map 中时视为 IDLE（隐含默认态，避免注册用户必须预热）。 */
     public DpFriendPresenceState getEffective(int dpUserId) {
         return presenceByUserId.getOrDefault(dpUserId, DpFriendPresenceState.IDLE);
     }
 
     /**
-     * 批量读取内存态（无额外远程 IO）；缺省仍为 {@link DpFriendPresenceState#IDLE}。
+     * 批量读取房内内存态（无额外远程 IO）；缺省仍为 {@link DpFriendPresenceState#IDLE}。
      */
     public Map<Integer, DpFriendPresenceState> getEffectiveMany(Collection<Integer> dpUserIds) {
         Map<Integer, DpFriendPresenceState> out = new LinkedHashMap<>();

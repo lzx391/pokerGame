@@ -12,6 +12,7 @@ import com.example.mgdemoplus.mapper.dp.DpRoomInviteMapper;
 import com.example.mgdemoplus.mapper.dp.DpUserMapper;
 import com.example.mgdemoplus.dp.presence.DpFriendPresenceState;
 import com.example.mgdemoplus.service.dp.DpFriendPresenceService;
+import com.example.mgdemoplus.service.dp.DpSitePresenceService;
 import com.example.mgdemoplus.utils.ResultUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -51,6 +52,8 @@ public class DpFriendSocialService {
     private DpRoomServiceImpl dpRoomService;
     @Autowired
     private DpFriendPresenceService friendPresenceService;
+    @Autowired
+    private DpSitePresenceService sitePresenceService;
 
     /** 将已到期的进房邀请标为 EXPIRED（列表/计数/处理前调用）。 */
     public void touchExpireRoomInvites() {
@@ -205,12 +208,30 @@ public class DpFriendSocialService {
                 continue;
             }
             Integer fid = presenceEligibleFriendIds.get(i);
-            DpFriendPresenceState st = presenceByFriend.get(fid);
-            if (st != null) {
-                m.put("presence", st.name());
+            DpFriendPresenceState inRoom = presenceByFriend.get(fid);
+            if (inRoom == null) {
+                inRoom = DpFriendPresenceState.IDLE;
             }
+            DpFriendPresenceState display =
+                    resolveFriendListPresence(inRoom, sitePresenceService.isOnlineSite(fid));
+            m.put("presence", display.name());
         }
         return ResultUtil.ok().data("friends", items);
+    }
+
+    /**
+     * 房内 {@link DpFriendPresenceState#IN_GAME} 优先；否则站点在线 → {@link DpFriendPresenceState#IDLE}，
+     * 否则 {@link DpFriendPresenceState#OFFLINE}。
+     */
+    static DpFriendPresenceState resolveFriendListPresence(
+            DpFriendPresenceState inRoomPresence, boolean onlineSite) {
+        if (inRoomPresence == DpFriendPresenceState.IN_GAME) {
+            return DpFriendPresenceState.IN_GAME;
+        }
+        if (onlineSite) {
+            return DpFriendPresenceState.IDLE;
+        }
+        return DpFriendPresenceState.OFFLINE;
     }
 
     /**

@@ -4,6 +4,7 @@ import axios from 'axios'
 import router from './router'
 import store from './store'
 import { syncDpBodyGameTheme } from './utils/dpBodyGameTheme'
+import { syncDpSiteHeartbeat } from './utils/dpSiteHeartbeat'
 import DpThemePicker from './components/DpThemePicker.vue'
 
 Vue.component('DpThemePicker', DpThemePicker)
@@ -78,9 +79,11 @@ Vue.prototype.$http =axios
 
 router.afterEach(function () {
   syncDpBodyGameTheme(store, router)
+  syncDpSiteHeartbeat(axios, router)
 })
 router.onReady(function () {
   syncDpBodyGameTheme(store, router)
+  syncDpSiteHeartbeat(axios, router)
 })
 store.subscribe(function (mutation) {
   if (

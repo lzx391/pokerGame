@@ -760,16 +760,19 @@ public class DpRoomServiceImpl {
         if (idx == -1) {
             return false;
         }
+        // fold 可能触发结算 → removeLeftThisHandZombiesAfterHand 对同一 List removeIf，
+        // 批量踢人时已离桌位会被摘掉，idx 会失效；后续必须对已解析的 DpPlayer 引用操作。
+        DpPlayer kicked = ps.get(idx);
         if (r.getCurrentActorIndex() == idx) {
             fold(roomId, nickname);
         } else {
-            if (!ps.get(idx).isFold()) {
-                ps.get(idx).setFold(true);
+            if (!kicked.isFold()) {
+                kicked.setFold(true);
             }
         }
-        ps.get(idx).setReady(false);
-        ps.get(idx).setLeftThisHand(true);
-        if (!DpNpcEngine.isBotPlayer(ps.get(idx))) {
+        kicked.setReady(false);
+        kicked.setLeftThisHand(true);
+        if (!DpNpcEngine.isBotPlayer(kicked)) {
             List<String> spectators = getNewSpectators(r);
             if (!spectators.contains(nickname)) {
                 spectators.add(nickname);

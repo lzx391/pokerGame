@@ -10,7 +10,7 @@
 - **配置**：`config/SecurityConfig.java` —— 无 Session（`STATELESS`）、关闭 CSRF（前后端分离 API）、白名单见 `security/JwtSecurityConstants`。
 - **过滤器**：`security/JwtAuthenticationFilter.java` —— 解析 `Authorization: Bearer <jwt>`，校验成功后把 `subject` 写入 `SecurityContextHolder`（`UsernamePasswordAuthenticationToken`，`getName()` 即昵称）。
 - **未登录**：`security/JwtAuthenticationEntryPoint.java` 返回 JSON：`success=false`，HTTP 401。
-- **白名单**：登录/注册、静态资源、`/ws/**`、大厅/房间快照等只读接口（见常量类注释）；其余请求需合法 JWT。
+- **白名单**：登录/注册、静态资源、`/ws/**`、大厅/房间快照等只读接口，以及 **`GET /dp/presence/site-heartbeat/config`**（站点心跳公开参数）；其余请求需合法 JWT。完整列表见 **`JwtSecurityConstants.PERMIT_ALL`**。
 
 业务代码里需要当前用户时：`SecurityContextHolder.getContext().getAuthentication().getName()`（与 token 一致时再与请求参数里的昵称比对）。
 

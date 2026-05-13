@@ -6,6 +6,7 @@ import com.example.mgdemoplus.mapper.dp.DpFriendRequestMapper;
 import com.example.mgdemoplus.mapper.dp.DpRoomInviteMapper;
 import com.example.mgdemoplus.mapper.dp.DpUserMapper;
 import com.example.mgdemoplus.service.dp.DpFriendPresenceService;
+import com.example.mgdemoplus.service.dp.DpSitePresenceService;
 import com.example.mgdemoplus.utils.ResultUtil;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,6 +37,9 @@ class DpFriendSocialServiceFollowSpectateTest {
     private DpRoomServiceImpl dpRoomService;
     @Mock
     private DpFriendPresenceService friendPresenceService;
+
+    @Mock
+    private DpSitePresenceService sitePresenceService;
 
     @InjectMocks
     private DpFriendSocialService service;

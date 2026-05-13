@@ -253,6 +253,10 @@ export default {
   color: #dd6161;
 }
 
+.dp-invite-friend-sheet__row.dp-friend-row--presence-offline .dp-invite-friend-sheet__presence {
+  color: #9a9ea4;
+}
+
 .dp-invite-friend-sheet__invite-btn {
   flex-shrink: 0;
   min-width: 64px;

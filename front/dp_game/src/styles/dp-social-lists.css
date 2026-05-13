@@ -69,6 +69,11 @@
   border-color: color-mix(in srgb, #f56c6c 38%, var(--dp-subpanel-border));
 }
 
+.dp-friend-row--presence-offline {
+  background: color-mix(in srgb, #909399 14%, var(--dp-subpanel-bg));
+  border-color: color-mix(in srgb, #909399 38%, var(--dp-subpanel-border));
+}
+
 /* 无 color-mix 时的回退（旧 WebView） */
 @supports not (background: color-mix(in srgb, red 10%, blue)) {
   .dp-friend-row--presence-idle {
@@ -79,6 +84,11 @@
   .dp-friend-row--presence-ingame {
     background: rgba(245, 108, 108, 0.12);
     border-color: rgba(245, 108, 108, 0.45);
+  }
+
+  .dp-friend-row--presence-offline {
+    background: rgba(144, 147, 153, 0.12);
+    border-color: rgba(144, 147, 153, 0.45);
   }
 }
 
@@ -95,6 +105,10 @@
 
 .dp-friend-row--presence-ingame .dp-social-list__presence {
   color: #dd6161;
+}
+
+.dp-friend-row--presence-offline .dp-social-list__presence {
+  color: #73767a;
 }
 
 .dp-social-list__text {

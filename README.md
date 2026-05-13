@@ -66,7 +66,7 @@ flowchart LR
 | ---- | ---- |
 | **`/dpRoom`** | 建房、进退房、快匹、准备、下注、踢人、机器人生成、大厅列表等（[`DpRoomController`](src/main/java/com/example/mgdemoplus/controller/dp/DpRoomController.java)）。 |
 | **`/dpUser`** | 注册、登录、资料（[`DpUserController`](src/main/java/com/example/mgdemoplus/controller/dp/DpUserController.java)）。 |
-| **`/dp`** | 好友、邮箱、进房邀请、跟随观战等（[`DpFriendMailboxController`](src/main/java/com/example/mgdemoplus/controller/dp/DpFriendMailboxController.java)）。 |
+| **`/dp`** | 好友、邮箱、进房邀请、跟随观战等（[`DpFriendMailboxController`](src/main/java/com/example/mgdemoplus/controller/dp/DpFriendMailboxController.java)）。站点在线：`POST /dp/presence/site-heartbeat`（JWT）刷新 `last_seen_site`；`GET /dp/friends` 各行 `presence` 为 `OFFLINE` / `IDLE` / `IN_GAME`（房内态优先）。TTL：`mgdemoplus.dp-site-presence-ttl-ms`（默认 90s， env `MGDEMOPLUS_DP_SITE_PRESENCE_TTL_MS`）。兼容旧路径 `POST /dp/siteHeartbeat`。 |
 | **`/dpHandHistory`** | 手牌历史列表/详情等。 |
 | **`/dpMusic`** | 曲库上传/列表。 |
 | **`/demo/*`、`/student`、`/movie`、`/upload`** | 示例与 Redis Lab（生产环境宜收紧或鉴权）。 |
@@ -92,7 +92,7 @@ flowchart LR
 ### 前端（`front/dp_game`）要点
 
 - **路由**：默认 **hash**（如 **`/#/home`**、**`#/game/:roomId`**）；主要页面在 **`src/components/`**（如 **`game.vue`**、**`home.vue`**）；**无路由级 `beforeEach`**，**401** 由 **`main.js`** 中 axios 响应拦截统一 **`router.replace('/login')`**。
-- **HTTP**：开发 **`axios.defaults.baseURL = '/dev-api'`**（[`main.js`](front/dp_game/src/main.js)），**[`vue.config.js`](front/dp_game/vue.config.js)** 将 **`/dev-api`** 转发后端并 **`pathRewrite` 剥前缀**；生产 **`baseURL` 为空**，与后端静态资源同域。房间/快匹等多为组件内 **`this.$http('/dpRoom/…')`**；**`/dp` 好友/邮箱** 封装在 **[`src/api/api.dpSocial.js`](front/dp_game/src/api/api.dpSocial.js)**，由 **`Vuex` 模块 `dpMailbox`** 使用；对局房间状态主要在 **`dpGame`**（**无 `actions`**，由 **`game.vue`** 等 **`commit`**）。
+- **HTTP**：开发 **`axios.defaults.baseURL = '/dev-api'`**（[`main.js`](front/dp_game/src/main.js)），**[`vue.config.js`](front/dp_game/vue.config.js)** 将 **`/dev-api`** 转发后端并 **`pathRewrite` 剥前缀**；生产 **`baseURL` 为空**，与后端静态资源同域。房间/快匹等多为组件内 **`this.$http('/dpRoom/…')`**；**`/dp` 好友/邮箱** 封装在 **[`src/api/api.dpSocial.js`](front/dp_game/src/api/api.dpSocial.js)**，由 **`Vuex` 模块 `dpMailbox`** 使用；对局房间状态主要在 **`dpGame`**（**无 `actions`**，由 **`game.vue`** 等 **`commit`**）。**站点心跳**：已登录且非登录/注册页时 **`main.js`** 经 **`syncDpSiteHeartbeat`** 定时 **`POST /dp/presence/site-heartbeat`**（与 **`POST /dpRoom/heartbeat`** 并行）；间隔可 **`GET /dp/presence/site-heartbeat/config`**（匿名）读取，与 **`mgdemoplus.dp-site-presence-ttl-ms`** 对齐。
 - **WebSocket**：开发环境用 **`/dp-ws/dp-game`**、**`/dp-ws/dp-quick-match`** 代理到后端 **`/ws/...`**，避免与 dev server HMR 的 **`/ws`** 冲突；生产直连 **`/ws/dp-game`**、**`/ws/dp-quick-match`**。对局 WS 含**指数退避重连**（见 `game.vue`）。
 - **嵌入 JAR**：以 **[`Dockerfile`](Dockerfile)** 多阶段 **`COPY dist → src/main/resources/static`** 为准；**`pom.xml` 未使用** `frontend-maven-plugin` 一类自动打前端——本地纯 **`mvn package`** 若无手工拷贝则不一定含最新 `dist`。
 

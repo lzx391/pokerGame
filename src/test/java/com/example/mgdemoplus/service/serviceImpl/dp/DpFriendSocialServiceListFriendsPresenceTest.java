@@ -7,6 +7,7 @@ import com.example.mgdemoplus.mapper.dp.DpFriendRequestMapper;
 import com.example.mgdemoplus.mapper.dp.DpRoomInviteMapper;
 import com.example.mgdemoplus.mapper.dp.DpUserMapper;
 import com.example.mgdemoplus.service.dp.DpFriendPresenceService;
+import com.example.mgdemoplus.service.dp.DpSitePresenceService;
 import com.example.mgdemoplus.utils.ResultUtil;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,6 +21,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 /**
@@ -40,6 +42,9 @@ class DpFriendSocialServiceListFriendsPresenceTest {
     private DpRoomServiceImpl dpRoomService;
     @Mock
     private DpFriendPresenceService friendPresenceService;
+
+    @Mock
+    private DpSitePresenceService sitePresenceService;
 
     @InjectMocks
     private DpFriendSocialService service;
@@ -63,6 +68,9 @@ class DpFriendSocialServiceListFriendsPresenceTest {
                                         10, DpFriendPresenceState.IN_GAME,
                                         20, DpFriendPresenceState.IDLE)));
 
+        when(sitePresenceService.isOnlineSite(eq(10))).thenReturn(false);
+        when(sitePresenceService.isOnlineSite(eq(20))).thenReturn(true);
+
         ResultUtil res = service.listFriends(1);
         assertThat(Boolean.TRUE.equals(res.getSuccess())).isTrue();
         @SuppressWarnings("unchecked")
@@ -71,5 +79,41 @@ class DpFriendSocialServiceListFriendsPresenceTest {
         assertThat(friends.get(0).get("presence")).isEqualTo("IN_GAME");
         assertThat(friends.get(1).get("presence")).isEqualTo("IDLE");
         assertThat(friends.get(0).get("friendship_status")).isEqualTo("ACCEPTED");
+    }
+
+    @Test
+    void listFriends_notInGame_withoutSiteHeartbeat_showsOffline() {
+        when(roomInviteMapper.update(any(), any())).thenReturn(0);
+
+        DpFriendLinkRow r1 = new DpFriendLinkRow();
+        r1.setFriendUserId(30);
+        r1.setFriendNickname("Gamma");
+        when(friendLinkMapper.listFriendsOfUser(1)).thenReturn(List.of(r1));
+
+        when(friendPresenceService.getEffectiveMany(any()))
+                .thenReturn(new LinkedHashMap<>(Map.of(30, DpFriendPresenceState.IDLE)));
+        when(sitePresenceService.isOnlineSite(eq(30))).thenReturn(false);
+
+        ResultUtil res = service.listFriends(1);
+        assertThat(Boolean.TRUE.equals(res.getSuccess())).isTrue();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> friends = (List<Map<String, Object>>) res.getData().get("friends");
+        assertThat(friends.get(0).get("presence")).isEqualTo("OFFLINE");
+    }
+
+    @Test
+    void resolveFriendListPresence_inGame_overridesSiteOffline() {
+        assertThat(
+                        DpFriendSocialService.resolveFriendListPresence(
+                                DpFriendPresenceState.IN_GAME, false))
+                .isEqualTo(DpFriendPresenceState.IN_GAME);
+        assertThat(
+                        DpFriendSocialService.resolveFriendListPresence(
+                                DpFriendPresenceState.IDLE, true))
+                .isEqualTo(DpFriendPresenceState.IDLE);
+        assertThat(
+                        DpFriendSocialService.resolveFriendListPresence(
+                                DpFriendPresenceState.IDLE, false))
+                .isEqualTo(DpFriendPresenceState.OFFLINE);
     }
 }

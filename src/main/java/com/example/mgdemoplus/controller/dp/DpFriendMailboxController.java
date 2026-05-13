@@ -2,6 +2,7 @@ package com.example.mgdemoplus.controller.dp;
 
 import com.example.mgdemoplus.entity.dp.DpUser;
 import com.example.mgdemoplus.mapper.dp.DpUserMapper;
+import com.example.mgdemoplus.service.dp.DpSitePresenceService;
 import com.example.mgdemoplus.service.serviceImpl.dp.DpFriendSocialService;
 import com.example.mgdemoplus.utils.ResultUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +28,8 @@ public class DpFriendMailboxController {
 
     @Autowired
     private DpFriendSocialService dpFriendSocialService;
+    @Autowired
+    private DpSitePresenceService dpSitePresenceService;
     @Autowired
     private DpUserMapper dpUserMapper;
 
@@ -98,6 +101,34 @@ public class DpFriendMailboxController {
             return err.data("message", err.getMessage());
         }
         return dpFriendSocialService.listFriends(me.getId());
+    }
+
+    /**
+     * 匿名可读：站点心跳 TTL 与建议间隔（与 POST /dp/presence/site-heartbeat 一致）。
+     */
+    @GetMapping("/presence/site-heartbeat/config")
+    public ResultUtil sitePresenceHeartbeatConfig() {
+        return ResultUtil.ok()
+                .data("ttlMs", dpSitePresenceService.getTtlMs())
+                .data("suggestedIntervalMs", dpSitePresenceService.getSuggestedHeartbeatIntervalMs());
+    }
+
+    /**
+     * 站点级在线心跳：刷新当前用户的 {@code last_seen_site}（与房内轮询心跳无关）。
+     * 客户端建议间隔 &lt; TTL/3；默认 TTL 见 {@code mgdemoplus.dp-site-presence-ttl-ms}。
+     */
+    @PostMapping("/presence/site-heartbeat")
+    public ResultUtil sitePresenceHeartbeat() {
+        ResultUtil err = ResultUtil.error();
+        DpUser me = requireCurrentUser(err);
+        if (me == null) {
+            return err.data("message", err.getMessage());
+        }
+        dpSitePresenceService.touchSiteHeartbeat(me.getId());
+        return ResultUtil.ok()
+                .data("message", "ok")
+                .data("ttlMs", dpSitePresenceService.getTtlMs())
+                .data("suggestedIntervalMs", dpSitePresenceService.getSuggestedHeartbeatIntervalMs());
     }
 
     /**
