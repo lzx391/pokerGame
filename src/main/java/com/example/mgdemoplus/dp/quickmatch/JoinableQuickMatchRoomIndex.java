@@ -55,23 +55,29 @@ public class JoinableQuickMatchRoomIndex {
 
     /** 缺人数（升序） → 该缺额下可快匹加入的房间 id（字典序）。 */
     private final TreeMap<Integer, NavigableSet<String>> byShortage = new TreeMap<>();
-
+//空间换时间，有了这个可以高效的通过房间获取缺人数，而不用去treeMap里遍历找
     private final Map<String, Integer> roomIdToShortage = new HashMap<>();
-
+/**
+ * 这个方法负责检查更新索引房
+ */
     public void addOrRefresh(String roomId, DpRoomBO room, long nowMs) {
         if (roomId == null) {
             return;
         }
+        //更改房间索引要加锁，防止并发异常
         synchronized (indexLock) {
             removeUnderLock(roomId);
             if (!DpQuickMatchRoomSemantics.shouldIndexPublicQuickMatchRoom(room, nowMs)) {
                 return;
             }
+            //看房间权威剩余人数的
             int key = DpQuickMatchRoomSemantics.vacancyBucketKeyForIndex(room, nowMs);
             if (key <= 0) {
                 return;
             }
+            //缺人房放进红黑树，key为缺人数，value为房间id集合
             byShortage.computeIfAbsent(key, k -> new TreeSet<>()).add(roomId);
+            //放房间和缺人数的
             roomIdToShortage.put(roomId, key);
         }
     }

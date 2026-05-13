@@ -34,8 +34,7 @@ public final class DpQuickMatchRoomSemantics {
     }
 
     /**
-     * 原始空位数（可负）：{@code maxSeatCount − eligibleOccupants}；与旧 {@code quickMatchVacancy} 返回值一致，
-     * 供业务判断「是否还能进」（{@code &lt;= 0} 表示无空位或异常超员）。
+     * 算空位数，负数或0表示满员
      */
     public static int rawVacancyForQuickMatch(DpRoomBO r, long nowMs) {
         if (r == null) {

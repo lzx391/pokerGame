@@ -81,8 +81,11 @@ public class DpRoomServiceImpl {
 
     private final DpQuickMatchPairingCoordinator qmPairingCoordinator = new DpQuickMatchPairingCoordinator(
             new QuickMatchPairingHost());
-
+/**
+ * 尝试从队列配对建房逻辑
+ */
     private void attemptQuickMatchPairing() {
+        //队列匹配专用锁，防止各方法触发配对时干扰
         synchronized (dpQuickMatchAssignmentLock) {
             qmPairingCoordinator.attemptPairing();
         }
@@ -681,7 +684,11 @@ public class DpRoomServiceImpl {
                     this.droppedFromRoomMap || other.droppedFromRoomMap,
                     this.ownerFieldChanged || other.ownerFieldChanged);
         }
-
+/**
+ * droppedFromRoomMap：房间是否被移除。
+ownerFieldChanged：房主字段是否发生变化。
+ * @return
+ */
         static GiveOwnerMutationOutcome none() {
             return new GiveOwnerMutationOutcome(false, false);
         }
@@ -1064,6 +1071,7 @@ public class DpRoomServiceImpl {
     }
 
     /**
+     * 检查昵称id合法性
      * 前端传入的 userId 必须与昵称在 dp_user 中一致，否则忽略（防伪造）。
      * 校验依赖数据库；若 Mapper/JDBC 异常则记录日志并返回 null，避免因「已写完内存状态却因校验抛错」导致 500
      * （典型：游戏中进房的观众已写入 spectators，再查库失败）。
@@ -1119,18 +1127,24 @@ public class DpRoomServiceImpl {
      * 当昵称已不在任何房间的 players/spectators 中时置 IDLE（离房幂等；多路径重复调用无害）。
      */
     private void presenceTryMarkIdleFullyLeft(String nickname, Integer hintedUserId, DpRoomBO roomHint, String trigger) {
-        if (nickname == null || DpNpcEngine.isBotNickname(nickname)) {
+        if (nickname == null || DpNpcEngine.isBotNickname(nickname)) {//昵称为空返回
             return;
         }
-        if (findRoomContainingNickname(nickname) != null) {
+        if (findRoomContainingNickname(nickname) != null) {//发现房间包含自己名字，直接返回
             return;
         }
         Integer uid = resolvePresenceUserIdPreferHint(nickname, hintedUserId, roomHint);
         if (uid != null) {
+            //昵称合法就设置空闲状态
             friendPresence.markIdle(uid, trigger);
         }
     }
-
+/**
+ * 
+ 这个方法会遍历房间内的所有真实用户（玩家和观众），把他们的在线状态标记为“空闲”（IDLE）。这样做的目的是：在房间快照被处理时，确保所有非机器人用户被正确置为离开房间或空闲状态，便于后续的状态管理。
+ * @param r
+ * @param trigger
+ */
     private void presenceMarkIdleAllHumansOnRoomSnapshot(DpRoomBO r, String trigger) {
         if (r == null) {
             return;
@@ -1183,7 +1197,11 @@ public class DpRoomServiceImpl {
         }
         return null;
     }
-
+/**
+ * 一整套清理空房间方法，包括设置真人空闲状态，移除房间关闭ws连接，更新大厅索引等
+ * @param roomId
+ * @param corpse
+ */
     private void finalizeHallAfterRoomRemovedWithPresenceSnapshot(String roomId, DpRoomBO corpse) {
         presenceMarkIdleAllHumansOnRoomSnapshot(corpse, "room_map_remove");
         finalizeHallAfterRoomRemoved(roomId);
@@ -1762,20 +1780,20 @@ public class DpRoomServiceImpl {
     }
 
     /**
-     * 大厅快匹：先尝试进入已有公开房；若无房可进则进入默认等待队列（小盲 5、最多 9 人公开桌），满两人自动创建默认房并排好准备。
+     * 大厅快匹：先尝试进入已有公开房；若无房可进则加入等待队列，尝试与队列里的玩家配对建房。
      */
     public ResultUtil quickMatchJoinQueueOrImmediate(String nickname, Integer userId) {
-        // 直接匹配可用房逻辑
-        ResultUtil immediate = quickMatchJoinAndReady(nickname, userId);
-        if (Boolean.TRUE.equals(immediate.getSuccess())) {
-            return immediate;
-        }
-        if (!MSG_NO_PUBLIC_ROOM.equals(quickMatchResultDetailMessage(immediate))) {
-            return immediate;
-        }
-        if (findRoomContainingNickname(nickname) != null) {
-            return quickMatchJoinAndReady(nickname, userId);
-        }
+        // 直接匹配可用房逻辑，现在发现这个方法效率太低，直接不走了，直接入队，然后触发尝试匹配即可
+        // ResultUtil immediate = quickMatchJoinAndReady(nickname, userId);
+        // if (Boolean.TRUE.equals(immediate.getSuccess())) {
+        //     return immediate;
+        // }
+        // if (!MSG_NO_PUBLIC_ROOM.equals(quickMatchResultDetailMessage(immediate))) {
+        //     return immediate;
+        // }
+        // if (findRoomContainingNickname(nickname) != null) {
+        //     return quickMatchJoinAndReady(nickname, userId);
+        // }
         long now = System.currentTimeMillis();
         // 加入等待队列逻辑
         List<String> qmTimedOut;
@@ -1794,7 +1812,9 @@ public class DpRoomServiceImpl {
         }
 
         notifyQuickMatchTimedOut(qmTimedOut);
+        //尝试配对
         attemptQuickMatchPairing();
+        //没有配对成功，告知玩家匹配所处位置
         int queuePos = 0;
         synchronized (defaultQmLock) {
             int i = 1;
@@ -1840,7 +1860,7 @@ public class DpRoomServiceImpl {
     }
 
     /**
-     * 在已持有或可安全使用 {@link #defaultQmLock} 的上下文中调用：获取超时或已在房内者名单；
+     * 在已持有或可安全使用 {@link #defaultQmLock} 的上下文中调用：将它们出队并获取超时或已在房内者名单；
      *
      * @return 仅因<strong>等待超时</strong>被移出队列的昵称（用于 {@link #notifyQuickMatchTimedOut}）
      */
@@ -1894,7 +1914,11 @@ public class DpRoomServiceImpl {
         DpRoomBO r = findRoomContainingNickname(nickname);
         return r != null ? r.getRoomId() : null;
     }
-
+/**
+ * 发现房间包含自己名字就返回房间
+ * @param nickname
+ * @return
+ */
     private DpRoomBO findRoomContainingNickname(String nickname) {
         if (nickname == null) {
             return null;
@@ -2252,12 +2276,14 @@ public class DpRoomServiceImpl {
         if (snap.droppedEmpty) {
             finalizeHallAfterRoomRemovedWithPresenceSnapshot(roomId, r);
         } else {
+            //如果不影响房间解散，意味有可能腾出空位，刷新快匹房间索引，再异步更新房间数据库
             refreshJoinableQuickMatchIndexRoom(roomId, System.currentTimeMillis());
             if (snap.lobbyTouch || snap.giveAgg.ownerFieldChanged) {
                 syncLobbyForRoomId(roomId);
             }
         }
         if (!snap.droppedEmpty) {
+            //给人设置成空闲状态
             presenceTryMarkIdleFullyLeft(nickname, snap.presenceHintUid, r, "exit_room");
         }
         if (wasPublic && snap.result) {
