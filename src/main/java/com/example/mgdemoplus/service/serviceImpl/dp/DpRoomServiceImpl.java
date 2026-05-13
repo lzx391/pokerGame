@@ -209,6 +209,8 @@ public class DpRoomServiceImpl {
         return readyNextHand(roomId, DpNpcEngine.llmBotNickname(seq), null);
     }
 
+    // ========== 构造与全局 1s 节拍 ==========
+
     // 轮询入口
     public DpRoomServiceImpl(
             // 注入服务
@@ -235,140 +237,203 @@ public class DpRoomServiceImpl {
             @Override
             public void run() {
                 for (DpRoomBO room : roomMap.values()) {
-                    boolean lobbyDirty = false;
-                    Iterator<DpPlayer> it = room.getPlayers().iterator();
-                    while (it.hasNext()) {
-                        DpPlayer p = it.next();
-                        // 演示用机器人不依赖前端心跳，直接视为始终在线
-                        if (DpNpcEngine.isBotPlayer(p)) {
-                            p.setLastHeartBeat(System.currentTimeMillis());
-                            continue;
-                        }
-                        // 本手已离线的“占位”玩家不因心跳踢出，留到结算时再移除，以保持行动顺序
-                        if (p.isLeftThisHand())
-                            continue;
-                        if (System.currentTimeMillis() - p.getLastHeartBeat() > DpRoomBO.getHeartTimeout()) {
-                            if (p.getNickname().equals(room.getOwner())) {
-                                giveOwner(room.getRoomId(), p.getNickname());
-                            }
-                            System.out.println("未收到" + p.getNickname() + "的心跳,已移除房间");
-                            String hbNick = p.getNickname();
-                            Integer hbUid = p.getDpUserId();
-                            it.remove();
-                            presenceTryMarkIdleFullyLeft(hbNick, hbUid, room, "heartbeat_evict_player");
-                            lobbyDirty = true;
-                        }
-                    }
-                    // 观众席真人：与桌上玩家相同超时；由 HTTP 心跳 + 对局页 WebSocket 建连/保活刷新
-                    List<String> specList = room.getSpectators();
-                    if (specList != null && !specList.isEmpty()) {
-                        long tick = System.currentTimeMillis();
-                        for (String specNick : new ArrayList<>(specList)) {
-                            if (DpNpcEngine.isBotNickname(specNick)) {
-                                continue;
-                            }
-                            Long spLast = room.getSpectatorLastPresenceMs(specNick);
-                            if (spLast == null) {
-                                room.touchSpectatorPresence(specNick, tick);
-                                continue;
-                            }
-                            if (tick - spLast > DpRoomBO.getHeartTimeout()) {
-                                System.out.println("未收到观众 " + specNick + " 的心跳/WS 保活,已移出房间");
-                                if (exitRoom(room.getRoomId(), specNick)) {
-                                    lobbyDirty = true;
-                                }
-                            }
-                        }
-                    }
-                    int size = liveHumanTableCount(room);// 检测活人逻辑（与 exitRoom / removeRoom 拆房口径一致）
-                    // System.out.println("定时器检测：人数："+size);
-                    if (size == 0 && room.getSpectators().isEmpty()) {
-                        System.out.println("定时器检测：房间：" + room.getRoomId() + "没活人了");
-                        removeRoom(room.getRoomId());// 房间空了就清人
-                        continue;
-                    }
-                    // 30秒超时弃牌；若当前行动位是已离线占位，直接跳过不等待
-                    if (room.isPlaying()
-                            && room.getCurrentActorIndex() >= 0
-                            && room.getCurrentActorIndex() < room.getPlayers().size()) {
-                        DpPlayer p = room.getPlayers().get(room.getCurrentActorIndex());
-                        // 如果当前行动者是 NPC，则直接由后端自动决策行动，不等待前端操作
-                        if (DpNpcEngine.isBotPlayer(p)) {// 决策入口：BOT_LLM 与普通 NPC 分离
-                            DpNpcEngine.BotAction action;
-                            // 如果是BOT_LLM则走大模型逻辑
-                            if (DpNpcEngine.isLlmBotNickname(p.getNickname())) {
-                                action = llmNpcDecisionService.decideActionIfReady(room, p);
-                                NpcAction(room, p, action);
-                            } else {
-                                action = DpNpcEngine.decideActionIfReady(room, p);
-                                NpcAction(room, p, action);
-                            }
-
-                        } else {
-                            if (p.isLeftThisHand()) {
-                                moveToNextValidActor(room);
-                                autoAdvanceIfRoundFinished(room);
-                            } else if (System.currentTimeMillis() - room.getLastActionTime() > DpRoomBO
-                                    .getActionTimeout()) {
-                                p.setFold(true);
-                                moveToNextValidActor(room);
-                                autoAdvanceIfRoundFinished(room);
-                            }
-                        }
-                    }
-
-                    // 结算后准备阶段：机器人自动补码并自动准备
-                    if (room.isPlaying() && "settled".equals(room.getCurrentStage())) {
-                        boolean botTouched = false;
-                        // 只有场上的NPC才能自动准备，踢走的不准备，遍历所有机器人
-                        for (DpPlayer p : room.getPlayers()) {
-                            if (!DpNpcEngine.isBotPlayer(p))
-                                continue;
-                            // 若筹码不足大盲，自动补码（内部已有阶段与筹码校验）
-                            if (p.getChips() < room.getBigBlindChips()) {
-                                rebuy(room.getRoomId(), p.getNickname());
-                            }
-                            // 筹码充足时自动准备
-                            if (p.getChips() >= room.getBigBlindChips() && !p.isReady()
-                                    && !(room.getPlayers().size() == 1 && room.getWaitNextHand().isEmpty())) {// 防止机器人空转，一直发牌准备循环，白白浪费资源
-                                // 这里插入一个功能，当机器人行动之前，先看下场上玩家数是否为1且准备下一把是否为空，防止机器人空转，一直发牌准备循环，白白浪费资源
-                                p.setReady(true);
-                                botTouched = true;// 有机器人准备状态被更新
-
-                            }
-                            // System.out.println("准备状态是"+botTouched);
-                        }
-                        // 只要有机器人准备状态被更新，就检查是否可以直接开下一局
-                        if (botTouched) {
-                            if (checkAndStartNextHandAfterSettleReturning(room)) {
-                                refreshJoinableQmIndexThenSyncLobby(room.getRoomId());
-                            }
-                        }
-                    }
-                    if (room.isPlaying()
-                            && "settled".equals(room.getCurrentStage())
-                            && room.getReadyDeadline() > 0
-                            && System.currentTimeMillis() > room.getReadyDeadline()) {// 当前时间戳大于准备倒计时时间戳，则进入准备超时逻辑
-                        // 如果场上只有一个人且没有等待者，则直接跳过，防止机器人自己重开
-                        if (room.getPlayers().size() == 1 && room.getWaitNextHand().isEmpty()) {
-                            // System.out.println("已跳过");
-                            continue;
-                        }
-                        handleReadyTimeout(room);
-                    }
-                    // 已学习，调用websocket的gameRoomPushService.broadcastIfSubscribed(room.getRoomId())广播房间数据给所有订阅者
-                    gameRoomPushService.broadcastIfSubscribed(room.getRoomId());
-                    if (lobbyDirty) {
-                        refreshJoinableQmIndexThenSyncLobby(room.getRoomId());
-                    }
+                    runGlobalSecondTickForSingleRoom(room);
                 }
             }
         }, 0, 1000);
     }
 
+    // ========== A. 全局 1s 节拍（构造内 Timer：编排薄、子步骤提取）==========
+
+    /**
+     * Timer 每秒对单房的编排：顺序、{@code continue}/早退与原匿名 {@link TimerTask#run()} 一致。
+     */
+    private void runGlobalSecondTickForSingleRoom(DpRoomBO room) {
+        boolean lobbyDirty = tickEvictStaleSeatedPlayersOnHeartbeat(room);
+        if (tickEvictStaleSpectatorsOnHeartbeat(room)) {
+            lobbyDirty = true;
+        }
+        if (removeDesertedRoomInGlobalTickIfNoLiveHumans(room)) {
+            return;
+        }
+        tickNpcTurnOrHumanActionTimeout(room);
+        tickSettledBotsAutoReady(room);
+        if (skipBroadcastForLoneSettledPlayerWaitingNothing(room)) {
+            return;
+        }
+        maybeInvokeReadyTimeoutWhenDeadlinePassed(room);
+        broadcastRoomAndMaybeRefreshLobbyAfterHeartbeatTick(room, lobbyDirty);
+    }
+
+    /** 桌上真人：HTTP 心跳超时踢出；与原 {@code Iterator#remove} 顺序一致。 */
+    private boolean tickEvictStaleSeatedPlayersOnHeartbeat(DpRoomBO room) {
+        boolean lobbyDirty = false;
+        Iterator<DpPlayer> it = room.getPlayers().iterator();
+        while (it.hasNext()) {
+            DpPlayer p = it.next();
+            // 演示用机器人不依赖前端心跳，直接视为始终在线
+            if (DpNpcEngine.isBotPlayer(p)) {
+                p.setLastHeartBeat(System.currentTimeMillis());
+                continue;
+            }
+            // 本手已离线的“占位”玩家不因心跳踢出，留到结算时再移除，以保持行动顺序
+            if (p.isLeftThisHand())
+                continue;
+            if (System.currentTimeMillis() - p.getLastHeartBeat() > DpRoomBO.getHeartTimeout()) {
+                if (p.getNickname().equals(room.getOwner())) {
+                    giveOwner(room.getRoomId(), p.getNickname());
+                }
+                System.out.println("未收到" + p.getNickname() + "的心跳,已移除房间");
+                String hbNick = p.getNickname();
+                Integer hbUid = p.getDpUserId();
+                it.remove();
+                presenceTryMarkIdleFullyLeft(hbNick, hbUid, room, "heartbeat_evict_player");
+                lobbyDirty = true;
+            }
+        }
+        return lobbyDirty;
+    }
+
+    /** 观众席真人：与桌上相同超时阈值。 */
+    private boolean tickEvictStaleSpectatorsOnHeartbeat(DpRoomBO room) {
+        List<String> specList = room.getSpectators();
+        if (specList == null || specList.isEmpty()) {
+            return false;
+        }
+        boolean lobbyDirty = false;
+        long tick = System.currentTimeMillis();
+        for (String specNick : new ArrayList<>(specList)) {
+            if (DpNpcEngine.isBotNickname(specNick)) {
+                continue;
+            }
+            Long spLast = room.getSpectatorLastPresenceMs(specNick);
+            if (spLast == null) {
+                room.touchSpectatorPresence(specNick, tick);
+                continue;
+            }
+            if (tick - spLast > DpRoomBO.getHeartTimeout()) {
+                System.out.println("未收到观众 " + specNick + " 的心跳/WS 保活,已移出房间");
+                if (exitRoom(room.getRoomId(), specNick)) {
+                    lobbyDirty = true;
+                }
+            }
+        }
+        return lobbyDirty;
+    }
+
+    /** 无活人且无观众则摘房；原逻辑在拆房后 {@code continue} 跳过本秒余下步骤。 */
+    private boolean removeDesertedRoomInGlobalTickIfNoLiveHumans(DpRoomBO room) {
+        int size = liveHumanTableCount(room);// 检测活人逻辑（与 exitRoom / removeRoom 拆房口径一致）
+        // System.out.println("定时器检测：人数："+size);
+        if (size == 0 && room.getSpectators().isEmpty()) {
+            System.out.println("定时器检测：房间：" + room.getRoomId() + "没活人了");
+            removeRoom(room.getRoomId());// 房间空了就清人
+            return true;
+        }
+        return false;
+    }
+
+    /** 当前行动位：NPC 决策或真人超时弃牌。 */
+    private void tickNpcTurnOrHumanActionTimeout(DpRoomBO room) {
+        // 30秒超时弃牌；若当前行动位是已离线占位，直接跳过不等待
+        if (room.isPlaying()
+                && room.getCurrentActorIndex() >= 0
+                && room.getCurrentActorIndex() < room.getPlayers().size()) {
+            DpPlayer p = room.getPlayers().get(room.getCurrentActorIndex());
+            // 如果当前行动者是 NPC，则直接由后端自动决策行动，不等待前端操作
+            if (DpNpcEngine.isBotPlayer(p)) {// 决策入口：BOT_LLM 与普通 NPC 分离
+                DpNpcEngine.BotAction action;
+                // 如果是BOT_LLM则走大模型逻辑
+                if (DpNpcEngine.isLlmBotNickname(p.getNickname())) {
+                    action = llmNpcDecisionService.decideActionIfReady(room, p);
+                    NpcAction(room, p, action);
+                } else {
+                    action = DpNpcEngine.decideActionIfReady(room, p);
+                    NpcAction(room, p, action);
+                }
+
+            } else {
+                if (p.isLeftThisHand()) {
+                    moveToNextValidActor(room);
+                    autoAdvanceIfRoundFinished(room);
+                } else if (System.currentTimeMillis() - room.getLastActionTime() > DpRoomBO
+                        .getActionTimeout()) {
+                    p.setFold(true);
+                    moveToNextValidActor(room);
+                    autoAdvanceIfRoundFinished(room);
+                }
+            }
+        }
+    }
+
+    /** 结算后准备阶段：机器人自动补码并自动准备。 */
+    private void tickSettledBotsAutoReady(DpRoomBO room) {
+        if (room.isPlaying() && "settled".equals(room.getCurrentStage())) {
+            boolean botTouched = false;
+            // 只有场上的NPC才能自动准备，踢走的不准备，遍历所有机器人
+            for (DpPlayer p : room.getPlayers()) {
+                if (!DpNpcEngine.isBotPlayer(p))
+                    continue;
+                // 若筹码不足大盲，自动补码（内部已有阶段与筹码校验）
+                if (p.getChips() < room.getBigBlindChips()) {
+                    rebuy(room.getRoomId(), p.getNickname());
+                }
+                // 筹码充足时自动准备
+                if (p.getChips() >= room.getBigBlindChips() && !p.isReady()
+                        && !(room.getPlayers().size() == 1 && room.getWaitNextHand().isEmpty())) {// 防止机器人空转，一直发牌准备循环，白白浪费资源
+                    // 这里插入一个功能，当机器人行动之前，先看下场上玩家数是否为1且准备下一把是否为空，防止机器人空转，一直发牌准备循环，白白浪费资源
+                    p.setReady(true);
+                    botTouched = true;// 有机器人准备状态被更新
+
+                }
+                // System.out.println("准备状态是"+botTouched);
+            }
+            // 只要有机器人准备状态被更新，就检查是否可以直接开下一局
+            if (botTouched) {
+                if (checkAndStartNextHandAfterSettleReturning(room)) {
+                    refreshJoinableQmIndexThenSyncLobby(room.getRoomId());
+                }
+            }
+        }
+    }
+
+    /**
+     * settled 且准备窗口内仅一人且无 waiter 时，原实现 {@code continue} 跳过广播与大厅刷新。
+     *
+     * @return true 时调用方须跳过后续 {@link #broadcastRoomAndMaybeRefreshLobbyAfterHeartbeatTick}。
+     */
+    private boolean skipBroadcastForLoneSettledPlayerWaitingNothing(DpRoomBO room) {
+        return room.isPlaying()
+                && "settled".equals(room.getCurrentStage())
+                && room.getReadyDeadline() > 0
+                && System.currentTimeMillis() > room.getReadyDeadline()
+                && room.getPlayers().size() == 1
+                && room.getWaitNextHand().isEmpty();
+    }
+
+    /** 准备倒计时到期：调用 {@link #handleReadyTimeout}（ lone 情形已由 {@link #skipBroadcastForLoneSettledPlayerWaitingNothing} 早退）。 */
+    private void maybeInvokeReadyTimeoutWhenDeadlinePassed(DpRoomBO room) {
+        if (room.isPlaying()
+                && "settled".equals(room.getCurrentStage())
+                && room.getReadyDeadline() > 0
+                && System.currentTimeMillis() > room.getReadyDeadline()) {// 当前时间戳大于准备倒计时时间戳，则进入准备超时逻辑
+            handleReadyTimeout(room);
+        }
+    }
+
+    private void broadcastRoomAndMaybeRefreshLobbyAfterHeartbeatTick(DpRoomBO room, boolean lobbyDirty) {
+        // 已学习，调用websocket的gameRoomPushService.broadcastIfSubscribed(room.getRoomId())广播房间数据给所有订阅者
+        gameRoomPushService.broadcastIfSubscribed(room.getRoomId());
+        if (lobbyDirty) {
+            refreshJoinableQmIndexThenSyncLobby(room.getRoomId());
+        }
+    }
+
     public JoinableQuickMatchRoomIndex getJoinableQuickMatchRoomIndex() {
         return joinableQuickMatchRoomIndex;
     }
+
+    // ========== B. 快匹可进索引 + 大厅摘要 ==========
 
     /**
      * 全量重建快匹可进索引（遍历 {@link #roomMap}）。怀疑索引与房态不一致时调用。
@@ -619,6 +684,24 @@ public class DpRoomServiceImpl {
 
         static GiveOwnerMutationOutcome none() {
             return new GiveOwnerMutationOutcome(false, false);
+        }
+    }
+
+    /** {@link #exitRoom(String, String)} 在 {@code synchronized(r)} 内求值的结果快照（便于编排外层大厅/presence）。 */
+    private static final class ExitRoomSynchronizedOutcome {
+        final boolean result;
+        final boolean droppedEmpty;
+        final boolean lobbyTouch;
+        final GiveOwnerMutationOutcome giveAgg;
+        final Integer presenceHintUid;
+
+        ExitRoomSynchronizedOutcome(boolean result, boolean droppedEmpty, boolean lobbyTouch,
+                GiveOwnerMutationOutcome giveAgg, Integer presenceHintUid) {
+            this.result = result;
+            this.droppedEmpty = droppedEmpty;
+            this.lobbyTouch = lobbyTouch;
+            this.giveAgg = giveAgg;
+            this.presenceHintUid = presenceHintUid;
         }
     }
 
@@ -2165,11 +2248,34 @@ public class DpRoomServiceImpl {
         if (r == null)
             return false;
         boolean wasPublic = !r.isPasswordProtected();
-        boolean result;
+        ExitRoomSynchronizedOutcome snap = exitRoomApplyMutationWhileHoldingRoomLock(roomId, nickname, r);
+        if (snap.droppedEmpty) {
+            finalizeHallAfterRoomRemovedWithPresenceSnapshot(roomId, r);
+        } else {
+            refreshJoinableQuickMatchIndexRoom(roomId, System.currentTimeMillis());
+            if (snap.lobbyTouch || snap.giveAgg.ownerFieldChanged) {
+                syncLobbyForRoomId(roomId);
+            }
+        }
+        if (!snap.droppedEmpty) {
+            presenceTryMarkIdleFullyLeft(nickname, snap.presenceHintUid, r, "exit_room");
+        }
+        if (wasPublic && snap.result) {
+            attemptQuickMatchPairing();
+        }
+        return snap.result;
+    }
+
+    /**
+     * 变异观众席、在位玩家或离线占位：须在 {@code synchronized(r)} 内完成，与原 {@link #exitRoom} 内联块一致。
+     */
+    private ExitRoomSynchronizedOutcome exitRoomApplyMutationWhileHoldingRoomLock(
+            String roomId, String nickname, DpRoomBO r) {
         GiveOwnerMutationOutcome giveAgg = GiveOwnerMutationOutcome.none();
         boolean lobbyTouch = false;
         boolean droppedEmpty = false;
-        Integer presenceHintUid = null;
+        boolean result;
+        Integer presenceHintUid;
         synchronized (r) {
             presenceHintUid = resolvePresenceHintBeforeExitMutationLocked(r, nickname);
             List<String> spectators = r.getSpectators();
@@ -2231,21 +2337,7 @@ public class DpRoomServiceImpl {
                 }
             }
         }
-        if (droppedEmpty) {
-            finalizeHallAfterRoomRemovedWithPresenceSnapshot(roomId, r);
-        } else {
-            refreshJoinableQuickMatchIndexRoom(roomId, System.currentTimeMillis());
-            if (lobbyTouch || giveAgg.ownerFieldChanged) {
-                syncLobbyForRoomId(roomId);
-            }
-        }
-        if (!droppedEmpty) {
-            presenceTryMarkIdleFullyLeft(nickname, presenceHintUid, r, "exit_room");
-        }
-        if (wasPublic && result) {
-            attemptQuickMatchPairing();
-        }
-        return result;
+        return new ExitRoomSynchronizedOutcome(result, droppedEmpty, lobbyTouch, giveAgg, presenceHintUid);
     }
 
     // ========== 游戏开始与流程 ==========
@@ -2913,6 +3005,8 @@ public class DpRoomServiceImpl {
         }
     }
 
+    // ========== J. 一手结算与进入 settled ==========
+
     /**
      * 自动结算当前房间：为每个池按牌力选出赢家并分配筹码，然后进入结算完成/准备下一局阶段。
      */
@@ -2926,27 +3020,40 @@ public class DpRoomServiceImpl {
 
         // 没有任何下注，直接标记为结算完成
         if (r.getPot() <= 0 && (r.getPots() == null || r.getPots().isEmpty())) {
-            r.setLastHandHoleCardsPublic(false);
-            r.setCurrentStage("settled");
-            r.setReadyDeadline(System.currentTimeMillis() + 30_000L);
-            for (DpPlayer p : r.getPlayers()) {
-                // settle阶段会自动把大家的准备状态设置为false
-                p.setReady(false);
-            }
-            // 每局结算的时候将牌谱归档，并存入数据库
-            DpObservedHandRecordBO archivedEarly = observedHandService.finalizeHand(r);
-            if (archivedEarly != null) {
-                observedHandPersistService.save(archivedEarly, r);
-            }
-            DpNpcStreetActionLog.clearHand(r);
-            observedHandService.clearHand(r);
-            removeLeftThisHandZombiesAfterHand(r);
-            refreshChipLeaderNicknames(r);
-            if (checkAndStartNextHandAfterSettleReturning(r)) {
-                refreshJoinableQmIndexThenSyncLobby(r.getRoomId());
-            }
+            autoSettleZeroPotAndEnterSettledShortcut(r);
             return;
         }
+
+        autoSettleNormalPotShowdownPath(r, lastHandPublic);
+    }
+
+    /** autoSettle 零底池短路：与原 if 分支内联实现逐行等价。 */
+    private void autoSettleZeroPotAndEnterSettledShortcut(DpRoomBO r) {
+        r.setLastHandHoleCardsPublic(false);
+        r.setCurrentStage("settled");
+        r.setReadyDeadline(System.currentTimeMillis() + 30_000L);
+        for (DpPlayer p : r.getPlayers()) {
+            // settle阶段会自动把大家的准备状态设置为false
+            p.setReady(false);
+        }
+        // 每局结算的时候将牌谱归档，并存入数据库
+        DpObservedHandRecordBO archivedEarly = observedHandService.finalizeHand(r);
+        if (archivedEarly != null) {
+            observedHandPersistService.save(archivedEarly, r);
+        }
+        DpNpcStreetActionLog.clearHand(r);
+        observedHandService.clearHand(r);
+        removeLeftThisHandZombiesAfterHand(r);
+        refreshChipLeaderNicknames(r);
+        if (checkAndStartNextHandAfterSettleReturning(r)) {
+            refreshJoinableQmIndexThenSyncLobby(r.getRoomId());
+        }
+    }
+
+    /**
+     * autoSettle 主路径：边池分配、统计与归档后进入 settled（参数 {@code lastHandPublic} 与原局部变量一致）。
+     */
+    private void autoSettleNormalPotShowdownPath(DpRoomBO r, boolean lastHandPublic) {
 
         // 先确保已经有主池/边池数据
         if (r.getPots() == null || r.getPots().isEmpty()) {
