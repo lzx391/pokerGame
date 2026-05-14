@@ -1626,7 +1626,8 @@ ownerFieldChanged：房主字段是否发生变化。
             ok = applyReadyNextHandWhileLocked(r, nickname, userId);
         }
         if (ok) {
-            refreshJoinableQmIndexThenSyncLobby(roomId);
+            //仅更新房间索引，不更新大厅索引，因为大厅索引显示的是正在游戏的人数，不是算上等待者一起的人数
+            refreshJoinableQuickMatchIndexRoom(roomId, System.currentTimeMillis());
         }
         return ok;
     }

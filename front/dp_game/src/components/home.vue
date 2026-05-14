@@ -18,30 +18,6 @@
       <header class="home-header">
         <h2 class="home-title">猫咪牌局 · 大厅</h2>
         <div class="home-header__right">
-          <div class="home-social-bar" aria-label="好友与邮箱">
-            <el-badge :value="unreadCount" :hidden="!unreadCount" :max="99" class="home-mail-badge">
-              <el-button
-                type="primary"
-                plain
-                circle
-                size="small"
-                icon="el-icon-message"
-                aria-label="打开邮箱"
-                title="邮箱（好友申请 / 进房邀请）"
-                @click="openMailbox"
-              />
-            </el-badge>
-            <el-button
-              type="default"
-              plain
-              circle
-              size="small"
-              icon="el-icon-user-solid"
-              aria-label="好友列表"
-              title="好友列表"
-              @click="openFriendsDrawer"
-            />
-          </div>
           <div class="dp-game-theme-row home-theme-row">
             <span class="dp-game-theme-row__label">界面主题</span>
             <dp-theme-picker
@@ -77,37 +53,29 @@
             <button type="button" class="dp-btn dp-btn--primary" @click="goCreateRoom">创建房间</button>
             <button type="button" class="dp-btn dp-btn--ghost" @click="goHandHistory">历史对局</button>
             <button type="button" class="dp-btn dp-btn--ghost" @click="goMusicUpload">曲库上传</button>
-          </div>
-          <div class="home-actions__social-row" aria-label="好友与邮箱">
             <el-badge
               :value="unreadCount"
               :hidden="!unreadCount"
               :max="99"
-              class="home-actions__mail-badge"
+              class="home-actions__mail-badge home-actions__mail-badge--inline"
             >
               <button
                 type="button"
-                class="dp-btn dp-btn--ghost home-actions__social-btn"
+                class="dp-btn dp-btn--ghost"
                 aria-label="打开邮箱"
                 title="邮箱（好友申请 / 进房邀请）"
                 @click="openMailbox"
               >
-                <span class="home-actions__social-ico" aria-hidden="true">
-                  <i class="el-icon-message"></i>
-                </span>
-                消息
+                邮箱
               </button>
             </el-badge>
             <button
               type="button"
-              class="dp-btn dp-btn--ghost home-actions__social-btn"
+              class="dp-btn dp-btn--ghost"
               aria-label="好友列表"
               title="好友列表"
               @click="openFriendsDrawer"
             >
-              <span class="home-actions__social-ico" aria-hidden="true">
-                <i class="el-icon-user-solid"></i>
-              </span>
               好友
             </button>
           </div>
@@ -1160,29 +1128,6 @@ export default {
   justify-content: center;
   align-items: center;
 }
-/* 窄屏独占一行：邮箱 + 好友并排，避免顶栏「飘」一排小圆钮、也避免单项占一整行显得空 */
-.home-actions__social-row {
-  display: none;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: center;
-  align-items: center;
-}
-.home-actions__social-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 40px;
-  padding-left: 14px;
-  padding-right: 14px;
-}
-.home-actions__social-ico {
-  display: inline-flex;
-  font-size: 1.05em;
-  line-height: 1;
-  opacity: 0.92;
-}
 .home-actions__mail-badge {
   line-height: 1;
   display: inline-block;
@@ -1190,18 +1135,8 @@ export default {
 .home-actions__mail-badge >>> .el-badge__content {
   border: none;
 }
-@media (min-width: 700px) {
-  .home-actions__social-row {
-    display: none !important;
-  }
-}
-@media (max-width: 699px) {
-  .home-social-bar {
-    display: none !important;
-  }
-  .home-actions__social-row {
-    display: flex;
-  }
+.home-actions__mail-badge--inline {
+  vertical-align: middle;
 }
 .home-room-list__head {
   display: flex;
@@ -1320,18 +1255,6 @@ export default {
 }
 .room-item__join {
   flex-shrink: 0;
-}
-.home-social-bar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-}
-.home-mail-badge {
-  line-height: 1;
-}
-.home-mail-badge >>> .el-badge__content {
-  border: none;
 }
 </style>
 
