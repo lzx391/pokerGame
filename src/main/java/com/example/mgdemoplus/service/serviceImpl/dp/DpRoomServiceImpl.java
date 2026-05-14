@@ -252,23 +252,28 @@ public class DpRoomServiceImpl {
      * Timer 每秒对单房的编排：顺序、{@code continue}/早退与原匿名 {@link TimerTask#run()} 一致。
      */
     private void runGlobalSecondTickForSingleRoom(DpRoomBO room) {
+        //看桌上人
         boolean lobbyDirty = tickEvictStaleSeatedPlayersOnHeartbeat(room);
+        //看观众
         if (tickEvictStaleSpectatorsOnHeartbeat(room)) {
             lobbyDirty = true;
         }
+        //检查可解散房间
         if (removeDesertedRoomInGlobalTickIfNoLiveHumans(room)) {
             return;
         }
         tickNpcTurnOrHumanActionTimeout(room);
         tickSettledBotsAutoReady(room);
+        //剩一人没准备就不踢
         if (skipBroadcastForLoneSettledPlayerWaitingNothing(room)) {
             return;
         }
+        //超时准备的人
         maybeInvokeReadyTimeoutWhenDeadlinePassed(room);
         broadcastRoomAndMaybeRefreshLobbyAfterHeartbeatTick(room, lobbyDirty);
     }
 
-    /** 桌上真人：HTTP 心跳超时踢出；与原 {@code Iterator#remove} 顺序一致。 */
+    /** 验真人，心跳超时移除房间，没断ws。 */
     private boolean tickEvictStaleSeatedPlayersOnHeartbeat(DpRoomBO room) {
         boolean lobbyDirty = false;
         Iterator<DpPlayer> it = room.getPlayers().iterator();
@@ -290,6 +295,8 @@ public class DpRoomServiceImpl {
                 String hbNick = p.getNickname();
                 Integer hbUid = p.getDpUserId();
                 it.remove();
+                // 已从房内移除：立即关断该用户对本房的 WS，否则仍收推送且前端以为还在桌
+                // gameRoomPushService.shutdownSubscriptionsForNicknameInRoom(room.getRoomId(), hbNick);
                 presenceTryMarkIdleFullyLeft(hbNick, hbUid, room, "heartbeat_evict_player");
                 lobbyDirty = true;
             }
@@ -297,7 +304,7 @@ public class DpRoomServiceImpl {
         return lobbyDirty;
     }
 
-    /** 观众席真人：与桌上相同超时阈值。 */
+    /** 验观众，移除房间中观众 */
     private boolean tickEvictStaleSpectatorsOnHeartbeat(DpRoomBO room) {
         List<String> specList = room.getSpectators();
         if (specList == null || specList.isEmpty()) {
@@ -1198,7 +1205,7 @@ ownerFieldChanged：房主字段是否发生变化。
         return null;
     }
 /**
- * 一整套清理空房间方法，包括设置真人空闲状态，移除房间关闭ws连接，更新大厅索引等
+ * 一整套清理空房间方法，包括设置真人空闲状态，移除房间关闭ws连接，更新大厅索引，更新房间表
  * @param roomId
  * @param corpse
  */
@@ -1583,6 +1590,11 @@ ownerFieldChanged：房主字段是否发生变化。
      * {@link #refreshJoinableQmIndexThenSyncLobby(String)}。
      */
     private boolean applyReadyNextHandWhileLocked(DpRoomBO r, String nickname, Integer userId) {
+        // 真人必须先仍在「桌上或观众席」；否则未进房者仅凭 HTTP 也能占候补名额，出现「大厅里已被踢出、房内仍显示已报下一局」。
+        // 规则 NPC 由服务端生成昵称，进桌链路不保证已写入 spectators/players，故除外。
+        if (!DpNpcEngine.isBotNickname(nickname) && !nicknamePresentInRoom(r, nickname)) {
+            return false;
+        }
         Integer uid = resolveAndValidateUserId(userId, nickname);
         if (uid != null) {
             r.putRegisteredDpUserId(nickname, uid);
@@ -1946,7 +1958,9 @@ ownerFieldChanged：房主字段是否发生变化。
         DpRoomBO r = findRoomContainingNickname(nickname);
         return r != null ? r.getRoomId() : null;
     }
-
+/**
+ * 看名字在不在房间里
+ */
     private static boolean nicknamePresentInRoom(DpRoomBO r, String nickname) {
         if (r == null || nickname == null) {
             return false;

@@ -114,6 +114,42 @@ public class DpGameRoomPushService {
         }
     }
 
+    /**
+     * 关闭房间内与指定昵称匹配的订阅长连（发送 {@code roomClosed} 后 {@link CloseStatus#GOING_AWAY}），
+     * 用于例如 HTTP 心跳超时已将玩家移出房间、但 WS 仍挂在该 {@code roomId} 上的情况。
+     * 仅匹配连接属性 {@code viewerNickname}（对局页 URL 会带 {@code nickname=}）。
+     */
+    public void shutdownSubscriptionsForNicknameInRoom(String roomId, String nickname) {
+        if (roomId == null || roomId.isEmpty() || nickname == null || nickname.isEmpty()) {
+            return;
+        }
+        Set<WebSocketSession> set = roomSessions.get(roomId);
+        if (set == null || set.isEmpty()) {
+            return;
+        }
+        for (WebSocketSession s : new ArrayList<>(set)) {
+            Object vn = s.getAttributes().get("viewerNickname");
+            if (!(vn instanceof String) || !nickname.equals(vn)) {
+                continue;
+            }
+            lastBroadcastPayloadBySession.remove(s);
+            try {
+                if (s.isOpen()) {
+                    synchronized (s) {
+                        s.sendMessage(new TextMessage(ROOM_CLOSED));
+                    }
+                }
+            } catch (Exception e) {
+                log.debug("shutdownSubscriptionsForNicknameInRoom send roomClosed failed", e);
+            }
+            try {
+                s.close(CloseStatus.GOING_AWAY);
+            } catch (IOException ignored) {
+                // ignore
+            }
+        }
+    }
+
     // ====== 客户端消息处理模块 ======
 
     /**

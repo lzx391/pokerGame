@@ -22,7 +22,7 @@
 **WebSocket**：服务器在状态变化后（或按固定节奏）**把数据推给前端**。  
 - 少很多无效 HTTP；多人同桌、状态频繁变时更合适。
 
-本项目里：**游戏对局页**（含**仅观战的观众席**，与同桌共用 `game.vue`）用 WebSocket 收房间快照；**是否在房、超时踢人**统一以普通 HTTP（`POST /dpRoom/heartbeat`）与 `DpRoomServiceImpl` 每秒定时逻辑为准：**桌上玩家**更新 `lastHeartBeat`；**观众席**更新 `spectatorLastPresenceMs`（与桌上同一超时阈值）。WS 仅负责推送与聊天/BGM，**断线不触发** `exitRoom`。
+本项目里：**游戏对局页**（含**仅观战的观众席**，与同桌共用 `game.vue`）用 WebSocket 收房间快照；**是否在房、超时踢人**统一以普通 HTTP（`POST /dpRoom/heartbeat`）与 `DpRoomServiceImpl` 每秒定时逻辑为准：**桌上玩家**更新 `lastHeartBeat`；**观众席**更新 `spectatorLastPresenceMs`（与桌上同一超时阈值）。WS 仅负责推送与聊天/BGM，**断线不触发** `exitRoom`。**桌上玩家因心跳超时被移出房间时**，服务端会对该 `roomId` 下 **`viewerNickname` 与离场昵称一致** 的长连发送 `roomClosed` 并关闭连接，避免人不在房、WS 仍订阅同房间。
 
 ---
 

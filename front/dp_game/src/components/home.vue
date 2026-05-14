@@ -115,7 +115,24 @@
       </section>
 
       <section class="dp-lobby-panel home-room-list">
-        <h3 class="dp-lobby-panel__title">房间列表</h3>
+        <div class="home-room-list__head">
+          <h3 class="dp-lobby-panel__title home-room-list__title">房间列表</h3>
+          <button
+            type="button"
+            class="dp-btn dp-btn--ghost home-room-list__refresh"
+            :disabled="roomsLoading"
+            title="立即刷新列表（可与自动刷新并存）"
+            aria-label="刷新房间列表"
+            @click="refreshRoomList"
+          >
+            <i
+              class="el-icon-refresh"
+              :class="{ 'home-room-list__refresh-ico--spin': roomsLoading }"
+              aria-hidden="true"
+            />
+            刷新
+          </button>
+        </div>
         <div class="home-filters" aria-label="筛选与搜索">
           <div class="home-filters__row">
             <label class="home-filters__item">
@@ -444,7 +461,7 @@ export default {
     this.getRooms()
     this.timer = setInterval(() => {
       this.getRooms()
-    }, 2000)
+    }, 10000)
     if (this.user && this.user.token) {
       this.bootstrapSocial()
     }
@@ -1010,7 +1027,7 @@ export default {
     },
     applyFilters() {
       this.useFilterQuery = this.filtersActiveFromForm()
-      this.getRooms()
+      this.getRooms({ showSpinner: true })
     },
     resetFilters() {
       this.filters = {
@@ -1022,15 +1039,20 @@ export default {
         password: 'any'
       }
       this.useFilterQuery = false
-      this.getRooms()
+      this.getRooms({ showSpinner: true })
     },
-    async getRooms() {
+    /**
+     * @param {{ showSpinner?: boolean }} [opts]
+     *        showSpinner true：按钮/搜索等主动刷新时显示「加载中」；定时轮询不传，列表已有数据时静默更新。
+     */
+    async getRooms(opts) {
       try {
         if (this.useFilterQuery && !this.filtersActiveFromForm()) {
           this.useFilterQuery = false
         }
         const useQuery = this.useFilterQuery && this.filtersActiveFromForm()
-        if (!this.roomDtos.length) this.roomsLoading = true
+        const forceSpinner = !!(opts && opts.showSpinner)
+        if (forceSpinner || !this.roomDtos.length) this.roomsLoading = true
         this.roomsError = ''
         const base = { page: 1, pageSize: this.pageSize }
         const url = useQuery ? '/dpRoom/publicRooms/query' : '/dpRoom/publicRooms'
@@ -1045,6 +1067,11 @@ export default {
       } finally {
         this.roomsLoading = false
       }
+    },
+
+    /** 手动刷新；以后可关掉定时器、改成长轮询后仍复用本入口 */
+    refreshRoomList() {
+      this.getRooms({ showSpinner: true })
     },
     async joinRoom(roomDto) {
       await this.exitQuickMatchBeforeRoomAction()
@@ -1176,8 +1203,30 @@ export default {
     display: flex;
   }
 }
-.home-room-list .dp-lobby-panel__title {
+.home-room-list__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   margin-bottom: 8px;
+}
+.home-room-list__title {
+  margin-bottom: 0;
+}
+.home-room-list__refresh {
+  flex-shrink: 0;
+}
+.home-room-list__refresh-ico--spin {
+  animation: home-room-list-spin 0.8s linear infinite;
+}
+@keyframes home-room-list-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 .home-filters {
   margin-bottom: 12px;
