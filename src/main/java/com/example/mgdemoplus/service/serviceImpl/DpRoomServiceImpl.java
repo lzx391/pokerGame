@@ -1186,7 +1186,7 @@ ownerFieldChanged：房主字段是否发生变化。
     }
 
     /**
-     * 须在持房监视器内、退房状态变更<b>之前</b>调用，以保留 registered / 座上的 userId 提示。
+     * 退房前调用查用户Id的。
      */
     private Integer resolvePresenceHintBeforeExitMutationLocked(DpRoomBO r, String nickname) {
         if (r == null || nickname == null) {

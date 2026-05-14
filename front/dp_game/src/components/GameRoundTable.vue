@@ -91,14 +91,9 @@
           v-for="(row, displayIdx) in playersDisplayOrder"
           :key="(row.player.leftThisHand ? 'offline-' + row.seatIndex : row.player.nickname)"
           class="dp-game-table__seat"
-          :class="{
-            'dp-game-table__seat--empty':
-              viewerSeatedAtTable && displayIdx === 0 && heroHoleDealIntroDone
-          }"
           :style="seatRoundStyle(displayIdx)"
       >
         <game-player-card
-            v-if="!(viewerSeatedAtTable && displayIdx === 0) || showHeroSeatOnTable"
             :player="row.player"
             :field-chip-leader="!row.player.leftThisHand && chipLeaderNicknames.indexOf(row.player.nickname) !== -1"
             :seat-index="row.seatIndex"
@@ -159,8 +154,6 @@ export default {
     communityCards: { type: Array, default: function () { return [] } },
     communityCardsFlipState: { type: Array, default: function () { return [] } },
     viewerSeatedAtTable: { type: Boolean, default: false },
-    heroHoleDealIntroDone: { type: Boolean, default: false },
-    showHeroSeatOnTable: { type: Boolean, default: false },
     actIndex: { type: Number, required: true },
     stage: { type: String, required: true },
     communityCardsFlipComplete: { type: Boolean, default: false },

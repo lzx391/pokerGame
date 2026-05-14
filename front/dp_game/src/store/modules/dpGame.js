@@ -297,13 +297,6 @@ export default {
       if (state.stage !== 'preflop') return true
       return state.heroHoleDealIntroDone
     },
-    showHeroSeatOnTable: function (state, getters) {
-      return (
-        getters.viewerSeatedAtTable
-        && state.stage === 'preflop'
-        && !state.heroHoleDealIntroDone
-      )
-    },
     showBottomHeroDock: function (state, getters) {
       return getters.heroDockRow && state.stage !== 'preflop'
     },
