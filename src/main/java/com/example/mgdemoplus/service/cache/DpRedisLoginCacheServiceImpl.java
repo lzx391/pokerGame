@@ -7,7 +7,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import com.example.mgdemoplus.security.JwtTokenService;
-import com.example.mgdemoplus.service.dp.DpRedisLoginCacheService;
+import com.example.mgdemoplus.service.DpRedisLoginCacheService;
 @Service
 public class DpRedisLoginCacheServiceImpl implements DpRedisLoginCacheService {
 

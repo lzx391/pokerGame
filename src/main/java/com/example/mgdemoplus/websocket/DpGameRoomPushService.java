@@ -1,7 +1,7 @@
 package com.example.mgdemoplus.websocket;
 
 import com.example.mgdemoplus.bo.DpRoomBO;
-import com.example.mgdemoplus.service.serviceImpl.dp.DpRoomServiceImpl;
+import com.example.mgdemoplus.service.serviceImpl.DpRoomServiceImpl;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -352,10 +352,12 @@ public class DpGameRoomPushService {
                 String json;
                 if (live == null) {
                     json = ROOM_CLOSED;
+                    //如果房间不存在，推送房间关闭消息
                 } else if (nick != null && !nick.trim().isEmpty()
                         && !roomService.isNicknameInRoom(live, nick.trim())) {
+                    //如果昵称不在房间里，推送房间关闭消息
                     json = ROOM_CLOSED;
-                } else {
+                } else {//对每个订阅者推送json数据
                     DpRoomBO view = roomService.snapshotForViewerFromLive(live, nick);
                     json = objectMapper.writeValueAsString(view);
                 }

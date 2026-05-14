@@ -12,7 +12,7 @@
 - **能演示什么**：Docker 一键起栈后对局走通；快匹建房 / 大厅分页 / JWT 防护 / 房间内推送；点开代码可看 `DpRoomServiceImpl`、`JoinableQuickMatchRoomIndex`、`DpQuickMatchPairingCoordinator`、NPC 引擎与 **Flyway `V1__init_schema.sql`** 初始化库表。
 - **启动与配置**：`com.example.mgdemoplus.MgDemoPlusApplication` 启动前 **`LocalDotenvLoader`** 加载根目录 **`.env`** → **`System.setProperty`**，便于本地与容器注入（与 Spring **`application.yml`** 占位符配合）。
 - **技术栈一句话**：Java 17、Spring Boot **3.5.11**（[`pom.xml`](pom.xml) parent）、Security/WebSocket、MyBatis-Plus、MySQL 8 + **Flyway**（[`pom.xml`](pom.xml) `flyway-core` / `flyway-mysql`）、Lettuce/Redis、Vue 2 前端。
-- **后端包一览（一句）**：**`controller.dp`**（房间/用户/牌谱/曲库/好友邮箱等 REST）、**`dp.quickmatch` / `dp.quickmatch.pairing`**（可进房索引与配对协调）、**`dp.presence`**（在线/观战等）、**`websocket`**（对局房与快匹长连）、**`service.serviceImpl.dp.npc`**（规则 Bot 与 LLM 调用）、**`scheduler`**（如大厅 DB 与内存对齐，可条件开启）。
+- **后端包一览（一句）**：**`controller`**（房间/用户/牌谱/曲库/好友邮箱等 REST）、**`quickmatch` / `quickmatch.pairing`**（可进房索引与配对协调）、**`presence`**（在线/观战等）、**`websocket`**（对局房与快匹长连）、**`service.serviceImpl.npc`**（规则 Bot 与 LLM 调用）、**`scheduler`**（如大厅 DB 与内存对齐，可条件开启）。
 - **单实例房间模型（免责）**：**房间与对局热状态在 JVM 内存 `roomMap`**，默认可横向扩展不与 Redis 同步；多实例需要自行设计会话粘滞或共享状态（见 [docs/WEBSOCKET.md](docs/WEBSOCKET.md)）。**`mgdemoplus.dp-lobby-reconcile-enabled`** 多实例下需谨慎（每节点 `roomMap` 不一致时不宜强行对齐 DB 摘要）。
 - **更深细节**：专题说明在 **[docs/README.md](docs/README.md)**。
 
@@ -64,9 +64,9 @@ flowchart LR
 
 | 前缀 | 说明 |
 | ---- | ---- |
-| **`/dpRoom`** | 建房、进退房、快匹、准备、下注、踢人、机器人生成、大厅列表等（[`DpRoomController`](src/main/java/com/example/mgdemoplus/controller/dp/DpRoomController.java)）。 |
-| **`/dpUser`** | 注册、登录、资料（[`DpUserController`](src/main/java/com/example/mgdemoplus/controller/dp/DpUserController.java)）。 |
-| **`/dp`** | 好友、邮箱、进房邀请、跟随观战等（[`DpFriendMailboxController`](src/main/java/com/example/mgdemoplus/controller/dp/DpFriendMailboxController.java)）。站点在线：`POST /dp/presence/site-heartbeat`（JWT）刷新 `last_seen_site`；`GET /dp/friends` 各行 `presence` 为 `OFFLINE` / `IDLE` / `IN_GAME`（房内态优先）。TTL：`mgdemoplus.dp-site-presence-ttl-ms`（默认 90s， env `MGDEMOPLUS_DP_SITE_PRESENCE_TTL_MS`）。兼容旧路径 `POST /dp/siteHeartbeat`。 |
+| **`/dpRoom`** | 建房、进退房、快匹、准备、下注、踢人、机器人生成、大厅列表等（[`DpRoomController`](src/main/java/com/example/mgdemoplus/controller/DpRoomController.java)）。 |
+| **`/dpUser`** | 注册、登录、资料（[`DpUserController`](src/main/java/com/example/mgdemoplus/controller/DpUserController.java)）。 |
+| **`/dp`** | 好友、邮箱、进房邀请、跟随观战等（[`DpFriendMailboxController`](src/main/java/com/example/mgdemoplus/controller/DpFriendMailboxController.java)）。站点在线：`POST /dp/presence/site-heartbeat`（JWT）刷新 `last_seen_site`；`GET /dp/friends` 各行 `presence` 为 `OFFLINE` / `IDLE` / `IN_GAME`（房内态优先）。TTL：`mgdemoplus.dp-site-presence-ttl-ms`（默认 90s， env `MGDEMOPLUS_DP_SITE_PRESENCE_TTL_MS`）。兼容旧路径 `POST /dp/siteHeartbeat`。 |
 | **`/dpHandHistory`** | 手牌历史列表/详情等。 |
 | **`/dpMusic`** | 曲库上传/列表。 |
 | **`/demo/*`、`/student`、`/movie`、`/upload`** | 示例与 Redis Lab（生产环境宜收紧或鉴权）。 |
@@ -77,11 +77,11 @@ flowchart LR
 
 - **对局页** WebSocket：**`/ws/dp-game?roomId=…`**；**可选查询参数 `nickname=`**（观战/视角快照等，服务端按实现过滤）。下行 JSON 与 **`GET /dpRoom/getNowRoom`** 同类摘要；上行支持 **`chatSend`**、**`roomMusicSync`** 等（以 [`DpGameRoomWebSocketHandler`](src/main/java/com/example/mgdemoplus/websocket/DpGameRoomWebSocketHandler.java) 为准）。
 - **快匹** WebSocket：**`/ws/dp-quick-match?nickname=…&token=…`**（**必填**；握手内 **`JwtTokenService` 校验**，subject 须与 nickname 一致）。说明见 [docs/WEBSOCKET.md](docs/WEBSOCKET.md)。注册见 [`WebSocketGameRoomConfig`](src/main/java/com/example/mgdemoplus/config/WebSocketGameRoomConfig.java)（**`allowedOriginPatterns("*")`** 为演示便利，生产请收紧）。
-- 大厅相关 REST：控制器 **`@RequestMapping("/dpRoom")`**，含 **`quickMatch2`** / **`quickMatchCancel2`** / **`publicRooms`** / **`publicRooms/query`**（[`DpRoomController.java`](src/main/java/com/example/mgdemoplus/controller/dp/DpRoomController.java)）。
+- 大厅相关 REST：控制器 **`@RequestMapping("/dpRoom")`**，含 **`quickMatch2`** / **`quickMatchCancel2`** / **`publicRooms`** / **`publicRooms/query`**（[`DpRoomController.java`](src/main/java/com/example/mgdemoplus/controller/DpRoomController.java)）。
 - 快匹消费逻辑：**先**尝试将队列头玩家**冲刷进已有可加入公开房**；**若无桌且队列 ≥2 且队头两名昵称不同**，则 **`DpQuickMatchPairingCoordinator#attemptPairing`** 可 **`poll` 至多 `min(MAX_NEW_ROOM_BATCH, 队列人数)` 人**进**同一新房**并开局（`MAX_NEW_ROOM_BATCH` 不超过最大座位数）——而非仅「每次刚好两人一桌」的口语描述。
 - **并发**：**`dpQuickMatchAssignmentLock`** 仍包裹 `DpRoomServiceImpl` 中整次 **`attemptQuickMatchPairing()` → `attemptPairing()`**；协调器与 **`JoinableQuickMatchRoomIndex`** 另有 **`defaultQmLock` / `indexLock`** 等，与单房监视器配合。详见 [docs/dp-quick-match-concurrency.md](docs/dp-quick-match-concurrency.md)（若文档写「旧锁已废弃」，以代码为准）。
 - 大厅快匹 `quickMatch2` / 取消与流程说明见 [docs/dp-quick-match-flow.md](docs/dp-quick-match-flow.md)。
-- 快匹队列单条等待超时约 **3 分钟**（`DEFAULT_QM_WAIT_MS`）；周期性清理间隔 **`mgdemoplus.dp-quick-match-prune-ms`**（默认 **30s**，[`DpRoomServiceImpl`](src/main/java/com/example/mgdemoplus/service/serviceImpl/dp/DpRoomServiceImpl.java)）。
+- 快匹队列单条等待超时约 **3 分钟**（`DEFAULT_QM_WAIT_MS`）；周期性清理间隔 **`mgdemoplus.dp-quick-match-prune-ms`**（默认 **30s**，[`DpRoomServiceImpl`](src/main/java/com/example/mgdemoplus/service/serviceImpl/DpRoomServiceImpl.java)）。
 
 ### 账号与社交
 
@@ -285,9 +285,9 @@ flowchart LR
 
 | Prefix | Notes |
 | ------ | ----- |
-| **`/dpRoom`** | Rooms, quick match, lobby, bots — [`DpRoomController`](src/main/java/com/example/mgdemoplus/controller/dp/DpRoomController.java). |
-| **`/dpUser`** | Auth/profile — [`DpUserController`](src/main/java/com/example/mgdemoplus/controller/dp/DpUserController.java). |
-| **`/dp`** | Friends, mailbox, invites, spectate follow — [`DpFriendMailboxController`](src/main/java/com/example/mgdemoplus/controller/dp/DpFriendMailboxController.java). |
+| **`/dpRoom`** | Rooms, quick match, lobby, bots — [`DpRoomController`](src/main/java/com/example/mgdemoplus/controller/DpRoomController.java). |
+| **`/dpUser`** | Auth/profile — [`DpUserController`](src/main/java/com/example/mgdemoplus/controller/DpUserController.java). |
+| **`/dp`** | Friends, mailbox, invites, spectate follow — [`DpFriendMailboxController`](src/main/java/com/example/mgdemoplus/controller/DpFriendMailboxController.java). |
 | **`/dpHandHistory`**, **`/dpMusic`** | Replay APIs, music library. |
 
 JWT whitelist — [docs/JWT.md](docs/JWT.md). Handshake paths under `` `/ws/` `` are **`permitAll`**; **quick-match WS** still validates **JWT + nickname** inside [`DpQuickMatchWebSocketHandler`](src/main/java/com/example/mgdemoplus/websocket/DpQuickMatchWebSocketHandler.java).
@@ -296,7 +296,7 @@ JWT whitelist — [docs/JWT.md](docs/JWT.md). Handshake paths under `` `/ws/` ``
 
 - **Battle WebSocket** **`/ws/dp-game?roomId=…`** with **optional `nickname=`** for spectator/view behavior — [`DpGameRoomWebSocketHandler`](src/main/java/com/example/mgdemoplus/websocket/DpGameRoomWebSocketHandler.java).
 - **Quick-match WebSocket** **`/ws/dp-quick-match?nickname=&token=`** (required) — JWT verified in handler ([`WebSocketGameRoomConfig`](src/main/java/com/example/mgdemoplus/config/WebSocketGameRoomConfig.java)).
-- Lobby REST **`@RequestMapping("/dpRoom")`**: **`quickMatch2`**, **`quickMatchCancel2`**, **`publicRooms`**, **`publicRooms/query`** ([`DpRoomController.java`](src/main/java/com/example/mgdemoplus/controller/dp/DpRoomController.java)).
+- Lobby REST **`@RequestMapping("/dpRoom")`**: **`quickMatch2`**, **`quickMatchCancel2`**, **`publicRooms`**, **`publicRooms/query`** ([`DpRoomController.java`](src/main/java/com/example/mgdemoplus/controller/DpRoomController.java)).
 - Pairing: flush into joinable public rooms first; if none and queue ≥2 with two distinct nicknames at head, coordinator may seat **up to `min(MAX_NEW_ROOM_BATCH, queue size)` players in one new table** (bounded by max seats)—not only “exactly two per new room” colloquially.
 - **Concurrency**: **`dpQuickMatchAssignmentLock`** still wraps each **`attemptPairing()`** from the service; inner locks (`defaultQmLock`, `indexLock`, …) apply per [docs/dp-quick-match-concurrency.md](docs/dp-quick-match-concurrency.md) (**code wins** if docs say old locks are gone).
 - Flow — [docs/dp-quick-match-flow.md](docs/dp-quick-match-flow.md); queue wait ~**3 min** + periodic prune **`mgdemoplus.dp-quick-match-prune-ms`**.

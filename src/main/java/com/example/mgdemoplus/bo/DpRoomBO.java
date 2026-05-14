@@ -1,8 +1,8 @@
 package com.example.mgdemoplus.bo;
 
-import com.example.mgdemoplus.entity.dp.DpPlayer;
-import com.example.mgdemoplus.entity.dp.DpPlayerStats;
-import com.example.mgdemoplus.entity.dp.DpPot;
+import com.example.mgdemoplus.entity.DpPlayer;
+import com.example.mgdemoplus.entity.DpPlayerStats;
+import com.example.mgdemoplus.entity.DpPot;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.ArrayList;
