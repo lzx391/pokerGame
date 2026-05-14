@@ -129,7 +129,8 @@
         v-if="vm.playerSocialOpen && vm.playerSocialTarget"
         :visible="true"
         :target="vm.playerSocialTarget"
-        @close="vm.closePlayerSocialSheet"
+        @close="() => vm.closePlayerSocialSheet()"
+        @view-hand-history-with-opponent="(p) => vm.openOpponentHandHistoryFromSocial(p)"
     />
     <game-invite-friend-sheet
         v-if="vm.inviteFriendOpen"

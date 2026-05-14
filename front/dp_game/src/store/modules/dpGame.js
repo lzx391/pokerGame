@@ -56,6 +56,10 @@ function initialState() {
     showSpectatorModal: false,
     showWaitNextHandModal: false,
     showHandHistoryModal: false,
+    /** 与指定真人玩家的共同牌谱列表（独立于「我的历史」弹层，避免状态串联） */
+    showOpponentHandHistoryModal: false,
+    opponentHandHistoryOtherUserId: null,
+    opponentHandHistoryDisplayName: '',
     showMusicBoxModal: false,
     musicTracks: [],
     musicTracksLoading: false,
@@ -452,6 +456,19 @@ export default {
       if (payload.showSpectatorModal !== undefined) state.showSpectatorModal = payload.showSpectatorModal
       if (payload.showWaitNextHandModal !== undefined) state.showWaitNextHandModal = payload.showWaitNextHandModal
       if (payload.showHandHistoryModal !== undefined) state.showHandHistoryModal = payload.showHandHistoryModal
+      if (payload.showOpponentHandHistoryModal !== undefined) {
+        state.showOpponentHandHistoryModal = payload.showOpponentHandHistoryModal
+        if (!payload.showOpponentHandHistoryModal) {
+          state.opponentHandHistoryOtherUserId = null
+          state.opponentHandHistoryDisplayName = ''
+        }
+      }
+      if (payload.opponentHandHistoryOtherUserId !== undefined) {
+        state.opponentHandHistoryOtherUserId = payload.opponentHandHistoryOtherUserId
+      }
+      if (payload.opponentHandHistoryDisplayName !== undefined) {
+        state.opponentHandHistoryDisplayName = payload.opponentHandHistoryDisplayName || ''
+      }
       if (payload.showMusicBoxModal !== undefined) state.showMusicBoxModal = payload.showMusicBoxModal
     },
     SET_MUSIC_TRACKS: function (state, payload) {

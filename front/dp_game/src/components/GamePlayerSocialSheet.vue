@@ -17,6 +17,14 @@
       >
         {{ primaryLabel }}
       </el-button>
+      <el-button
+          type="default"
+          plain
+          class="dp-player-social-sheet__btn dp-player-social-sheet__btn--secondary"
+          @click="onViewHandHistoryWithOpponent"
+      >
+        查看与该玩家的历史对局
+      </el-button>
       <p v-if="tip" class="dp-player-social-sheet__tip">{{ tip }}</p>
     </div>
   </game-bottom-sheet>
@@ -96,6 +104,15 @@ export default {
         /* 静默：仍可尝试发申请 */
       }
     },
+    onViewHandHistoryWithOpponent() {
+      if (!this.target) return
+      var uid = Number(this.target.userId)
+      if (!uid || uid <= 0 || isNaN(uid)) return
+      this.$emit('view-hand-history-with-opponent', {
+        userId: uid,
+        displayName: this.displayName || this.target.nickname
+      })
+    },
     async onSendRequest() {
       if (!this.target || this.primaryDisabled) return
       var uid = Number(this.target.userId)
@@ -152,6 +169,9 @@ export default {
 }
 .dp-player-social-sheet__btn {
   width: 100%;
+}
+.dp-player-social-sheet__btn--secondary {
+  margin-top: 10px;
 }
 .dp-player-social-sheet__tip {
   margin: 12px 0 0;

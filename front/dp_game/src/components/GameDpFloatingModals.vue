@@ -20,7 +20,18 @@
     <game-hand-history-modal
         :visible="vm.showHandHistoryModal"
         :game-ui-theme="vm.effectiveThemeForCss"
+        list-mode="mine"
         @close="$store.commit('dpGame/SET_MODAL', { showHandHistoryModal: false })"
+    />
+    <game-hand-history-modal
+        :visible="vm.showOpponentHandHistoryModal"
+        :game-ui-theme="vm.effectiveThemeForCss"
+        list-mode="withOpponent"
+        :other-user-id="vm.opponentHandHistoryOtherUserId"
+        :opponent-display-name="vm.opponentHandHistoryDisplayName"
+        @close="
+          $store.commit('dpGame/SET_MODAL', { showOpponentHandHistoryModal: false })
+        "
     />
     <game-music-box-modal
         :visible="vm.showMusicBoxModal"
