@@ -30,6 +30,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
@@ -76,8 +77,11 @@ public class DpRoomServiceImpl {
      * 串行化快匹写入 roomMap：{@link #quickMatchJoinAndReady} 与
      * {@link DpQuickMatchPairingCoordinator#attemptPairing()}（经 {@link #attemptQuickMatchPairing}）共用，
      * 避免「已从队列摘下但尚未落座」与另一条快匹/扫房请求交错导致重复占位。
+     * <p>
+     * {@link #attemptQuickMatchPairing} 使用 {@link ReentrantLock#tryLock()}：一轮配对已会冲刷队列，并发触发时跳过即可；
+     * {@link #quickMatchJoinAndReady} 仍 {@link ReentrantLock#lock()}，避免在用户侧误报无房。
      */
-    private final Object dpQuickMatchAssignmentLock = new Object();
+    private final ReentrantLock dpQuickMatchAssignmentLock = new ReentrantLock();
 
     private final DpQuickMatchPairingCoordinator qmPairingCoordinator = new DpQuickMatchPairingCoordinator(
             new QuickMatchPairingHost());
@@ -85,9 +89,13 @@ public class DpRoomServiceImpl {
  * 尝试从队列配对建房逻辑
  */
     private void attemptQuickMatchPairing() {
-        //队列匹配专用锁，防止各方法触发配对时干扰
-        synchronized (dpQuickMatchAssignmentLock) {
+        if (!dpQuickMatchAssignmentLock.tryLock()) {
+            return;
+        }
+        try {
             qmPairingCoordinator.attemptPairing();
+        } finally {
+            dpQuickMatchAssignmentLock.unlock();
         }
     }
 
@@ -1459,7 +1467,8 @@ ownerFieldChanged：房主字段是否发生变化。
             }
             outcome = joinRoomMutateAssumeLocked(roomId, nickname, userId, roomPassword, r);
         }
-        refreshQmIndexAfterJoinOutcomeOutsideRoomLock(roomId, outcome);
+        //观众进去又不占位置，房间大厅又不显示观众人数，刷新个蛋
+        // refreshQmIndexAfterJoinOutcomeOutsideRoomLock(roomId, outcome);
         return outcome;
     }
 
@@ -1670,7 +1679,8 @@ ownerFieldChanged：房主字段是否发生变化。
         if (nickname == null || nickname.isBlank()) {
             return ResultUtil.error().data("message", "昵称无效");
         }
-        synchronized (dpQuickMatchAssignmentLock) {
+        dpQuickMatchAssignmentLock.lock();
+        try {
             DpRoomBO existing = findRoomContainingNickname(nickname);
             if (existing != null) {
                 String err;
@@ -1734,6 +1744,8 @@ ownerFieldChanged：房主字段是否发生变化。
                 return ResultUtil.ok().data("roomId", r.getRoomId()).data("message", "ok");
             }
             return ResultUtil.error().data("message", MSG_NO_PUBLIC_ROOM);
+        } finally {
+            dpQuickMatchAssignmentLock.unlock();
         }
     }
 
