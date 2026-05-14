@@ -2089,13 +2089,13 @@
 
 .dp-player-card__rank-pill--open {
   background: color-mix(in srgb, var(--dp-accent) 16%, var(--dp-player-card-bg));
-  color: var(--dp-accent);
+  color: color-mix(in srgb, var(--dp-accent) 58%, var(--dp-text-primary) 42%);
   border: 1px solid color-mix(in srgb, var(--dp-accent) 35%, transparent);
 }
 
 .dp-player-card__rank-pill--showdown {
   background: color-mix(in srgb, var(--dp-success) 16%, var(--dp-player-card-bg));
-  color: var(--dp-success);
+  color: color-mix(in srgb, var(--dp-success) 58%, var(--dp-text-primary) 42%);
   border: 1px solid color-mix(in srgb, var(--dp-success) 35%, transparent);
 }
 
@@ -2103,13 +2103,13 @@
   .dp-player-card__rank-pill--open {
     background: rgba(24, 144, 255, 0.12);
     border-color: rgba(24, 144, 255, 0.35);
-    color: var(--dp-accent);
+    color: var(--dp-text-primary);
   }
 
   .dp-player-card__rank-pill--showdown {
     background: rgba(82, 196, 26, 0.12);
     border-color: rgba(82, 196, 26, 0.35);
-    color: var(--dp-success);
+    color: var(--dp-text-primary);
   }
 }
 

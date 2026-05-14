@@ -95,6 +95,7 @@ flowchart LR
 - **HTTP**：开发 **`axios.defaults.baseURL = '/dev-api'`**（[`main.js`](front/dp_game/src/main.js)），**[`vue.config.js`](front/dp_game/vue.config.js)** 将 **`/dev-api`** 转发后端并 **`pathRewrite` 剥前缀**；生产 **`baseURL` 为空**，与后端静态资源同域。房间/快匹等多为组件内 **`this.$http('/dpRoom/…')`**；**`/dp` 好友/邮箱** 封装在 **[`src/api/api.dpSocial.js`](front/dp_game/src/api/api.dpSocial.js)**，由 **`Vuex` 模块 `dpMailbox`** 使用；对局房间状态主要在 **`dpGame`**（**无 `actions`**，由 **`game.vue`** 等 **`commit`**）。**站点心跳**：已登录且非登录/注册页时 **`main.js`** 经 **`syncDpSiteHeartbeat`** 定时 **`POST /dp/presence/site-heartbeat`**（与 **`POST /dpRoom/heartbeat`** 并行）；间隔可 **`GET /dp/presence/site-heartbeat/config`**（匿名）读取，与 **`mgdemoplus.dp-site-presence-ttl-ms`** 对齐。
 - **WebSocket**：开发环境用 **`/dp-ws/dp-game`**、**`/dp-ws/dp-quick-match`** 代理到后端 **`/ws/...`**，避免与 dev server HMR 的 **`/ws`** 冲突；生产直连 **`/ws/dp-game`**、**`/ws/dp-quick-match`**。对局 WS 含**指数退避重连**（见 `game.vue`）。
 - **嵌入 JAR**：以 **[`Dockerfile`](Dockerfile)** 多阶段 **`COPY dist → src/main/resources/static`** 为准；**`pom.xml` 未使用** `frontend-maven-plugin` 一类自动打前端——本地纯 **`mvn package`** 若无手工拷贝则不一定含最新 `dist`。
+- **对局 UI 与 Element UI**：主题变量在 **`dp-game-themes.css`** / **`dp-game-element-ui.css`**；`$confirm`（MessageBox）的确认键在 Element 里会同时具备 **`el-button--default`** 与 **`el-button--primary`**，覆盖样式时需避免 ghost（线框）规则误作用于主按钮；渐变主色须用 **`background` 简写** 而非单独 **`background-color`**。玩家信息底栏「已是好友」等只读状态不宜使用 **禁用的 `primary` 实心按钮**（对比度过低），见 **`front/dp_game/src/components/GamePlayerSocialSheet.vue`**。
 
 ### AI 与曲库
 
