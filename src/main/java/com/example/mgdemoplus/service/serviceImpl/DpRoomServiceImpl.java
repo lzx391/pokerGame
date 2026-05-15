@@ -636,8 +636,7 @@ public class DpRoomServiceImpl {
     }
 
     /**
-     * 从 {@link #roomMap} 摘除房间。须在 {@link DpRoomBO} 监视器上与 {@link #joinRoom} 等串行，
-     * 避免「map 已删但仍在该对象上 join」的幽灵房竞态（退出与快匹交错时）。
+     * 拿锁清理房间并刷新缓存
      */
     private void removeRoom(String roomId) {
         System.out.println("清理房间触发");

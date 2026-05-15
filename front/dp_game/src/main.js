@@ -17,10 +17,42 @@ import './styles/dp-game-responsive-type.css'
 import './styles/dp-game-layout-tiers.css'
 import './styles/dp-game-element-ui.css'
 import './styles/dp-social-lists.css'
-import ElementUI, { Message } from 'element-ui'
-import 'element-ui/lib/theme-chalk/index.css';
+import {
+  Badge,
+  Button,
+  Dialog,
+  Drawer,
+  Form,
+  FormItem,
+  Input,
+  InputNumber,
+  Message,
+  MessageBox,
+  Table,
+  TableColumn,
+  Tooltip,
+  Upload
+} from 'element-ui'
+import 'element-ui/lib/theme-chalk/icon.css'
+
 Vue.config.productionTip = false
-Vue.use(ElementUI);
+
+Vue.use(Badge)
+Vue.use(Button)
+Vue.use(Dialog)
+Vue.use(Drawer)
+Vue.use(Form)
+Vue.use(FormItem)
+Vue.use(Input)
+Vue.use(InputNumber)
+Vue.use(Table)
+Vue.use(TableColumn)
+Vue.use(Tooltip)
+Vue.use(Upload)
+
+Vue.prototype.$message = Message
+Vue.prototype.$confirm = MessageBox.confirm
+Vue.prototype.$alert = MessageBox.alert
 // 开发：走 vue 代理 /dev-api；生产（含 Docker 同域静态资源）：直接请求当前站点根路径
 axios.defaults.baseURL = process.env.NODE_ENV === 'production' ? '' : '/dev-api'
 
