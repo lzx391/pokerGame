@@ -243,16 +243,23 @@ public class DpRoomServiceImpl {
         this.objectMapper = objectMapper;
         this.quickMatchPush = quickMatchPush;
         this.friendPresence = friendPresence;
-        // 心跳清理 + 超时行动
-        new Timer().scheduleAtFixedRate(new TimerTask() {
-            @Override
-            public void run() {
-                for (DpRoomBO room : roomMap.values()) {
-                    runGlobalSecondTickForSingleRoom(room);
+        // 心跳清理 + 超时行动（单测见 {@link #suppressGlobalRoomTimerForTests}）
+        if (!suppressGlobalRoomTimerForTests) {
+            new Timer().scheduleAtFixedRate(new TimerTask() {
+                @Override
+                public void run() {
+                    for (DpRoomBO room : roomMap.values()) {
+                        runGlobalSecondTickForSingleRoom(room);
+                    }
                 }
-            }
-        }, 0, 1000);
+            }, 0, 1000);
+        }
     }
+
+    /**
+     * 仅单测：为 true 时不启动构造内 1s Timer，避免后台线程与计时竞态。生产须保持 false。
+     */
+    static volatile boolean suppressGlobalRoomTimerForTests = false;
 
     // ========== A. 全局 1s 节拍（构造内 Timer：编排薄、子步骤提取）==========
 
@@ -260,9 +267,9 @@ public class DpRoomServiceImpl {
      * Timer 每秒对单房的编排：顺序、{@code continue}/早退与原匿名 {@link TimerTask#run()} 一致。
      */
     private void runGlobalSecondTickForSingleRoom(DpRoomBO room) {
-        //看桌上人
+        //踢超时桌上人
         boolean lobbyDirty = tickEvictStaleSeatedPlayersOnHeartbeat(room);
-        //看观众
+        //踢超时观众
         if (tickEvictStaleSpectatorsOnHeartbeat(room)) {
             lobbyDirty = true;
         }
@@ -343,8 +350,10 @@ public class DpRoomServiceImpl {
     private boolean removeDesertedRoomInGlobalTickIfNoLiveHumans(DpRoomBO room) {
         int size = liveHumanTableCount(room);// 检测活人逻辑（与 exitRoom / removeRoom 拆房口径一致）
         // System.out.println("定时器检测：人数："+size);
+        System.out.println("正在检测房间:"+room.getRoomId());
         if (size == 0 && room.getSpectators().isEmpty()) {
             System.out.println("定时器检测：房间：" + room.getRoomId() + "没活人了");
+            System.out.println("房间Id"+room.getRoomId());
             removeRoom(room.getRoomId());// 房间空了就清人
             return true;
         }
@@ -631,6 +640,7 @@ public class DpRoomServiceImpl {
      * 避免「map 已删但仍在该对象上 join」的幽灵房竞态（退出与快匹交错时）。
      */
     private void removeRoom(String roomId) {
+        System.out.println("清理房间触发");
         if (roomId == null || roomId.isEmpty()) {
             return;
         }
@@ -641,6 +651,7 @@ public class DpRoomServiceImpl {
         boolean dropped;
         synchronized (r) {
             dropped = tryUnregisterEmptyRoomAssumeLocked(r, roomId);
+            System.out.println("dropped: " + dropped);
         }
         if (dropped) {
             finalizeHallAfterRoomRemovedWithPresenceSnapshot(roomId, r);
@@ -2300,6 +2311,7 @@ ownerFieldChanged：房主字段是否发生变化。
             return false;
         boolean wasPublic = !r.isPasswordProtected();
         ExitRoomSynchronizedOutcome snap = exitRoomApplyMutationWhileHoldingRoomLock(roomId, nickname, r);
+        System.out.println("snap.droppedEmpty: " + snap.droppedEmpty);
         if (snap.droppedEmpty) {
             finalizeHallAfterRoomRemovedWithPresenceSnapshot(roomId, r);
         } else {
@@ -2334,6 +2346,7 @@ ownerFieldChanged：房主字段是否发生变化。
             List<String> spectators = r.getSpectators();
             List<String> waiters = r.getWaitNextHand();
             if (spectators != null) {
+                System.out.println("spectators: " + spectators+"已经被移除");
                 spectators.remove(nickname);
             }
             r.removeSpectatorPresence(nickname);
@@ -2359,6 +2372,9 @@ ownerFieldChanged：房主字段是否发生变化。
                     }
                 }
             } else {
+                // 进行中：离开者可能只在观众席，也可能仍在 players 里（含 leftThisHand 占位「僵尸位」仅按昵称匹配）。
+                // 摘房口径与定时器 {@link #removeDesertedRoomInGlobalTickIfNoLiveHumans} 一致，须在处置完本方法内的变更后统一尝试，
+                // 不能只在 target==null 时摘房（否则桌上只剩僵尸位时 liveHumanTableCount 已为 0，但 exit 仍进 target 分支则不摘）。
                 if (Objects.equals(r.getOwner(), nickname)) {
                     giveAgg = giveAgg.mergedWith(applyGiveOwnerWhileRoomLocked(r, nickname));
                 }
@@ -2385,8 +2401,14 @@ ownerFieldChanged：房主字段是否发生变化。
                             target.setFold(true);
                         }
                     }
-                    lobbyTouch = true;
                     result = true;
+                }
+                if (roomMap.get(roomId) != r) {
+                    droppedEmpty = true;
+                } else if (tryUnregisterEmptyRoomAssumeLocked(r, roomId)) {
+                    droppedEmpty = true;
+                } else {
+                    lobbyTouch = true;
                 }
             }
         }
