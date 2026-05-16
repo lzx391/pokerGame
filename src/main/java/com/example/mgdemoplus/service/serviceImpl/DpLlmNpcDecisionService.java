@@ -2,8 +2,7 @@ package com.example.mgdemoplus.service.serviceImpl;
 
 import com.example.mgdemoplus.bo.DpRoomBO;
 import com.example.mgdemoplus.entity.DpPlayer;
-import com.example.mgdemoplus.service.serviceImpl.npc.LlmNpc;
-import com.example.mgdemoplus.service.serviceImpl.npc.LlmNpcGameContext;
+import com.example.mgdemoplus.llm.OpenAiCompatibleChatClient;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
@@ -66,7 +65,7 @@ public class DpLlmNpcDecisionService {
     });
 
     private final ConcurrentHashMap<String, Inflight> inflightByKey = new ConcurrentHashMap<>();
-    private final LlmNpc llmNpc;
+    private final OpenAiCompatibleChatClient chatClient;
     private final boolean llmResponseJsonObject;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -84,7 +83,7 @@ public class DpLlmNpcDecisionService {
         String reasoningEffort = propReasoningEffort != null ? propReasoningEffort.trim() : "";
         String thinkingType = propThinkingType != null ? propThinkingType.trim() : "";
         this.llmResponseJsonObject = responseJsonObject;
-        this.llmNpc = new LlmNpc(
+        this.chatClient = new OpenAiCompatibleChatClient(
                 apiKey,
                 endpointId,
                 baseUrl.isEmpty() ? null : baseUrl,
@@ -209,7 +208,7 @@ public class DpLlmNpcDecisionService {
                     bot.getNickname(),
                     bot.getBet(),
                     room.getCurrentBetToCall());
-            LlmNpcGameContext gameContext = DpNpcEngine.buildLlmNpcGameSnapshot(room, bot);// 获取当前情况,Mapper相当于转接器，把smartcontext信息利用了
+            LlmNpcGameContext gameContext = DpNpcEngine.buildLlmNpcGameSnapshot(room, bot);
             String userPrompt = buildUserPrompt(room, bot, gameContext);// 用的是GameContext的方法，打包压缩送给大模型的信息
             // 异步发送打包信息，把传回来的信息给future
             String roomId = room.getRoomId();
@@ -272,7 +271,7 @@ public class DpLlmNpcDecisionService {
      * @param stage  仅用于耗时日志关联阶段
      */
     private DpNpcEngine.BotAction invokeModel(String roomId, String stage, String userPrompt) {
-        if (!llmNpc.isConfigured()) {
+        if (!chatClient.isConfigured()) {
             LOG.warn("[BOT_LLM] 未配置密钥/接入点，跳过请求");
             return null;
         }
@@ -289,9 +288,9 @@ public class DpLlmNpcDecisionService {
         int reasoningChars = 0;
         try {
             // 把大模型key id 提示词 信息包输入进去
-            LlmNpc.LlmReply reply = llmNpc.chatMessagesDetailed(
+            OpenAiCompatibleChatClient.ChatCompletionReply reply = chatClient.chatMessagesDetailed(
                     LLM_SYSTEM_PROMPT,
-                    LlmNpc.singleUserMessage(userPrompt),
+                    OpenAiCompatibleChatClient.singleUserMessage(userPrompt),
                     llmResponseJsonObject);
             String raw = reply == null ? "" : reply.finalText();
             String reasoning = reply == null ? "" : reply.reasoningText();

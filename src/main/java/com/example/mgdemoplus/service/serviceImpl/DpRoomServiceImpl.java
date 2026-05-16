@@ -350,7 +350,7 @@ public class DpRoomServiceImpl {
     private boolean removeDesertedRoomInGlobalTickIfNoLiveHumans(DpRoomBO room) {
         int size = liveHumanTableCount(room);// 检测活人逻辑（与 exitRoom / removeRoom 拆房口径一致）
         // System.out.println("定时器检测：人数："+size);
-        System.out.println("正在检测房间:"+room.getRoomId());
+        // System.out.println("正在检测房间:"+room.getRoomId());
         if (size == 0 && room.getSpectators().isEmpty()) {
             System.out.println("定时器检测：房间：" + room.getRoomId() + "没活人了");
             System.out.println("房间Id"+room.getRoomId());

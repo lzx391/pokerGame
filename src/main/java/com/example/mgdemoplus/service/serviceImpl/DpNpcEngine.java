@@ -10,7 +10,6 @@ import com.example.mgdemoplus.service.serviceImpl.npc.DpNpcManiacStrategy;
 import com.example.mgdemoplus.service.serviceImpl.npc.DpNpcNitStrategy;
 import com.example.mgdemoplus.service.serviceImpl.npc.DpNpcRuleDecisionParams;
 import com.example.mgdemoplus.service.serviceImpl.npc.DpNpcTagStrategy;
-import com.example.mgdemoplus.service.serviceImpl.npc.LlmNpcGameContext;
 import com.example.mgdemoplus.utils.DpUtilHandEvaluator;
 import com.example.mgdemoplus.utils.DpUtilHandEvaluator.HandStrength;
 import static com.example.mgdemoplus.utils.DpUtilHandEvaluator.isPlayingBoardPairOnly;
@@ -2037,8 +2036,7 @@ public final class DpNpcEngine {
         TablePosition position = getTablePosition(room, bot);
         Random random = buildHandRandom(room, bot);
         DpUtilSmartContext ctx = buildSmartContext(room, bot, strength, stage, callAmount, random);
-        return DpLlmNpcContextMapper.map(room, bot, ctx, stage, callAmount, strength, position);// DNCMapper->new
-                                                                                                // LlmNpcGameContext->
+        return LlmNpcGameContext.map(room, bot, ctx, stage, callAmount, strength, position);
     }
 
     private static BotAction decideBotAction(DpRoomBO room, DpPlayer bot, BotType type) {
