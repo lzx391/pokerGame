@@ -17,6 +17,8 @@ public final class LlmNpcUserSnapshot {
     private static final Logger LOG = LoggerFactory.getLogger(LlmNpcUserSnapshot.class);
 
     static final String VERSION_HEADER = "v1|BOT_LLM|snap\n";
+    /** 与 {@linkplain #VERSION_HEADER} 同源键表；仅标识不同，便于多轮 bot 与人类阅读区分。 */
+    static final String VERSION_HEADER_GLOBAL = "v1|BOT_LLM_GLOBAL|snap\n";
 
     /**
      * 键名表：行数与值表一一对应；禁止增删行或改顺序（除非同步改值生成与文档）。
@@ -77,13 +79,25 @@ public final class LlmNpcUserSnapshot {
     public static final int STABLE_PREFIX_LENGTH = VERSION_HEADER.length() + KEYS_BLOCK.length()
             + VALUES_SEPARATOR.length();
 
+    /** 前缀缓存哈希/长度指标：BOT_LLM 与 BOT_LLM_GLOBAL 头长度不同。 */
+    public static int stablePrefixLength(boolean globalVariant) {
+        String head = globalVariant ? VERSION_HEADER_GLOBAL : VERSION_HEADER;
+        return head.length() + KEYS_BLOCK.length() + VALUES_SEPARATOR.length();
+    }
+
     private LlmNpcUserSnapshot() {
     }
 
     /** 完整 user 正文：固定头 + 键表 + 分隔符 + 值行（每行一条，顺序与键表一致）。 */
     public static String formatUserPayload(DpRoomBO room, DpPlayer bot, LlmNpcGameContext ctx) {
+        return formatUserPayload(room, bot, ctx, false);
+    }
+
+    /** @param globalVariant {@code true} 时使用 {@link #VERSION_HEADER_GLOBAL} */
+    public static String formatUserPayload(DpRoomBO room, DpPlayer bot, LlmNpcGameContext ctx,
+            boolean globalVariant) {
         StringBuilder sb = new StringBuilder(1800);
-        sb.append(VERSION_HEADER);
+        sb.append(globalVariant ? VERSION_HEADER_GLOBAL : VERSION_HEADER);
         sb.append(KEYS_BLOCK);
         sb.append(VALUES_SEPARATOR);
         appendValueLines(sb, room, bot, ctx);

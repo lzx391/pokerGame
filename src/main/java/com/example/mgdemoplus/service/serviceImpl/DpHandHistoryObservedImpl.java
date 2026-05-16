@@ -13,9 +13,7 @@ import com.example.mgdemoplus.types.DpObservedHandActionType;
 
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,21 +37,16 @@ public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedSer
     //7. Key类：负责记录房间id和手种子
     //8. HandBuilder类：负责记录牌谱
     //9. BUILDERS类：负责记录牌谱
-    //10. ARCHIVE类：负责记录牌谱
-    //11. isEnabledForRoom方法：负责判断是否启用
-    //12. getRecentHands方法：负责获取最近的手
-    //13. beginHand方法：负责开始手
-    //14. markHandReadyAfterBlinds方法：负责标记手准备
-    //15. recordBoardState方法：负责记录公共牌
-    //16. recordBlind方法：负责记录盲注
-    //17. recordFold方法：负责记录弃牌
-    //18. recordBetLikeAction方法：负责记录行动
-    //19. capturePotsBeforeClear方法：负责记录池
+    //10. isEnabledForRoom方法：负责判断是否启用
+    //11. beginHand方法：负责开始手
+    //12. markHandReadyAfterBlinds方法：负责标记手准备
+    //13. recordBoardState方法：负责记录公共牌
+    //14. recordBlind方法：负责记录盲注
+    //15. recordFold方法：负责记录弃牌
+    //16. recordBetLikeAction方法：负责记录行动
+    //17. capturePotsBeforeClear方法：负责记录池
     public DpHandHistoryObservedImpl() {
     }
-
-    /** 每房间最多保留的已完成手数（内存上限） */
-    private static final int MAX_COMPLETED_HANDS_PER_ROOM = 400;
 
     private static final class Key {
         final String roomId;
@@ -94,7 +87,6 @@ public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedSer
     }
 
     private static final ConcurrentHashMap<Key, HandBuilder> BUILDERS = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<String, ArrayDeque<DpObservedHandRecordBO>> ARCHIVE = new ConcurrentHashMap<>();
 
     /**
      * 是否为本桌记牌谱：有人上桌即开启。
@@ -109,25 +101,6 @@ public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedSer
             }
         }
         return false;
-    }
-
-    /**
-     * 读取某房间最近若干手完整观测记录（时间顺序：旧 → 新）。
-     */
-    public static List<DpObservedHandRecordBO> getRecentHands(String roomId, int maxHands) {
-        if (roomId == null || maxHands <= 0) {
-            return List.of();
-        }
-        ArrayDeque<DpObservedHandRecordBO> q = ARCHIVE.get(roomId);
-        if (q == null || q.isEmpty()) {
-            return List.of();
-        }
-        synchronized (q) {
-            int n = Math.min(maxHands, q.size());
-            List<DpObservedHandRecordBO> all = new ArrayList<>(q);
-            int from = all.size() - n;
-            return Collections.unmodifiableList(new ArrayList<>(all.subList(from, all.size())));
-        }
     }
 //这里是开始一手牌谱的记录
 //已学习
@@ -253,10 +226,9 @@ public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedSer
     //3. Key类：负责记录房间id和手种子
     //4. HandBuilder类：负责记录牌谱
     //5. BUILDERS类：负责记录牌谱
-    //6. ARCHIVE类：负责记录牌谱
-    //7. append方法：负责记录行动
-    //8. blindPostedChipsForSeat方法：负责记录盲注
-   public DpObservedHandRecordBO finalizeHand(DpRoomBO room) {//归档牌局，并挂到最近的手列表中限400手
+    //6. append方法：负责记录行动
+    //7. blindPostedChipsForSeat方法：负责记录盲注
+   public DpObservedHandRecordBO finalizeHand(DpRoomBO room) {
       if(room.getPlayers().size()<=1){
     // System.out.println("场上只有一个玩家，不落库保存");
         return null;//如果场上只有1个玩家，则不记录牌谱
@@ -313,18 +285,6 @@ public final class DpHandHistoryObservedImpl implements DpHandHistoryObservedSer
                 holes,
                 net
         );
-//所以这个队列是干啥的？是用来存储牌谱的，最多保存400手
-
-        ARCHIVE.compute(room.getRoomId(), (rid, deque) -> {
-            ArrayDeque<DpObservedHandRecordBO> q = deque == null ? new ArrayDeque<>() : deque;
-            synchronized (q) {
-                q.addLast(rec);
-                while (q.size() > MAX_COMPLETED_HANDS_PER_ROOM) {
-                    q.removeFirst();
-                }
-            }
-            return q;
-        });
         return rec;
     }
 //已学习，记录行动用的方法

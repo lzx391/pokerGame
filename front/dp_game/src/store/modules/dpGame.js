@@ -82,6 +82,8 @@ function initialState() {
     callBotAddedTip: '',
     llmBotAdding: false,
     llmBotAddedTip: '',
+    llmGlobalBotAdding: false,
+    llmGlobalBotAddedTip: '',
     ownerRevealAll: false,
     showMobileHandSheet: false,
     showMobileActionSheet: false,
@@ -486,6 +488,7 @@ export default {
       state.nitBotAddedTip = ''
       state.callBotAddedTip = ''
       state.llmBotAddedTip = ''
+      state.llmGlobalBotAddedTip = ''
     },
     CLOSE_OWNER_HUB: function (state) {
       state.showOwnerHubSheet = false
@@ -515,6 +518,8 @@ export default {
       if (payload.callBotAddedTip !== undefined) state.callBotAddedTip = payload.callBotAddedTip
       if (payload.llmBotAdding !== undefined) state.llmBotAdding = payload.llmBotAdding
       if (payload.llmBotAddedTip !== undefined) state.llmBotAddedTip = payload.llmBotAddedTip
+      if (payload.llmGlobalBotAdding !== undefined) state.llmGlobalBotAdding = payload.llmGlobalBotAdding
+      if (payload.llmGlobalBotAddedTip !== undefined) state.llmGlobalBotAddedTip = payload.llmGlobalBotAddedTip
     },
     SET_MOBILE_SHEETS: function (state, payload) {
       if (payload.showMobileHandSheet !== undefined) state.showMobileHandSheet = payload.showMobileHandSheet

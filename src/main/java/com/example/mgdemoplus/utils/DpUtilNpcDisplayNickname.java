@@ -9,6 +9,7 @@ public final class DpUtilNpcDisplayNickname {
     private static final String[] HEADS = {
             "BOT_MANIAC_",
             "BOT_CALL_",
+            "BOT_LLM_GLOBAL_",
             "BOT_LLM_",
             "BOT_LAG_",
             "BOT_TAG_",

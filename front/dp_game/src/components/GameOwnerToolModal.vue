@@ -39,7 +39,8 @@
           <span style="font-weight:bold;">BOT_NIT</span>、
           <span style="font-weight:bold;">BOT_CALL</span>、
           <span style="font-weight:bold;">BOT_MANIAC</span>；
-          另有 <span style="font-weight:bold;">BOT_LLM</span>（大模型）。
+          另有 <span style="font-weight:bold;">BOT_LLM</span>（大模型）与
+          <span style="font-weight:bold;">BOT_LLM_GLOBAL</span>（整手叙事 / 多轮上下文）。
           服务端会为 BOT 生成唯一后缀；JSON 里仍是完整 nickname，牌桌上展示为前缀 + uuid 去横线后的前 4 位。
           先调数量（1～9，受房间空位限制），再点「确认添加」。
         </div>
@@ -94,7 +95,7 @@
               <button
                 type="button"
                 class="owner-npc-count-btn"
-                :disabled="llmBotAdding || npcCounts.llm <= 1"
+                :disabled="anyLlmBotSubmitting || npcCounts.llm <= 1"
                 @click="bumpNpcCount('llm', -1, 9)"
               >
                 −
@@ -105,13 +106,13 @@
                 min="1"
                 max="9"
                 class="owner-npc-count-input"
-                :disabled="llmBotAdding"
+                :disabled="anyLlmBotSubmitting"
                 @change="normalizeNpcCount('llm', 9)"
               >
               <button
                 type="button"
                 class="owner-npc-count-btn"
-                :disabled="llmBotAdding || npcCounts.llm >= 9"
+                :disabled="anyLlmBotSubmitting || npcCounts.llm >= 9"
                 @click="bumpNpcCount('llm', 1, 9)"
               >
                 +
@@ -119,13 +120,53 @@
             </span>
             <button
               type="button"
-              :disabled="llmBotAdding"
-              :style="confirmNpcStyle('#08979c', !llmBotAdding)"
+              :disabled="anyLlmBotSubmitting"
+              :style="confirmNpcStyle('#08979c', !anyLlmBotSubmitting)"
               @click="$emit('confirm-add-npcs', { type: 'llm', count: clampCount(npcCounts.llm, 9) })"
             >
               {{ llmBotAdding ? '提交中…' : '确认添加' }}
             </button>
             <span v-if="llmBotAddedTip" style="flex:1 1 220px; color:#595959;">{{ llmBotAddedTip }}</span>
+          </div>
+
+          <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:12px;">
+            <span style="min-width:148px; font-weight:600; color:#006d75;">BOT_LLM_GLOBAL</span>
+            <span style="display:inline-flex; align-items:center; gap:4px;">
+              <button
+                type="button"
+                class="owner-npc-count-btn"
+                :disabled="anyLlmBotSubmitting || npcCounts.llmGlobal <= 1"
+                @click="bumpNpcCount('llmGlobal', -1, 9)"
+              >
+                −
+              </button>
+              <input
+                v-model.number="npcCounts.llmGlobal"
+                type="number"
+                min="1"
+                max="9"
+                class="owner-npc-count-input"
+                :disabled="anyLlmBotSubmitting"
+                @change="normalizeNpcCount('llmGlobal', 9)"
+              >
+              <button
+                type="button"
+                class="owner-npc-count-btn"
+                :disabled="anyLlmBotSubmitting || npcCounts.llmGlobal >= 9"
+                @click="bumpNpcCount('llmGlobal', 1, 9)"
+              >
+                +
+              </button>
+            </span>
+            <button
+              type="button"
+              :disabled="anyLlmBotSubmitting"
+              :style="confirmNpcStyle('#006d75', !anyLlmBotSubmitting)"
+              @click="$emit('confirm-add-npcs', { type: 'llmGlobal', count: clampCount(npcCounts.llmGlobal, 9) })"
+            >
+              {{ llmGlobalBotAdding ? '提交中…' : '确认添加' }}
+            </button>
+            <span v-if="llmGlobalBotAddedTip" style="flex:1 1 220px; color:#595959;">{{ llmGlobalBotAddedTip }}</span>
           </div>
         </div>
       </div>
@@ -259,7 +300,8 @@ export default {
         nit: 1,
         call: 1,
         maniac: 1,
-        llm: 1
+        llm: 1,
+        llmGlobal: 1
       },
       /** 踢人页多选（在座玩家 nickname） */
       kickSelectionNicknames: []
@@ -294,9 +336,14 @@ export default {
     callBotAdding: { type: Boolean, default: false },
     callBotAddedTip: { type: String, default: '' },
     llmBotAdding: { type: Boolean, default: false },
-    llmBotAddedTip: { type: String, default: '' }
+    llmBotAddedTip: { type: String, default: '' },
+    llmGlobalBotAdding: { type: Boolean, default: false },
+    llmGlobalBotAddedTip: { type: String, default: '' }
   },
   computed: {
+    anyLlmBotSubmitting () {
+      return !!(this.llmBotAdding || this.llmGlobalBotAdding)
+    },
     ruleNpcRows () {
       return [
         {

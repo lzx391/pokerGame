@@ -220,6 +220,18 @@ public class DpRoomServiceImpl {
         return readyNextHand(roomId, DpNpcEngine.llmBotNickname(seq), null);
     }
 
+    /**
+     * 将「全局叙事」大模型 NPC 加入下一局；{@code BOT_LLM_GLOBAL_<房间序号>}，决策与同文件内 BOT_LLM 一样走 {@link DpLlmNpcDecisionService}。
+     */
+    public boolean addGlobalLlmBotToNextHand(String roomId) {
+        DpRoomBO r = roomMap.get(roomId);
+        if (r == null) {
+            return false;
+        }
+        int seq = r.allocateBotNicknameSeqBatch(1);
+        return readyNextHand(roomId, DpNpcEngine.llmGlobalBotNickname(seq), null);
+    }
+
     // ========== 构造与全局 1s 节拍 ==========
 
     // 轮询入口

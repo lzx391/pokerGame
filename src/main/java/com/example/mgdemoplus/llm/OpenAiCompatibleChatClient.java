@@ -83,6 +83,15 @@ public final class OpenAiCompatibleChatClient {
     }
 
     /**
+     * BOT_LLM_GLOBAL 等多轮调用：等价于 {@link #chatMessagesDetailed(String, List, boolean)}，命名强调 messages 可为完整会话。
+     */
+    public ChatCompletionReply chatCompletionMultiTurn(
+            String systemPrompt, List<ChatMessage> conversationTurns, boolean jsonObjectResponseFormat)
+            throws IOException, InterruptedException {
+        return chatMessagesDetailed(systemPrompt, conversationTurns, jsonObjectResponseFormat);
+    }
+
+    /**
      * 可选 {@code response_format.type=json_object}（OpenAI 兼容）；若接入点返回 HTTP 400，请改为 {@code false}。
      */
     public ChatCompletionReply chatMessagesDetailed(

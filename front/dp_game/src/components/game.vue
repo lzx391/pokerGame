@@ -185,7 +185,7 @@ export default {
 
   computed: {
     ...mapState('dpGame', [
-      'gameUiTheme', 'customThemeBase', 'customThemeOverrides', 'ecoMode', 'gameThemeOptions', 'roomId', 'user', 'currentHandSeed', 'owner', 'players', 'playing', 'stage', 'communityCards', 'pot', 'pots', 'currentBetToCall', 'lastRaiseIncrement', 'actIndex', 'spectators', 'waitNextHand', 'raiseAmount', 'selectedWinners', 'potWinners', 'nextHandReady', 'loading', 'communityCardsFlipState', 'communityCardsFlipComplete', 'seatChatTextByNick', 'chatInputDraft', 'showPlayGuideModal', 'playGuideTab', 'showSpectatorModal', 'showWaitNextHandModal', 'showHandHistoryModal', 'showOpponentHandHistoryModal', 'opponentHandHistoryOtherUserId', 'opponentHandHistoryDisplayName', 'showMusicBoxModal', 'musicTracks', 'musicTracksLoading', 'musicTracksError', 'roomMusicState', 'showOwnerHubSheet', 'ownerToolType', 'ownerActionTarget', 'demoBotAdding', 'demoBotAddedTip', 'maniacBotAdding', 'maniacBotAddedTip', 'tagBotAdding', 'tagBotAddedTip', 'lagBotAdding', 'lagBotAddedTip', 'nitBotAdding', 'nitBotAddedTip', 'callBotAdding', 'callBotAddedTip', 'llmBotAdding', 'llmBotAddedTip', 'ownerRevealAll', 'showMobileHandSheet', 'showMobileActionSheet', 'heroHoleDealIntroDone', 'chipLeaderNicknames'
+      'gameUiTheme', 'customThemeBase', 'customThemeOverrides', 'ecoMode', 'gameThemeOptions', 'roomId', 'user', 'currentHandSeed', 'owner', 'players', 'playing', 'stage', 'communityCards', 'pot', 'pots', 'currentBetToCall', 'lastRaiseIncrement', 'actIndex', 'spectators', 'waitNextHand', 'raiseAmount', 'selectedWinners', 'potWinners', 'nextHandReady', 'loading', 'communityCardsFlipState', 'communityCardsFlipComplete', 'seatChatTextByNick', 'chatInputDraft', 'showPlayGuideModal', 'playGuideTab', 'showSpectatorModal', 'showWaitNextHandModal', 'showHandHistoryModal', 'showOpponentHandHistoryModal', 'opponentHandHistoryOtherUserId', 'opponentHandHistoryDisplayName', 'showMusicBoxModal', 'musicTracks', 'musicTracksLoading', 'musicTracksError', 'roomMusicState', 'showOwnerHubSheet', 'ownerToolType', 'ownerActionTarget', 'demoBotAdding', 'demoBotAddedTip', 'maniacBotAdding', 'maniacBotAddedTip', 'tagBotAdding', 'tagBotAddedTip', 'lagBotAdding', 'lagBotAddedTip', 'nitBotAdding', 'nitBotAddedTip', 'callBotAdding', 'callBotAddedTip', 'llmBotAdding', 'llmBotAddedTip', 'llmGlobalBotAdding', 'llmGlobalBotAddedTip', 'ownerRevealAll', 'showMobileHandSheet', 'showMobileActionSheet', 'heroHoleDealIntroDone', 'chipLeaderNicknames'
     ]),
     ...mapGetters('dpGame', [
       'effectiveThemeForCss', 'customThemeInlineStyle', 'handRankReference', 'stageCN', 'isOwner', 'canInviteFriend', 'isMyTurn', 'myPlayer', 'showSpectatorPrepareBlock', 'myReady', 'myChips', 'myBet', 'callAmount', 'smallBlind', 'bigBlind', 'lastRaiseIncrementEffective', 'minTotalToRaise', 'minRaise', 'allPotsHaveWinners', 'inSettledStage', 'ownerActionPlayers', 'playersDisplayOrder', 'viewerSeatedAtTable', 'holeDealPlayerCountForAnim', 'heroDockRow', 'dealerDisplayIndex', 'showdownHandLeaderNicknames', 'spectatorSeatChatEntries', 'tableActionActorDisplayName', 'mobileHeroDockActive', 'showHeroViewHandButton', 'showBottomHeroDock'
@@ -1202,6 +1202,32 @@ export default {
             return '仅成功添加 ' + ok + '/' + count + ' 个：' + (lastErr || '席位可能已满')
           }
           return '添加大模型 NPC 失败：' + (lastErr || 'fail')
+        }.bind(this)
+      } else if (type === 'llmGlobal') {
+        tipPrefix = 'llmGlobalBot'
+        adding.llmGlobalBotAdding = true
+        tipEmpty.llmGlobalBotAddedTip = ''
+        run = async function () {
+          var ok = 0
+          var lastErr = ''
+          for (var i = 0; i < count; i++) {
+            var res = await this.$http.post('/dpRoom/addLlmGlobalBot', null, {
+              params: { roomId: this.roomId }
+            })
+            if (res.data === 'ok') {
+              ok++
+            } else {
+              lastErr = String(res.data)
+              break
+            }
+          }
+          if (ok === count) {
+            return '已请求在下一局加入 ' + count + ' 个 BOT_LLM_GLOBAL（全局叙事多轮），请等待本局结束（需服务端方舟密钥）。'
+          }
+          if (ok > 0) {
+            return '仅成功添加 ' + ok + '/' + count + ' 个：' + (lastErr || '席位可能已满')
+          }
+          return '添加 BOT_LLM_GLOBAL 失败：' + (lastErr || 'fail')
         }.bind(this)
       } else {
         return

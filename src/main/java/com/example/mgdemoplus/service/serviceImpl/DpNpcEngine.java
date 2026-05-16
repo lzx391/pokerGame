@@ -244,6 +244,10 @@ public final class DpNpcEngine {
      * 大模型机器人前缀：{@code BOT_LLM} 或 {@code BOT_LLM_<uuid>}。
      */
     public static final String PREFIX_BOT_LLM = "BOT_LLM";
+    /**
+     * 多轮整条牌局叙事前缀：{@code BOT_LLM_GLOBAL_<序号>}；须排除被 {@link #PREFIX_BOT_LLM} 误匹配。
+     */
+    public static final String PREFIX_BOT_LLM_GLOBAL = "BOT_LLM_GLOBAL";
 
     /** 兼容旧前端；决策映射为 {@link BotType#TAG}（紧凶）。 */
     public static final String LEGACY_BOT_SHARK_NICKNAME = "BOT_Shark";
@@ -825,9 +829,21 @@ public final class DpNpcEngine {
         STYLE_PROFILE_MAP.put(NpcStyle.MANIAC, StyleProfile.presetManiac());
     }
 
-    /** {@code BOT_LLM} 或 {@code BOT_LLM_<seq>} */
+    /** {@code BOT_LLM_GLOBAL_<seq>} 或单独约定名（与同系列 LLM Bot 一起走 {@link com.example.mgdemoplus.service.serviceImpl.DpLlmNpcDecisionService}）。 */
+    public static boolean isGlobalLlmBotNickname(String name) {
+        return name != null
+                && (PREFIX_BOT_LLM_GLOBAL.equals(name) || name.startsWith(PREFIX_BOT_LLM_GLOBAL + "_"));
+    }
+
+    /** {@code BOT_LLM}、{@code BOT_LLM_<seq>} 及 {@linkplain #PREFIX_BOT_LLM_GLOBAL 全局多轮} 变种。 */
     public static boolean isLlmBotNickname(String name) {
-        return name != null && (PREFIX_BOT_LLM.equals(name) || name.startsWith(PREFIX_BOT_LLM + "_"));
+        if (name == null) {
+            return false;
+        }
+        if (isGlobalLlmBotNickname(name)) {
+            return true;
+        }
+        return PREFIX_BOT_LLM.equals(name) || name.startsWith(PREFIX_BOT_LLM + "_");
     }
 
     /**
@@ -906,6 +922,14 @@ public final class DpNpcEngine {
             throw new IllegalArgumentException("seq must be positive");
         }
         return PREFIX_BOT_LLM + "_" + seq;
+    }
+
+    /** 全局叙事 LLM：{@code BOT_LLM_GLOBAL_<序号>}（与 {@link #llmBotNickname} 共用房间序号生成器）。 */
+    public static String llmGlobalBotNickname(int seq) {
+        if (seq <= 0) {
+            throw new IllegalArgumentException("seq must be positive");
+        }
+        return PREFIX_BOT_LLM_GLOBAL + "_" + seq;
     }
 
     private static BotType resolveRuleBotType(String nickname) {

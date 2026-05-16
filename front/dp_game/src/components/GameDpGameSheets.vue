@@ -119,6 +119,8 @@
           :call-bot-added-tip="vm.callBotAddedTip"
           :llm-bot-adding="vm.llmBotAdding"
           :llm-bot-added-tip="vm.llmBotAddedTip"
+          :llm-global-bot-adding="vm.llmGlobalBotAdding"
+          :llm-global-bot-added-tip="vm.llmGlobalBotAddedTip"
           @close="vm.closeOwnerHubPanel"
           @confirm-add-npcs="vm.confirmAddOwnerNpcs"
           @transfer-owner="vm.doTransferOwner"

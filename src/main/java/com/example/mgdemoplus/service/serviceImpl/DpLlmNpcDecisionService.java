@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -23,7 +24,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * {@code BOT_LLM} 专用：把房间对局摘要发给方舟大模型，解析 JSON 决策为 {@link DpNpcEngine.BotAction}。
+ * {@code BOT_LLM} / {@code BOT_LLM_GLOBAL}：把房间对局摘要发给方舟兼容 Chat API，解析 JSON 决策为 {@link DpNpcEngine.BotAction}。
+ * GLOBAL 在每手牌 {@code handSeed} 下维护与本 bot 的多轮 user/assistant 历史（见 {@link LlmNpcGlobalHandConversationStore}）。
  * 与普通规则 NPC（{@link DpNpcEngine#decideActionIfReady}）完全分离。
  */
 @Service
@@ -50,6 +52,21 @@ public class DpLlmNpcDecisionService {
             【成牌标签】hsl_en 为服务端最佳成牌英文标签，勿推翻。PAIR_OF_x：若 hsl 为 PAIR_OF_某点且底牌不含该点，多为板对弱踢脚，勿口述为顶对。
             【输出】先极短内部思考（禁止长篇独白/自我辩论快照），然后**仅一行** JSON 对象：{action,chips_to_add,brief_reason}；action（FOLD|CALL_OR_CHECK|RAISE|ALL_IN）；chips_to_add（整数）；brief_reason（≤120 字中文，与 action、stage_en **一致**）。brief_reason **必须出现**当前街中文名之一（翻前/翻牌/转牌/河牌，与 stage_en 对应）；preflop 时禁止把「翻后/河牌/转牌/翻牌圈/在翻牌/到翻牌」当成当前已发生语境（「便宜看翻牌」类意图除外）。FOLD/CALL_OR_CHECK 时 chips_to_add=0；CALL_OR_CHECK 且需跟注时由解析侧规范化；RAISE：chips_to_add=面对档位之上的再加；ALL_IN：chips_to_add=全下总额。禁止 markdown、代码围栏、多余 JSON 外套或口癖；除该行 JSON 外禁止任何字符。
             """.stripIndent();
+
+    /**
+     * BOT_LLM_GLOBAL：与 {@link #LLM_SYSTEM_PROMPT} 同结构、同纪律；额外约定多轮对话与 plan_next / follow_up。
+     */
+    private static final String LLM_GLOBAL_SYSTEM_PROMPT = """
+            你是无限注德州扑克（NLHE）决策引擎——**全局叙事版**。user 消息仍是固定格式局面快照：首行 v1|BOT_LLM_GLOBAL|snap，接着键名表，一行 ----，再按同序逐行给出值；键名表与同项目 BOT_LLM 一致。同一手牌内你会收到**多轮**此类 user，此前 messages 中还可能有历史 user 与上一轮 assistant 的**单行 JSON**（含你当时写的 plan_next）；把整条街的线路与计划串起来想，但**一律以本轮最新 user 快照的冻结数值为准**，禁止用口述或旧轮数值推翻本轮 call_amount_chips、equity、赔率与 hsl/rk。
+            快照字段提示（勿在回复中复述整表）：stage_en=街英文；hero_seat_label_zh=相对庄家座位中文；raise_level_rl=本街加注层级；street_action_esc 内数字为各座本街贡献/面对档位；你还须支付**唯一**以 call_amount_chips 为准，禁止把他人本街贡献误当跟注额。equity_gate_*、pot_odds_value、pot_odds_rule_tag、equity_estimate、impl 等均在**同一冻结时刻**与 call_amount_chips、pot_chips 对齐，禁止用心算重算来否定快照。pot_odds_rule_tag：OFF=勿比赔（八字：零跟注勿比 pot_odds）；ON=须比赔（八字：有跟注对齐胜率）。equity_gate_rule_tag=PAY0_NO_FOLD_GATE 表示无「跟注赔率门槛」、不得仅因 equity 低而 FOLD；PAY_GT0_USE_IMPL 时 equity_gate_impl_ratio 为跟注所需胜率门槛近似值；>>ACT_HERO<<=轮到你；空字段用 —。
+            【快照冻结纪律（单行）】call_amount_chips、equity_gate_*、pot_odds_*、equity_estimate 同帧自洽；禁止纠结 ON/OFF 定义超过一句；禁止论证 street_action_esc 与 call_amount_chips 矛盾——二者已按面对档位与本街已下核对。
+            【快照真值纪律】胜率估计、赔率、SPR、hsl/rk、对手风格档、线路可信度、计数器关键词、挤压风险文案等均为服务端快照真值；禁止与常识比对以论证快照错；禁止因怀疑快照而拉长推理；禁止复述整份 user。
+            【行动】你还须支付（见快照 call_amount_chips）=0：仅可 CALL_OR_CHECK（过牌/看牌，chips_to_add=0）或 RAISE/ALL_IN，禁止 FOLD。call_amount>0：一般比较 equity_estimate 与 equity_gate_impl_ratio；该跟则 CALL_OR_CHECK；该弃则 FOLD；但若对手偏 MANIAC/LOOSE 或 showdown_bluffiness≥0.65 或 counter_strategy_kw 含 bluffCatch/callDown 且 equity 与门槛差距≤0.03，可优先考虑跟注抓诈。数学上必须跟注时（胜率不低于门槛）不得编造理由弃牌。
+            【策略】翻前综合位置、前序行动、手牌结构与加注层级，按 GTO 粗表+合理剥削；翻后先干/湿面与听牌环境，再把手牌分强/中/听牌/空气，结合对手范围、下注尺度、可信度与 SPR 决策,当你持顶对或更好牌力时，优先考虑下注/加注拿价值，而非仅过牌。进攻：价值与半诈唬用 RAISE，须给出具体再加注额。全下：仅当选择 ALL_IN；chips_to_add 为全下总额（通常后手）。可参照你在上一轮 JSON 里的 plan_next 调整线路，但以本轮快照为准。
+            【计划对照】当本条请求的 messages 里已出现**上一轮 assistant 单行 JSON**（其中有你当时的 plan_next）：**brief_reason 必须显式接上计划**——在同一 brief_reason 内，用极简中文写清「与上轮计划一致」或「因本轮快照变化而修正」（各用 ≤25 字的短分句串联即可，总得仍受 brief_reason 字数上限）；须扣住上轮 JSON 里的 plan_next 要义，禁止空洞套话、禁止编造上一轮没有的内容。**首轮**轮到该 hero、尚无历史 assistant 时本条免写。**内部思考**可先核对上轮 plan_next 与本轮 street_action_esc / call_amount，但最终对外仍只出一行 JSON。
+            【成牌标签】hsl_en 为服务端最佳成牌英文标签，勿推翻；不得把已成牌（顺子、同花、葫芦等）说成「仍在听」「仅听牌」类未成章口径。PAIR_OF_x：若 hsl 为 PAIR_OF_某点且底牌不含该点，多为板对弱踢脚，勿口述为顶对。
+            【输出】先极短内部思考（禁止长篇独白/自我辩论快照），然后**仅一行** JSON 对象，字段：**action,chips_to_add,brief_reason,plan_next**；另可选 reasoning **或** thought 其一（极短调试句，服务端可记日志，不得替代 brief_reason）。action（FOLD|CALL_OR_CHECK|RAISE|ALL_IN）；chips_to_add（整数）；brief_reason（≤140 字中文，与 action、stage_en **一致**）。brief_reason **必须出现**当前街中文名之一（翻前/翻牌/转牌/河牌，与 stage_en 对应）；并遵守上文【计划对照】。preflop 时禁止把「翻后/河牌/转牌/翻牌圈/在翻牌/到翻牌」当成当前已发生语境（「便宜看翻牌」类意图除外）。**plan_next**（必填，≤120 字中文）：写给「下一轮到你的冻结快照」时快速接续的策略要点（可含下一街假设与调整条件），勿写废话剧情。**follow_up**（可选，≤80 字）：对 plan_next 的一行补丁或备忘。FOLD/CALL_OR_CHECK 时 chips_to_add=0；CALL_OR_CHECK 且需跟注时由解析侧规范化；RAISE：chips_to_add=面对档位之上的再加；ALL_IN：chips_to_add=全下总额。禁止 markdown、代码围栏、多余 JSON 外套或口癖；除该行 JSON 外禁止任何字符。
+            """.stripIndent();
     /** 轮到 BOT_LLM 后、发起方舟请求前的额外等待；0 表示不人为拖延（总耗时几乎全在 API 侧）。 */
     private static final long PRE_API_DELAY_MS = 0L;
     /** 控制台打印 reasoning_content 上限，避免上万字刷屏；不影响 API 侧真实思考长度。 */
@@ -66,11 +83,13 @@ public class DpLlmNpcDecisionService {
 
     private final ConcurrentHashMap<String, Inflight> inflightByKey = new ConcurrentHashMap<>();
     private final OpenAiCompatibleChatClient chatClient;
+    private final LlmNpcGlobalHandConversationStore globalConversationStore;
     private final boolean llmResponseJsonObject;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // 构造器中从配置文件里取输入大模型请求的id，key baseUrl信息
     public DpLlmNpcDecisionService(
+            LlmNpcGlobalHandConversationStore globalConversationStore,
             @Value("${dp.llm.ark.api-key:}") String propApiKey,
             @Value("${dp.llm.ark.endpoint-id:}") String propEndpointId,
             @Value("${dp.llm.ark.base-url:}") String propBaseUrl,
@@ -83,6 +102,7 @@ public class DpLlmNpcDecisionService {
         String reasoningEffort = propReasoningEffort != null ? propReasoningEffort.trim() : "";
         String thinkingType = propThinkingType != null ? propThinkingType.trim() : "";
         this.llmResponseJsonObject = responseJsonObject;
+        this.globalConversationStore = Objects.requireNonNull(globalConversationStore, "globalConversationStore");
         this.chatClient = new OpenAiCompatibleChatClient(
                 apiKey,
                 endpointId,
@@ -90,6 +110,9 @@ public class DpLlmNpcDecisionService {
                 reasoningEffort.isEmpty() ? null : reasoningEffort,
                 thinkingType.isEmpty() ? null : thinkingType);
     }
+
+    /** 异步闭包回填：BOT_LLM_GLOBAL 在多轮采纳后写入 {@link LlmNpcGlobalHandConversationStore}。 */
+    private record AsyncLlmDecision(DpNpcEngine.BotAction action, String rawAssistantBody) {}
 
     private static String trimToNull(String s) {
         if (s == null || s.isBlank()) {
@@ -134,15 +157,26 @@ public class DpLlmNpcDecisionService {
 
     // 已学习，这个是用来保存future异步任务信息，ticket保存离开前的桌面快照，说白了没有这个就不知道是否有在途任务，也无法取消它
     private static final class Inflight {
-        final CompletableFuture<DpNpcEngine.BotAction> future;
+        final CompletableFuture<AsyncLlmDecision> future;
         final LlmActionTicket ticket;
         /** {@link #decideActionIfReady} 把任务放进 map、发起异步的时刻，用于主线程侧「发起→落地」耗时 */
         final long startedAtMs;
+        /** 本条请求对应的 user 快照（GLOBAL 存档用；标准 BOT_LLM 忽略）。 */
+        final String userPromptSnapshot;
+        /** 是否 BOT_LLM_GLOBAL（票据作废时亦不写入历史）。 */
+        final boolean globalConversation;
 
-        Inflight(CompletableFuture<DpNpcEngine.BotAction> future, LlmActionTicket ticket, long startedAtMs) {
+        Inflight(
+                CompletableFuture<AsyncLlmDecision> future,
+                LlmActionTicket ticket,
+                long startedAtMs,
+                String userPromptSnapshot,
+                boolean globalConversation) {
             this.future = future;
             this.ticket = ticket;
             this.startedAtMs = startedAtMs;
+            this.userPromptSnapshot = userPromptSnapshot;
+            this.globalConversation = globalConversation;
         }
     }
 
@@ -209,21 +243,41 @@ public class DpLlmNpcDecisionService {
                     bot.getBet(),
                     room.getCurrentBetToCall());
             LlmNpcGameContext gameContext = DpNpcEngine.buildLlmNpcGameSnapshot(room, bot);
-            String userPrompt = buildUserPrompt(room, bot, gameContext);// 用的是GameContext的方法，打包压缩送给大模型的信息
+            boolean globalConversation = DpNpcEngine.isGlobalLlmBotNickname(bot.getNickname());
+            String userPrompt = buildUserPrompt(room, bot, gameContext, globalConversation);// 用的是GameContext的方法，打包压缩送给大模型的信息
             // 异步发送打包信息，把传回来的信息给future
             String roomId = room.getRoomId();
             String stage = room.getCurrentStage();
-            CompletableFuture<DpNpcEngine.BotAction> future = CompletableFuture
-                    .supplyAsync(() -> invokeModel(roomId, stage, userPrompt), llmExecutor)
+            final long dispatchHandSeed = room.getCurrentHandSeed();
+            final String dispatchBotNick = bot.getNickname();
+
+            // 进程退出 / DevTools 热重载会先 @PreDestroy shutdown 线程池，Timer tick 仍可能落到本 Bean 上一拍：勿向已关闭池 submit（否则 Timer 线程抛 RejectedExecutionException）
+            if (llmExecutor.isShutdown()) {
+                LOG.warn("{} 【LLM线程池已关闭】跳过异步调用，本地兜底 room={} stage={}", logTagForNickname(dispatchBotNick),
+                        roomId, stage);
+                return applyLocalFallback(room, bot, "LLM执行器不可用(关停或重启间隙)");
+            }
+
+            CompletableFuture<AsyncLlmDecision> future = CompletableFuture
+                    .supplyAsync(
+                        //异步执行的任务内容
+                            () -> globalConversation
+                                    ? invokeModelGlobal(
+                                            roomId, stage, dispatchHandSeed, dispatchBotNick, userPrompt)
+                                    : invokeModelClassic(roomId, stage, userPrompt),
+                            llmExecutor)
                     .orTimeout(125, TimeUnit.SECONDS)
                     .exceptionally(ex -> {
-                        LOG.warn("[BOT_LLM] 异步请求异常/超时: {}", ex == null ? "?" : ex.getMessage());
+                        LOG.warn("{} 异步请求异常/超时: {}", logTagForNickname(dispatchBotNick),
+                                ex == null ? "?" : ex.getMessage());
                         return null;
                     });
 
             long dispatchMs = System.currentTimeMillis();
-            LOG.info("[BOT_LLM] 【已发起大模型请求】room={} stage={}", roomId, stage);
-            inflightByKey.put(key, new Inflight(future, ticket, dispatchMs));// 钥匙和在途任务以及快照信息，等请求完成了，用key取出来结果核验快照
+            LOG.info("{} 【已发起大模型请求】room={} stage={}", logTagForNickname(dispatchBotNick), roomId, stage);
+            inflightByKey.put(
+                    key,
+                    new Inflight(future, ticket, dispatchMs, userPrompt, globalConversation)); // 钥匙和在途任务以及快照信息，等请求完成了，用key取出来结果核验快照
             return null;
         }
         // 如果返回了就删掉key，没返回就卡着
@@ -235,33 +289,49 @@ public class DpLlmNpcDecisionService {
         bot.setNextBotActionTime(0L);
         long landingMs = System.currentTimeMillis();
         long sinceDispatchMs = landingMs - slot.startedAtMs;
+        String logTag = logTagForNickname(bot.getNickname());
         // 快照过期了，返回的决策不能用了，执行兜底决策
         if (!slot.ticket.stillValid(room, bot)) {// 执行兜底决策
-            LOG.info("[BOT_LLM] 【决策耗时】发起异步→本tick落地={}ms room={} stage={} outcome=丢弃(局面已变)",
-                    sinceDispatchMs, room.getRoomId(), room.getCurrentStage());
+            LOG.info("{} 【决策耗时】发起异步→本tick落地={}ms room={} stage={} outcome=丢弃(局面已变)",
+                    logTag, sinceDispatchMs, room.getRoomId(), room.getCurrentStage());
             return applyLocalFallback(room, bot, "局面已变(与发起请求时不一致，丢弃模型结果)");
         }
         // 模型返回null也走兜底
-        DpNpcEngine.BotAction parsed = slot.future.getNow(null);
-        if (parsed == null) {
-            LOG.info("[BOT_LLM] 【决策耗时】发起异步→本tick落地={}ms room={} stage={} outcome=本地兜底(模型无有效动作)",
-                    sinceDispatchMs, room.getRoomId(), room.getCurrentStage());
+        AsyncLlmDecision outcome = slot.future.getNow(null);
+        if (outcome == null || outcome.action() == null) {
+            LOG.info("{} 【决策耗时】发起异步→本tick落地={}ms room={} stage={} outcome=本地兜底(模型无有效动作)",
+                    logTag, sinceDispatchMs, room.getRoomId(), room.getCurrentStage());
             return applyLocalFallback(room, bot, "模型返回null/未配置/解析失败/超时");
         }
+        DpNpcEngine.BotAction parsed = outcome.action();
         // 正常返回之后处理信息，有时候LLM返回的信息并不能实行，比如筹码剩下200了，他却要raise250，所以需要再最后把把关，弄成符合游戏实际的操作返回
         DpNpcEngine.BotAction executed = normalizeAndClamp(room, bot, parsed);
-        LOG.info("[BOT_LLM] 【决策耗时】发起异步→本tick落地={}ms room={} stage={} outcome=采用大模型",
-                sinceDispatchMs, room.getRoomId(), room.getCurrentStage());
-        LOG.info("[BOT_LLM] 【采用大模型】解析动作={} chips_to_add={} -> 规范化执行={} amount={}",
-                parsed.getType(), parsed.getAmount(), executed.getType(), executed.getAmount());
+        if (slot.globalConversation) {
+            globalConversationStore.recordSuccessfulTurn(
+                    room.getRoomId(),
+                    bot.getNickname(),
+                    slot.ticket.handSeed,
+                    slot.userPromptSnapshot,
+                    outcome.rawAssistantBody() != null ? outcome.rawAssistantBody() : "");
+        }
+        LOG.info("{} 【决策耗时】发起异步→本tick落地={}ms room={} stage={} outcome=采用大模型",
+                logTag, sinceDispatchMs, room.getRoomId(), room.getCurrentStage());
+        LOG.info("{} 【采用大模型】解析动作={} chips_to_add={} -> 规范化执行={} amount={}",
+                logTag, parsed.getType(), parsed.getAmount(), executed.getType(), executed.getAmount());
         return executed;
     }
 
     // 已学习，离线决策
+    /** 日志前缀：BOT_LLM vs BOT_LLM_GLOBAL。 */
+    private static String logTagForNickname(String botNick) {
+        return botNick != null && DpNpcEngine.isGlobalLlmBotNickname(botNick) ? "[BOT_LLM_GLOBAL]" : "[BOT_LLM]";
+    }
+
     /** 未走模型或丢弃模型结果时的本地兜底，统一打日志便于对照控制台。 */
-    private static DpNpcEngine.BotAction applyLocalFallback(DpRoomBO room, DpPlayer bot, String reason) {
+    private DpNpcEngine.BotAction applyLocalFallback(DpRoomBO room, DpPlayer bot, String reason) {
         DpNpcEngine.BotAction a = fallback(room, bot);
-        LOG.info("[BOT_LLM] 【本地决策】原因={} -> {} amount={}", reason, a.getType(), a.getAmount());
+        LOG.info("{} 【本地决策】原因={} -> {} amount={}",
+                logTagForNickname(bot != null ? bot.getNickname() : null), reason, a.getType(), a.getAmount());
         return a;
     }
 
@@ -270,65 +340,123 @@ public class DpLlmNpcDecisionService {
      * @param roomId 仅用于耗时日志关联房间
      * @param stage  仅用于耗时日志关联阶段
      */
-    private DpNpcEngine.BotAction invokeModel(String roomId, String stage, String userPrompt) {
+    private AsyncLlmDecision invokeModelClassic(String roomId, String stage, String userPrompt) {
+        return callModelAndParse(
+                roomId,
+                stage,
+                "[BOT_LLM]",
+                LLM_SYSTEM_PROMPT,
+                OpenAiCompatibleChatClient.singleUserMessage(userPrompt),
+                userPrompt,
+                false);
+    }
+
+    private AsyncLlmDecision invokeModelGlobal(
+            String roomId, String stage, long handSeed, String botNickname, String userPrompt) {
+        //通过map获取之前的对话list，并添加新的信息包，然后发送
+                ArrayList<OpenAiCompatibleChatClient.ChatMessage> msgs =
+                new ArrayList<>(globalConversationStore.copyHistory(roomId, botNickname, handSeed));
+        msgs.add(new OpenAiCompatibleChatClient.ChatMessage("user", userPrompt));
+        if (LOG.isDebugEnabled()) {
+            int prior = msgs.size() - 1;
+            LOG.debug(
+                    "[BOT_LLM_GLOBAL] 多轮 API messages 条数={}（本轮前历史={}）room={} stage={} handSeed={}",
+                    msgs.size(),
+                    prior,
+                    roomId,
+                    stage,
+                    handSeed);
+        }
+        return callModelAndParse(roomId, stage, "[BOT_LLM_GLOBAL]", LLM_GLOBAL_SYSTEM_PROMPT, msgs, userPrompt, true);
+    }
+
+    /** 共通：发起 HTTP → 日志 → JSON 解析 → {@link AsyncLlmDecision}。 */
+    private AsyncLlmDecision callModelAndParse(
+            String roomId,
+            String stage,
+            String logTag,
+            String systemPrompt,
+            List<OpenAiCompatibleChatClient.ChatMessage> messages,
+            String userPayloadForStableMetrics,
+            boolean globalStablePrefixVariant) {
         if (!chatClient.isConfigured()) {
-            LOG.warn("[BOT_LLM] 未配置密钥/接入点，跳过请求");
+            LOG.warn("{} 未配置密钥/接入点，跳过请求", logTag);
             return null;
         }
-        LOG.debug("======== [BOT_LLM] 输入 system ========\n{}", LLM_SYSTEM_PROMPT);
-        LOG.debug("======== [BOT_LLM] 输入 user ========\n{}", userPrompt);
+        LOG.debug("======== {} 输入 system ========\n{}", logTag, systemPrompt);
+        if (messages != null && !messages.isEmpty()) {
+            OpenAiCompatibleChatClient.ChatMessage last = messages.get(messages.size() - 1);
+            LOG.debug(
+                    "======== {} 输入 last message role={} ========\n{}",
+                    logTag,
+                    last != null ? last.role() : "?",
+                    last != null ? last.content() : "(null)");
+        }
         if (LOG.isDebugEnabled()) {
-            int stableChars = LlmNpcUserSnapshot.STABLE_PREFIX_LENGTH;
-            int ulen = userPrompt.length();
-            String head = ulen >= stableChars ? userPrompt.substring(0, stableChars) : userPrompt;
-            LOG.debug("[BOT_LLM] prompt_metrics systemChars={} userChars={} stablePrefixChars={} stablePrefixHash={}",
-                    LLM_SYSTEM_PROMPT.length(), ulen, stableChars, Integer.toHexString(head.hashCode()));
+            int stableChars = LlmNpcUserSnapshot.stablePrefixLength(globalStablePrefixVariant);
+            int ulen = userPayloadForStableMetrics != null ? userPayloadForStableMetrics.length() : 0;
+            String head =
+                    userPayloadForStableMetrics != null && ulen >= stableChars
+                            ? userPayloadForStableMetrics.substring(0, stableChars)
+                            : userPayloadForStableMetrics;
+            LOG.debug(
+                    "{} prompt_metrics systemChars={} userChars={} stablePrefixChars={} stablePrefixHash={}",
+                    logTag,
+                    systemPrompt.length(),
+                    ulen,
+                    stableChars,
+                    head == null ? "0" : Integer.toHexString(head.hashCode()));
         }
         long t0 = System.nanoTime();
         int reasoningChars = 0;
         try {
-            // 把大模型key id 提示词 信息包输入进去
-            OpenAiCompatibleChatClient.ChatCompletionReply reply = chatClient.chatMessagesDetailed(
-                    LLM_SYSTEM_PROMPT,
-                    OpenAiCompatibleChatClient.singleUserMessage(userPrompt),
-                    llmResponseJsonObject);
+            OpenAiCompatibleChatClient.ChatCompletionReply reply =
+                    chatClient.chatCompletionMultiTurn(systemPrompt, messages, llmResponseJsonObject);
             String raw = reply == null ? "" : reply.finalText();
             String reasoning = reply == null ? "" : reply.reasoningText();
             reasoningChars = reasoning == null ? 0 : reasoning.length();
 
-            LOG.debug("======== [BOT_LLM] 模型返回原文 ========\n{}", raw == null ? "(null)" : raw);
+            LOG.debug("======== {} 模型返回原文 ========\n{}", logTag, raw == null ? "(null)" : raw);
             if (reasoning != null && !reasoning.isBlank()) {
                 String r = reasoning.strip();
                 if (r.length() > REASONING_LOG_MAX_CHARS) {
                     r = r.substring(0, REASONING_LOG_MAX_CHARS) + " …(控制台已截断；全文 reasoning_chars≈"
                             + reasoningChars + ")";
                 }
-                LOG_REASONING.info("======== [BOT_LLM] 模型思考 ========\n{}", r);
+                LOG_REASONING.info("======== {} 模型 reasoning_content ========\n{}", logTag, r);
             }
             LlmParseResult parsed = parseModelReply(raw);
             DpNpcEngine.BotAction action = parsed == null ? null : parsed.action();
             if (parsed != null && parsed.briefReason() != null && !parsed.briefReason().isBlank()) {
                 String shown = normalizeBriefReasonForStage(parsed.briefReason(), stage);
                 if (!shown.equals(parsed.briefReason())) {
-                    LOG.warn("[BOT_LLM] brief_reason 与 stage 矛盾或缺街名，已展示规范化：{}", shown);
+                    LOG.warn("{} brief/thought 与 stage 矛盾或缺街名，已展示规范化：{}", logTag, shown);
                 }
-                LOG.info("[BOT_LLM] 决策理由(brief_reason)={}", shown);
+                LOG.info("{} 决策简述(brief/thought)={}", logTag, shown);
+            }
+            if (parsed != null && parsed.planHint() != null && !parsed.planHint().isBlank()) {
+                LOG.info("{} plan_next/follow_up={}", logTag, parsed.planHint());
             }
             if (action == null && raw != null && !raw.isBlank()) {
-                LOG.warn("[BOT_LLM] 提示：模型有正文但 JSON 未解析成动作，主线程将打印【本地决策】");
+                LOG.warn("{} 提示：模型有正文但 JSON 未解析成动作，主线程将打印【本地决策】", logTag);
             }
             if (parsed != null && action != null) {
-                LOG.info("[BOT_LLM] JSON 已解析 path={} -> {} chips_to_add={}",
-                        parsed.path(), action.getType(), action.getAmount());
+                LOG.info(
+                        "{} JSON 已解析 path={} -> {} chips_to_add={}",
+                        logTag,
+                        parsed.path(),
+                        action.getType(),
+                        action.getAmount());
             }
-            return action;
+            String body = raw == null ? "" : raw.strip();
+            return new AsyncLlmDecision(action, body);
         } catch (Exception e) {
-            LOG.warn("[BOT_LLM] HTTP/调用失败: {}", e.getMessage());
+            LOG.warn("{} HTTP/调用失败: {}", logTag, e.getMessage());
             return null;
         } finally {
             long modelWallMs = (System.nanoTime() - t0) / 1_000_000L;
-            LOG.info("[BOT_LLM] 【模型调用耗时】HTTP+解析={}ms room={} stage={} reasoningChars={}",
-                    modelWallMs, roomId, stage, reasoningChars);
+            LOG.info("{} 【模型调用耗时】HTTP+解析={}ms room={} stage={} reasoningChars={}",
+                    logTag, modelWallMs, roomId, stage, reasoningChars);
         }
     }
 
@@ -349,12 +477,16 @@ public class DpLlmNpcDecisionService {
     }
 
     /** 单一局面包出口：键表固定 + ---- 后值行（见 {@link LlmNpcUserSnapshot}）。 */
-    private static String buildUserPrompt(DpRoomBO room, DpPlayer bot, LlmNpcGameContext ctx) {
-        return LlmNpcUserSnapshot.formatUserPayload(room, bot, ctx);
+    private static String buildUserPrompt(DpRoomBO room, DpPlayer bot, LlmNpcGameContext ctx, boolean globalVariant) {
+        return LlmNpcUserSnapshot.formatUserPayload(room, bot, ctx, globalVariant);
     }
 
-    /** 解析结果 + 来源；briefReason 来自 JSON 的 brief_reason，仅日志展示。 */
-    private record LlmParseResult(DpNpcEngine.BotAction action, String path, String briefReason) {}
+    /** 解析结果 + 来源；briefReason 可为 brief_reason / reasoning / thought 合并；planHint = plan_next|follow_up。 */
+    private record LlmParseResult(
+            DpNpcEngine.BotAction action,
+            String path,
+            String briefReason,
+            String planHint) {}
 
     // 已学习，获取LLM返回结果并打包npc决策格式的数据结构
     /**
@@ -395,7 +527,11 @@ public class DpLlmNpcDecisionService {
         }
         DpNpcEngine.BotAction direct = botActionFromJsonNode(root);
         if (direct != null) {
-            return new LlmParseResult(direct, fromContentUnwrap ? "unwrap" : "top", briefReasonFromJsonNode(root));
+            return new LlmParseResult(
+                    direct,
+                    fromContentUnwrap ? "unwrap" : "top",
+                    mergedThoughtBriefFromJsonNode(root),
+                    planContinuationHintFromJsonNode(root));
         }
         JsonNode content = root.get("content");
         if (content != null && content.isTextual()) {
@@ -407,7 +543,11 @@ public class DpLlmNpcDecisionService {
         if (content != null && content.isObject()) {
             DpNpcEngine.BotAction nested = botActionFromJsonNode(content);
             if (nested != null) {
-                return new LlmParseResult(nested, "unwrap", briefReasonFromJsonNode(content));
+                return new LlmParseResult(
+                        nested,
+                        "unwrap",
+                        mergedThoughtBriefFromJsonNode(content),
+                        planContinuationHintFromJsonNode(content));
             }
         }
         return null;
@@ -430,11 +570,16 @@ public class DpLlmNpcDecisionService {
                 JsonNode node = objectMapper.readTree(slice);
                 DpNpcEngine.BotAction a = botActionFromJsonNode(node);
                 if (a != null) {
-                    return new LlmParseResult(a, "scan", briefReasonFromJsonNode(node));
+                    return new LlmParseResult(
+                            a, "scan", mergedThoughtBriefFromJsonNode(node), planContinuationHintFromJsonNode(node));
                 }
                 LlmParseResult inner = tryParseDecisionJson(slice, 1, false);
                 if (inner != null) {
-                    return new LlmParseResult(inner.action(), "scan", inner.briefReason());
+                    return new LlmParseResult(
+                            inner.action(),
+                            "scan",
+                            inner.briefReason(),
+                            inner.planHint());
                 }
             } catch (Exception ignored) {
                 // try next '{'
@@ -529,20 +674,57 @@ public class DpLlmNpcDecisionService {
         return cleaned;
     }
 
-    /** 模型输出的简短理由；仅用于日志，不参与下注逻辑。 */
-    private static String briefReasonFromJsonNode(JsonNode root) {
-        if (root == null || !root.has("brief_reason")) {
+    /** 精简思考：brief_reason / reasoning / thought 取最长一条；日志用。 */
+    private static String mergedThoughtBriefFromJsonNode(JsonNode root) {
+        if (root == null) {
             return null;
         }
-        String s = root.path("brief_reason").asText("").trim();
-        if (s.isEmpty()) {
-            return null;
+        String[] keys = {"brief_reason", "reasoning", "thought"};
+        String best = null;
+        for (String k : keys) {
+            if (!root.has(k)) {
+                continue;
+            }
+            String s = root.path(k).asText("").trim();
+            if (s.isEmpty()) {
+                continue;
+            }
+            if (best == null || s.length() > best.length()) {
+                best = s;
+            }
         }
         final int cap = 300;
-        if (s.length() > cap) {
-            return s.substring(0, cap) + "…";
+        if (best == null) {
+            return null;
         }
-        return s;
+        return best.length() > cap ? best.substring(0, cap) + "…" : best;
+    }
+
+    /** plan_next / follow_up 合并摘要；下一轮助手上下文由模型自由阅读 JSON。 */
+    private static String planContinuationHintFromJsonNode(JsonNode root) {
+        if (root == null) {
+            return null;
+        }
+        String pn = root.path("plan_next").asText("").trim();
+        String fu = root.path("follow_up").asText("").trim();
+        if (pn.isEmpty() && fu.isEmpty()) {
+            return null;
+        }
+        if (pn.isEmpty()) {
+            return capPlan(fu);
+        }
+        if (fu.isEmpty()) {
+            return capPlan(pn);
+        }
+        return capPlan(pn + " | " + fu);
+    }
+
+    private static String capPlan(String s) {
+        final int cap = 400;
+        if (s == null || s.isEmpty()) {
+            return null;
+        }
+        return s.length() > cap ? s.substring(0, cap) + "…" : s;
     }
 
     private DpNpcEngine.BotAction botActionFromJsonNode(JsonNode root) {

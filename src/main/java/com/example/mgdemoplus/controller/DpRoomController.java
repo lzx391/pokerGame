@@ -278,6 +278,12 @@ public class DpRoomController {
         return dpRoomService.addLlmBotToNextHand(roomId) ? "ok" : "fail";
     }
 
+    /** 全局叙事版大模型 NPC：{@code BOT_LLM_GLOBAL_<序号>}。 */
+    @PostMapping("/addLlmGlobalBot")
+    public String addLlmGlobalBot(@RequestParam String roomId) {
+        return dpRoomService.addGlobalLlmBotToNextHand(roomId) ? "ok" : "fail";
+    }
+
     /**
      * 房主主动移交房主给房间内的另一位玩家
      */
