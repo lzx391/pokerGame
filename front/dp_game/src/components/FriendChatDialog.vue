@@ -74,7 +74,7 @@
 <script>
 import { dpSocialApi } from '@/api/api.dpSocial'
 import { dpResultSuccess, dpResultData, dpResultMessage, dpAxiosErrorMessage } from '@/utils/dpApiResult'
-import { mapActions } from 'vuex'
+import { mapActions, mapState } from 'vuex'
 
 export default {
   name: 'FriendChatDialog',
@@ -94,10 +94,12 @@ export default {
       loadError: '',
       sending: false,
       draft: '',
-      pollTimer: null
+      /** 用于 SSE 未读递增检测：仅当对端未读变多时才拉消息 */
+      ssePeerUnreadBaseline: 0
     }
   },
   computed: {
+    ...mapState('dpMailbox', ['friendChatUnreadByUserId']),
     dialogTitle() {
       var name = (this.peerDisplayName || '').trim()
       return name ? '与 ' + name + ' 的对话' : '好友私信'
@@ -119,6 +121,11 @@ export default {
     dialogWidth() {
       if (typeof window !== 'undefined' && window.innerWidth < 600) return '100%'
       return '480px'
+    },
+    peerUnreadFromStore() {
+      if (!this.peerId) return 0
+      var n = this.friendChatUnreadByUserId[String(this.peerId)]
+      return n != null && n > 0 ? n : 0
     }
   },
   created() {
@@ -130,6 +137,18 @@ export default {
     },
     dialogVisible(v) {
       this.$emit('update:visible', v)
+    },
+    /** 大厅 SSE notify 更新未读：仅对端未读增加时增量拉取并滚到底 */
+    peerUnreadFromStore(n, prev) {
+      if (!this.dialogVisible || !this.peerId) return
+      var cur = Number(n) || 0
+      var base = Number(this.ssePeerUnreadBaseline) || 0
+      if (cur <= base) {
+        if (cur < base) this.ssePeerUnreadBaseline = cur
+        return
+      }
+      this.ssePeerUnreadBaseline = cur
+      this.loadMessages(false, { scrollToBottom: true })
     }
   },
   methods: {
@@ -166,7 +185,8 @@ export default {
       return max
     },
     mergeItems(items) {
-      if (!Array.isArray(items) || !items.length) return
+      if (!Array.isArray(items) || !items.length) return false
+      var prevMax = this.maxMessageId()
       var byId = {}
       for (var i = 0; i < this.messages.length; i++) {
         var m = this.messages[i]
@@ -194,12 +214,17 @@ export default {
         return String(a.messageId).localeCompare(String(b.messageId))
       })
       this.messages = list
+      return this.maxMessageId() > prevMax
+    },
+    scrollToBottomIfNeeded(shouldScroll) {
+      if (!shouldScroll) return
       var self = this
       this.$nextTick(function () {
         self.scrollToBottom()
       })
     },
-    async loadMessages(initial) {
+    async loadMessages(initial, opts) {
+      opts = opts || {}
       if (!this.peerId || !this.$http) return
       if (initial) {
         this.loading = true
@@ -218,16 +243,24 @@ export default {
         if (initial) {
           this.messages = []
         }
-        var prevMax = this.maxMessageId()
-        this.mergeItems(items)
-        if (initial || this.maxMessageId() > prevMax) {
+        var hadNew = false
+        if (items.length) {
+          hadNew = this.mergeItems(items)
+        }
+        var shouldScroll = !!initial || (!!opts.scrollToBottom && hadNew)
+        this.scrollToBottomIfNeeded(shouldScroll)
+        if (initial || hadNew) {
           await this.markRead()
+          this.syncSsePeerUnreadBaseline()
         }
       } catch (e) {
         if (initial) this.loadError = dpAxiosErrorMessage(e, '加载私信失败')
       } finally {
         if (initial) this.loading = false
       }
+    },
+    syncSsePeerUnreadBaseline() {
+      this.ssePeerUnreadBaseline = this.peerUnreadFromStore
     },
     async markRead() {
       var lastId = this.maxMessageId()
@@ -236,37 +269,24 @@ export default {
       try {
         await api.markFriendMessagesRead(this.peerId, lastId)
         this.peerUnreadCleared = true
+        this.syncSsePeerUnreadBaseline()
         await this.fetchFriendChatUnreadSummary({ http: this.$http }).catch(function () {})
         await this.fetchNotifySummary({ http: this.$http }).catch(function () {})
       } catch (e) {
         /* ignore */
       }
     },
-    startPoll() {
-      this.stopPoll()
-      var self = this
-      this.pollTimer = setInterval(function () {
-        if (!self.dialogVisible || !self.peerId) return
-        self.loadMessages(false)
-      }, 2000)
-    },
-    stopPoll() {
-      if (this.pollTimer != null) {
-        clearInterval(this.pollTimer)
-        this.pollTimer = null
-      }
-    },
     async onOpen() {
       this.peerUnreadCleared = false
+      this.syncSsePeerUnreadBaseline()
       if (!this.peerId) {
         this.loadError = '无效的好友'
         return
       }
       await this.loadMessages(true)
-      this.startPoll()
     },
     onClose() {
-      this.stopPoll()
+      this.ssePeerUnreadBaseline = 0
       this.messages = []
       this.draft = ''
       this.loadError = ''
@@ -291,7 +311,7 @@ export default {
         }
         var d = dpResultData(body) || {}
         var mid = d.messageId != null ? d.messageId : Date.now()
-        this.mergeItems([
+        var hadNew = this.mergeItems([
           {
             messageId: mid,
             body: text,
@@ -299,6 +319,7 @@ export default {
             mine: true
           }
         ])
+        this.scrollToBottomIfNeeded(hadNew)
         this.draft = ''
         await this.markRead()
       } catch (e) {
@@ -307,9 +328,6 @@ export default {
         this.sending = false
       }
     }
-  },
-  beforeDestroy() {
-    this.stopPoll()
   }
 }
 </script>

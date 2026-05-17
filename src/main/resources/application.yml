@@ -29,6 +29,10 @@ spring:
       password: ${SPRING_DATA_REDIS_PASSWORD:ruoyi123}
       database: 0
       timeout: 3000ms
+  # SSE 长连接：避免默认 ~30s AsyncRequestTimeout 掐断 /dp/social/stream
+  mvc:
+    async:
+      request-timeout: -1
 
 mgdemoplus:
   jwt:
@@ -79,6 +83,12 @@ server:
 #     com.example.mgdemoplus.BotLlmReasoning: INFO
 #     com.example.mgdemoplus.service.serviceImpl.DpNpcEngine: INFO
 #     com.example.mgdemoplus.service.serviceImpl.DpLlmNpcDecisionService: DEBUG
+#     # 大厅 SSE / 进房邀请联调（[social-sse] 为 INFO）；稳定后可改回 WARN
+#     com.example.mgdemoplus.social: INFO
+#     com.example.mgdemoplus.controller.DpSocialController: INFO
+#     com.example.mgdemoplus.controller.DpFriendMailboxController: INFO
+#     com.example.mgdemoplus.security.JwtAuthenticationFilter: INFO
+#     com.example.mgdemoplus.service.serviceImpl.DpFriendSocialService: INFO
 #     org.springframework: WARN
 #     com.alibaba.druid: WARN
 # 只要思考、不要【已发起】【采用】：把 DpLlmNpcDecisionService 改成 WARN。
