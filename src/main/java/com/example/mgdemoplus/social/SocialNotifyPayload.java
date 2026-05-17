@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * 邮箱未读数和好友信息未读总数和好友和对应未读消息数MAP
  * 大厅社交通知 SSE / REST 摘要载荷（与 {@code notify} 事件 data 一致）。
  */
 public final class SocialNotifyPayload {

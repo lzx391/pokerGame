@@ -650,7 +650,11 @@ public class DpFriendSocialService {
                         .eq(DpFriendRequestRow::getId, id)
                         .eq(DpFriendRequestRow::getStatus, expectStatus));
     }
-
+/**
+ * 查询当前用户有多少未处理的加好友请求
+ * @param toUserId
+ * @return
+ */
     private int countPendingFriendRequestsToUser(int toUserId) {
         return Math.toIntExact(
                 friendRequestMapper.selectCount(
@@ -658,7 +662,11 @@ public class DpFriendSocialService {
                                 .eq(DpFriendRequestRow::getToUserId, toUserId)
                                 .eq(DpFriendRequestRow::getStatus, PENDING)));
     }
-
+/**
+ * 查询当前用户有多少未处理的进房邀请
+ * @param inviteeUserId
+ * @return
+ */
     private int countPendingRoomInvitesToUserFresh(int inviteeUserId) {
         return Math.toIntExact(
                 roomInviteMapper.selectCount(

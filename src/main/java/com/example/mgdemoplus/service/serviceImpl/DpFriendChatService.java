@@ -53,7 +53,9 @@ public class DpFriendChatService {
         this.friendLinkMapper = friendLinkMapper;
         this.dpUserMapper = dpUserMapper;
     }
-
+/**
+ * 发送私信，返回更新后信息，推送通知
+ */
     @Transactional
     public ResultUtil sendMessage(int senderUserId, int peerUserId, String bodyRaw) {
         if (peerUserId <= 0 || senderUserId <= 0) {
@@ -141,11 +143,13 @@ public class DpFriendChatService {
     public Map<String, Integer> friendChatUnreadByFriendUserId(int currentUserId) {
         List<DpFriendLinkRow> friends = friendLinkMapper.listFriendsOfUser(currentUserId);
         Map<String, Integer> out = new LinkedHashMap<>();
+        //遍历每一个friend
         for (DpFriendLinkRow fl : friends) {
             Integer fid = fl.getFriendUserId();
             if (fid == null || fid <= 0) {
                 continue;
             }
+            //查询当前用户有多少未读消息给好友
             long cnt = friendMessageMapper.countUnreadFromPeer(currentUserId, fid);
             if (cnt > 0) {
                 out.put(String.valueOf(fid), (int) Math.min(cnt, Integer.MAX_VALUE));
@@ -174,7 +178,11 @@ public class DpFriendChatService {
         }
         return ResultUtil.ok().data("totalUnread", total).data("perFriend", perFriend);
     }
-
+/**
+ * 如果超过500条，则删除最早的
+ * @param userA
+ * @param userB
+ */
     private void trimConversationIfNeeded(int userA, int userB) {
         long count = friendMessageMapper.countConversation(userA, userB);
         if (count <= MAX_MESSAGES_PER_PAIR) {

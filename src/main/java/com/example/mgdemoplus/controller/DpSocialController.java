@@ -23,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
+ * 这里只管大厅的，不涉及邮箱和好友消息box的细节
  * 大厅社交通知：SSE 实时推送 + REST 摘要（断线兜底）。
  */
 @RestController
@@ -37,7 +38,10 @@ public class DpSocialController {
     private SocialSseHub socialSseHub;
     @Autowired
     private DpUserMapper dpUserMapper;
-
+/**
+ * 建立SSE连接并触发一次推送
+ * @return
+ */
     @GetMapping("/stream")
     public ResponseEntity<?> socialStream() {
         ResultUtil err = ResultUtil.error();
@@ -57,7 +61,10 @@ public class DpSocialController {
         SseEmitter emitter = socialSseHub.connect(me.getId(), initial);
         return ResponseEntity.ok().contentType(MediaType.TEXT_EVENT_STREAM).body(emitter);
     }
-
+/**
+ * 轮询兜底，防止SSE断开推送不了
+ * @return
+ */
     @GetMapping("/notify-summary")
     public ResultUtil notifySummary() {
         ResultUtil err = ResultUtil.error();
@@ -68,7 +75,11 @@ public class DpSocialController {
         SocialNotifyPayload p = socialNotifySummaryService.buildForUser(me.getId());
         return ResultUtil.ok().data(p.toDataMap());
     }
-
+/**
+ * 验证当前用户是否登录，获取用户名
+ * @param fallback
+ * @return
+ */
     private DpUser requireCurrentUser(ResultUtil fallback) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null

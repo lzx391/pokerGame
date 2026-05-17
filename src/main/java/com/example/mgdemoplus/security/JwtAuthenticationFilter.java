@@ -135,6 +135,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      * 返回 401 未授权 JSON 响应，逐行解释如下：
      */
     /**
+     * 解析token的，从普通请求头和SSE连接中拿
      * 优先 {@code Authorization: Bearer}；仅 {@code GET /dp/social/stream} 支持 {@code ?token=}（EventSource 无法设 Header）。
      * 禁止将 token 写入日志。
      */

@@ -20,8 +20,11 @@ public class SocialNotifySummaryService {
     }
 
     public SocialNotifyPayload buildForUser(int userId) {
+        //算好友申请和邀请未读总数
         int mailboxUnread = dpFriendSocialService.mailboxUnreadCount(userId);
+        //构造好友和未读消息数MAP,Map<Integer, Integer>是var
         var byFriend = dpFriendChatService.friendChatUnreadByFriendUserId(userId);
+        //把好友消息未读总数算出来
         long total = byFriend.values().stream().mapToLong(Integer::longValue).sum();
         return new SocialNotifyPayload(mailboxUnread, total, byFriend);
     }
