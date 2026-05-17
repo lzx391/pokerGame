@@ -69,15 +69,22 @@
                 邮箱
               </button>
             </el-badge>
-            <button
-              type="button"
-              class="dp-btn dp-btn--ghost"
-              aria-label="好友列表"
-              title="好友列表"
-              @click="openFriendsDrawer"
+            <el-badge
+              :value="friendChatUnreadTotal"
+              :hidden="!friendChatUnreadTotal"
+              :max="99"
+              class="home-actions__mail-badge home-actions__mail-badge--inline"
             >
-              好友
-            </button>
+              <button
+                type="button"
+                class="dp-btn dp-btn--ghost"
+                aria-label="好友列表"
+                title="好友列表"
+                @click="openFriendsDrawer"
+              >
+                好友
+              </button>
+            </el-badge>
           </div>
         </div>
       </section>
@@ -207,7 +214,15 @@
             :class="['dp-social-list__item', friendPresenceRowClass(f)]"
           >
             <div class="dp-social-list__text">
-              <div class="dp-social-list__primary">{{ friendPrimaryName(f) }}</div>
+              <div class="dp-social-list__primary dp-social-list__primary--dm">
+                <span>{{ friendPrimaryName(f) }}</span>
+                <span
+                  v-if="friendUnreadFor(f.userId)"
+                  class="dp-social-list__dm-dot"
+                  title="有未读私信"
+                  aria-label="有未读私信"
+                />
+              </div>
               <div
                 v-if="friendPresenceLine(f)"
                 class="dp-social-list__presence"
@@ -223,6 +238,21 @@
               </button>
             </div>
             <div class="dp-social-list__actions">
+              <el-badge
+                :value="friendUnreadFor(f.userId)"
+                :hidden="!friendUnreadFor(f.userId)"
+                :max="99"
+                class="home-friend-chat-badge"
+              >
+                <el-button
+                  type="primary"
+                  plain
+                  size="mini"
+                  @click="openFriendChat(f)"
+                >
+                  对话
+                </el-button>
+              </el-badge>
               <el-button
                 v-if="friendShowFollow(f)"
                 type="success"
@@ -339,6 +369,14 @@
         </template>
       </div>
     </el-dialog>
+
+    <friend-chat-dialog
+      :visible.sync="friendChatVisible"
+      :peer-user-id="friendChatPeerId"
+      :peer-display-name="friendChatPeerName"
+      :peer-unread-count="friendChatPeerUnread"
+      @closed="onFriendChatClosed"
+    />
   </div>
 </template>
 
@@ -351,6 +389,8 @@ import { dpFriendPresenceRowClass, dpFriendPresenceStatusText, dpFriendPresenceB
 import { dpSocialDisplayNickname } from '@/utils/dpSocialDisplayName'
 import { dpResultSuccess, dpResultData, dpResultMessage } from '@/utils/dpApiResult'
 import GamePlayGuideModal from '@/components/GamePlayGuideModal.vue'
+import FriendChatDialog from '@/components/FriendChatDialog.vue'
+import { buildSocialStreamUrl } from '@/utils/dpSocialStream'
 import { mapGetters, mapState, mapActions } from 'vuex'
 import {
   peekCatTutorialRequested,
@@ -362,7 +402,7 @@ import { exitLobbyQuickMatchSilently } from '@/utils/dpLobbyQuickMatchExit'
 import { postQuickMatchCancel2 } from '@/utils/dpQuickMatchExit'
 
 export default {
-  components: { GamePlayGuideModal },
+  components: { GamePlayGuideModal, FriendChatDialog },
   mixins: [dpLobbyThemeMixin],
   data() {
     return {
@@ -396,9 +436,14 @@ export default {
       /** 邮箱内进房邀约倒计时本地递减（每秒） */
       mailboxTickSeconds: 0,
       mailboxTickTimer: null,
-      /** 大厅静默轮询未读数量（毫秒） */
-      unreadPollMs: 6000,
-      unreadPollTimer: null,
+      socialEventSource: null,
+      socialEsSession: 0,
+      socialEsReconnectTimer: null,
+      socialEsReconnectAttempt: 0,
+      friendChatVisible: false,
+      friendChatPeerId: null,
+      friendChatPeerName: '',
+      friendChatPeerUnread: 0,
       /** 好友列表「跟随」连点防护：好友 dp_user.id */
       friendFollowBusyUserId: null
     }
@@ -407,6 +452,7 @@ export default {
     ...mapGetters('dpGame', ['handRankReference']),
     ...mapState('dpMailbox', [
       'unreadCount',
+      'friendChatUnreadTotal',
       'friendRequests',
       'roomInvites',
       'friends',
@@ -414,8 +460,18 @@ export default {
       'friendsLoading',
       'actionBusyId'
     ]),
+    ...mapGetters('dpMailbox', ['friendUnreadForUser']),
     pageSize() {
       return 20
+    }
+  },
+  watch: {
+    '$route.path': function (path) {
+      if (path === '/home' && this.user && this.user.token) {
+        this.connectSocialStream()
+      } else {
+        this.closeSocialStream()
+      }
     }
   },
   async created() {
@@ -448,7 +504,7 @@ export default {
       clearInterval(this.timer)
       this.timer = null
     }
-    this.clearUnreadPollTimer()
+    this.closeSocialStream()
     this.stopMailboxTick()
     this.quickMatchPolling = false
     this.quickMatchLoading = false
@@ -458,6 +514,9 @@ export default {
   methods: {
     ...mapActions('dpMailbox', [
       'fetchUnreadCount',
+      'fetchFriendChatUnreadSummary',
+      'fetchNotifySummary',
+      'applyNotifyPayload',
       'fetchMailbox',
       'fetchFriends',
       'removeFriend',
@@ -540,21 +599,127 @@ export default {
       var sec = Math.max(0, Math.floor(base) - this.mailboxTickSeconds)
       return sec <= 0 ? '已过期' : sec + ' 秒'
     },
+    friendUnreadFor(userId) {
+      return this.friendUnreadForUser(userId)
+    },
     bootstrapSocial() {
       var http = this.$http
-      this.fetchUnreadCount({ http }).catch(() => {})
-      this.fetchFriends({ http }).catch(() => {})
-      this.clearUnreadPollTimer()
       var self = this
-      this.unreadPollTimer = setInterval(function () {
-        self.fetchUnreadCount({ http }).catch(() => {})
-      }, this.unreadPollMs)
+      this.fetchNotifySummary({ http }).catch(function () {
+        return Promise.all([
+          self.fetchUnreadCount({ http }),
+          self.fetchFriendChatUnreadSummary({ http })
+        ])
+      })
+      this.fetchFriends({ http }).catch(() => {})
+      this.connectSocialStream()
     },
-    clearUnreadPollTimer() {
-      if (this.unreadPollTimer != null) {
-        clearInterval(this.unreadPollTimer)
-        this.unreadPollTimer = null
+    closeSocialStream() {
+      this.socialEsSession++
+      if (this.socialEsReconnectTimer != null) {
+        clearTimeout(this.socialEsReconnectTimer)
+        this.socialEsReconnectTimer = null
       }
+      var es = this.socialEventSource
+      var notifyHandler = this._socialNotifyHandler
+      this.socialEventSource = null
+      this._socialNotifyHandler = null
+      if (es) {
+        es.onopen = null
+        es.onerror = null
+        es.onmessage = null
+        if (notifyHandler) {
+          try {
+            es.removeEventListener('notify', notifyHandler)
+          } catch (e) { /* ignore */ }
+        }
+        try {
+          es.close()
+        } catch (e) { /* ignore */ }
+      }
+    },
+    scheduleSocialStreamReconnect() {
+      if (this.socialEsReconnectTimer != null) return
+      if (!this.user || !this.user.token) return
+      if (this.$route.path !== '/home') return
+      var self = this
+      var attempt = this.socialEsReconnectAttempt
+      var delay = Math.min(30000, 1000 * Math.pow(2, attempt))
+      this.socialEsReconnectTimer = setTimeout(function () {
+        self.socialEsReconnectTimer = null
+        self.socialEsReconnectAttempt++
+        self.connectSocialStream(true)
+      }, delay)
+    },
+    connectSocialStream(isReconnect) {
+      if (!this.user || !this.user.token) return
+      if (this.$route.path !== '/home') return
+      var url = buildSocialStreamUrl(this.user.token)
+      if (!url) return
+      this.closeSocialStream()
+      var session = ++this.socialEsSession
+      var self = this
+      var es
+      try {
+        es = new EventSource(url)
+      } catch (e) {
+        this.scheduleSocialStreamReconnect()
+        return
+      }
+      this.socialEventSource = es
+      this._socialNotifyHandler = function (ev) {
+        if (self.socialEsSession !== session) return
+        self.onSocialNotify(ev && ev.data)
+      }
+      var onNotify = this._socialNotifyHandler
+      es.addEventListener('notify', onNotify)
+      es.onmessage = onNotify
+      es.onopen = function () {
+        if (self.socialEsSession !== session) return
+        self.socialEsReconnectAttempt = 0
+        if (isReconnect) {
+          self.fetchNotifySummary({ http: self.$http }).catch(function () {})
+        }
+      }
+      es.onerror = function () {
+        if (self.socialEsSession !== session) return
+        try {
+          es.close()
+        } catch (err) { /* ignore */ }
+        if (self.socialEventSource === es) self.socialEventSource = null
+        self.scheduleSocialStreamReconnect()
+      }
+    },
+    onSocialNotify(raw) {
+      if (raw) {
+        try {
+          var parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+          if (process.env.NODE_ENV !== 'production') {
+            console.info('[social-sse] notify received', parsed)
+          }
+          this.applyNotifyPayload(parsed)
+          return
+        } catch (e) {
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn('[social-sse] notify parse failed', raw, e)
+          }
+        }
+      }
+      this.fetchNotifySummary({ http: this.$http }).catch(() => {})
+    },
+    openFriendChat(f) {
+      var uid = f && f.userId != null ? Number(f.userId) : 0
+      if (!isFinite(uid) || uid <= 0) return
+      this.friendChatPeerId = uid
+      this.friendChatPeerName = this.friendPrimaryName(f)
+      this.friendChatPeerUnread = this.friendUnreadFor(uid)
+      this.friendChatVisible = true
+    },
+    onFriendChatClosed() {
+      this.friendChatPeerId = null
+      this.friendChatPeerName = ''
+      this.friendChatPeerUnread = 0
+      this.fetchFriendChatUnreadSummary({ http: this.$http }).catch(() => {})
     },
     startMailboxTick() {
       var self = this
@@ -690,6 +855,7 @@ export default {
       this.onPlayGuideClose()
     },
     logout() {
+      this.closeSocialStream()
       localStorage.removeItem('userInfo')
       this.$router.push('/')
     },

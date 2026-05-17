@@ -6,7 +6,7 @@
 
 | 文件 | 作用 |
 |------|------|
-| `docker/nginx/default.conf` | Nginx 站点配置：`/` → 应用；`/ws/` → 同一后端（带 WebSocket 升级头） |
+| `docker/nginx/default.conf` | Nginx 站点配置：`/` → 应用；`/dp/social/stream` → SSE；`/ws/` → WebSocket |
 | `docker-compose.yml` 中的 `nginx` 服务 | 镜像 `nginx:alpine`，映射宿主机 **80:80**，挂载上述配置 |
 
 浏览器访问 **`http://localhost`**（无需 `:8088`）即可打开站点；对局页 WebSocket 仍为 **`/ws/dp-game`**，经 Nginx 时自动升级为 `ws://localhost/ws/dp-game?...`（与页面同主机、同端口）。
@@ -28,6 +28,7 @@ docker compose up --build
 
 - **上游地址**：`proxy_pass http://app:8088;` — `app` 是 compose 里 Spring 服务名，**不要**写 `127.0.0.1`（那是容器自己，不是应用容器）。
 - **WebSocket**：`location /ws/` 中必须包含 `Upgrade`、`Connection`（本配置用 `map $http_upgrade $connection_upgrade`），并建议拉长 `proxy_read_timeout`，避免长连接被过早断开。
+- **SSE（大厅）**：`location = /dp/social/stream` 须 **`proxy_buffering off`**、`gzip off`、`proxy_read_timeout` 拉长（与本地 dev 的 `vue.config.js` 里 stream 代理同理）；否则后端已 `broadcast` 但浏览器收不到 `event: notify`。
 - **上传**：已设 `client_max_body_size 50m`，与常见 multipart 上传一致；若不够可再调大。
 - **HTTPS**：若以后要 **443**，需在 Nginx 上配置 `ssl_certificate` / `listen 443 ssl`，或前面再加一层云负载均衡终止 TLS；本仓库默认只提供 **HTTP 80** 示例。
 
@@ -35,6 +36,16 @@ docker compose up --build
 
 可以在 Windows 上单独装 Nginx，把 `proxy_pass` 指到 **`http://127.0.0.1:8088`**，逻辑与上面相同；或继续只用 Spring Boot 的 8088，不必强制上 Nginx。
 
-## 5. 关闭对外 8088（可选）
+## 5. 上线后重载 Nginx
+
+改 `docker/nginx/default.conf` 后（Compose 挂载或 `Dockerfile.nginx` 重建镜像）：
+
+```bash
+docker compose exec nginx nginx -t && docker compose exec nginx nginx -s reload
+```
+
+或 `docker compose up -d --force-recreate nginx`。
+
+## 6. 关闭对外 8088（可选）
 
 若希望 **公网只暴露 80**，不暴露应用端口：在 `docker-compose.yml` 里删除或注释 `app` 下的 `ports: - "8088:8088"`，仅保留内部网络访问 `app`。本机调试时再临时加回端口映射。

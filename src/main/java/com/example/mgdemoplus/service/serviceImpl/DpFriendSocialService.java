@@ -13,8 +13,12 @@ import com.example.mgdemoplus.mapper.DpUserMapper;
 import com.example.mgdemoplus.presence.DpFriendPresenceState;
 import com.example.mgdemoplus.service.DpFriendPresenceService;
 import com.example.mgdemoplus.service.DpSitePresenceService;
+import com.example.mgdemoplus.social.SocialNotifyPublisher;
 import com.example.mgdemoplus.utils.ResultUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +37,8 @@ import java.util.Set;
  */
 @Service
 public class DpFriendSocialService {
+
+    private static final Logger log = LoggerFactory.getLogger(DpFriendSocialService.class);
 
     private static final String PENDING = "PENDING";
     private static final String ACCEPTED = "ACCEPTED";
@@ -54,15 +60,50 @@ public class DpFriendSocialService {
     private DpFriendPresenceService friendPresenceService;
     @Autowired
     private DpSitePresenceService sitePresenceService;
+    @Autowired
+    @Lazy
+    private SocialNotifyPublisher socialNotifyPublisher;
 
-    /** 将已到期的进房邀请标为 EXPIRED（列表/计数/处理前调用）。 */
+    /** 将已到期的进房邀请标为 EXPIRED（列表/计数/处理前调用，不推 SSE）。 */
     public void touchExpireRoomInvites() {
+        expireRoomInvitesSilent();
+    }
+
+    /** 过期清理后对受影响被邀请人推送 mailbox 未读变化（SSE 心跳等调用）。 */
+    public void expireDueRoomInvitesAndNotify() {
+        List<Integer> invitees = roomInviteMapper.listInviteeUserIdsWithPendingExpired();
+        if (invitees == null || invitees.isEmpty()) {
+            return;
+        }
+        expireRoomInvitesSilent();
+        for (Integer uid : invitees) {
+            pushSocialNotify(uid);
+        }
+    }
+
+    /** 与 {@link #unreadCount} / {@code GET /dp/mailbox/unread-count} 口径一致。 */
+    public int mailboxUnreadCount(int currentUserId) {
+        touchExpireRoomInvites();
+        return countPendingFriendRequestsToUser(currentUserId)
+                + countPendingRoomInvitesToUserFresh(currentUserId);
+    }
+
+    private void expireRoomInvitesSilent() {
         roomInviteMapper.update(
                 null,
                 new LambdaUpdateWrapper<DpRoomInviteRow>()
                         .set(DpRoomInviteRow::getStatus, EXPIRED)
                         .eq(DpRoomInviteRow::getStatus, PENDING)
                         .apply("expires_at <= NOW(3)"));
+    }
+
+    private void pushSocialNotify(int userId) {
+        if (userId > 0) {
+            log.info("[social-sse] pushSocialNotify userId={}", userId);
+            socialNotifyPublisher.notifyUser(userId);
+        } else {
+            log.warn("[social-sse] pushSocialNotify skipped invalid userId={}", userId);
+        }
     }
 
     public ResultUtil sendFriendRequest(int fromUserId, int toUserId) {
@@ -86,6 +127,7 @@ public class DpFriendSocialService {
         DpFriendRequestRow row = selectFriendRequestByPair(fromUserId, toUserId);
         if (row == null) {
             insertFriendRequest(fromUserId, toUserId);
+            pushSocialNotify(toUserId);
             return ResultUtil.ok().data("message", "已发送申请");
         }
         if (PENDING.equals(row.getStatus())) {
@@ -105,6 +147,7 @@ public class DpFriendSocialService {
                             .set(DpFriendRequestRow::getCreatedAt, LocalDateTime.now())
                             .eq(DpFriendRequestRow::getFromUserId, fromUserId)
                             .eq(DpFriendRequestRow::getToUserId, toUserId));
+            pushSocialNotify(toUserId);
             return ResultUtil.ok().data("message", "已发送申请");
         }
         return ResultUtil.error().data("message", "申请状态不可用");
@@ -150,6 +193,7 @@ public class DpFriendSocialService {
         if (countFriendLinksBetween(low, high) == 0) {
             insertFriendLink(low, high);
         }
+        pushSocialNotify(currentUserId);
         return ResultUtil.ok().data("message", "已同意并成为好友");
     }
 
@@ -176,6 +220,7 @@ public class DpFriendSocialService {
             }
             return ResultUtil.error().data("message", "更新失败");
         }
+        pushSocialNotify(currentUserId);
         return ResultUtil.ok().data("message", "已拒绝");
     }
 
@@ -256,33 +301,52 @@ public class DpFriendSocialService {
                                 lo,
                                 hi));
         if (removed > 0) {
+            pushSocialNotify(currentUserId);
+            pushSocialNotify(friendUserId);
             return ResultUtil.ok().data("message", "已解除好友关系");
         }
         return ResultUtil.ok().data("message", "未找到好友关系");
     }
 
     public ResultUtil createRoomInvite(int inviterUserId, String inviterNickname, String roomId, int inviteeUserId) {
+        log.info(
+                "[social-sse] createRoomInvite request inviterUserId={} inviteeUserId={} roomId={}",
+                inviterUserId,
+                inviteeUserId,
+                roomId);
         touchExpireRoomInvites();
         if (inviterUserId == inviteeUserId) {
+            log.warn("[social-sse] createRoomInvite rejected: self invite");
             return ResultUtil.error().data("message", "不能邀请自己");
         }
         if (roomId == null || roomId.isBlank()) {
+            log.warn("[social-sse] createRoomInvite rejected: empty roomId");
             return ResultUtil.error().data("message", "room_id 不能为空");
         }
         if (!dpRoomService.dpRoomExistsInMemory(roomId)) {
+            log.warn("[social-sse] createRoomInvite rejected: room not in memory roomId={}", roomId);
             return ResultUtil.error().data("message", "房间不存在");
         }
         if (!dpRoomService.canActiveMemberInviteFriends(roomId, inviterNickname)) {
+            log.warn(
+                    "[social-sse] createRoomInvite rejected: inviter cannot invite roomId={} nickname={}",
+                    roomId,
+                    inviterNickname);
             return ResultUtil.error().data("message", "仅局内未离座成员或观众可发起进房邀请");
         }
         DpUser invitee = dpUserMapper.selectById(inviteeUserId);
         if (invitee == null) {
+            log.warn("[social-sse] createRoomInvite rejected: invitee not found inviteeUserId={}", inviteeUserId);
             return ResultUtil.error().data("message", "被邀请用户不存在");
         }
 
         int low = Math.min(inviterUserId, inviteeUserId);
         int high = Math.max(inviterUserId, inviteeUserId);
         if (countFriendLinksBetween(low, high) == 0) {
+            log.warn(
+                    "[social-sse] createRoomInvite rejected: not friends inviter={} invitee={}",
+                    inviterUserId,
+                    inviteeUserId);
             return ResultUtil.error().data("message", "仅互为好友可邀请");
         }
 
@@ -300,6 +364,13 @@ public class DpFriendSocialService {
         invite.setStatus(PENDING);
         invite.setExpiresAt(exp);
         roomInviteMapper.insert(invite);
+        log.info(
+                "[social-sse] createRoomInvite ok inviteId={} inviterUserId={} inviteeUserId={} roomId={} -> push SSE",
+                invite.getId(),
+                inviterUserId,
+                inviteeUserId,
+                invite.getRoomId());
+        pushSocialNotify(inviteeUserId);
         ResultUtil ok = ResultUtil.ok();
         ok.data("inviteId", invite.getId());
         ok.data("roomId", invite.getRoomId());
@@ -412,6 +483,7 @@ public class DpFriendSocialService {
             }
             return ResultUtil.error().data("message", "同意失败").data("roomId", inv.getRoomId());
         }
+        pushSocialNotify(currentUserId);
         return ResultUtil.ok().data("message", "已同意并进房").data("roomId", inv.getRoomId()).data("observeNote", join);
     }
 
@@ -438,6 +510,7 @@ public class DpFriendSocialService {
             }
             return ResultUtil.ok().data("message", "邀请状态已变更");
         }
+        pushSocialNotify(currentUserId);
         return ResultUtil.ok().data("message", "已拒绝");
     }
 

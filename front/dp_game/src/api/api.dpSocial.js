@@ -12,6 +12,13 @@ export const DP_SOCIAL_PATHS = {
   deleteFriend: (friendUserId) => `/dp/friends/${friendUserId}`,
   mailbox: '/dp/mailbox',
   unreadCount: '/dp/mailbox/unread-count',
+  friendChatUnreadSummary: '/dp/friends/chat-unread-summary',
+  friendMessages: (peerUserId) => `/dp/friends/${peerUserId}/messages`,
+  sendFriendMessage: (peerUserId) => `/dp/friends/${peerUserId}/messages`,
+  markFriendMessagesRead: (peerUserId) => `/dp/friends/${peerUserId}/messages/read`,
+  /** SSE 推送 + 重连补拉（Agent2） */
+  socialStream: '/dp/social/stream',
+  notifySummary: '/dp/social/notify-summary',
   createRoomInvite: '/dp/room-invites',
   acceptRoomInvite: (id) => `/dp/room-invites/${id}/accept`,
   rejectRoomInvite: (id) => `/dp/room-invites/${id}/reject`,
@@ -47,6 +54,30 @@ export function dpSocialApi(http) {
     },
     unreadCount() {
       return http.get(DP_SOCIAL_PATHS.unreadCount)
+    },
+    friendChatUnreadSummary() {
+      return http.get(DP_SOCIAL_PATHS.friendChatUnreadSummary)
+    },
+    /**
+     * @param {number} peerUserId
+     * @param {{ beforeId?: number|string, limit?: number }} [opts]
+     */
+    listFriendMessages(peerUserId, opts) {
+      var params = {}
+      if (opts && opts.beforeId != null) params.beforeId = opts.beforeId
+      if (opts && opts.limit != null) params.limit = opts.limit
+      return http.get(DP_SOCIAL_PATHS.friendMessages(peerUserId), { params: params })
+    },
+    sendFriendMessage(peerUserId, body) {
+      return http.post(DP_SOCIAL_PATHS.sendFriendMessage(peerUserId), { body: body })
+    },
+    markFriendMessagesRead(peerUserId, lastReadMessageId) {
+      return http.post(DP_SOCIAL_PATHS.markFriendMessagesRead(peerUserId), {
+        lastReadMessageId: lastReadMessageId
+      })
+    },
+    notifySummary() {
+      return http.get(DP_SOCIAL_PATHS.notifySummary)
     },
     createRoomInvite(roomId, inviteeUserId) {
       return http.post(DP_SOCIAL_PATHS.createRoomInvite, { roomId, inviteeUserId })

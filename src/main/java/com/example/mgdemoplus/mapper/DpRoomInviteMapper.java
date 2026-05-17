@@ -28,4 +28,12 @@ public interface DpRoomInviteMapper extends BaseMapper<DpRoomInviteRow> {
             ORDER BY i.created_at DESC
             """)
     List<DpRoomInviteRow> listPendingRoomInvitesToUser(@Param("inviteeUserId") int inviteeUserId);
+
+    @Select("""
+            SELECT DISTINCT invitee_user_id
+            FROM dp_room_invite
+            WHERE status = 'PENDING'
+              AND expires_at <= NOW(3)
+            """)
+    List<Integer> listInviteeUserIdsWithPendingExpired();
 }

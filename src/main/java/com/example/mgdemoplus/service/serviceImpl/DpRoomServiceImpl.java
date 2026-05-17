@@ -19,6 +19,9 @@ import com.example.mgdemoplus.service.DpHandHistoryPersistService;
 import com.example.mgdemoplus.service.DpRoomHallService;
 import com.example.mgdemoplus.utils.ResultUtil;
 import com.example.mgdemoplus.utils.DpUtilHandEvaluator;
+import com.example.mgdemoplus.room.RoomChatBuffer;
+import com.example.mgdemoplus.room.RoomChatEntry;
+import com.example.mgdemoplus.service.DpRoomChatPersistenceService;
 import com.example.mgdemoplus.websocket.DpGameRoomPushService;
 import com.example.mgdemoplus.websocket.DpQuickMatchPushService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -44,10 +47,13 @@ public class DpRoomServiceImpl {
     private final DpGameRoomPushService gameRoomPushService;
     private final DpUserMapper dpUserMapper;
     private final DpHandHistoryObservedService observedHandService;
+    private final LlmNpcGlobalHandConversationStore llmNpcGlobalHandConversationStore;
     private final DpRoomHallService dpRoomHallService;
     private final ObjectMapper objectMapper;
     private final DpQuickMatchPushService quickMatchPush;
     private final DpFriendPresenceService friendPresence;
+    private final RoomChatBuffer roomChatBuffer;
+    private final DpRoomChatPersistenceService roomChatPersistenceService;
 
     /**
      * 无密码公开房快匹「缺人数」索引；在 {@link #syncLobbyForRoomId}（及退房删除摘要）链路之前由本类维护。
@@ -242,19 +248,25 @@ public class DpRoomServiceImpl {
             DpGameRoomPushService gameRoomPushService,
             DpUserMapper dpUserMapper,
             DpHandHistoryObservedService observedHandService,
+            LlmNpcGlobalHandConversationStore llmNpcGlobalHandConversationStore,
             DpRoomHallService dpRoomHallService,
             ObjectMapper objectMapper,
             DpQuickMatchPushService quickMatchPush,
-            DpFriendPresenceService friendPresence) {
+            DpFriendPresenceService friendPresence,
+            RoomChatBuffer roomChatBuffer,
+            DpRoomChatPersistenceService roomChatPersistenceService) {
         this.observedHandPersistService = observedHandPersistService;
         this.llmNpcDecisionService = llmNpcDecisionService;
         this.gameRoomPushService = gameRoomPushService;
         this.dpUserMapper = dpUserMapper;
         this.observedHandService = observedHandService;
+        this.llmNpcGlobalHandConversationStore = llmNpcGlobalHandConversationStore;
         this.dpRoomHallService = dpRoomHallService;
         this.objectMapper = objectMapper;
         this.quickMatchPush = quickMatchPush;
         this.friendPresence = friendPresence;
+        this.roomChatBuffer = roomChatBuffer;
+        this.roomChatPersistenceService = roomChatPersistenceService;
         // 心跳清理 + 超时行动（单测见 {@link #suppressGlobalRoomTimerForTests}）
         if (!suppressGlobalRoomTimerForTests) {
             new Timer().scheduleAtFixedRate(new TimerTask() {
@@ -525,6 +537,7 @@ public class DpRoomServiceImpl {
         if (roomId == null || roomId.isEmpty()) {
             return;
         }
+        roomChatPersistenceService.flushRoomToDatabase(roomId);
         joinableQuickMatchRoomIndex.remove(roomId);
         dpRoomHallService.deleteRoomSummary(roomId);
         gameRoomPushService.shutdownSubscriptionsForRoom(roomId);
@@ -665,6 +678,7 @@ public class DpRoomServiceImpl {
             System.out.println("dropped: " + dropped);
         }
         if (dropped) {
+            llmNpcGlobalHandConversationStore.removeRoom(roomId);
             finalizeHallAfterRoomRemovedWithPresenceSnapshot(roomId, r);
         }
     }
@@ -1310,6 +1324,29 @@ ownerFieldChanged：房主字段是否发生变化。
      * 检测玩家在不在房间，全面检测  
      * 是否仍为该房成员：桌上玩家、观众席、或下一局候补。用于快照/推送门禁，避免已被心跳剔除的用户仍看到房间 JSON。
      */
+    /**
+     * 解析房内发言者的 {@code dp_user.id}：先查桌上玩家的 {@code userId}，再按昵称查用户表（观众等）。
+     */
+    public Integer resolveDpUserIdForNickname(DpRoomBO room, String nickname) {
+        if (room == null || nickname == null) {
+            return null;
+        }
+        String n = nickname.trim();
+        if (n.isEmpty()) {
+            return null;
+        }
+        List<DpPlayer> players = room.getPlayers();
+        if (players != null) {
+            for (DpPlayer p : players) {
+                if (p != null && n.equals(p.getNickname())) {
+                    return p.getDpUserId();
+                }
+            }
+        }
+        DpUser u = dpUserMapper.selectByNickname(n);
+        return u != null ? u.getId() : null;
+    }
+
     public boolean isNicknameInRoom(DpRoomBO room, String nickname) {
         if (room == null || nickname == null) {
             return false;
@@ -1339,6 +1376,40 @@ ownerFieldChanged：房主字段是否发生变化。
      *
      * @param viewerNickname 当前连接者的昵称；null 或空则视为未认领身份，不展示任何玩家的真实底牌。
      */
+    /**
+     * 房内最近聊天（内存）；观看者须在房内。
+     *
+     * @return {@code null} 表示房间不存在（调用方应 404）
+     */
+    public ResultUtil listRecentRoomChat(String roomId, String viewerNickname, int limit) {
+        if (roomId == null || roomId.isEmpty()) {
+            return null;
+        }
+        DpRoomBO live = roomMap.get(roomId);
+        if (live == null) {
+            return null;
+        }
+        String nick = viewerNickname != null ? viewerNickname.trim() : "";
+        if (nick.isEmpty() || !isNicknameInRoom(live, nick)) {
+            return ResultUtil.error().data("message", "您不在该房间内");
+        }
+        int lim = limit <= 0 ? 50 : Math.min(limit, RoomChatBuffer.MAX_PER_ROOM);
+        List<RoomChatEntry> entries = roomChatBuffer.recent(roomId, lim);
+        List<Map<String, Object>> items = new ArrayList<>();
+        for (RoomChatEntry e : entries) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", String.valueOf(e.getId()));
+            row.put("nickname", e.getSenderNickname());
+            row.put("text", e.getBody());
+            row.put("serverTime", e.getServerTimeMs());
+            if (e.getSenderUserId() != null) {
+                row.put("senderUserId", e.getSenderUserId());
+            }
+            items.add(row);
+        }
+        return ResultUtil.ok().data("items", items);
+    }
+
     public DpRoomBO getRoomSnapshotForViewer(String roomId, String viewerNickname) {
         DpRoomBO live = getAllRooms(roomId);
         if (live == null) {
@@ -3129,6 +3200,7 @@ ownerFieldChanged：房主字段是否发生变化。
         }
         DpNpcStreetActionLog.clearHand(r);
         observedHandService.clearHand(r);
+        llmNpcGlobalHandConversationStore.clearHand(r);
         removeLeftThisHandZombiesAfterHand(r);
         refreshChipLeaderNicknames(r);
         if (checkAndStartNextHandAfterSettleReturning(r)) {
@@ -3442,6 +3514,7 @@ ownerFieldChanged：房主字段是否发生变化。
         // 逐街动作日志：本手结束后清理，避免内存增长
         DpNpcStreetActionLog.clearHand(r);
         observedHandService.clearHand(r);
+        llmNpcGlobalHandConversationStore.clearHand(r);
 
         removeLeftThisHandZombiesAfterHand(r);
 

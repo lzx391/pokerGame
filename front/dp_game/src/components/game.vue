@@ -142,6 +142,7 @@ import dpGameLayoutTierMixin from '../mixins/dpGameLayoutTierMixin'
 import { dpGamePlayerBoxStyle } from '../utils/dpGamePlayerBoxStyle'
 import { ensureDpUserIdInStorage } from '../utils/dpEnsureUserId'
 import { dpResultSuccess, dpResultData, dpResultMessage } from '../utils/dpApiResult'
+import { dpRoomApi } from '@/api/api.dpRoom'
 import { mapState, mapGetters } from 'vuex'
 
 export default {
@@ -185,7 +186,7 @@ export default {
 
   computed: {
     ...mapState('dpGame', [
-      'gameUiTheme', 'customThemeBase', 'customThemeOverrides', 'ecoMode', 'gameThemeOptions', 'roomId', 'user', 'currentHandSeed', 'owner', 'players', 'playing', 'stage', 'communityCards', 'pot', 'pots', 'currentBetToCall', 'lastRaiseIncrement', 'actIndex', 'spectators', 'waitNextHand', 'raiseAmount', 'selectedWinners', 'potWinners', 'nextHandReady', 'loading', 'communityCardsFlipState', 'communityCardsFlipComplete', 'seatChatTextByNick', 'chatInputDraft', 'showPlayGuideModal', 'playGuideTab', 'showSpectatorModal', 'showWaitNextHandModal', 'showHandHistoryModal', 'showOpponentHandHistoryModal', 'opponentHandHistoryOtherUserId', 'opponentHandHistoryDisplayName', 'showMusicBoxModal', 'musicTracks', 'musicTracksLoading', 'musicTracksError', 'roomMusicState', 'showOwnerHubSheet', 'ownerToolType', 'ownerActionTarget', 'demoBotAdding', 'demoBotAddedTip', 'maniacBotAdding', 'maniacBotAddedTip', 'tagBotAdding', 'tagBotAddedTip', 'lagBotAdding', 'lagBotAddedTip', 'nitBotAdding', 'nitBotAddedTip', 'callBotAdding', 'callBotAddedTip', 'llmBotAdding', 'llmBotAddedTip', 'llmGlobalBotAdding', 'llmGlobalBotAddedTip', 'ownerRevealAll', 'showMobileHandSheet', 'showMobileActionSheet', 'heroHoleDealIntroDone', 'chipLeaderNicknames'
+      'gameUiTheme', 'customThemeBase', 'customThemeOverrides', 'ecoMode', 'gameThemeOptions', 'roomId', 'user', 'currentHandSeed', 'owner', 'players', 'playing', 'stage', 'communityCards', 'pot', 'pots', 'currentBetToCall', 'lastRaiseIncrement', 'actIndex', 'spectators', 'waitNextHand', 'raiseAmount', 'selectedWinners', 'potWinners', 'nextHandReady', 'loading', 'communityCardsFlipState', 'communityCardsFlipComplete', 'seatChatTextByNick', 'roomChatMessages', 'chatInputDraft', 'showPlayGuideModal', 'playGuideTab', 'showSpectatorModal', 'showWaitNextHandModal', 'showHandHistoryModal', 'showOpponentHandHistoryModal', 'opponentHandHistoryOtherUserId', 'opponentHandHistoryDisplayName', 'showMusicBoxModal', 'musicTracks', 'musicTracksLoading', 'musicTracksError', 'roomMusicState', 'showOwnerHubSheet', 'ownerToolType', 'ownerActionTarget', 'demoBotAdding', 'demoBotAddedTip', 'maniacBotAdding', 'maniacBotAddedTip', 'tagBotAdding', 'tagBotAddedTip', 'lagBotAdding', 'lagBotAddedTip', 'nitBotAdding', 'nitBotAddedTip', 'callBotAdding', 'callBotAddedTip', 'llmBotAdding', 'llmBotAddedTip', 'llmGlobalBotAdding', 'llmGlobalBotAddedTip', 'ownerRevealAll', 'showMobileHandSheet', 'showMobileActionSheet', 'heroHoleDealIntroDone', 'chipLeaderNicknames'
     ]),
     ...mapGetters('dpGame', [
       'effectiveThemeForCss', 'customThemeInlineStyle', 'handRankReference', 'stageCN', 'isOwner', 'canInviteFriend', 'isMyTurn', 'myPlayer', 'showSpectatorPrepareBlock', 'myReady', 'myChips', 'myBet', 'callAmount', 'smallBlind', 'bigBlind', 'lastRaiseIncrementEffective', 'minTotalToRaise', 'minRaise', 'allPotsHaveWinners', 'inSettledStage', 'ownerActionPlayers', 'playersDisplayOrder', 'viewerSeatedAtTable', 'holeDealPlayerCountForAnim', 'heroDockRow', 'dealerDisplayIndex', 'showdownHandLeaderNicknames', 'spectatorSeatChatEntries', 'tableActionActorDisplayName', 'mobileHeroDockActive', 'showHeroViewHandButton', 'showBottomHeroDock'
@@ -296,6 +297,7 @@ export default {
 
       // 先 HTTP 拉一次，再建立 WebSocket（推送与定时器同 1s 节奏）
       self.loadGame().then(function () {
+        self.fetchRoomChatRecent()
         self.connectGameWs()
       })
 
@@ -460,6 +462,7 @@ export default {
           }
           self.gameWsConnected = true
           self.wsReconnectAttempt = 0
+          self.fetchRoomChatRecent()
         }
         ws.onmessage = function (ev) {
           try {
@@ -653,10 +656,23 @@ export default {
       }
     },
 
+    normalizeRoomChatRow(data, nick, text) {
+      var id = data.id != null ? String(data.id) : ''
+      if (!id) id = String(Date.now()) + '-' + Math.random().toString(36).slice(2, 8)
+      return {
+        id: id,
+        nickname: nick,
+        text: text,
+        serverTime: data.serverTime != null ? Number(data.serverTime) : Date.now(),
+        senderUserId: data.senderUserId != null ? data.senderUserId : null
+      }
+    },
+
     pushRoomChatFromServer(data) {
       var nick = (data.nickname || '').trim()
       var text = (data.text != null ? String(data.text) : '').trim()
       if (!nick || !text) return
+      this.$store.commit('dpGame/APPEND_ROOM_CHAT_MESSAGE', this.normalizeRoomChatRow(data, nick, text))
       var ttl = typeof data.ttlMs === 'number' && data.ttlMs > 0 ? data.ttlMs : 15000
       var prev = this._seatChatTimers[nick]
       if (prev) {
@@ -672,6 +688,35 @@ export default {
         delete self._seatChatTimers[nick]
       }, ttl)
       this._seatChatTimers[nick] = tid
+    },
+
+    async fetchRoomChatRecent() {
+      if (!this.roomId || !this.$http) return
+      var api = dpRoomApi(this.$http)
+      try {
+        var res = await api.recentChat(this.roomId, { limit: 50 })
+        var body = res.data
+        if (!dpResultSuccess(body)) return
+        var d = dpResultData(body) || {}
+        var items = Array.isArray(d.items) ? d.items : []
+        var rows = items
+          .map(function (row) {
+            var nick = (row.nickname || '').trim()
+            var text = row.text != null ? String(row.text).trim() : ''
+            if (!nick || !text) return null
+            return {
+              id: row.id != null ? String(row.id) : '',
+              nickname: nick,
+              text: text,
+              serverTime: row.serverTime != null ? Number(row.serverTime) : 0,
+              senderUserId: row.senderUserId != null ? row.senderUserId : null
+            }
+          })
+          .filter(Boolean)
+        this.$store.commit('dpGame/MERGE_ROOM_CHAT_MESSAGES', rows)
+      } catch (e) {
+        console.warn('fetchRoomChatRecent', e)
+      }
     },
 
     sendRoomChat() {

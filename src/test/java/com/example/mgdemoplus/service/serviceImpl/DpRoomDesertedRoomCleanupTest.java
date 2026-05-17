@@ -6,6 +6,8 @@ import com.example.mgdemoplus.mapper.DpUserMapper;
 import com.example.mgdemoplus.service.DpFriendPresenceService;
 import com.example.mgdemoplus.service.DpHandHistoryObservedService;
 import com.example.mgdemoplus.service.DpHandHistoryPersistService;
+import com.example.mgdemoplus.room.RoomChatBuffer;
+import com.example.mgdemoplus.service.DpRoomChatPersistenceService;
 import com.example.mgdemoplus.service.DpRoomHallService;
 import com.example.mgdemoplus.websocket.DpGameRoomPushService;
 import com.example.mgdemoplus.websocket.DpQuickMatchPushService;
@@ -44,10 +46,13 @@ class DpRoomDesertedRoomCleanupTest {
                 mock(DpGameRoomPushService.class),
                 mock(DpUserMapper.class),
                 mock(DpHandHistoryObservedService.class),
+                new LlmNpcGlobalHandConversationStore(),
                 mock(DpRoomHallService.class),
                 new ObjectMapper(),
                 mock(DpQuickMatchPushService.class),
-                mock(DpFriendPresenceService.class));
+                mock(DpFriendPresenceService.class),
+                new RoomChatBuffer(),
+                mock(DpRoomChatPersistenceService.class));
     }
 
     @AfterEach

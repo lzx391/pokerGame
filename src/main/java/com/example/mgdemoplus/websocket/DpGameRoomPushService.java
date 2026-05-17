@@ -1,6 +1,8 @@
 package com.example.mgdemoplus.websocket;
 
 import com.example.mgdemoplus.bo.DpRoomBO;
+import com.example.mgdemoplus.room.RoomChatBuffer;
+import com.example.mgdemoplus.room.RoomChatEntry;
 import com.example.mgdemoplus.service.serviceImpl.DpRoomServiceImpl;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -18,7 +20,6 @@ import java.util.ArrayList;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -30,7 +31,7 @@ public class DpGameRoomPushService {
     private static final Logger log = LoggerFactory.getLogger(DpGameRoomPushService.class);
     private static final String ROOM_CLOSED = "{\"_ws\":\"roomClosed\"}";
 
-    /** 房间聊天：广播后由前端在 ttl 到时移除，不落库 */
+    /** 房间聊天：内存缓冲，摘房落库；广播帧带 ttlMs 供前端气泡 */
     private static final long CHAT_TTL_MS = 15_000L;
     private static final int CHAT_MAX_LEN = 200;
     private static final long CHAT_MIN_INTERVAL_MS = 1_200L;
@@ -41,6 +42,7 @@ public class DpGameRoomPushService {
 
     private final ObjectMapper objectMapper;
     private final DpRoomServiceImpl roomService;
+    private final RoomChatBuffer roomChatBuffer;
 
 //Map<String, Set<WebSocketSession>> roomSessions = new ConcurrentHashMap<>(); 的作用是：存储房间ID和订阅者的映射关系，每个房间ID对应一个订阅者集合，集合中存储的是WebSocketSession对象，用于标识每个订阅者的连接会话。
     private final Map<String, Set<WebSocketSession>> roomSessions = new ConcurrentHashMap<>();
@@ -50,9 +52,13 @@ public class DpGameRoomPushService {
     private final Map<String, String> lastRoomMusicJson = new ConcurrentHashMap<>();
 
     // lazy注解的作用是？在Spring容器初始化时，不立即创建对象，而是在需要时创建对象，这样可以避免循环依赖
-    public DpGameRoomPushService(ObjectMapper objectMapper, @Lazy DpRoomServiceImpl roomService) {
+    public DpGameRoomPushService(
+            ObjectMapper objectMapper,
+            @Lazy DpRoomServiceImpl roomService,
+            RoomChatBuffer roomChatBuffer) {
         this.objectMapper = objectMapper;
         this.roomService = roomService;
+        this.roomChatBuffer = roomChatBuffer;
     }
 
     // ====== 房间会话注册与注销相关 ======
@@ -207,14 +213,23 @@ public class DpGameRoomPushService {
             return;
         }
         session.getAttributes().put("_chatLastMs", now);
+        Integer senderUserId = roomService.resolveDpUserIdForNickname(room, nickname);
+        RoomChatEntry entry =
+                roomChatBuffer.append(roomId, senderUserId, nickname, text, now);
+        if (entry == null) {
+            return;
+        }
         try {
             ObjectNode out = objectMapper.createObjectNode();
             out.put("_ws", "chat");
-            out.put("id", UUID.randomUUID().toString());
+            out.put("id", String.valueOf(entry.getId()));
             out.put("nickname", nickname);
             out.put("text", text);
             out.put("serverTime", now);
             out.put("ttlMs", CHAT_TTL_MS);
+            if (senderUserId != null) {
+                out.put("senderUserId", senderUserId);
+            }
             broadcastRawJsonToRoom(roomId, objectMapper.writeValueAsString(out));
         } catch (Exception e) {
             log.warn("chat broadcast failed roomId={}", roomId, e);
@@ -437,9 +452,6 @@ public class DpGameRoomPushService {
 
     // =========== 校验与工具方法（按首次引用内联到对应模块） ===========
 
-    /**
-     * 校验音乐WebPath安全，首次用于handleRoomMusicSync。
-     */
     private static boolean isSafeMusicWebPath(String path) {
         if (path == null || path.isEmpty()) {
             return false;

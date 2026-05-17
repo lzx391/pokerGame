@@ -3,8 +3,11 @@ package com.example.mgdemoplus.controller;
 import com.example.mgdemoplus.entity.DpUser;
 import com.example.mgdemoplus.mapper.DpUserMapper;
 import com.example.mgdemoplus.service.DpSitePresenceService;
+import com.example.mgdemoplus.service.serviceImpl.DpFriendChatService;
 import com.example.mgdemoplus.service.serviceImpl.DpFriendSocialService;
 import com.example.mgdemoplus.utils.ResultUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -14,6 +17,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
@@ -26,8 +30,12 @@ import java.util.Map;
 @RequestMapping("/dp")
 public class DpFriendMailboxController {
 
+    private static final Logger log = LoggerFactory.getLogger(DpFriendMailboxController.class);
+
     @Autowired
     private DpFriendSocialService dpFriendSocialService;
+    @Autowired
+    private DpFriendChatService dpFriendChatService;
     @Autowired
     private DpSitePresenceService dpSitePresenceService;
     @Autowired
@@ -150,6 +158,55 @@ public class DpFriendMailboxController {
         return dpFriendSocialService.followFriendToTheirRoom(me.getId(), me.getNickname(), friendUserId);
     }
 
+    @PostMapping("/friends/{peerUserId}/messages")
+    public ResultUtil sendFriendMessage(
+            @PathVariable("peerUserId") int peerUserId, @RequestBody Map<String, Object> body) {
+        ResultUtil err = ResultUtil.error();
+        DpUser me = requireCurrentUser(err);
+        if (me == null) {
+            return err.data("message", err.getMessage());
+        }
+        Object raw = body != null ? body.get("body") : null;
+        String text = raw != null ? raw.toString() : "";
+        return dpFriendChatService.sendMessage(me.getId(), peerUserId, text);
+    }
+
+    @GetMapping("/friends/{peerUserId}/messages")
+    public ResultUtil listFriendMessages(
+            @PathVariable("peerUserId") int peerUserId,
+            @RequestParam(required = false) Long beforeId,
+            @RequestParam(required = false) Integer limit) {
+        ResultUtil err = ResultUtil.error();
+        DpUser me = requireCurrentUser(err);
+        if (me == null) {
+            return err.data("message", err.getMessage());
+        }
+        return dpFriendChatService.listMessages(me.getId(), peerUserId, beforeId, limit);
+    }
+
+    @PostMapping("/friends/{peerUserId}/messages/read")
+    public ResultUtil markFriendMessagesRead(
+            @PathVariable("peerUserId") int peerUserId, @RequestBody Map<String, Object> body) {
+        ResultUtil err = ResultUtil.error();
+        DpUser me = requireCurrentUser(err);
+        if (me == null) {
+            return err.data("message", err.getMessage());
+        }
+        Object raw = body != null ? body.get("lastReadMessageId") : null;
+        long lastId = raw instanceof Number ? ((Number) raw).longValue() : -1L;
+        return dpFriendChatService.markRead(me.getId(), peerUserId, lastId);
+    }
+
+    @GetMapping("/friends/chat-unread-summary")
+    public ResultUtil friendChatUnreadSummary() {
+        ResultUtil err = ResultUtil.error();
+        DpUser me = requireCurrentUser(err);
+        if (me == null) {
+            return err.data("message", err.getMessage());
+        }
+        return dpFriendChatService.unreadSummary(me.getId());
+    }
+
     @DeleteMapping("/friends/{friendUserId}")
     public ResultUtil removeFriend(@PathVariable("friendUserId") int friendUserId) {
         ResultUtil err = ResultUtil.error();
@@ -174,7 +231,18 @@ public class DpFriendMailboxController {
         String roomId = roomObj != null ? roomObj.toString().trim() : "";
         Object invObj = body.get("inviteeUserId");
         int inviteeUserId = invObj instanceof Number ? ((Number) invObj).intValue() : -1;
-        return dpFriendSocialService.createRoomInvite(me.getId(), me.getNickname(), roomId, inviteeUserId);
+        log.info(
+                "[social-sse] POST /dp/room-invites inviterUserId={} inviteeUserId={} roomId={}",
+                me.getId(),
+                inviteeUserId,
+                roomId);
+        ResultUtil result =
+                dpFriendSocialService.createRoomInvite(me.getId(), me.getNickname(), roomId, inviteeUserId);
+        log.info(
+                "[social-sse] POST /dp/room-invites result success={} message={}",
+                Boolean.TRUE.equals(result.getSuccess()),
+                result.getMessage());
+        return result;
     }
 
     @GetMapping("/mailbox")

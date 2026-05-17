@@ -26,6 +26,8 @@ public final class JwtSecurityConstants {
             "/dpRoom/publicRooms",
             "/dpRoom/publicRooms/query",
             "/dp/presence/site-heartbeat/config",
+            // SSE 长连接：REQUEST + ASYNC 分派均不强制 authenticated()，身份由 JwtAuthenticationFilter ?token= 写入
+            "/dp/social/stream",
             "/dpMusic/list",
             // Redis 本地实验接口（仅学习用；上线前可删或改需登录）
     };

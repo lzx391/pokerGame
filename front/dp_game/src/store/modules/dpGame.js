@@ -50,6 +50,8 @@ function initialState() {
     communityCardsFlipState: [],
     communityCardsFlipComplete: false,
     seatChatTextByNick: {},
+    /** 局内聊天持久列表（REST recent + WS 追加，不按 15s TTL 清除） */
+    roomChatMessages: [],
     chatInputDraft: '',
     showPlayGuideModal: false,
     playGuideTab: 'flow',
@@ -409,6 +411,46 @@ export default {
         Vue.delete(state.seatChatTextByNick, nick)
       }
     },
+    CLEAR_ROOM_CHAT_MESSAGES: function (state) {
+      state.roomChatMessages = []
+    },
+    MERGE_ROOM_CHAT_MESSAGES: function (state, items) {
+      if (!Array.isArray(items) || !items.length) return
+      var byId = {}
+      var list = state.roomChatMessages || []
+      for (var i = 0; i < list.length; i++) {
+        var cur = list[i]
+        if (cur && cur.id != null) byId[String(cur.id)] = cur
+      }
+      for (var j = 0; j < items.length; j++) {
+        var m = items[j]
+        if (!m || m.id == null) continue
+        byId[String(m.id)] = m
+      }
+      var merged = Object.keys(byId).map(function (k) {
+        return byId[k]
+      })
+      merged.sort(function (a, b) {
+        var ta = a.serverTime != null ? Number(a.serverTime) : 0
+        var tb = b.serverTime != null ? Number(b.serverTime) : 0
+        if (ta !== tb) return ta - tb
+        var ia = parseInt(String(a.id), 10)
+        var ib = parseInt(String(b.id), 10)
+        if (isFinite(ia) && isFinite(ib) && ia !== ib) return ia - ib
+        return String(a.id).localeCompare(String(b.id))
+      })
+      state.roomChatMessages = merged
+    },
+    APPEND_ROOM_CHAT_MESSAGE: function (state, msg) {
+      if (!msg || msg.id == null) return
+      var id = String(msg.id)
+      var list = state.roomChatMessages || []
+      for (var i = 0; i < list.length; i++) {
+        if (String(list[i].id) === id) return
+      }
+      list.push(msg)
+      state.roomChatMessages = list
+    },
     SET_COMMUNITY_FLIP_STATE: function (state, arr) {
       state.communityCardsFlipState = arr || []
     },
@@ -530,6 +572,7 @@ export default {
     },
     RESET_ON_ROOM_CLOSED: function (state) {
       state.roomMusicState = null
+      state.roomChatMessages = []
     }
   }
 }

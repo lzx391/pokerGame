@@ -3,6 +3,8 @@ package com.example.mgdemoplus.controller;
 import com.example.mgdemoplus.bo.DpRoomBO;
 import com.example.mgdemoplus.bo.DpRoomLobbySearchParamBO;
 import com.example.mgdemoplus.entity.DpRoom;
+import com.example.mgdemoplus.entity.DpUser;
+import com.example.mgdemoplus.mapper.DpUserMapper;
 import com.example.mgdemoplus.service.DpRoomHallService;
 import com.example.mgdemoplus.service.serviceImpl.DpRoomServiceImpl;
 import com.example.mgdemoplus.utils.ResultUtil;
@@ -28,8 +30,27 @@ public class DpRoomController {
     private DpRoomServiceImpl dpRoomService;
     @Autowired
     private DpRoomHallService dpRoomHallService;
+    @Autowired
+    private DpUserMapper dpUserMapper;
 
     // 注意：不要在 Controller 里再建 roomMap，所有数据操作都走 Service
+
+    private DpUser requireCurrentUser(ResultUtil fallback) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()
+                || "anonymousUser".equals(String.valueOf(auth.getPrincipal()))) {
+            fallback.setSuccess(false);
+            fallback.setMessage("未登录或登录已失效");
+            return null;
+        }
+        DpUser u = dpUserMapper.selectByNickname(auth.getName());
+        if (u == null) {
+            fallback.setSuccess(false);
+            fallback.setMessage("用户不存在或未同步");
+            return null;
+        }
+        return u;
+    }
 
     @PostMapping("/createRoom")
     public DpRoomBO createRoom(@RequestParam String nickname,
@@ -44,6 +65,22 @@ public class DpRoomController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "人数上限需在 2～9 之间");
         }
         return dpRoomService.createRoom(nickname, userId, smallBlindChips, bigBlindChips, startingStackBb, roomPassword, maxSeatCount);
+    }
+
+    @GetMapping("/{roomId}/chat/recent")
+    public ResultUtil recentRoomChat(
+            @PathVariable String roomId,
+            @RequestParam(required = false, defaultValue = "50") int limit) {
+        ResultUtil err = ResultUtil.error();
+        DpUser me = requireCurrentUser(err);
+        if (me == null) {
+            return err.data("message", err.getMessage());
+        }
+        ResultUtil payload = dpRoomService.listRecentRoomChat(roomId, me.getNickname(), limit);
+        if (payload == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "房间不存在");
+        }
+        return payload;
     }
 
     @GetMapping("/getNowRoom")

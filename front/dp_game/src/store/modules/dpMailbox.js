@@ -1,10 +1,14 @@
 import { dpSocialApi } from '@/api/api.dpSocial'
 import { dpResultSuccess, dpResultData, dpResultMessage, dpAxiosErrorMessage } from '@/utils/dpApiResult'
 import { dpFriendsInviteEligible } from '@/utils/dpFriendsInviteEligible'
+import { parseSocialNotifyPayload } from '@/utils/dpSocialStream'
 
 function initialState() {
   return {
     unreadCount: 0,
+    friendChatUnreadTotal: 0,
+    /** @type {Record<string, number>} peerUserId -> count */
+    friendChatUnreadByUserId: {},
     friendRequests: [],
     roomInvites: [],
     friends: [],
@@ -14,13 +18,48 @@ function initialState() {
   }
 }
 
+function normalizePerFriendMap(perFriend) {
+  var map = {}
+  if (!Array.isArray(perFriend)) return map
+  for (var i = 0; i < perFriend.length; i++) {
+    var row = perFriend[i]
+    var uid = row && row.userId != null ? Number(row.userId) : 0
+    var c = row && row.count != null ? Number(row.count) : 0
+    if (!isFinite(uid) || uid <= 0) continue
+    if (isFinite(c) && c > 0) map[String(uid)] = Math.floor(c)
+  }
+  return map
+}
+
 export default {
   namespaced: true,
   state: initialState(),
+  getters: {
+    friendUnreadForUser: function (state) {
+      return function (userId) {
+        var key = userId != null ? String(userId) : ''
+        if (!key) return 0
+        var n = state.friendChatUnreadByUserId[key]
+        return n != null && n > 0 ? n : 0
+      }
+    }
+  },
   mutations: {
     SET_UNREAD(state, n) {
       var v = parseInt(String(n), 10)
       state.unreadCount = isFinite(v) && v > 0 ? v : 0
+    },
+    SET_FRIEND_CHAT_UNREAD(state, payload) {
+      payload = payload || {}
+      var tv = parseInt(String(payload.totalUnread), 10)
+      state.friendChatUnreadTotal = isFinite(tv) && tv > 0 ? tv : 0
+      state.friendChatUnreadByUserId = normalizePerFriendMap(payload.perFriend)
+    },
+    APPLY_NOTIFY_SUMMARY(state, payload) {
+      var parsed = parseSocialNotifyPayload(payload)
+      state.unreadCount = parsed.mailboxUnread
+      state.friendChatUnreadTotal = parsed.friendChatUnreadTotal
+      state.friendChatUnreadByUserId = normalizePerFriendMap(parsed.perFriend)
     },
     SET_MAILBOX(state, payload) {
       payload = payload || {}
@@ -58,6 +97,41 @@ export default {
       } catch (e) {
         console.error('dpMailbox/fetchUnreadCount', e)
       }
+    },
+    async fetchFriendChatUnreadSummary({ commit }, { http }) {
+      if (!http) return
+      var api = dpSocialApi(http)
+      try {
+        var res = await api.friendChatUnreadSummary()
+        var body = res.data
+        if (!dpResultSuccess(body)) return
+        var d = dpResultData(body) || {}
+        commit('SET_FRIEND_CHAT_UNREAD', {
+          totalUnread: d.totalUnread,
+          perFriend: d.perFriend
+        })
+      } catch (e) {
+        console.error('dpMailbox/fetchFriendChatUnreadSummary', e)
+      }
+    },
+    async fetchNotifySummary({ commit, dispatch }, { http }) {
+      if (!http) return
+      var api = dpSocialApi(http)
+      try {
+        var res = await api.notifySummary()
+        var body = res.data
+        if (!dpResultSuccess(body)) return
+        commit('APPLY_NOTIFY_SUMMARY', dpResultData(body))
+      } catch (e) {
+        /* Agent2 未就绪时回退分别拉取 */
+        await Promise.all([
+          dispatch('fetchUnreadCount', { http }),
+          dispatch('fetchFriendChatUnreadSummary', { http })
+        ]).catch(function () {})
+      }
+    },
+    applyNotifyPayload({ commit }, payload) {
+      commit('APPLY_NOTIFY_SUMMARY', payload)
     },
     async fetchMailbox({ commit }, { http }) {
       var client = http
