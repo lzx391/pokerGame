@@ -124,7 +124,7 @@ shell / modals / cards / community-cards / element-ui 覆盖层
 | 页面 / 组件 | 根节点 | body 同步 | 说明 |
 |-------------|--------|-----------|------|
 | 登录 / 注册（`App.vue` `app--auth`） | 无单独 `.dp-game-root`，靠 **`body[data-dp-game-theme]`** 继承变量 | 是（`dpBodyGameTheme` 含 `/login`、`/register`、`/`） | 顶栏主题下拉在 `App.vue`；样式 **`dp-auth-shell.css`**。 |
-| `home.vue` | `.dp-game-root` + `:data-dp-game-theme` | 是（`dpLobbyThemeMixin`） | 顶栏含主题下拉；快捷入口与房间列表用 `dp-lobby-shell.css` 面板与按钮类。 |
+| `home.vue` | `.dp-game-root` + `:data-dp-game-theme` | 是（`dpLobbyThemeMixin`） | 顶栏含主题下拉；**快捷入口**一行含快速匹配、建房、历史对局、曲库上传及邮箱（未读角标）、好友；房间列表用 `dp-lobby-shell.css` 面板与按钮类。 |
 | `room.vue` | 同上 | 是 | 创建/加入房间后的等待页；含主题下拉。 |
 | `MusicUpload.vue` | 同上 | 是 | Element 覆盖见全局 `dp-game-element-ui.css`（`main.js` 引入），表单/表格/上传随 `--dp-*`。 |
 | `HandHistory.vue` | 独立路由时包一层 `.dp-game-root`；`embedded` 为 true 时不包根、**不同步 body** | 仅独立路由 | 列表样式用 `.hand-history-page--dp` + `--dp-*`（与对局弹层内列表一致）。 |

@@ -1355,3 +1355,128 @@ body[data-dp-game-theme='halloween'] {
   --dp-table-felt-drop-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.52);
   --dp-table-felt-vignette: rgba(12, 4, 18, 0.52);
 }
+
+/* 圣诞快乐：冬夜深松绿台呢 + 浆果红点缀与节庆金描边（与深色节庆主题同一套光影逻辑） */
+.dp-game-root[data-dp-game-theme='christmas'],
+body[data-dp-game-theme='christmas'] {
+  --dp-font-ui: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --dp-game-bg: #081418;
+  --dp-game-bg-image:
+    radial-gradient(ellipse 92% 52% at 50% -8%, rgba(212, 175, 55, 0.14) 0%, transparent 46%),
+    radial-gradient(ellipse 56% 40% at 8% 78%, rgba(196, 30, 58, 0.09) 0%, transparent 50%),
+    radial-gradient(ellipse 44% 36% at 92% 64%, rgba(220, 252, 231, 0.06) 0%, transparent 48%),
+    linear-gradient(168deg, #0f2832 0%, #081418 44%, #040c10 100%);
+
+  --dp-panel-bg: rgba(18, 42, 38, 0.96);
+  --dp-panel-border: rgba(196, 30, 58, 0.28);
+  --dp-panel-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.52),
+    0 0 26px rgba(46, 125, 50, 0.08),
+    inset 0 1px 0 rgba(212, 175, 55, 0.1);
+
+  --dp-text-primary: #fefcf8;
+  --dp-text-secondary: #d4e9e4;
+  --dp-text-muted: #8fb9ae;
+  --dp-accent: #e8c547;
+  --dp-pot: #ef5350;
+  --dp-warning: #ffd54f;
+  --dp-success: #66bb6a;
+  --dp-danger: #e53935;
+  --dp-cyan: #80cbc4;
+
+  --dp-btn-primary-bg: linear-gradient(180deg, #c62828 0%, #7f1018 100%);
+  --dp-btn-primary-fg: #fff8f0;
+  --dp-btn-raise-bg: linear-gradient(180deg, #d4af37 0%, #8b6914 100%);
+  --dp-btn-raise-fg: #1a1206;
+  --dp-btn-allin-bg: linear-gradient(180deg, #6d1b2a 0%, #3d0a14 100%);
+  --dp-btn-allin-fg: #fff5f5;
+  --dp-btn-ghost-bg: rgba(12, 28, 26, 0.96);
+  --dp-btn-ghost-border: rgba(212, 175, 55, 0.42);
+  --dp-btn-ghost-fg: #fde68a;
+
+  --dp-input-bg: rgba(12, 30, 28, 0.96);
+  --dp-input-border: rgba(129, 199, 132, 0.32);
+  --dp-timer-ring: #e8c547;
+  --dp-timer-text: #ef5350;
+
+  --dp-owner-purple-bg: linear-gradient(180deg, #1b4332 0%, #0d2818 100%);
+  --dp-owner-purple-fg: #e8f5e9;
+  --dp-owner-orange-bg: linear-gradient(180deg, #bf360c 0%, #6d1b00 100%);
+  --dp-owner-orange-fg: #fff3e0;
+
+  --dp-subpanel-bg: rgba(14, 34, 30, 0.93);
+  --dp-subpanel-border: rgba(129, 199, 132, 0.22);
+
+  --dp-player-card-bg: rgba(22, 48, 42, 0.97);
+  --dp-player-card-offline-bg: rgba(12, 26, 24, 0.92);
+  --dp-player-card-offline-border: #37474f;
+  --dp-player-card-turn-bg: rgba(46, 125, 50, 0.28);
+  --dp-player-card-turn-border: #e8c547;
+  --dp-player-border-me: #4fc3f7;
+  --dp-player-card-winner-bg: rgba(27, 67, 50, 0.52);
+  --dp-player-card-winner-border: #81c784;
+  --dp-player-showdown-border: rgba(212, 175, 55, 0.38);
+
+  --dp-card-back-highlight: radial-gradient(circle at 50% 38%, rgba(212, 175, 55, 0.28) 0%, transparent 50%);
+  --dp-card-back-pattern-1: repeating-linear-gradient(
+    45deg,
+    rgba(196, 30, 58, 0.14) 0px,
+    rgba(196, 30, 58, 0.14) 2px,
+    transparent 2px,
+    transparent 6px
+  );
+  --dp-card-back-pattern-2: repeating-linear-gradient(
+    -45deg,
+    rgba(212, 175, 55, 0.14) 0px,
+    rgba(212, 175, 55, 0.14) 1px,
+    transparent 1px,
+    transparent 7px
+  );
+  --dp-card-back-base: linear-gradient(148deg, #0d2818 0%, #1b4332 38%, #4e342e 88%);
+  --dp-card-back-fg: #fff8e1;
+  --dp-card-back-border: rgba(212, 175, 55, 0.44);
+  --dp-card-back-border-inner: rgba(255, 255, 255, 0.16);
+  --dp-card-back-text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+  --dp-card-back-shadow-idle:
+    inset 0 0 0 1px rgba(212, 175, 55, 0.22),
+    inset 0 -6px 14px rgba(13, 40, 24, 0.42),
+    0 2px 10px rgba(0, 0, 0, 0.48);
+  --dp-card-back-shadow-mid:
+    inset 0 0 0 1px rgba(239, 83, 80, 0.28),
+    inset 0 -6px 16px rgba(27, 94, 32, 0.36),
+    0 2px 14px rgba(212, 175, 55, 0.2),
+    0 0 18px rgba(196, 30, 58, 0.18);
+  --dp-card-drop-shadow: drop-shadow(0 4px 14px rgba(27, 94, 32, 0.35));
+  --dp-card-back-hole-top: radial-gradient(ellipse 100% 70% at 42% 12%, rgba(255, 249, 231, 0.22) 0%, transparent 46%);
+  --dp-card-back-hole-stripe: repeating-linear-gradient(
+    -38deg,
+    transparent,
+    transparent 3px,
+    rgba(129, 199, 132, 0.09) 3px,
+    rgba(129, 199, 132, 0.09) 5px
+  );
+  --dp-card-frame-gold: rgba(212, 175, 55, 0.38);
+  --dp-card-frame-outer: rgba(46, 125, 50, 0.35);
+  --dp-table-felt-texture:
+    radial-gradient(ellipse 44% 34% at 48% 36%, rgba(255, 253, 247, 0.12) 0%, transparent 54%),
+    radial-gradient(ellipse 32% 28% at 74% 68%, rgba(196, 30, 58, 0.12) 0%, transparent 52%),
+    radial-gradient(ellipse 28% 22% at 18% 56%, rgba(212, 175, 55, 0.08) 0%, transparent 48%),
+    repeating-linear-gradient(118deg, transparent 0 5px, rgba(46, 125, 50, 0.07) 5px 6px),
+    repeating-linear-gradient(62deg, transparent 0 7px, rgba(129, 199, 132, 0.055) 7px 8px),
+    radial-gradient(ellipse 30% 28% at 50% 50%, rgba(232, 245, 233, 0.12) 0%, transparent 72%);
+  --dp-table-felt-texture-opacity: 0.52;
+  --dp-muck-tint: #1b4332;
+  --dp-muck-tint-deep: #c62828;
+  --dp-muck-mini-card: linear-gradient(145deg, #0d2818 0%, #2e7d32 38%, #8d1e2b 100%);
+
+  --dp-table-felt-spot: #14532d;
+  --dp-table-felt-depth: #052e16;
+  --dp-table-felt-inset-bottom: inset 0 -12px 36px rgba(27, 94, 32, 0.22);
+  --dp-table-felt-drop-shadow: 0 12px 36px rgba(0, 0, 0, 0.46);
+  --dp-table-felt-ring-dark: rgba(13, 61, 34, 0.35);
+  --dp-table-felt-inset-deep: inset 0 -22px 50px rgba(5, 26, 14, 0.58);
+  --dp-table-felt-rim-mix: rgba(212, 175, 55, 0.42);
+  --dp-table-felt-rim-outer: rgba(196, 30, 58, 0.22);
+  --dp-table-felt-drop-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.48);
+  --dp-table-felt-vignette: rgba(4, 14, 12, 0.48);
+}

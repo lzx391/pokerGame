@@ -15,6 +15,17 @@ module.exports = defineConfig({
         },
         // 添加下面的代理配置
         proxy: {
+            // SSE 必须单独配置且排在 /dev-api 之前，否则 dev-server 会缓冲 text/event-stream，浏览器收不到 notify
+            '/dev-api/dp/social/stream': {
+                target: 'http://localhost:8088',
+                changeOrigin: true,
+                pathRewrite: { '^/dev-api': '' },
+                onProxyRes(proxyRes) {
+                    proxyRes.headers['cache-control'] = 'no-cache, no-transform'
+                    proxyRes.headers['x-accel-buffering'] = 'no'
+                    proxyRes.headers['connection'] = 'keep-alive'
+                }
+            },
             // 这里的 '/dev-api' 要和你在 main.js 中设置的 axios.defaults.baseURL 一致
             '/dev-api': {
                 target: 'http://localhost:8088', // 你的后端真实 IP

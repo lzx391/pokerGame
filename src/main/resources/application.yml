@@ -3,6 +3,8 @@ spring:
     name: MGDemoPlus
   flyway:
     locations: classpath:db/migration
+    # 库已有业务表但从未跑过 Flyway（无 flyway_schema_history）时启用；首次会在当前库打 baseline 再执行更高版本脚本。
+    baseline-on-migrate: true
   autoconfigure:
     exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
   datasource:
@@ -27,6 +29,10 @@ spring:
       password: ${SPRING_DATA_REDIS_PASSWORD:ruoyi123}
       database: 0
       timeout: 3000ms
+  # SSE 长连接：避免默认 ~30s AsyncRequestTimeout 掐断 /dp/social/stream
+  mvc:
+    async:
+      request-timeout: -1
 
 mgdemoplus:
   jwt:
@@ -38,6 +44,8 @@ mgdemoplus:
   dp-lobby-reconcile-enabled: true # DP 大厅表 dp_room_lobby 与内存 roomMap 对齐（清幽灵房）；单机房模型默认开启，多实例请设 false
   dp-lobby-reconcile-ms: 60000 # 对齐间隔（毫秒）；启动时也会立即跑一轮
   dp-quick-match-prune-ms: 30000 # 默认快匹等待队列：清理超时/已在房内的条目（毫秒，fixedDelay）
+  # 站点在线：last_seen_site 判定窗口。宜 &gt; 2～3×客户端 POST /dp/presence/site-heartbeat 间隔（默认 90s≈30s 间隔×3）。环境变量 MGDEMOPLUS_DP_SITE_PRESENCE_TTL_MS
+  dp-site-presence-ttl-ms: ${MGDEMOPLUS_DP_SITE_PRESENCE_TTL_MS:90000}
   images:
     file-location: ${MGDEMOPLUS_IMAGES_FILE_LOCATION:file:P:/javaworkspace/DPGameFiles/} # 头像等上传文件落盘目录（与 WebConfig `/images/**` 一致）；Docker 用环境变量 MGDEMOPLUS_IMAGES_FILE_LOCATION 覆盖
   music:
@@ -72,9 +80,15 @@ server:
 #       total-size-cap: 1GB
 #   level:
 #     root: WARN
-#     com.example.mgdemoplus.dp.BotLlmReasoning: INFO
-#     com.example.mgdemoplus.service.serviceImpl.dp.DpNpcEngine: INFO
-#     com.example.mgdemoplus.service.serviceImpl.dp.DpLlmNpcDecisionService: DEBUG
+#     com.example.mgdemoplus.BotLlmReasoning: INFO
+#     com.example.mgdemoplus.service.serviceImpl.DpNpcEngine: INFO
+#     com.example.mgdemoplus.service.serviceImpl.DpLlmNpcDecisionService: DEBUG
+#     # 大厅 SSE / 进房邀请联调（[social-sse] 为 INFO）；稳定后可改回 WARN
+#     com.example.mgdemoplus.social: INFO
+#     com.example.mgdemoplus.controller.DpSocialController: INFO
+#     com.example.mgdemoplus.controller.DpFriendMailboxController: INFO
+#     com.example.mgdemoplus.security.JwtAuthenticationFilter: INFO
+#     com.example.mgdemoplus.service.serviceImpl.DpFriendSocialService: INFO
 #     org.springframework: WARN
 #     com.alibaba.druid: WARN
 # 只要思考、不要【已发起】【采用】：把 DpLlmNpcDecisionService 改成 WARN。

@@ -1,55 +1,7 @@
 <template>
-  <div
-      class="dp-action-panel"
-      :class="{ 'dp-action-panel--settled': settledPrepare }"
-  >
-    <!-- 结算后准备阶段（原 GameSettledPreparePanel） -->
-    <template v-if="settledPrepare">
-      <div class="dp-action-panel__settled-title">
-        已进入结算阶段，请选择是否继续下一局（约 30 秒未操作将移至观众席）
-      </div>
-      <div class="dp-action-panel__settled-count">
-        <div class="dp-timer-ring dp-timer-ring--sm">
-          <span class="dp-timer-ring__text">{{ readyTimeLeft }}</span>
-        </div>
-        <span class="dp-action-panel__settled-count-label">准备倒计时</span>
-      </div>
-      <div class="dp-action-panel__stack-pair dp-action-panel__stack-pair--settled" aria-label="持有小鱼干与本轮已出">
-        <span class="dp-action-panel__stack-pill">小鱼干 <strong>{{ myChips }}</strong></span>
-        <span class="dp-action-panel__bet-pill">本轮 {{ myBet }}</span>
-      </div>
-      <div class="dp-action-panel__settled-actions">
-        <button
-            type="button"
-            class="dp-btn--success dp-action-panel__settled-btn"
-            :disabled="myChips < bigBlind"
-            :class="{ 'dp-action-panel__settled-btn--dim': myChips < bigBlind }"
-            @click="$emit('toggle-ready')"
-        >
-          {{ myReady ? '取消准备' : (myChips >= bigBlind ? '准备下一局' : ('小鱼干不足大猫注(' + bigBlind + ')，无法准备')) }}
-        </button>
-        <button
-            v-if="myChips < bigBlind"
-            type="button"
-            class="dp-btn--rebuy dp-action-panel__settled-btn"
-            @click="$emit('rebuy')"
-        >
-          补满至初始小鱼干
-        </button>
-      </div>
-    </template>
-
-    <!-- 本轮投入行动 -->
-    <template v-else>
+  <div class="dp-action-panel">
       <div class="dp-action-panel__turn">
         轮到你行动了（30秒超时自动盖牌）
-      </div>
-      <div class="dp-action-panel__stack-pair" aria-label="持有小鱼干与本轮已出">
-        <span class="dp-action-panel__stack-pill">小鱼干 {{ myChips }}</span>
-        <span class="dp-action-panel__bet-pill">本轮 {{ myBet }}</span>
-      </div>
-      <div class="dp-action-panel__meta">
-        当前需对齐: {{ currentBetToCall }} | 你已投入: {{ myBet }} | 还需补: {{ callAmount }}
       </div>
       <div class="dp-action-panel__raise-hint">
         <!-- 合法加投至少抬到总投入 <strong>{{ minTotalToRaise }}</strong> -->
@@ -152,7 +104,6 @@
           </button>
         </div>
       </div>
-    </template>
   </div>
 </template>
 
@@ -160,12 +111,7 @@
 export default {
   name: 'GameActionPanel',
   props: {
-    /** true 时显示结算后准备 UI，隐藏行动区 */
-    settledPrepare: { type: Boolean, default: false },
-    readyTimeLeft: { type: Number, default: 0 },
-    myReady: { type: Boolean, default: false },
     timeLeft: { type: Number, default: 0 },
-    currentBetToCall: { type: Number, default: 0 },
     myBet: { type: Number, default: 0 },
     callAmount: { type: Number, default: 0 },
     smallBlind: { type: Number, default: 5 },

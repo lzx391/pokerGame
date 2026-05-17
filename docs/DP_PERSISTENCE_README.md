@@ -33,7 +33,7 @@
 - 结算分配前主池/边池结构（`capturePotsBeforeClear`）
 - 结束时：每位玩家洞牌（服务端全知）、相对盲注后的净盈亏 `netChipsChange`（`finalizeHand`）
 
-完成后得到 `ObservedHandRecord`，并进入房间维度的内存环形归档（`ARCHIVE`，有上限，防内存膨胀）。
+完成后得到 `ObservedHandRecord`，由调用方 `observedHandPersistService.save` 落库（不再在服务端保留按房间维度的内存牌谱队列）。
 
 ### 2.2 何时调用 `finalizeHand` + 落库？
 

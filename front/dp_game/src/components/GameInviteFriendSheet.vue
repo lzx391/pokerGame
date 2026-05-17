@@ -25,14 +25,20 @@
         <li
             v-for="f in selectableFriends"
             :key="f.userId"
-            class="dp-invite-friend-sheet__row"
+            :class="['dp-invite-friend-sheet__row', friendInvitePresenceClass(f)]"
         >
-          <span
-              class="dp-invite-friend-sheet__name"
-              :title="inviteOptionLabel(f)"
-          >
-            {{ inviteOptionLabel(f) }}
-          </span>
+          <div class="dp-invite-friend-sheet__left">
+            <span
+                class="dp-invite-friend-sheet__name"
+                :title="inviteOptionLabel(f)"
+            >
+              {{ inviteOptionLabel(f) }}
+            </span>
+            <span
+                v-if="friendInvitePresenceLine(f)"
+                class="dp-invite-friend-sheet__presence"
+            >{{ friendInvitePresenceLine(f) }}</span>
+          </div>
           <el-button
               type="primary"
               size="small"
@@ -52,6 +58,7 @@
 <script>
 import GameBottomSheet from './GameBottomSheet.vue'
 import { mapState } from 'vuex'
+import { dpFriendPresenceRowClass, dpFriendPresenceStatusText } from '@/utils/dpFriendPresence'
 import { dpSocialDisplayNickname } from '../utils/dpSocialDisplayName'
 import { dpResultSuccess, dpResultMessage, dpAxiosErrorMessage } from '../utils/dpApiResult'
 
@@ -94,6 +101,12 @@ export default {
     }
   },
   methods: {
+    friendInvitePresenceClass(f) {
+      return dpFriendPresenceRowClass(f)
+    },
+    friendInvitePresenceLine(f) {
+      return dpFriendPresenceStatusText(f)
+    },
     inviteOptionLabel(f) {
       return dpSocialDisplayNickname(f && f.nickname, f && f.userId, '好友')
     },
@@ -207,14 +220,41 @@ export default {
   border-bottom: none;
 }
 
-.dp-invite-friend-sheet__name {
+.dp-invite-friend-sheet__left {
   flex: 1 1 auto;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.dp-invite-friend-sheet__name {
+  width: 100%;
   font-size: 14px;
   color: var(--dp-text-primary, #e8e8e8);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.dp-invite-friend-sheet__presence {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+}
+
+.dp-invite-friend-sheet__row.dp-friend-row--presence-idle .dp-invite-friend-sheet__presence {
+  color: #529b2e;
+}
+
+.dp-invite-friend-sheet__row.dp-friend-row--presence-ingame .dp-invite-friend-sheet__presence {
+  color: #dd6161;
+}
+
+.dp-invite-friend-sheet__row.dp-friend-row--presence-offline .dp-invite-friend-sheet__presence {
+  color: #9a9ea4;
 }
 
 .dp-invite-friend-sheet__invite-btn {

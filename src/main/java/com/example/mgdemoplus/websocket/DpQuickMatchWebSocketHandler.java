@@ -1,7 +1,7 @@
 package com.example.mgdemoplus.websocket;
 
 import com.example.mgdemoplus.security.JwtTokenService;
-import com.example.mgdemoplus.service.serviceImpl.dp.DpRoomServiceImpl;
+import com.example.mgdemoplus.service.serviceImpl.DpRoomServiceImpl;
 import io.jsonwebtoken.Claims;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;

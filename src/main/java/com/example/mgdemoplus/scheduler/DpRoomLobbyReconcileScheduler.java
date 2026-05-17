@@ -1,7 +1,7 @@
 package com.example.mgdemoplus.scheduler;
 
-import com.example.mgdemoplus.service.dp.DpRoomHallService;
-import com.example.mgdemoplus.service.serviceImpl.dp.DpRoomServiceImpl;
+import com.example.mgdemoplus.service.DpRoomHallService;
+import com.example.mgdemoplus.service.serviceImpl.DpRoomServiceImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;

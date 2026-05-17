@@ -3,7 +3,7 @@ package com.example.mgdemoplus.vo;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.example.mgdemoplus.entity.dp.DpRoom;
+import com.example.mgdemoplus.entity.DpRoom;
 
 public class DpRoomPublicRoomsPageVO {
     private List<DpRoom> list = new ArrayList<>();

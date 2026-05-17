@@ -48,6 +48,10 @@
         @open-invite-friend="openInviteFriendSheet"
         @exit="exitGame"
         @ready-next-hand="readyNextHand"
+        :show-hero-economy="topBarShowHeroEconomy"
+        :hero-my-chips="myChips"
+        :hero-economy-secondary-label="topBarHeroEconomySecondaryLabel"
+        :hero-economy-secondary-value="topBarHeroEconomySecondaryValue"
     />
 
     </header>
@@ -78,8 +82,6 @@
               :community-cards="communityCards"
               :community-cards-flip-state="communityCardsFlipState"
               :viewer-seated-at-table="viewerSeatedAtTable"
-              :hero-hole-deal-intro-done="heroHoleDealIntroDone"
-              :show-hero-seat-on-table="showHeroSeatOnTable"
               :act-index="actIndex"
               :stage="stage"
               :community-cards-flip-complete="communityCardsFlipComplete"
@@ -140,6 +142,7 @@ import dpGameLayoutTierMixin from '../mixins/dpGameLayoutTierMixin'
 import { dpGamePlayerBoxStyle } from '../utils/dpGamePlayerBoxStyle'
 import { ensureDpUserIdInStorage } from '../utils/dpEnsureUserId'
 import { dpResultSuccess, dpResultData, dpResultMessage } from '../utils/dpApiResult'
+import { dpRoomApi } from '@/api/api.dpRoom'
 import { mapState, mapGetters } from 'vuex'
 
 export default {
@@ -183,10 +186,10 @@ export default {
 
   computed: {
     ...mapState('dpGame', [
-      'gameUiTheme', 'customThemeBase', 'customThemeOverrides', 'ecoMode', 'gameThemeOptions', 'roomId', 'user', 'currentHandSeed', 'owner', 'players', 'playing', 'stage', 'communityCards', 'pot', 'pots', 'currentBetToCall', 'lastRaiseIncrement', 'actIndex', 'spectators', 'waitNextHand', 'raiseAmount', 'selectedWinners', 'potWinners', 'nextHandReady', 'loading', 'communityCardsFlipState', 'communityCardsFlipComplete', 'seatChatTextByNick', 'chatInputDraft', 'showPlayGuideModal', 'playGuideTab', 'showSpectatorModal', 'showWaitNextHandModal', 'showHandHistoryModal', 'showMusicBoxModal', 'musicTracks', 'musicTracksLoading', 'musicTracksError', 'roomMusicState', 'showOwnerHubSheet', 'ownerToolType', 'ownerActionTarget', 'demoBotAdding', 'demoBotAddedTip', 'maniacBotAdding', 'maniacBotAddedTip', 'tagBotAdding', 'tagBotAddedTip', 'lagBotAdding', 'lagBotAddedTip', 'nitBotAdding', 'nitBotAddedTip', 'callBotAdding', 'callBotAddedTip', 'llmBotAdding', 'llmBotAddedTip', 'ownerRevealAll', 'showMobileHandSheet', 'showMobileActionSheet', 'heroHoleDealIntroDone', 'chipLeaderNicknames'
+      'gameUiTheme', 'customThemeBase', 'customThemeOverrides', 'ecoMode', 'gameThemeOptions', 'roomId', 'user', 'currentHandSeed', 'owner', 'players', 'playing', 'stage', 'communityCards', 'pot', 'pots', 'currentBetToCall', 'lastRaiseIncrement', 'actIndex', 'spectators', 'waitNextHand', 'raiseAmount', 'selectedWinners', 'potWinners', 'nextHandReady', 'loading', 'communityCardsFlipState', 'communityCardsFlipComplete', 'seatChatTextByNick', 'roomChatMessages', 'chatInputDraft', 'showPlayGuideModal', 'playGuideTab', 'showSpectatorModal', 'showWaitNextHandModal', 'showHandHistoryModal', 'showOpponentHandHistoryModal', 'opponentHandHistoryOtherUserId', 'opponentHandHistoryDisplayName', 'showMusicBoxModal', 'musicTracks', 'musicTracksLoading', 'musicTracksError', 'roomMusicState', 'showOwnerHubSheet', 'ownerToolType', 'ownerActionTarget', 'demoBotAdding', 'demoBotAddedTip', 'maniacBotAdding', 'maniacBotAddedTip', 'tagBotAdding', 'tagBotAddedTip', 'lagBotAdding', 'lagBotAddedTip', 'nitBotAdding', 'nitBotAddedTip', 'callBotAdding', 'callBotAddedTip', 'llmBotAdding', 'llmBotAddedTip', 'llmGlobalBotAdding', 'llmGlobalBotAddedTip', 'ownerRevealAll', 'showMobileHandSheet', 'showMobileActionSheet', 'heroHoleDealIntroDone', 'chipLeaderNicknames'
     ]),
     ...mapGetters('dpGame', [
-      'effectiveThemeForCss', 'customThemeInlineStyle', 'handRankReference', 'stageCN', 'isOwner', 'canInviteFriend', 'isMyTurn', 'myPlayer', 'showSpectatorPrepareBlock', 'myReady', 'myChips', 'myBet', 'callAmount', 'smallBlind', 'bigBlind', 'lastRaiseIncrementEffective', 'minTotalToRaise', 'minRaise', 'allPotsHaveWinners', 'inSettledStage', 'ownerActionPlayers', 'playersDisplayOrder', 'viewerSeatedAtTable', 'holeDealPlayerCountForAnim', 'heroDockRow', 'dealerDisplayIndex', 'showdownHandLeaderNicknames', 'spectatorSeatChatEntries', 'tableActionActorDisplayName', 'mobileHeroDockActive', 'showHeroViewHandButton', 'showHeroSeatOnTable', 'showBottomHeroDock'
+      'effectiveThemeForCss', 'customThemeInlineStyle', 'handRankReference', 'stageCN', 'isOwner', 'canInviteFriend', 'isMyTurn', 'myPlayer', 'showSpectatorPrepareBlock', 'myReady', 'myChips', 'myBet', 'callAmount', 'smallBlind', 'bigBlind', 'lastRaiseIncrementEffective', 'minTotalToRaise', 'minRaise', 'allPotsHaveWinners', 'inSettledStage', 'ownerActionPlayers', 'playersDisplayOrder', 'viewerSeatedAtTable', 'holeDealPlayerCountForAnim', 'heroDockRow', 'dealerDisplayIndex', 'showdownHandLeaderNicknames', 'spectatorSeatChatEntries', 'tableActionActorDisplayName', 'mobileHeroDockActive', 'showHeroViewHandButton', 'showBottomHeroDock'
     ]),
     actionTimerProgressPct() {
       var t = Number(this.timeLeft)
@@ -202,6 +205,22 @@ export default {
     },
     showTableActionTimer() {
       return this.actionCountdownShouldRun()
+    },
+    /** 顶栏展示本人持有/本轮/还需补（与原底栏筹码条同期机一致，避免重复） */
+    topBarShowHeroEconomy() {
+      return !!(this.viewerSeatedAtTable && this.heroDockRow)
+    },
+    topBarHeroEconomySecondaryLabel() {
+      if (this.isMyTurn && !this.inSettledStage && (Number(this.callAmount) || 0) > 0) {
+        return '还需补'
+      }
+      return '本轮'
+    },
+    topBarHeroEconomySecondaryValue() {
+      if (this.isMyTurn && !this.inSettledStage && (Number(this.callAmount) || 0) > 0) {
+        return Number(this.callAmount) || 0
+      }
+      return Number(this.myBet) || 0
     }
   },
 
@@ -278,6 +297,7 @@ export default {
 
       // 先 HTTP 拉一次，再建立 WebSocket（推送与定时器同 1s 节奏）
       self.loadGame().then(function () {
+        self.fetchRoomChatRecent()
         self.connectGameWs()
       })
 
@@ -442,6 +462,7 @@ export default {
           }
           self.gameWsConnected = true
           self.wsReconnectAttempt = 0
+          self.fetchRoomChatRecent()
         }
         ws.onmessage = function (ev) {
           try {
@@ -635,10 +656,23 @@ export default {
       }
     },
 
+    normalizeRoomChatRow(data, nick, text) {
+      var id = data.id != null ? String(data.id) : ''
+      if (!id) id = String(Date.now()) + '-' + Math.random().toString(36).slice(2, 8)
+      return {
+        id: id,
+        nickname: nick,
+        text: text,
+        serverTime: data.serverTime != null ? Number(data.serverTime) : Date.now(),
+        senderUserId: data.senderUserId != null ? data.senderUserId : null
+      }
+    },
+
     pushRoomChatFromServer(data) {
       var nick = (data.nickname || '').trim()
       var text = (data.text != null ? String(data.text) : '').trim()
       if (!nick || !text) return
+      this.$store.commit('dpGame/APPEND_ROOM_CHAT_MESSAGE', this.normalizeRoomChatRow(data, nick, text))
       var ttl = typeof data.ttlMs === 'number' && data.ttlMs > 0 ? data.ttlMs : 15000
       var prev = this._seatChatTimers[nick]
       if (prev) {
@@ -654,6 +688,35 @@ export default {
         delete self._seatChatTimers[nick]
       }, ttl)
       this._seatChatTimers[nick] = tid
+    },
+
+    async fetchRoomChatRecent() {
+      if (!this.roomId || !this.$http) return
+      var api = dpRoomApi(this.$http)
+      try {
+        var res = await api.recentChat(this.roomId, { limit: 50 })
+        var body = res.data
+        if (!dpResultSuccess(body)) return
+        var d = dpResultData(body) || {}
+        var items = Array.isArray(d.items) ? d.items : []
+        var rows = items
+          .map(function (row) {
+            var nick = (row.nickname || '').trim()
+            var text = row.text != null ? String(row.text).trim() : ''
+            if (!nick || !text) return null
+            return {
+              id: row.id != null ? String(row.id) : '',
+              nickname: nick,
+              text: text,
+              serverTime: row.serverTime != null ? Number(row.serverTime) : 0,
+              senderUserId: row.senderUserId != null ? row.senderUserId : null
+            }
+          })
+          .filter(Boolean)
+        this.$store.commit('dpGame/MERGE_ROOM_CHAT_MESSAGES', rows)
+      } catch (e) {
+        console.warn('fetchRoomChatRecent', e)
+      }
     },
 
     sendRoomChat() {
@@ -712,14 +775,25 @@ export default {
       }
     },
 
-    // ---- 准备/取消准备 ----
+    // ---- 准备/取消准备（与 readyNextHand 一致：ok 才 commit 本地态、提示、loadGame）----
     async toggleReady() {
+      if (!this.user) return
+      var wasReady = this.myReady
       try {
         var res = await this.$http.post('/dpRoom/toggleReady', null, {
-          params: {roomId: this.roomId, nickname: this.user.nickname}
+          params: { roomId: this.roomId, nickname: this.user.nickname }
         })
-        if (res.data !== 'ok') this.$message.error('操作失败')
-        await this.loadGame()
+        if (res.data === 'ok') {
+          this.$store.commit('dpGame/PATCH_MY_PLAYER_READY', !wasReady)
+          if (wasReady) {
+            this.$message.success('已取消准备')
+          } else {
+            this.$message.success('已准备下一局')
+          }
+          await this.loadGame()
+        } else {
+          this.$message.error('操作失败：' + res.data)
+        }
       } catch (err) {
         this.$message.error('网络错误: ' + err.message)
       }
@@ -843,6 +917,21 @@ export default {
     closePlayerSocialSheet() {
       this.playerSocialOpen = false
       this.playerSocialTarget = null
+    },
+    /**
+     * 从玩家信息底栏打开「与 TA 的共同历史对局」（独立弹层，数据走 checkUserAndOtherPlayerHandHistoryList）
+     * @param {{ userId: number, displayName: string }} payload
+     */
+    openOpponentHandHistoryFromSocial(payload) {
+      if (!payload || payload.userId == null || payload.userId === '') return
+      var uid = Number(payload.userId)
+      if (!uid || uid <= 0 || isNaN(uid)) return
+      this.closePlayerSocialSheet()
+      this.$store.commit('dpGame/SET_MODAL', {
+        showOpponentHandHistoryModal: true,
+        opponentHandHistoryOtherUserId: uid,
+        opponentHandHistoryDisplayName: payload.displayName || ''
+      })
     },
     /**
      * @param {string|{nickname:string,userId?:number}} payload
@@ -1158,6 +1247,32 @@ export default {
             return '仅成功添加 ' + ok + '/' + count + ' 个：' + (lastErr || '席位可能已满')
           }
           return '添加大模型 NPC 失败：' + (lastErr || 'fail')
+        }.bind(this)
+      } else if (type === 'llmGlobal') {
+        tipPrefix = 'llmGlobalBot'
+        adding.llmGlobalBotAdding = true
+        tipEmpty.llmGlobalBotAddedTip = ''
+        run = async function () {
+          var ok = 0
+          var lastErr = ''
+          for (var i = 0; i < count; i++) {
+            var res = await this.$http.post('/dpRoom/addLlmGlobalBot', null, {
+              params: { roomId: this.roomId }
+            })
+            if (res.data === 'ok') {
+              ok++
+            } else {
+              lastErr = String(res.data)
+              break
+            }
+          }
+          if (ok === count) {
+            return '已请求在下一局加入 ' + count + ' 个 BOT_LLM_GLOBAL（全局叙事多轮），请等待本局结束（需服务端方舟密钥）。'
+          }
+          if (ok > 0) {
+            return '仅成功添加 ' + ok + '/' + count + ' 个：' + (lastErr || '席位可能已满')
+          }
+          return '添加 BOT_LLM_GLOBAL 失败：' + (lastErr || 'fail')
         }.bind(this)
       } else {
         return

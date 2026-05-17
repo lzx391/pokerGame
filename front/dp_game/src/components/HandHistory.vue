@@ -6,7 +6,7 @@
   >
   <div class="hand-history-page hand-history-page--dp">
     <div class="hand-history-page__header">
-      <h1>历史对局</h1>
+      <h1 v-if="showPageTitle">历史对局</h1>
       <div class="hand-history-page__header-actions">
         <div v-if="!embedded" class="dp-game-theme-row hand-history-page__theme-row">
           <span class="dp-game-theme-row__label">界面主题</span>
@@ -112,7 +112,17 @@ export default {
   mixins: [dpLobbyThemeMixin],
   props: {
     /** 嵌入对局弹层：不整页跳转，通过事件关闭 / 打开详情 */
-    embedded: { type: Boolean, default: false }
+    embedded: { type: Boolean, default: false },
+    /** mine：`/dpHandHistory/list`；withOpponent：`/dpHandHistory/checkUserAndOtherPlayerHandHistoryList` */
+    listMode: {
+      type: String,
+      default: 'mine',
+      validator(v) {
+        return v === 'mine' || v === 'withOpponent'
+      }
+    },
+    /** `listMode===withOpponent` 时为对方 dp_user.id */
+    otherUserId: { type: Number, default: null }
   },
   data() {
     return {
@@ -129,6 +139,10 @@ export default {
     totalPages() {
       if (this.total <= 0) return 1
       return Math.max(1, Math.ceil(this.total / this.pageSize))
+    },
+    showPageTitle() {
+      if (this.embedded && this.listMode === 'withOpponent') return false
+      return true
     }
   },
   async created() {
@@ -157,6 +171,14 @@ export default {
       return
     }
     this.user.userId = uid
+    if (this.listMode === 'withOpponent') {
+      var oid = Number(this.otherUserId)
+      if (!oid || oid <= 0 || isNaN(oid)) {
+        if (this.embedded) this.$emit('close')
+        else this.$router.replace('/login')
+        return
+      }
+    }
     this.fetchList(1)
   },
   methods: {
@@ -209,7 +231,12 @@ export default {
           page: p,
           pageSize: this.pageSize
         }
-        var res = await this.$http.get('/dpHandHistory/list', { params: params })
+        var url = '/dpHandHistory/list'
+        if (this.listMode === 'withOpponent') {
+          url = '/dpHandHistory/checkUserAndOtherPlayerHandHistoryList'
+          params.otherUserId = Number(this.otherUserId)
+        }
+        var res = await this.$http.get(url, { params: params })
         var data = res.data || {}
         this.page = typeof data.page === 'number' ? data.page : p
         this.pageSize = typeof data.pageSize === 'number' ? data.pageSize : this.pageSize

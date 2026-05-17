@@ -18,30 +18,6 @@
       <header class="home-header">
         <h2 class="home-title">猫咪牌局 · 大厅</h2>
         <div class="home-header__right">
-          <div class="home-social-bar" aria-label="好友与邮箱">
-            <el-badge :value="unreadCount" :hidden="!unreadCount" :max="99" class="home-mail-badge">
-              <el-button
-                type="primary"
-                plain
-                circle
-                size="small"
-                icon="el-icon-message"
-                aria-label="打开邮箱"
-                title="邮箱（好友申请 / 进房邀请）"
-                @click="openMailbox"
-              />
-            </el-badge>
-            <el-button
-              type="default"
-              plain
-              circle
-              size="small"
-              icon="el-icon-user-solid"
-              aria-label="好友列表"
-              title="好友列表"
-              @click="openFriendsDrawer"
-            />
-          </div>
           <div class="dp-game-theme-row home-theme-row">
             <span class="dp-game-theme-row__label">界面主题</span>
             <dp-theme-picker
@@ -77,45 +53,61 @@
             <button type="button" class="dp-btn dp-btn--primary" @click="goCreateRoom">创建房间</button>
             <button type="button" class="dp-btn dp-btn--ghost" @click="goHandHistory">历史对局</button>
             <button type="button" class="dp-btn dp-btn--ghost" @click="goMusicUpload">曲库上传</button>
-          </div>
-          <div class="home-actions__social-row" aria-label="好友与邮箱">
             <el-badge
               :value="unreadCount"
               :hidden="!unreadCount"
               :max="99"
-              class="home-actions__mail-badge"
+              class="home-actions__mail-badge home-actions__mail-badge--inline"
             >
               <button
                 type="button"
-                class="dp-btn dp-btn--ghost home-actions__social-btn"
+                class="dp-btn dp-btn--ghost"
                 aria-label="打开邮箱"
                 title="邮箱（好友申请 / 进房邀请）"
                 @click="openMailbox"
               >
-                <span class="home-actions__social-ico" aria-hidden="true">
-                  <i class="el-icon-message"></i>
-                </span>
-                消息
+                邮箱
               </button>
             </el-badge>
-            <button
-              type="button"
-              class="dp-btn dp-btn--ghost home-actions__social-btn"
-              aria-label="好友列表"
-              title="好友列表"
-              @click="openFriendsDrawer"
+            <el-badge
+              :value="friendChatUnreadTotal"
+              :hidden="!friendChatUnreadTotal"
+              :max="99"
+              class="home-actions__mail-badge home-actions__mail-badge--inline"
             >
-              <span class="home-actions__social-ico" aria-hidden="true">
-                <i class="el-icon-user-solid"></i>
-              </span>
-              好友
-            </button>
+              <button
+                type="button"
+                class="dp-btn dp-btn--ghost"
+                aria-label="好友列表"
+                title="好友列表"
+                @click="openFriendsDrawer"
+              >
+                好友
+              </button>
+            </el-badge>
           </div>
         </div>
       </section>
 
       <section class="dp-lobby-panel home-room-list">
-        <h3 class="dp-lobby-panel__title">房间列表</h3>
+        <div class="home-room-list__head">
+          <h3 class="dp-lobby-panel__title home-room-list__title">房间列表</h3>
+          <button
+            type="button"
+            class="dp-btn dp-btn--ghost home-room-list__refresh"
+            :disabled="roomsLoading"
+            title="立即刷新列表（可与自动刷新并存）"
+            aria-label="刷新房间列表"
+            @click="refreshRoomList"
+          >
+            <i
+              class="el-icon-refresh"
+              :class="{ 'home-room-list__refresh-ico--spin': roomsLoading }"
+              aria-hidden="true"
+            />
+            刷新
+          </button>
+        </div>
         <div class="home-filters" aria-label="筛选与搜索">
           <div class="home-filters__row">
             <label class="home-filters__item">
@@ -210,6 +202,7 @@
       append-to-body
       custom-class="home-friends-drawer"
       size="380px"
+      @open="onFriendsDrawerOpen"
     >
       <div class="dp-social-sheet dp-social-sheet--drawer">
         <p v-if="friendsLoading" class="dp-social-sheet__hint">加载中…</p>
@@ -218,10 +211,22 @@
           <li
             v-for="f in friends"
             :key="'friend-' + f.userId"
-            class="dp-social-list__item"
+            :class="['dp-social-list__item', friendPresenceRowClass(f)]"
           >
             <div class="dp-social-list__text">
-              <div class="dp-social-list__primary">{{ friendPrimaryName(f) }}</div>
+              <div class="dp-social-list__primary dp-social-list__primary--dm">
+                <span>{{ friendPrimaryName(f) }}</span>
+                <span
+                  v-if="friendUnreadFor(f.userId)"
+                  class="dp-social-list__dm-dot"
+                  title="有未读私信"
+                  aria-label="有未读私信"
+                />
+              </div>
+              <div
+                v-if="friendPresenceLine(f)"
+                class="dp-social-list__presence"
+              >{{ friendPresenceLine(f) }}</div>
               <button
                 v-if="f.userId != null && f.userId !== ''"
                 type="button"
@@ -233,11 +238,38 @@
               </button>
             </div>
             <div class="dp-social-list__actions">
+              <el-badge
+                :value="friendUnreadFor(f.userId)"
+                :hidden="!friendUnreadFor(f.userId)"
+                :max="99"
+                class="home-friend-chat-badge"
+              >
+                <el-button
+                  type="primary"
+                  plain
+                  size="mini"
+                  @click="openFriendChat(f)"
+                >
+                  对话
+                </el-button>
+              </el-badge>
+              <el-button
+                v-if="friendShowFollow(f)"
+                type="success"
+                plain
+                size="mini"
+                :loading="friendFollowBusy(f.userId)"
+                :disabled="friendFollowOtherBusy(f.userId)"
+                @click="onFollowFriend(f)"
+              >
+                跟随
+              </el-button>
               <el-button
                 type="danger"
                 plain
                 size="mini"
                 :loading="friendRemoveBusy(f.userId)"
+                :disabled="friendFollowAnyBusy()"
                 @click="onRemoveFriend(f)"
               >
                 删除
@@ -337,6 +369,14 @@
         </template>
       </div>
     </el-dialog>
+
+    <friend-chat-dialog
+      :visible.sync="friendChatVisible"
+      :peer-user-id="friendChatPeerId"
+      :peer-display-name="friendChatPeerName"
+      :peer-unread-count="friendChatPeerUnread"
+      @closed="onFriendChatClosed"
+    />
   </div>
 </template>
 
@@ -345,9 +385,12 @@ import '@/styles/dp-game-themes.css'
 import '@/styles/dp-lobby-shell.css'
 import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
+import { dpFriendPresenceRowClass, dpFriendPresenceStatusText, dpFriendPresenceBucket } from '@/utils/dpFriendPresence'
 import { dpSocialDisplayNickname } from '@/utils/dpSocialDisplayName'
 import { dpResultSuccess, dpResultData, dpResultMessage } from '@/utils/dpApiResult'
 import GamePlayGuideModal from '@/components/GamePlayGuideModal.vue'
+import FriendChatDialog from '@/components/FriendChatDialog.vue'
+import { buildSocialStreamUrl } from '@/utils/dpSocialStream'
 import { mapGetters, mapState, mapActions } from 'vuex'
 import {
   peekCatTutorialRequested,
@@ -355,9 +398,11 @@ import {
   isCatTutorialDismissedPermanently,
   setCatTutorialDismissedPermanently
 } from '@/constants/dpCatThemeCopy'
+import { exitLobbyQuickMatchSilently } from '@/utils/dpLobbyQuickMatchExit'
+import { postQuickMatchCancel2 } from '@/utils/dpQuickMatchExit'
 
 export default {
-  components: { GamePlayGuideModal },
+  components: { GamePlayGuideModal, FriendChatDialog },
   mixins: [dpLobbyThemeMixin],
   data() {
     return {
@@ -391,15 +436,23 @@ export default {
       /** 邮箱内进房邀约倒计时本地递减（每秒） */
       mailboxTickSeconds: 0,
       mailboxTickTimer: null,
-      /** 大厅静默轮询未读数量（毫秒） */
-      unreadPollMs: 6000,
-      unreadPollTimer: null
+      socialEventSource: null,
+      socialEsSession: 0,
+      socialEsReconnectTimer: null,
+      socialEsReconnectAttempt: 0,
+      friendChatVisible: false,
+      friendChatPeerId: null,
+      friendChatPeerName: '',
+      friendChatPeerUnread: 0,
+      /** 好友列表「跟随」连点防护：好友 dp_user.id */
+      friendFollowBusyUserId: null
     }
   },
   computed: {
     ...mapGetters('dpGame', ['handRankReference']),
     ...mapState('dpMailbox', [
       'unreadCount',
+      'friendChatUnreadTotal',
       'friendRequests',
       'roomInvites',
       'friends',
@@ -407,8 +460,18 @@ export default {
       'friendsLoading',
       'actionBusyId'
     ]),
+    ...mapGetters('dpMailbox', ['friendUnreadForUser']),
     pageSize() {
       return 20
+    }
+  },
+  watch: {
+    '$route.path': function (path) {
+      if (path === '/home' && this.user && this.user.token) {
+        this.connectSocialStream()
+      } else {
+        this.closeSocialStream()
+      }
     }
   },
   async created() {
@@ -422,7 +485,7 @@ export default {
     this.getRooms()
     this.timer = setInterval(() => {
       this.getRooms()
-    }, 2000)
+    }, 10000)
     if (this.user && this.user.token) {
       this.bootstrapSocial()
     }
@@ -441,25 +504,27 @@ export default {
       clearInterval(this.timer)
       this.timer = null
     }
-    this.clearUnreadPollTimer()
+    this.closeSocialStream()
     this.stopMailboxTick()
-    if (this.quickMatchPolling) {
-      this.cancelQuickMatchRemote()
-      this.disconnectQuickMatchWs()
-      this.quickMatchPolling = false
-      this.quickMatchLoading = false
-    }
+    this.quickMatchPolling = false
+    this.quickMatchLoading = false
+    this.disconnectQuickMatchWs()
+    postQuickMatchCancel2(this.$http, this.user)
   },
   methods: {
     ...mapActions('dpMailbox', [
       'fetchUnreadCount',
+      'fetchFriendChatUnreadSummary',
+      'fetchNotifySummary',
+      'applyNotifyPayload',
       'fetchMailbox',
       'fetchFriends',
       'removeFriend',
       'acceptFriend',
       'rejectFriend',
       'acceptRoomInvite',
-      'rejectRoomInvite'
+      'rejectRoomInvite',
+      'followFriendToTheirRoom'
     ]),
     friendRemoveBusy(userId) {
       var id = userId != null ? String(userId) : ''
@@ -474,6 +539,27 @@ export default {
     },
     friendPrimaryName(f) {
       return dpSocialDisplayNickname(f && f.nickname, f && f.userId, '未知好友')
+    },
+    friendPresenceRowClass(f) {
+      return dpFriendPresenceRowClass(f)
+    },
+    friendPresenceLine(f) {
+      return dpFriendPresenceStatusText(f)
+    },
+    friendShowFollow(f) {
+      return dpFriendPresenceBucket(f) === 'in_game'
+    },
+    friendFollowBusy(userId) {
+      var uid = userId != null ? Number(userId) : 0
+      return isFinite(uid) && uid > 0 && this.friendFollowBusyUserId === uid
+    },
+    friendFollowOtherBusy(userId) {
+      if (this.friendFollowBusyUserId == null) return false
+      var uid = userId != null ? Number(userId) : 0
+      return isFinite(uid) && uid > 0 && this.friendFollowBusyUserId !== uid
+    },
+    friendFollowAnyBusy() {
+      return this.friendFollowBusyUserId != null
     },
     friendRequestPrimaryName(row) {
       return dpSocialDisplayNickname(row && row.fromNickname, row && row.fromUserId, '未知用户')
@@ -513,20 +599,127 @@ export default {
       var sec = Math.max(0, Math.floor(base) - this.mailboxTickSeconds)
       return sec <= 0 ? '已过期' : sec + ' 秒'
     },
+    friendUnreadFor(userId) {
+      return this.friendUnreadForUser(userId)
+    },
     bootstrapSocial() {
       var http = this.$http
-      this.fetchUnreadCount({ http }).catch(() => {})
-      this.clearUnreadPollTimer()
       var self = this
-      this.unreadPollTimer = setInterval(function () {
-        self.fetchUnreadCount({ http }).catch(() => {})
-      }, this.unreadPollMs)
+      this.fetchNotifySummary({ http }).catch(function () {
+        return Promise.all([
+          self.fetchUnreadCount({ http }),
+          self.fetchFriendChatUnreadSummary({ http })
+        ])
+      })
+      this.fetchFriends({ http }).catch(() => {})
+      this.connectSocialStream()
     },
-    clearUnreadPollTimer() {
-      if (this.unreadPollTimer != null) {
-        clearInterval(this.unreadPollTimer)
-        this.unreadPollTimer = null
+    closeSocialStream() {
+      this.socialEsSession++
+      if (this.socialEsReconnectTimer != null) {
+        clearTimeout(this.socialEsReconnectTimer)
+        this.socialEsReconnectTimer = null
       }
+      var es = this.socialEventSource
+      var notifyHandler = this._socialNotifyHandler
+      this.socialEventSource = null
+      this._socialNotifyHandler = null
+      if (es) {
+        es.onopen = null
+        es.onerror = null
+        es.onmessage = null
+        if (notifyHandler) {
+          try {
+            es.removeEventListener('notify', notifyHandler)
+          } catch (e) { /* ignore */ }
+        }
+        try {
+          es.close()
+        } catch (e) { /* ignore */ }
+      }
+    },
+    scheduleSocialStreamReconnect() {
+      if (this.socialEsReconnectTimer != null) return
+      if (!this.user || !this.user.token) return
+      if (this.$route.path !== '/home') return
+      var self = this
+      var attempt = this.socialEsReconnectAttempt
+      var delay = Math.min(30000, 1000 * Math.pow(2, attempt))
+      this.socialEsReconnectTimer = setTimeout(function () {
+        self.socialEsReconnectTimer = null
+        self.socialEsReconnectAttempt++
+        self.connectSocialStream(true)
+      }, delay)
+    },
+    connectSocialStream(isReconnect) {
+      if (!this.user || !this.user.token) return
+      if (this.$route.path !== '/home') return
+      var url = buildSocialStreamUrl(this.user.token)
+      if (!url) return
+      this.closeSocialStream()
+      var session = ++this.socialEsSession
+      var self = this
+      var es
+      try {
+        es = new EventSource(url)
+      } catch (e) {
+        this.scheduleSocialStreamReconnect()
+        return
+      }
+      this.socialEventSource = es
+      this._socialNotifyHandler = function (ev) {
+        if (self.socialEsSession !== session) return
+        self.onSocialNotify(ev && ev.data)
+      }
+      var onNotify = this._socialNotifyHandler
+      es.addEventListener('notify', onNotify)
+      es.onmessage = onNotify
+      es.onopen = function () {
+        if (self.socialEsSession !== session) return
+        self.socialEsReconnectAttempt = 0
+        if (isReconnect) {
+          self.fetchNotifySummary({ http: self.$http }).catch(function () {})
+        }
+      }
+      es.onerror = function () {
+        if (self.socialEsSession !== session) return
+        try {
+          es.close()
+        } catch (err) { /* ignore */ }
+        if (self.socialEventSource === es) self.socialEventSource = null
+        self.scheduleSocialStreamReconnect()
+      }
+    },
+    onSocialNotify(raw) {
+      if (raw) {
+        try {
+          var parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+          if (process.env.NODE_ENV !== 'production') {
+            console.info('[social-sse] notify received', parsed)
+          }
+          this.applyNotifyPayload(parsed)
+          return
+        } catch (e) {
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn('[social-sse] notify parse failed', raw, e)
+          }
+        }
+      }
+      this.fetchNotifySummary({ http: this.$http }).catch(() => {})
+    },
+    openFriendChat(f) {
+      var uid = f && f.userId != null ? Number(f.userId) : 0
+      if (!isFinite(uid) || uid <= 0) return
+      this.friendChatPeerId = uid
+      this.friendChatPeerName = this.friendPrimaryName(f)
+      this.friendChatPeerUnread = this.friendUnreadFor(uid)
+      this.friendChatVisible = true
+    },
+    onFriendChatClosed() {
+      this.friendChatPeerId = null
+      this.friendChatPeerName = ''
+      this.friendChatPeerUnread = 0
+      this.fetchFriendChatUnreadSummary({ http: this.$http }).catch(() => {})
     },
     startMailboxTick() {
       var self = this
@@ -568,10 +761,38 @@ export default {
         return
       }
       this.friendsDrawerVisible = true
+    },
+    async onFriendsDrawerOpen() {
+      if (!this.user || !this.user.token) return
       var http = this.$http
-      const r = await this.fetchFriends({ http })
+      var r = await this.fetchFriends({ http })
       if (r && r.ok === false && r.message) {
         alert(r.message)
+      }
+    },
+    async onFollowFriend(f) {
+      var uid = f && f.userId != null ? Number(f.userId) : 0
+      if (!isFinite(uid) || uid <= 0) return
+      if (this.friendFollowBusyUserId != null) return
+      if (dpFriendPresenceBucket(f) !== 'in_game') return
+      if (!this.user || !this.user.token) {
+        alert('请先登录')
+        return
+      }
+      this.friendFollowBusyUserId = uid
+      try {
+        await this.exitQuickMatchBeforeRoomAction()
+        const res = await this.followFriendToTheirRoom({ http: this.$http, friendUserId: uid })
+        if (!res || !res.ok) return
+        var rid = res.roomId != null && res.roomId !== '' ? String(res.roomId).trim() : ''
+        if (!rid) {
+          alert('未返回房间号')
+          return
+        }
+        this.friendsDrawerVisible = false
+        this.$router.push('/game/' + rid)
+      } finally {
+        this.friendFollowBusyUserId = null
       }
     },
     async onRemoveFriend(f) {
@@ -634,6 +855,7 @@ export default {
       this.onPlayGuideClose()
     },
     logout() {
+      this.closeSocialStream()
       localStorage.removeItem('userInfo')
       this.$router.push('/')
     },
@@ -643,20 +865,30 @@ export default {
     goMusicUpload() {
       this.$router.push('/music-upload')
     },
-    goCreateRoom() {
+    async goCreateRoom() {
+      await this.exitQuickMatchBeforeRoomAction()
       this.$router.push('/create-room')
+    },
+    /**
+     * 创建/加入房间前：断开 /ws/dp-quick-match（若仍存在）并联调取消接口，降低前后端并发态。
+     * 幂等；取消失败仅日志，不阻塞后续导航或 join/create。
+     */
+    async exitQuickMatchBeforeRoomAction() {
+      var self = this
+      await exitLobbyQuickMatchSilently(this.$http, this.user, {
+        resetQuickMatchUiFlags: function () {
+          self.quickMatchPolling = false
+          self.quickMatchLoading = false
+        },
+        disconnectQuickMatchWs: function () {
+          self.disconnectQuickMatchWs()
+        }
+      })
     },
     /** 排队中再点一次：断开快匹 WebSocket 并取消后端队列 */
     async onQuickMatchButtonClick() {
       if (this.quickMatchPolling) {
-        this.disconnectQuickMatchWs()
-        this.quickMatchPolling = false
-        this.quickMatchLoading = false
-        try {
-          await this.cancelQuickMatchRemote()
-        } catch (e) {
-          console.error('quickMatchCancel', e)
-        }
+        await this.exitQuickMatchBeforeRoomAction()
         return
       }
       await this.quickMatch()
@@ -897,9 +1129,7 @@ export default {
       }
     },
     cancelQuickMatchRemote() {
-      if (!this.user || !this.user.nickname) return Promise.resolve()
-      const params = { nickname: this.user.nickname }
-      return this.$http.post('/dpRoom/quickMatchCancel2', null, { params }).catch(() => {})
+      return postQuickMatchCancel2(this.$http, this.user)
     },
     /** 与当前 filters 是否应走 MyBatis 查询一致（用于搜索按钮） */
     filtersActiveFromForm() {
@@ -931,7 +1161,7 @@ export default {
     },
     applyFilters() {
       this.useFilterQuery = this.filtersActiveFromForm()
-      this.getRooms()
+      this.getRooms({ showSpinner: true })
     },
     resetFilters() {
       this.filters = {
@@ -943,15 +1173,20 @@ export default {
         password: 'any'
       }
       this.useFilterQuery = false
-      this.getRooms()
+      this.getRooms({ showSpinner: true })
     },
-    async getRooms() {
+    /**
+     * @param {{ showSpinner?: boolean }} [opts]
+     *        showSpinner true：按钮/搜索等主动刷新时显示「加载中」；定时轮询不传，列表已有数据时静默更新。
+     */
+    async getRooms(opts) {
       try {
         if (this.useFilterQuery && !this.filtersActiveFromForm()) {
           this.useFilterQuery = false
         }
         const useQuery = this.useFilterQuery && this.filtersActiveFromForm()
-        if (!this.roomDtos.length) this.roomsLoading = true
+        const forceSpinner = !!(opts && opts.showSpinner)
+        if (forceSpinner || !this.roomDtos.length) this.roomsLoading = true
         this.roomsError = ''
         const base = { page: 1, pageSize: this.pageSize }
         const url = useQuery ? '/dpRoom/publicRooms/query' : '/dpRoom/publicRooms'
@@ -967,7 +1202,13 @@ export default {
         this.roomsLoading = false
       }
     },
+
+    /** 手动刷新；以后可关掉定时器、改成长轮询后仍复用本入口 */
+    refreshRoomList() {
+      this.getRooms({ showSpinner: true })
+    },
     async joinRoom(roomDto) {
+      await this.exitQuickMatchBeforeRoomAction()
       const roomId = typeof roomDto === 'string' ? roomDto : roomDto.roomId
       let roomPassword = ''
       if (roomDto && roomDto.passwordProtected) {
@@ -1053,29 +1294,6 @@ export default {
   justify-content: center;
   align-items: center;
 }
-/* 窄屏独占一行：邮箱 + 好友并排，避免顶栏「飘」一排小圆钮、也避免单项占一整行显得空 */
-.home-actions__social-row {
-  display: none;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: center;
-  align-items: center;
-}
-.home-actions__social-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 40px;
-  padding-left: 14px;
-  padding-right: 14px;
-}
-.home-actions__social-ico {
-  display: inline-flex;
-  font-size: 1.05em;
-  line-height: 1;
-  opacity: 0.92;
-}
 .home-actions__mail-badge {
   line-height: 1;
   display: inline-block;
@@ -1083,21 +1301,33 @@ export default {
 .home-actions__mail-badge >>> .el-badge__content {
   border: none;
 }
-@media (min-width: 700px) {
-  .home-actions__social-row {
-    display: none !important;
-  }
+.home-actions__mail-badge--inline {
+  vertical-align: middle;
 }
-@media (max-width: 699px) {
-  .home-social-bar {
-    display: none !important;
-  }
-  .home-actions__social-row {
-    display: flex;
-  }
-}
-.home-room-list .dp-lobby-panel__title {
+.home-room-list__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   margin-bottom: 8px;
+}
+.home-room-list__title {
+  margin-bottom: 0;
+}
+.home-room-list__refresh {
+  flex-shrink: 0;
+}
+.home-room-list__refresh-ico--spin {
+  animation: home-room-list-spin 0.8s linear infinite;
+}
+@keyframes home-room-list-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 .home-filters {
   margin-bottom: 12px;
@@ -1191,18 +1421,6 @@ export default {
 }
 .room-item__join {
   flex-shrink: 0;
-}
-.home-social-bar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-}
-.home-mail-badge {
-  line-height: 1;
-}
-.home-mail-badge >>> .el-badge__content {
-  border: none;
 }
 </style>
 

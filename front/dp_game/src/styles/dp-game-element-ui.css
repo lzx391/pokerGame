@@ -47,29 +47,40 @@ body[data-dp-game-theme] .el-message-box__message p {
   color: inherit;
 }
 
-body[data-dp-game-theme] .el-message-box__btns .el-button--default {
+body[data-dp-game-theme] .el-message-box__btns .el-button--default:not(.el-button--primary) {
   background: var(--dp-btn-ghost-bg);
   border-color: var(--dp-btn-ghost-border);
   color: var(--dp-btn-ghost-fg);
 }
 
-body[data-dp-game-theme] .el-message-box__btns .el-button--default:hover,
-body[data-dp-game-theme] .el-message-box__btns .el-button--default:focus {
+body[data-dp-game-theme] .el-message-box__btns .el-button--default:not(.el-button--primary):hover,
+body[data-dp-game-theme] .el-message-box__btns .el-button--default:not(.el-button--primary):focus {
   background: color-mix(in srgb, var(--dp-btn-ghost-bg) 88%, var(--dp-accent) 12%);
   border-color: var(--dp-btn-ghost-border);
   color: var(--dp-btn-ghost-fg);
 }
 
 body[data-dp-game-theme] .el-message-box__btns .el-button--primary {
+  /* MessageBox 确认键未传 type=primary，DOM 上同时有 el-button--default + el-button--primary */
   background: var(--dp-btn-primary-bg);
   border-color: transparent;
   color: var(--dp-btn-primary-fg);
 }
 
+body[data-dp-game-theme]
+  .el-message-box__btns
+  .el-button.el-button--default.el-button--primary:not(.is-disabled) {
+  background: var(--dp-btn-primary-bg);
+  border-color: transparent !important;
+  color: var(--dp-btn-primary-fg) !important;
+}
+
 body[data-dp-game-theme] .el-message-box__btns .el-button--primary:hover,
 body[data-dp-game-theme] .el-message-box__btns .el-button--primary:focus {
-  filter: brightness(1.06);
+  background: var(--dp-btn-primary-bg);
+  border-color: transparent !important;
   color: var(--dp-btn-primary-fg);
+  filter: brightness(1.06);
 }
 
 /* 全局提示条：与面板同系，避免默认白底 */
@@ -283,15 +294,16 @@ body[data-dp-game-theme] .el-input-number__increase.is-disabled {
 
 /* 按钮（页面内） */
 body[data-dp-game-theme] .el-button--primary {
-  background-color: var(--dp-btn-primary-bg);
-  border-color: var(--dp-btn-primary-bg);
+  /* linear-gradient(...) 赋值给 background-color 无效；用 shorthand 包住渐变或小色块 */
+  background: var(--dp-btn-primary-bg);
+  border-color: transparent;
   color: var(--dp-btn-primary-fg);
 }
 
 body[data-dp-game-theme] .el-button--primary:hover,
 body[data-dp-game-theme] .el-button--primary:focus {
-  background-color: var(--dp-btn-primary-bg);
-  border-color: var(--dp-btn-primary-bg);
+  background: var(--dp-btn-primary-bg);
+  border-color: transparent;
   color: var(--dp-btn-primary-fg);
   filter: brightness(1.06);
 }
