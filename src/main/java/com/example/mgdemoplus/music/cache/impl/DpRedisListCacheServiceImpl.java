@@ -1,7 +1,7 @@
-package com.example.mgdemoplus.presence.cache.impl;
+package com.example.mgdemoplus.music.cache.impl;
 
+import com.example.mgdemoplus.music.cache.DpRedisListCacheService;
 import com.example.mgdemoplus.music.entity.DpMusicTrack;
-import com.example.mgdemoplus.presence.cache.DpRedisListCacheService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;

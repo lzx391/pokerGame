@@ -1,4 +1,4 @@
-package com.example.mgdemoplus.presence.cache.impl;
+package com.example.mgdemoplus.user.cache.impl;
 
 import java.util.concurrent.TimeUnit;
 
@@ -6,8 +6,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import com.example.mgdemoplus.presence.cache.DpRedisLoginCacheService;
 import com.example.mgdemoplus.security.JwtTokenService;
+import com.example.mgdemoplus.user.cache.DpRedisLoginCacheService;
 
 @Service
 public class DpRedisLoginCacheServiceImpl implements DpRedisLoginCacheService {

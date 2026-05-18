@@ -2,7 +2,7 @@ package com.example.mgdemoplus.controller;
 
 import com.example.mgdemoplus.common.entity.DpUser;
 import com.example.mgdemoplus.security.JwtTokenService;
-import com.example.mgdemoplus.presence.cache.DpRedisLoginCacheService;
+import com.example.mgdemoplus.user.cache.DpRedisLoginCacheService;
 import com.example.mgdemoplus.user.DpUserService;
 import com.example.mgdemoplus.utils.ResultUtil;
 

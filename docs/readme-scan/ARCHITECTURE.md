@@ -44,10 +44,12 @@ com.example.mgdemoplus
 │   └── mapper/      DpUserMapper
 ├── user/
 │   ├── DpUserService, UploadService
+│   ├── cache/       DpRedisLoginCacheService (+ impl/)
 │   ├── impl/        DpUserServiceImpl, UploadServiceImpl
 │   └── mapper/      UploadMapper
 ├── music/
 │   ├── DpMusicService
+│   ├── cache/       DpRedisListCacheService (+ impl/)
 │   ├── impl/, entity/, mapper/
 ├── history/
 │   ├── DpHandHistoryService, DpHandHistoryObservedService, DpHandHistoryPersistService
@@ -57,7 +59,6 @@ com.example.mgdemoplus
 │   ├── entity/, mapper/, notify/
 ├── presence/
 │   ├── DpSitePresenceService, DpFriendPresenceService, DpFriendPresenceState
-│   └── cache/       DpRedisLoginCacheService, DpRedisListCacheService (+ impl/)
 ├── lobby/
 │   ├── DpRoomHallService, DpRoomLobbyReconcileScheduler
 │   ├── impl/, entity/, mapper/, bo/, vo/

@@ -3,7 +3,7 @@ package com.example.mgdemoplus.music.impl;
 import com.example.mgdemoplus.music.DpMusicService;
 import com.example.mgdemoplus.music.entity.DpMusicTrack;
 import com.example.mgdemoplus.music.mapper.DpMusicTrackMapper;
-import com.example.mgdemoplus.presence.cache.DpRedisListCacheService;
+import com.example.mgdemoplus.music.cache.DpRedisListCacheService;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

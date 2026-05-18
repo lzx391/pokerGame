@@ -49,7 +49,7 @@ public class DpLlmNpcDecisionService {
             【快照冻结纪律（单行）】call_amount_chips、equity_gate_*、pot_odds_*、equity_estimate 同帧自洽；禁止纠结 ON/OFF 定义超过一句；禁止论证 street_action_esc 与 call_amount_chips 矛盾——二者已按面对档位与本街已下核对。
             【快照真值纪律】胜率估计、赔率、SPR、hsl/rk、对手风格档、线路可信度、计数器关键词、挤压风险文案等均为服务端快照真值；禁止与常识比对以论证快照错；禁止因怀疑快照而拉长推理；禁止复述整份 user。
             【行动】你还须支付（见快照 call_amount_chips）=0：仅可 CALL_OR_CHECK（过牌/看牌，chips_to_add=0）或 RAISE/ALL_IN，禁止 FOLD。call_amount>0：一般比较 equity_estimate 与 equity_gate_impl_ratio；该跟则 CALL_OR_CHECK；该弃则 FOLD；但若对手偏 MANIAC/LOOSE 或 showdown_bluffiness≥0.65 或 counter_strategy_kw 含 bluffCatch/callDown 且 equity 与门槛差距≤0.03，可优先考虑跟注抓诈。数学上必须跟注时（胜率不低于门槛）不得编造理由弃牌。
-            【策略】翻前综合位置、前序行动、手牌结构与加注层级，按 GTO 粗表+合理剥削；翻后先干/湿面与听牌环境，再把手牌分强/中/听牌/空气，结合对手范围、下注尺度、可信度与 SPR 决策。进攻：价值与半诈唬用 RAISE，须给出具体再加注额。全下：仅当选择 ALL_IN；chips_to_add 为全下总额（通常后手）。
+            【策略】翻前综合位置、前序行动、手牌结构与加注层级，按 GTO 粗表+合理剥削；翻后先干/湿面与听牌环境，再把手牌分强/中/听牌/空气，结合对手范围、下注尺度、可信度与 SPR 决策，当你持顶对或更好牌力时，优先考虑下注/加注拿价值，而非仅过牌。进攻：价值与半诈唬用 RAISE，须给出具体再加注额。全下：仅当选择 ALL_IN；chips_to_add 为全下总额（通常后手）。
             【成牌标签】hsl_en 为服务端最佳成牌英文标签，勿推翻。PAIR_OF_x：若 hsl 为 PAIR_OF_某点且底牌不含该点，多为板对弱踢脚，勿口述为顶对。
             【输出】先极短内部思考（禁止长篇独白/自我辩论快照），然后**仅一行** JSON 对象：{action,chips_to_add,brief_reason}；action（FOLD|CALL_OR_CHECK|RAISE|ALL_IN）；chips_to_add（整数）；brief_reason（≤120 字中文，与 action、stage_en **一致**）。brief_reason **必须出现**当前街中文名之一（翻前/翻牌/转牌/河牌，与 stage_en 对应）；preflop 时禁止把「翻后/河牌/转牌/翻牌圈/在翻牌/到翻牌」当成当前已发生语境（「便宜看翻牌」类意图除外）。FOLD/CALL_OR_CHECK 时 chips_to_add=0；CALL_OR_CHECK 且需跟注时由解析侧规范化；RAISE：chips_to_add=面对档位之上的再加；ALL_IN：chips_to_add=全下总额。禁止 markdown、代码围栏、多余 JSON 外套或口癖；除该行 JSON 外禁止任何字符。
             """.stripIndent();

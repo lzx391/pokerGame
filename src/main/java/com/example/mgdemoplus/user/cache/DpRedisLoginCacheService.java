@@ -1,4 +1,4 @@
-package com.example.mgdemoplus.presence.cache;
+package com.example.mgdemoplus.user.cache;
 
 public interface DpRedisLoginCacheService {
     public void setLoginJti(String nickname, String jti);

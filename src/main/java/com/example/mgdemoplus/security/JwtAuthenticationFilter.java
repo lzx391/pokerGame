@@ -1,6 +1,6 @@
 package com.example.mgdemoplus.security;
 
-import com.example.mgdemoplus.presence.cache.DpRedisLoginCacheService;
+import com.example.mgdemoplus.user.cache.DpRedisLoginCacheService;
 import com.example.mgdemoplus.utils.ResultCode;
 
 import com.fasterxml.jackson.databind.ObjectMapper;

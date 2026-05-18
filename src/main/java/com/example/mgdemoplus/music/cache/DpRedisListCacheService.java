@@ -1,4 +1,4 @@
-package com.example.mgdemoplus.presence.cache;
+package com.example.mgdemoplus.music.cache;
 
 import java.util.List;
 import java.util.function.Supplier;
