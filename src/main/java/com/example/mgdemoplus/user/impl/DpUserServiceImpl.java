@@ -14,6 +14,7 @@ public class DpUserServiceImpl implements DpUserService {
     DpUserMapper dpUserMapper;
 
     public int registerUser(DpUser dpUser) {
+
         //这里添加一个功能，防止用户名注册含有“海金”的昵称
         if(dpUser.getNickname().contains("海金")){
             return 2;

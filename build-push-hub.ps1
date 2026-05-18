@@ -15,4 +15,4 @@ Write-Host "=== Push (需已执行 docker login) ===" -ForegroundColor Cyan
 docker push "${Registry}/dpgame:${Tag}"
 docker push "${Registry}/dpgame-nginx:${Tag}"
 
-Write-Host "=== 完成: ${Registry}/dpgame:${Tag} 与 ${Registry}/dpgame-nginx:${Tag}；MySQL 使用官方 mysql:8.0（Hub 编排见 docker-compose.hub.yml） ===" -ForegroundColor Green
+Write-Host "=== 完成: ${Registry}/dpgame:${Tag} 与 ${Registry}/dpgame-nginx:${Tag}；服务器部署见 docker-compose.yml ===" -ForegroundColor Green
