@@ -7,7 +7,15 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
-@MapperScan("com.example.mgdemoplus.mapper")
+@MapperScan({
+        "com.example.mgdemoplus.common.mapper",
+        "com.example.mgdemoplus.history.mapper",
+        "com.example.mgdemoplus.lobby.mapper",
+        "com.example.mgdemoplus.music.mapper",
+        "com.example.mgdemoplus.roomchat.mapper",
+        "com.example.mgdemoplus.social.mapper",
+        "com.example.mgdemoplus.user.mapper"
+})
 @EnableScheduling
 public class MgDemoPlusApplication {
 

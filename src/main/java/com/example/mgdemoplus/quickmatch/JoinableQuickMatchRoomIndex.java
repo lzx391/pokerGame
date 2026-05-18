@@ -1,6 +1,6 @@
 package com.example.mgdemoplus.quickmatch;
 
-import com.example.mgdemoplus.bo.DpRoomBO;
+import com.example.mgdemoplus.common.bo.DpRoomBO;
 
 import java.util.ArrayList;
 import java.util.HashMap;

@@ -1,9 +1,9 @@
 package com.example.mgdemoplus.websocket;
 
-import com.example.mgdemoplus.bo.DpRoomBO;
-import com.example.mgdemoplus.room.RoomChatBuffer;
-import com.example.mgdemoplus.room.RoomChatEntry;
-import com.example.mgdemoplus.service.serviceImpl.DpRoomServiceImpl;
+import com.example.mgdemoplus.common.bo.DpRoomBO;
+import com.example.mgdemoplus.roomchat.buffer.RoomChatBuffer;
+import com.example.mgdemoplus.roomchat.buffer.RoomChatEntry;
+import com.example.mgdemoplus.room.DpRoomService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -41,7 +41,7 @@ public class DpGameRoomPushService {
     private static final int MUSIC_DISPLAY_NAME_MAX = 120;
 
     private final ObjectMapper objectMapper;
-    private final DpRoomServiceImpl roomService;
+    private final DpRoomService roomService;
     private final RoomChatBuffer roomChatBuffer;
 
 //Map<String, Set<WebSocketSession>> roomSessions = new ConcurrentHashMap<>(); 的作用是：存储房间ID和订阅者的映射关系，每个房间ID对应一个订阅者集合，集合中存储的是WebSocketSession对象，用于标识每个订阅者的连接会话。
@@ -54,7 +54,7 @@ public class DpGameRoomPushService {
     // lazy注解的作用是？在Spring容器初始化时，不立即创建对象，而是在需要时创建对象，这样可以避免循环依赖
     public DpGameRoomPushService(
             ObjectMapper objectMapper,
-            @Lazy DpRoomServiceImpl roomService,
+            @Lazy DpRoomService roomService,
             RoomChatBuffer roomChatBuffer) {
         this.objectMapper = objectMapper;
         this.roomService = roomService;
@@ -90,7 +90,7 @@ public class DpGameRoomPushService {
     }
 
     /**
-     * 房间对象已从 {@link DpRoomServiceImpl} 移除时调用: 关断该房全部长连并清理本地状态。
+     * 房间对象已从 {@link com.example.mgdemoplus.room.impl.DpRoomServiceImpl} 移除时调用: 关断该房全部长连并清理本地状态。
      */
     public void shutdownSubscriptionsForRoom(String roomId) {
         if (roomId == null || roomId.isEmpty()) {

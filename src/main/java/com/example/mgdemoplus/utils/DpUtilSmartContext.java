@@ -1,13 +1,13 @@
 package com.example.mgdemoplus.utils;
 
-import com.example.mgdemoplus.entity.DpPlayer;
-import com.example.mgdemoplus.entity.DpPlayerStats;
-import com.example.mgdemoplus.service.serviceImpl.DpNpcEngine;
-import com.example.mgdemoplus.service.serviceImpl.DpNpcEngine.ActionCredibility;
-import com.example.mgdemoplus.service.serviceImpl.DpNpcEngine.CounterStrategyProfile;
-import com.example.mgdemoplus.service.serviceImpl.DpNpcEngine.MultiwayVillainInfo;
-import com.example.mgdemoplus.service.serviceImpl.DpNpcEngine.StackContext;
-import com.example.mgdemoplus.service.serviceImpl.DpNpcEngine.VillainRangeTier;
+import com.example.mgdemoplus.common.entity.DpPlayer;
+import com.example.mgdemoplus.common.entity.DpPlayerStats;
+import com.example.mgdemoplus.npc.engine.DpNpcEngine;
+import com.example.mgdemoplus.npc.engine.DpNpcEngine.ActionCredibility;
+import com.example.mgdemoplus.npc.engine.DpNpcEngine.CounterStrategyProfile;
+import com.example.mgdemoplus.npc.engine.DpNpcEngine.MultiwayVillainInfo;
+import com.example.mgdemoplus.npc.engine.DpNpcEngine.StackContext;
+import com.example.mgdemoplus.npc.engine.DpNpcEngine.VillainRangeTier;
 
 import java.util.List;
 

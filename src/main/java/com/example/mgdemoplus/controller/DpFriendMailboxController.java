@@ -1,10 +1,10 @@
 package com.example.mgdemoplus.controller;
 
-import com.example.mgdemoplus.entity.DpUser;
-import com.example.mgdemoplus.mapper.DpUserMapper;
-import com.example.mgdemoplus.service.DpSitePresenceService;
-import com.example.mgdemoplus.service.serviceImpl.DpFriendChatService;
-import com.example.mgdemoplus.service.serviceImpl.DpFriendSocialService;
+import com.example.mgdemoplus.common.entity.DpUser;
+import com.example.mgdemoplus.common.mapper.DpUserMapper;
+import com.example.mgdemoplus.presence.DpSitePresenceService;
+import com.example.mgdemoplus.social.impl.DpFriendChatService;
+import com.example.mgdemoplus.social.impl.DpFriendSocialService;
 import com.example.mgdemoplus.utils.ResultUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -141,7 +141,7 @@ public class DpFriendMailboxController {
 
     /**
      * 互为好友且对方在某房间内时，当前用户以观众身份进入其房间（与邮箱「接受进房邀请」同属
-     * {@link com.example.mgdemoplus.service.serviceImpl.DpRoomServiceImpl#joinRoomInviteAsSpectator}）。
+     * {@link com.example.mgdemoplus.room.DpRoomService#joinRoomInviteAsSpectator}）。
      */
     @PostMapping("/friends/follow-room")
     public ResultUtil followFriendToRoom(@RequestBody Map<String, Object> body) {

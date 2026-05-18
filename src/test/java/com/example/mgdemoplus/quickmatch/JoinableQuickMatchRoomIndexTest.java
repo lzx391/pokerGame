@@ -1,7 +1,7 @@
 package com.example.mgdemoplus.quickmatch;
 
-import com.example.mgdemoplus.bo.DpRoomBO;
-import com.example.mgdemoplus.entity.DpPlayer;
+import com.example.mgdemoplus.common.bo.DpRoomBO;
+import com.example.mgdemoplus.common.entity.DpPlayer;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -13,8 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 回归：同缺额多房间不得互相覆盖；桶内字典序稳定。
- */
+ * 鍥炲綊锛氬悓缂洪澶氭埧闂翠笉寰椾簰鐩歌鐩栵紱妗跺唴瀛楀吀搴忕ǔ瀹氥€? */
 class JoinableQuickMatchRoomIndexTest {
 
     private static DpRoomBO publicRoomAlmostFull(String roomId, int maxSeats, int liveHumans, long now) {

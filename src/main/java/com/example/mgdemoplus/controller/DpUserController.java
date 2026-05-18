@@ -1,22 +1,22 @@
 package com.example.mgdemoplus.controller;
 
-import com.example.mgdemoplus.entity.DpUser;
-import com.example.mgdemoplus.security.JwtSecurityConstants;
+import com.example.mgdemoplus.common.entity.DpUser;
 import com.example.mgdemoplus.security.JwtTokenService;
-import com.example.mgdemoplus.service.DpRedisLoginCacheService;
-import com.example.mgdemoplus.service.DpUserService;
+import com.example.mgdemoplus.presence.cache.DpRedisLoginCacheService;
+import com.example.mgdemoplus.user.DpUserService;
 import com.example.mgdemoplus.utils.ResultUtil;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 
 
 @RestController

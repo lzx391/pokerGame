@@ -9,7 +9,7 @@
 ## 给代码评审
 
 - **项目是什么**：端到端演示「注册登录 → **大厅** / **快匹** → 进房 → **对局页** WebSocket + 轮询驱动的对局」，含规则型 NPC、可选方舟兼容接口的 LLM 座位、手牌历史落库与列表。
-- **能演示什么**：Docker 一键起栈后对局走通；快匹建房 / 大厅分页 / JWT 防护 / 房间内推送；点开代码可看 `DpRoomServiceImpl`、`JoinableQuickMatchRoomIndex`、`DpQuickMatchPairingCoordinator`、NPC 引擎与 **Flyway `V1__init_schema.sql`** 初始化库表。
+- **能演示什么**：Docker 一键起栈后对局走通；快匹建房 / 大厅分页 / JWT 防护 / 房间内推送 / 好友邮箱与大厅 SSE；点开代码可看 `DpRoomServiceImpl`、`JoinableQuickMatchRoomIndex`、`DpQuickMatchPairingCoordinator`、规则 NPC（`DpNpcEngine`）与 LLM NPC（`DpLlmNpcDecisionService`），以及 **Flyway `V1`–`V3`** 迁移脚本。
 - **启动与配置**：`com.example.mgdemoplus.MgDemoPlusApplication` 启动前 **`LocalDotenvLoader`** 加载根目录 **`.env`** → **`System.setProperty`**，便于本地与容器注入（与 Spring **`application.yml`** 占位符配合）。
 - **技术栈一句话**：Java 17、Spring Boot **3.5.11**（[`pom.xml`](pom.xml) parent）、Security/WebSocket、MyBatis-Plus、MySQL 8 + **Flyway**（[`pom.xml`](pom.xml) `flyway-core` / `flyway-mysql`）、Lettuce/Redis、Vue 2 前端。
 - **后端包一览（一句）**：**`controller`**（房间/用户/牌谱/曲库/好友邮箱等 REST）、**`quickmatch` / `quickmatch.pairing`**（可进房索引与配对协调）、**`presence`**（在线/观战等）、**`websocket`**（对局房与快匹长连）、**`service.serviceImpl.npc`**（规则 Bot 与 LLM 调用）、**`scheduler`**（如大厅 DB 与内存对齐，可条件开启）。
@@ -58,20 +58,21 @@ flowchart LR
 - 服务端实现完整回合流与结算（入口如 `DpRoomServiceImpl`）；多房间状态在 **`ConcurrentHashMap`（`roomMap`）**；房内写路径大量 **`synchronized (DpRoomBO)`**（房间对象监视器）串行化。
 - 建房、密码、初始分、踢人批量等见 [docs/DPGAME.md](docs/DPGAME.md) 与 [docs/RoomUi.md](docs/RoomUi.md)。
 - 大厅公开房列表以 **`dp_room_lobby`** 为权威摘要（表在 **Flyway V1** 中建），分页带 Redis 版本缓存（细节 [README.ch.md](README.ch.md) / [docs/Redis.md](docs/Redis.md)）。
-- 对局可落库与按用户分页查询（概览 [docs/DP_PERSISTENCE_README.md](docs/DP_PERSISTENCE_README.md)）。**牌谱、好友、Shark 记忆（`dp_shark_opponent_profile`）、曲库元数据等均在 [`V1__init_schema.sql`](src/main/resources/db/migration/V1__init_schema.sql) 中定义**——当前仓库**仅有 V1** 迁移脚本，后续变更需新增 `V*__*.sql`。
+- 对局可落库与按用户分页查询（概览 [docs/DP_PERSISTENCE_README.md](docs/DP_PERSISTENCE_README.md)）。**Flyway**：[`V1__init_schema.sql`](src/main/resources/db/migration/V1__init_schema.sql)（用户、大厅、牌谱、好友/邀请、曲库等）、[`V2__friend_dm_and_room_chat.sql`](src/main/resources/db/migration/V2__friend_dm_and_room_chat.sql)（好友私信、局内聊天表）、[`V3__room_chat_composite_pk.sql`](src/main/resources/db/migration/V3__room_chat_composite_pk.sql)。表 `dp_shark_opponent_profile` 仍保留，**服务层已不再读写**。
 
 ### 主要 REST 前缀（实现核对）
 
 | 前缀 | 说明 |
 | ---- | ---- |
-| **`/dpRoom`** | 建房、进退房、快匹、准备、下注、踢人、机器人生成、大厅列表等（[`DpRoomController`](src/main/java/com/example/mgdemoplus/controller/DpRoomController.java)）。 |
-| **`/dpUser`** | 注册、登录、资料（[`DpUserController`](src/main/java/com/example/mgdemoplus/controller/DpUserController.java)）。 |
-| **`/dp`** | 好友、邮箱、进房邀请、跟随观战等（[`DpFriendMailboxController`](src/main/java/com/example/mgdemoplus/controller/DpFriendMailboxController.java)）。站点在线：`POST /dp/presence/site-heartbeat`（JWT）刷新 `last_seen_site`；`GET /dp/friends` 各行 `presence` 为 `OFFLINE` / `IDLE` / `IN_GAME`（房内态优先）。TTL：`mgdemoplus.dp-site-presence-ttl-ms`（默认 90s， env `MGDEMOPLUS_DP_SITE_PRESENCE_TTL_MS`）。兼容旧路径 `POST /dp/siteHeartbeat`。 |
-| **`/dpHandHistory`** | 手牌历史列表/详情等。 |
-| **`/dpMusic`** | 曲库上传/列表。 |
-| **`/demo/*`、`/student`、`/movie`、`/upload`** | 示例与 Redis Lab（生产环境宜收紧或鉴权）。 |
+| **`/dpRoom`** | 建房、进退房、快匹、准备、下注、踢人、规则/LLM 机器人生成、大厅列表等（[`DpRoomController`](src/main/java/com/example/mgdemoplus/controller/DpRoomController.java)）。`joinRoom2` / `quickMatch2` / `quickMatchCancel2` 要求 JWT **subject 与请求 `nickname` 一致**。 |
+| **`/dpUser`** | 注册、`loginProfile`（推荐）、`loginUser`、资料（[`DpUserController`](src/main/java/com/example/mgdemoplus/controller/DpUserController.java)）。 |
+| **`/dp`** | 好友申请/列表/删除、邮箱、进房邀请、**好友私信**、跟随进房/观战（[`DpFriendMailboxController`](src/main/java/com/example/mgdemoplus/controller/DpFriendMailboxController.java)）。站点在线：`GET /dp/presence/site-heartbeat/config`（匿名）、`POST /dp/presence/site-heartbeat`（JWT）；`GET /dp/friends` 含 `presence`：`OFFLINE` / `IDLE` / `IN_GAME`（房内态优先）。TTL：`mgdemoplus.dp-site-presence-ttl-ms`（默认 90s，`MGDEMOPLUS_DP_SITE_PRESENCE_TTL_MS`）。 |
+| **`/dp/social`** | 大厅 SSE：`GET /dp/social/stream`（Bearer 或 **`?token=`**）；`GET /dp/social/notify-summary` 断线兜底（[`DpSocialController`](src/main/java/com/example/mgdemoplus/controller/DpSocialController.java)）。 |
+| **`/dpHandHistory`** | 牌谱列表/详情（查询参数 `userId` 应为当前登录用户 id）。 |
+| **`/dpMusic`** | 曲库上传（JWT）/列表（`permitAll`）。 |
+| **`/upload`** | 通用图片上传（JWT）；静态 **`/images/**`** 匿名可读。 |
 
-白名单与 JWT 链见 [docs/JWT.md](docs/JWT.md)；**`permitAll`** 含 `` `/ws/**` ``（对局 WS 握手匿名；**快匹 WS** 在 Handler 内自行校验 **token + nickname**，见下）。
+白名单与 JWT 链见 [docs/JWT.md](docs/JWT.md)；登录后 Redis 存 **JTI 单会话**（新登录踢旧 token）。**`permitAll`** 含 `` `/ws/**` ``（对局 WS 握手匿名；**快匹 WS** 在 Handler 内自行校验 **token + nickname**，见下）。
 
 ### 实时与匹配
 
@@ -85,23 +86,25 @@ flowchart LR
 
 ### 账号与社交
 
-- **Spring Security + JWT**（白名单见 [docs/JWT.md](docs/JWT.md)）；密码 **bcrypt** 摘要入库（**`CryptoUtil.bcryptEncode` / `bcryptMatches`**，与 [docs/DpUserPassword.md](docs/DpUserPassword.md) 应以**实现**对齐——若该文仍写 MD5，视为过期）。
-- **主配置文件**为 **[`src/main/resources/application.yml`](src/main/resources/application.yml)**（无 **`application.properties`**）；环境变量映射见 [docs/ENV_README.md](docs/ENV_README.md)（文中若仍写 `application.properties`，以 **yml** 为准）。
-- 好友与进房邀请邮箱 MVP：[docs/dp_friend_mailbox_mvp.md](docs/dp_friend_mailbox_mvp.md)。
+- **Spring Security + JWT**（白名单见 [docs/JWT.md](docs/JWT.md)）；密码 **bcrypt**；令牌约 **3 天**过期（`mgdemoplus.jwt.expiration.time`）。若 [docs/DpUserPassword.md](docs/DpUserPassword.md) / [docs/JWT.md](docs/JWT.md) 仍写 MD5 或 `application.properties`，以 **yml + 源码**为准。
+- **主配置**：[`application.yml`](src/main/resources/application.yml)（**无 Spring profiles**、无 `application.properties`）；环境变量见 [docs/ENV_README.md](docs/ENV_README.md)。
+- **好友邮箱 MVP**（申请、邀请、mailbox）：[docs/dp_friend_mailbox_mvp.md](docs/dp_friend_mailbox_mvp.md)。**已实现扩展**：好友私信、删好友、站点心跳、两种跟随进房路径；规格见 [docs/refactor/friend-dm-room-chat-sse-plan.md](docs/refactor/friend-dm-room-chat-sse-plan.md)。
+- **大厅 SSE**：`GET /dp/social/stream` 推送 `event: notify`（邮箱未读 + 私信未读）；**单 JVM 扇出**（`SocialSseHub`），多副本需粘滞或接受各节点独立推送。Nginx 代理须 `proxy_buffering off`（[docs/NGINX.md](docs/NGINX.md)）。`spring.mvc.async.request-timeout: -1` 避免 SSE 被掐断。
+- 前端：`api.dpSocial.js`、`dpSocialStream.js`、`Vuex dpMailbox`；开发代理见 [`vue.config.js`](front/dp_game/vue.config.js)。
 
 ### 前端（`front/dp_game`）要点
 
 - **路由**：默认 **hash**（如 **`/#/home`**、**`#/game/:roomId`**）；主要页面在 **`src/components/`**（如 **`game.vue`**、**`home.vue`**）；**无路由级 `beforeEach`**，**401** 由 **`main.js`** 中 axios 响应拦截统一 **`router.replace('/login')`**。大厅 **`home.vue`**「快捷入口」一行含快速匹配 / 建房 / 历史 / 曲库上传及 **邮箱（未读角标）/ 好友**（与 `dpMailbox` 弹层、抽屉同源）。
-- **HTTP**：开发 **`axios.defaults.baseURL = '/dev-api'`**（[`main.js`](front/dp_game/src/main.js)），**[`vue.config.js`](front/dp_game/vue.config.js)** 将 **`/dev-api`** 转发后端并 **`pathRewrite` 剥前缀**；生产 **`baseURL` 为空**，与后端静态资源同域。房间/快匹等多为组件内 **`this.$http('/dpRoom/…')`**；**`/dp` 好友/邮箱** 封装在 **[`src/api/api.dpSocial.js`](front/dp_game/src/api/api.dpSocial.js)**，由 **`Vuex` 模块 `dpMailbox`** 使用；对局房间状态主要在 **`dpGame`**（**无 `actions`**，由 **`game.vue`** 等 **`commit`**）。**站点心跳**：已登录且非登录/注册页时 **`main.js`** 经 **`syncDpSiteHeartbeat`** 定时 **`POST /dp/presence/site-heartbeat`**（与 **`POST /dpRoom/heartbeat`** 并行）；间隔可 **`GET /dp/presence/site-heartbeat/config`**（匿名）读取，与 **`mgdemoplus.dp-site-presence-ttl-ms`** 对齐。
+- **HTTP**：开发 **`axios.defaults.baseURL = '/dev-api'`**（[`main.js`](front/dp_game/src/main.js)），**[`vue.config.js`](front/dp_game/vue.config.js)** 将 **`/dev-api`** 转发后端并 **`pathRewrite` 剥前缀**；生产 **`baseURL` 为空**，与后端静态资源同域。房间/快匹等多为组件内 **`this.$http('/dpRoom/…')`**；**`/dp` 好友/邮箱** 封装在 **[`src/api/api.dpSocial.js`](front/dp_game/src/api/api.dpSocial.js)**，由 **`Vuex` 模块 `dpMailbox`** 使用；**大厅 SSE** 见 **[`dpSocialStream.js`](front/dp_game/src/utils/dpSocialStream.js)**（`EventSource` + `?token=`）。对局房间状态主要在 **`dpGame`**（**无 `actions`**，由 **`game.vue`** 等 **`commit`**）。**站点心跳**：已登录且非登录/注册页时 **`main.js`** 经 **`syncDpSiteHeartbeat`** 定时 **`POST /dp/presence/site-heartbeat`**（与 **`POST /dpRoom/heartbeat`** 并行）；间隔可 **`GET /dp/presence/site-heartbeat/config`**（匿名）读取，与 **`mgdemoplus.dp-site-presence-ttl-ms`** 对齐。
 - **WebSocket**：开发环境用 **`/dp-ws/dp-game`**、**`/dp-ws/dp-quick-match`** 代理到后端 **`/ws/...`**，避免与 dev server HMR 的 **`/ws`** 冲突；生产直连 **`/ws/dp-game`**、**`/ws/dp-quick-match`**。对局 WS 含**指数退避重连**（见 `game.vue`）。
 - **嵌入 JAR**：以 **[`Dockerfile`](Dockerfile)** 多阶段 **`COPY dist → src/main/resources/static`** 为准；**`pom.xml` 未使用** `frontend-maven-plugin` 一类自动打前端——本地纯 **`mvn package`** 若无手工拷贝则不一定含最新 `dist`。
 - **对局 UI 与 Element UI**：主题变量在 **`dp-game-themes.css`** / **`dp-game-element-ui.css`**；`$confirm`（MessageBox）的确认键在 Element 里会同时具备 **`el-button--default`** 与 **`el-button--primary`**，覆盖样式时需避免 ghost（线框）规则误作用于主按钮；渐变主色须用 **`background` 简写** 而非单独 **`background-color`**。玩家信息底栏「已是好友」等只读状态不宜使用 **禁用的 `primary` 实心按钮**（对比度过低），见 **`front/dp_game/src/components/GamePlayerSocialSheet.vue`**。
 
 ### AI 与曲库
 
-- 规则型 NPC 引擎与模块说明：[docs/ai/npc-engine/README.md](docs/ai/npc-engine/README.md)；翻前统一决策流：[docs/ai/npc-preflop-unified-decision-flow.md](docs/ai/npc-preflop-unified-decision-flow.md)。
-- 可选 **`BOT_LLM`**（方舟兼容 Chat API）：**`dp.llm.ark.*`** / 环境变量 **`ARK_*`** 见 [docs/ENV_README.md](docs/ENV_README.md)、[README.en.md](README.en.md) 中大模型小节。
-- 曲库 BGM 上传/列表与对局内同步见 [docs/DpMusicWebPath.md](docs/DpMusicWebPath.md)；Redis 用途（含非房间共享状态说明）见 [docs/Redis.md](docs/Redis.md)。
+- **规则 NPC**（`DpNpcEngine`）：昵称前缀 `BOT_FISH_` / `BOT_TAG_` / `BOT_LAG_` / `BOT_NIT_` / `BOT_CALL_` / `BOT_MANIAC_`（兼容旧 `BOT_Shark`→TAG）；翻前 [`DpNpcUnifiedPreflopStrategy`](src/main/java/com/example/mgdemoplus/service/serviceImpl/DpNpcUnifiedPreflopStrategy.java)，翻后分策略类。文档：[docs/ai/npc-engine/README.md](docs/ai/npc-engine/README.md)、[docs/ai/npc-preflop-unified-decision-flow.md](docs/ai/npc-preflop-unified-decision-flow.md)。
+- **LLM NPC**（`DpLlmNpcDecisionService`）：**1s 房间定时器**轮到 bot 时异步调用火山方舟 OpenAI 兼容接口；`BOT_LLM_*` 单轮快照，`BOT_LLM_GLOBAL_*` 每手多轮历史。REST：`POST /dpRoom/addLlmBot`、`addLlmGlobalBot`、`addRuleNpcBatch` 等。配置 **`dp.llm.ark.*`** / **`ARK_*`**（[docs/ENV_README.md](docs/ENV_README.md)）；未配置时本地 fold/check 兜底。调试可取消注释 `application.yml` 中 `BotLlmReasoning`、`DpLlmNpcDecisionService` 日志级别。
+- 曲库 BGM：[docs/DpMusicWebPath.md](docs/DpMusicWebPath.md)；Redis（登录 JTI、大厅缓存、曲库列表，**非 roomMap**）：[docs/Redis.md](docs/Redis.md)。
 
 ---
 
@@ -111,7 +114,7 @@ flowchart LR
 | ---------- | ---- |
 | 后端       | Java **17**、**Spring Boot 3.5.11**（[`pom.xml`](pom.xml)）、Spring Web / Security / WebSocket、**MyBatis-Plus**、**PageHelper**、**Druid**、MySQL 驱动、**Lettuce**（Redis）、**JJWT** |
 | 前端（游戏） | **Vue 2**、Vue Router（默认 **hash**）、**Vuex**（**`dpGame`、`dpMailbox`**）、**Element UI**、axios（**`front/dp_game`**） |
-| 数据       | **MySQL 8**（默认库 `school_db`）、**Redis 7**、**Flyway**（`classpath:db/migration`；当前基线为 **[`V1__init_schema.sql`](src/main/resources/db/migration/V1__init_schema.sql)**；依赖为 **`flyway-core`** / **`flyway-mysql`**，无单独 **`spring-boot-starter-flyway`**，见 [`pom.xml`](pom.xml)） |
+| 数据       | **MySQL 8**（默认库 `school_db`）、**Redis 7**、**Flyway**（`classpath:db/migration`；当前 **V1–V3**，基线 **[`V1__init_schema.sql`](src/main/resources/db/migration/V1__init_schema.sql)**；依赖 **`flyway-core`** / **`flyway-mysql`**，见 [`pom.xml`](pom.xml)） |
 | 构建与部署 | **Maven**、**Docker** / **Docker Compose**（[`Dockerfile`](Dockerfile) 多阶段含 **Node 20** 构建前端）、**Nginx**（[`Dockerfile.nginx`](Dockerfile.nginx) + [`docker/nginx/default.conf`](docker/nginx/default.conf)） |
 
 对局页布局与 CSS 分层等实现细节见 [front/dp_game/docs/GAME_LAYOUT_TUNING_README.md](front/dp_game/docs/GAME_LAYOUT_TUNING_README.md)。**界面主题与「猫咪派对」展示文案**（仅前端）见 [front/dp_game/docs/README.md](front/dp_game/docs/README.md) 与同目录主题说明。前端专题索引用 **[`front/dp_game/docs/README.md`](front/dp_game/docs/README.md)**（**`front/dp_game` 根目录无 README** 时以该索引为准）。
@@ -122,7 +125,19 @@ flowchart LR
 
 - **JDK 17**、**Maven 3.6+**
 - 开发前端：**Node.js**（与 `front/dp_game/package.json` 中 Vue CLI 5 兼容；**Docker 构建**使用 **Node 20**，见 [`Dockerfile`](Dockerfile)）
+- 本机跑后端还需 **MySQL 8**、**Redis**（或与 `application.yml` / `.env` 中 `SPRING_DATASOURCE_*`、`SPRING_DATA_REDIS_*` 一致）
 - 可选：**Docker 20+**、**Docker Compose 2+**
+
+### 配置要点（本机 vs Docker）
+
+| 项 | 本机 `application.yml` 默认 | Compose 注入（`.env`） |
+| ---- | --------------------------- | ---------------------- |
+| DB 密码 | `123456` | `MYSQL_ROOT_PASSWORD`（默认 `mgdemo_root`） |
+| Redis 密码 | `ruoyi123` | `REDIS_PASSWORD`（默认 `mgdemo_redis`） |
+| MySQL 宿主端口 | `3306` | **`3307:3306`** |
+| Redis 宿主端口 | `6379` | **`6380:6379`** |
+
+**无 Spring Boot profiles**；仅单文件 [`application.yml`](src/main/resources/application.yml) + 根目录 [`.env`](.env.example)（`LocalDotenvLoader` 在 main 中先于 Spring 加载）。**Druid** 仅作连接池，未启用监控控制台。
 
 ---
 
@@ -139,7 +154,7 @@ copy .env.example .env
 # 编辑 .env：MYSQL_ROOT_PASSWORD、REDIS_PASSWORD、JWT_SECRET、ARK_* 等（勿提交含真实密钥的 .env）
 ```
 
-环境变量与 **[src/main/resources/application.yml](src/main/resources/application.yml)**（Spring Boot relaxed binding）的映射见 **[docs/ENV_README.md](docs/ENV_README.md)**。
+环境变量与 **[src/main/resources/application.yml](src/main/resources/application.yml)** 的映射见 **[docs/ENV_README.md](docs/ENV_README.md)**。本机直连数据库时若未改 `.env`，须与 yml 默认密码一致，或改用 Compose 提供的 MySQL/Redis 端口（上表）。
 
 ### 2. Docker 一键（推荐）
 
@@ -158,7 +173,7 @@ docker compose up --build
 
 Hub 镜像与 GitHub Actions 发布说明见 **[docs/DOCKER.md](docs/DOCKER.md)**；工作流 **`on.push.branches`** 当前为 **`desensitization-pre`**（见 [.github/workflows/docker-publish.yml](.github/workflows/docker-publish.yml)）。**[`docker-compose.hub.yml`](docker-compose.hub.yml)** 可能注入 **`ARK_RESPONSE_JSON_OBJECT`** 等额外环境变量；**[`docker-compose.yml`](docker-compose.yml)** 未逐项等价——以各文件及运行容器 `env` 为准。
 
-- **数据库（Compose + Flyway）**：[`docker-compose.yml`](docker-compose.yml) 中 **`SPRING_DATASOURCE_URL`** 指向 **`jdbc:mysql://mysql:3306/school_db...`**，MySQL 服务仅 **`MYSQL_DATABASE: school_db`** + 命名卷 **`mysql_data`**，**无** `./docker-entrypoint-initdb.d` 类 SQL init；**表结构在应用启动时由 Flyway** 执行 `classpath:db/migration`（**当前为 V1 全库初始化**）。若本地旧数据卷与 **V1** 冲突，开发机可对 `mysql_data` 执行 `docker compose down -v` 删卷重来（**清空数据**；生产须另做备份与迁移）。
+- **数据库（Compose + Flyway）**：[`docker-compose.yml`](docker-compose.yml) 中 **`SPRING_DATASOURCE_URL`** 指向 **`jdbc:mysql://mysql:3306/school_db...`**；**表结构在应用启动时由 Flyway** 执行 **`V1`–`V3`**。若本地旧卷与迁移版本冲突，开发机可 `docker compose down -v` 删卷重来（**清空数据**；生产须备份与迁移策略）。
 - **经 Nginx**：同上「怎么跑」——**`https://localhost`**（[`docker-compose.yml`](docker-compose.yml) 注释）、[`docker/nginx/default.conf`](docker/nginx/default.conf)。
 - **直连应用**：同上——[`docker-compose.yml`](docker-compose.yml) **默认不映射宿主 8088**；[`docker-compose.hub.yml`](docker-compose.hub.yml) **默认映射 `${APP_HOST_PORT:-8088}:8088`**；本机 **`mvn`** 直连 **[http://localhost:8088](http://localhost:8088)**。
 
@@ -215,10 +230,15 @@ MGDemoPlus/
 ## 文档索引
 
 - **文档总导航**：[docs/README.md](docs/README.md)
+- **README 模块扫描（自动生成）**：[docs/readme-scan/README.md](docs/readme-scan/README.md)
 - **前端专题索引**：[front/dp_game/docs/README.md](front/dp_game/docs/README.md)
 - **环境与变量**：[docs/ENV_README.md](docs/ENV_README.md)
 - **Docker**：[docs/DOCKER.md](docs/DOCKER.md)
 - **维护级长说明**：[README.ch.md](README.ch.md)（中文）· [README.en.md](README.en.md)（英文）
+
+## 路线图（内部备忘摘要）
+
+来自 [TODO.md](TODO.md)，与实现可能不同步：**房间定时器优化**；**LLM 多轮跟进整局**（`BOT_LLM_GLOBAL` 已部分支持）；**好友举报与查证**；**管理员 API**（规划前缀 `/dp/admin/**`）。
 
 ---
 
@@ -239,7 +259,7 @@ MGDemoPlus/
 ### For reviewers / interviewers
 
 - **What it is**: End-to-end demo from auth → **lobby** / **quick match** → room → **battle screen** (WebSocket + polling); JWT security; NPC + optional LLM; hand history persistence.
-- **What to demo**: After `docker compose up --build`, play through a match; **quick-match room creation**, **lobby paging**, **JWT**, **in-room pushes**. If [`docker-compose.yml`](docker-compose.yml) **`app` `8088:8088`** stays commented, use **`https://localhost`** ([`docker/nginx/default.conf`](docker/nginx/default.conf)), [`docker-compose.hub.yml`](docker-compose.hub.yml), or uncomment **`8088:8088`** before **`http://localhost:8088/#/login`**. Code: `DpRoomServiceImpl`, `JoinableQuickMatchRoomIndex`, **`DpQuickMatchPairingCoordinator`**, NPC engine, **Flyway `V1__init_schema.sql`**.
+- **What to demo**: After `docker compose up --build`, play through a match; **quick-match**, **lobby paging**, **JWT**, **in-room pushes**, **friend mailbox + lobby SSE**. Code: `DpRoomServiceImpl`, `JoinableQuickMatchRoomIndex`, **`DpQuickMatchPairingCoordinator`**, **`DpNpcEngine`** / **`DpLlmNpcDecisionService`**, **Flyway V1–V3**.
 - **Bootstrap**: `MgDemoPlusApplication` runs **`LocalDotenvLoader`** so root **`.env`** can set **`System` properties** before Spring starts.
 - **Stack**: Java 17, Spring Boot **3.5.11** ([`pom.xml`](pom.xml)), Security/WebSocket, MyBatis-Plus, MySQL + Flyway (`flyway-core` / `flyway-mysql` in [`pom.xml`](pom.xml)), Redis (cache/login JTI, etc.), Vue 2 UI.
 - **Single-instance caveat**: **Hot room state lives in JVM memory (`roomMap`)**; not Redis-shared by default—see **[docs/WEBSOCKET.md](docs/WEBSOCKET.md)** for scale-out notes. **Lobby reconcile scheduler** (`mgdemoplus.dp-lobby-reconcile-enabled`) is risky in multi-node setups if each node’s `roomMap` diverges.
@@ -279,19 +299,20 @@ flowchart LR
 
 - Full server-side turns/settlement (`DpRoomServiceImpl`); **`ConcurrentHashMap` (`roomMap`)** holds sessions; many writes under **`synchronized (DpRoomBO)`**.
 - Room creation, passwords, scores, bulk kicks — [docs/DPGAME.md](docs/DPGAME.md), [docs/RoomUi.md](docs/RoomUi.md) (**battle-screen** seat layout).
-- Public lobby list SSOT **`dp_room_lobby`** (created in **Flyway V1**), Redis-backed paging cache — [README.en.md](README.en.md) / [docs/Redis.md](docs/Redis.md). **Shark profile table `dp_shark_opponent_profile`** and other MVP tables live in **[`V1__init_schema.sql`](src/main/resources/db/migration/V1__init_schema.sql)** — **only `V1` migration exists** in this repo today.
+- Public lobby list SSOT **`dp_room_lobby`** (Flyway **V1**), Redis-backed paging cache — [README.en.md](README.en.md) / [docs/Redis.md](docs/Redis.md). **Flyway V1–V3**: baseline **[`V1__init_schema.sql`](src/main/resources/db/migration/V1__init_schema.sql)**, friend DM / room chat in **V2**, chat PK tweak in **V3**. **`dp_shark_opponent_profile`** kept in schema but **not used by services**.
 - Replay persistence — [docs/DP_PERSISTENCE_README.md](docs/DP_PERSISTENCE_README.md).
 
 #### Main REST prefixes (as implemented)
 
 | Prefix | Notes |
 | ------ | ----- |
-| **`/dpRoom`** | Rooms, quick match, lobby, bots — [`DpRoomController`](src/main/java/com/example/mgdemoplus/controller/DpRoomController.java). |
-| **`/dpUser`** | Auth/profile — [`DpUserController`](src/main/java/com/example/mgdemoplus/controller/DpUserController.java). |
-| **`/dp`** | Friends, mailbox, invites, spectate follow — [`DpFriendMailboxController`](src/main/java/com/example/mgdemoplus/controller/DpFriendMailboxController.java). |
-| **`/dpHandHistory`**, **`/dpMusic`** | Replay APIs, music library. |
+| **`/dpRoom`** | Rooms, quick match, lobby, rule/LLM bots — [`DpRoomController`](src/main/java/com/example/mgdemoplus/controller/DpRoomController.java). `joinRoom2` / `quickMatch2` require JWT subject == `nickname`. |
+| **`/dpUser`** | Register, `loginProfile`, profile — [`DpUserController`](src/main/java/com/example/mgdemoplus/controller/DpUserController.java). |
+| **`/dp`** | Friends, mailbox, invites, **DM**, spectate follow, site heartbeat — [`DpFriendMailboxController`](src/main/java/com/example/mgdemoplus/controller/DpFriendMailboxController.java). |
+| **`/dp/social`** | Lobby SSE stream + notify summary — [`DpSocialController`](src/main/java/com/example/mgdemoplus/controller/DpSocialController.java). |
+| **`/dpHandHistory`**, **`/dpMusic`**, **`/upload`** | Replay, music library, image upload. |
 
-JWT whitelist — [docs/JWT.md](docs/JWT.md). Handshake paths under `` `/ws/` `` are **`permitAll`**; **quick-match WS** still validates **JWT + nickname** inside [`DpQuickMatchWebSocketHandler`](src/main/java/com/example/mgdemoplus/websocket/DpQuickMatchWebSocketHandler.java).
+JWT whitelist — [docs/JWT.md](docs/JWT.md); **Redis JTI single session** per user. `` `/ws/` `` **`permitAll`** at handshake; **quick-match WS** validates **JWT + nickname** in [`DpQuickMatchWebSocketHandler`](src/main/java/com/example/mgdemoplus/websocket/DpQuickMatchWebSocketHandler.java).
 
 #### Realtime & quick match / lobby
 
@@ -304,21 +325,22 @@ JWT whitelist — [docs/JWT.md](docs/JWT.md). Handshake paths under `` `/ws/` ``
 
 #### Accounts & social
 
-- Spring Security + JWT — [docs/JWT.md](docs/JWT.md); **bcrypt** passwords (**`CryptoUtil`**) — if [docs/DpUserPassword.md](docs/DpUserPassword.md) still mentions MD5, treat as stale.
-- **Spring config file is [`application.yml`](src/main/resources/application.yml)** (no `application.properties`). Env mapping — [docs/ENV_README.md](docs/ENV_README.md).
-- Friends + invite mailbox MVP — [docs/dp_friend_mailbox_mvp.md](docs/dp_friend_mailbox_mvp.md).
+- Spring Security + JWT — [docs/JWT.md](docs/JWT.md); **bcrypt**; ~**3-day** token TTL; **Redis JTI** evicts older sessions.
+- **[`application.yml`](src/main/resources/application.yml)** only — **no Spring profiles**. Env — [docs/ENV_README.md](docs/ENV_README.md).
+- Mailbox MVP — [docs/dp_friend_mailbox_mvp.md](docs/dp_friend_mailbox_mvp.md); **also**: friend DM, delete friend, site heartbeat, follow/spectate, **`GET /dp/social/stream`** SSE (**single-JVM** hub; Nginx `proxy_buffering off`).
+- Frontend: [`api.dpSocial.js`](front/dp_game/src/api/api.dpSocial.js), `dpMailbox` Vuex, [`dpSocialStream.js`](front/dp_game/src/utils/dpSocialStream.js).
 
 #### Frontend (`front/dp_game`)
 
 - **Default hash routing**; no global **`beforeEach`**; **401** → login via axios in [`main.js`](front/dp_game/src/main.js). Main pages under **`src/components/`** (e.g. **`game.vue`**, **`home.vue`**).
-- **Dev** `axios` **`baseURL` `/dev-api`** + **`vue.config.js`** proxy; **prod** empty **`baseURL`**. Social APIs in **[`api.dpSocial.js`](front/dp_game/src/api/api.dpSocial.js)** + **`dpMailbox`**; many room calls are inline **`$http('/dpRoom/…')`**. **Vuex**: **`dpGame`** (no actions), **`dpMailbox`**.
+- **Dev** `axios` **`baseURL` `/dev-api`** + **`vue.config.js`** proxy; **prod** empty **`baseURL`**. Social APIs in **[`api.dpSocial.js`](front/dp_game/src/api/api.dpSocial.js)** + **`dpMailbox`**; lobby SSE in **[`dpSocialStream.js`](front/dp_game/src/utils/dpSocialStream.js)**. **Vuex**: **`dpGame`** (no actions), **`dpMailbox`**.
 - **WebSocket**: dev uses **`/dp-ws/...`** proxy to **`/ws/...`** (see [`vue.config.js`](front/dp_game/vue.config.js)); prod uses **`/ws/dp-game`** / **`/ws/dp-quick-match`**.
 
 #### AI & music
 
-- Rules NPC engine — [docs/ai/npc-engine/README.md](docs/ai/npc-engine/README.md); unified preflop flow — [docs/ai/npc-preflop-unified-decision-flow.md](docs/ai/npc-preflop-unified-decision-flow.md).
-- Optional **`BOT_LLM`** (Ark-compatible Chat API) — **`dp.llm.ark.*`** / **`ARK_*`** — [docs/ENV_README.md](docs/ENV_README.md), LLM section in [README.en.md](README.en.md).
-- BGM upload/list/sync — [docs/DpMusicWebPath.md](docs/DpMusicWebPath.md); Redis usage — [docs/Redis.md](docs/Redis.md).
+- **Rule bots** (`DpNpcEngine`, `BOT_*` prefixes) — [docs/ai/npc-engine/README.md](docs/ai/npc-engine/README.md), [preflop flow](docs/ai/npc-preflop-unified-decision-flow.md).
+- **LLM bots** (`DpLlmNpcDecisionService`, `BOT_LLM_*` / `BOT_LLM_GLOBAL_*`, async Ark API) — **`ARK_*`** / **`dp.llm.ark.*`** — [docs/ENV_README.md](docs/ENV_README.md); `addLlmBot` / `addLlmGlobalBot` on `/dpRoom`.
+- BGM — [docs/DpMusicWebPath.md](docs/DpMusicWebPath.md); Redis (login JTI, lobby/music cache, **not** `roomMap`) — [docs/Redis.md](docs/Redis.md).
 
 UI/theme (“猫咪派对” copy is frontend-only) — **[front/dp_game/docs/README.md](front/dp_game/docs/README.md)** (use as **front/dp_game** doc index if no root README there).
 
@@ -328,7 +350,7 @@ UI/theme (“猫咪派对” copy is frontend-only) — **[front/dp_game/docs/RE
 | ----- | ---- |
 | Backend | Java **17**, **Spring Boot 3.5.11** ([`pom.xml`](pom.xml)), Web / Security / WebSocket, **MyBatis-Plus**, **PageHelper**, **Druid**, MySQL driver, **Lettuce** (Redis), **JJWT** |
 | Frontend | **Vue 2**, Vue Router (**hash**), **Vuex** (`dpGame`, `dpMailbox`), **Element UI**, axios (`front/dp_game`) |
-| Data | **MySQL 8** (default `school_db`), **Redis 7**, **Flyway** (`classpath:db/migration`; **[`V1__init_schema.sql`](src/main/resources/db/migration/V1__init_schema.sql)** baseline today; **`flyway-core`** / **`flyway-mysql`**, no **`spring-boot-starter-flyway`** — [`pom.xml`](pom.xml)) |
+| Data | **MySQL 8** (default `school_db`), **Redis 7**, **Flyway** (**V1–V3**; baseline [`V1__init_schema.sql`](src/main/resources/db/migration/V1__init_schema.sql); **`flyway-core`** / **`flyway-mysql`** — [`pom.xml`](pom.xml)) |
 | Build / Ops | **Maven**, **Docker** / **Compose** ([`Dockerfile`](Dockerfile) frontend stage uses **Node 20**), **Nginx** |
 
 Battle-screen layout/CSS layering — [front/dp_game/docs/GAME_LAYOUT_TUNING_README.md](front/dp_game/docs/GAME_LAYOUT_TUNING_README.md). **Theme & “猫咪派对” UI copy** (frontend-only) — [front/dp_game/docs/README.md](front/dp_game/docs/README.md) and sibling theme docs there.
@@ -337,7 +359,18 @@ Battle-screen layout/CSS layering — [front/dp_game/docs/GAME_LAYOUT_TUNING_REA
 
 - **JDK 17**, **Maven 3.6+**
 - Frontend dev: **Node.js** compatible with Vue CLI 5 in `front/dp_game` (**Docker build** uses **Node 20** per [`Dockerfile`](Dockerfile))
+- Local backend: **MySQL** + **Redis** (or match `SPRING_*` in `.env` / yml)
 - Optional: **Docker 20+**, **Compose 2+**
+
+#### Config (local vs Compose)
+
+| | Local yml default | Compose |
+| --- | --- | --- |
+| DB password | `123456` | `mgdemo_root` (via `.env`) |
+| Redis password | `ruoyi123` | `mgdemo_redis` |
+| Host ports | 3306 / 6379 | **3307** / **6380** |
+
+No Spring profiles; **Druid** pool only (no monitor UI).
 
 ### Quick start
 
@@ -369,7 +402,7 @@ docker compose up --build
 
 GitHub Actions / Hub flows: **[docs/DOCKER.md](docs/DOCKER.md)**; workflow **`on.push.branches`** is **`desensitization-pre`** ([.github/workflows/docker-publish.yml](.github/workflows/docker-publish.yml)). **[`docker-compose.hub.yml`](docker-compose.hub.yml)** may add env such as **`ARK_RESPONSE_JSON_OBJECT`** not present in **[`docker-compose.yml`](docker-compose.yml)**—compare files.
 
-- **DB (Compose + Flyway)**: [`docker-compose.yml`](docker-compose.yml) sets **`SPRING_DATASOURCE_URL`** to **`jdbc:mysql://mysql:3306/school_db...`**, MySQL has **`MYSQL_DATABASE: school_db`** + **`mysql_data`** volume only (**no** host-mounted `./docker-entrypoint-initdb.d` SQL init); **tables applied at app startup via Flyway** `classpath:db/migration` (**currently all in `V1`**). Old volumes conflicting with **V1**: dev reset `docker compose down -v` (**data loss**).
+- **DB (Compose + Flyway)**: app applies **`V1`–`V3`** at startup. Old volume conflicts: dev `docker compose down -v` (**data loss**).
 - **Via Nginx**: same as **Shortest path** — **`https://localhost`** ([`docker-compose.yml`](docker-compose.yml)), [`docker/nginx/default.conf`](docker/nginx/default.conf).
 - **Direct app**: same — root Compose **does not publish host 8088 by default**; **hub** compose maps **`${APP_HOST_PORT:-8088}:8088`** ([`docker-compose.hub.yml`](docker-compose.hub.yml)); local **`mvn`** → **[http://localhost:8088](http://localhost:8088)**.
 
@@ -418,10 +451,15 @@ MGDemoPlus/
 ### Documentation
 
 - **Index:** **[docs/README.md](docs/README.md)**
+- **Module scans (for README refresh):** **[docs/readme-scan/README.md](docs/readme-scan/README.md)**
 - **Frontend index:** **[front/dp_game/docs/README.md](front/dp_game/docs/README.md)**
 - **Env:** [docs/ENV_README.md](docs/ENV_README.md)
 - **Docker:** [docs/DOCKER.md](docs/DOCKER.md)
 - **Long-form:** [README.ch.md](README.ch.md) (Chinese) · [README.en.md](README.en.md) (English) — **may lag code**
+
+### Roadmap (from TODO.md, may be stale)
+
+Room timer refactor; fuller **LLM multi-turn** per hand; friend **reports**; planned **`/dp/admin/**`** APIs.
 
 ### Statement
 

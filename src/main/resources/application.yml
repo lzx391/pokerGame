@@ -35,6 +35,8 @@ spring:
       request-timeout: -1
 
 mgdemoplus:
+  # JVM 默认时区（北京时间 Asia/Shanghai；LocalDateTime.now、好友私信 created_at 等）；Docker 未设 TZ 时多为 UTC，会导致少 8 小时
+  time-zone: ${MGDEMOPLUS_TIME_ZONE:Asia/Shanghai}
   jwt:
     secret: ${JWT_SECRET:abcdefghhgfedcbaabcdefghhgfedcba} # JWT 签名密钥（UTF-8 至少 32 字节）；可由环境变量 JWT_SECRET 覆盖（.env 经 LocalDotenvLoader 写入系统属性）
     expiration:
@@ -88,7 +90,7 @@ server:
 #     com.example.mgdemoplus.controller.DpSocialController: INFO
 #     com.example.mgdemoplus.controller.DpFriendMailboxController: INFO
 #     com.example.mgdemoplus.security.JwtAuthenticationFilter: INFO
-#     com.example.mgdemoplus.service.serviceImpl.DpFriendSocialService: INFO
+#     com.example.mgdemoplus.social.impl.DpFriendSocialService: INFO
 #     org.springframework: WARN
 #     com.alibaba.druid: WARN
 # 只要思考、不要【已发起】【采用】：把 DpLlmNpcDecisionService 改成 WARN。

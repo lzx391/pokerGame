@@ -1,14 +1,14 @@
 package com.example.mgdemoplus.controller;
 
-import com.example.mgdemoplus.bo.DpRoomBO;
-import com.example.mgdemoplus.bo.DpRoomLobbySearchParamBO;
-import com.example.mgdemoplus.entity.DpRoom;
-import com.example.mgdemoplus.entity.DpUser;
-import com.example.mgdemoplus.mapper.DpUserMapper;
-import com.example.mgdemoplus.service.DpRoomHallService;
-import com.example.mgdemoplus.service.serviceImpl.DpRoomServiceImpl;
+import com.example.mgdemoplus.common.bo.DpRoomBO;
+import com.example.mgdemoplus.lobby.bo.DpRoomLobbySearchParamBO;
+import com.example.mgdemoplus.common.entity.DpRoom;
+import com.example.mgdemoplus.common.entity.DpUser;
+import com.example.mgdemoplus.common.mapper.DpUserMapper;
+import com.example.mgdemoplus.lobby.DpRoomHallService;
+import com.example.mgdemoplus.room.DpRoomService;
+import com.example.mgdemoplus.room.KickPlayersBatchResult;
 import com.example.mgdemoplus.utils.ResultUtil;
-import com.example.mgdemoplus.service.serviceImpl.DpRoomServiceImpl.KickPlayersBatchResult;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -27,7 +27,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class DpRoomController {
 
     @Autowired
-    private DpRoomServiceImpl dpRoomService;
+    private DpRoomService dpRoomService;
     @Autowired
     private DpRoomHallService dpRoomHallService;
     @Autowired

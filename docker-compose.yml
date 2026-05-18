@@ -58,7 +58,8 @@ services:
     # ports:
     #   - "8088:8088"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/school_db?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=utf8
+      TZ: ${MGDEMOPLUS_TIME_ZONE:-Asia/Shanghai}
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/school_db?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-mgdemo_root}
       SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver

@@ -1,8 +1,8 @@
 package com.example.mgdemoplus.quickmatch;
 
-import com.example.mgdemoplus.bo.DpRoomBO;
-import com.example.mgdemoplus.entity.DpPlayer;
-import com.example.mgdemoplus.service.serviceImpl.DpNpcEngine;
+import com.example.mgdemoplus.common.bo.DpRoomBO;
+import com.example.mgdemoplus.common.entity.DpPlayer;
+import com.example.mgdemoplus.npc.engine.DpNpcEngine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

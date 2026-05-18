@@ -1,13 +1,13 @@
 package com.example.mgdemoplus.quickmatch.pairing;
 
-import com.example.mgdemoplus.bo.DpRoomBO;
+import com.example.mgdemoplus.common.bo.DpRoomBO;
 import com.example.mgdemoplus.quickmatch.JoinableQuickMatchRoomIndex;
 
 import java.util.List;
 import java.util.Map;
 
 /**
- * 快匹「尝试配对」与 {@link DpRoomServiceImpl} 之间的回调面：由 Agent C 注入实现，
+ * 快匹「尝试配对」与 {@link com.example.mgdemoplus.room.impl.DpRoomServiceImpl} 之间的回调面：由 Agent C 注入实现，
  * 内部可继续调用现有 {@code joinRoom}、{@code createRoom}、{@code roomMap}、索引维护与 WS 推送等。
  */
 public interface DpQuickMatchPairingHost {
