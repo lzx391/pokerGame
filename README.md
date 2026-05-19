@@ -1,4 +1,6 @@
-# MGDemoPlus（前瞻版本）
+
+# MGDemoPlus(此版本为稳定主版本)
+
 
 基于 **Spring Boot 3** 的 Web 演示项目：多人实时房间、卡牌对战流程、AI / 可选大模型玩家、对局回放与大厅匹配。前端 **`front/dp_game`**（**Vue 2** + **Vue Router** + **Vuex** + **Element UI** + **axios**）可由 **[`Dockerfile`](Dockerfile)** 多阶段构建打进后端 JAR（`npm ci` → `dist` → `src/main/resources/static` → `mvn package`），与 REST、WebSocket **同端口**发布。
 
@@ -465,4 +467,6 @@ Room timer refactor; fuller **LLM multi-turn** per hand; friend **reports**; pla
 
 **This project is for technical learning and demonstration only. It uses virtual points, involves no real currency, and does not provide gambling-related functionality.**
 
-If this overview disagrees with the current repo, trust the implementation, `db/migration`, Compose/Dockerfile, and `front/dp_game` behavior, and update long docs and `docs/` accordingly.
+
+If this overview disagrees with code, trust **[README.ch.md](README.ch.md)** / **[README.en.md](README.en.md)** and **[docs/README.md](docs/README.md)** / **docs/**.
+
