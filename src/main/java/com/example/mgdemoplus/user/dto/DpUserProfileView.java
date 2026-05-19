@@ -1,19 +1,15 @@
-package com.example.mgdemoplus.common.entity;
+package com.example.mgdemoplus.user.dto;
 
-public class DpUser {
+/**
+ * 个人资料只读视图：不含密码哈希。
+ */
+public class DpUserProfileView {
+
     private int id;
     private String nickname;
-    private String password;
     private String avatarUrl;
-
-    @Override
-    public String toString() {
-        return "User{" +
-                "id=" + id +
-                ", nickname='" + nickname + '\'' +
-                ", password='" + password + '\'' +
-                '}';
-    }
+    /** 是否已设置登录密码（库内非空） */
+    private boolean passwordSet;
 
     public int getId() {
         return id;
@@ -31,19 +27,19 @@ public class DpUser {
         this.nickname = nickname;
     }
 
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
     public String getAvatarUrl() {
         return avatarUrl;
     }
 
     public void setAvatarUrl(String avatarUrl) {
         this.avatarUrl = avatarUrl;
+    }
+
+    public boolean isPasswordSet() {
+        return passwordSet;
+    }
+
+    public void setPasswordSet(boolean passwordSet) {
+        this.passwordSet = passwordSet;
     }
 }

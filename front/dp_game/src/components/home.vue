@@ -5,6 +5,8 @@
     :style="customThemeInlineStyle"
   >
     <div class="dp-lobby-inner home-inner">
+      <home-profile-modal :visible.sync="profileVisible" @saved="onProfileSaved" />
+
       <game-play-guide-modal
         :visible="playGuideVisible"
         :active-tab="playGuideTab"
@@ -33,6 +35,7 @@
           <div class="user-info">
             <span v-if="user && user.nickname">当前用户：{{ user.nickname }}</span>
             <button type="button" class="dp-btn dp-btn--ghost logout-btn" @click="openPlayGuide(false)">玩法说明</button>
+            <button type="button" class="dp-btn dp-btn--ghost logout-btn" @click="profileVisible = true">个人资料</button>
             <button type="button" class="dp-btn dp-btn--danger logout-btn" @click="logout">退出登录</button>
           </div>
         </div>
@@ -389,6 +392,7 @@ import { dpFriendPresenceRowClass, dpFriendPresenceStatusText, dpFriendPresenceB
 import { dpSocialDisplayNickname } from '@/utils/dpSocialDisplayName'
 import { dpResultSuccess, dpResultData, dpResultMessage } from '@/utils/dpApiResult'
 import GamePlayGuideModal from '@/components/GamePlayGuideModal.vue'
+import HomeProfileModal from '@/components/HomeProfileModal.vue'
 import FriendChatDialog from '@/components/FriendChatDialog.vue'
 import { buildSocialStreamUrl } from '@/utils/dpSocialStream'
 import { mapGetters, mapState, mapActions } from 'vuex'
@@ -402,10 +406,11 @@ import { exitLobbyQuickMatchSilently } from '@/utils/dpLobbyQuickMatchExit'
 import { postQuickMatchCancel2 } from '@/utils/dpQuickMatchExit'
 
 export default {
-  components: { GamePlayGuideModal, FriendChatDialog },
+  components: { GamePlayGuideModal, HomeProfileModal, FriendChatDialog },
   mixins: [dpLobbyThemeMixin],
   data() {
     return {
+      profileVisible: false,
       playGuideVisible: false,
       playGuideTab: 'flow',
       playGuideFirstRun: false,
@@ -853,6 +858,26 @@ export default {
         setCatTutorialDismissedPermanently()
       }
       this.onPlayGuideClose()
+    },
+    onProfileSaved(payload) {
+      if (!payload) return
+      if (payload.nickname) {
+        this.user.nickname = payload.nickname
+      }
+      if (payload.token) {
+        this.user.token = payload.token
+      }
+      try {
+        var raw = localStorage.getItem('userInfo')
+        var stored = raw ? JSON.parse(raw) : {}
+        if (payload.nickname) stored.nickname = payload.nickname
+        if (payload.token) stored.token = payload.token
+        if (payload.newPassword) stored.password = payload.newPassword
+        else if (payload.passwordForStorage) stored.password = payload.passwordForStorage
+        localStorage.setItem('userInfo', JSON.stringify(stored))
+      } catch (e) {
+        /* ignore */
+      }
     },
     logout() {
       this.closeSocialStream()

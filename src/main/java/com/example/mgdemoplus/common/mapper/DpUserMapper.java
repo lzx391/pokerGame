@@ -16,6 +16,12 @@ public interface DpUserMapper {
     public DpUser selectById(int id);
     @Select("SELECT * from dp_user where nickname= #{nickname}" )
     public DpUser selectByNickname(String nickname);
-    @Update("UPDATE dp_user SET nickname = #{nickname},password = #{password} WHERE id = #{id}")
-    public int updateUserInfo(DpUser dpUser);
+    @Update("UPDATE dp_user SET nickname = #{nickname}, password = #{password} WHERE id = #{id}")
+    int updateUserInfo(DpUser dpUser);
+
+    @Update("UPDATE dp_user SET nickname = #{nickname} WHERE id = #{id}")
+    int updateNickname(DpUser dpUser);
+
+    @Update("UPDATE dp_user SET password = #{password} WHERE id = #{id}")
+    int updatePasswordHash(DpUser dpUser);
 }
