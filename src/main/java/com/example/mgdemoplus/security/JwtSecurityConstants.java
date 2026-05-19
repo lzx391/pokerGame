@@ -23,8 +23,8 @@ public final class JwtSecurityConstants {
             // 大厅列表、房间快照轮询：未登录可访问（分享链接、旁观）；其余 /dpRoom/** 需 JWT
             "/dpRoom/getNowRoom",
             "/dpRoom/getAllRooms2",
-            "/dpRoom/publicRooms",
-            "/dpRoom/publicRooms/query",
+            // "/dpRoom/publicRooms",
+            // "/dpRoom/publicRooms/query",
             "/dp/presence/site-heartbeat/config",
             // SSE 长连接：REQUEST + ASYNC 分派均不强制 authenticated()，身份由 JwtAuthenticationFilter ?token= 写入
             // "/dp/social/stream",

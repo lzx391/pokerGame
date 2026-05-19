@@ -405,6 +405,26 @@ export default {
       }
     },
 
+    /**
+     * 主动离房：在 exitRoom 之前关掉推送/轮询，并标记已处理 roomClosed，避免弹「房间已解散」。
+     */
+    beginIntentionalLeave() {
+      this._dpRoomClosedHandled = true
+      this.shutdownGameWsPermanently()
+      if (this.pollTimer) {
+        clearInterval(this.pollTimer)
+        this.pollTimer = null
+      }
+      if (this.backupPollTimer) {
+        clearInterval(this.backupPollTimer)
+        this.backupPollTimer = null
+      }
+      if (this.heartbeatTimer) {
+        clearInterval(this.heartbeatTimer)
+        this.heartbeatTimer = null
+      }
+    },
+
     scheduleWsReconnect(sessionAtOpen) {
       var self = this
       if (self.wsNoReconnect) return
@@ -764,7 +784,9 @@ export default {
         })
         var room = res.data
         if (!room) {
-          this.handleRoomClosedFromServer()
+          if (!this.wsNoReconnect) {
+            this.handleRoomClosedFromServer()
+          }
           return
         }
         this.applyRoomFromServer(room)
@@ -1309,6 +1331,7 @@ export default {
       } catch (e) {
         return
       }
+      this.beginIntentionalLeave()
       try {
         await this.$http.post('/dpRoom/exitRoom', null, {
           params: {roomId: this.roomId, nickname: this.user.nickname}
@@ -1316,10 +1339,6 @@ export default {
       } catch (err) {
         console.error('退出失败', err)
       }
-      this.shutdownGameWsPermanently()
-      if (this.pollTimer) clearInterval(this.pollTimer)
-      if (this.backupPollTimer) clearInterval(this.backupPollTimer)
-      if (this.heartbeatTimer) clearInterval(this.heartbeatTimer)
       this.navigateHomeIfNeeded()
     },
 
