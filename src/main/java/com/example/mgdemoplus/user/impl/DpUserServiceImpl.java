@@ -17,9 +17,6 @@ public class DpUserServiceImpl implements DpUserService {
     DpUserMapper dpUserMapper;
 
     public int registerUser(DpUser dpUser) {
-        if (dpUser.getNickname().contains("海金")) {
-            return 2;
-        }
         DpUser repetition = dpUserMapper.selectByNickname(dpUser.getNickname());
         if (repetition != null) {
             return 0;
@@ -89,10 +86,6 @@ public class DpUserServiceImpl implements DpUserService {
         //验证昵称长度
         if (newNickname.length() > 10) {
             result.setMessage("昵称最多 10 个字符");
-            return result;
-        }
-        if (newNickname.contains("海金")) {
-            result.setMessage("昵称含敏感词");
             return result;
         }
 

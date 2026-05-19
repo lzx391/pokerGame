@@ -48,9 +48,6 @@ public class DpUserController {
                     .data("nickname", dpUser.getNickname())
                     .data("token", token);
         }
-        if (code == 2) {
-            return ResultUtil.sensitiveUsername();
-        }
         return ResultUtil.repeatUsername();
     }
 
