@@ -839,8 +839,17 @@ ownerFieldChanged：房主字段是否发生变化。
         if (nickname == null || DpNpcEngine.isBotNickname(nickname)) {//昵称为空返回
             return;
         }
+
         if (findRoomContainingNickname(nickname) != null) {//发现房间包含自己名字，直接返回
-            return;
+            List<DpPlayer> players = roomHint.getPlayers();
+            if (players != null) {
+                for (DpPlayer p : players) {
+                    if (p != null && nickname.equals(p.getNickname()) && !p.isLeftThisHand()) {
+                        System.out.println("清理的时候只清理观众和等待下一把的人，所以僵尸位要单独判断一下");
+                        return;
+                    }
+                }
+            }
         }
         Integer uid = resolvePresenceUserIdPreferHint(nickname, hintedUserId, roomHint);
         if (uid != null) {
@@ -1716,6 +1725,7 @@ ownerFieldChanged：房主字段是否发生变化。
             }
         }
         if (!snap.droppedEmpty) {
+            System.out.println("进入presenceTryMarkIdleFullyLeft");
             //给人设置成空闲状态
             presenceTryMarkIdleFullyLeft(nickname, snap.presenceHintUid, r, "exit_room");
         }
