@@ -2,6 +2,7 @@ package com.example.mgdemoplus.user.impl;
 
 import com.example.mgdemoplus.common.entity.DpUser;
 import com.example.mgdemoplus.common.mapper.DpUserMapper;
+import com.example.mgdemoplus.moderation.DpSensitiveWordService;
 import com.example.mgdemoplus.user.DpUserService;
 import com.example.mgdemoplus.user.dto.DpUserProfileUpdateRequest;
 import com.example.mgdemoplus.user.dto.DpUserProfileUpdateResult;
@@ -15,8 +16,22 @@ import org.springframework.stereotype.Service;
 public class DpUserServiceImpl implements DpUserService {
     @Autowired
     DpUserMapper dpUserMapper;
+    @Autowired
+    DpSensitiveWordService sensitiveWordService;
+
+    /** 注册成功 */
+    public static final int REGISTER_OK = 1;
+    /** 昵称重复 */
+    public static final int REGISTER_REPEAT = 0;
+    /** 昵称含敏感词 */
+    public static final int REGISTER_SENSITIVE = 2;
+
+    public static final String MSG_SENSITIVE = "敏感词汇";
 
     public int registerUser(DpUser dpUser) {
+        if (sensitiveWordService.containsSensitive(dpUser.getNickname())) {
+            return REGISTER_SENSITIVE;
+        }
         DpUser repetition = dpUserMapper.selectByNickname(dpUser.getNickname());
         if (repetition != null) {
             return 0;
@@ -40,14 +55,6 @@ public class DpUserServiceImpl implements DpUserService {
         view.setAvatarUrl(user.getAvatarUrl());
         view.setPasswordSet(user.getPassword() != null && !user.getPassword().isBlank());
         return view;
-    }
-
-    public String loginUser(String nickname, String password) {
-        DpUser user = dpUserMapper.selectByNickname(nickname);
-        if (user == null || !CryptoUtil.bcryptMatches(password, user.getPassword())) {
-            return "登录失败";
-        }
-        return "登录成功";
     }
 
     public DpUser loginUserOrNull(String nickname, String password) {
@@ -86,6 +93,10 @@ public class DpUserServiceImpl implements DpUserService {
         //验证昵称长度
         if (newNickname.length() > 10) {
             result.setMessage("昵称最多 10 个字符");
+            return result;
+        }
+        if (sensitiveWordService.containsSensitive(newNickname)) {
+            result.setMessage(MSG_SENSITIVE);
             return result;
         }
 

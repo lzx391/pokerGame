@@ -314,7 +314,7 @@ export default {
         var hadNew = this.mergeItems([
           {
             messageId: mid,
-            body: text,
+            body: d.body != null && String(d.body).trim() ? String(d.body) : text,
             createdAt: d.createdAt || '',
             mine: true
           }

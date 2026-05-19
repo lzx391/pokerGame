@@ -1,6 +1,7 @@
 package com.example.mgdemoplus.websocket;
 
 import com.example.mgdemoplus.common.bo.DpRoomBO;
+import com.example.mgdemoplus.moderation.DpSensitiveWordService;
 import com.example.mgdemoplus.roomchat.buffer.RoomChatBuffer;
 import com.example.mgdemoplus.roomchat.buffer.RoomChatEntry;
 import com.example.mgdemoplus.room.DpRoomService;
@@ -43,6 +44,7 @@ public class DpGameRoomPushService {
     private final ObjectMapper objectMapper;
     private final DpRoomService roomService;
     private final RoomChatBuffer roomChatBuffer;
+    private final DpSensitiveWordService sensitiveWordService;
 
 //Map<String, Set<WebSocketSession>> roomSessions = new ConcurrentHashMap<>(); 的作用是：存储房间ID和订阅者的映射关系，每个房间ID对应一个订阅者集合，集合中存储的是WebSocketSession对象，用于标识每个订阅者的连接会话。
     private final Map<String, Set<WebSocketSession>> roomSessions = new ConcurrentHashMap<>();
@@ -55,10 +57,12 @@ public class DpGameRoomPushService {
     public DpGameRoomPushService(
             ObjectMapper objectMapper,
             @Lazy DpRoomService roomService,
-            RoomChatBuffer roomChatBuffer) {
+            RoomChatBuffer roomChatBuffer,
+            DpSensitiveWordService sensitiveWordService) {
         this.objectMapper = objectMapper;
         this.roomService = roomService;
         this.roomChatBuffer = roomChatBuffer;
+        this.sensitiveWordService = sensitiveWordService;
     }
 
     // ====== 房间会话注册与注销相关 ======
@@ -203,6 +207,8 @@ public class DpGameRoomPushService {
         if (text.length() > CHAT_MAX_LEN) {
             text = text.substring(0, CHAT_MAX_LEN);
         }
+        final String rawText = text;
+        final String displayText = sensitiveWordService.maskForChat(rawText);
         long now = System.currentTimeMillis();
         Long last = (Long) session.getAttributes().get("_chatLastMs");
         if (last != null && now - last < CHAT_MIN_INTERVAL_MS) {
@@ -215,7 +221,7 @@ public class DpGameRoomPushService {
         session.getAttributes().put("_chatLastMs", now);
         Integer senderUserId = roomService.resolveDpUserIdForNickname(room, nickname);
         RoomChatEntry entry =
-                roomChatBuffer.append(roomId, senderUserId, nickname, text, now);
+                roomChatBuffer.append(roomId, senderUserId, nickname, rawText, now);
         if (entry == null) {
             return;
         }
@@ -224,7 +230,7 @@ public class DpGameRoomPushService {
             out.put("_ws", "chat");
             out.put("id", String.valueOf(entry.getId()));
             out.put("nickname", nickname);
-            out.put("text", text);
+            out.put("text", displayText);
             out.put("serverTime", now);
             out.put("ttlMs", CHAT_TTL_MS);
             if (senderUserId != null) {

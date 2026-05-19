@@ -54,7 +54,8 @@ class DpRoomDesertedRoomCleanupTest {
                 mock(DpQuickMatchPushService.class),
                 mock(DpFriendPresenceService.class),
                 new RoomChatBuffer(),
-                mock(DpRoomChatPersistenceService.class));
+                mock(DpRoomChatPersistenceService.class),
+                mock(com.example.mgdemoplus.moderation.DpSensitiveWordService.class));
     }
 
     @AfterEach

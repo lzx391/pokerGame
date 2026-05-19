@@ -219,7 +219,8 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
             DpQuickMatchPushService quickMatchPush,
             DpFriendPresenceService friendPresence,
             RoomChatBuffer roomChatBuffer,
-            DpRoomChatPersistenceService roomChatPersistenceService) {
+            DpRoomChatPersistenceService roomChatPersistenceService,
+            com.example.mgdemoplus.moderation.DpSensitiveWordService sensitiveWordService) {
         this.observedHandPersistService = observedHandPersistService;
         this.llmNpcDecisionService = llmNpcDecisionService;
         this.gameRoomPushService = gameRoomPushService;
@@ -239,7 +240,8 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
                 gameRoomPushService,
                 roomChatPersistenceService);
         this.quickMatchBridge = new DpRoomQuickMatchBridge(registry, lobbySync, quickMatchPush, this);
-        this.snapshotSupport = new DpRoomSnapshotSupport(registry, roomChatBuffer, objectMapper, this);
+        this.snapshotSupport =
+                new DpRoomSnapshotSupport(registry, roomChatBuffer, objectMapper, this, sensitiveWordService);
         this.heartbeatScheduler = new DpRoomHeartbeatScheduler(
                 registry, llmNpcDecisionService, gameRoomPushService, lobbySync, this);
         heartbeatScheduler.startGlobalTimerUnlessSuppressed(suppressGlobalRoomTimerForTests);

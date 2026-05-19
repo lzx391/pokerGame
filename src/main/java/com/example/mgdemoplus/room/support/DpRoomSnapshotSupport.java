@@ -2,6 +2,7 @@ package com.example.mgdemoplus.room.support;
 
 import com.example.mgdemoplus.common.bo.DpRoomBO;
 import com.example.mgdemoplus.common.entity.DpPlayer;
+import com.example.mgdemoplus.moderation.DpSensitiveWordService;
 import com.example.mgdemoplus.roomchat.buffer.RoomChatBuffer;
 import com.example.mgdemoplus.roomchat.buffer.RoomChatEntry;
 import com.example.mgdemoplus.utils.ResultUtil;
@@ -22,16 +23,19 @@ public final class DpRoomSnapshotSupport {
     private final RoomChatBuffer roomChatBuffer;
     private final ObjectMapper objectMapper;
     private final DpRoomServiceCallbacks callbacks;
+    private final DpSensitiveWordService sensitiveWordService;
 
     public DpRoomSnapshotSupport(
             DpRoomRegistry registry,
             RoomChatBuffer roomChatBuffer,
             ObjectMapper objectMapper,
-            DpRoomServiceCallbacks callbacks) {
+            DpRoomServiceCallbacks callbacks,
+            DpSensitiveWordService sensitiveWordService) {
         this.registry = registry;
         this.roomChatBuffer = roomChatBuffer;
         this.objectMapper = objectMapper;
         this.callbacks = callbacks;
+        this.sensitiveWordService = sensitiveWordService;
     }
 
     public ResultUtil listRecentRoomChat(String roomId, String viewerNickname, int limit) {
@@ -53,7 +57,7 @@ public final class DpRoomSnapshotSupport {
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("id", String.valueOf(e.getId()));
             row.put("nickname", e.getSenderNickname());
-            row.put("text", e.getBody());
+            row.put("text", sensitiveWordService.maskForChat(e.getBody()));
             row.put("serverTime", e.getServerTimeMs());
             if (e.getSenderUserId() != null) {
                 row.put("senderUserId", e.getSenderUserId());

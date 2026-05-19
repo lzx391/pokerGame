@@ -12,8 +12,6 @@ public interface DpUserService {
 
     DpUserProfileView buildProfileView(DpUser user);
 
-    String loginUser(String nickname, String password);
-
     DpUser loginUserOrNull(String nickname, String password);
 
     /**

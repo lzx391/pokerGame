@@ -5,6 +5,7 @@ import com.example.mgdemoplus.common.mapper.DpUserMapper;
 import com.example.mgdemoplus.security.JwtTokenService;
 import com.example.mgdemoplus.user.cache.DpRedisLoginCacheService;
 import com.example.mgdemoplus.user.DpUserService;
+import com.example.mgdemoplus.user.impl.DpUserServiceImpl;
 import com.example.mgdemoplus.user.dto.DpUserProfileUpdateRequest;
 import com.example.mgdemoplus.user.dto.DpUserProfileUpdateResult;
 import com.example.mgdemoplus.user.dto.DpUserProfileView;
@@ -38,7 +39,7 @@ public class DpUserController {
     @PostMapping("/registerUser")
     public ResultUtil registerUser(@RequestBody DpUser dpUser) {
         int code = dpUserService.registerUser(dpUser);
-        if (code == 1) {
+        if (code == DpUserServiceImpl.REGISTER_OK) {
             String jti = UUID.randomUUID().toString();
             String token = jwtTokenService.generateToken(dpUser.getNickname(), jti);
             dpRedisLoginCacheService.setLoginJti(dpUser.getNickname(), jti);
@@ -48,13 +49,10 @@ public class DpUserController {
                     .data("nickname", dpUser.getNickname())
                     .data("token", token);
         }
+        if (code == DpUserServiceImpl.REGISTER_SENSITIVE) {
+            return ResultUtil.sensitiveUsername();
+        }
         return ResultUtil.repeatUsername();
-    }
-
-    @GetMapping("/loginUser")
-    public String loginUser(@RequestParam String nickname, @RequestParam String password) {
-        System.out.println("用户：" + nickname + "正在登录");
-        return dpUserService.loginUser(nickname, password);
     }
 
     @GetMapping("/loginProfile")
@@ -70,7 +68,7 @@ public class DpUserController {
     }
 
     /**
-     * 当前登录用户资料（不含密码哈希）。身份仅从 JWT 解析，不信任客户端传的 id。
+     * 获取当前登录用户资料（不含密码哈希）。身份仅从 JWT 解析，不信任客户端传的 id。
      */
     @GetMapping("/profile")
     public ResultUtil getProfile() {
@@ -93,6 +91,9 @@ public class DpUserController {
         }
         String oldNickname = current.getNickname();
         DpUserProfileUpdateResult outcome = dpUserService.updateProfile(current, request);
+        if (DpUserServiceImpl.MSG_SENSITIVE.equals(outcome.getMessage())) {
+            return ResultUtil.sensitiveUsername();
+        }
         if (!"保存成功".equals(outcome.getMessage())) {
             return ResultUtil.error().data("message", outcome.getMessage());
         }
@@ -108,7 +109,10 @@ public class DpUserController {
         }
         return ok;
     }
-
+/**
+ * 解析当前登录用户
+ * @return
+ */
     private DpUser requireCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated()

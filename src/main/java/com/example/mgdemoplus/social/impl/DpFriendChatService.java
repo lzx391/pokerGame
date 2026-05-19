@@ -8,6 +8,7 @@ import com.example.mgdemoplus.social.mapper.DpFriendLinkMapper;
 import com.example.mgdemoplus.social.mapper.DpFriendMessageMapper;
 import com.example.mgdemoplus.common.mapper.DpUserMapper;
 import com.example.mgdemoplus.common.entity.DpUser;
+import com.example.mgdemoplus.moderation.DpSensitiveWordService;
 import com.example.mgdemoplus.social.notify.SocialNotifyPublisher;
 import com.example.mgdemoplus.utils.ResultUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +37,7 @@ public class DpFriendChatService {
     private final DpFriendChatReadMapper friendChatReadMapper;
     private final DpFriendLinkMapper friendLinkMapper;
     private final DpUserMapper dpUserMapper;
+    private final DpSensitiveWordService sensitiveWordService;
 
     private final ConcurrentHashMap<Long, Long> lastSendMsBySender = new ConcurrentHashMap<>();
 
@@ -47,11 +49,13 @@ public class DpFriendChatService {
             DpFriendMessageMapper friendMessageMapper,
             DpFriendChatReadMapper friendChatReadMapper,
             DpFriendLinkMapper friendLinkMapper,
-            DpUserMapper dpUserMapper) {
+            DpUserMapper dpUserMapper,
+            DpSensitiveWordService sensitiveWordService) {
         this.friendMessageMapper = friendMessageMapper;
         this.friendChatReadMapper = friendChatReadMapper;
         this.friendLinkMapper = friendLinkMapper;
         this.dpUserMapper = dpUserMapper;
+        this.sensitiveWordService = sensitiveWordService;
     }
 /**
  * 发送私信，返回更新后信息，推送通知
@@ -98,7 +102,8 @@ public class DpFriendChatService {
 
         return ResultUtil.ok()
                 .data("messageId", row.getId())
-                .data("createdAt", row.getCreatedAt());
+                .data("createdAt", row.getCreatedAt())
+                .data("body", sensitiveWordService.maskForChat(body));
     }
 
     public ResultUtil listMessages(int currentUserId, int peerUserId, Long beforeId, Integer limit) {
@@ -118,7 +123,7 @@ public class DpFriendChatService {
             m.put("messageId", r.getId());
             m.put("senderUserId", r.getSenderUserId());
             m.put("recipientUserId", r.getRecipientUserId());
-            m.put("body", r.getBody());
+            m.put("body", sensitiveWordService.maskForChat(r.getBody()));
             m.put("createdAt", r.getCreatedAt());
             m.put("mine", currentUserId == r.getSenderUserId());
             items.add(m);
