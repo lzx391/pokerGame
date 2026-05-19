@@ -1,8 +1,10 @@
 package com.example.mgdemoplus.websocket;
 
-import com.example.mgdemoplus.bo.DpRoomBO;
-import com.example.mgdemoplus.entity.dp.DpPlayer;
-import com.example.mgdemoplus.service.serviceImpl.dp.DpRoomServiceImpl;
+import com.example.mgdemoplus.common.bo.DpRoomBO;
+import com.example.mgdemoplus.moderation.DpSensitiveWordService;
+import com.example.mgdemoplus.roomchat.buffer.RoomChatBuffer;
+import com.example.mgdemoplus.roomchat.buffer.RoomChatEntry;
+import com.example.mgdemoplus.room.DpRoomService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -16,11 +18,9 @@ import org.springframework.web.socket.WebSocketSession;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -32,7 +32,7 @@ public class DpGameRoomPushService {
     private static final Logger log = LoggerFactory.getLogger(DpGameRoomPushService.class);
     private static final String ROOM_CLOSED = "{\"_ws\":\"roomClosed\"}";
 
-    /** 房间聊天：广播后由前端在 ttl 到时移除，不落库 */
+    /** 房间聊天：内存缓冲，摘房落库；广播帧带 ttlMs 供前端气泡 */
     private static final long CHAT_TTL_MS = 15_000L;
     private static final int CHAT_MAX_LEN = 200;
     private static final long CHAT_MIN_INTERVAL_MS = 1_200L;
@@ -42,7 +42,9 @@ public class DpGameRoomPushService {
     private static final int MUSIC_DISPLAY_NAME_MAX = 120;
 
     private final ObjectMapper objectMapper;
-    private final DpRoomServiceImpl roomService;
+    private final DpRoomService roomService;
+    private final RoomChatBuffer roomChatBuffer;
+    private final DpSensitiveWordService sensitiveWordService;
 
 //Map<String, Set<WebSocketSession>> roomSessions = new ConcurrentHashMap<>(); 的作用是：存储房间ID和订阅者的映射关系，每个房间ID对应一个订阅者集合，集合中存储的是WebSocketSession对象，用于标识每个订阅者的连接会话。
     private final Map<String, Set<WebSocketSession>> roomSessions = new ConcurrentHashMap<>();
@@ -52,9 +54,15 @@ public class DpGameRoomPushService {
     private final Map<String, String> lastRoomMusicJson = new ConcurrentHashMap<>();
 
     // lazy注解的作用是？在Spring容器初始化时，不立即创建对象，而是在需要时创建对象，这样可以避免循环依赖
-    public DpGameRoomPushService(ObjectMapper objectMapper, @Lazy DpRoomServiceImpl roomService) {
+    public DpGameRoomPushService(
+            ObjectMapper objectMapper,
+            @Lazy DpRoomService roomService,
+            RoomChatBuffer roomChatBuffer,
+            DpSensitiveWordService sensitiveWordService) {
         this.objectMapper = objectMapper;
         this.roomService = roomService;
+        this.roomChatBuffer = roomChatBuffer;
+        this.sensitiveWordService = sensitiveWordService;
     }
 
     // ====== 房间会话注册与注销相关 ======
@@ -86,7 +94,7 @@ public class DpGameRoomPushService {
     }
 
     /**
-     * 房间对象已从 {@link DpRoomServiceImpl} 移除时调用: 关断该房全部长连并清理本地状态。
+     * 房间对象已从 {@link com.example.mgdemoplus.room.impl.DpRoomServiceImpl} 移除时调用: 关断该房全部长连并清理本地状态。
      */
     public void shutdownSubscriptionsForRoom(String roomId) {
         if (roomId == null || roomId.isEmpty()) {
@@ -107,6 +115,42 @@ public class DpGameRoomPushService {
                 }
             } catch (Exception e) {
                 log.debug("shutdownSubscriptionsForRoom send roomClosed failed", e);
+            }
+            try {
+                s.close(CloseStatus.GOING_AWAY);
+            } catch (IOException ignored) {
+                // ignore
+            }
+        }
+    }
+
+    /**
+     * 关闭房间内与指定昵称匹配的订阅长连（发送 {@code roomClosed} 后 {@link CloseStatus#GOING_AWAY}），
+     * 用于例如 HTTP 心跳超时已将玩家移出房间、但 WS 仍挂在该 {@code roomId} 上的情况。
+     * 仅匹配连接属性 {@code viewerNickname}（对局页 URL 会带 {@code nickname=}）。
+     */
+    public void shutdownSubscriptionsForNicknameInRoom(String roomId, String nickname) {
+        if (roomId == null || roomId.isEmpty() || nickname == null || nickname.isEmpty()) {
+            return;
+        }
+        Set<WebSocketSession> set = roomSessions.get(roomId);
+        if (set == null || set.isEmpty()) {
+            return;
+        }
+        for (WebSocketSession s : new ArrayList<>(set)) {
+            Object vn = s.getAttributes().get("viewerNickname");
+            if (!(vn instanceof String) || !nickname.equals(vn)) {
+                continue;
+            }
+            lastBroadcastPayloadBySession.remove(s);
+            try {
+                if (s.isOpen()) {
+                    synchronized (s) {
+                        s.sendMessage(new TextMessage(ROOM_CLOSED));
+                    }
+                }
+            } catch (Exception e) {
+                log.debug("shutdownSubscriptionsForNicknameInRoom send roomClosed failed", e);
             }
             try {
                 s.close(CloseStatus.GOING_AWAY);
@@ -163,24 +207,35 @@ public class DpGameRoomPushService {
         if (text.length() > CHAT_MAX_LEN) {
             text = text.substring(0, CHAT_MAX_LEN);
         }
+        final String rawText = text;
+        final String displayText = sensitiveWordService.maskForChat(rawText);
         long now = System.currentTimeMillis();
         Long last = (Long) session.getAttributes().get("_chatLastMs");
         if (last != null && now - last < CHAT_MIN_INTERVAL_MS) {
             return;
         }
         DpRoomBO room = roomService.getAllRooms(roomId);
-        if (room == null || !isNicknameInRoom(room, nickname)) {
+        if (room == null || !roomService.isNicknameInRoom(room, nickname)) {
             return;
         }
         session.getAttributes().put("_chatLastMs", now);
+        Integer senderUserId = roomService.resolveDpUserIdForNickname(room, nickname);
+        RoomChatEntry entry =
+                roomChatBuffer.append(roomId, senderUserId, nickname, rawText, now);
+        if (entry == null) {
+            return;
+        }
         try {
             ObjectNode out = objectMapper.createObjectNode();
             out.put("_ws", "chat");
-            out.put("id", UUID.randomUUID().toString());
+            out.put("id", String.valueOf(entry.getId()));
             out.put("nickname", nickname);
-            out.put("text", text);
+            out.put("text", displayText);
             out.put("serverTime", now);
             out.put("ttlMs", CHAT_TTL_MS);
+            if (senderUserId != null) {
+                out.put("senderUserId", senderUserId);
+            }
             broadcastRawJsonToRoom(roomId, objectMapper.writeValueAsString(out));
         } catch (Exception e) {
             log.warn("chat broadcast failed roomId={}", roomId, e);
@@ -210,7 +265,7 @@ public class DpGameRoomPushService {
             return;
         }
         DpRoomBO room = roomService.getAllRooms(roomId);
-        if (room == null || !isNicknameInRoom(room, nickname)) {
+        if (room == null || !roomService.isNicknameInRoom(room, nickname)) {
             return;
         }
 
@@ -318,7 +373,12 @@ public class DpGameRoomPushService {
                 String json;
                 if (live == null) {
                     json = ROOM_CLOSED;
-                } else {
+                    //如果房间不存在，推送房间关闭消息
+                } else if (nick != null && !nick.trim().isEmpty()
+                        && !roomService.isNicknameInRoom(live, nick.trim())) {
+                    //如果昵称不在房间里，推送房间关闭消息
+                    json = ROOM_CLOSED;
+                } else {//对每个订阅者推送json数据
                     DpRoomBO view = roomService.snapshotForViewerFromLive(live, nick);
                     json = objectMapper.writeValueAsString(view);
                 }
@@ -332,6 +392,14 @@ public class DpGameRoomPushService {
                         s.sendMessage(new TextMessage(json));
                     }
                     lastBroadcastPayloadBySession.put(s, json);
+                    if (ROOM_CLOSED.equals(json) && live != null) {
+                        removeSessionFromRoom(roomId, s);
+                        try {
+                            s.close(CloseStatus.GOING_AWAY);
+                        } catch (IOException ignored) {
+                            // ignore
+                        }
+                    }
                 } catch (IOException e) {
                     log.debug("WebSocket send failed, closing session", e);
                     removeSessionFromRoom(roomId, s);
@@ -390,9 +458,6 @@ public class DpGameRoomPushService {
 
     // =========== 校验与工具方法（按首次引用内联到对应模块） ===========
 
-    /**
-     * 校验音乐WebPath安全，首次用于handleRoomMusicSync。
-     */
     private static boolean isSafeMusicWebPath(String path) {
         if (path == null || path.isEmpty()) {
             return false;
@@ -407,19 +472,4 @@ public class DpGameRoomPushService {
         return rest.length() > 0 && rest.matches("[a-zA-Z0-9._-]+");
     }
 
-    /**
-     * 判断nickname是否在房间内，首次用于handleChatSend/handleRoomMusicSync。
-     */
-    private static boolean isNicknameInRoom(DpRoomBO room, String nickname) {
-        List<DpPlayer> players = room.getPlayers();
-        if (players != null) {
-            for (DpPlayer p : players) {
-                if (p != null && nickname.equals(p.getNickname())) {
-                    return true;
-                }
-            }
-        }
-        List<String> spectators = room.getSpectators();
-        return spectators != null && spectators.contains(nickname);
-    }
 }

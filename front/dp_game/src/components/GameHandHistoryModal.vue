@@ -22,7 +22,10 @@
       <div class="dp-game-dialog__body dp-game-dialog__body--hand-history">
         <hand-history
             v-if="view === 'list'"
+            :key="'hh-' + listMode + '-' + (otherUserId || 'me')"
             embedded
+            :list-mode="listMode"
+            :other-user-id="otherUserId"
             @close="$emit('close')"
             @view-detail="onViewDetail"
         />
@@ -47,7 +50,18 @@ export default {
   props: {
     visible: { type: Boolean, default: false },
     /** 与对局页 `game.vue` 的 `gameUiTheme` 一致，供弹层内列表/详情跟随当前界面主题 */
-    gameUiTheme: { type: String, default: 'default' }
+    gameUiTheme: { type: String, default: 'default' },
+    /** mine：GET /dpHandHistory/list；withOpponent：与同局真人双方的共同列表 */
+    listMode: {
+      type: String,
+      default: 'mine',
+      validator(v) {
+        return v === 'mine' || v === 'withOpponent'
+      }
+    },
+    otherUserId: { type: Number, default: null },
+    /** 列表态弹层标题用，须与卡片/dpDisplayNickname 一致 */
+    opponentDisplayName: { type: String, default: '' }
   },
   data() {
     return {
@@ -57,7 +71,14 @@ export default {
   },
   computed: {
     modalTitle() {
-      return this.view === 'detail' ? '牌谱详情' : '历史对局'
+      if (this.view === 'detail') return '牌谱详情'
+      if (
+        this.listMode === 'withOpponent'
+        && this.opponentDisplayName
+      ) {
+        return '与 ' + this.opponentDisplayName + ' 的历史对局'
+      }
+      return '历史对局'
     }
   },
   watch: {

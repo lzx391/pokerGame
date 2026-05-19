@@ -7,8 +7,15 @@
   >
     <div class="dp-player-social-sheet">
       <div class="dp-player-social-sheet__name">{{ displayName }}</div>
-      <p class="dp-player-social-sheet__placeholder">游戏玩家</p>
+      <p class="dp-player-social-sheet__subtitle">游戏玩家</p>
+      <div
+          v-if="socialPrimaryIsStaticHint"
+          class="dp-player-social-sheet__hint"
+      >
+        {{ primaryLabel }}
+      </div>
       <el-button
+          v-else
           type="primary"
           class="dp-player-social-sheet__btn"
           :disabled="primaryDisabled"
@@ -16,6 +23,14 @@
           @click="onSendRequest"
       >
         {{ primaryLabel }}
+      </el-button>
+      <el-button
+          type="default"
+          plain
+          class="dp-player-social-sheet__btn dp-player-social-sheet__btn--secondary"
+          @click="onViewHandHistoryWithOpponent"
+      >
+        查看与该玩家的历史对局
       </el-button>
       <p v-if="tip" class="dp-player-social-sheet__tip">{{ tip }}</p>
     </div>
@@ -68,8 +83,12 @@ export default {
       if (this.sentOk) return '申请已发送'
       return '发送好友申请'
     },
+    /** 禁用态主按钮在 Element 里会非常浅，改用普通文本块以保持可读 */
+    socialPrimaryIsStaticHint() {
+      return this.isFriend || this.sentOk
+    },
     primaryDisabled() {
-      return this.friendsLoading || this.isFriend || this.sentOk || !!this.tip
+      return this.friendsLoading || this.socialPrimaryIsStaticHint || !!this.tip
     }
   },
   watch: {
@@ -95,6 +114,15 @@ export default {
       } catch (e) {
         /* 静默：仍可尝试发申请 */
       }
+    },
+    onViewHandHistoryWithOpponent() {
+      if (!this.target) return
+      var uid = Number(this.target.userId)
+      if (!uid || uid <= 0 || isNaN(uid)) return
+      this.$emit('view-hand-history-with-opponent', {
+        userId: uid,
+        displayName: this.displayName || this.target.nickname
+      })
     },
     async onSendRequest() {
       if (!this.target || this.primaryDisabled) return
@@ -145,13 +173,36 @@ export default {
   color: var(--dp-text-strong, #1a1a1a);
   margin-bottom: 6px;
 }
-.dp-player-social-sheet__placeholder {
+.dp-player-social-sheet__subtitle {
   font-size: 13px;
-  color: var(--dp-text-muted, #888);
-  margin: 0 0 16px;
+  color: var(--dp-text-secondary, #5a5248);
+  margin: 0 0 12px;
+}
+.dp-player-social-sheet__hint {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--dp-text-primary, #1a1a1a);
+  background: rgba(136, 136, 136, 0.12);
+  border: 1px solid rgba(136, 136, 136, 0.28);
+  margin-bottom: 2px;
+}
+
+@supports (color: color-mix(in srgb, red, blue)) {
+  .dp-player-social-sheet__hint {
+    background: color-mix(in srgb, var(--dp-text-muted, #888) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--dp-text-muted, #888) 38%, transparent);
+  }
 }
 .dp-player-social-sheet__btn {
   width: 100%;
+}
+.dp-player-social-sheet__btn--secondary {
+  margin-top: 10px;
 }
 .dp-player-social-sheet__tip {
   margin: 12px 0 0;

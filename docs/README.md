@@ -1,6 +1,6 @@
 # MGDemoPlus：`docs/` 专题文档总索引
 
-本页是仓库 **`docs/`** 目录的**总导航**：按主题归类，并简要说明每篇文档解决什么问题、适合谁读。更偏「产品 + 运维 + 长变更记录」的说明见 **[README.ch.md](../README.ch.md)**（中文）与 **[README.en.md](../README.en.md)**（英文，同结构）；英文快速入门见 **[README.md](../README.md)**。
+本页是仓库 **`docs/`** 目录的**总导航**：按主题归类，并简要说明每篇文档解决什么问题、适合谁读。更偏「产品 + 运维 + 长变更记录」的说明见 **[README.ch.md](../README.ch.md)**（中文）与 **[README.en.md](../README.en.md)**（英文，同结构）；**项目入口与中英对照短版**见 **[README.md](../README.md)**（上半中文、下半 English，标题层级对齐）。
 
 ---
 
@@ -8,7 +8,7 @@
 
 | 文档 | 内容侧重 |
 |------|----------|
-| **[README.md](../README.md)** | **英文短版**：特性、技术栈、快速开始（**入门首选**） |
+| **[README.md](../README.md)** | **中英对照主 README**：上半中文、下半 English（同级标题）；特性、术语（快匹 / 大厅 / 对局页）、栈与快速开始（**入门首选**） |
 | **[README.ch.md](../README.ch.md)** | **中文长说明**：环境变量、Docker、WebSocket、对局 UI 迭代、NPC、牌谱、曲库、Redis 等（按功能/时间线） |
 | **[README.en.md](../README.en.md)** | **English long-form**（与 README.ch 同内容，英文） |
 

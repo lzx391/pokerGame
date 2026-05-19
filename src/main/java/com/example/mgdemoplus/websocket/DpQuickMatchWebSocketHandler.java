@@ -1,7 +1,7 @@
 package com.example.mgdemoplus.websocket;
 
 import com.example.mgdemoplus.security.JwtTokenService;
-import com.example.mgdemoplus.service.serviceImpl.dp.DpRoomServiceImpl;
+import com.example.mgdemoplus.room.DpRoomService;
 import io.jsonwebtoken.Claims;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
@@ -21,12 +21,12 @@ public class DpQuickMatchWebSocketHandler extends TextWebSocketHandler {
 
     private final DpQuickMatchPushService pushService;
     private final JwtTokenService jwtTokenService;
-    private final DpRoomServiceImpl dpRoomService;
+    private final DpRoomService dpRoomService;
 
     public DpQuickMatchWebSocketHandler(
             DpQuickMatchPushService pushService,
             JwtTokenService jwtTokenService,
-            DpRoomServiceImpl dpRoomService) {
+            DpRoomService dpRoomService) {
         this.pushService = pushService;
         this.jwtTokenService = jwtTokenService;
         this.dpRoomService = dpRoomService;

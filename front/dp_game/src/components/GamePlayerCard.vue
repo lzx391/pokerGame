@@ -109,7 +109,7 @@
           </div>
         </template>
       </div>
-      <div v-if="showHandRankSection && rankBlockHasVisiblePart" class="dp-player-card__hand-rank dp-player-card__hand-rank--rival">
+      <div v-if="showHandRankSectionRivalSeat && rankBlockHasVisiblePart" class="dp-player-card__hand-rank dp-player-card__hand-rank--rival">
         <span
           v-if="displayHandRankName"
           class="dp-player-card__rank-pill"
@@ -522,15 +522,19 @@ export default {
       }
       if (!this.compact) return true
       /**
-       * 本人：圆桌紧凑位或内联手牌区 — 翻牌前仅在手牌飞入阶段展示桌上牌；
-       * 结束后收起（桌上与下方一致），翻牌前看牌用外层「查看手牌」；翻牌后下方内联区常驻。
-       * 抽屉内 skipHoleDealAnimation 会把 introDone 置 true，不得按 intro 隐藏，否则翻牌前弹层里看不到牌。
+       * 本人内联手牌区：翻牌前仅在手牌飞入阶段展示，结束后收起；翻牌前看牌用「查看手牌」；翻牌后 dock 常驻。
+       * 圆桌本人 rival-mini：常态仅信息条不铺底牌；宽屏翻前底部 dock 不挂载，
+       * 故仅在 preflop 且 intro 未完成时短暂渲染底牌行以播放庄位飞入动画，intro 结束后收起。
+       * 抽屉 skipHoleDealAnimation 会把 introDone 置 true，不得按 intro 隐藏。
        */
-      if ((this.heroHandDock || this.rivalMini) && this.isMe) {
-        if (this.heroHandDock && this.skipHoleDealAnimation) return true
+      if (this.heroHandDock && this.isMe) {
+        if (this.skipHoleDealAnimation) return true
         if (this.stage === 'showdown' || this.stage === 'settled') return true
         if (this.stage === 'preflop') return !this.holeDealIntroDone
         return this.showHoleCardsRevealed
+      }
+      if (this.rivalMini && this.isMe) {
+        return this.stage === 'preflop' && !this.holeDealIntroDone
       }
       if (this.showHoleCardsRevealed) return true
       if (this.stage === 'preflop') return !this.holeDealIntroDone
@@ -565,6 +569,11 @@ export default {
         || (this.isOwner && this.ownerRevealAll && this.player.holeCards && this.player.holeCards.length > 0)
         || ((this.stage === 'showdown' || this.stage === 'settled') && !this.player.fold)
       )
+    },
+    /** 圆桌 rival-mini 模板用：本人席只做信息条，不挂牌型/最佳五张（与 dock 分工） */
+    showHandRankSectionRivalSeat() {
+      if (this.rivalMini && this.isMe) return false
+      return this.showHandRankSection
     },
     /** 翻后有成牌服务端字段时才渲染牌型区；翻前本来就不展示该区域（community 不足三张） */
     rankBlockHasVisiblePart() {

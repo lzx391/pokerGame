@@ -88,4 +88,5 @@ public class ResultUtil {
         this.setData(data);
         return this;
     }
+
 }

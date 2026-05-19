@@ -18,7 +18,7 @@
       </div>
       <div v-else class="game-owner-tool-embedded__title">房间管理 · 机器人与踢人</div>
 
-      <div style="margin-bottom:12px; font-size:13px; color:#666;">
+      <div class="game-owner-tool__rule-hint">
         <template v-if="ownerToolType === 'transfer'">
           移交对象：桌上本局真人（不含僵尸位）与观众席真人；不含机器人与房主。
         </template>
@@ -39,7 +39,8 @@
           <span style="font-weight:bold;">BOT_NIT</span>、
           <span style="font-weight:bold;">BOT_CALL</span>、
           <span style="font-weight:bold;">BOT_MANIAC</span>；
-          另有 <span style="font-weight:bold;">BOT_LLM</span>（大模型）。
+          另有 <span style="font-weight:bold;">BOT_LLM</span>（大模型）与
+          <span style="font-weight:bold;">BOT_LLM_GLOBAL</span>（整手叙事 / 多轮上下文）。
           服务端会为 BOT 生成唯一后缀；JSON 里仍是完整 nickname，牌桌上展示为前缀 + uuid 去横线后的前 4 位。
           先调数量（1～9，受房间空位限制），再点「确认添加」。
         </div>
@@ -94,7 +95,7 @@
               <button
                 type="button"
                 class="owner-npc-count-btn"
-                :disabled="llmBotAdding || npcCounts.llm <= 1"
+                :disabled="anyLlmBotSubmitting || npcCounts.llm <= 1"
                 @click="bumpNpcCount('llm', -1, 9)"
               >
                 −
@@ -105,13 +106,13 @@
                 min="1"
                 max="9"
                 class="owner-npc-count-input"
-                :disabled="llmBotAdding"
+                :disabled="anyLlmBotSubmitting"
                 @change="normalizeNpcCount('llm', 9)"
               >
               <button
                 type="button"
                 class="owner-npc-count-btn"
-                :disabled="llmBotAdding || npcCounts.llm >= 9"
+                :disabled="anyLlmBotSubmitting || npcCounts.llm >= 9"
                 @click="bumpNpcCount('llm', 1, 9)"
               >
                 +
@@ -119,13 +120,53 @@
             </span>
             <button
               type="button"
-              :disabled="llmBotAdding"
-              :style="confirmNpcStyle('#08979c', !llmBotAdding)"
+              :disabled="anyLlmBotSubmitting"
+              :style="confirmNpcStyle('#08979c', !anyLlmBotSubmitting)"
               @click="$emit('confirm-add-npcs', { type: 'llm', count: clampCount(npcCounts.llm, 9) })"
             >
               {{ llmBotAdding ? '提交中…' : '确认添加' }}
             </button>
             <span v-if="llmBotAddedTip" style="flex:1 1 220px; color:#595959;">{{ llmBotAddedTip }}</span>
+          </div>
+
+          <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:12px;">
+            <span style="min-width:148px; font-weight:600; color:#006d75;">BOT_LLM_GLOBAL</span>
+            <span style="display:inline-flex; align-items:center; gap:4px;">
+              <button
+                type="button"
+                class="owner-npc-count-btn"
+                :disabled="anyLlmBotSubmitting || npcCounts.llmGlobal <= 1"
+                @click="bumpNpcCount('llmGlobal', -1, 9)"
+              >
+                −
+              </button>
+              <input
+                v-model.number="npcCounts.llmGlobal"
+                type="number"
+                min="1"
+                max="9"
+                class="owner-npc-count-input"
+                :disabled="anyLlmBotSubmitting"
+                @change="normalizeNpcCount('llmGlobal', 9)"
+              >
+              <button
+                type="button"
+                class="owner-npc-count-btn"
+                :disabled="anyLlmBotSubmitting || npcCounts.llmGlobal >= 9"
+                @click="bumpNpcCount('llmGlobal', 1, 9)"
+              >
+                +
+              </button>
+            </span>
+            <button
+              type="button"
+              :disabled="anyLlmBotSubmitting"
+              :style="confirmNpcStyle('#006d75', !anyLlmBotSubmitting)"
+              @click="$emit('confirm-add-npcs', { type: 'llmGlobal', count: clampCount(npcCounts.llmGlobal, 9) })"
+            >
+              {{ llmGlobalBotAdding ? '提交中…' : '确认添加' }}
+            </button>
+            <span v-if="llmGlobalBotAddedTip" style="flex:1 1 220px; color:#595959;">{{ llmGlobalBotAddedTip }}</span>
           </div>
         </div>
       </div>
@@ -154,19 +195,19 @@
         </button>
       </div>
 
-      <div style="margin-bottom:10px; font-size:13px; color:#333;">
+      <div class="game-owner-tool__action-prompt">
         <span v-if="ownerToolType === 'transfer'">选择桌上玩家或观众成为新房主：</span>
         <span v-else>勾选一名或多名在座玩家，批量踢出本局并移至观众席：</span>
       </div>
 
-      <div v-if="ownerActionPlayers.length === 0" style="font-size:13px; color:#999;">
+      <div v-if="ownerActionPlayers.length === 0" class="game-owner-tool__empty">
         当前没有可操作的玩家。
       </div>
       <template v-else>
-        <div v-if="ownerToolType === 'transfer'" style="margin-bottom:12px;">
+        <div v-if="ownerToolType === 'transfer'" class="game-owner-tool__select-wrap">
           <select
             :value="ownerActionTarget"
-            style="width:100%; padding:6px 8px; border-radius:4px; border:1px solid #d9d9d9; font-size:13px;"
+            class="game-owner-tool__select"
             @input="$emit('update:ownerActionTarget', $event.target.value)"
           >
             <option disabled value="">请选择玩家</option>
@@ -179,38 +220,36 @@
             </option>
           </select>
         </div>
-        <div v-else style="margin-bottom:12px;">
-          <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; font-size:12px;">
+        <div v-else class="game-owner-tool__kick-block">
+          <div class="game-owner-tool__kick-toolbar">
             <button
               type="button"
-              style="padding:4px 10px; border-radius:4px; border:1px solid #d9d9d9; background:#fff; cursor:pointer;"
+              class="game-owner-tool__mini-btn"
               @click="selectAllKickable"
             >
               全选
             </button>
             <button
               type="button"
-              style="padding:4px 10px; border-radius:4px; border:1px solid #d9d9d9; background:#fff; cursor:pointer;"
+              class="game-owner-tool__mini-btn"
               @click="clearKickSelection"
             >
               全不选
             </button>
-            <span style="color:#8c8c8c; line-height:28px;">已选 {{ kickSelectionNicknames.length }} 人</span>
+            <span class="game-owner-tool__kick-count">已选 {{ kickSelectionNicknames.length }} 人</span>
           </div>
-          <div
-            style="max-height:200px; overflow-y:auto; padding:8px; border:1px solid #f0f0f0; border-radius:6px; background:#fafafa;"
-          >
+          <div class="game-owner-tool__kick-list">
             <label
               v-for="p in ownerActionPlayers"
               :key="'kick-row-' + p.nickname"
-              style="display:flex; align-items:center; gap:10px; padding:6px 4px; cursor:pointer; font-size:13px;"
+              class="game-owner-tool__kick-row"
             >
               <input
                 type="checkbox"
                 :checked="isKickNicknameSelected(p.nickname)"
                 @change="onKickCheck(p.nickname, $event.target.checked)"
               >
-              <span>{{ displayNickname(p.nickname) }}</span>
+              <span class="game-owner-tool__kick-name">{{ displayNickname(p.nickname) }}</span>
             </label>
           </div>
         </div>
@@ -219,7 +258,7 @@
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:4px;">
         <button
           type="button"
-          style="padding:6px 12px; border-radius:4px; border:1px solid #d9d9d9; background:#fff; cursor:pointer; font-size:12px;"
+          class="game-owner-tool__footer-btn game-owner-tool__footer-btn--ghost"
           @click="$emit('close')"
         >
           取消
@@ -261,7 +300,8 @@ export default {
         nit: 1,
         call: 1,
         maniac: 1,
-        llm: 1
+        llm: 1,
+        llmGlobal: 1
       },
       /** 踢人页多选（在座玩家 nickname） */
       kickSelectionNicknames: []
@@ -296,9 +336,14 @@ export default {
     callBotAdding: { type: Boolean, default: false },
     callBotAddedTip: { type: String, default: '' },
     llmBotAdding: { type: Boolean, default: false },
-    llmBotAddedTip: { type: String, default: '' }
+    llmBotAddedTip: { type: String, default: '' },
+    llmGlobalBotAdding: { type: Boolean, default: false },
+    llmGlobalBotAddedTip: { type: String, default: '' }
   },
   computed: {
+    anyLlmBotSubmitting () {
+      return !!(this.llmBotAdding || this.llmGlobalBotAdding)
+    },
     ruleNpcRows () {
       return [
         {
@@ -450,6 +495,110 @@ export default {
 </script>
 
 <style scoped>
+.game-owner-tool__rule-hint {
+  margin-bottom: 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--dp-text-secondary, #595959);
+}
+
+.game-owner-tool__action-prompt {
+  margin-bottom: 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--dp-text-primary, #252018);
+}
+
+.game-owner-tool__empty {
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--dp-text-muted, #8c8c8c);
+}
+
+.game-owner-tool__select-wrap {
+  margin-bottom: 12px;
+}
+
+.game-owner-tool__select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--dp-input-border, #d9d9d9);
+  background: var(--dp-input-bg, #fff);
+  color: var(--dp-text-primary, #252018);
+  font-size: 13px;
+}
+
+.game-owner-tool__kick-block {
+  margin-bottom: 12px;
+}
+
+.game-owner-tool__kick-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  align-items: center;
+}
+
+.game-owner-tool__mini-btn {
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--dp-input-border, #d9d9d9);
+  background: var(--dp-btn-ghost-bg, #fff);
+  color: var(--dp-text-primary, #252018);
+  cursor: pointer;
+}
+
+.game-owner-tool__mini-btn:hover {
+  filter: brightness(1.05);
+}
+
+.game-owner-tool__kick-count {
+  color: var(--dp-text-muted, #8c8c8c);
+  line-height: 28px;
+}
+
+.game-owner-tool__kick-list {
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid var(--dp-subpanel-border, var(--dp-panel-border, #e8e8e8));
+  border-radius: 6px;
+  background: var(--dp-subpanel-bg, #f5f5f5);
+  color: var(--dp-text-primary, #252018);
+}
+
+.game-owner-tool__kick-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px;
+  cursor: pointer;
+  font-size: 13px;
+  color: inherit;
+}
+
+.game-owner-tool__kick-name {
+  color: var(--dp-text-primary, #252018);
+  font-weight: 500;
+}
+
+.game-owner-tool__footer-btn {
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.game-owner-tool__footer-btn--ghost {
+  border: 1px solid var(--dp-input-border, #d9d9d9);
+  background: var(--dp-btn-ghost-bg, #fff);
+  color: var(--dp-text-primary, #252018);
+}
+
 .owner-npc-count-btn {
   width: 28px;
   height: 28px;

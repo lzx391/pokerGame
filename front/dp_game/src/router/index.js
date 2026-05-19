@@ -32,37 +32,54 @@
 // })
 // export default router
 // 意思是导出路由供其他文件引用
-import Home from '@/components/home.vue'
-import CreateRoom from '@/components/CreateRoom.vue'
-import Login from '@/components/login.vue'
-import Register from '@/components/register.vue'
-import Room from '@/components/room.vue'
 import Vue from 'vue'
 import Router from 'vue-router'
-import Game from '../components/game.vue'
-import ImageUpload from '@/components/image_upload.vue'
-import HandHistory from '@/components/HandHistory.vue'
-import HandHistoryDetail from '@/components/HandHistoryDetail.vue'
-import MusicUpload from '@/components/MusicUpload.vue'
 
 Vue.use(Router)
 
 export default new Router({
   routes: [
     { path: '/', redirect: '/login' },
-    { path: '/login', component: Login },
-    { path: '/register', component: Register },
-    { path: '/home', component: Home },
-    { path: '/create-room', component: CreateRoom },
-    { path: '/hand-history', component: HandHistory },
+    {
+      path: '/login',
+      component: () => import(/* webpackChunkName: "route-login" */ '@/components/login.vue')
+    },
+    {
+      path: '/register',
+      component: () => import(/* webpackChunkName: "route-register" */ '@/components/register.vue')
+    },
+    {
+      path: '/home',
+      component: () => import(/* webpackChunkName: "route-home" */ '@/components/home.vue')
+    },
+    {
+      path: '/create-room',
+      component: () => import(/* webpackChunkName: "route-create-room" */ '@/components/CreateRoom.vue')
+    },
+    {
+      path: '/hand-history',
+      component: () => import(/* webpackChunkName: "route-hand-history" */ '@/components/HandHistory.vue')
+    },
     {
       path: '/hand-history/detail/:handHistoryId',
-      component: HandHistoryDetail,
+      component: () => import(/* webpackChunkName: "route-hand-history-detail" */ '@/components/HandHistoryDetail.vue'),
       props: true
     },
-    { path: '/room/:roomId', component: Room },   // 动态路由，不是嵌套
-    { path: '/game/:roomId', component: Game } ,  // 动态路由，不是嵌套
-    { path: '/image_upload', component: ImageUpload },
-    { path: '/music-upload', component: MusicUpload }
+    {
+      path: '/room/:roomId',
+      component: () => import(/* webpackChunkName: "route-room" */ '@/components/room.vue')
+    },
+    {
+      path: '/game/:roomId',
+      component: () => import(/* webpackChunkName: "route-game" */ '@/components/game.vue')
+    },
+    {
+      path: '/image_upload',
+      component: () => import(/* webpackChunkName: "route-image-upload" */ '@/components/image_upload.vue')
+    },
+    {
+      path: '/music-upload',
+      component: () => import(/* webpackChunkName: "route-music-upload" */ '@/components/MusicUpload.vue')
+    }
   ]
 })

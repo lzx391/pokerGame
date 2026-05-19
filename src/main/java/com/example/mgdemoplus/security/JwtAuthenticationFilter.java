@@ -1,15 +1,18 @@
 package com.example.mgdemoplus.security;
 
-import com.example.mgdemoplus.service.dp.DpRedisLoginCacheService;
+import com.example.mgdemoplus.user.cache.DpRedisLoginCacheService;
 import com.example.mgdemoplus.utils.ResultCode;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.jsonwebtoken.Claims;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -31,6 +34,8 @@ import java.util.Map;
  * 白名单路径不强制登录；白名单上若带合法 token 仍会写入身份，便于后续扩展。
  */
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final RequestMatcher publicPaths;
     private final ObjectMapper objectMapper;
@@ -61,25 +66,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                  * 白名单路径不强制登录；白名单上若带合法 token 仍会写入身份，便于后续扩展。
                  */
                 applyTokenIfPresentAndValid(request);
+                logSocialStreamAuth(request);
                 filterChain.doFilter(request, response);
                 return;
             }
 
-            String token = jwtTokenService.stripBearerToken(request.getHeader("Authorization"));
+            String token = resolveToken(request);
             if (token == null) {
                 filterChain.doFilter(request, response);
                 return;
             }
             try {
-                Claims claims = jwtTokenService.verifyToken(token);
-                String subject = claims.getSubject();
-                String jti = claims.getId();
-                String cach_jti = dpRedisLoginCacheService.getLoginJti(subject);
-                if (subject != null && !subject.isBlank() && cach_jti != null && !cach_jti.isBlank() && cach_jti.equals(jti)) {
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(subject, null, null);
-                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                setAuthenticationIfTokenValid(request, token);
+                if (SecurityContextHolder.getContext().getAuthentication() == null) {
+                    writeUnauthorized(response, "token 无效或已过期");
+                    return;
                 }
             } catch (Exception e) {
                 // 这里调用 writeUnauthorized() 是本过滤器内主动判断 token 非法/过期时，立刻响应401，让前端知道 token 有问题
@@ -96,22 +97,33 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private void applyTokenIfPresentAndValid(HttpServletRequest request) {
-        String token = jwtTokenService.stripBearerToken(request.getHeader("Authorization"));
+        String token = resolveToken(request);
         if (token == null) {
             return;
         }
         try {
-            Claims claims = jwtTokenService.verifyToken(token);
-            String subject = claims.getSubject();
-            if (subject != null && !subject.isBlank()) {
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(subject, null, null);
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-            }
+            setAuthenticationIfTokenValid(request, token);
         } catch (Exception ignored) {
             // 登录页等白名单路径：忽略坏 token，按匿名访问
         }
+    }
+
+    private void setAuthenticationIfTokenValid(HttpServletRequest request, String token) {
+        Claims claims = jwtTokenService.verifyToken(token);
+        String subject = claims.getSubject();
+        String jti = claims.getId();
+        String cachedJti = dpRedisLoginCacheService.getLoginJti(subject);
+        if (subject == null
+                || subject.isBlank()
+                || cachedJti == null
+                || cachedJti.isBlank()
+                || !cachedJti.equals(jti)) {
+            return;
+        }
+        UsernamePasswordAuthenticationToken authentication =
+                new UsernamePasswordAuthenticationToken(subject, null, null);
+        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+        SecurityContextHolder.getContext().setAuthentication(authentication);
     }
     // JwtAuthenticationEntryPoint 的 commence 方法并没有在 JwtAuthenticationFilter 中被直接调用。
     // 它是由 Spring Security 框架在认证失败（例如需要认证但 SecurityContext 没有用户）时自动调用的。
@@ -122,6 +134,49 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     /**
      * 返回 401 未授权 JSON 响应，逐行解释如下：
      */
+    /**
+     * 解析token的，从普通请求头和SSE连接中拿
+     * 优先 {@code Authorization: Bearer}；仅 {@code GET /dp/social/stream} 支持 {@code ?token=}（EventSource 无法设 Header）。
+     * 禁止将 token 写入日志。
+     */
+    private String resolveToken(HttpServletRequest request) {
+        String headerToken = jwtTokenService.stripBearerToken(request.getHeader("Authorization"));
+        if (headerToken != null) {
+            return headerToken;
+        }
+        if (!isSocialStreamRequest(request)) {
+            return null;
+        }
+        String queryToken = request.getParameter("token");
+        if (queryToken == null || queryToken.isBlank()) {
+            return null;
+        }
+        return queryToken.trim();
+    }
+
+    private void logSocialStreamAuth(HttpServletRequest request) {
+        if (!isSocialStreamRequest(request)) {
+            return;
+        }
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null
+                && auth.isAuthenticated()
+                && !"anonymousUser".equals(String.valueOf(auth.getPrincipal()))) {
+            log.info("[social-sse] stream filter auth ok nickname={}", auth.getName());
+        } else {
+            String hasQueryToken = request.getParameter("token") != null ? "yes" : "no";
+            log.warn("[social-sse] stream filter no auth queryTokenPresent={}", hasQueryToken);
+        }
+    }
+
+    private static boolean isSocialStreamRequest(HttpServletRequest request) {
+        if (request == null || !"GET".equalsIgnoreCase(request.getMethod())) {
+            return false;
+        }
+        String uri = request.getRequestURI();
+        return uri != null && uri.endsWith("/dp/social/stream");
+    }
+
     private void writeUnauthorized(HttpServletResponse response, String message) throws IOException {
         // 1. 设置响应状态码为 401（未授权）
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

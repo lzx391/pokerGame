@@ -50,12 +50,18 @@ function initialState() {
     communityCardsFlipState: [],
     communityCardsFlipComplete: false,
     seatChatTextByNick: {},
+    /** 局内聊天持久列表（REST recent + WS 追加，不按 15s TTL 清除） */
+    roomChatMessages: [],
     chatInputDraft: '',
     showPlayGuideModal: false,
     playGuideTab: 'flow',
     showSpectatorModal: false,
     showWaitNextHandModal: false,
     showHandHistoryModal: false,
+    /** 与指定真人玩家的共同牌谱列表（独立于「我的历史」弹层，避免状态串联） */
+    showOpponentHandHistoryModal: false,
+    opponentHandHistoryOtherUserId: null,
+    opponentHandHistoryDisplayName: '',
     showMusicBoxModal: false,
     musicTracks: [],
     musicTracksLoading: false,
@@ -78,6 +84,8 @@ function initialState() {
     callBotAddedTip: '',
     llmBotAdding: false,
     llmBotAddedTip: '',
+    llmGlobalBotAdding: false,
+    llmGlobalBotAddedTip: '',
     ownerRevealAll: false,
     showMobileHandSheet: false,
     showMobileActionSheet: false,
@@ -115,7 +123,15 @@ export default {
       return !!getters.myPlayer.leftThisHand
     },
     myReady: function (state, getters) {
-      return getters.myPlayer ? getters.myPlayer.ready : false
+      var p = getters.myPlayer
+      if (!p) return false
+      var r = p.ready
+      var ir = p.isReady
+      return !!(
+        r === true || r === 1
+        || (typeof r === 'string' && r.toLowerCase() === 'true')
+        || ir === true || ir === 1
+      )
     },
     myChips: function (state, getters) {
       return getters.myPlayer ? getters.myPlayer.chips : 0
@@ -285,13 +301,6 @@ export default {
       if (state.stage !== 'preflop') return true
       return state.heroHoleDealIntroDone
     },
-    showHeroSeatOnTable: function (state, getters) {
-      return (
-        getters.viewerSeatedAtTable
-        && state.stage === 'preflop'
-        && !state.heroHoleDealIntroDone
-      )
-    },
     showBottomHeroDock: function (state, getters) {
       return getters.heroDockRow && state.stage !== 'preflop'
     },
@@ -346,6 +355,19 @@ export default {
       state.ecoMode = !!on
       writeEcoMode(!!on)
     },
+    /**
+     * 结算阶段点准备/取消后先乐观改本人 ready，避免 WS/HTTP 过期整表快照把 UI 打回旧态。
+     */
+    PATCH_MY_PLAYER_READY(state, value) {
+      var nick = state.user && state.user.nickname
+      if (!nick || !state.players || !state.players.length) return
+      for (var i = 0; i < state.players.length; i++) {
+        if (state.players[i] && state.players[i].nickname === nick) {
+          Vue.set(state.players[i], 'ready', !!value)
+          return
+        }
+      }
+    },
     APPLY_ROOM: function (state, room) {
       state.owner = room.owner
       state.players = room.players || []
@@ -389,6 +411,46 @@ export default {
         Vue.delete(state.seatChatTextByNick, nick)
       }
     },
+    CLEAR_ROOM_CHAT_MESSAGES: function (state) {
+      state.roomChatMessages = []
+    },
+    MERGE_ROOM_CHAT_MESSAGES: function (state, items) {
+      if (!Array.isArray(items) || !items.length) return
+      var byId = {}
+      var list = state.roomChatMessages || []
+      for (var i = 0; i < list.length; i++) {
+        var cur = list[i]
+        if (cur && cur.id != null) byId[String(cur.id)] = cur
+      }
+      for (var j = 0; j < items.length; j++) {
+        var m = items[j]
+        if (!m || m.id == null) continue
+        byId[String(m.id)] = m
+      }
+      var merged = Object.keys(byId).map(function (k) {
+        return byId[k]
+      })
+      merged.sort(function (a, b) {
+        var ta = a.serverTime != null ? Number(a.serverTime) : 0
+        var tb = b.serverTime != null ? Number(b.serverTime) : 0
+        if (ta !== tb) return ta - tb
+        var ia = parseInt(String(a.id), 10)
+        var ib = parseInt(String(b.id), 10)
+        if (isFinite(ia) && isFinite(ib) && ia !== ib) return ia - ib
+        return String(a.id).localeCompare(String(b.id))
+      })
+      state.roomChatMessages = merged
+    },
+    APPEND_ROOM_CHAT_MESSAGE: function (state, msg) {
+      if (!msg || msg.id == null) return
+      var id = String(msg.id)
+      var list = state.roomChatMessages || []
+      for (var i = 0; i < list.length; i++) {
+        if (String(list[i].id) === id) return
+      }
+      list.push(msg)
+      state.roomChatMessages = list
+    },
     SET_COMMUNITY_FLIP_STATE: function (state, arr) {
       state.communityCardsFlipState = arr || []
     },
@@ -431,6 +493,19 @@ export default {
       if (payload.showSpectatorModal !== undefined) state.showSpectatorModal = payload.showSpectatorModal
       if (payload.showWaitNextHandModal !== undefined) state.showWaitNextHandModal = payload.showWaitNextHandModal
       if (payload.showHandHistoryModal !== undefined) state.showHandHistoryModal = payload.showHandHistoryModal
+      if (payload.showOpponentHandHistoryModal !== undefined) {
+        state.showOpponentHandHistoryModal = payload.showOpponentHandHistoryModal
+        if (!payload.showOpponentHandHistoryModal) {
+          state.opponentHandHistoryOtherUserId = null
+          state.opponentHandHistoryDisplayName = ''
+        }
+      }
+      if (payload.opponentHandHistoryOtherUserId !== undefined) {
+        state.opponentHandHistoryOtherUserId = payload.opponentHandHistoryOtherUserId
+      }
+      if (payload.opponentHandHistoryDisplayName !== undefined) {
+        state.opponentHandHistoryDisplayName = payload.opponentHandHistoryDisplayName || ''
+      }
       if (payload.showMusicBoxModal !== undefined) state.showMusicBoxModal = payload.showMusicBoxModal
     },
     SET_MUSIC_TRACKS: function (state, payload) {
@@ -455,6 +530,7 @@ export default {
       state.nitBotAddedTip = ''
       state.callBotAddedTip = ''
       state.llmBotAddedTip = ''
+      state.llmGlobalBotAddedTip = ''
     },
     CLOSE_OWNER_HUB: function (state) {
       state.showOwnerHubSheet = false
@@ -484,6 +560,8 @@ export default {
       if (payload.callBotAddedTip !== undefined) state.callBotAddedTip = payload.callBotAddedTip
       if (payload.llmBotAdding !== undefined) state.llmBotAdding = payload.llmBotAdding
       if (payload.llmBotAddedTip !== undefined) state.llmBotAddedTip = payload.llmBotAddedTip
+      if (payload.llmGlobalBotAdding !== undefined) state.llmGlobalBotAdding = payload.llmGlobalBotAdding
+      if (payload.llmGlobalBotAddedTip !== undefined) state.llmGlobalBotAddedTip = payload.llmGlobalBotAddedTip
     },
     SET_MOBILE_SHEETS: function (state, payload) {
       if (payload.showMobileHandSheet !== undefined) state.showMobileHandSheet = payload.showMobileHandSheet
@@ -494,6 +572,7 @@ export default {
     },
     RESET_ON_ROOM_CLOSED: function (state) {
       state.roomMusicState = null
+      state.roomChatMessages = []
     }
   }
 }

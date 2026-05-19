@@ -117,9 +117,19 @@ margin: 8px 0 18px;  /* 上 右 下 左（左右为 0） */
 - 默认/宽屏里 **`margin-top` / `margin-bottom`**：操作区与圆桌、与屏幕底之间的空隙。
 - **`@media (max-width: 600px)`** 里会单独收紧 **`margin-top`**、**`margin-bottom`**。
 
-若你只改圆桌的 **`margin` 第三个数（下）**，通常就能改变「桌子和底下操作区」的间距。
+### 5.1 窄屏 / 全屏底栏经济条（常驻小鱼干，`GameHeroDockFooter`）
+
+在 ≤600px 或 **layout-fs / 原生全屏** 时，`footer` 里是 **`.dp-game-mobile-hero-bar`**：
+
+- **聊天**：**`.dp-game-mobile-hero-bar__chat`** 单独占一整行（不要与筹码、按钮排在同一 flex 行，否则极易断行重叠）。
+- **第二行**：**`.dp-game-mobile-hero-bar__lower`** 内放 **离座/看手牌**、**`.dp-game-mobile-chips-strip`**（剩余小鱼干 + 本轮/还需补 pill）、**`.dp-game-mobile-hero-bar__cta-slot`**（行动/准备）。筹码条与 CTA 用 **flex-wrap** 自适应换行，仍留在同一 footer 文档流内。
+- **主题**：底部遮罩（scrim）、筹码卡片背景一律用 **`color-mix(..., var(--dp-panel-bg))`** 等与 **`--dp-*`** 对齐，避免与暗色主题冲突。
+- **触控**：`.dp-game-mobile-hero-bar__btn` **`min-height: 44px`**；聊天发送键在 **mobile-dock** 变体下同高。
+
+可调参时在 **`dp-game-shell.css`** 搜 **`dp-game-mobile-chips-strip`**、**`dp-game-mobile-hero-bar__`**。
 
 ---
+
 
 ## 6. 最外层边距：`.dp-game-root`
 
@@ -158,7 +168,7 @@ margin: 8px 0 18px;  /* 上 右 下 左（左右为 0） */
 | 主题颜色、`--dp-*` 变量 | `front/dp_game/src/styles/dp-game-themes.css` |
 | 顶栏组件结构 | `front/dp_game/src/components/GameTopBar.vue` |
 | 圆桌组件结构 | `front/dp_game/src/components/GameRoundTable.vue` |
-| 底部手牌与操作 | `front/dp_game/src/components/GameHeroDockFooter.vue` |
+| 窄屏底栏筹码条与操作 | `dp-game-shell.css`（`dp-game-mobile-chips-strip` 等） |
 | 牌桌按视口 scale 适配（内容盒量高） | `front/dp_game/src/mixins/dpGameTableFitMixin.js` |
 | 三档布局（phone / tablet / desktop） | `front/dp_game/src/styles/dp-game-layout-tiers.css`、`front/dp_game/src/mixins/dpGameLayoutTierMixin.js` |
 | 整页外壳（/game 铺满） | `front/dp_game/src/App.vue` |

@@ -84,6 +84,7 @@ import '@/styles/dp-game-themes.css'
 import '@/styles/dp-lobby-shell.css'
 import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
+import { exitLobbyQuickMatchSilently } from '@/utils/dpLobbyQuickMatchExit'
 
 export default {
   name: 'CreateRoom',
@@ -124,6 +125,7 @@ export default {
       if (this.submitting) return
       this.submitting = true
       try {
+        await exitLobbyQuickMatchSilently(this.$http, this.user, {})
         var sc = Math.max(1, Number(this.smallBlind) || 5)
         var cap = Math.round(Number(this.maxSeatCount) || 9)
         cap = Math.min(9, Math.max(2, cap))

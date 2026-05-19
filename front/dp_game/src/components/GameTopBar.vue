@@ -11,6 +11,18 @@
           小鱼干池 <span class="dp-top-bar__pot">{{ pot }}</span>
           <span class="dp-top-bar__meta-sep dp-top-bar__meta-sep--thin" aria-hidden="true">|</span>
           需对齐 <span class="dp-top-bar__bet">{{ currentBetToCall }}</span>
+          <template v-if="showHeroEconomy">
+            <span class="dp-top-bar__meta-sep dp-top-bar__meta-sep--thin" aria-hidden="true">|</span>
+            <span
+                class="dp-top-bar__hero-eco"
+                role="region"
+                :aria-label="heroEconomyAriaLabel"
+            >
+              <span class="dp-top-bar__hero-eco-stash">持有 <strong class="dp-top-bar__hero-eco-strong">{{ heroMyChips }}</strong></span>
+              <span class="dp-top-bar__meta-sep dp-top-bar__meta-sep--thin" aria-hidden="true">|</span>
+              <span class="dp-top-bar__hero-eco-secondary">{{ heroEconomySecondaryLabel }} <strong class="dp-top-bar__hero-eco-strong">{{ heroEconomySecondaryValue }}</strong></span>
+            </span>
+          </template>
         </span>
       </div>
       <div ref="settingsRoot" class="dp-top-bar__settings-wrap">
@@ -168,6 +180,24 @@ export default {
       default: function () {
         return []
       }
+    },
+    /** 上桌本人：在统计行展示持有与本轮/还需补（与底栏拆离，仅顶栏一处） */
+    showHeroEconomy: { type: Boolean, default: false },
+    heroMyChips: { type: [Number, String], default: 0 },
+    heroEconomySecondaryLabel: { type: String, default: '本轮' },
+    heroEconomySecondaryValue: { type: [Number, String], default: 0 }
+  },
+  computed: {
+    heroEconomyAriaLabel: function () {
+      if (!this.showHeroEconomy) return ''
+      return (
+          '剩余小鱼干 ' +
+          this.heroMyChips +
+          '，' +
+          this.heroEconomySecondaryLabel +
+          ' ' +
+          this.heroEconomySecondaryValue
+      )
     }
   },
   data: function () {

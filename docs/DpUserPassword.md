@@ -31,8 +31,8 @@
 相关代码：
 
 - 摘要：`com.example.mgdemoplus.utils.CryptoUtil#md5HexUtf8`
-- 注册/登录/改密：`com.example.mgdemoplus.service.serviceImpl.dp.DpUserServiceImpl`
-- SQL 条件：`com.example.mgdemoplus.mapper.dp.DpUserMapper`（`loginUser` 按昵称 + 密码摘要查询）
+- 注册/登录/改密：`com.example.mgdemoplus.service.serviceImpl.DpUserServiceImpl`
+- SQL 条件：`com.example.mgdemoplus.mapper.DpUserMapper`（`loginUser` 按昵称 + 密码摘要查询）
 
 ---
 
