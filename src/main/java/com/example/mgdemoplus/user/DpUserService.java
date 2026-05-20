@@ -4,6 +4,7 @@ import com.example.mgdemoplus.common.entity.DpUser;
 import com.example.mgdemoplus.user.dto.DpUserProfileUpdateRequest;
 import com.example.mgdemoplus.user.dto.DpUserProfileUpdateResult;
 import com.example.mgdemoplus.user.dto.DpUserProfileView;
+import com.example.mgdemoplus.user.dto.DpPlayerHonorView;
 
 public interface DpUserService {
     int registerUser(DpUser dpUser);
@@ -18,4 +19,9 @@ public interface DpUserService {
      * 修改昵称和/或密码；须校验当前密码。昵称变更时由调用方刷新 JWT。
      */
     DpUserProfileUpdateResult updateProfile(DpUser current, DpUserProfileUpdateRequest request);
+
+    /**
+     * 根据 userId 查询公开荣誉战绩（局内其他玩家可查看）。
+     */
+    DpPlayerHonorView buildHonorView(int userId);
 }

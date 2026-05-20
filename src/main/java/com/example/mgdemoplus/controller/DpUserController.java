@@ -8,6 +8,7 @@ import com.example.mgdemoplus.user.DpUserService;
 import com.example.mgdemoplus.user.impl.DpUserServiceImpl;
 import com.example.mgdemoplus.user.dto.DpUserProfileUpdateRequest;
 import com.example.mgdemoplus.user.dto.DpUserProfileUpdateResult;
+import com.example.mgdemoplus.user.dto.DpPlayerHonorView;
 import com.example.mgdemoplus.user.dto.DpUserProfileView;
 import com.example.mgdemoplus.utils.ResultUtil;
 
@@ -15,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -81,6 +83,18 @@ public class DpUserController {
         }
         DpUserProfileView view = dpUserService.buildProfileView(current);
         return ResultUtil.ok().data("profile", view);
+    }
+
+    /**
+     * 查询指定用户的公开荣誉战绩（局内点击玩家卡片调用）。
+     */
+    @GetMapping("/stats/{userId}")
+    public ResultUtil getPublicStats(@PathVariable int userId) {
+        DpPlayerHonorView view = dpUserService.buildHonorView(userId);
+        if (view == null) {
+            return ResultUtil.error().data("message", "用户不存在");
+        }
+        return ResultUtil.ok().data("honor", view);
     }
 
     /**

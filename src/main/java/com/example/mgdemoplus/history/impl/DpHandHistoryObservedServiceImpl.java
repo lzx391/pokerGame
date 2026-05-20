@@ -218,16 +218,18 @@ public final class DpHandHistoryObservedServiceImpl implements DpHandHistoryObse
     }
 
     /**
+     * 无效逻辑从这里判定
      * @return 若本手已归档则返回记录（供入库）；未启用或无构建数据则 null
-     */
-    //已学习，本模块代码精讲如下：
-    //1. finalizeHand方法：负责将牌谱归档
-    //2. isEnabledForRoom方法：负责判断是否启用
-    //3. Key类：负责记录房间id和手种子
-    //4. HandBuilder类：负责记录牌谱
-    //5. BUILDERS类：负责记录牌谱
-    //6. append方法：负责记录行动
-    //7. blindPostedChipsForSeat方法：负责记录盲注
+     
+    已学习，本模块代码精讲如下：
+    1. finalizeHand方法：负责将牌谱归档
+    2. isEnabledForRoom方法：负责判断是否启用  
+    3. Key类：负责记录房间id和手种子  
+    4. HandBuilder类：负责记录牌谱  
+    5. BUILDERS类：负责记录牌谱  
+    6. append方法：负责记录行动  
+    7. blindPostedChipsForSeat方法：负责记录盲注  
+    */
    public DpObservedHandRecordBO finalizeHand(DpRoomBO room) {
       if(room.getPlayers().size()<=1){
     // System.out.println("场上只有一个玩家，不落库保存");

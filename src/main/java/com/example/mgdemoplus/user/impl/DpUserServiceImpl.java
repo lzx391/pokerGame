@@ -1,12 +1,15 @@
 package com.example.mgdemoplus.user.impl;
 
 import com.example.mgdemoplus.common.entity.DpUser;
+import com.example.mgdemoplus.common.entity.DpUserStats;
 import com.example.mgdemoplus.common.mapper.DpUserMapper;
 import com.example.mgdemoplus.moderation.DpSensitiveWordService;
 import com.example.mgdemoplus.user.DpUserService;
 import com.example.mgdemoplus.user.dto.DpUserProfileUpdateRequest;
 import com.example.mgdemoplus.user.dto.DpUserProfileUpdateResult;
+import com.example.mgdemoplus.user.dto.DpPlayerHonorView;
 import com.example.mgdemoplus.user.dto.DpUserProfileView;
+import com.example.mgdemoplus.user.mapper.DpUserStatsMapper;
 import com.example.mgdemoplus.utils.CryptoUtil;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +19,8 @@ import org.springframework.stereotype.Service;
 public class DpUserServiceImpl implements DpUserService {
     @Autowired
     DpUserMapper dpUserMapper;
+    @Autowired
+    DpUserStatsMapper dpUserStatsMapper;
     @Autowired
     DpSensitiveWordService sensitiveWordService;
 
@@ -59,6 +64,37 @@ public class DpUserServiceImpl implements DpUserService {
         view.setNickname(user.getNickname());
         view.setAvatarUrl(user.getAvatarUrl());
         view.setPasswordSet(user.getPassword() != null && !user.getPassword().isBlank());
+        DpUserStats stats = dpUserStatsMapper.selectByUserId(user.getId());
+        if (stats != null) {
+            view.setRoyalFlushWins(stats.getRoyalFlushWins());
+            view.setStraightFlushWins(stats.getStraightFlushWins());
+            view.setFourOfAKindWins(stats.getFourOfAKindWins());
+            view.setLargestPotWon(stats.getLargestPotWon());
+            view.setLargestRoomNet(stats.getLargestRoomNet());
+            view.setTotalHandsPlayed(stats.getTotalHandsPlayed());
+        }
+        return view;
+    }
+
+    @Override
+    public DpPlayerHonorView buildHonorView(int userId) {
+        DpUser user = dpUserMapper.selectById(userId);
+        if (user == null) {
+            return null;
+        }
+        DpPlayerHonorView view = new DpPlayerHonorView();
+        view.setUserId(user.getId());
+        view.setNickname(user.getNickname());
+        view.setAvatarUrl(user.getAvatarUrl());
+        DpUserStats stats = dpUserStatsMapper.selectByUserId(userId);
+        if (stats != null) {
+            view.setRoyalFlushWins(stats.getRoyalFlushWins());
+            view.setStraightFlushWins(stats.getStraightFlushWins());
+            view.setFourOfAKindWins(stats.getFourOfAKindWins());
+            view.setLargestPotWon(stats.getLargestPotWon());
+            view.setLargestRoomNet(stats.getLargestRoomNet());
+            view.setTotalHandsPlayed(stats.getTotalHandsPlayed());
+        }
         return view;
     }
 

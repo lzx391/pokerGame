@@ -37,12 +37,12 @@
       </HeaderManager>
       <hashTree/>
       <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="场景1-注册压测（改这里设并发数）">
-        <intProp name="ThreadGroup.num_threads">100</intProp>
-        <intProp name="ThreadGroup.ramp_time">10</intProp>
+        <intProp name="ThreadGroup.num_threads">300</intProp>
+        <intProp name="ThreadGroup.ramp_time">5</intProp>
         <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
         <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController">
-          <stringProp name="LoopController.loops">1</stringProp>
+          <intProp name="LoopController.loops">-1</intProp>
           <boolProp name="LoopController.continue_forever">false</boolProp>
         </elementProp>
       </ThreadGroup>
@@ -117,7 +117,7 @@
         </elementProp>
       </ThreadGroup>
       <hashTree>
-        <CounterConfig guiclass="CounterConfigGui" testclass="CounterConfig" testname="用户编号" enabled="true">
+        <CounterConfig guiclass="CounterConfigGui" testclass="CounterConfig" testname="用户编号">
           <stringProp name="CounterConfig.start">1</stringProp>
           <stringProp name="CounterConfig.end">999999</stringProp>
           <stringProp name="CounterConfig.incr">1</stringProp>
@@ -126,12 +126,12 @@
           <boolProp name="CounterConfig.per_user">false</boolProp>
         </CounterConfig>
         <hashTree/>
-        <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="事务-注册后开房间" enabled="true">
+        <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController" testname="事务-注册后开房间">
           <boolProp name="TransactionController.parent">true</boolProp>
           <boolProp name="TransactionController.includeTimers">false</boolProp>
         </TransactionController>
         <hashTree>
-          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Step1-POST注册" enabled="true">
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Step1-POST注册">
             <stringProp name="HTTPSampler.domain">${BASE_URL}</stringProp>
             <stringProp name="HTTPSampler.port">${PORT}</stringProp>
             <stringProp name="HTTPSampler.path">/dpUser/registerUser</stringProp>
@@ -141,14 +141,14 @@
               <collectionProp name="Arguments.arguments">
                 <elementProp name="" elementType="HTTPArgument">
                   <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                  <stringProp name="Argument.value">{&quot;nickname&quot;:&quot;room_${__threadNum}_${__time()}_${roomIdx}&quot;,&quot;password&quot;:&quot;test123&quot;}</stringProp>
+                  <stringProp name="Argument.value">{&quot;nickname&quot;:&quot;${__threadNum}${__time()}${roomIdx}&quot;,&quot;password&quot;:&quot;test123&quot;}</stringProp>
                   <stringProp name="Argument.metadata">=</stringProp>
                 </elementProp>
               </collectionProp>
             </elementProp>
           </HTTPSamplerProxy>
           <hashTree>
-            <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="提取token/userId/username" enabled="true">
+            <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="提取token/userId/username">
               <stringProp name="JSONPostProcessor.referenceNames">myToken,myName,myUserId</stringProp>
               <stringProp name="JSONPostProcessor.jsonPathExprs">$.data.token,$.data.nickname,$.data.userId</stringProp>
               <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
@@ -156,7 +156,7 @@
             </JSONPostProcessor>
             <hashTree/>
           </hashTree>
-          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Step2-POST创建房间(带鉴权)" enabled="true">
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Step2-POST创建房间(带鉴权)">
             <stringProp name="HTTPSampler.domain">${BASE_URL}</stringProp>
             <stringProp name="HTTPSampler.port">${PORT}</stringProp>
             <stringProp name="HTTPSampler.path">/dpRoom/createRoom</stringProp>
@@ -168,32 +168,37 @@
                   <stringProp name="Argument.name">nickname</stringProp>
                   <stringProp name="Argument.value">${myName}</stringProp>
                   <boolProp name="HTTPArgument.use_equals">true</boolProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
                 </elementProp>
                 <elementProp name="userId" elementType="HTTPArgument">
                   <stringProp name="Argument.name">userId</stringProp>
                   <stringProp name="Argument.value">${myUserId}</stringProp>
                   <boolProp name="HTTPArgument.use_equals">true</boolProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
                 </elementProp>
                 <elementProp name="smallBlindChips" elementType="HTTPArgument">
                   <stringProp name="Argument.name">smallBlindChips</stringProp>
                   <stringProp name="Argument.value">5</stringProp>
                   <boolProp name="HTTPArgument.use_equals">true</boolProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
                 </elementProp>
                 <elementProp name="bigBlindChips" elementType="HTTPArgument">
                   <stringProp name="Argument.name">bigBlindChips</stringProp>
                   <stringProp name="Argument.value">10</stringProp>
                   <boolProp name="HTTPArgument.use_equals">true</boolProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
                 </elementProp>
                 <elementProp name="maxSeatCount" elementType="HTTPArgument">
                   <stringProp name="Argument.name">maxSeatCount</stringProp>
                   <stringProp name="Argument.value">9</stringProp>
                   <boolProp name="HTTPArgument.use_equals">true</boolProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
                 </elementProp>
               </collectionProp>
             </elementProp>
           </HTTPSamplerProxy>
           <hashTree>
-            <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="JWT鉴权Header" enabled="true">
+            <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="JWT鉴权Header">
               <collectionProp name="HeaderManager.headers">
                 <elementProp name="" elementType="Header">
                   <stringProp name="Header.name">Authorization</stringProp>

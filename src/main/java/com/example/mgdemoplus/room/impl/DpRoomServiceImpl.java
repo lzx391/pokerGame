@@ -20,6 +20,7 @@ import com.example.mgdemoplus.common.entity.DpRoom;
 import com.example.mgdemoplus.common.entity.DpPlayerStats;
 import com.example.mgdemoplus.common.entity.DpUser;
 import com.example.mgdemoplus.common.mapper.DpUserMapper;
+import com.example.mgdemoplus.user.mapper.DpUserStatsMapper;
 import com.example.mgdemoplus.presence.DpFriendPresenceService;
 import com.example.mgdemoplus.history.DpHandHistoryObservedService;
 import com.example.mgdemoplus.history.DpHandHistoryPersistService;
@@ -61,6 +62,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     private final DpLlmNpcDecisionService llmNpcDecisionService;
     private final DpGameRoomPushService gameRoomPushService;
     private final DpUserMapper dpUserMapper;
+    private final DpUserStatsMapper dpUserStatsMapper;
     private final DpHandHistoryObservedService observedHandService;
     private final LlmNpcGlobalHandConversationStore llmNpcGlobalHandConversationStore;
     private final DpRoomHallService dpRoomHallService;
@@ -212,6 +214,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
             DpLlmNpcDecisionService llmNpcDecisionService,
             DpGameRoomPushService gameRoomPushService,
             DpUserMapper dpUserMapper,
+            DpUserStatsMapper dpUserStatsMapper,
             DpHandHistoryObservedService observedHandService,
             LlmNpcGlobalHandConversationStore llmNpcGlobalHandConversationStore,
             DpRoomHallService dpRoomHallService,
@@ -225,6 +228,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         this.llmNpcDecisionService = llmNpcDecisionService;
         this.gameRoomPushService = gameRoomPushService;
         this.dpUserMapper = dpUserMapper;
+        this.dpUserStatsMapper = dpUserStatsMapper;
         this.observedHandService = observedHandService;
         this.llmNpcGlobalHandConversationStore = llmNpcGlobalHandConversationStore;
         this.dpRoomHallService = dpRoomHallService;
@@ -1764,6 +1768,8 @@ ownerFieldChanged：房主字段是否发生变化。
                 if (Objects.equals(r.getOwner(), nickname)) {
                     giveAgg = giveAgg.mergedWith(applyGiveOwnerWhileRoomLocked(r, nickname));
                 }
+                // 退房前更新生涯单房间最高净赢
+                tryUpdateLargestRoomNetForNicknameLocked(r, nickname);
                 if (roomMap.get(roomId) != r) {
                     droppedEmpty = true;
                     result = true;
@@ -1807,6 +1813,13 @@ ownerFieldChanged：房主字段是否发生变化。
                             target.setFold(true);
                         }
                     }
+                    // 退房前更新生涯单房间最高净赢
+                    if (target.getDpUserId() != null) {
+                        int roomNet = target.getChips() - r.getStartingChips();
+                        if (roomNet > 0) {
+                            dpUserStatsMapper.tryUpdateLargestRoomNet(target.getDpUserId(), roomNet);
+                        }
+                    }
                     result = true;
                 }
                 if (roomMap.get(roomId) != r) {
@@ -1819,6 +1832,29 @@ ownerFieldChanged：房主字段是否发生变化。
             }
         }
         return new ExitRoomSynchronizedOutcome(result, droppedEmpty, lobbyTouch, giveAgg, presenceHintUid);
+    }
+
+    /**
+     * 退房时更新 dp_user_stats.largest_room_net。
+     * 调用方须持有 r 的锁。
+     */
+    private void tryUpdateLargestRoomNetForNicknameLocked(DpRoomBO r, String nickname) {
+        if (r == null || nickname == null) {
+            return;
+        }
+        List<DpPlayer> ps = r.getPlayers();
+        if (ps == null) {
+            return;
+        }
+        for (DpPlayer p : ps) {
+            if (nickname.equals(p.getNickname()) && p.getDpUserId() != null) {
+                int roomNet = p.getChips() - r.getStartingChips();
+                if (roomNet > 0) {
+                    dpUserStatsMapper.tryUpdateLargestRoomNet(p.getDpUserId(), roomNet);
+                }
+                return;
+            }
+        }
     }
 
     // ========== 游戏开始与流程 ==========
@@ -2466,6 +2502,47 @@ ownerFieldChanged：房主字段是否发生变化。
         r.setChipLeaderNicknames(leaders);
     }
 
+    /**
+     * 每手结算后将牌型荣誉与局数写入 dp_user_stats（紧跟在牌谱落库之后调用，共享同一个 archived != null 守卫）。
+     * 每人仅一条 upsert，先算完所需增量再写库。
+     */
+    private void recordPlayerHonorStatsAfterSettle(DpRoomBO r,
+                                                   Map<String, DpUtilHandEvaluator.HandStrength> strengthMap,
+                                                   Map<String, Integer> chipsBefore) {
+        if (r == null || r.getPlayers() == null || chipsBefore == null) {
+            return;
+        }
+
+        for (DpPlayer p : r.getPlayers()) {
+            if (p.getDpUserId() == null) {
+                continue;
+            }
+            int userId = p.getDpUserId();
+
+            int before = chipsBefore.getOrDefault(p.getNickname(), 0);
+            int netWon = p.getChips() - before - p.getTotalBet();
+
+            int royalInc = 0, straightInc = 0, fourInc = 0, potWonVal = 0;
+
+            if (netWon > 0) {
+                potWonVal = netWon;
+                DpUtilHandEvaluator.HandStrength hs = strengthMap.get(p.getNickname());
+                if (hs != null) {
+                    int cat = hs.rankCategory;
+                    if (cat >= 10) {
+                        royalInc = 1;
+                    } else if (cat == 9) {
+                        straightInc = 1;
+                    } else if (cat == 8) {
+                        fourInc = 1;
+                    }
+                }
+            }
+
+            dpUserStatsMapper.upsertAfterHand(userId, royalInc, straightInc, fourInc, potWonVal);
+        }
+    }
+
     /** 本手结算收尾：从 players 移除已离线占位，与 {@link #autoSettle} 主路径及零底池捷径一致。 */
     private void removeLeftThisHandZombiesAfterHand(DpRoomBO r) {
         if (r == null) {
@@ -2523,6 +2600,12 @@ ownerFieldChanged：房主字段是否发生变化。
         DpObservedHandRecordBO archivedEarly = observedHandService.finalizeHand(r);
         if (archivedEarly != null) {
             observedHandPersistService.save(archivedEarly, r);
+            // 能落库说明是有效局，计入生涯局数（零底池无赢家，全 0 增量仅计局数）
+            for (DpPlayer p : r.getPlayers()) {
+                if (p.getDpUserId() != null) {
+                    dpUserStatsMapper.upsertAfterHand(p.getDpUserId(), 0, 0, 0, 0);
+                }
+            }
         }
         DpNpcStreetActionLog.clearHand(r);
         observedHandService.clearHand(r);
@@ -2570,6 +2653,12 @@ ownerFieldChanged：房主字段是否发生变化。
                 continue;
             DpUtilHandEvaluator.HandStrength hs = DpUtilHandEvaluator.evaluateBestHand(allCards);
             strengthMap.put(p.getNickname(), hs);
+        }
+
+        // 按池分配前快照每人筹码，供荣誉统计计算本手赢取
+        Map<String, Integer> chipsBeforeSettle = new HashMap<>();
+        for (DpPlayer p : r.getPlayers()) {
+            chipsBeforeSettle.put(p.getNickname(), p.getChips());
         }
 
         // 按池分配：每个池在 eligiblePlayers 中找到牌力最高的一批人，平分该池
@@ -2831,10 +2920,11 @@ ownerFieldChanged：房主字段是否发生变化。
             }
         }
 
-        // 完整牌谱归档 → 可选对手画像入库；最后再清理当手观测/逐街缓冲
+        // 完整牌谱归档 → 可选对手画像入库 + 生涯荣誉统计（共用 archived != null 守卫）
         DpObservedHandRecordBO archived = observedHandService.finalizeHand(r);
         if (archived != null) {
             observedHandPersistService.save(archived, r);
+            recordPlayerHonorStatsAfterSettle(r, strengthMap, chipsBeforeSettle);
         }
 
         // 逐街动作日志：本手结束后清理，避免内存增长
