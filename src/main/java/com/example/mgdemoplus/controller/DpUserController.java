@@ -52,6 +52,9 @@ public class DpUserController {
         if (code == DpUserServiceImpl.REGISTER_SENSITIVE) {
             return ResultUtil.sensitiveUsername();
         }
+        if (code == DpUserServiceImpl.REGISTER_INVALID_NICKNAME) {
+            return ResultUtil.invalidNickname();
+        }
         return ResultUtil.repeatUsername();
     }
 

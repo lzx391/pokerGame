@@ -179,6 +179,8 @@ Hub 镜像与 GitHub Actions 发布说明见 **[docs/DOCKER.md](docs/DOCKER.md)*
 
 默认 MySQL / Redis 宿主机端口等见 **[docs/DOCKER.md](docs/DOCKER.md)**。本机 **`docker-compose.yml`** 与 Hub 编排的**卷**差异（bind mount **`./docker-data/uploads`** vs 命名卷 **`mgdemo_uploads`**）见 [docs/DOCKER.md](docs/DOCKER.md)。
 
+**监控（仅 `docker-compose.yml`）**：`docker compose up -d` 后可用 **Prometheus** [http://localhost:9090](http://localhost:9090)、**Grafana** [http://localhost:3000](http://localhost:3000)（默认账号 **`admin` / `admin`**，仅本地开发）、**cAdvisor** [http://localhost:8080](http://localhost:8080)。Grafana 已预置 Prometheus 数据源；容器指标可在 Grafana 中 **Import** 社区面板 **ID 193**（Docker monitoring）。详细说明见 **[docs/监控-Grafana使用说明.md](docs/监控-Grafana使用说明.md)**。
+
 ### 3. 本机开发（后端 + 前端分离）
 
 **后端**（工作目录为**仓库根目录**，以便加载根目录 `.env`）：
@@ -407,6 +409,8 @@ GitHub Actions / Hub flows: **[docs/DOCKER.md](docs/DOCKER.md)**; workflow **`on
 - **Direct app**: same — root Compose **does not publish host 8088 by default**; **hub** compose maps **`${APP_HOST_PORT:-8088}:8088`** ([`docker-compose.hub.yml`](docker-compose.hub.yml)); local **`mvn`** → **[http://localhost:8088](http://localhost:8088)**.
 
 Ports and compose/hub volume differences — **[docs/DOCKER.md](docs/DOCKER.md)**.
+
+**Monitoring (`docker-compose.yml` only):** after `docker compose up -d`, **Prometheus** [http://localhost:9090](http://localhost:9090), **Grafana** [http://localhost:3000](http://localhost:3000) (default **`admin` / `admin`**, dev only), **cAdvisor** [http://localhost:8080](http://localhost:8080). Grafana ships with a Prometheus datasource; import community dashboard **ID 193** for Docker/cAdvisor metrics. See **[docs/监控-Grafana使用说明.md](docs/监控-Grafana使用说明.md)** (Chinese).
 
 #### 3. Local dev (split)
 

@@ -25,10 +25,15 @@ public class DpUserServiceImpl implements DpUserService {
     public static final int REGISTER_REPEAT = 0;
     /** 昵称含敏感词 */
     public static final int REGISTER_SENSITIVE = 2;
+    /** 昵称超长 */
+    public static final int REGISTER_INVALID_NICKNAME = 3;
 
     public static final String MSG_SENSITIVE = "敏感词汇";
 
     public int registerUser(DpUser dpUser) {
+        if (dpUser.getNickname() == null || dpUser.getNickname().length() > 10) {
+            return REGISTER_INVALID_NICKNAME;
+        }
         if (sensitiveWordService.containsSensitive(dpUser.getNickname())) {
             return REGISTER_SENSITIVE;
         }

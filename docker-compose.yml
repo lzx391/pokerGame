@@ -111,7 +111,39 @@ services:
       - /var/lib/docker/:/var/lib/docker:ro
     privileged: true
 
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    mem_limit: 128m
+    cpus: "0.2"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    depends_on:
+      - cadvisor
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    mem_limit: 128m
+    cpus: "0.2"
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+
 volumes:
   mysql_data:
   redis_data:
   mgdemo_uploads:
+  grafana_data:
