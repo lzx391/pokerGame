@@ -28,7 +28,7 @@
         </div>
         <div class="dp-player-honor__stats">
           <div class="honor-line">
-            <span>单局最高赢取</span>
+            <span>单局最高净赢</span>
             <strong>{{ honor.largestPotWon || 0 }} BC</strong>
           </div>
           <div class="honor-line">

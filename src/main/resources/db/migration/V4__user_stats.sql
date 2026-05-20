@@ -4,8 +4,8 @@ CREATE TABLE dp_user_stats (
     royal_flush_wins     INT NOT NULL DEFAULT 0 COMMENT '皇家同花顺获胜次数',
     straight_flush_wins  INT NOT NULL DEFAULT 0 COMMENT '同花顺获胜次数',
     four_of_a_kind_wins  INT NOT NULL DEFAULT 0 COMMENT '四条获胜次数',
-    largest_pot_won      INT NOT NULL DEFAULT 0 COMMENT '单局最多赢取BC',
-    largest_room_net     INT NOT NULL DEFAULT 0 COMMENT '单房间最高净赢BC',
+    largest_pot_won      INT NOT NULL DEFAULT 0 COMMENT '单局最多净赢（BC数=筹码/大盲）',
+    largest_room_net     INT NOT NULL DEFAULT 0 COMMENT '单房间最高净赢（BC数=筹码/大盲）',
     total_hands_played   INT NOT NULL DEFAULT 0 COMMENT '生涯总局数',
     updated_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci

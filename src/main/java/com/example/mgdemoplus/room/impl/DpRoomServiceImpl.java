@@ -1813,12 +1813,14 @@ ownerFieldChanged：房主字段是否发生变化。
                             target.setFold(true);
                         }
                     }
-                    // 退房前更新生涯单房间最高净赢
+                    // 退房前更新生涯单房间最高净赢（从 sessionWonBc 读，已含 rebuy 修正）
                     if (target.getDpUserId() != null) {
-                        int roomNet = target.getChips() - r.getStartingChips();
-                        if (roomNet > 0) {
-                            dpUserStatsMapper.tryUpdateLargestRoomNet(target.getDpUserId(), roomNet);
+                        Integer wonBc = r.getSessionWonBc().get(nickname);
+                        if (wonBc != null && wonBc > 0) {
+                            dpUserStatsMapper.tryUpdateLargestRoomNet(target.getDpUserId(), wonBc);
                         }
+                        r.getCarryInChips().remove(nickname);
+                        r.getSessionWonBc().remove(nickname);
                     }
                     result = true;
                 }
@@ -1835,26 +1837,28 @@ ownerFieldChanged：房主字段是否发生变化。
     }
 
     /**
-     * 退房时更新 dp_user_stats.largest_room_net。
+     * 退房时更新 dp_user_stats.largest_room_net（从 sessionWonBc 读，已含 rebuy 修正）。
      * 调用方须持有 r 的锁。
      */
     private void tryUpdateLargestRoomNetForNicknameLocked(DpRoomBO r, String nickname) {
         if (r == null || nickname == null) {
             return;
         }
-        List<DpPlayer> ps = r.getPlayers();
-        if (ps == null) {
-            return;
-        }
-        for (DpPlayer p : ps) {
-            if (nickname.equals(p.getNickname()) && p.getDpUserId() != null) {
-                int roomNet = p.getChips() - r.getStartingChips();
-                if (roomNet > 0) {
-                    dpUserStatsMapper.tryUpdateLargestRoomNet(p.getDpUserId(), roomNet);
+        Integer wonBc = r.getSessionWonBc().get(nickname);
+        if (wonBc != null && wonBc > 0) {
+            // 从 players 找 userId
+            List<DpPlayer> ps = r.getPlayers();
+            if (ps != null) {
+                for (DpPlayer p : ps) {
+                    if (nickname.equals(p.getNickname()) && p.getDpUserId() != null) {
+                        dpUserStatsMapper.tryUpdateLargestRoomNet(p.getDpUserId(), wonBc);
+                        break;
+                    }
                 }
-                return;
             }
         }
+        r.getCarryInChips().remove(nickname);
+        r.getSessionWonBc().remove(nickname);
     }
 
     // ========== 游戏开始与流程 ==========
@@ -1943,6 +1947,10 @@ ownerFieldChanged：房主字段是否发生变化。
         r.setRaiseLevel(0);
         r.setLastRaiseIncrement(r.getBigBlindChips());
         r.setReadyDeadline(0L);
+        // 同步带入筹码追踪：新玩家首次上桌登记初始带入
+        for (DpPlayer p : ps) {
+            r.getCarryInChips().putIfAbsent(p.getNickname(), r.getStartingChips());
+        }
         int did = 0;// 庄家索引
         for (DpPlayer p : ps) {// 这里需要及时重置状态
             p.setFold(false);
@@ -2525,7 +2533,7 @@ ownerFieldChanged：房主字段是否发生变化。
             int royalInc = 0, straightInc = 0, fourInc = 0, potWonVal = 0;
 
             if (netWon > 0) {
-                potWonVal = netWon;
+                potWonVal = netWon / r.getBigBlindChips(); // 筹码→BC数
                 DpUtilHandEvaluator.HandStrength hs = strengthMap.get(p.getNickname());
                 if (hs != null) {
                     int cat = hs.rankCategory;
@@ -2537,6 +2545,13 @@ ownerFieldChanged：房主字段是否发生变化。
                         fourInc = 1;
                     }
                 }
+            }
+
+            // 更新房间级已赢 BC（带入追踪；退出时与历史记录比较）
+            Integer carryIn = r.getCarryInChips().get(p.getNickname());
+            if (carryIn != null && r.getBigBlindChips() > 0) {
+                int wonBc = (p.getChips() - carryIn) / r.getBigBlindChips();
+                r.getSessionWonBc().put(p.getNickname(), wonBc);
             }
 
             dpUserStatsMapper.upsertAfterHand(userId, royalInc, straightInc, fourInc, potWonVal);
@@ -2984,6 +2999,7 @@ ownerFieldChanged：房主字段是否发生变化。
                     return false;
                 }
                 p.setChips(r.getStartingChips());
+                r.getCarryInChips().merge(nickname, r.getStartingChips(), Integer::sum);
                 return true;
             }
         }

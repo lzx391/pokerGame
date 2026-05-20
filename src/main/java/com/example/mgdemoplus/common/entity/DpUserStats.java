@@ -2,7 +2,7 @@ package com.example.mgdemoplus.common.entity;
 
 /**
  * 玩家生涯牌局荣誉统计（与 dp_user 垂直分表，共享 user_id）。
- * 纯战绩记录，非积分/货币。
+ * 净赢字段以 BC（大盲倍数）为单位，存入前须除以房间大盲筹码数。
  */
 public class DpUserStats {
 

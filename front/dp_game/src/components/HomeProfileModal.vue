@@ -43,7 +43,7 @@
           </div>
           <div class="home-profile-modal__honor-stats">
             <div class="honor-stat">
-              <span class="honor-stat__label">单局最高赢取</span>
+              <span class="honor-stat__label">单局最高净赢</span>
               <span class="honor-stat__value">{{ form.largestPotWon || 0 }} BC</span>
             </div>
             <div class="honor-stat">

@@ -28,6 +28,20 @@ public class DpRoomBO {
     @JsonIgnore
     private final Map<String, Long> spectatorLastPresenceMs = new ConcurrentHashMap<>();
 
+    /**
+     * 房间内每位玩家累计带入筹码（初始 + 每次 rebuy 的补码量）。
+     * key=玩家昵称，仅限真人（nickname 维度），不退发 JSON。
+     */
+    @JsonIgnore
+    private final Map<String, Integer> carryInChips = new HashMap<>();
+
+    /**
+     * 房间内每位真人玩家当前净赢 BC 数 = (当前筹码 − 累计带入) / 大盲。
+     * 每次结算后更新，退出房间时用于与历史 largest_room_net 比较。
+     */
+    @JsonIgnore
+    private final Map<String, Integer> sessionWonBc = new HashMap<>();
+
     // 德扑核心
     private String currentStage = "preflop";
     private List<String> communityCards = new ArrayList<>();
@@ -331,5 +345,13 @@ public class DpRoomBO {
         int call = Math.max(0, currentBetToCall - p.getBet());
         int inc = lastRaiseIncrement > 0 ? lastRaiseIncrement : bb;
         return Math.max(0, call + inc);
+    }
+
+    public Map<String, Integer> getCarryInChips() {
+        return carryInChips;
+    }
+
+    public Map<String, Integer> getSessionWonBc() {
+        return sessionWonBc;
     }
 }
