@@ -5,4 +5,4 @@ export TZ="${TZ:-Asia/Shanghai}"
 UPLOAD_ROOT="/data/mgdemo-files"
 mkdir -p "${UPLOAD_ROOT}/music"
 chown -R spring:spring "${UPLOAD_ROOT}"
-exec /usr/sbin/gosu spring java -jar /app/app.jar
+exec /usr/sbin/gosu spring java ${JAVA_OPTS} -jar /app/app.jar

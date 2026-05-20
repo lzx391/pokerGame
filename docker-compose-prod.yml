@@ -1,20 +1,6 @@
-# 云服务器部署：从 Docker Hub 拉镜像（由 GitHub Actions 构建推送，见 .github/workflows/docker-publish.yml）
-#
-# 准备（与本文件同目录）：
-#   · .env — 仅填写方舟大模型五项（见 .env.example），勿提交 Git
-#   · docker/nginx/certs/fullchain.pem、privkey.pem
-#
-# 使用：
-#   docker compose pull
-#   docker compose up -d
-#
-# 访问：https://服务器IP/（自签证书会告警）或 http://服务器IP:8088/ 直连应用
-# 表结构：MySQL 空库 school_db，由应用 Flyway 迁移；勿改 SPRING_DATASOURCE_URL 中的 mysql/redis 主机名
-# 当在线上环境跑的时候，需要把app 换成image:XXX ,把nginx注释关掉。
-# 本地测试的时候，需要把app 换成build: . ,把nginx注释打开。因为本地不配置SSL证书，只需要build app即可
-#
-#
-#
+# 云服务器部署用（docker compose -f docker-compose-prod.yml up -d）
+# 直接复制到服务器上跑，别放项目里跟代码一起推
+
 services:
   mysql:
     image: mysql:8.0
@@ -50,22 +36,20 @@ services:
       retries: 5
       start_period: 5s
 
-  # 本地测试：无 SSL 证书，先注掉 nginx，直接连 app:8088。云服务器部署时取消注释。
-  # nginx:
-  #   image: 1933886418/dpgame-nginx:v1.0.1
-  #   mem_limit: 64m
-  #   cpus: "0.1"
-  #   ports:
-  #     - "80:80"
-  #     - "443:443"
-  #   volumes:
-  #     - ./docker/nginx/certs:/etc/nginx/certs:ro
-  #   depends_on:
-  #     - app
+  nginx:
+    image: 1933886418/dpgame-nginx:v1.0.1
+    mem_limit: 64m
+    cpus: "0.1"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - app
 
-  app:
-    build: .                          # 本地构建。推送前改回 image: 1933886418/dpgame:v1.0.1
-    # image: 1933886418/dpgame:v1.0.1
+  app: 
+    image: 1933886418/dpgame:v1.0.1 
     mem_limit: 1200m
     cpus: "1.2"
     ports:
@@ -98,18 +82,6 @@ services:
       redis:
         condition: service_healthy
 
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
-    mem_limit: 96m
-    cpus: "0.1"
-    ports:
-      - "8080:8080"
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-    privileged: true
 
 volumes:
   mysql_data:
