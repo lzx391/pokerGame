@@ -1,8 +1,10 @@
 package com.example.mgdemoplus.common.entity;
 
+import java.math.BigDecimal;
+
 /**
  * 玩家生涯牌局荣誉统计（与 dp_user 垂直分表，共享 user_id）。
- * 净赢字段以 BC（大盲倍数）为单位，存入前须除以房间大盲筹码数。
+ * {@link #largestPotWon} 为单局净赢带入倍数；{@link #largestRoomNet} 为单房间净赢带入倍数。
  */
 public class DpUserStats {
 
@@ -10,8 +12,8 @@ public class DpUserStats {
     private int royalFlushWins;
     private int straightFlushWins;
     private int fourOfAKindWins;
-    private int largestPotWon;
-    private int largestRoomNet;
+    private BigDecimal largestPotWon;
+    private BigDecimal largestRoomNet;
     private int totalHandsPlayed;
 
     public int getUserId() {
@@ -46,19 +48,19 @@ public class DpUserStats {
         this.fourOfAKindWins = fourOfAKindWins;
     }
 
-    public int getLargestPotWon() {
+    public BigDecimal getLargestPotWon() {
         return largestPotWon;
     }
 
-    public void setLargestPotWon(int largestPotWon) {
+    public void setLargestPotWon(BigDecimal largestPotWon) {
         this.largestPotWon = largestPotWon;
     }
 
-    public int getLargestRoomNet() {
+    public BigDecimal getLargestRoomNet() {
         return largestRoomNet;
     }
 
-    public void setLargestRoomNet(int largestRoomNet) {
+    public void setLargestRoomNet(BigDecimal largestRoomNet) {
         this.largestRoomNet = largestRoomNet;
     }
 

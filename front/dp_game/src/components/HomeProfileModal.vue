@@ -43,12 +43,12 @@
           </div>
           <div class="home-profile-modal__honor-stats">
             <div class="honor-stat">
-              <span class="honor-stat__label">单局最高净赢</span>
-              <span class="honor-stat__value">{{ form.largestPotWon || 0 }} BC</span>
+              <span class="honor-stat__label">单局最高净赢倍数</span>
+              <span class="honor-stat__value">{{ formatNetWinMultiplier(form.largestPotWon) }}</span>
             </div>
             <div class="honor-stat">
-              <span class="honor-stat__label">单房间最高净赢</span>
-              <span class="honor-stat__value">{{ form.largestRoomNet || 0 }} BC</span>
+              <span class="honor-stat__label">单房间最高净赢倍数</span>
+              <span class="honor-stat__value">{{ formatRoomNetMultiplier(form.largestRoomNet) }}</span>
             </div>
             <div class="honor-stat">
               <span class="honor-stat__label">生涯总局数</span>
@@ -123,6 +123,7 @@
 
 <script>
 import { dpResultSuccess, dpResultData, dpResultMessage } from '@/utils/dpApiResult'
+import { formatNetWinMultiplier, formatRoomNetMultiplier } from '@/utils/dpRoomNetMultiplier'
 
 export default {
   name: 'HomeProfileModal',
@@ -171,6 +172,8 @@ export default {
     }
   },
   methods: {
+    formatNetWinMultiplier,
+    formatRoomNetMultiplier,
     onClosed() {
       this.editingPassword = false
       this.form.oldPassword = ''

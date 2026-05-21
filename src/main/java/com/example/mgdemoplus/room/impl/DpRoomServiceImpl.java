@@ -42,6 +42,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 
 import java.util.stream.Collectors;
@@ -1880,25 +1882,44 @@ ownerFieldChanged：房主字段是否发生变化。
     }
 
     /**
-     * 真人离座时按当前筹码与累计带入结算本段净赢 BC，并清除 {@link DpRoomBO#getCarryInChips()} 条目。
+     * 真人离座/退房时按 (当前筹码 − 累计买入) / 初始积分 结算本段净赢倍数，并清除 {@link DpRoomBO#getCarryInChips()} 条目。
      * 调用方须持有 r 的监视器。
      */
     private void settleAndClearCarryInOnLeaveSeatLocked(DpRoomBO r, String nickname, DpPlayer p) {
         if (r == null || nickname == null || p == null || DpNpcEngine.isBotPlayer(p)) {
             return;
         }
-        Integer carryIn = r.getCarryInChips().get(nickname);
-        if (carryIn == null) {
+        Integer totalCarryIn = r.getCarryInChips().get(nickname);
+        if (totalCarryIn == null) {
             return;
         }
-        int bb = r.getBigBlindChips();
-        if (bb > 0) {
-            int wonBc = (p.getChips() - carryIn) / bb;
-            if (wonBc > 0 && p.getDpUserId() != null) {
-                dpUserStatsMapper.tryUpdateLargestRoomNet(p.getDpUserId(), wonBc);
-            }
+        int initialChips = r.getStartingChips();
+        if (initialChips <= 0) {
+            return;
+        }
+        BigDecimal multiplier = computeRoomNetWinMultiplier(p.getChips(), totalCarryIn, initialChips);
+        if (multiplier.compareTo(BigDecimal.ZERO) > 0 && p.getDpUserId() != null) {
+            dpUserStatsMapper.tryUpdateLargestRoomNet(p.getDpUserId(), multiplier);
         }
         r.getCarryInChips().remove(nickname);
+    }
+
+    /** 单房间净赢倍数 = (离场筹码 − 累计买入) / 初始积分，保留两位小数。 */
+    private static BigDecimal computeRoomNetWinMultiplier(int chips, int totalCarryIn, int initialChips) {
+        if (totalCarryIn <= 0 || initialChips <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return BigDecimal.valueOf(chips - totalCarryIn)
+                .divide(BigDecimal.valueOf(initialChips), 2, RoundingMode.HALF_UP);
+    }
+
+    /** 单局净赢倍数 = 本手净赢筹码 / 初始积分，保留两位小数。 */
+    private static BigDecimal computeHandNetWinMultiplier(int netWonChips, int initialChips) {
+        if (netWonChips <= 0 || initialChips <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return BigDecimal.valueOf(netWonChips)
+                .divide(BigDecimal.valueOf(initialChips), 2, RoundingMode.HALF_UP);
     }
 
     /**
@@ -2597,10 +2618,11 @@ ownerFieldChanged：房主字段是否发生变化。
             int before = chipsBefore.getOrDefault(p.getNickname(), 0);
             int netWon = p.getChips() - before - p.getTotalBet();
 
-            int royalInc = 0, straightInc = 0, fourInc = 0, potWonVal = 0;
+            int royalInc = 0, straightInc = 0, fourInc = 0;
+            BigDecimal handMultiplier = BigDecimal.ZERO;
 
             if (netWon > 0) {
-                potWonVal = netWon / r.getBigBlindChips(); // 筹码→BC数
+                handMultiplier = computeHandNetWinMultiplier(netWon, r.getStartingChips());
                 DpUtilHandEvaluator.HandStrength hs = strengthMap.get(p.getNickname());
                 if (hs != null) {
                     int cat = hs.rankCategory;
@@ -2614,7 +2636,7 @@ ownerFieldChanged：房主字段是否发生变化。
                 }
             }
 
-            dpUserStatsMapper.upsertAfterHand(userId, royalInc, straightInc, fourInc, potWonVal);
+            dpUserStatsMapper.upsertAfterHand(userId, royalInc, straightInc, fourInc, handMultiplier);
         }
     }
 
@@ -2679,7 +2701,7 @@ ownerFieldChanged：房主字段是否发生变化。
             // 能落库说明是有效局，计入生涯局数（零底池无赢家，全 0 增量仅计局数）
             for (DpPlayer p : r.getPlayers()) {
                 if (p.getDpUserId() != null) {
-                    dpUserStatsMapper.upsertAfterHand(p.getDpUserId(), 0, 0, 0, 0);
+                    dpUserStatsMapper.upsertAfterHand(p.getDpUserId(), 0, 0, 0, BigDecimal.ZERO);
                 }
             }
         }

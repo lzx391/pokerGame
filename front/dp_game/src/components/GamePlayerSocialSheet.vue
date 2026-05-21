@@ -28,12 +28,12 @@
         </div>
         <div class="dp-player-honor__stats">
           <div class="honor-line">
-            <span>单局最高净赢</span>
-            <strong>{{ honor.largestPotWon || 0 }} BC</strong>
+            <span>单局最高净赢倍数</span>
+            <strong>{{ formatNetWinMultiplier(honor.largestPotWon) }}</strong>
           </div>
           <div class="honor-line">
-            <span>单房间最高净赢</span>
-            <strong>{{ honor.largestRoomNet || 0 }} BC</strong>
+            <span>单房间最高净赢倍数</span>
+            <strong>{{ formatRoomNetMultiplier(honor.largestRoomNet) }}</strong>
           </div>
           <div class="honor-line">
             <span>生涯总局数</span>
@@ -76,6 +76,7 @@ import GameBottomSheet from './GameBottomSheet.vue'
 import { mapState } from 'vuex'
 import { dpDisplayNickname } from '../utils/dpDisplayNickname'
 import { dpResultSuccess, dpResultMessage, dpAxiosErrorMessage } from '../utils/dpApiResult'
+import { formatNetWinMultiplier, formatRoomNetMultiplier } from '../utils/dpRoomNetMultiplier'
 
 export default {
   name: 'GamePlayerSocialSheet',
@@ -138,6 +139,8 @@ export default {
     }
   },
   methods: {
+    formatNetWinMultiplier,
+    formatRoomNetMultiplier,
     refresh() {
       this.tip = ''
       this.sentOk = false

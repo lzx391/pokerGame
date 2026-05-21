@@ -1,6 +1,7 @@
 package com.example.mgdemoplus.user.mapper;
 
 import com.example.mgdemoplus.common.entity.DpUserStats;
+import java.math.BigDecimal;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -29,12 +30,12 @@ public interface DpUserStatsMapper {
                         @Param("royalFlushInc") int royalFlushInc,
                         @Param("straightFlushInc") int straightFlushInc,
                         @Param("fourOfAKindInc") int fourOfAKindInc,
-                        @Param("largestPotWon") int largestPotWon);
+                        @Param("largestPotWon") BigDecimal largestPotWon);
 
     /**
-     * 更新单房间最大净赢：只有新值更大时才覆盖（退出房间时调用）。
+     * 更新单房间最高净赢倍数：只有新值更大时才覆盖（离座/退房结算时调用）。
      */
-    @Update("UPDATE dp_user_stats SET largest_room_net = #{amount} "
-            + "WHERE user_id = #{userId} AND largest_room_net < #{amount}")
-    int tryUpdateLargestRoomNet(@Param("userId") int userId, @Param("amount") int amount);
+    @Update("UPDATE dp_user_stats SET largest_room_net = #{multiplier} "
+            + "WHERE user_id = #{userId} AND largest_room_net < #{multiplier}")
+    int tryUpdateLargestRoomNet(@Param("userId") int userId, @Param("multiplier") BigDecimal multiplier);
 }

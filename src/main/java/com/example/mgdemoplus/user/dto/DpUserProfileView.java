@@ -1,5 +1,7 @@
 package com.example.mgdemoplus.user.dto;
 
+import java.math.BigDecimal;
+
 /**
  * 个人资料只读视图：不含密码哈希，含生涯牌局荣誉统计。
  */
@@ -15,8 +17,8 @@ public class DpUserProfileView {
     private Integer royalFlushWins;
     private Integer straightFlushWins;
     private Integer fourOfAKindWins;
-    private Integer largestPotWon;
-    private Integer largestRoomNet;
+    private BigDecimal largestPotWon;
+    private BigDecimal largestRoomNet;
     private Integer totalHandsPlayed;
 
     public int getId() {
@@ -75,19 +77,19 @@ public class DpUserProfileView {
         this.fourOfAKindWins = fourOfAKindWins;
     }
 
-    public Integer getLargestPotWon() {
+    public BigDecimal getLargestPotWon() {
         return largestPotWon;
     }
 
-    public void setLargestPotWon(Integer largestPotWon) {
+    public void setLargestPotWon(BigDecimal largestPotWon) {
         this.largestPotWon = largestPotWon;
     }
 
-    public Integer getLargestRoomNet() {
+    public BigDecimal getLargestRoomNet() {
         return largestRoomNet;
     }
 
-    public void setLargestRoomNet(Integer largestRoomNet) {
+    public void setLargestRoomNet(BigDecimal largestRoomNet) {
         this.largestRoomNet = largestRoomNet;
     }
 

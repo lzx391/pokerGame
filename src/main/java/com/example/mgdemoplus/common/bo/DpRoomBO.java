@@ -30,7 +30,7 @@ public class DpRoomBO {
 
     /**
      * 房间内每位真人玩家累计带入筹码（初始 + 每次 rebuy 的补码量）。
-     * 离座/退房时按 (当前筹码 − 累计带入) / 大盲 结算净赢 BC 并清除；key=昵称，不退发 JSON。
+     * 离座/退房时按 (当前筹码 − 累计带入) / 累计带入 结算净赢倍数并清除；key=昵称，不退发 JSON。
      */
     @JsonIgnore
     private final Map<String, Integer> carryInChips = new HashMap<>();
