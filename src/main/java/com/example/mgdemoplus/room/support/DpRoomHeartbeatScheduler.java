@@ -132,7 +132,9 @@ public final class DpRoomHeartbeatScheduler {
         }
         return lobbyDirty;
     }
-
+/**
+ * 机器人决策与玩家行动超时判定
+ */
     private void tickNpcTurnOrHumanActionTimeout(DpRoomBO room) {
         if (room.isPlaying()
                 && room.getCurrentActorIndex() >= 0

@@ -3071,9 +3071,15 @@ ownerFieldChanged：房主字段是否发生变化。
         if (!"settled".equals(r.getCurrentStage()))
             return false;
         for (DpPlayer p : r.getPlayers()) {
+        
             if (p.getNickname().equals(nickname)) {
+                //机器人补码，不挂买入map
                 if (DpNpcEngine.isBotPlayer(p)) {
-                    return false;
+                    if (p.getChips() >= r.getBigBlindChips()) {
+                        return false;
+                    }
+                    p.setChips(r.getStartingChips());
+                    return true;
                 }
                 // 筹码充足（>=10）则不允许补码
                 if (p.getChips() >= r.getBigBlindChips()) {
