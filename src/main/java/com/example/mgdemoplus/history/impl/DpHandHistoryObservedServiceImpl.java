@@ -10,11 +10,13 @@ import com.example.mgdemoplus.common.entity.DpPlayer;
 import com.example.mgdemoplus.common.entity.DpPot;
 import com.example.mgdemoplus.history.DpHandHistoryObservedService;
 import com.example.mgdemoplus.history.types.DpObservedHandActionType;
+import com.example.mgdemoplus.utils.DpUtilHandEvaluator;
 
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -271,6 +273,15 @@ public final class DpHandHistoryObservedServiceImpl implements DpHandHistoryObse
         int effectiveMainPotTotal = effectiveMainPotTotalBeforeSettlement(
                 b.potsBeforeSettlement, b.mainPotTotalBeforeSettlement);
 
+        List<String> seatNicknames = new ArrayList<>();
+        for (DpObservedSeatAtHandStartBO s : b.seatsAtStart) {
+            if (s != null && s.nickname != null && !s.nickname.isEmpty()) {
+                seatNicknames.add(s.nickname);
+            }
+        }
+        List<DpObservedStreetBoardBO> boardsWithRanks = enrichBoardsWithHandRankNames(
+                b.boardsByStreet, holes, seatNicknames);
+
         DpObservedHandRecordBO rec = new DpObservedHandRecordBO(
                 room.getRoomId(),
                 room.getCurrentHandSeed(),
@@ -280,7 +291,7 @@ public final class DpHandHistoryObservedServiceImpl implements DpHandHistoryObse
                 room.getBigBlindChips(),
                 b.dealerNickname,
                 b.seatsAtStart,
-                b.boardsByStreet,
+                boardsWithRanks,
                 b.actions,
                 b.potsBeforeSettlement,
                 effectiveMainPotTotal,
@@ -322,6 +333,50 @@ public final class DpHandHistoryObservedServiceImpl implements DpHandHistoryObse
             }
         }
         return sum > 0 ? sum : totalPotFallback;
+    }
+
+    /**
+     * 归档时为每条公共牌快照补全各玩家最佳牌型中文大类（与 {@link DpUtilHandEvaluator#rankCategoryNameZh} 一致）。
+     * 含已盖牌者：前端对本人始终展示底牌，牌型需与洞牌一致；他人是否展示由详情页脱敏规则决定。
+     */
+    private static List<DpObservedStreetBoardBO> enrichBoardsWithHandRankNames(
+            List<DpObservedStreetBoardBO> boards,
+            Map<String, List<String>> holes,
+            List<String> seatNicknames) {
+        if (boards == null || boards.isEmpty()) {
+            return List.of();
+        }
+        List<DpObservedStreetBoardBO> out = new ArrayList<>(boards.size());
+        for (DpObservedStreetBoardBO board : boards) {
+            if (board == null) {
+                continue;
+            }
+            Map<String, String> ranks = handRankNamesForStreet(board, holes, seatNicknames);
+            out.add(new DpObservedStreetBoardBO(board.stage, board.communityCards, ranks));
+        }
+        return out;
+    }
+
+    private static Map<String, String> handRankNamesForStreet(
+            DpObservedStreetBoardBO board,
+            Map<String, List<String>> holes,
+            List<String> seatNicknames) {
+        List<String> community = board.communityCards;
+        if (community == null || community.size() < 3 || holes == null || holes.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, String> ranks = new LinkedHashMap<>();
+        for (String nick : seatNicknames) {
+            List<String> hole = holes.get(nick);
+            if (hole == null || hole.size() < 2) {
+                continue;
+            }
+            List<String> all = new ArrayList<>(hole);
+            all.addAll(community);
+            DpUtilHandEvaluator.HandStrength hs = DpUtilHandEvaluator.evaluateBestHand(all);
+            ranks.put(nick, DpUtilHandEvaluator.rankCategoryNameZh(hs.rankCategory));
+        }
+        return ranks;
     }
 
     private static int blindPostedChipsForSeat(DpRoomBO room, List<DpObservedSeatAtHandStartBO> seatsAtStart, String nickname) {

@@ -161,6 +161,21 @@ export function boardForStreet(boardsByStreet, street) {
   return b && Array.isArray(b.communityCards) ? b.communityCards : []
 }
 
+/** 该街快照中的牌型展示文案（payload.boardsByStreet[].handRankNameByPlayer） */
+export function handRankNameByStreet(boardsByStreet, street) {
+  if (!Array.isArray(boardsByStreet) || !street) return {}
+  const b = boardsByStreet.find((x) => x && x.stage === street)
+  const map = b && b.handRankNameByPlayer
+  return map && typeof map === 'object' ? map : {}
+}
+
+/** 河牌圈牌型（结算页用） */
+export function finalHandRankNameByPlayer(boardsByStreet) {
+  const river = handRankNameByStreet(boardsByStreet, 'river')
+  if (Object.keys(river).length) return river
+  return handRankNameByStreet(boardsByStreet, 'turn')
+}
+
 /**
  * 玩家第一次盖牌所在的街（无盖牌则 null）。
  */

@@ -107,6 +107,7 @@
                     scope="col"
                   >{{ label }}</th>
                   <th scope="col">底牌</th>
+                  <th scope="col">牌型</th>
                 </tr>
               </thead>
               <tbody>
@@ -147,6 +148,13 @@
                     </div>
                     <span v-else class="hand-detail-page__no-holes">—</span>
                   </td>
+                  <td class="hand-detail-table__rank-cell">
+                    <span
+                      v-if="handRankTextForStreet(nick)"
+                      class="hand-detail-page__rank-pill"
+                    >{{ handRankTextForStreet(nick) }}</span>
+                    <span v-else class="hand-detail-page__no-holes">—</span>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -182,6 +190,7 @@
                   <th scope="col">玩家</th>
                   <th scope="col">鱼干输赢</th>
                   <th scope="col">底牌</th>
+                  <th scope="col">牌型</th>
                 </tr>
               </thead>
               <tbody>
@@ -211,6 +220,13 @@
                     </div>
                     <span v-else class="hand-detail-page__no-holes">—</span>
                   </td>
+                  <td class="hand-detail-table__rank-cell">
+                    <span
+                      v-if="handRankTextForSettlement(row.nick, row.folded, row.isSelf)"
+                      class="hand-detail-page__rank-pill"
+                    >{{ handRankTextForSettlement(row.nick, row.folded, row.isSelf) }}</span>
+                    <span v-else class="hand-detail-page__no-holes">—</span>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -238,6 +254,7 @@ import '@/styles/dp-lobby-shell.css'
 import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import '@/styles/dp-poker-cards.css'
 import { getCardClass, getCardDisplay } from '@/utils/dpGameCardVisual'
+import { getHandRank } from '@/utils/dpGameHandRank'
 import {
   STREET_TABS,
   seatNicknamesOrdered,
@@ -245,6 +262,8 @@ import {
   splitRoundsByRaises,
   buildRoundGrid,
   boardForStreet,
+  handRankNameByStreet,
+  finalHandRankNameByPlayer,
   formatActionText,
   firstFoldStage,
   shouldShowHoleCardsOnStreetTab,
@@ -499,6 +518,37 @@ export default {
       if (n > 0) return 'hand-detail-table__net--win'
       if (n < 0) return 'hand-detail-table__net--lose'
       return ''
+    },
+    handRankTextForStreet(nick) {
+      if (!nick || this.activeTab === 'settlement') return ''
+      const viewer = this.user && this.user.nickname
+      const isSelf = viewer && nick === viewer
+      const holesCell = this.holeCardsByNickForStreet[nick]
+      if (!isSelf && holesCell === null) return ''
+      const community = this.communityCardsForTab
+      if (!community || community.length < 3) return ''
+      const map = handRankNameByStreet(this.boardsByStreet, this.activeTab)
+      let text = map[nick]
+      if (text && String(text).trim()) return String(text).trim()
+      if (!isSelf) return ''
+      const holeList = Array.isArray(holesCell) ? holesCell : []
+      if (holeList.length < 2) return ''
+      return getHandRank(holeList, community) || ''
+    },
+    handRankTextForSettlement(nick, folded, isSelf) {
+      if (!nick) return ''
+      if (folded && !isSelf) return ''
+      const community = this.finalBoardCards
+      if (!community || community.length < 3) return ''
+      const map = finalHandRankNameByPlayer(this.boardsByStreet)
+      let text = map[nick]
+      if (text && String(text).trim()) return String(text).trim()
+      if (!isSelf) return ''
+      const holes = this.payload.holeCardsAtEnd
+      const holeMap = holes && typeof holes === 'object' ? holes : {}
+      const holeList = Array.isArray(holeMap[nick]) ? holeMap[nick] : []
+      if (holeList.length < 2) return ''
+      return getHandRank(holeList, community) || ''
     },
     cellText(nick, colIdx) {
       const g = this.roundGrid
@@ -1055,6 +1105,23 @@ export default {
   color: #dc2626;
 }
 
+.hand-detail-table__rank-cell {
+  min-width: 88px;
+  vertical-align: middle;
+}
+
+.hand-detail-page__rank-pill {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f5c45;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
 /* 对局弹层内：与 .dp-game-root 主题 --dp-* 对齐 */
 .hand-detail-page--embedded {
   font-family: var(--dp-font-ui, inherit);
@@ -1228,6 +1295,12 @@ export default {
 
 .hand-detail-page--embedded .hand-detail-table__net--lose {
   color: var(--dp-danger, #dc2626);
+}
+
+.hand-detail-page--embedded .hand-detail-page__rank-pill {
+  color: var(--dp-success, #0f5c45);
+  background: color-mix(in srgb, var(--dp-success, #10b981) 12%, var(--dp-panel-bg, #fff));
+  border-color: color-mix(in srgb, var(--dp-success, #10b981) 35%, transparent);
 }
 
 @media (max-width: 520px) {
