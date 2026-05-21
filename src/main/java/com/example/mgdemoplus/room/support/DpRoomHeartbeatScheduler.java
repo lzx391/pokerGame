@@ -59,6 +59,7 @@ public final class DpRoomHeartbeatScheduler {
         }
         tickNpcTurnOrHumanActionTimeout(room);
         tickSettledBotsAutoReady(room);
+        tickSettledCheckAndStartIfReady(room);
         if (skipBroadcastForLoneSettledPlayerWaitingNothing(room)) {
             return;
         }
@@ -161,7 +162,6 @@ public final class DpRoomHeartbeatScheduler {
 
     private void tickSettledBotsAutoReady(DpRoomBO room) {
         if (room.isPlaying() && "settled".equals(room.getCurrentStage())) {
-            boolean botTouched = false;
             for (DpPlayer p : room.getPlayers()) {
                 if (!DpNpcEngine.isBotPlayer(p)) {
                     continue;
@@ -172,13 +172,19 @@ public final class DpRoomHeartbeatScheduler {
                 if (p.getChips() >= room.getBigBlindChips() && !p.isReady()
                         && !(room.getPlayers().size() == 1 && room.getWaitNextHand().isEmpty())) {
                     p.setReady(true);
-                    botTouched = true;
                 }
             }
-            if (botTouched) {
-                if (callbacks.checkAndStartNextHandAfterSettleReturning(room)) {
-                    lobbySync.refreshJoinableQmIndexThenSyncLobby(room.getRoomId());
-                }
+        }
+    }
+
+    /**
+     * settled 阶段每秒重判：补码窗口（0~10s）→筹码筛选（10s~30s）的时间边界由心跳驱动，
+     * 避免 10s 时刻判定标准切换后无人触发 {@code checkAndStartNextHandAfterSettleReturning}。
+     */
+    private void tickSettledCheckAndStartIfReady(DpRoomBO room) {
+        if (room.isPlaying() && "settled".equals(room.getCurrentStage())) {
+            if (callbacks.checkAndStartNextHandAfterSettleReturning(room)) {
+                lobbySync.refreshJoinableQmIndexThenSyncLobby(room.getRoomId());
             }
         }
     }

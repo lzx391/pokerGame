@@ -21,6 +21,8 @@
               <span class="dp-top-bar__hero-eco-stash">持有 <strong class="dp-top-bar__hero-eco-strong">{{ heroMyChips }}</strong></span>
               <span class="dp-top-bar__meta-sep dp-top-bar__meta-sep--thin" aria-hidden="true">|</span>
               <span class="dp-top-bar__hero-eco-secondary">{{ heroEconomySecondaryLabel }} <strong class="dp-top-bar__hero-eco-strong">{{ heroEconomySecondaryValue }}</strong></span>
+              <span class="dp-top-bar__meta-sep dp-top-bar__meta-sep--thin" aria-hidden="true">|</span>
+              <span class="dp-top-bar__hero-eco-secondary">已买入 <strong class="dp-top-bar__hero-eco-strong">{{ heroCarryInChips }}</strong></span>
             </span>
           </template>
         </span>
@@ -185,7 +187,8 @@ export default {
     showHeroEconomy: { type: Boolean, default: false },
     heroMyChips: { type: [Number, String], default: 0 },
     heroEconomySecondaryLabel: { type: String, default: '本轮' },
-    heroEconomySecondaryValue: { type: [Number, String], default: 0 }
+    heroEconomySecondaryValue: { type: [Number, String], default: 0 },
+    heroCarryInChips: { type: [Number, String], default: 0 }
   },
   computed: {
     heroEconomyAriaLabel: function () {
@@ -196,7 +199,9 @@ export default {
           '，' +
           this.heroEconomySecondaryLabel +
           ' ' +
-          this.heroEconomySecondaryValue
+          this.heroEconomySecondaryValue +
+          '，已买入 ' +
+          this.heroCarryInChips
       )
     }
   },

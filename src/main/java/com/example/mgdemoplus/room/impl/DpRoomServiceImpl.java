@@ -43,12 +43,14 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
+
 import java.util.stream.Collectors;
 
 @Service
 public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks {
     private static final Logger log = LoggerFactory.getLogger(DpRoomServiceImpl.class);
+    /** settled 补码窗口：10 秒内不区分码量，给真人留 rebuy 时间。 */
+    private static final long REBUY_DEADLINE_MS = 10_000L;
 
     private final DpRoomRegistry registry = new DpRoomRegistry();
     /** Retained for tests that reflect {@code roomMap} on this class. */
@@ -605,6 +607,9 @@ ownerFieldChanged：房主字段是否发生变化。
             }
             if (!DpNpcEngine.isBotNickname(nickname)) {
                 r.touchSpectatorPresence(nickname, System.currentTimeMillis());
+            }
+            synchronized (r) {
+                settleAndClearCarryInOnLeaveSeatLocked(r, nickname, kicked);
             }
         }
         return true;
@@ -1297,9 +1302,6 @@ ownerFieldChanged：房主字段是否发生变化。
         if (!waiters.contains(nickname)) {
             waiters.add(nickname);
         }
-        if (r.isPlaying() && "settled".equals(r.getCurrentStage())) {
-            checkAndStartNextHandAfterSettleReturning(r);
-        }
         return true;
     }
 
@@ -1452,6 +1454,36 @@ ownerFieldChanged：房主字段是否发生变化。
         }
         return n;
     }
+    /** settled 阶段：算上等待补码的桌上可参与下一手的真人（非僵尸、非机器人）。 */
+    private static int settleCapableLiveHumansCountAndWaitRebuy(DpRoomBO r) {
+        if (r == null || r.getPlayers() == null) {
+            return 0;
+        }
+        int n = 0;
+        for (DpPlayer p : r.getPlayers()) {
+            if (p == null || p.isLeftThisHand() || DpNpcEngine.isBotPlayer(p)) {
+                continue;
+            }
+                n++;
+        }
+        return n;
+    }
+    /** settled 补码窗口内：已准备的桌上真人（不区分码量）。 */
+    private static int settleReadyLiveHumansCountAndWaitRebuy(DpRoomBO r) {
+        if (r == null || r.getPlayers() == null) {
+            return 0;
+        }
+        int n = 0;
+        for (DpPlayer p : r.getPlayers()) {
+            if (p == null || p.isLeftThisHand() || DpNpcEngine.isBotPlayer(p)) {
+                continue;
+            }
+            if (p.isReady()) {
+                n++;
+            }
+        }
+        return n;
+    }
 
     private static int settleReadyLiveHumansCount(DpRoomBO r) {
         if (r == null || r.getPlayers() == null) {
@@ -1514,19 +1546,15 @@ ownerFieldChanged：房主字段是否发生变化。
         DpRoomBO r = roomMap.get(roomId);
         if (r == null)
             return false;
-        AtomicBoolean startedNewHand = new AtomicBoolean(false);
         boolean ok;
         synchronized (r) {
-            ok = toggleReadyAssumeLocked(r, nickname, startedNewHand);
-        }
-        if (ok && startedNewHand.get()) {
-            refreshJoinableQmIndexThenSyncLobby(roomId);
+            ok = toggleReadyAssumeLocked(r, nickname);
         }
         return ok;
     }
 
     /** 前提：已持有 {@code synchronized(r)} */
-    private boolean toggleReadyAssumeLocked(DpRoomBO r, String nickname, AtomicBoolean outStartedNewHand) {
+    private boolean toggleReadyAssumeLocked(DpRoomBO r, String nickname) {
         // 首次开局前的准备：房间未开始
         if (!r.isPlaying()) {
             for (DpPlayer p : r.getPlayers()) {
@@ -1545,7 +1573,6 @@ ownerFieldChanged：房主字段是否发生变化。
                         return false;
                     }
                     p.setReady(!p.isReady());
-                    outStartedNewHand.set(checkAndStartNextHandAfterSettleReturning(r));
                     return true;
                 }
             }
@@ -1588,6 +1615,23 @@ ownerFieldChanged：房主字段是否发生变化。
             return false;
         }
 
+        long settledAt = r.getSettledAtMs();
+        long elapsed = settledAt > 0 ? System.currentTimeMillis() - settledAt : Long.MAX_VALUE;
+
+        // 补码窗口（0~10s）：不区分码量，算上等 rebuy 的真人
+        if (elapsed < REBUY_DEADLINE_MS) {
+            int humanCap = settleCapableLiveHumansCountAndWaitRebuy(r);
+            if (humanCap > 0) {
+                int humanReady = settleReadyLiveHumansCountAndWaitRebuy(r);
+                if (humanReady == humanCap) {
+                    return newHandWithoutLobbyUpsert(r.getRoomId());
+                }
+                return false;
+            }
+            // 无活人：走下方候补/机器人分支
+        }
+
+        // 筹码筛选窗口（10s+）：码量 ≥ 大盲的才计入
         int humanCap = settleCapableLiveHumansCount(r);
         int humanReady = settleReadyLiveHumansCount(r);
         List<String> waiters = r.getWaitNextHand();
@@ -1618,6 +1662,8 @@ ownerFieldChanged：房主字段是否发生变化。
         List<DpPlayer> players = r.getPlayers();
         if (players == null || players.isEmpty()) {
             r.setPlaying(false);
+            r.setSettledAtMs(0L);
+            r.setSettledAtMs(0L);
             r.setReadyDeadline(0L);
             return false;
         }
@@ -1630,6 +1676,9 @@ ownerFieldChanged：房主字段是否发生变化。
         List<DpPlayer> afterChips = new ArrayList<>();
         for (DpPlayer p : players) {
             if (p.getChips() < r.getBigBlindChips()) {
+                if (!DpNpcEngine.isBotPlayer(p)) {
+                    settleAndClearCarryInOnLeaveSeatLocked(r, p.getNickname(), p);
+                }
                 if (!spectators.contains(p.getNickname())) {
                     spectators.add(p.getNickname());
                     if (!DpNpcEngine.isBotPlayer(p)) {
@@ -1644,6 +1693,8 @@ ownerFieldChanged：房主字段是否发生变化。
         players = afterChips;
         if (players.isEmpty()) {
             r.setPlaying(false);
+            r.setSettledAtMs(0L);
+            r.setSettledAtMs(0L);
             r.setReadyDeadline(0L);
             return false;
         }
@@ -1673,6 +1724,7 @@ ownerFieldChanged：房主字段是否发生变化。
         }
 
         r.setPlayers(remain);
+        r.setSettledAtMs(0L);
         r.setReadyDeadline(0L);
         return true;
     }
@@ -1768,8 +1820,7 @@ ownerFieldChanged：房主字段是否发生变化。
                 if (Objects.equals(r.getOwner(), nickname)) {
                     giveAgg = giveAgg.mergedWith(applyGiveOwnerWhileRoomLocked(r, nickname));
                 }
-                // 退房前更新生涯单房间最高净赢
-                tryUpdateLargestRoomNetForNicknameLocked(r, nickname);
+                settleCarryInOnExitRoomLocked(r, nickname);
                 if (roomMap.get(roomId) != r) {
                     droppedEmpty = true;
                     result = true;
@@ -1813,15 +1864,7 @@ ownerFieldChanged：房主字段是否发生变化。
                             target.setFold(true);
                         }
                     }
-                    // 退房前更新生涯单房间最高净赢（从 sessionWonBc 读，已含 rebuy 修正）
-                    if (target.getDpUserId() != null) {
-                        Integer wonBc = r.getSessionWonBc().get(nickname);
-                        if (wonBc != null && wonBc > 0) {
-                            dpUserStatsMapper.tryUpdateLargestRoomNet(target.getDpUserId(), wonBc);
-                        }
-                        r.getCarryInChips().remove(nickname);
-                        r.getSessionWonBc().remove(nickname);
-                    }
+                    settleAndClearCarryInOnLeaveSeatLocked(r, nickname, target);
                     result = true;
                 }
                 if (roomMap.get(roomId) != r) {
@@ -1837,28 +1880,45 @@ ownerFieldChanged：房主字段是否发生变化。
     }
 
     /**
-     * 退房时更新 dp_user_stats.largest_room_net（从 sessionWonBc 读，已含 rebuy 修正）。
-     * 调用方须持有 r 的锁。
+     * 真人离座时按当前筹码与累计带入结算本段净赢 BC，并清除 {@link DpRoomBO#getCarryInChips()} 条目。
+     * 调用方须持有 r 的监视器。
      */
-    private void tryUpdateLargestRoomNetForNicknameLocked(DpRoomBO r, String nickname) {
+    private void settleAndClearCarryInOnLeaveSeatLocked(DpRoomBO r, String nickname, DpPlayer p) {
+        if (r == null || nickname == null || p == null || DpNpcEngine.isBotPlayer(p)) {
+            return;
+        }
+        Integer carryIn = r.getCarryInChips().get(nickname);
+        if (carryIn == null) {
+            return;
+        }
+        int bb = r.getBigBlindChips();
+        if (bb > 0) {
+            int wonBc = (p.getChips() - carryIn) / bb;
+            if (wonBc > 0 && p.getDpUserId() != null) {
+                dpUserStatsMapper.tryUpdateLargestRoomNet(p.getDpUserId(), wonBc);
+            }
+        }
+        r.getCarryInChips().remove(nickname);
+    }
+
+    /**
+     * 退房：若仍在 players 则按桌上筹码结算；否则仅清除可能残留的带入追踪（离座时已结算）。
+     * 调用方须持有 r 的监视器。
+     */
+    private void settleCarryInOnExitRoomLocked(DpRoomBO r, String nickname) {
         if (r == null || nickname == null) {
             return;
         }
-        Integer wonBc = r.getSessionWonBc().get(nickname);
-        if (wonBc != null && wonBc > 0) {
-            // 从 players 找 userId
-            List<DpPlayer> ps = r.getPlayers();
-            if (ps != null) {
-                for (DpPlayer p : ps) {
-                    if (nickname.equals(p.getNickname()) && p.getDpUserId() != null) {
-                        dpUserStatsMapper.tryUpdateLargestRoomNet(p.getDpUserId(), wonBc);
-                        break;
-                    }
+        List<DpPlayer> ps = r.getPlayers();
+        if (ps != null) {
+            for (DpPlayer p : ps) {
+                if (p != null && nickname.equals(p.getNickname())) {
+                    settleAndClearCarryInOnLeaveSeatLocked(r, nickname, p);
+                    return;
                 }
             }
         }
         r.getCarryInChips().remove(nickname);
-        r.getSessionWonBc().remove(nickname);
     }
 
     // ========== 游戏开始与流程 ==========
@@ -1878,6 +1938,7 @@ ownerFieldChanged：房主字段是否发生变化。
             r.setPot(0);
             r.setPots(new ArrayList<>());
             r.setCurrentBetToCall(0);
+            r.setSettledAtMs(0L);
             r.setReadyDeadline(0L);
             // for (DpPlayer p : r.getPlayers()) {
             // p.setChips(r.getStartingChips());
@@ -1922,6 +1983,7 @@ ownerFieldChanged：房主字段是否发生变化。
             r.setCurrentBetToCall(0);
             r.setPots(new ArrayList<>());
             r.setCurrentActorIndex(-1);
+            r.setSettledAtMs(0L);
             r.setReadyDeadline(0L);
             return false;
         }
@@ -1947,9 +2009,11 @@ ownerFieldChanged：房主字段是否发生变化。
         r.setRaiseLevel(0);
         r.setLastRaiseIncrement(r.getBigBlindChips());
         r.setReadyDeadline(0L);
-        // 同步带入筹码追踪：新玩家首次上桌登记初始带入
+        // 同步带入筹码追踪：真人新上桌首次登记初始带入
         for (DpPlayer p : ps) {
-            r.getCarryInChips().putIfAbsent(p.getNickname(), r.getStartingChips());
+            if (!DpNpcEngine.isBotPlayer(p)) {
+                r.getCarryInChips().putIfAbsent(p.getNickname(), r.getStartingChips());
+            }
         }
         int did = 0;// 庄家索引
         for (DpPlayer p : ps) {// 这里需要及时重置状态
@@ -2042,6 +2106,9 @@ ownerFieldChanged：房主字段是否发生变化。
                 continue;
             }
             if (p.getChips() < r.getBigBlindChips()) {
+                if (!DpNpcEngine.isBotPlayer(p)) {
+                    settleAndClearCarryInOnLeaveSeatLocked(r, p.getNickname(), p);
+                }
                 if (!spectators.contains(p.getNickname())) {
                     spectators.add(p.getNickname());
                     if (!DpNpcEngine.isBotPlayer(p)) {
@@ -2547,13 +2614,6 @@ ownerFieldChanged：房主字段是否发生变化。
                 }
             }
 
-            // 更新房间级已赢 BC（带入追踪；退出时与历史记录比较）
-            Integer carryIn = r.getCarryInChips().get(p.getNickname());
-            if (carryIn != null && r.getBigBlindChips() > 0) {
-                int wonBc = (p.getChips() - carryIn) / r.getBigBlindChips();
-                r.getSessionWonBc().put(p.getNickname(), wonBc);
-            }
-
             dpUserStatsMapper.upsertAfterHand(userId, royalInc, straightInc, fourInc, potWonVal);
         }
     }
@@ -2606,6 +2666,7 @@ ownerFieldChanged：房主字段是否发生变化。
     private void autoSettleZeroPotAndEnterSettledShortcut(DpRoomBO r) {
         r.setLastHandHoleCardsPublic(false);
         r.setCurrentStage("settled");
+        r.setSettledAtMs(System.currentTimeMillis());
         r.setReadyDeadline(System.currentTimeMillis() + 30_000L);
         for (DpPlayer p : r.getPlayers()) {
             // settle阶段会自动把大家的准备状态设置为false
@@ -2627,9 +2688,6 @@ ownerFieldChanged：房主字段是否发生变化。
         llmNpcGlobalHandConversationStore.clearHand(r);
         removeLeftThisHandZombiesAfterHand(r);
         refreshChipLeaderNicknames(r);
-        if (checkAndStartNextHandAfterSettleReturning(r)) {
-            refreshJoinableQmIndexThenSyncLobby(r.getRoomId());
-        }
     }
 
     /**
@@ -2951,9 +3009,10 @@ ownerFieldChanged：房主字段是否发生变化。
 
         refreshChipLeaderNicknames(r);
 
-        // 进入“结算完成，等待准备下一局”阶段，并开始 30 秒准备倒计时
+        // 进入”结算完成，等待准备下一局”阶段，并开始 30 秒准备倒计时
         r.setLastHandHoleCardsPublic(lastHandPublic);
         r.setCurrentStage("settled");
+        r.setSettledAtMs(System.currentTimeMillis());
         r.setReadyDeadline(System.currentTimeMillis() + 30_000L);
         for (DpPlayer p : r.getPlayers()) {
             p.setReady(false);
@@ -2978,9 +3037,6 @@ ownerFieldChanged：房主字段是否发生变化。
         if (!pruneSettledTableForReadyTimeout(r)) {
             return;
         }
-        if (checkAndStartNextHandAfterSettleReturning(r)) {
-            refreshJoinableQmIndexThenSyncLobby(r.getRoomId());
-        }
     }
 
     /**
@@ -2994,6 +3050,9 @@ ownerFieldChanged：房主字段是否发生变化。
             return false;
         for (DpPlayer p : r.getPlayers()) {
             if (p.getNickname().equals(nickname)) {
+                if (DpNpcEngine.isBotPlayer(p)) {
+                    return false;
+                }
                 // 筹码充足（>=10）则不允许补码
                 if (p.getChips() >= r.getBigBlindChips()) {
                     return false;

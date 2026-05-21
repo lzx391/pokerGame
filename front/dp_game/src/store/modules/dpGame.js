@@ -91,7 +91,9 @@ function initialState() {
     showMobileActionSheet: false,
     heroHoleDealIntroDone: false,
     /** 后端 autoSettle 后写入的「场上积分并列最高」昵称，未结算过为空 */
-    chipLeaderNicknames: []
+    chipLeaderNicknames: [],
+    /** 当前用户本段累计带入（快照字段 myCarryInChips） */
+    myCarryInChips: 0
   }
 }
 
@@ -390,6 +392,10 @@ export default {
       var nick = state.user && state.user.nickname
       state.nextHandReady = !!(nick && list.indexOf(nick) !== -1)
       state.chipLeaderNicknames = room.chipLeaderNicknames || []
+      state.myCarryInChips =
+        room.myCarryInChips != null && isFinite(Number(room.myCarryInChips))
+          ? Math.max(0, Math.floor(Number(room.myCarryInChips)))
+          : 0
     },
     SET_LOADING: function (state, v) {
       state.loading = !!v
