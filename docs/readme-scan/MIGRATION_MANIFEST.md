@@ -1,3 +1,5 @@
+> 扫描日期：2026-05-22 · 范围：AI/infra/DB · 覆盖重写
+
 # MGDemoPlus package migration manifest
 
 ## W1 acceptance (2026-05-18)
@@ -351,7 +353,36 @@ Target subpackage = final segment under `com.example.mgdemoplus.<module>.` (e.g.
 
 ---
 
-## MIGRATION_COMPLETE (2026-05-18)
+## MIGRATION_COMPLETE (2026-05-22 复核)
+
+Agent 3 只读扫描复核（`P:/javaworkspace/MGDemoPlus`）。
+
+| Check | Result |
+|-------|--------|
+| **Overall** | **PASS** |
+| `mvn -q compile -DskipTests` | PASS (exit 0, 2026-05-22) |
+| `mvn -q test` | PASS (exit 0, Spring Boot 3.5.11 上下文启动 + 单元测试) |
+| `service.serviceImpl` in `src/**/*.java` | **0** 匹配 |
+| `service.serviceImpl` 物理目录 `src/main/java/.../service/serviceImpl` | **不存在** |
+| `@MapperScan` 包列表 | `common`, `history`, `lobby`, `music`, `roomchat`, `social`, `user`（见 `MgDemoPlusApplication`） |
+| NPC / room 目标包 | `npc.engine` / `npc.strategy` / `npc.llm`；`room.impl` + `room.support.*` |
+| Package tree doc | [ARCHITECTURE.md](ARCHITECTURE.md) |
+
+**结论：`MIGRATION_COMPLETE = true`** — 业务源码已无 `service.serviceImpl` 包；残留仅文档、`application.yml` 注释日志示例、`scripts/refactor_flatten_packages.py` 等。
+
+### 仍待文档对齐（非迁移阻塞）
+
+| 位置 | 问题 |
+|------|------|
+| `README.md` L17 | 仍写 `service.serviceImpl.npc` → 应为 `npc.engine` / `npc.llm` |
+| `CLAUDE.md` | 密码仍写 MD5 → 源码为 **bcrypt** |
+| `docs/ai/npc-engine/*`、`docs/DP_PERSISTENCE_README.md` | 旧包 `service.serviceImpl.dp` |
+| `docs/ENV_README.md` | 主配置宜标明 `application.yml` |
+| `application.yml` 注释 | logger 类名 `service.serviceImpl.DpNpcEngine` |
+
+---
+
+## MIGRATION_COMPLETE (2026-05-18 初验)
 
 Final wrap-up: `mvn clean compile` + `mvn test` on `P:/javaworkspace/MGDemoPlus`.
 
