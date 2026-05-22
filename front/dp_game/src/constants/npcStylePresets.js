@@ -1,6 +1,8 @@
 /**
  * NPC 风格参数默认值，与后端 StyleProfile.presetTag() / §6.3 一致。
  */
+import { CAT_COPY } from './dpCatThemeCopy'
+
 export const NPC_STYLE_TAG_PRESET = {
   vpip: 0.24,
   pfr: 0.76,
@@ -13,10 +15,14 @@ export const NPC_STYLE_TAG_PRESET = {
 /** 弹窗滑条字段：大白话标签 + 技术副标题 */
 export const CUSTOM_NPC_STYLE_FIELDS = [
   { key: 'vpip', label: '有多爱进场看牌', hint: 'vpip' },
-  { key: 'pfr', label: '翻前爱不爱加注', hint: 'pfr' },
-  { key: 'cbetFreq', label: '翻后爱不爱继续下注', hint: 'cbetFreq' },
+  { key: 'pfr', label: '翻前爱不爱' + CAT_COPY.actionRaise, hint: 'pfr' },
+  { key: 'cbetFreq', label: '翻后爱不爱继续' + CAT_COPY.actionRaise, hint: 'cbetFreq' },
   { key: 'bluffFreq', label: '牌不好也爱唬人', hint: 'bluffFreq' },
-  { key: 'callStation', label: '爱跟注不爱弃牌', hint: 'callStation' },
+  {
+    key: 'callStation',
+    label: '爱' + CAT_COPY.actionCall + '不爱' + CAT_COPY.actionFold,
+    hint: 'callStation'
+  },
   { key: 'foldToPressure', label: '一被施压就想跑', hint: 'foldToPressure' }
 ]
 

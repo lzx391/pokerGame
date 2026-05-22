@@ -21,7 +21,7 @@
           @custom-overrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
         />
       </div>
-      <h1 class="app-title">POKER GAME</h1>
+      <h1 class="app-title">{{ appAuthTitle }}</h1>
       <div class="nav-bar">
         <router-link to="/login" class="nav-link">登录</router-link>
         <router-link to="/register" class="nav-link">注册</router-link>
@@ -40,9 +40,13 @@
 
 <script>
 import { mapState } from 'vuex'
+import { CAT_COPY } from '@/constants/dpCatThemeCopy'
 
 export default {
   name: 'App',
+  data() {
+    return { appAuthTitle: CAT_COPY.appAuthTitle }
+  },
   computed: {
     ...mapState('dpGame', [
       'gameUiTheme',

@@ -28,7 +28,7 @@
         </div>
         <div class="hand-detail-page__hero-text">
           <h1 class="hand-detail-page__title">牌谱详情</h1>
-          <p class="hand-detail-page__subtitle">按街复盘行动与公共牌，结算页查看盈亏与边池。</p>
+          <p class="hand-detail-page__subtitle">按街复盘行动与公共牌，结算页查看盈亏与{{ catCopy.sidePot }}。</p>
         </div>
       </header>
 
@@ -49,7 +49,7 @@
             <span class="hand-detail-page__meta-v">{{ formatTime(detail.endedAtMs) }}</span>
           </div>
           <div class="hand-detail-page__meta-chip" title="小猫/大猫小鱼干注">
-            <span class="hand-detail-page__meta-k">开局注</span>
+            <span class="hand-detail-page__meta-k">{{ catCopy.anteLine }}</span>
             <span class="hand-detail-page__meta-v">{{ detail.smallBlindChips }} / {{ detail.bigBlindChips }}</span>
           </div>
           <div class="hand-detail-page__meta-chip" title="发牌猫">
@@ -232,10 +232,10 @@
             </table>
           </div>
 
-          <h2 class="hand-detail-page__subh">边池</h2>
+          <h2 class="hand-detail-page__subh">{{ catCopy.sidePot }}</h2>
           <ul v-if="pots.length" class="hand-detail-page__pots">
             <li v-for="(p, i) in pots" :key="'pot' + i" class="hand-detail-page__pot-item">
-              <span class="hand-detail-page__pot-index">池 {{ i + 1 }}</span>
+              <span class="hand-detail-page__pot-index">{{ potDisplayLabel(i) }}</span>
               <span class="hand-detail-page__pot-amount">{{ p.amount }}</span>
               <span class="hand-detail-page__pot-names">{{ (p.eligibleNicknames || []).join('、') || '—' }}</span>
             </li>
@@ -271,6 +271,7 @@ import {
   playerRoleTagsByNickname
 } from '@/utils/dpHandHistoryReplay.js'
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
+import { CAT_COPY, dpPotDisplayLabel } from '@/constants/dpCatThemeCopy'
 
 export default {
   name: 'HandHistoryDetail',
@@ -285,6 +286,7 @@ export default {
   },
   data() {
     return {
+      catCopy: CAT_COPY,
       STREET_TABS,
       user: null,
       detail: null,
@@ -488,6 +490,9 @@ export default {
     this.fetchDetail()
   },
   methods: {
+    potDisplayLabel(i) {
+      return dpPotDisplayLabel(i)
+    },
     cardClass(c) {
       return getCardClass(c)
     },

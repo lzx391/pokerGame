@@ -31,7 +31,12 @@ export var GUIDE_UI_STEPS = [
     scope: 'topBar',
     ref: 'guideTopHeroEco',
     title: '你的小鱼干',
-    body: '「持有」是你还能用的筹码；「本轮」是你这一圈已投多少；若轮到你且前面有人加注，会显示「还需补」要再投多少才能继续。'
+    body:
+      '「持有」是你还能用的 ' +
+      CAT_COPY.chips +
+      '；「本轮」是你这一圈已投多少；若轮到你且前面有人 ' +
+      CAT_COPY.actionRaise +
+      '，会显示「还需补」要再投多少才能继续。'
   },
   {
     scope: 'topBar',
@@ -91,7 +96,14 @@ export var GUIDE_UI_STEPS = [
     scope: 'table',
     ref: 'guideTableWrap',
     title: '牌桌与座位',
-    body: '椭圆桌：中间是公共牌与 ' + CAT_COPY.pot + '；周围是各只猫的手牌区。发、SC、BC 小标是发牌猫与盲注位；轮到你行动时座位会高亮。',
+    body:
+      '椭圆桌：中间是公共牌与 ' +
+      CAT_COPY.pot +
+      '；周围是各只猫的手牌区。发、SC、BC 小标是 ' +
+      CAT_COPY.dealer +
+      ' 与 ' +
+      CAT_COPY.blindPositionHint +
+      '；轮到你行动时座位会高亮。',
     closeUp: true,
     spotlightPad: 10
   },
@@ -135,7 +147,10 @@ export var GUIDE_UI_STEPS = [
     scope: 'footer',
     ref: 'guideMobileLeaveSeat',
     title: '主动离座',
-    body: '本手打完前离开座位去观众席（本手算弃牌）。想再玩可报名「下一局加入对局」。',
+    body:
+      '本手打完前离开座位去观众席（本手算' +
+      CAT_COPY.actionFold +
+      '）。想再玩可报名「下一局加入对局」。',
     closeUp: true,
     spotlightPad: 10
   },
@@ -179,7 +194,14 @@ export var GUIDE_UI_STEPS = [
     scope: 'actionPanel',
     ref: 'guideCall',
     title: '跟投 / 观望',
-    body: '有人加注时跟上「还需补」才能继续；没人加注时显示「观望」= 过牌。',
+    body:
+      '有人' +
+      CAT_COPY.actionRaise +
+      '时跟上「还需补」才能继续；没人' +
+      CAT_COPY.actionRaise +
+      '时显示「' +
+      CAT_COPY.actionCheck +
+      '」= 过牌。',
     openActionSheet: true,
     closeUp: true,
     spotlightPad: 10

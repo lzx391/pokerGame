@@ -146,6 +146,7 @@ import { dpResultSuccess, dpResultData, dpResultMessage } from '../utils/dpApiRe
 import { dpRoomApi } from '@/api/api.dpRoom'
 import { mapState, mapGetters } from 'vuex'
 import { encodeRoomApplyFingerprint } from '../utils/dpGameRoomFingerprint'
+import { CAT_COPY, dpPotDisplayLabel } from '../constants/dpCatThemeCopy'
 
 export default {
   mixins: [dpGameFullscreenMixin, dpGameTableFitMixin, dpGameActionCountdownMixin, dpGameLayoutTierMixin],
@@ -677,7 +678,7 @@ export default {
         this.$store.commit('dpGame/SET_MUSIC_TRACKS', {
           tracks: [],
           loading: false,
-          error: '曲库列表加载失败，请确认后端与 dp_music_track 已就绪。'
+          error: CAT_COPY.musicListLoadFailed
         })
       }
     },
@@ -1038,7 +1039,7 @@ export default {
       for (var i = 0; i < this.pots.length; i++) {
         var winners = this.potWinners[i] || []
         if (winners.length === 0) {
-          this.$message.warning('第 ' + (i === 0 ? '主' : i) + ' 池还没选赢家')
+          this.$message.warning(dpPotDisplayLabel(i) + ' 还没选赢家')
           return
         }
         parts.push(i + ':' + winners.join(','))
@@ -1048,7 +1049,7 @@ export default {
       // 组装确认信息（HTML 换行，避免原生 confirm 打断全屏）
       var lines = ['确认结算？']
       for (var j = 0; j < this.pots.length; j++) {
-        var potName = j === 0 ? '主池' : '边池 ' + j
+        var potName = dpPotDisplayLabel(j)
         lines.push(
           potName + '(' + this.pots[j].amount + ') -> '
           + (this.potWinners[j] || []).map(dpDisplayNickname).join(', ')

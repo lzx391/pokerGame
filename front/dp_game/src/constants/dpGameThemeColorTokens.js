@@ -2,6 +2,8 @@
  * 仅用于「自定义」主题的调色板 UI：一行可绑定多个 --dp-*，写入 overrides 时值相同。
  * 不修改各预设主题在 dp-game-themes.css 中的定义。
  */
+import { CAT_COPY } from './dpCatThemeCopy'
+
 export var DP_CUSTOM_THEME_PALETTE_GROUPS = [
   {
     id: 'shell',
@@ -27,7 +29,7 @@ export var DP_CUSTOM_THEME_PALETTE_GROUPS = [
     label: '语义色',
     rows: [
       { label: '强调色', keys: ['--dp-accent'] },
-      { label: '底池/筹码强调', keys: ['--dp-pot'] },
+      { label: CAT_COPY.themePotChipsLabel, keys: ['--dp-pot'] },
       { label: '警告', keys: ['--dp-warning'] },
       { label: '成功', keys: ['--dp-success'] },
       { label: '危险', keys: ['--dp-danger'] },
@@ -39,15 +41,15 @@ export var DP_CUSTOM_THEME_PALETTE_GROUPS = [
     label: '按钮',
     rows: [
       {
-        label: '主操作按钮背景（主按钮+加注）',
+        label: CAT_COPY.themeRaiseBtnLabel + '背景',
         keys: ['--dp-btn-primary-bg', '--dp-btn-raise-bg']
       },
       {
-        label: '主操作按钮文字（主按钮+加注）',
+        label: CAT_COPY.themeRaiseBtnLabel + '文字',
         keys: ['--dp-btn-primary-fg', '--dp-btn-raise-fg']
       },
       {
-        label: '全押按钮（底与字统一）',
+        label: CAT_COPY.themeAllInBtnLabel + '（底与字统一）',
         keys: ['--dp-btn-allin-bg', '--dp-btn-allin-fg']
       },
       { label: '线框按钮背景', keys: ['--dp-btn-ghost-bg'] },
