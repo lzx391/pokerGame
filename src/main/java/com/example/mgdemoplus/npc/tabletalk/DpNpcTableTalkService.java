@@ -20,6 +20,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DpNpcTableTalkService {
 
     private static final Logger log = LoggerFactory.getLogger(DpNpcTableTalkService.class);
+    private static final Logger logLlmTableTalk =
+            LoggerFactory.getLogger("com.example.mgdemoplus.BotLlmTableTalk");
 
     private final DpNpcTableTalkProperties properties;
     private final DpNpcLinePoolLoader linePoolLoader;
@@ -64,18 +66,25 @@ public class DpNpcTableTalkService {
 
     private void publishLlmTableTalk(String roomId, String botNickname, DpNpcEngine.BotAction action) {
         if (action.isRuleTableTalk()) {
+            logLlmTableTalk.info(
+                    "table_talk WS跳过: 解析为 RULE(缺 table_talk 或 JSON 未带上) room={} bot={}",
+                    roomId,
+                    botNickname);
             log.debug("table-talk skip: LLM bot missing table_talk room={} bot={}", roomId, botNickname);
             return;
         }
         if (action.getLlmTableTalkMode() == DpNpcEngine.LlmTableTalkMode.SILENT) {
+            logLlmTableTalk.info("table_talk WS跳过: false/缺失/空串 room={} bot={}", roomId, botNickname);
             log.debug("table-talk skip: LLM false room={} bot={}", roomId, botNickname);
             return;
         }
         String text = action.getLlmTableTalkText();
         if (text == null || text.isBlank()) {
+            logLlmTableTalk.info("table_talk WS跳过: SAY 但文本空 room={} bot={}", roomId, botNickname);
             log.debug("table-talk skip: LLM empty text room={} bot={}", roomId, botNickname);
             return;
         }
+        logLlmTableTalk.info("table_talk WS尝试推送 room={} bot={} text={}", roomId, botNickname, text);
         tryPublish(roomId, botNickname, text, "llm");
     }
 
@@ -127,12 +136,28 @@ public class DpNpcTableTalkService {
 
     private void tryPublish(String roomId, String botNickname, String text, String source) {
         if (!throttleAllows(roomId, botNickname)) {
+            if ("llm".equals(source)) {
+                logLlmTableTalk.info(
+                        "table_talk WS跳过: 节流 minIntervalMs={} room={} bot={}",
+                        properties.getMinIntervalMs(),
+                        roomId,
+                        botNickname);
+            }
             log.debug("table-talk skip: throttle room={} bot={} source={}", roomId, botNickname, source);
             return;
         }
         boolean sent = gameRoomPushService.publishNpcTableTalk(roomId, botNickname, text);
         if (sent) {
             lastPushMsByRoomBot.put(roomId + "|" + botNickname, System.currentTimeMillis());
+            if ("llm".equals(source)) {
+                logLlmTableTalk.info("table_talk WS已推送 room={} bot={}", roomId, botNickname);
+            }
+        } else if ("llm".equals(source)) {
+            logLlmTableTalk.info(
+                    "table_talk WS未推送(无订阅者/不在房/全局关闭等) room={} bot={} source={}",
+                    roomId,
+                    botNickname,
+                    source);
         }
     }
 
