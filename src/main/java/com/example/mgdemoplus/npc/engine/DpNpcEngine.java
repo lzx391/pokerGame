@@ -343,15 +343,33 @@ public class DpNpcEngine {
     }
 
     /**
-     * NPC 决策结果：动作 + 金额。
+     * LLM 桌边话术：{@link #RULE} 由 {@link com.example.mgdemoplus.npc.tabletalk.DpNpcTableTalkService} 走台词池；
+     * {@link #SILENT} 不推送；{@link #SAY} 推送 {@link #llmTableTalkText}。
+     */
+    public enum LlmTableTalkMode {
+        RULE,
+        SILENT,
+        SAY
+    }
+
+    /**
+     * NPC 决策结果：动作 + 金额；可选 LLM 桌边话术（规则 NPC 恒为 {@link LlmTableTalkMode#RULE}）。
      */
     public static class BotAction {
         private final BotActionType type;
         private final int amount;
+        private final LlmTableTalkMode llmTableTalkMode;
+        private final String llmTableTalkText;
 
         public BotAction(BotActionType type, int amount) {
+            this(type, amount, LlmTableTalkMode.RULE, null);
+        }
+
+        public BotAction(BotActionType type, int amount, LlmTableTalkMode llmTableTalkMode, String llmTableTalkText) {
             this.type = type;
             this.amount = amount;
+            this.llmTableTalkMode = llmTableTalkMode != null ? llmTableTalkMode : LlmTableTalkMode.RULE;
+            this.llmTableTalkText = llmTableTalkText;
         }
 
         public BotActionType getType() {
@@ -360,6 +378,26 @@ public class DpNpcEngine {
 
         public int getAmount() {
             return amount;
+        }
+
+        public LlmTableTalkMode getLlmTableTalkMode() {
+            return llmTableTalkMode;
+        }
+
+        public String getLlmTableTalkText() {
+            return llmTableTalkText;
+        }
+
+        public boolean isRuleTableTalk() {
+            return llmTableTalkMode == LlmTableTalkMode.RULE;
+        }
+
+        /** 规范化执行后保留 LLM 桌边话术字段。 */
+        public static BotAction withExecution(BotAction source, BotActionType type, int amount) {
+            if (source == null || source.isRuleTableTalk()) {
+                return new BotAction(type, amount);
+            }
+            return new BotAction(type, amount, source.llmTableTalkMode, source.llmTableTalkText);
         }
     }
 
@@ -1896,6 +1934,81 @@ public class DpNpcEngine {
         }
         seed ^= (long) (31 * seatIndex + 17);
         return new Random(seed);
+    }
+
+    /**
+     * 桌边话术抽样：与决策 RNG 同源但混入 {@code rollSalt}，避免每手牌每次行动都抽到相同的第一个 {@code nextDouble()}。
+     */
+    public static Random buildHandRandomForTableTalk(DpRoomBO room, DpPlayer bot, long rollSalt) {
+        if (!NPC_HAND_SEED_FOR_DECISIONS) {
+            return new Random(rollSalt ^ System.nanoTime());
+        }
+        long seed = room != null ? room.getCurrentHandSeed() : System.currentTimeMillis();
+        int seatIndex = -1;
+        if (room != null && room.getPlayers() != null) {
+            seatIndex = room.getPlayers().indexOf(bot);
+        }
+        if (seatIndex < 0) {
+            seatIndex = 0;
+        }
+        seed ^= (long) (31 * seatIndex + 17);
+        seed ^= 0x54414C4B5F4E5043L; // "TALK_NPC" — 与决策 RNG 区分
+        seed ^= rollSalt;
+        if (room != null) {
+            seed ^= room.getLastActionTime();
+            seed ^= (long) room.getCurrentActorIndex() * 997L;
+        }
+        return new Random(seed);
+    }
+
+    /**
+     * 规则 / CUSTOM NPC 桌边台词风格：Legacy 与 {@link #getBotTypeByNickname} 映射；CUSTOM 六维最近邻预设。
+     */
+    public static NpcStyle resolveNpcStyleForTableTalk(DpPlayer bot) {
+        if (bot == null) {
+            return null;
+        }
+        String nick = bot.getNickname();
+        if (isCustomBotNickname(nick)) {
+            return nearestNpcStyleForCustomSixAxis(bot);
+        }
+        BotType type = getBotTypeByNickname(nick);
+        return type == null ? null : npcStyleForBotType(type);
+    }
+
+    private static NpcStyle nearestNpcStyleForCustomSixAxis(DpPlayer bot) {
+        double vpip = bot.getNpcStyleVpip();
+        double pfr = bot.getNpcStylePfr();
+        double cbet = bot.getNpcStyleCbetFreq();
+        double bluff = bot.getNpcStyleBluffFreq();
+        double callStation = bot.getNpcStyleCallStation();
+        double foldPressure = bot.getNpcStyleFoldToPressure();
+        if (vpip < 0 && pfr < 0) {
+            return NpcStyle.TAG;
+        }
+        NpcStyle best = NpcStyle.TAG;
+        double bestDist = Double.MAX_VALUE;
+        for (NpcStyle style : NpcStyle.values()) {
+            StyleProfile preset = STYLE_PROFILE_MAP.get(style);
+            if (preset == null) {
+                continue;
+            }
+            double d = sqAxis(vpip - preset.vpip)
+                    + sqAxis(pfr - preset.pfr)
+                    + sqAxis(cbet - preset.cbetFreq)
+                    + sqAxis(bluff - preset.bluffFreq)
+                    + sqAxis(callStation - preset.callStation)
+                    + sqAxis(foldPressure - preset.foldToPressure);
+            if (d < bestDist) {
+                bestDist = d;
+                best = style;
+            }
+        }
+        return best;
+    }
+
+    private static double sqAxis(double x) {
+        return x * x;
     }
 
     /**

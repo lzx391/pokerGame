@@ -425,6 +425,27 @@ export default {
     CLEAR_ROOM_CHAT_MESSAGES: function (state) {
       state.roomChatMessages = []
     },
+    CLEAR_ALL_SEAT_CHAT: function (state) {
+      state.seatChatTextByNick = {}
+    },
+    /** 进房 HTTP 拉取：整表替换，避免与上一房间 WS 缓存合并 */
+    REPLACE_ROOM_CHAT_MESSAGES: function (state, items) {
+      if (!Array.isArray(items) || !items.length) {
+        state.roomChatMessages = []
+        return
+      }
+      var merged = items.slice()
+      merged.sort(function (a, b) {
+        var ta = a.serverTime != null ? Number(a.serverTime) : 0
+        var tb = b.serverTime != null ? Number(b.serverTime) : 0
+        if (ta !== tb) return ta - tb
+        var ia = parseInt(String(a.id), 10)
+        var ib = parseInt(String(b.id), 10)
+        if (isFinite(ia) && isFinite(ib) && ia !== ib) return ia - ib
+        return String(a.id).localeCompare(String(b.id))
+      })
+      state.roomChatMessages = merged
+    },
     MERGE_ROOM_CHAT_MESSAGES: function (state, items) {
       if (!Array.isArray(items) || !items.length) return
       var byId = {}
@@ -596,6 +617,7 @@ export default {
     RESET_ON_ROOM_CLOSED: function (state) {
       state.roomMusicState = null
       state.roomChatMessages = []
+      state.seatChatTextByNick = {}
     }
   }
 }

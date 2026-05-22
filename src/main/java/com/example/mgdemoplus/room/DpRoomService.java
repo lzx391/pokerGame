@@ -17,7 +17,12 @@ public interface DpRoomService {
                         String roomPassword, int maxSeatCount);
 
     ResultUtil listRecentRoomChat(String roomId, String viewerNickname, int limit);
-
+/**
+ * 裁剪json给不同的人看
+ * @param roomId
+ * @param viewerNickname
+ * @return
+ */
     DpRoomBO getRoomSnapshotForViewer(String roomId, String viewerNickname);
 
     DpRoomBO snapshotForViewerFromLive(DpRoomBO live, String viewerNickname);

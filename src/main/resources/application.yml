@@ -10,9 +10,9 @@ spring:
   datasource:
     type: com.alibaba.druid.pool.DruidDataSource
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/school_db?useSSL=false&serverTimezone=Asia/Shanghai}
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3307/school_db?useSSL=false&serverTimezone=Asia/Shanghai}
     username: ${SPRING_DATASOURCE_USERNAME:root}
-    password: ${SPRING_DATASOURCE_PASSWORD:123456}
+    password: ${SPRING_DATASOURCE_PASSWORD:mgdemo_root}
     druid:
       enable: true
   devtools:
@@ -25,8 +25,8 @@ spring:
   data:
     redis:
       host: ${SPRING_DATA_REDIS_HOST:127.0.0.1}
-      port: ${SPRING_DATA_REDIS_PORT:6379}
-      password: ${SPRING_DATA_REDIS_PASSWORD:ruoyi123}
+      port: ${SPRING_DATA_REDIS_PORT:6380}
+      password: ${SPRING_DATA_REDIS_PASSWORD:mgdemo_redis}
       database: 0
       timeout: 3000ms
   # SSE 长连接：避免默认 ~30s AsyncRequestTimeout 掐断 /dp/social/stream
@@ -104,6 +104,11 @@ server:
 # 要查 SQL：com.example.mgdemoplus.mapper: DEBUG。
 
 dp:
+  npc:
+    table-talk:
+      enabled: true
+      # speak-probability: 0.35  # 可选：覆盖 npc-lines/*.yaml 内默认概率
+      min-interval-ms: 2500
   llm:
     ark:
       api-key: ${ARK_API_KEY:}

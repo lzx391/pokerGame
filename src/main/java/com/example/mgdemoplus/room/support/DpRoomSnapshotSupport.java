@@ -78,7 +78,12 @@ public final class DpRoomSnapshotSupport {
         }
         return snapshotForViewerFromLive(live, viewerNickname);
     }
-
+/**
+ * 裁剪json给不同视角的人看
+ * @param live
+ * @param viewerNickname
+ * @return
+ */
     public DpRoomBO snapshotForViewerFromLive(DpRoomBO live, String viewerNickname) {
         if (live == null) {
             return null;

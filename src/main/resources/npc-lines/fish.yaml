@@ -1,0 +1,16 @@
+enabled: true
+speakProbability: 0.32
+pools:
+  FOLD:
+    - "算了，这牌太丑。"
+    - "下次再来，先溜了。"
+  CALL_OR_CHECK:
+    - "看看，又不贵。"
+    - "跟一手，万一中了呢。"
+  RAISE:
+    - "加注！我觉得有戏。"
+    - "再来点，热闹热闹。"
+  ALL_IN:
+    - "梭了！搏一把！"
+  GENERIC:
+    - "嘿嘿，有意思。"

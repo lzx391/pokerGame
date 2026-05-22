@@ -12,6 +12,7 @@ import com.example.mgdemoplus.room.support.DpSettlePersistenceDispatcher;
 import com.example.mgdemoplus.roomchat.buffer.RoomChatBuffer;
 import com.example.mgdemoplus.roomchat.DpRoomChatPersistenceService;
 import com.example.mgdemoplus.npc.llm.DpLlmNpcDecisionService;
+import com.example.mgdemoplus.npc.tabletalk.DpNpcTableTalkService;
 import com.example.mgdemoplus.npc.llm.LlmNpcGlobalHandConversationStore;
 import com.example.mgdemoplus.lobby.DpRoomHallService;
 import com.example.mgdemoplus.websocket.DpGameRoomPushService;
@@ -49,6 +50,7 @@ class DpRoomDesertedRoomCleanupTest {
                 mock(DpHandHistoryPersistService.class),
                 mock(DpSettlePersistenceDispatcher.class),
                 mock(DpLlmNpcDecisionService.class),
+                mock(DpNpcTableTalkService.class),
                 mock(DpGameRoomPushService.class),
                 mock(DpUserMapper.class),
                 mock(DpUserStatsMapper.class),

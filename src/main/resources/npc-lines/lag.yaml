@@ -1,0 +1,15 @@
+enabled: true
+speakProbability: 0.30
+pools:
+  FOLD:
+    - "这手先放，下把再搞你。"
+  CALL_OR_CHECK:
+    - "便宜看看。"
+    - "跟注，后面再说法。"
+  RAISE:
+    - "加注施压。"
+    - "给你点压力。"
+  ALL_IN:
+    - "推了，看你敢不敢接。"
+  GENERIC:
+    - "位置不错。"

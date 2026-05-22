@@ -1,0 +1,16 @@
+enabled: true
+speakProbability: 0.22
+pools:
+  FOLD:
+    - "范围外，弃。"
+    - "这里没必要继续。"
+  CALL_OR_CHECK:
+    - "赔率合适，跟。"
+    - "过牌控池。"
+  RAISE:
+    - "价值加注。"
+    - "该拿的价值不能少。"
+  ALL_IN:
+    - "极化线，全下。"
+  GENERIC:
+    - "按表打。"

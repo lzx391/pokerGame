@@ -273,8 +273,23 @@ export default {
     }
   },
 
+  beforeRouteUpdate(to, from, next) {
+    if (to.params.roomId !== from.params.roomId) {
+      this.resetRoomChatUiForEnter()
+      this.$store.commit('dpGame/SET_SESSION', { roomId: to.params.roomId })
+      var self = this
+      this.loadGame().then(function () {
+        self.fetchRoomChatRecent()
+        self.shutdownGameWsPermanently()
+        self.connectGameWs()
+      })
+    }
+    next()
+  },
+
   created() {
     this._seatChatTimers = Object.create(null)
+    this.resetRoomChatUiForEnter()
     this.$store.commit('dpGame/SET_SESSION', { roomId: this.$route.params.roomId })
 
     var self = this
@@ -695,6 +710,19 @@ export default {
       }
     },
 
+    /** 进房 / 换房：清空上一局的聊天列表与座位气泡（NPC 桌边话仅存前端，不落库） */
+    resetRoomChatUiForEnter() {
+      this.$store.commit('dpGame/CLEAR_ROOM_CHAT_MESSAGES')
+      this.$store.commit('dpGame/CLEAR_ALL_SEAT_CHAT')
+      if (this._seatChatTimers) {
+        var self = this
+        Object.keys(this._seatChatTimers).forEach(function (k) {
+          clearTimeout(self._seatChatTimers[k])
+        })
+        this._seatChatTimers = Object.create(null)
+      }
+    },
+
     pushRoomChatFromServer(data) {
       var nick = (data.nickname || '').trim()
       var text = (data.text != null ? String(data.text) : '').trim()
@@ -740,7 +768,7 @@ export default {
             }
           })
           .filter(Boolean)
-        this.$store.commit('dpGame/MERGE_ROOM_CHAT_MESSAGES', rows)
+        this.$store.commit('dpGame/REPLACE_ROOM_CHAT_MESSAGES', rows)
       } catch (e) {
         console.warn('fetchRoomChatRecent', e)
       }

@@ -1,0 +1,14 @@
+enabled: true
+speakProbability: 0.15
+pools:
+  FOLD:
+    - "太险，弃。"
+    - "不划算。"
+  CALL_OR_CHECK:
+    - "勉强跟。"
+  RAISE:
+    - "只有强牌才加。"
+  ALL_IN:
+    - "坚果，全下。"
+  GENERIC:
+    - "……"

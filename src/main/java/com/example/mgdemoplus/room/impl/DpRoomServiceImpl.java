@@ -34,6 +34,7 @@ import com.example.mgdemoplus.npc.CustomNpcStyleSnapshot;
 import com.example.mgdemoplus.npc.engine.DpNpcEngine;
 import com.example.mgdemoplus.npc.engine.DpNpcStreetActionLog;
 import com.example.mgdemoplus.npc.llm.DpLlmNpcDecisionService;
+import com.example.mgdemoplus.npc.tabletalk.DpNpcTableTalkService;
 import com.example.mgdemoplus.npc.llm.LlmNpcGlobalHandConversationStore;
 import com.example.mgdemoplus.utils.ResultUtil;
 import com.example.mgdemoplus.utils.DpUtilHandEvaluator;
@@ -71,6 +72,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     private final DpHandHistoryPersistService observedHandPersistService;
     private final DpSettlePersistenceDispatcher settlePersistenceDispatcher;
     private final DpLlmNpcDecisionService llmNpcDecisionService;
+    private final DpNpcTableTalkService npcTableTalkService;
     private final DpGameRoomPushService gameRoomPushService;
     private final DpUserMapper dpUserMapper;
     private final DpUserStatsMapper dpUserStatsMapper;
@@ -277,6 +279,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
             DpHandHistoryPersistService observedHandPersistService,
             DpSettlePersistenceDispatcher settlePersistenceDispatcher,
             DpLlmNpcDecisionService llmNpcDecisionService,
+            DpNpcTableTalkService npcTableTalkService,
             DpGameRoomPushService gameRoomPushService,
             DpUserMapper dpUserMapper,
             DpUserStatsMapper dpUserStatsMapper,
@@ -293,6 +296,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         this.observedHandPersistService = observedHandPersistService;
         this.settlePersistenceDispatcher = settlePersistenceDispatcher;
         this.llmNpcDecisionService = llmNpcDecisionService;
+        this.npcTableTalkService = npcTableTalkService;
         this.gameRoomPushService = gameRoomPushService;
         this.dpUserMapper = dpUserMapper;
         this.dpUserStatsMapper = dpUserStatsMapper;
@@ -390,6 +394,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
                 default:
                     break;
             }
+            npcTableTalkService.afterNpcActionSucceeded(room, p, action);
         }
     }
 
@@ -1129,7 +1134,9 @@ ownerFieldChanged：房主字段是否发生变化。
     public ResultUtil listRecentRoomChat(String roomId, String viewerNickname, int limit) {
         return snapshotSupport.listRecentRoomChat(roomId, viewerNickname, limit);
     }
-
+/**
+ * 裁剪json给不同视角的人看
+ */
     public DpRoomBO getRoomSnapshotForViewer(String roomId, String viewerNickname) {
         return snapshotSupport.getRoomSnapshotForViewer(roomId, viewerNickname);
     }

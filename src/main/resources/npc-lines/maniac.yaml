@@ -1,0 +1,15 @@
+enabled: true
+speakProbability: 0.38
+pools:
+  FOLD:
+    - "少见，我居然会放。"
+  CALL_OR_CHECK:
+    - "跟！别怂。"
+  RAISE:
+    - "加注！来战！"
+    - "筹码就是用来飞的。"
+  ALL_IN:
+    - "全下！谁怕谁！"
+    - "梭哈才是浪漫。"
+  GENERIC:
+    - "牌局不够刺激啊。"
