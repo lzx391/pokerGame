@@ -5,6 +5,7 @@ import router from './router'
 import store from './store'
 import { syncDpBodyGameTheme } from './utils/dpBodyGameTheme'
 import { syncDpBodyFluidity } from './utils/dpBodyFluidity'
+import { syncDpBodyRouteTransitionFlag } from './utils/dpRouteTransitionFlag'
 import { syncDpSiteHeartbeat } from './utils/dpSiteHeartbeat'
 import DpThemePicker from './components/DpThemePicker.vue'
 
@@ -16,6 +17,7 @@ import './styles/dp-depth-tokens.css'
 import './styles/dp-lobby-shell.css'
 import './styles/dp-auth-shell.css'
 import './styles/dp-motion-tokens.css'
+import './styles/dp-route-transition.css'
 import './styles/dp-interactive-hover.css'
 import './styles/dp-game-modals.css'
 import './styles/dp-game-responsive-type.css'
@@ -119,11 +121,13 @@ Vue.prototype.$http =axios
 router.afterEach(function () {
   syncDpBodyGameTheme(store, router)
   syncDpBodyFluidity(store)
+  syncDpBodyRouteTransitionFlag()
   syncDpSiteHeartbeat(axios, router)
 })
 router.onReady(function () {
   syncDpBodyGameTheme(store, router)
   syncDpBodyFluidity(store)
+  syncDpBodyRouteTransitionFlag()
   syncDpSiteHeartbeat(axios, router)
 })
 store.subscribe(function (mutation) {

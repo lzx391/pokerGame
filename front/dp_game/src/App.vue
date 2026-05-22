@@ -32,8 +32,19 @@
     </div>
 
     <!-- 其他路由：全屏展示，不显示登录 / 注册按钮 -->
-    <div v-else class="full-page" :class="{ 'full-page--lobby': isLobbyRoute, 'full-page--dp-game': isGameRoute }">
-      <router-view></router-view>
+    <div
+      v-else
+      class="full-page"
+      :class="{
+        'full-page--lobby': isLobbyRoute,
+        'full-page--dp-game': isGameRoute,
+        'full-page--route-shell': useRouteTransition
+      }"
+    >
+      <router-view v-if="!useRouteTransition" :key="routeViewKey"></router-view>
+      <transition v-else :name="routeTransitionName" mode="out-in">
+        <router-view :key="routeViewKey"></router-view>
+      </transition>
     </div>
   </div>
 </template>
@@ -41,11 +52,16 @@
 <script>
 import { mapState } from 'vuex'
 import { CAT_COPY } from '@/constants/dpCatThemeCopy'
+import { resolveRouteTransitionName } from '@/utils/dpRouteTransition'
+import { isRouteTransitionEnabled } from '@/utils/dpRouteTransitionFlag'
 
 export default {
   name: 'App',
   data() {
-    return { appAuthTitle: CAT_COPY.appAuthTitle }
+    return {
+      appAuthTitle: CAT_COPY.appAuthTitle,
+      prevRoute: { path: '/' }
+    }
   },
   computed: {
     ...mapState('dpGame', [
@@ -75,6 +91,24 @@ export default {
     /** 对局页：铺满视口、与 .dp-game-root 组成 flex 链，减少底部露灰/白边 */
     isGameRoute() {
       return this.$route.path.startsWith('/game') || this.$route.path === '/guide'
+    },
+    routeViewKey() {
+      return this.$route.fullPath
+    },
+    routeTransitionName() {
+      var fluidity = this.ecoMode ? 'eco' : 'standard'
+      return resolveRouteTransitionName(this.$route, this.prevRoute, { fluidity })
+    },
+    useRouteTransition() {
+      if (this.ecoMode || !isRouteTransitionEnabled()) return false
+      return this.routeTransitionName !== 'dp-route-none'
+    }
+  },
+  watch: {
+    $route: function (to, from) {
+      if (from && from.path) {
+        this.prevRoute = from
+      }
     }
   },
   methods: {

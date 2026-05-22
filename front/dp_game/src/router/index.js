@@ -80,7 +80,13 @@ export default new Router({
     },
     {
       path: '/game/:roomId',
-      component: () => import(/* webpackChunkName: "route-game" */ '@/components/game.vue')
+      meta: { transition: 'dp-route-enter-game' },
+      component: () =>
+        import(
+          /* webpackChunkName: "route-game" */
+          /* webpackPrefetch: true */
+          '@/components/game.vue'
+        )
     },
     {
       path: '/image_upload',

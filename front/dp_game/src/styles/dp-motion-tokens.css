@@ -8,12 +8,17 @@
   --dp-motion-duration-card: 0.45s;
   --dp-motion-duration-dialog: 0.3s;
   --dp-motion-duration-none: 0s;
+  --dp-motion-duration-route-min: 0.12s;
+  --dp-motion-duration-route-max: 0.38s;
+  --dp-motion-duration-route-leave: 0.22s;
 }
 
 body[data-dp-fluidity='eco'] {
   --dp-motion-duration-card: 0s;
   --dp-motion-duration-dialog: 0.08s;
   --dp-motion-duration-shell: 0s;
+  --dp-motion-duration-route-max: 0s;
+  --dp-motion-duration-route-leave: 0s;
 }
 
 /* ---------- 壳层 loading spin（大厅房间列表刷新等） ---------- */

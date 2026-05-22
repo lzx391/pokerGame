@@ -408,6 +408,7 @@ import {
 } from '@/constants/dpCatThemeCopy'
 import { exitLobbyQuickMatchSilently } from '@/utils/dpLobbyQuickMatchExit'
 import { postQuickMatchCancel2 } from '@/utils/dpQuickMatchExit'
+import { prefetchGameChunk, navigateToGame } from '@/utils/dpPrefetchGameRoute'
 
 export default {
   components: { GamePlayGuideModal, HomeProfileModal, FriendChatDialog, DpFluidityToggle },
@@ -481,6 +482,9 @@ export default {
       } else {
         this.closeSocialStream()
       }
+    },
+    quickMatchPolling: function (val) {
+      if (val) prefetchGameChunk()
     }
   },
   async created() {
@@ -497,9 +501,13 @@ export default {
     }, 10000)
     if (this.user && this.user.token) {
       this.bootstrapSocial()
+      prefetchGameChunk()
     }
   },
   mounted() {
+    if (this.user && this.user.token) {
+      prefetchGameChunk()
+    }
     if (peekCatTutorialRequested()) {
       clearCatTutorialSessionFlag()
       if (!isCatTutorialDismissedPermanently()) {
@@ -799,7 +807,7 @@ export default {
           return
         }
         this.friendsDrawerVisible = false
-        this.$router.push('/game/' + rid)
+        await navigateToGame(this.$router, rid)
       } finally {
         this.friendFollowBusyUserId = null
       }
@@ -843,7 +851,7 @@ export default {
         return
       }
       this.mailboxVisible = false
-      this.$router.push('/game/' + rid)
+      await navigateToGame(this.$router, rid)
     },
     async onRejectRoomInvite(id) {
       await this.rejectRoomInvite({ http: this.$http, id })
@@ -1098,7 +1106,7 @@ export default {
           this.quickMatchPolling = false
           this.quickMatchLoading = false
           this.disconnectQuickMatchWs()
-          this.$router.push('/game/' + data.roomId)
+          navigateToGame(this.$router, data.roomId)
           return
         }
         if (data.state === 'IDLE') {
@@ -1144,11 +1152,12 @@ export default {
         const data = dpResultData(body) || {}
         if (data.roomId) {
           this.disconnectQuickMatchWs()
-          this.$router.push('/game/' + data.roomId)
+          await navigateToGame(this.$router, data.roomId)
           return
         }
         if (data.queued && data.state === 'WAITING') {
           this.quickMatchPolling = true
+          prefetchGameChunk()
           return
         }
         this.disconnectQuickMatchWs()
