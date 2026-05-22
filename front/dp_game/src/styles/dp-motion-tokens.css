@@ -1,0 +1,78 @@
+/**
+ * 全站动效时长 token；节能档由 body[data-dp-fluidity='eco'] 覆盖。
+ * 壳层 spin / Element dialog·drawer 过渡引用此处，避免 eco/PRM 双份维护。
+ */
+:root {
+  --dp-motion-duration-fast: 0.15s;
+  --dp-motion-duration-shell: 0.2s;
+  --dp-motion-duration-card: 0.45s;
+  --dp-motion-duration-dialog: 0.3s;
+  --dp-motion-duration-none: 0s;
+}
+
+body[data-dp-fluidity='eco'] {
+  --dp-motion-duration-card: 0s;
+  --dp-motion-duration-dialog: 0.08s;
+  --dp-motion-duration-shell: 0s;
+}
+
+/* ---------- 壳层 loading spin（大厅房间列表刷新等） ---------- */
+body[data-dp-fluidity='eco'] .home-room-list__refresh-ico--spin {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-room-list__refresh-ico--spin {
+    animation: none !important;
+  }
+}
+
+/* ---------- Element dialog / drawer / 遮罩（挂 body） ---------- */
+body[data-dp-fluidity='eco'] .dialog-fade-enter-active,
+body[data-dp-fluidity='eco'] .dialog-fade-leave-active,
+body[data-dp-fluidity='eco'] .dialog-fade-enter-active .el-dialog,
+body[data-dp-fluidity='eco'] .dialog-fade-leave-active .el-dialog,
+body[data-dp-fluidity='eco'] .el-drawer-fade-enter-active,
+body[data-dp-fluidity='eco'] .el-drawer-fade-leave-active,
+body[data-dp-fluidity='eco'] .el-drawer-fade-enter-active .el-drawer,
+body[data-dp-fluidity='eco'] .el-drawer-fade-leave-active .el-drawer,
+body[data-dp-fluidity='eco'] .dp-overlay-enter-active,
+body[data-dp-fluidity='eco'] .dp-overlay-leave-active,
+body[data-dp-fluidity='eco'] .dp-overlay-enter-active .hand-rank-modal,
+body[data-dp-fluidity='eco'] .dp-overlay-leave-active .hand-rank-modal,
+body[data-dp-fluidity='eco'] .dp-sheet-enter-active,
+body[data-dp-fluidity='eco'] .dp-sheet-leave-active,
+body[data-dp-fluidity='eco'] .dp-sheet-enter-active .dp-game-sheet,
+body[data-dp-fluidity='eco'] .dp-sheet-leave-active .dp-game-sheet,
+body[data-dp-fluidity='eco'] .v-modal-enter,
+body[data-dp-fluidity='eco'] .v-modal-leave {
+  transition-duration: var(--dp-motion-duration-dialog) !important;
+  animation-duration: var(--dp-motion-duration-dialog) !important;
+}
+
+body[data-dp-fluidity='eco'] .dp-overlay-enter .hand-rank-modal,
+body[data-dp-fluidity='eco'] .dp-overlay-leave-to .hand-rank-modal,
+body[data-dp-fluidity='eco'] .dp-sheet-enter .dp-game-sheet,
+body[data-dp-fluidity='eco'] .dp-sheet-leave-to .dp-game-sheet {
+  transform: none;
+}
+
+body[data-dp-fluidity='eco'] .rtl-drawer-in,
+body[data-dp-fluidity='eco'] .rtl-drawer-out,
+body[data-dp-fluidity='eco'] .ltr-drawer-in,
+body[data-dp-fluidity='eco'] .ltr-drawer-out,
+body[data-dp-fluidity='eco'] .ttb-drawer-in,
+body[data-dp-fluidity='eco'] .ttb-drawer-out,
+body[data-dp-fluidity='eco'] .btt-drawer-in,
+body[data-dp-fluidity='eco'] .btt-drawer-out {
+  animation-duration: var(--dp-motion-duration-dialog) !important;
+}
+
+/* ---------- 壳层 tab / 按钮短过渡（排行榜等） ---------- */
+body[data-dp-fluidity='eco'] .lb-page__tab {
+  transition: none;
+}
+
+body[data-dp-fluidity='eco'] #app .nav-link {
+  transition: none;
+}

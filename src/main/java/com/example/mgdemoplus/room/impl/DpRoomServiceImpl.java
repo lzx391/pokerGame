@@ -5,7 +5,11 @@ import com.example.mgdemoplus.room.KickPlayersBatchResult;
 import com.example.mgdemoplus.room.support.DpRoomHeartbeatScheduler;
 import com.example.mgdemoplus.room.support.DpRoomHumanCounts;
 import com.example.mgdemoplus.room.support.DpRoomLobbySync;
+import com.example.mgdemoplus.room.support.DpRoomMutationEffect;
 import com.example.mgdemoplus.room.support.DpRoomQuickMatchBridge;
+import com.example.mgdemoplus.room.support.DpSettlePersistJob;
+import com.example.mgdemoplus.room.support.DpSettlePersistenceDispatcher;
+import com.example.mgdemoplus.room.support.DpSettleStatsIncrement;
 import com.example.mgdemoplus.room.support.DpRoomRegistry;
 import com.example.mgdemoplus.room.support.DpRoomServiceCallbacks;
 import com.example.mgdemoplus.room.support.DpRoomSnapshotSupport;
@@ -65,6 +69,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     private final DpRoomHeartbeatScheduler heartbeatScheduler;
     private final DpRoomSnapshotSupport snapshotSupport;
     private final DpHandHistoryPersistService observedHandPersistService;
+    private final DpSettlePersistenceDispatcher settlePersistenceDispatcher;
     private final DpLlmNpcDecisionService llmNpcDecisionService;
     private final DpGameRoomPushService gameRoomPushService;
     private final DpUserMapper dpUserMapper;
@@ -270,6 +275,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     public DpRoomServiceImpl(
             // 注入服务
             DpHandHistoryPersistService observedHandPersistService,
+            DpSettlePersistenceDispatcher settlePersistenceDispatcher,
             DpLlmNpcDecisionService llmNpcDecisionService,
             DpGameRoomPushService gameRoomPushService,
             DpUserMapper dpUserMapper,
@@ -285,6 +291,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
             DpRoomChatPersistenceService roomChatPersistenceService,
             com.example.mgdemoplus.moderation.DpSensitiveWordService sensitiveWordService) {
         this.observedHandPersistService = observedHandPersistService;
+        this.settlePersistenceDispatcher = settlePersistenceDispatcher;
         this.llmNpcDecisionService = llmNpcDecisionService;
         this.gameRoomPushService = gameRoomPushService;
         this.dpUserMapper = dpUserMapper;
@@ -345,7 +352,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     }
 
     private void refreshJoinableQmIndexThenSyncLobby(String roomId) {
-        lobbySync.refreshJoinableQmIndexThenSyncLobby(roomId);
+        lobbySync.afterRoomMutation(roomId, DpRoomMutationEffect.BOTH);
     }
 
     private void finalizeHallAfterRoomRemoved(String roomId) {
@@ -839,8 +846,7 @@ ownerFieldChanged：房主字段是否发生变化。
         }
         r.getPlayers().add(p);
         roomMap.put(id, r);
-        refreshJoinableQuickMatchIndexRoom(id, System.currentTimeMillis());
-        syncLobbyForRoomId(id);
+        lobbySync.afterRoomMutation(id, DpRoomMutationEffect.BOTH);
         if (roomPassword == null) {
             attemptQuickMatchPairing();
         }
@@ -1191,10 +1197,10 @@ ownerFieldChanged：房主字段是否发生变化。
         if (!"ok".equals(outcome) && !"游戏已开始".equals(outcome)) {
             return;
         }
-        long now = System.currentTimeMillis();
-        refreshJoinableQuickMatchIndexRoom(roomId, now);
         if ("ok".equals(outcome)) {
-            syncLobbyForRoomId(roomId);
+            lobbySync.afterRoomMutation(roomId, DpRoomMutationEffect.BOTH);
+        } else if ("游戏已开始".equals(outcome)) {
+            lobbySync.afterRoomMutation(roomId, DpRoomMutationEffect.INDEX);
         }
     }
 
@@ -1269,6 +1275,7 @@ ownerFieldChanged：房主字段是否发生变化。
             return "房间不存在";
         }
         final String outcome;
+        boolean waitRemoved = false;
         synchronized (r) {
             if (roomMap.get(roomId) != r) {
                 return "房间不存在";
@@ -1276,7 +1283,7 @@ ownerFieldChanged：房主字段是否发生变化。
             Integer uid = resolveAndValidateUserId(userId, nickname);
             List<String> waiters = r.getWaitNextHand();
             if (waiters != null) {
-                waiters.remove(nickname);
+                waitRemoved = waiters.remove(nickname);
             }
             if (r.isPlaying()) {
                 List<String> spectators = r.getSpectators();
@@ -1331,7 +1338,9 @@ ownerFieldChanged：房主字段是否发生变化。
         if ("ok".equals(outcome) || "游戏已开始".equals(outcome)) {
             presenceMarkInGameHuman(r, nickname, userId, "join_room_invite_spectator");
         }
-        refreshJoinableQmIndexThenSyncLobby(roomId);
+        if (waitRemoved) {
+            lobbySync.afterRoomMutation(roomId, DpRoomMutationEffect.INDEX);
+        }
         return outcome;
     }
 
@@ -1937,7 +1946,8 @@ ownerFieldChanged：房主字段是否发生变化。
                 } else if (tryUnregisterEmptyRoomAssumeLocked(r, roomId)) {
                     droppedEmpty = true;
                 } else {
-                    lobbyTouch = true;
+                    // 仅观众退出：大厅 player_count 不含观众，无需 upsert（P0-3）
+                    lobbyTouch = target != null;
                 }
             }
         }
@@ -2672,25 +2682,25 @@ ownerFieldChanged：房主字段是否发生变化。
      * 每手结算后将牌型荣誉与局数写入 dp_user_stats（紧跟在牌谱落库之后调用，共享同一个 archived != null 守卫）。
      * 每人仅一条 upsert，先算完所需增量再写库。
      */
-    private void recordPlayerHonorStatsAfterSettle(DpRoomBO r,
-                                                   Map<String, DpUtilHandEvaluator.HandStrength> strengthMap,
-                                                   Map<String, Integer> chipsBefore) {
+    private List<DpSettleStatsIncrement> buildHonorStatsIncrementsAfterSettle(
+            DpRoomBO r,
+            Map<String, DpUtilHandEvaluator.HandStrength> strengthMap,
+            Map<String, Integer> chipsBefore) {
         if (r == null || r.getPlayers() == null || chipsBefore == null) {
-            return;
+            return List.of();
         }
-
+        List<DpSettleStatsIncrement> out = new ArrayList<>();
         for (DpPlayer p : r.getPlayers()) {
             if (p.getDpUserId() == null || DpNpcEngine.isBotPlayer(p)) {
                 continue;
             }
             int userId = p.getDpUserId();
-
             int before = chipsBefore.getOrDefault(p.getNickname(), 0);
             int netWon = p.getChips() - before - p.getTotalBet();
-
-            int royalInc = 0, straightInc = 0, fourInc = 0;
+            int royalInc = 0;
+            int straightInc = 0;
+            int fourInc = 0;
             BigDecimal handMultiplier = BigDecimal.ZERO;
-
             if (netWon > 0) {
                 handMultiplier = computeHandNetWinMultiplier(netWon, r.getStartingChips());
                 DpUtilHandEvaluator.HandStrength hs = strengthMap.get(p.getNickname());
@@ -2705,12 +2715,34 @@ ownerFieldChanged：房主字段是否发生变化。
                     }
                 }
             }
+            out.add(new DpSettleStatsIncrement(userId, royalInc, straightInc, fourInc, handMultiplier));
+        }
+        return out;
+    }
 
-            dpUserStatsMapper.upsertAfterHand(userId, royalInc, straightInc, fourInc, handMultiplier);
-            if (handMultiplier.signum() > 0) {
-                dpLeaderboardWeeklyWriteService.recordHandBest(userId, handMultiplier);
+    private List<DpSettleStatsIncrement> buildZeroPotHonorStatsIncrements(DpRoomBO r) {
+        if (r == null || r.getPlayers() == null) {
+            return List.of();
+        }
+        List<DpSettleStatsIncrement> out = new ArrayList<>();
+        for (DpPlayer p : r.getPlayers()) {
+            if (p.getDpUserId() != null) {
+                out.add(new DpSettleStatsIncrement(p.getDpUserId(), 0, 0, 0, BigDecimal.ZERO));
             }
         }
+        return out;
+    }
+
+    private void enqueueSettlePersistence(DpObservedHandRecordBO archived, DpRoomBO r, List<DpSettleStatsIncrement> stats) {
+        if (archived == null) {
+            return;
+        }
+        DpSettlePersistJob job = new DpSettlePersistJob(
+                r.getRoomId(),
+                archived,
+                DpSettlePersistenceDispatcher.snapshotRoomForHandPersist(r),
+                stats != null ? List.copyOf(stats) : List.of());
+        settlePersistenceDispatcher.dispatch(job);
     }
 
     /** 本手结算收尾：从 players 移除已离线占位，与 {@link #autoSettle} 主路径及零底池捷径一致。 */
@@ -2770,13 +2802,7 @@ ownerFieldChanged：房主字段是否发生变化。
         // 每局结算的时候将牌谱归档，并存入数据库
         DpObservedHandRecordBO archivedEarly = observedHandService.finalizeHand(r);
         if (archivedEarly != null) {
-            observedHandPersistService.save(archivedEarly, r);
-            // 能落库说明是有效局，计入生涯局数（零底池无赢家，全 0 增量仅计局数）
-            for (DpPlayer p : r.getPlayers()) {
-                if (p.getDpUserId() != null) {
-                    dpUserStatsMapper.upsertAfterHand(p.getDpUserId(), 0, 0, 0, BigDecimal.ZERO);
-                }
-            }
+            enqueueSettlePersistence(archivedEarly, r, buildZeroPotHonorStatsIncrements(r));
         }
         DpNpcStreetActionLog.clearHand(r);
         observedHandService.clearHand(r);
@@ -3091,8 +3117,8 @@ ownerFieldChanged：房主字段是否发生变化。
         // 完整牌谱归档 → 可选对手画像入库 + 生涯荣誉统计（共用 archived != null 守卫）
         DpObservedHandRecordBO archived = observedHandService.finalizeHand(r);
         if (archived != null) {
-            observedHandPersistService.save(archived, r);
-            recordPlayerHonorStatsAfterSettle(r, strengthMap, chipsBeforeSettle);
+            enqueueSettlePersistence(
+                    archived, r, buildHonorStatsIncrementsAfterSettle(r, strengthMap, chipsBeforeSettle));
         }
 
         // 逐街动作日志：本手结束后清理，避免内存增长

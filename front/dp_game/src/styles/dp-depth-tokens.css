@@ -1,0 +1,26 @@
+/**
+ * 全站色彩层次 token（质感，非特效）。
+ * 挂载于 body[data-dp-game-theme]；与 dpGameThemeColorTokens.js 中 --dp-* 同名映射。
+ * 消费方：lobby/auth shell、Element 弹层、后续 Leaderboard / 对局 pill（见 frontend-fluidity-plan.md §6.1）。
+ */
+
+body[data-dp-game-theme] {
+  --dp-depth-panel-bg: color-mix(in srgb, var(--dp-panel-bg) 94%, var(--dp-accent) 6%);
+  --dp-depth-panel-border: 1px solid var(--dp-panel-border);
+  --dp-depth-elev-1: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --dp-depth-elev-2: 0 4px 12px rgba(0, 0, 0, 0.12);
+  --dp-depth-text-primary: var(--dp-text-primary);
+  --dp-depth-text-secondary: var(--dp-text-secondary);
+  --dp-depth-accent: var(--dp-accent);
+  --dp-depth-app-bg: var(--dp-game-bg);
+}
+
+/* 大厅 #app 与 body 同底，减少路由切换露 #f5f7fa（#app 默认色完整替换见 P1-12） */
+body[data-dp-game-theme] {
+  background-color: var(--dp-depth-app-bg);
+}
+
+body[data-dp-game-theme] #app.app--lobby,
+body[data-dp-game-theme] #app.app--auth {
+  background-color: var(--dp-depth-app-bg);
+}

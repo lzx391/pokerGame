@@ -1,9 +1,10 @@
 <template>
+  <transition :name="embedded ? 'dp-overlay-none' : 'dp-overlay'">
   <div
       v-if="embedded || visible"
       :class="embedded ? 'game-owner-tool-embedded-root' : 'hand-rank-modal-mask'"
       @click="embedded ? null : $emit('close')"
-  > 
+  >
     <div
         :class="embedded ? 'game-owner-tool-embedded' : 'hand-rank-modal hand-rank-modal--legacy'"
         @click.stop
@@ -330,6 +331,7 @@
       </div>
     </div>
   </div>
+  </transition>
 </template>
 
 <script>

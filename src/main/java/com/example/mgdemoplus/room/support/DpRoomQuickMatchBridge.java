@@ -156,14 +156,13 @@ public final class DpRoomQuickMatchBridge {
                 if (!progressedInRoom) {
                     continue candLoop;
                 }
-                callbacks.refreshQmIndexAfterJoinOutcomeOutsideRoomLock(r.getRoomId(), join);
                 if (!readyOk) {
                     if (!wasPresent) {
                         callbacks.exitRoom(r.getRoomId(), nickname);
                     }
                     continue candLoop;
                 }
-                lobbySync.refreshJoinableQmIndexThenSyncLobby(r.getRoomId());
+                callbacks.refreshQmIndexAfterJoinOutcomeOutsideRoomLock(r.getRoomId(), join);
                 return ResultUtil.ok().data("roomId", r.getRoomId()).data("message", "ok");
             }
             return ResultUtil.error().data("message", MSG_NO_PUBLIC_ROOM);

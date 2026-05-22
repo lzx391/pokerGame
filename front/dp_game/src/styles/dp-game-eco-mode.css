@@ -1,50 +1,77 @@
 /**
- * 节能模式：与系统「减少动态效果」类似的视觉降级，由用户在对局页勾选，作用域为 .dp-game-root
- * （不依赖 UA，任意设备可开）
+ * 节能档 + 系统「减少动态效果」：单一维护点（P0-6）。
+ * 选择器模板：.dp-game-root[data-dp-eco-mode='true'] … 与 @media (prefers-reduced-motion: reduce) 并列。
+ * 作用域：对局根 .dp-game-root（不依赖 UA 自动切档）。
  */
 
-.dp-game-root[data-dp-eco-mode='true'] .dp-player-card__rival-turn-dot {
-  animation: none !important;
-  opacity: 1;
+/* —— 对手行动指示点 —— */
+.dp-game-root[data-dp-eco-mode='true'] .dp-player-card__rival-turn-dot,
+@media (prefers-reduced-motion: reduce) {
+  .dp-player-card__rival-turn-dot {
+    animation: none !important;
+    opacity: 1;
+  }
 }
 
-.dp-game-root[data-dp-eco-mode='true'] .dp-player-card--hand-reveal-glass {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+/* —— 摊牌毛玻璃关断 —— */
+.dp-game-root[data-dp-eco-mode='true'] .dp-player-card--hand-reveal-glass,
+@media (prefers-reduced-motion: reduce) {
+  .dp-player-card--hand-reveal-glass {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
 }
 
-.dp-game-root[data-dp-eco-mode='true'] .card-base {
-  transition: none !important;
+/* —— 扑克牌基类：无扫光 / hover 抬升 —— */
+.dp-game-root[data-dp-eco-mode='true'] .card-base,
+@media (prefers-reduced-motion: reduce) {
+  .card-base {
+    transition: none !important;
+  }
 }
 
-.dp-game-root[data-dp-eco-mode='true'] .card-base::after {
-  animation: none !important;
-  opacity: 0 !important;
+.dp-game-root[data-dp-eco-mode='true'] .card-base::after,
+@media (prefers-reduced-motion: reduce) {
+  .card-base::after {
+    animation: none !important;
+    opacity: 0 !important;
+  }
 }
 
-.dp-game-root[data-dp-eco-mode='true'] .card-base:hover {
-  transform: none;
-  filter: none;
+.dp-game-root[data-dp-eco-mode='true'] .card-base:hover,
+@media (prefers-reduced-motion: reduce) {
+  .card-base:hover {
+    transform: none;
+    filter: none;
+  }
 }
 
-.dp-game-root[data-dp-eco-mode='true'] .hole-card-fly-wrapper.hole-deal-fly-in {
-  animation: none !important;
-  pointer-events: auto;
+/* —— 手牌发牌 / 弃牌飞入 —— */
+.dp-game-root[data-dp-eco-mode='true'] .hole-card-fly-wrapper.hole-deal-fly-in,
+.dp-game-root[data-dp-eco-mode='true'] .hole-card-fly-wrapper.hole-fold-to-muck,
+@media (prefers-reduced-motion: reduce) {
+  .hole-card-fly-wrapper.hole-deal-fly-in,
+  .hole-card-fly-wrapper.hole-fold-to-muck {
+    animation: none !important;
+    pointer-events: auto;
+  }
 }
 
-.dp-game-root[data-dp-eco-mode='true'] .hole-card-fly-wrapper.hole-fold-to-muck {
-  animation: none !important;
+.dp-game-root[data-dp-eco-mode='true'] .hole-card-flip,
+@media (prefers-reduced-motion: reduce) {
+  .hole-card-flip {
+    animation: hole-card-flip-eco 0.35s ease-out both;
+  }
 }
 
-.dp-game-root[data-dp-eco-mode='true'] .hole-card-flip {
-  animation: hole-card-flip-eco 0.35s ease-out both;
-}
-
-.dp-game-root[data-dp-eco-mode='true'] .hole-card-flip.hole-card-flip--instant {
-  animation: none;
-  transform: none;
-  opacity: 1;
-  filter: none;
+.dp-game-root[data-dp-eco-mode='true'] .hole-card-flip.hole-card-flip--instant,
+@media (prefers-reduced-motion: reduce) {
+  .hole-card-flip.hole-card-flip--instant {
+    animation: none;
+    transform: none;
+    opacity: 1;
+    filter: none;
+  }
 }
 
 @keyframes hole-card-flip-eco {
@@ -56,64 +83,100 @@
   }
 }
 
-.dp-game-root[data-dp-eco-mode='true'] .best-hand-card-enter {
-  animation: none !important;
+.dp-game-root[data-dp-eco-mode='true'] .best-hand-card-enter,
+.dp-game-root[data-dp-eco-mode='true'] .best-hand-cards .best-hand-card::after,
+@media (prefers-reduced-motion: reduce) {
+  .best-hand-card-enter,
+  .best-hand-cards .best-hand-card::after {
+    animation: none !important;
+    opacity: 0;
+  }
 }
 
-.dp-game-root[data-dp-eco-mode='true'] .best-hand-cards .best-hand-card::after {
-  animation: none !important;
-  opacity: 0;
-}
-
+/* —— chip-leader / 连胜标（静态描边） —— */
 .dp-game-root[data-dp-eco-mode='true'] .player-card--win-streak,
 .dp-game-root[data-dp-eco-mode='true'] .win-streak-badge,
 .dp-game-root[data-dp-eco-mode='true'] .win-streak-badge::after,
-.dp-game-root[data-dp-eco-mode='true'] .win-streak-badge__emoji {
-  animation: none !important;
+.dp-game-root[data-dp-eco-mode='true'] .win-streak-badge__emoji,
+@media (prefers-reduced-motion: reduce) {
+  .player-card--win-streak,
+  .win-streak-badge,
+  .win-streak-badge::after,
+  .win-streak-badge__emoji {
+    animation: none !important;
+  }
 }
 
-.dp-game-root[data-dp-eco-mode='true'] .player-card--win-streak {
-  box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.35), 0 4px 12px rgba(0, 0, 0, 0.06);
-  filter: none;
+.dp-game-root[data-dp-eco-mode='true'] .player-card--win-streak,
+@media (prefers-reduced-motion: reduce) {
+  .player-card--win-streak {
+    box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.35), 0 4px 12px rgba(0, 0, 0, 0.06);
+    filter: none;
+  }
 }
 
-.dp-game-root[data-dp-eco-mode='true'] .win-streak-badge {
-  background: linear-gradient(135deg, #ff4d4f 0%, #fa8c16 100%);
-  background-size: 100% 100%;
+.dp-game-root[data-dp-eco-mode='true'] .win-streak-badge,
+@media (prefers-reduced-motion: reduce) {
+  .win-streak-badge {
+    background: linear-gradient(135deg, #ff4d4f 0%, #fa8c16 100%);
+    background-size: 100% 100%;
+  }
 }
 
-/* 公共牌区 */
-.dp-game-root[data-dp-eco-mode='true'] .card-flip-wrapper.deal-fly-in {
-  animation: none !important;
-  pointer-events: auto;
+/* —— 公共牌：无飞入 / 瞬时翻面（G8） —— */
+.dp-game-root[data-dp-eco-mode='true'] .card-flip-wrapper.deal-fly-in,
+@media (prefers-reduced-motion: reduce) {
+  .card-flip-wrapper.deal-fly-in {
+    animation: none !important;
+    pointer-events: auto;
+  }
 }
 
-.dp-game-root[data-dp-eco-mode='true'] .card-flip-inner {
-  transition: transform 0.45s ease;
+.dp-game-root[data-dp-eco-mode='true'] .card-flip-inner,
+@media (prefers-reduced-motion: reduce) {
+  .card-flip-inner {
+    transition: none !important;
+  }
 }
 
-.dp-game-root[data-dp-eco-mode='true'] .card-flip-inner.flipped .card-front {
-  animation: none !important;
+.dp-game-root[data-dp-eco-mode='true'] .card-flip-inner.flipped .card-front,
+.dp-game-root[data-dp-eco-mode='true'] .card-flip-inner .card-back,
+.dp-game-root[data-dp-eco-mode='true'] .community-card-placeholder,
+@media (prefers-reduced-motion: reduce) {
+  .card-flip-inner.flipped .card-front,
+  .card-flip-inner .card-back,
+  .community-card-placeholder {
+    animation: none !important;
+  }
 }
 
-.dp-game-root[data-dp-eco-mode='true'] .card-flip-inner .card-back {
-  animation: none !important;
+.dp-game-root[data-dp-eco-mode='true'] .card-flip-wrapper,
+@media (prefers-reduced-motion: reduce) {
+  .card-flip-wrapper {
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.25));
+  }
 }
 
-.dp-game-root[data-dp-eco-mode='true'] .community-card-placeholder {
-  animation: none !important;
+/* —— 桌面行动倒计时 —— */
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-table-action-timer__inner,
+@media (prefers-reduced-motion: reduce) {
+  .dp-game-table-action-timer__inner {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
 }
 
-.dp-game-root[data-dp-eco-mode='true'] .card-flip-wrapper {
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.25));
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-table-action-timer--danger .dp-game-table-action-timer__inner,
+@media (prefers-reduced-motion: reduce) {
+  .dp-game-table-action-timer--danger .dp-game-table-action-timer__inner {
+    animation: none !important;
+  }
 }
 
-/* 桌面行动倒计时：节能下去毛玻璃与危险态脉冲 */
-.dp-game-root[data-dp-eco-mode='true'] .dp-game-table-action-timer__inner {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-.dp-game-root[data-dp-eco-mode='true'] .dp-game-table-action-timer--danger .dp-game-table-action-timer__inner {
-  animation: none !important;
+/* —— 手机 urgent 底栏（G1，两档关脉冲） —— */
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-mobile-hero-bar__btn--urgent,
+@media (prefers-reduced-motion: reduce) {
+  .dp-game-mobile-hero-bar__btn--urgent {
+    animation: none !important;
+  }
 }

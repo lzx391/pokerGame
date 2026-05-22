@@ -357,6 +357,7 @@ export default {
         overrides: state.customThemeOverrides
       })
     },
+    /** 仅用户手动切换；禁止 UA/PRM 自动调用 writeEcoMode（策略 B）。body 档位见 dpBodyFluidity.js */
     SET_ECO_MODE: function (state, on) {
       state.ecoMode = !!on
       writeEcoMode(!!on)

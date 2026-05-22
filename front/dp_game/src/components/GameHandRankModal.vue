@@ -1,4 +1,5 @@
 <template>
+  <transition name="dp-overlay">
   <div v-if="visible" class="hand-rank-modal-mask" @click="$emit('close')">
     <div class="hand-rank-modal" role="dialog" aria-modal="true" aria-labelledby="dp-hand-rank-title" @click.stop>
       <div class="dp-game-dialog__head">
@@ -27,6 +28,7 @@
       </div>
     </div>
   </div>
+  </transition>
 </template>
 
 <script>

@@ -31,6 +31,7 @@
               @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
               @custom-overrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
             />
+            <dp-fluidity-toggle label-class="home-fluidity-toggle" />
           </div>
           <div class="user-info">
             <span v-if="user && user.nickname">当前用户：{{ user.nickname }}</span>
@@ -396,6 +397,7 @@ import { dpResultSuccess, dpResultData, dpResultMessage } from '@/utils/dpApiRes
 import GamePlayGuideModal from '@/components/GamePlayGuideModal.vue'
 import HomeProfileModal from '@/components/HomeProfileModal.vue'
 import FriendChatDialog from '@/components/FriendChatDialog.vue'
+import DpFluidityToggle from '@/components/DpFluidityToggle.vue'
 import { buildSocialStreamUrl } from '@/utils/dpSocialStream'
 import { mapGetters, mapState, mapActions } from 'vuex'
 import {
@@ -408,7 +410,7 @@ import { exitLobbyQuickMatchSilently } from '@/utils/dpLobbyQuickMatchExit'
 import { postQuickMatchCancel2 } from '@/utils/dpQuickMatchExit'
 
 export default {
-  components: { GamePlayGuideModal, HomeProfileModal, FriendChatDialog },
+  components: { GamePlayGuideModal, HomeProfileModal, FriendChatDialog, DpFluidityToggle },
   mixins: [dpLobbyThemeMixin],
   data() {
     return {
@@ -1294,6 +1296,12 @@ export default {
   flex-direction: column;
   align-items: flex-end;
   gap: 10px;
+}
+.home-theme-row {
+  flex-wrap: wrap;
+}
+.home-fluidity-toggle {
+  margin-left: 0;
 }
 .home-theme-row {
   justify-content: flex-end;

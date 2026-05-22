@@ -48,17 +48,20 @@ export default {
       'gameUiTheme',
       'gameThemeOptions',
       'customThemeBase',
-      'customThemeOverrides'
+      'customThemeOverrides',
+      'ecoMode'
     ]),
     isAuthPage() {
       const path = this.$route.path
       return path === '/login' || path === '/register' || path === '/'
     },
     /** 大厅与主题子页：#app 不铺灰底，由 .dp-game-root / body[data-dp-game-theme] 铺色 */
+    /** 与 dpBodyGameTheme.isLobbyRoute 真源一致（含 /create-room，验收 A12） */
     isLobbyRoute() {
       const p = this.$route.path
       return (
         p === '/home' ||
+        p === '/create-room' ||
         p.startsWith('/hand-history') ||
         p === '/leaderboard' ||
         p === '/music-upload' ||
@@ -157,14 +160,11 @@ body {
   text-decoration: none;
   font-size: 16px;
   font-weight: 500;
-  transition: all 0.3s ease;
   box-shadow: 0 2px 6px rgba(64, 158, 255, 0.2);
 }
 
 .nav-link:hover {
   background-color: #338eef;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(64, 158, 255, 0.3);
 }
 
 /* 内容区域 */

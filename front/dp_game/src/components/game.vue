@@ -145,6 +145,7 @@ import { ensureDpUserIdInStorage } from '../utils/dpEnsureUserId'
 import { dpResultSuccess, dpResultData, dpResultMessage } from '../utils/dpApiResult'
 import { dpRoomApi } from '@/api/api.dpRoom'
 import { mapState, mapGetters } from 'vuex'
+import { encodeRoomApplyFingerprint } from '../utils/dpGameRoomFingerprint'
 
 export default {
   mixins: [dpGameFullscreenMixin, dpGameTableFitMixin, dpGameActionCountdownMixin, dpGameLayoutTierMixin],
@@ -163,6 +164,8 @@ export default {
   data() {
     return {
       communityCardsFlipCompleteTimer: null,
+      /** WS/HTTP 房间快照指纹；与 {@link encodeRoomApplyFingerprint} 一致，未变则跳过 APPLY_ROOM */
+      _lastRoomApplyFingerprint: '',
       gameWs: null,
       gameWsConnected: false,
       /** 每开一条新连接前自增，用于丢弃旧 socket 的 onclose/onopen，避免顶替连接时误触重连 */
@@ -341,6 +344,7 @@ export default {
     if (this.actionTimer) clearInterval(this.actionTimer)
     if (this.readyTimer) clearInterval(this.readyTimer)
     if (this.communityCardsFlipCompleteTimer) clearTimeout(this.communityCardsFlipCompleteTimer)
+    this._lastRoomApplyFingerprint = ''
     if (this._seatChatTimers) {
       var self = this
       Object.keys(this._seatChatTimers).forEach(function (k) {
@@ -767,6 +771,17 @@ export default {
     },
 
     applyRoomFromServer(room) {
+      var fp = encodeRoomApplyFingerprint(room)
+      if (fp && fp === this._lastRoomApplyFingerprint) {
+        this.$nextTick(function () {
+          this.syncActionCountdown()
+          if (this.isMyTurn && this.raiseAmount < this.minRaise) {
+            this.$store.commit('dpGame/SET_RAISE_AMOUNT', this.minRaise)
+          }
+        }.bind(this))
+        return
+      }
+      this._lastRoomApplyFingerprint = fp
       this.$store.commit('dpGame/APPLY_ROOM', room)
       this.syncCommunityCardsFlipState(room.communityCards || [])
       this.$nextTick(function () {
@@ -775,6 +790,15 @@ export default {
           this.$store.commit('dpGame/SET_RAISE_AMOUNT', this.minRaise)
         }
       }.bind(this))
+    },
+
+    /** eco 或系统「减少动态效果」：公共牌翻面走短定时，与 CSS 瞬时翻转对齐 */
+    prefersReducedMotionForFlip() {
+      try {
+        return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      } catch (e) {
+        return false
+      }
     },
 
     // ---- 拉取房间状态 ----
@@ -1441,6 +1465,7 @@ export default {
      * 因此仅在公共牌变少（新一手）或新增公共牌（numNew>0）时取消并重设定时器。
      */
     syncCommunityCardsFlipState(newCards) {
+      var instantFlip = this.ecoMode || this.prefersReducedMotionForFlip()
       var prevLen = this.communityCardsFlipState.length
       if (newCards.length < prevLen) {
         if (this.communityCardsFlipCompleteTimer) {
@@ -1461,28 +1486,38 @@ export default {
       }
       var flip = this.communityCardsFlipState.slice()
       for (var i = flip.length; i < newCards.length; i++) {
-        flip.push(false)
+        flip.push(instantFlip)
       }
       if (flip.length !== this.communityCardsFlipState.length) {
         this.$store.commit('dpGame/SET_COMMUNITY_FLIP_STATE', flip)
       }
-      for (var j = prevLen; j < newCards.length; j++) {
-        var self = this
-        ;(function (capturedIdx, capturedDelay) {
-          setTimeout(function () {
-            if (self.communityCardsFlipState.length > capturedIdx) {
-              self.$store.commit('dpGame/SET_FLIP_AT', { index: capturedIdx, value: true })
-            }
-          }, capturedDelay)
-        })(j, 520 + 350 * (j - prevLen))
-      }
-      if (numNew > 0) {
-        var flipDuration = 800
-        var lastFlipStart = 520 + 350 * (numNew - 1)
-        var self = this
+      if (numNew > 0 && instantFlip) {
+        for (var k = 0; k < newCards.length; k++) {
+          flip[k] = true
+        }
+        this.$store.commit('dpGame/SET_COMMUNITY_FLIP_STATE', flip)
+        var selfInstant = this
         this.communityCardsFlipCompleteTimer = setTimeout(function () {
-          self.$store.commit('dpGame/SET_COMMUNITY_FLIP_COMPLETE', true)
-          self.communityCardsFlipCompleteTimer = null
+          selfInstant.$store.commit('dpGame/SET_COMMUNITY_FLIP_COMPLETE', true)
+          selfInstant.communityCardsFlipCompleteTimer = null
+        }, 180)
+      } else if (numNew > 0) {
+        for (var j = prevLen; j < newCards.length; j++) {
+          var self = this
+          ;(function (capturedIdx, capturedDelay) {
+            setTimeout(function () {
+              if (self.communityCardsFlipState.length > capturedIdx) {
+                self.$store.commit('dpGame/SET_FLIP_AT', { index: capturedIdx, value: true })
+              }
+            }, capturedDelay)
+          })(j, 520 + 350 * (j - prevLen))
+        }
+        var flipDuration = 480
+        var lastFlipStart = 520 + 350 * (numNew - 1)
+        var selfDone = this
+        this.communityCardsFlipCompleteTimer = setTimeout(function () {
+          selfDone.$store.commit('dpGame/SET_COMMUNITY_FLIP_COMPLETE', true)
+          selfDone.communityCardsFlipCompleteTimer = null
         }, lastFlipStart + flipDuration)
       } else if (newCards.length > 0 && this.communityCardsFlipState.every(function (x) {
         return x

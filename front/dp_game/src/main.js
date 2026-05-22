@@ -4,15 +4,20 @@ import axios from 'axios'
 import router from './router'
 import store from './store'
 import { syncDpBodyGameTheme } from './utils/dpBodyGameTheme'
+import { syncDpBodyFluidity } from './utils/dpBodyFluidity'
 import { syncDpSiteHeartbeat } from './utils/dpSiteHeartbeat'
 import DpThemePicker from './components/DpThemePicker.vue'
 
 Vue.component('DpThemePicker', DpThemePicker)
 /* 主题变量需先于 lobby-shell（body 背景用 var(--dp-game-bg)） */
 import './styles/dp-game-themes.css'
+import './styles/dp-depth-tokens.css'
 /* 尽早加载：大厅 #app.app--lobby 与 .dp-game-root 布局 */
 import './styles/dp-lobby-shell.css'
 import './styles/dp-auth-shell.css'
+import './styles/dp-motion-tokens.css'
+import './styles/dp-interactive-hover.css'
+import './styles/dp-game-modals.css'
 import './styles/dp-game-responsive-type.css'
 import './styles/dp-game-layout-tiers.css'
 import './styles/dp-game-element-ui.css'
@@ -113,10 +118,12 @@ Vue.prototype.$http =axios
 
 router.afterEach(function () {
   syncDpBodyGameTheme(store, router)
+  syncDpBodyFluidity(store)
   syncDpSiteHeartbeat(axios, router)
 })
 router.onReady(function () {
   syncDpBodyGameTheme(store, router)
+  syncDpBodyFluidity(store)
   syncDpSiteHeartbeat(axios, router)
 })
 store.subscribe(function (mutation) {
@@ -125,6 +132,9 @@ store.subscribe(function (mutation) {
     mutation.type === 'dpGame/SET_CUSTOM_THEME'
   ) {
     syncDpBodyGameTheme(store, router)
+  }
+  if (mutation.type === 'dpGame/SET_ECO_MODE') {
+    syncDpBodyFluidity(store)
   }
 })
 

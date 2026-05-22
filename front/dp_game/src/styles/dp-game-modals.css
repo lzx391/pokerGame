@@ -1,3 +1,77 @@
+/* ---------- 自定义遮罩弹窗 / 底栏 sheet（Vue transition，节奏对齐 Element dialog） ---------- */
+.dp-overlay-enter-active,
+.dp-overlay-leave-active {
+  transition: opacity var(--dp-motion-duration-dialog, 0.3s) ease;
+}
+
+.dp-overlay-enter,
+.dp-overlay-leave-to {
+  opacity: 0;
+}
+
+.dp-overlay-enter-active .hand-rank-modal,
+.dp-overlay-leave-active .hand-rank-modal,
+.dp-overlay-enter-active .hand-rank-modal--legacy,
+.dp-overlay-leave-active .hand-rank-modal--legacy,
+.dp-overlay-enter-active .hand-rank-modal--play-guide,
+.dp-overlay-leave-active .hand-rank-modal--play-guide,
+.dp-overlay-enter-active .hand-rank-modal--music-box,
+.dp-overlay-leave-active .hand-rank-modal--music-box,
+.dp-overlay-enter-active .hand-rank-modal--hand-history,
+.dp-overlay-leave-active .hand-rank-modal--hand-history {
+  transition:
+    transform var(--dp-motion-duration-dialog, 0.3s) cubic-bezier(0.22, 1, 0.36, 1),
+    opacity var(--dp-motion-duration-dialog, 0.3s) ease;
+}
+
+.dp-overlay-enter .hand-rank-modal,
+.dp-overlay-enter .hand-rank-modal--legacy,
+.dp-overlay-enter .hand-rank-modal--play-guide,
+.dp-overlay-enter .hand-rank-modal--music-box,
+.dp-overlay-enter .hand-rank-modal--hand-history,
+.dp-overlay-leave-to .hand-rank-modal,
+.dp-overlay-leave-to .hand-rank-modal--legacy,
+.dp-overlay-leave-to .hand-rank-modal--play-guide,
+.dp-overlay-leave-to .hand-rank-modal--music-box,
+.dp-overlay-leave-to .hand-rank-modal--hand-history {
+  transform: scale(0.96) translateY(8px);
+  opacity: 0;
+}
+
+.dp-sheet-enter-active,
+.dp-sheet-leave-active {
+  transition: opacity var(--dp-motion-duration-dialog, 0.3s) ease;
+}
+
+.dp-sheet-enter,
+.dp-sheet-leave-to {
+  opacity: 0;
+}
+
+.dp-sheet-enter-active .dp-game-sheet,
+.dp-sheet-leave-active .dp-game-sheet {
+  transition: transform var(--dp-motion-duration-dialog, 0.3s) cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dp-sheet-enter .dp-game-sheet,
+.dp-sheet-leave-to .dp-game-sheet {
+  transform: translateY(100%);
+}
+
+/* 内嵌 sheet 等场景：跳过遮罩过渡 */
+.dp-overlay-none-enter-active,
+.dp-overlay-none-leave-active,
+.dp-overlay-none-enter-active .hand-rank-modal,
+.dp-overlay-none-leave-active .hand-rank-modal {
+  transition: none !important;
+}
+
+.dp-overlay-none-enter .hand-rank-modal,
+.dp-overlay-none-leave-to .hand-rank-modal {
+  transform: none;
+  opacity: 1;
+}
+
 /* 居中弹窗：与顶栏/主题变量一致（牌型说明、观众席、房主工具等共用 .hand-rank-modal 壳） */
 .hand-rank-modal-mask {
   position: fixed;

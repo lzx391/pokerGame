@@ -1,0 +1,98 @@
+/**
+ * 电脑端可点击控件悬停浮起（仅 hover + fine pointer；手机不依赖 hover）。
+ * 标准档完整反馈；节能档减弱（见文末 eco 覆盖）。
+ * 不对 .card-base 扑克牌叠加强化。
+ */
+
+:root {
+  --dp-hover-lift-y: -2px;
+  --dp-hover-lift-scale: 1.02;
+  --dp-hover-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  --dp-hover-shadow-accent: 0 4px 14px color-mix(in srgb, var(--dp-accent, #409eff) 28%, transparent);
+}
+
+/* 基础过渡（标准 + 节能均保留短过渡，便于松开时回弹；eco 会覆盖 hover 形变） */
+.dp-btn,
+button[class*='dp-'],
+.el-button,
+#app .nav-link,
+.dp-game-dialog__close,
+.dp-game-sheet__close,
+.dp-play-guide__tab,
+.dp-play-guide__ok,
+.dp-top-bar__btn,
+.dp-action-panel .dp-btn,
+.dp-action-panel button[type='button'],
+.dp-game-mobile-hero-bar__btn,
+.dp-game-hero-action-row__owner-btn {
+  transition:
+    transform var(--dp-motion-duration-fast, 0.15s) ease,
+    box-shadow var(--dp-motion-duration-fast, 0.15s) ease,
+    opacity var(--dp-motion-duration-fast, 0.15s) ease,
+    background-color var(--dp-motion-duration-fast, 0.15s) ease,
+    border-color var(--dp-motion-duration-fast, 0.15s) ease,
+    color var(--dp-motion-duration-fast, 0.15s) ease;
+  will-change: auto;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  body[data-dp-fluidity='standard'] .dp-btn:not(:disabled):hover,
+  body[data-dp-fluidity='standard'] button.dp-social-list__idline:not(:disabled):hover,
+  body[data-dp-fluidity='standard'] .el-button:not(.is-disabled):hover,
+  body[data-dp-fluidity='standard'] #app .nav-link:hover,
+  body[data-dp-fluidity='standard'] .dp-game-dialog__close:hover,
+  body[data-dp-fluidity='standard'] .dp-game-sheet__close:hover,
+  body[data-dp-fluidity='standard'] .dp-play-guide__tab:hover,
+  body[data-dp-fluidity='standard'] .dp-play-guide__ok:hover,
+  body[data-dp-fluidity='standard'] .dp-top-bar__btn:not(:disabled):hover,
+  body[data-dp-fluidity='standard'] .dp-action-panel .dp-btn:not(:disabled):hover,
+  body[data-dp-fluidity='standard'] .dp-action-panel button[type='button']:not(:disabled):hover,
+  body[data-dp-fluidity='standard'] .dp-game-mobile-hero-bar__btn:not(:disabled):hover,
+  body[data-dp-fluidity='standard'] .dp-game-hero-action-row__owner-btn:not(:disabled):hover,
+  body[data-dp-fluidity='standard'] .lb-page__tab:hover {
+    transform: translateY(var(--dp-hover-lift-y)) scale(var(--dp-hover-lift-scale));
+    box-shadow: var(--dp-hover-shadow);
+    will-change: transform;
+  }
+
+  body[data-dp-game-theme][data-dp-fluidity='standard'] .el-button--primary:not(.is-disabled):hover,
+  body[data-dp-game-theme][data-dp-fluidity='standard'] .el-button--default:not(.is-disabled):hover {
+    box-shadow: var(--dp-hover-shadow-accent);
+  }
+
+  /* 大厅 ghost：保留边框高亮，浮起由统一规则提供 */
+  body[data-dp-fluidity='standard'] .dp-btn--ghost:not(:disabled):hover {
+    border-color: var(--dp-accent);
+  }
+}
+
+/* 节能档：弱化/关闭悬停形变（dialog 时长仍由 dp-motion-tokens 控制） */
+@media (hover: hover) and (pointer: fine) {
+  body[data-dp-fluidity='eco'] .dp-btn:not(:disabled):hover,
+  body[data-dp-fluidity='eco'] button.dp-social-list__idline:not(:disabled):hover,
+  body[data-dp-fluidity='eco'] .el-button:not(.is-disabled):hover,
+  body[data-dp-fluidity='eco'] #app .nav-link:hover,
+  body[data-dp-fluidity='eco'] .dp-game-dialog__close:hover,
+  body[data-dp-fluidity='eco'] .dp-game-sheet__close:hover,
+  body[data-dp-fluidity='eco'] .dp-play-guide__tab:hover,
+  body[data-dp-fluidity='eco'] .dp-play-guide__ok:hover,
+  body[data-dp-fluidity='eco'] .dp-top-bar__btn:not(:disabled):hover,
+  body[data-dp-fluidity='eco'] .dp-action-panel .dp-btn:not(:disabled):hover,
+  body[data-dp-fluidity='eco'] .dp-action-panel button[type='button']:not(:disabled):hover,
+  body[data-dp-fluidity='eco'] .dp-game-mobile-hero-bar__btn:not(:disabled):hover,
+  body[data-dp-fluidity='eco'] .dp-game-hero-action-row__owner-btn:not(:disabled):hover,
+  body[data-dp-fluidity='eco'] .lb-page__tab:hover {
+    transform: none;
+    box-shadow: none;
+    will-change: auto;
+  }
+}
+
+/* 触屏轻按反馈（可选，非 hover 依赖） */
+@media (hover: none), (pointer: coarse) {
+  .dp-btn:not(:disabled):active,
+  .el-button:not(.is-disabled):active,
+  #app .nav-link:active {
+    transform: scale(0.98);
+  }
+}

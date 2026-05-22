@@ -52,6 +52,13 @@ mgdemoplus:
     file-location: ${MGDEMOPLUS_IMAGES_FILE_LOCATION:file:P:/javaworkspace/DPGameFiles/} # 头像等上传文件落盘目录（与 WebConfig `/images/**` 一致）；Docker 用环境变量 MGDEMOPLUS_IMAGES_FILE_LOCATION 覆盖
   music:
     file-location: ${MGDEMOPLUS_MUSIC_FILE_LOCATION:file:P:/javaworkspace/DPGameFiles/music/} # 曲库音频（与 WebConfig `/music/**`、DpMusicController 一致）；可设 MGDEMOPLUS_MUSIC_FILE_LOCATION
+  leaderboard:
+    sync-interval-ms: 60000 # MySQL → Redis 全量同步间隔（毫秒，fixedDelay）
+    sync-enabled: true
+    redis-ttl-days: 14 # 周榜 ZSET 过期天数
+  settle-persist:
+    async-enabled: ${MGDEMOPLUS_SETTLE_PERSIST_ASYNC_ENABLED:true} # false：结算写回同步路径（回滚/单测）
+    queue-capacity: ${MGDEMOPLUS_SETTLE_PERSIST_QUEUE_CAPACITY:256}
 
 mybatis-plus:
   mapper-locations: classpath*:mapper/**/*.xml

@@ -8,6 +8,7 @@ import com.example.mgdemoplus.leaderboard.impl.DpLeaderboardWeeklyWriteService;
 import com.example.mgdemoplus.presence.DpFriendPresenceService;
 import com.example.mgdemoplus.history.DpHandHistoryObservedService;
 import com.example.mgdemoplus.history.DpHandHistoryPersistService;
+import com.example.mgdemoplus.room.support.DpSettlePersistenceDispatcher;
 import com.example.mgdemoplus.roomchat.buffer.RoomChatBuffer;
 import com.example.mgdemoplus.roomchat.DpRoomChatPersistenceService;
 import com.example.mgdemoplus.npc.llm.DpLlmNpcDecisionService;
@@ -46,6 +47,7 @@ class DpRoomDesertedRoomCleanupTest {
         DpRoomServiceImpl.suppressGlobalRoomTimerForTests = true;
         svc = new DpRoomServiceImpl(
                 mock(DpHandHistoryPersistService.class),
+                mock(DpSettlePersistenceDispatcher.class),
                 mock(DpLlmNpcDecisionService.class),
                 mock(DpGameRoomPushService.class),
                 mock(DpUserMapper.class),

@@ -1,5 +1,6 @@
 <template>
   <div>
+    <transition name="dp-sheet">
     <game-bottom-sheet
         v-if="vm.showMobileHandSheet && vm.heroDockRow"
         title="我的手牌"
@@ -34,7 +35,9 @@
         />
       </div>
     </game-bottom-sheet>
+    </transition>
 
+    <transition name="dp-sheet">
     <game-bottom-sheet
         v-if="vm.showMobileActionSheet && (vm.isMyTurn || vm.inSettledStage)"
         ref="guideActionSheet"
@@ -74,7 +77,9 @@
           @fold="vm.doFold"
       />
     </game-bottom-sheet>
+    </transition>
 
+    <transition name="dp-sheet">
     <game-bottom-sheet
         v-if="vm.showOwnerHubSheet && vm.isOwner"
         title="房主操作"
@@ -141,6 +146,7 @@
           @kick-players="(nicks) => vm.doKickPlayers(nicks)"
       />
     </game-bottom-sheet>
+    </transition>
     <game-player-social-sheet
         v-if="vm.playerSocialOpen && vm.playerSocialTarget"
         :visible="true"
