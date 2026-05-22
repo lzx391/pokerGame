@@ -21,10 +21,12 @@ import com.example.mgdemoplus.common.entity.DpPlayerStats;
 import com.example.mgdemoplus.common.entity.DpUser;
 import com.example.mgdemoplus.common.mapper.DpUserMapper;
 import com.example.mgdemoplus.user.mapper.DpUserStatsMapper;
+import com.example.mgdemoplus.leaderboard.impl.DpLeaderboardWeeklyWriteService;
 import com.example.mgdemoplus.presence.DpFriendPresenceService;
 import com.example.mgdemoplus.history.DpHandHistoryObservedService;
 import com.example.mgdemoplus.history.DpHandHistoryPersistService;
 import com.example.mgdemoplus.lobby.DpRoomHallService;
+import com.example.mgdemoplus.npc.CustomNpcStyleSnapshot;
 import com.example.mgdemoplus.npc.engine.DpNpcEngine;
 import com.example.mgdemoplus.npc.engine.DpNpcStreetActionLog;
 import com.example.mgdemoplus.npc.llm.DpLlmNpcDecisionService;
@@ -67,6 +69,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     private final DpGameRoomPushService gameRoomPushService;
     private final DpUserMapper dpUserMapper;
     private final DpUserStatsMapper dpUserStatsMapper;
+    private final DpLeaderboardWeeklyWriteService dpLeaderboardWeeklyWriteService;
     private final DpHandHistoryObservedService observedHandService;
     private final LlmNpcGlobalHandConversationStore llmNpcGlobalHandConversationStore;
     private final DpRoomHallService dpRoomHallService;
@@ -186,6 +189,58 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     }
 
     /**
+     * 批量添加自定义调参 NPC（同批共用一份 profile）；昵称 {@code BOT_CUSTOM_<序号>}。
+     */
+    @Override
+    public boolean addCustomNpcBatchToNextHand(
+            String roomId,
+            String requesterNickname,
+            int count,
+            CustomNpcStyleSnapshot profile) {
+        if (count <= 0) {
+            return true;
+        }
+        if (profile == null) {
+            return false;
+        }
+        DpRoomBO r = roomMap.get(roomId);
+        if (r == null) {
+            return false;
+        }
+        if (requesterNickname == null
+                || r.getOwner() == null
+                || !requesterNickname.equals(r.getOwner())) {
+            return false;
+        }
+        List<String> waiters = r.getWaitNextHand();
+        if (waiters == null) {
+            waiters = new ArrayList<>();
+            r.setWaitNextHand(waiters);
+        }
+        int cap = r.getMaxSeatCount() - seatedCountForSeatCap(r) - waiters.size();
+        if (cap <= 0) {
+            return false;
+        }
+        int n = Math.min(count, cap);
+        CustomNpcStyleSnapshot batchSnapshot = profile.cloneSnapshot();
+        try {
+            int firstSeq = r.allocateBotNicknameSeqBatch(n);
+            Map<String, CustomNpcStyleSnapshot> pending = r.getPendingCustomNpcProfiles();
+            for (int i = 0; i < n; i++) {
+                String nick = DpNpcEngine.customBotNickname(firstSeq + i);
+                if (!waiters.contains(nick)) {
+                    waiters.add(nick);
+                }
+                pending.put(nick, batchSnapshot.cloneSnapshot());
+            }
+        } catch (IllegalArgumentException ex) {
+            return false;
+        }
+        refreshJoinableQuickMatchIndexRoom(roomId, System.currentTimeMillis());
+        return true;
+    }
+
+    /**
      * 将大模型 NPC 加入下一局；{@code BOT_LLM_<房间序号>}，决策仅走 {@link DpLlmNpcDecisionService}。
      */
     public boolean addLlmBotToNextHand(String roomId) {
@@ -219,6 +274,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
             DpGameRoomPushService gameRoomPushService,
             DpUserMapper dpUserMapper,
             DpUserStatsMapper dpUserStatsMapper,
+            DpLeaderboardWeeklyWriteService dpLeaderboardWeeklyWriteService,
             DpHandHistoryObservedService observedHandService,
             LlmNpcGlobalHandConversationStore llmNpcGlobalHandConversationStore,
             DpRoomHallService dpRoomHallService,
@@ -233,6 +289,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         this.gameRoomPushService = gameRoomPushService;
         this.dpUserMapper = dpUserMapper;
         this.dpUserStatsMapper = dpUserStatsMapper;
+        this.dpLeaderboardWeeklyWriteService = dpLeaderboardWeeklyWriteService;
         this.observedHandService = observedHandService;
         this.llmNpcGlobalHandConversationStore = llmNpcGlobalHandConversationStore;
         this.dpRoomHallService = dpRoomHallService;
@@ -602,6 +659,9 @@ ownerFieldChanged：房主字段是否发生变化。
         }
         kicked.setReady(false);
         kicked.setLeftThisHand(true);
+        if (DpNpcEngine.isCustomBotNickname(nickname)) {
+            r.getPendingCustomNpcProfiles().remove(nickname);
+        }
         if (!DpNpcEngine.isBotPlayer(kicked)) {
             List<String> spectators = getNewSpectators(r);
             if (!spectators.contains(nickname)) {
@@ -1341,6 +1401,9 @@ ownerFieldChanged：房主字段是否发生变化。
             } else {
                 changed = waiters.remove(nickname);
             }
+            if (changed && DpNpcEngine.isCustomBotNickname(nickname)) {
+                r.getPendingCustomNpcProfiles().remove(nickname);
+            }
         }
         if (changed) {
             refreshJoinableQuickMatchIndexRoom(roomId, System.currentTimeMillis());
@@ -1900,6 +1963,7 @@ ownerFieldChanged：房主字段是否发生变化。
         BigDecimal multiplier = computeRoomNetWinMultiplier(p.getChips(), totalCarryIn, initialChips);
         if (multiplier.compareTo(BigDecimal.ZERO) > 0 && p.getDpUserId() != null) {
             dpUserStatsMapper.tryUpdateLargestRoomNet(p.getDpUserId(), multiplier);
+            dpLeaderboardWeeklyWriteService.recordRoomBest(p.getDpUserId(), multiplier);
         }
         r.getCarryInChips().remove(nickname);
     }
@@ -2160,6 +2224,12 @@ ownerFieldChanged：房主字段是否发生变化。
                 // 新加入的玩家带着默认筹码参与新一局
                 np.setChips(r.getStartingChips());
                 np.setReady(true);
+                CustomNpcStyleSnapshot pendingStyle = r.getPendingCustomNpcProfiles().remove(name);
+                if (pendingStyle != null) {
+                    pendingStyle.copyTo(np);
+                } else if (DpNpcEngine.isCustomBotNickname(name)) {
+                    log.error("CUSTOM bot {} seated without pending profile in room {}", name, r.getRoomId());
+                }
                 canPlay.add(np);// 准备下一把的新人加入
 
                 // 这些人已经回到牌桌，不再属于观众席
@@ -2610,7 +2680,7 @@ ownerFieldChanged：房主字段是否发生变化。
         }
 
         for (DpPlayer p : r.getPlayers()) {
-            if (p.getDpUserId() == null) {
+            if (p.getDpUserId() == null || DpNpcEngine.isBotPlayer(p)) {
                 continue;
             }
             int userId = p.getDpUserId();
@@ -2637,6 +2707,9 @@ ownerFieldChanged：房主字段是否发生变化。
             }
 
             dpUserStatsMapper.upsertAfterHand(userId, royalInc, straightInc, fourInc, handMultiplier);
+            if (handMultiplier.signum() > 0) {
+                dpLeaderboardWeeklyWriteService.recordHandBest(userId, handMultiplier);
+            }
         }
     }
 

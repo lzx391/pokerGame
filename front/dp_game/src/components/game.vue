@@ -187,7 +187,7 @@ export default {
 
   computed: {
     ...mapState('dpGame', [
-      'gameUiTheme', 'customThemeBase', 'customThemeOverrides', 'ecoMode', 'gameThemeOptions', 'roomId', 'user', 'currentHandSeed', 'owner', 'players', 'playing', 'stage', 'communityCards', 'pot', 'pots', 'currentBetToCall', 'lastRaiseIncrement', 'actIndex', 'spectators', 'waitNextHand', 'raiseAmount', 'selectedWinners', 'potWinners', 'nextHandReady', 'loading', 'communityCardsFlipState', 'communityCardsFlipComplete', 'seatChatTextByNick', 'roomChatMessages', 'chatInputDraft', 'showPlayGuideModal', 'playGuideTab', 'showSpectatorModal', 'showWaitNextHandModal', 'showHandHistoryModal', 'showOpponentHandHistoryModal', 'opponentHandHistoryOtherUserId', 'opponentHandHistoryDisplayName', 'showMusicBoxModal', 'musicTracks', 'musicTracksLoading', 'musicTracksError', 'roomMusicState', 'showOwnerHubSheet', 'ownerToolType', 'ownerActionTarget', 'demoBotAdding', 'demoBotAddedTip', 'maniacBotAdding', 'maniacBotAddedTip', 'tagBotAdding', 'tagBotAddedTip', 'lagBotAdding', 'lagBotAddedTip', 'nitBotAdding', 'nitBotAddedTip', 'callBotAdding', 'callBotAddedTip', 'llmBotAdding', 'llmBotAddedTip', 'llmGlobalBotAdding', 'llmGlobalBotAddedTip', 'ownerRevealAll', 'showMobileHandSheet', 'showMobileActionSheet', 'heroHoleDealIntroDone', 'chipLeaderNicknames', 'myCarryInChips'
+      'gameUiTheme', 'customThemeBase', 'customThemeOverrides', 'ecoMode', 'gameThemeOptions', 'roomId', 'user', 'currentHandSeed', 'owner', 'players', 'playing', 'stage', 'communityCards', 'pot', 'pots', 'currentBetToCall', 'lastRaiseIncrement', 'actIndex', 'spectators', 'waitNextHand', 'raiseAmount', 'selectedWinners', 'potWinners', 'nextHandReady', 'loading', 'communityCardsFlipState', 'communityCardsFlipComplete', 'seatChatTextByNick', 'roomChatMessages', 'chatInputDraft', 'showPlayGuideModal', 'playGuideTab', 'showSpectatorModal', 'showWaitNextHandModal', 'showHandHistoryModal', 'showOpponentHandHistoryModal', 'opponentHandHistoryOtherUserId', 'opponentHandHistoryDisplayName', 'showMusicBoxModal', 'musicTracks', 'musicTracksLoading', 'musicTracksError', 'roomMusicState', 'showOwnerHubSheet', 'showCustomNpcStyleDialog', 'customNpcPendingCount', 'ownerToolType', 'ownerActionTarget', 'demoBotAdding', 'demoBotAddedTip', 'maniacBotAdding', 'maniacBotAddedTip', 'tagBotAdding', 'tagBotAddedTip', 'lagBotAdding', 'lagBotAddedTip', 'nitBotAdding', 'nitBotAddedTip', 'callBotAdding', 'callBotAddedTip', 'llmBotAdding', 'llmBotAddedTip', 'llmGlobalBotAdding', 'llmGlobalBotAddedTip', 'customBotAdding', 'customBotAddedTip', 'ownerRevealAll', 'showMobileHandSheet', 'showMobileActionSheet', 'heroHoleDealIntroDone', 'chipLeaderNicknames', 'myCarryInChips'
     ]),
     ...mapGetters('dpGame', [
       'effectiveThemeForCss', 'customThemeInlineStyle', 'handRankReference', 'stageCN', 'isOwner', 'canInviteFriend', 'isMyTurn', 'myPlayer', 'showSpectatorPrepareBlock', 'myReady', 'myChips', 'myBet', 'callAmount', 'smallBlind', 'bigBlind', 'lastRaiseIncrementEffective', 'minTotalToRaise', 'minRaise', 'allPotsHaveWinners', 'inSettledStage', 'ownerActionPlayers', 'playersDisplayOrder', 'viewerSeatedAtTable', 'holeDealPlayerCountForAnim', 'heroDockRow', 'dealerDisplayIndex', 'showdownHandLeaderNicknames', 'spectatorSeatChatEntries', 'tableActionActorDisplayName', 'mobileHeroDockActive', 'showHeroViewHandButton', 'showBottomHeroDock'
@@ -326,6 +326,7 @@ export default {
   },
 
   beforeDestroy() {
+    this.$store.commit('dpGame/SET_MODAL', { showCustomNpcStyleDialog: false })
     try {
       var bgm = this.$refs.roomBgm
       if (bgm) {
@@ -1202,6 +1203,50 @@ export default {
       }
     },
 
+    closeCustomNpcStyleDialog () {
+      this.$store.commit('dpGame/SET_MODAL', { showCustomNpcStyleDialog: false })
+    },
+
+    /**
+     * 自定义 NPC：弹窗确定后提交（本批共用一套 profile）。
+     */
+    async submitCustomNpcBatch (profile) {
+      if (!this.roomId || !this.user || !this.user.nickname) {
+        this.$message.warning('请先登录')
+        return
+      }
+      var count = this.customNpcPendingCount
+      this.$store.commit('dpGame/SET_MODAL', { showCustomNpcStyleDialog: false })
+      this.$store.commit('dpGame/SET_BOT_STATE', {
+        customBotAdding: true,
+        customBotAddedTip: ''
+      })
+      try {
+        var res = await this.$http.post('/dpRoom/addCustomNpcBatch', {
+          roomId: this.roomId,
+          count: count,
+          requesterNickname: this.user.nickname,
+          profile: profile
+        })
+        var msg
+        if (res.data === 'ok') {
+          msg =
+            '已请求在下一局加入最多 ' +
+            count +
+            ' 个自定义 NPC（受空位限制；本批共用一套参数），请等待本局结束。'
+        } else {
+          msg = '添加失败：' + res.data
+        }
+        this.$store.commit('dpGame/SET_BOT_STATE', { customBotAddedTip: msg })
+      } catch (e) {
+        this.$store.commit('dpGame/SET_BOT_STATE', {
+          customBotAddedTip: '网络错误：' + (e && e.message ? e.message : e)
+        })
+      } finally {
+        this.$store.commit('dpGame/SET_BOT_STATE', { customBotAdding: false })
+      }
+    },
+
     /**
      * 房主神器：按数量将 NPC 加入下一局等待列表（规则档走 addRuleNpcBatch）。
      */
@@ -1211,6 +1256,14 @@ export default {
       var count = parseInt(payload.count, 10)
       if (isNaN(count) || count < 1) count = 1
       if (count > 9) count = 9
+
+      if (type === 'custom') {
+        this.$store.commit('dpGame/SET_MODAL', {
+          customNpcPendingCount: count,
+          showCustomNpcStyleDialog: true
+        })
+        return
+      }
 
       var ruleStore = {
         FISH: { prefix: 'demoBot' },
@@ -1332,6 +1385,7 @@ export default {
       } catch (e) {
         return
       }
+      this.$store.commit('dpGame/SET_MODAL', { showCustomNpcStyleDialog: false })
       this.beginIntentionalLeave()
       try {
         await this.$http.post('/dpRoom/exitRoom', null, {

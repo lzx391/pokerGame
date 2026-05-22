@@ -1,5 +1,6 @@
 <template>
   <div
+      ref="guideChatBar"
       class="dp-game-room-chat__bar"
       :class="barModifierClass"
       aria-label="房间聊天"

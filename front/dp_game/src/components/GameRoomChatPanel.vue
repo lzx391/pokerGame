@@ -8,6 +8,7 @@
     aria-label="房间聊天记录"
   >
     <button
+      ref="guideChatToggle"
       type="button"
       class="dp-game-room-chat-panel__toggle"
       :aria-expanded="expanded ? 'true' : 'false'"
@@ -24,7 +25,7 @@
         aria-hidden="true"
       />
     </button>
-    <div v-show="expanded" class="dp-game-room-chat-panel__list-wrap">
+    <div ref="guideChatListWrap" v-show="expanded" class="dp-game-room-chat-panel__list-wrap">
       <div ref="list" class="dp-game-room-chat-panel__list" role="log" aria-live="polite">
         <p v-if="!messageCount" class="dp-game-room-chat-panel__empty">暂无聊天，在下方输入发送</p>
         <div
@@ -67,6 +68,14 @@ export default {
       var text = m.text != null ? String(m.text) : ''
       var line = nick + '：' + text
       return line.length > 36 ? line.slice(0, 36) + '…' : line
+    }
+  },
+  methods: {
+    openForGuide: function () {
+      this.expanded = true
+    },
+    closeForGuide: function () {
+      this.expanded = false
     }
   },
   watch: {

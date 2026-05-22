@@ -4,6 +4,7 @@ import com.example.mgdemoplus.common.bo.DpRoomBO;
 import com.example.mgdemoplus.common.entity.DpPlayer;
 import com.example.mgdemoplus.common.mapper.DpUserMapper;
 import com.example.mgdemoplus.user.mapper.DpUserStatsMapper;
+import com.example.mgdemoplus.leaderboard.impl.DpLeaderboardWeeklyWriteService;
 import com.example.mgdemoplus.presence.DpFriendPresenceService;
 import com.example.mgdemoplus.history.DpHandHistoryObservedService;
 import com.example.mgdemoplus.history.DpHandHistoryPersistService;
@@ -49,6 +50,7 @@ class DpRoomDesertedRoomCleanupTest {
                 mock(DpGameRoomPushService.class),
                 mock(DpUserMapper.class),
                 mock(DpUserStatsMapper.class),
+                mock(DpLeaderboardWeeklyWriteService.class),
                 mock(DpHandHistoryObservedService.class),
                 new LlmNpcGlobalHandConversationStore(),
                 mock(DpRoomHallService.class),

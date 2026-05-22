@@ -6,16 +6,19 @@
         aria-label="本人手牌与操作"
     >
       <div
+          ref="guideFooterLeftBar"
           v-if="vm.viewerSeatedAtTable"
           class="dp-game-footer-left-bar"
           aria-label="聊天与快捷操作"
       >
-        <div class="dp-game-footer-chat-cluster">
+        <div ref="guideChatBar" class="dp-game-footer-chat-cluster">
           <game-room-chat-panel
+              ref="guideRoomChatPanel"
               dock
               :messages="vm.roomChatMessages"
           />
           <game-room-chat-bar
+              ref="guideRoomChatInput"
               :value="vm.chatInputDraft"
               variant="hero"
               @input="$store.commit('dpGame/SET_CHAT_DRAFT', $event)"
@@ -28,6 +31,7 @@
             aria-label="离座与手牌"
         >
           <button
+              ref="guideLeaveSeat"
               type="button"
               class="dp-game-hero-action-row__owner-btn"
               @click="vm.doLeaveSeat"
@@ -72,6 +76,7 @@
         />
       </div>
       <div
+          ref="guideInlineActionSlot"
           class="dp-game-inline-action-slot"
           :class="{
             'dp-game-inline-action-slot--solo': !vm.heroDockRow || !vm.showBottomHeroDock
@@ -88,6 +93,7 @@
         />
         <game-action-panel
             v-else-if="vm.isMyTurn"
+            ref="guideActionPanel"
             :time-left="vm.timeLeft"
             :my-bet="vm.myBet"
             :call-amount="vm.callAmount"
@@ -107,8 +113,9 @@
         />
         <div
             v-else-if="vm.heroDockRow"
+            ref="guideNotMyTurn"
             class="dp-game-action-slot-cover"
-            aria-hidden="true"
+            aria-label="等待其他玩家行动"
         />
       </div>
     </div>
@@ -129,12 +136,14 @@
               class="dp-game-footer-left-bar"
               aria-label="聊天与快捷操作"
           >
-            <div class="dp-game-footer-chat-cluster">
+            <div ref="guideMobileChatCluster" class="dp-game-footer-chat-cluster">
               <game-room-chat-panel
+                  ref="guideMobileRoomChatPanel"
                   dock
                   :messages="vm.roomChatMessages"
               />
               <game-room-chat-bar
+                  ref="guideMobileChatBar"
                   class="dp-game-mobile-hero-bar__chat"
                   :value="vm.chatInputDraft"
                   variant="mobile"
@@ -145,6 +154,7 @@
             <div class="dp-game-footer-toolbar" aria-label="底栏操作">
               <button
                   v-if="vm.heroDockRow"
+                  ref="guideMobileLeaveSeat"
                   type="button"
                   class="dp-game-mobile-hero-bar__btn dp-game-mobile-hero-bar__btn--toolbar"
                   @click="vm.doLeaveSeat"
@@ -162,6 +172,7 @@
               </button>
               <button
                   v-if="vm.isMyTurn"
+                  ref="guideMobileActionBtn"
                   type="button"
                   class="dp-game-mobile-hero-bar__btn dp-game-mobile-hero-bar__btn--toolbar dp-game-mobile-hero-bar__btn--action"
                   :class="{ 'dp-game-mobile-hero-bar__btn--urgent': vm.timeLeft <= 10 }"

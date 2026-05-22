@@ -1,5 +1,5 @@
 <template>
-  <div class="dp-action-panel">
+  <div ref="guideActionPanelHost" class="dp-action-panel">
       <div class="dp-action-panel__turn">
         轮到你行动了（30秒超时自动盖牌）
       </div>
@@ -8,7 +8,7 @@
         <span class="dp-action-panel__raise-hint-sub">（本圈最小增量 {{ lastRaiseIncrement }}）</span>
       </div>
 
-      <div class="dp-action-panel__presets" aria-label="按小鱼干池比例快捷加投">
+      <div ref="guidePotPresets" class="dp-action-panel__presets" aria-label="按小鱼干池比例快捷加投">
         <button type="button" class="dp-btn--pot-preset" @click="setPotFrac(1 / 3)">
           ⅓池
         </button>
@@ -35,7 +35,7 @@
         </button>
       </div>
 
-      <div class="dp-action-panel__slider-row">
+      <div ref="guideRaiseSlider" class="dp-action-panel__slider-row">
         <label class="dp-raise-slider-label" for="dp-raise-slider">本笔投入</label>
         <input
             id="dp-raise-slider"
@@ -52,11 +52,11 @@
 
       <div class="dp-action-panel__controls">
         <div class="dp-action-panel__row dp-action-panel__row--main">
-          <div class="dp-timer-ring">
+          <div ref="guideActionTimer" class="dp-timer-ring">
             <span class="dp-timer-ring__text">{{ timeLeft }}</span>
           </div>
 
-          <button type="button" class="dp-btn--call" @click="$emit('call')">
+          <button ref="guideCall" type="button" class="dp-btn--call" @click="$emit('call')">
             {{ callAmount > 0 ? '跟投 ' + callAmount : '观望' }}
           </button>
 
@@ -85,6 +85,7 @@
           </div>
 
           <button
+              ref="guideRaise"
               type="button"
               class="dp-btn--raise-go"
               :disabled="raiseAmount < minRaise"
@@ -96,10 +97,10 @@
         </div>
 
         <div class="dp-action-panel__row dp-action-panel__row--commit" aria-label="全投与盖牌">
-          <button type="button" class="dp-btn--allin" @click="$emit('all-in')">
+          <button ref="guideAllin" type="button" class="dp-btn--allin" @click="$emit('all-in')">
             全投 ({{ myChips }})
           </button>
-          <button type="button" class="dp-btn--fold" @click="$emit('fold')">
+          <button ref="guideFold" type="button" class="dp-btn--fold" @click="$emit('fold')">
             盖牌
           </button>
         </div>

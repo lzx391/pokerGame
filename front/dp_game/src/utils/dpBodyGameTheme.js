@@ -17,6 +17,7 @@ export function syncDpBodyGameTheme(store, router) {
       path === '/home' ||
       path === '/create-room' ||
       path.startsWith('/hand-history') ||
+      path === '/leaderboard' ||
       path === '/music-upload' ||
       path.startsWith('/room/')
     var gameLike = path.indexOf('/game') === 0

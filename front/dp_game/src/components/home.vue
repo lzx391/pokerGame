@@ -35,6 +35,7 @@
           <div class="user-info">
             <span v-if="user && user.nickname">当前用户：{{ user.nickname }}</span>
             <button type="button" class="dp-btn dp-btn--ghost logout-btn" @click="openPlayGuide(false)">玩法说明</button>
+            <button type="button" class="dp-btn dp-btn--ghost logout-btn" @click="goButtonGuide">新手一分钟</button>
             <button type="button" class="dp-btn dp-btn--ghost logout-btn" @click="profileVisible = true">个人资料</button>
             <button type="button" class="dp-btn dp-btn--danger logout-btn" @click="logout">退出登录</button>
           </div>
@@ -55,6 +56,7 @@
             </button>
             <button type="button" class="dp-btn dp-btn--primary" @click="goCreateRoom">创建房间</button>
             <button type="button" class="dp-btn dp-btn--ghost" @click="goHandHistory">历史对局</button>
+            <button type="button" class="dp-btn dp-btn--ghost" @click="goLeaderboard">排行榜</button>
             <button type="button" class="dp-btn dp-btn--ghost" @click="goMusicUpload">曲库上传</button>
             <el-badge
               :value="unreadCount"
@@ -886,6 +888,12 @@ export default {
     },
     goHandHistory() {
       this.$router.push('/hand-history')
+    },
+    goLeaderboard() {
+      this.$router.push('/leaderboard')
+    },
+    goButtonGuide() {
+      this.$router.push({ name: 'GameButtonGuide' })
     },
     goMusicUpload() {
       this.$router.push('/music-upload')

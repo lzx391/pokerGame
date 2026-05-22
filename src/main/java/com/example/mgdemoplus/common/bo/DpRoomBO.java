@@ -3,6 +3,7 @@ package com.example.mgdemoplus.common.bo;
 import com.example.mgdemoplus.common.entity.DpPlayer;
 import com.example.mgdemoplus.common.entity.DpPlayerStats;
 import com.example.mgdemoplus.common.entity.DpPot;
+import com.example.mgdemoplus.npc.CustomNpcStyleSnapshot;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.ArrayList;
@@ -94,6 +95,12 @@ public class DpRoomBO {
     private List<DpPot> pots = new ArrayList<>();
     // 等待在下一局加入的玩家昵称列表（当前局仅旁观）
     private List<String> waitNextHand = new ArrayList<>();
+
+    /**
+     * 候补自定义 BOT：nickname → 六维风格快照（入座时拷贝到 {@link DpPlayer} 后移除）。
+     */
+    @JsonIgnore
+    private final Map<String, CustomNpcStyleSnapshot> pendingCustomNpcProfiles = new HashMap<>();
 
     /**
      * 进入 settled 阶段的时间戳（毫秒），用于区分补码窗口 / 筹码筛选 / 准备超时三阶段。
@@ -228,6 +235,10 @@ public class DpRoomBO {
     public void setPots(List<DpPot> pots) { this.pots = pots; }
     public List<String> getWaitNextHand() { return waitNextHand; }
     public void setWaitNextHand(List<String> waitNextHand) { this.waitNextHand = waitNextHand; }
+
+    public Map<String, CustomNpcStyleSnapshot> getPendingCustomNpcProfiles() {
+        return pendingCustomNpcProfiles;
+    }
     public long getSettledAtMs() { return settledAtMs; }
     public void setSettledAtMs(long settledAtMs) { this.settledAtMs = settledAtMs; }
     public long getReadyDeadline() { return readyDeadline; }

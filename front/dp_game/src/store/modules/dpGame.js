@@ -68,6 +68,8 @@ function initialState() {
     musicTracksError: '',
     roomMusicState: null,
     showOwnerHubSheet: false,
+    showCustomNpcStyleDialog: false,
+    customNpcPendingCount: 1,
     ownerToolType: 'transfer',
     ownerActionTarget: '',
     demoBotAdding: false,
@@ -86,6 +88,8 @@ function initialState() {
     llmBotAddedTip: '',
     llmGlobalBotAdding: false,
     llmGlobalBotAddedTip: '',
+    customBotAdding: false,
+    customBotAddedTip: '',
     ownerRevealAll: false,
     showMobileHandSheet: false,
     showMobileActionSheet: false,
@@ -513,6 +517,15 @@ export default {
         state.opponentHandHistoryDisplayName = payload.opponentHandHistoryDisplayName || ''
       }
       if (payload.showMusicBoxModal !== undefined) state.showMusicBoxModal = payload.showMusicBoxModal
+      if (payload.showCustomNpcStyleDialog !== undefined) {
+        state.showCustomNpcStyleDialog = payload.showCustomNpcStyleDialog
+      }
+      if (payload.customNpcPendingCount !== undefined) {
+        var npcPending = parseInt(payload.customNpcPendingCount, 10)
+        if (isNaN(npcPending) || npcPending < 1) npcPending = 1
+        if (npcPending > 9) npcPending = 9
+        state.customNpcPendingCount = npcPending
+      }
     },
     SET_MUSIC_TRACKS: function (state, payload) {
       if (payload.tracks !== undefined) state.musicTracks = payload.tracks
@@ -540,6 +553,7 @@ export default {
     },
     CLOSE_OWNER_HUB: function (state) {
       state.showOwnerHubSheet = false
+      state.showCustomNpcStyleDialog = false
       state.ownerActionTarget = ''
     },
     SET_OWNER_TOOL: function (state, payload) {
@@ -568,6 +582,8 @@ export default {
       if (payload.llmBotAddedTip !== undefined) state.llmBotAddedTip = payload.llmBotAddedTip
       if (payload.llmGlobalBotAdding !== undefined) state.llmGlobalBotAdding = payload.llmGlobalBotAdding
       if (payload.llmGlobalBotAddedTip !== undefined) state.llmGlobalBotAddedTip = payload.llmGlobalBotAddedTip
+      if (payload.customBotAdding !== undefined) state.customBotAdding = payload.customBotAdding
+      if (payload.customBotAddedTip !== undefined) state.customBotAddedTip = payload.customBotAddedTip
     },
     SET_MOBILE_SHEETS: function (state, payload) {
       if (payload.showMobileHandSheet !== undefined) state.showMobileHandSheet = payload.showMobileHandSheet

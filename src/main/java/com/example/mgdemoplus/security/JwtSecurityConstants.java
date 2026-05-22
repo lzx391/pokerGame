@@ -29,6 +29,8 @@ public final class JwtSecurityConstants {
             // SSE 长连接：REQUEST + ASYNC 分派均不强制 authenticated()，身份由 JwtAuthenticationFilter ?token= 写入
             // "/dp/social/stream",
             "/dpMusic/list",
+            "/dp/leaderboard/weekly/hand",
+            "/dp/leaderboard/weekly/room",
             // Redis 本地实验接口（仅学习用；上线前可删或改需登录）
     };
 }

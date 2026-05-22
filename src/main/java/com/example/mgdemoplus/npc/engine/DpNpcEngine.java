@@ -4,13 +4,13 @@ import com.example.mgdemoplus.common.bo.DpRoomBO;
 import com.example.mgdemoplus.common.entity.DpPlayer;
 import com.example.mgdemoplus.common.entity.DpPlayerStats;
 import com.example.mgdemoplus.npc.strategy.DpNpcCallStrategy;
+import com.example.mgdemoplus.npc.strategy.DpNpcCustomStrategy;
 import com.example.mgdemoplus.npc.strategy.DpNpcFishStrategy;
 import com.example.mgdemoplus.npc.strategy.DpNpcLagStrategy;
 import com.example.mgdemoplus.npc.strategy.DpNpcManiacStrategy;
 import com.example.mgdemoplus.npc.strategy.DpNpcNitStrategy;
 import com.example.mgdemoplus.npc.strategy.DpNpcRuleDecisionParams;
 import com.example.mgdemoplus.npc.strategy.DpNpcTagStrategy;
-import com.example.mgdemoplus.npc.strategy.DpNpcUnifiedPreflopStrategy;
 import com.example.mgdemoplus.npc.strategy.DpNpcUnifiedPreflopStrategy;
 import com.example.mgdemoplus.npc.llm.LlmNpcGameContext;
 import com.example.mgdemoplus.utils.DpUtilHandEvaluator;
@@ -243,6 +243,8 @@ public class DpNpcEngine {
     public static final String PREFIX_BOT_FISH = "BOT_FISH";
     public static final String PREFIX_BOT_CALL = "BOT_CALL";
     public static final String PREFIX_BOT_MANIAC = "BOT_MANIAC";
+    /** 房主自定义调参 NPC：{@code BOT_CUSTOM_<序号>} */
+    public static final String PREFIX_BOT_CUSTOM = "BOT_CUSTOM";
     /**
      * 大模型机器人前缀：{@code BOT_LLM} 或 {@code BOT_LLM_<uuid>}。
      */
@@ -821,6 +823,17 @@ public class DpNpcEngine {
         }
     }
 
+    /** 由 {@link com.example.mgdemoplus.npc.CustomNpcStyleSnapshot} 或入座后的 {@link DpPlayer} 六维字段构建。 */
+    public static StyleProfile styleProfileFromValues(
+            double vpip,
+            double pfr,
+            double cbetFreq,
+            double bluffFreq,
+            double callStation,
+            double foldToPressure) {
+        return new StyleProfile(vpip, pfr, cbetFreq, bluffFreq, callStation, foldToPressure);
+    }
+
     private static final Map<NpcStyle, StyleProfile> STYLE_PROFILE_MAP = new EnumMap<>(NpcStyle.class);
 
     static {
@@ -935,6 +948,20 @@ public class DpNpcEngine {
         return PREFIX_BOT_LLM_GLOBAL + "_" + seq;
     }
 
+    /** 自定义调参 NPC：{@code BOT_CUSTOM_<序号>} */
+    public static String customBotNickname(int seq) {
+        if (seq <= 0) {
+            throw new IllegalArgumentException("seq must be positive");
+        }
+        return PREFIX_BOT_CUSTOM + "_" + seq;
+    }
+
+    /** {@code BOT_CUSTOM} 或 {@code BOT_CUSTOM_<seq>}；与 LLM 线互斥。 */
+    public static boolean isCustomBotNickname(String name) {
+        return name != null
+                && (PREFIX_BOT_CUSTOM.equals(name) || name.startsWith(PREFIX_BOT_CUSTOM + "_"));
+    }
+
     private static BotType resolveRuleBotType(String nickname) {
         if (nickname == null || !nickname.startsWith("BOT_")) {
             return null;
@@ -985,6 +1012,9 @@ public class DpNpcEngine {
         if (isLlmBotNickname(name)) {
             return true;
         }
+        if (isCustomBotNickname(name)) {
+            return true;
+        }
         return resolveRuleBotType(name) != null;
     }
 
@@ -995,7 +1025,7 @@ public class DpNpcEngine {
     }
 
     public static BotType getBotTypeByNickname(String nickname) {
-        if (nickname == null || isLlmBotNickname(nickname)) {
+        if (nickname == null || isLlmBotNickname(nickname) || isCustomBotNickname(nickname)) {
             return null;
         }
         return resolveRuleBotType(nickname);
@@ -1834,11 +1864,16 @@ public class DpNpcEngine {
 
         bot.setNextBotActionTime(0L);
 
+        if (isLlmBotNickname(bot.getNickname())) {
+            return null;
+        }
+        if (isCustomBotNickname(bot.getNickname())) {
+            return decideCustomBotAction(room, bot);
+        }
         BotType type = getBotTypeByNickname(bot.getNickname());
         if (type == null) {
             return null;
         }
-        // 决策逻辑
         return decideBotAction(room, bot, type);
     }
 
@@ -2064,6 +2099,70 @@ public class DpNpcEngine {
         Random random = buildHandRandom(room, bot);
         DpUtilSmartContext ctx = buildSmartContext(room, bot, strength, stage, callAmount, random);
         return LlmNpcGameContext.map(room, bot, ctx, stage, callAmount, strength, position);
+    }
+
+    private static BotAction decideCustomBotAction(DpRoomBO room, DpPlayer bot) {
+        if (!bot.isNpcCustomStyleReady()) {
+            log.error("CUSTOM bot {} seated without style profile", bot.getNickname());
+            return null;
+        }
+        StyleProfile style = styleProfileFromValues(
+                bot.getNpcStyleVpip(),
+                bot.getNpcStylePfr(),
+                bot.getNpcStyleCbetFreq(),
+                bot.getNpcStyleBluffFreq(),
+                bot.getNpcStyleCallStation(),
+                bot.getNpcStyleFoldToPressure());
+        int chips = bot.getChips();
+        if (chips <= 0) {
+            return new BotAction(BotActionType.FOLD, 0);
+        }
+        int callAmount = Math.max(0, room.getCurrentBetToCall() - bot.getBet());
+        double callRatio = chips == 0 || callAmount >= chips ? 1.0 : (callAmount * 1.0 / chips);
+        TablePosition position = getTablePosition(room, bot);
+        String stageForNpc = room.getCurrentStage() != null ? room.getCurrentStage() : "";
+        Random random = buildHandRandom(room, bot);
+        BoardDanger boardDanger = evaluateBoardDanger(room.getCommunityCards());
+        double mood = NPC_MOOD_ENABLED ? bot.getMood() : 0.0;
+        if ("preflop".equals(stageForNpc)) {
+            BotAction preUnified = DpNpcUnifiedPreflopStrategy.decide(
+                    room,
+                    bot,
+                    callAmount,
+                    callRatio,
+                    style.vpip,
+                    style.pfr,
+                    style.callStation,
+                    style.foldToPressure,
+                    mood,
+                    random,
+                    null);
+            if (preUnified != null) {
+                return preUnified;
+            }
+            return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+        }
+        SimpleStrength strength = estimateCurrentStrength(room, bot);
+        DpNpcRuleDecisionParams ruleParams = new DpNpcRuleDecisionParams(
+                room,
+                bot,
+                null,
+                chips,
+                callAmount,
+                callRatio,
+                position,
+                stageForNpc,
+                random,
+                boardDanger,
+                mood,
+                strength,
+                style.preflopTightness(),
+                style.aggression(),
+                style.bluffFrequency(),
+                style.callStation,
+                style.stealBlindFrequency(),
+                style.checkRaiseFear());
+        return DpNpcCustomStrategy.decide(ruleParams);
     }
 
     private static BotAction decideBotAction(DpRoomBO room, DpPlayer bot, BotType type) {

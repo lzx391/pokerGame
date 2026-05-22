@@ -4,16 +4,17 @@
     <div class="dp-top-bar__row dp-top-bar__row--primary">
       <div class="dp-top-bar__primary-text">
         <span class="dp-top-bar__title">
-          房间: {{ roomId }} | 阶段: <span class="dp-top-bar__accent">{{ stageLabel }}</span>
+          房间: {{ roomId }} | 阶段: <span ref="guideTopStage" class="dp-top-bar__accent">{{ stageLabel }}</span>
         </span>
         <span class="dp-top-bar__meta-sep" aria-hidden="true">·</span>
         <span class="dp-top-bar__sub">
-          小鱼干池 <span class="dp-top-bar__pot">{{ pot }}</span>
+          小鱼干池 <span ref="guideTopPot" class="dp-top-bar__pot">{{ pot }}</span>
           <span class="dp-top-bar__meta-sep dp-top-bar__meta-sep--thin" aria-hidden="true">|</span>
-          需对齐 <span class="dp-top-bar__bet">{{ currentBetToCall }}</span>
+          需对齐 <span ref="guideTopAlign" class="dp-top-bar__bet">{{ currentBetToCall }}</span>
           <template v-if="showHeroEconomy">
             <span class="dp-top-bar__meta-sep dp-top-bar__meta-sep--thin" aria-hidden="true">|</span>
             <span
+                ref="guideTopHeroEco"
                 class="dp-top-bar__hero-eco"
                 role="region"
                 :aria-label="heroEconomyAriaLabel"
@@ -29,6 +30,7 @@
       </div>
       <div ref="settingsRoot" class="dp-top-bar__settings-wrap">
         <button
+            ref="guideTopSettings"
             type="button"
             class="dp-btn dp-top-bar__btn dp-top-bar__btn--ghost dp-top-bar__settings-btn"
             :aria-expanded="settingsOpen ? 'true' : 'false'"
@@ -73,6 +75,7 @@
     <div class="dp-top-bar__row dp-top-bar__row--actions">
       <div class="dp-top-bar__actions">
         <button
+            ref="guideTopFullscreen"
             type="button"
             class="dp-btn dp-top-bar__btn dp-top-bar__btn--ghost"
             :aria-pressed="isFullscreen ? 'true' : 'false'"
@@ -80,11 +83,12 @@
         >
           {{ isFullscreen ? '退出全屏' : '全屏' }}
         </button>
-        <button type="button" class="dp-btn dp-btn--primary dp-top-bar__btn" @click="$emit('show-play-guide')">
+        <button ref="guideTopPlayGuide" type="button" class="dp-btn dp-btn--primary dp-top-bar__btn" @click="$emit('show-play-guide')">
           玩法说明
         </button>
         <button
             v-if="isOwner"
+            ref="guideTopOwnerHub"
             type="button"
             class="dp-btn dp-top-bar__btn dp-top-bar__btn--owner"
             aria-label="房主操作"
@@ -94,6 +98,7 @@
         </button>
         <button
             v-if="canInviteFriend"
+            ref="guideTopInvite"
             type="button"
             class="dp-btn dp-top-bar__btn dp-top-bar__btn--ghost"
             aria-label="邀请好友进房"
@@ -102,6 +107,7 @@
           邀请好友
         </button>
         <button
+            ref="guideTopHandHistory"
             type="button"
             class="dp-btn dp-top-bar__btn dp-top-bar__btn--ghost"
             @click="$emit('open-hand-history')"
@@ -109,6 +115,7 @@
           历史对局
         </button>
         <button
+            ref="guideTopMusic"
             type="button"
             class="dp-btn dp-top-bar__btn dp-top-bar__btn--ghost"
             @click="$emit('open-music-box')"
@@ -117,6 +124,7 @@
         </button>
         <button
             v-if="waitNextHandCount > 0"
+            ref="guideTopWaitList"
             type="button"
             class="dp-btn dp-btn--cyan dp-top-bar__btn"
             @click="$emit('show-wait-next-hand')"
@@ -125,6 +133,7 @@
         </button>
         <button
             v-if="spectatorCount > 0"
+            ref="guideTopSpectators"
             type="button"
             class="dp-btn dp-btn--cyan dp-top-bar__btn"
             @click="$emit('show-spectators')"
@@ -133,6 +142,7 @@
         </button>
         <button
             v-if="showSpectatorPrepare"
+            ref="guideTopReadyNext"
             type="button"
             class="dp-btn dp-top-bar__btn"
             :class="nextHandReady ? 'dp-btn--ghost' : 'dp-btn--success'"
@@ -140,8 +150,8 @@
         >
           {{ nextHandReady ? '取消下一局报名' : '下一局加入对局' }}
         </button>
-        <button type="button" class="dp-btn dp-btn--danger dp-top-bar__btn" @click="$emit('exit')">
-          退出对局
+        <button ref="guideTopExit" type="button" class="dp-btn dp-btn--danger dp-top-bar__btn" @click="$emit('exit')">
+          {{ exitLabel }}
         </button>
       </div>
     </div>
@@ -188,7 +198,9 @@ export default {
     heroMyChips: { type: [Number, String], default: 0 },
     heroEconomySecondaryLabel: { type: String, default: '本轮' },
     heroEconomySecondaryValue: { type: [Number, String], default: 0 },
-    heroCarryInChips: { type: [Number, String], default: 0 }
+    heroCarryInChips: { type: [Number, String], default: 0 },
+    /** 教程页等可改为「退出教程」 */
+    exitLabel: { type: String, default: '退出对局' }
   },
   computed: {
     heroEconomyAriaLabel: function () {
@@ -227,6 +239,12 @@ export default {
     },
     onThemeChange: function (id) {
       this.$emit('update:gameUiTheme', id)
+    },
+    openSettingsForGuide: function () {
+      this.settingsOpen = true
+    },
+    closeSettingsForGuide: function () {
+      this.settingsOpen = false
     }
   }
 }

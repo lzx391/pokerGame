@@ -28,6 +28,7 @@ import {
   InputNumber,
   Message,
   MessageBox,
+  Slider,
   Table,
   TableColumn,
   Tooltip,
@@ -45,6 +46,7 @@ Vue.use(Form)
 Vue.use(FormItem)
 Vue.use(Input)
 Vue.use(InputNumber)
+Vue.use(Slider)
 Vue.use(Table)
 Vue.use(TableColumn)
 Vue.use(Tooltip)

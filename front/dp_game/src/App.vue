@@ -60,13 +60,14 @@ export default {
       return (
         p === '/home' ||
         p.startsWith('/hand-history') ||
+        p === '/leaderboard' ||
         p === '/music-upload' ||
         p.startsWith('/room/')
       )
     },
     /** 对局页：铺满视口、与 .dp-game-root 组成 flex 链，减少底部露灰/白边 */
     isGameRoute() {
-      return this.$route.path.startsWith('/game')
+      return this.$route.path.startsWith('/game') || this.$route.path === '/guide'
     }
   },
   methods: {

@@ -86,6 +86,12 @@ public interface DpRoomService {
 
     boolean addRuleNpcBatchToNextHand(String roomId, String archetypeKey, int count);
 
+    boolean addCustomNpcBatchToNextHand(
+            String roomId,
+            String requesterNickname,
+            int count,
+            com.example.mgdemoplus.npc.CustomNpcStyleSnapshot profile);
+
     boolean addLlmBotToNextHand(String roomId);
 
     boolean addGlobalLlmBotToNextHand(String roomId);

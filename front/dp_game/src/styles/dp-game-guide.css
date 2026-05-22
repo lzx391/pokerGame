@@ -1,0 +1,144 @@
+/**
+ * 新手一分钟 · 按钮引导（单机演示壳）
+ * 遮罩 z-index 高于演示内容，低于全局 Message（若冲突可再调高）
+ */
+
+.dp-guide-page__exit {
+  flex-shrink: 0;
+}
+
+/* 教程内展开聊天列表时略抬高，便于镂空特写 */
+.dp-guide-page .dp-game-room-chat-panel--expanded.dp-game-room-chat-panel--dock {
+  z-index: 3;
+}
+
+/* 行动抽屉打开时，保证在引导镂空之下、仍可见 */
+.dp-guide-page .dp-game-sheet-mask {
+  z-index: 8500;
+}
+
+/* 牌桌区复用 GameRoundTable；提示贴在主区底部 */
+.dp-guide-page__hint {
+  flex-shrink: 0;
+  margin: 6px 10px 4px;
+  padding: 0 4px;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: center;
+  color: var(--dp-text-secondary, #8c8c8c);
+}
+
+/* —— 引导遮罩 —— */
+.dp-button-guide-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  pointer-events: none;
+}
+
+.dp-button-guide-overlay__shade {
+  position: fixed;
+  background: rgba(12, 18, 28, 0.72);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.dp-button-guide-overlay__hole {
+  position: fixed;
+  border-radius: 8px;
+  box-shadow: 0 0 0 9999px rgba(12, 18, 28, 0.72);
+  pointer-events: none;
+  z-index: 9001;
+  transition: top 0.2s ease, left 0.2s ease, width 0.2s ease, height 0.2s ease;
+}
+
+.dp-button-guide-overlay__bubble-wrap {
+  position: fixed;
+  z-index: 9002;
+  max-width: min(92vw, 360px);
+  pointer-events: auto;
+}
+
+.dp-button-guide-overlay__bubble {
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: var(--dp-panel-bg, #fff);
+  color: var(--dp-text-primary, #252018);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+  text-align: left;
+  border: 1px solid var(--dp-panel-border, #e8e8e8);
+}
+
+.dp-button-guide-overlay__title {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--dp-text-primary, #252018);
+}
+
+.dp-button-guide-overlay__body {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--dp-text-secondary, #595959);
+  margin-bottom: 8px;
+}
+
+.dp-button-guide-overlay__tap-hint {
+  font-size: 12px;
+  color: var(--dp-text-muted, #8c8c8c);
+  margin-bottom: 12px;
+}
+
+.dp-button-guide-overlay__step-tag {
+  font-size: 11px;
+  color: var(--dp-text-muted, #8c8c8c);
+  margin-bottom: 8px;
+}
+
+.dp-button-guide-overlay__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.dp-button-guide-overlay__complete {
+  position: fixed;
+  inset: 0;
+  z-index: 9002;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  pointer-events: auto;
+  background: rgba(12, 18, 28, 0.65);
+  cursor: pointer;
+}
+
+.dp-button-guide-overlay__complete-card {
+  max-width: min(92vw, 400px);
+  padding: 20px 22px;
+  border-radius: 12px;
+  background: var(--dp-panel-bg, #fff);
+  text-align: center;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.3);
+  cursor: default;
+}
+
+.dp-button-guide-overlay__complete-card h2 {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.dp-button-guide-overlay__complete-card p {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--dp-text-secondary, #595959);
+  margin-bottom: 8px;
+}
+
+.dp-button-guide-overlay__complete-note {
+  font-size: 12px;
+  color: var(--dp-text-muted, #8c8c8c);
+  margin-top: 12px;
+}

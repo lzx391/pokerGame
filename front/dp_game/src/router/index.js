@@ -53,12 +53,21 @@ export default new Router({
       component: () => import(/* webpackChunkName: "route-home" */ '@/components/home.vue')
     },
     {
+      path: '/guide',
+      name: 'GameButtonGuide',
+      component: () => import(/* webpackChunkName: "route-guide" */ '@/components/GameButtonGuidePage.vue')
+    },
+    {
       path: '/create-room',
       component: () => import(/* webpackChunkName: "route-create-room" */ '@/components/CreateRoom.vue')
     },
     {
       path: '/hand-history',
       component: () => import(/* webpackChunkName: "route-hand-history" */ '@/components/HandHistory.vue')
+    },
+    {
+      path: '/leaderboard',
+      component: () => import(/* webpackChunkName: "route-leaderboard" */ '@/components/LeaderboardPage.vue')
     },
     {
       path: '/hand-history/detail/:handHistoryId',
