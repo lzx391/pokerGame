@@ -77,6 +77,9 @@ server:
 # 只盯大模型 SLF4J：root 安静，只放开下面两个 Logger。（MyBatis 已用 Slf4j；SQL 默认不刷。）
 # System.out（SHARK、flop 阶段、SqlSession 等）不受此配置控制 → 终端搜索 [BOT_LLM] 或 BotLlmReasoning。
 # 日志文件：避免 Cursor 终端滚动顶掉历史；可用环境变量 LOG_FILE 覆盖路径。
+# 只要思考、不要【已发起】【采用】：把 DpLlmNpcDecisionService 改成 WARN。
+# 要查 SQL：com.example.mgdemoplus.mapper: DEBUG。
+
 # logging:
 #   charset:
 #     file: UTF-8
@@ -100,8 +103,7 @@ server:
 #     com.example.mgdemoplus.social.impl.DpFriendSocialService: INFO
 #     org.springframework: WARN
 #     com.alibaba.druid: WARN
-# 只要思考、不要【已发起】【采用】：把 DpLlmNpcDecisionService 改成 WARN。
-# 要查 SQL：com.example.mgdemoplus.mapper: DEBUG。
+
 
 dp:
   npc:

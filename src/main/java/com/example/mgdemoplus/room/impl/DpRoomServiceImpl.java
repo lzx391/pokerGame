@@ -10,6 +10,7 @@ import com.example.mgdemoplus.room.support.DpRoomQuickMatchBridge;
 import com.example.mgdemoplus.room.support.DpSettlePersistJob;
 import com.example.mgdemoplus.room.support.DpSettlePersistenceDispatcher;
 import com.example.mgdemoplus.room.support.DpSettleStatsIncrement;
+import com.example.mgdemoplus.room.support.DpPotCalculator;
 import com.example.mgdemoplus.room.support.DpRoomRegistry;
 import com.example.mgdemoplus.room.support.DpRoomServiceCallbacks;
 import com.example.mgdemoplus.room.support.DpRoomSnapshotSupport;
@@ -757,39 +758,7 @@ ownerFieldChanged：房主字段是否发生变化。
      * 在进入 showdown 时调用
      */
     private void calculatePots(DpRoomBO r) {
-        List<Integer> levels = r.getPlayers().stream()
-                .map(DpPlayer::getTotalBet)
-                .filter(b -> b > 0)
-                .distinct()
-                .sorted()
-                .collect(Collectors.toList());
-
-        List<DpPot> pots = new ArrayList<>();
-        int prevLevel = 0;
-
-        for (int level : levels) {
-            int potAmount = 0;
-            List<String> eligible = new ArrayList<>();
-
-            for (DpPlayer p : r.getPlayers()) {
-                int contribution = Math.min(p.getTotalBet(), level) - Math.min(p.getTotalBet(), prevLevel);
-                potAmount += contribution;
-                // 没弃牌 且 totalBet >= 这一层，才有资格赢这个池
-                if (!p.isFold() && p.getTotalBet() >= level) {
-                    eligible.add(p.getNickname());
-                }
-            }
-
-            if (potAmount > 0) {
-                DpPot pot = new DpPot();
-                pot.setAmount(potAmount);
-                pot.setEligiblePlayers(eligible);
-                pots.add(pot);
-            }
-            prevLevel = level;
-        }
-
-        r.setPots(pots);
+        r.setPots(DpPotCalculator.calculate(r.getPlayers()));
     }
 
     /**
