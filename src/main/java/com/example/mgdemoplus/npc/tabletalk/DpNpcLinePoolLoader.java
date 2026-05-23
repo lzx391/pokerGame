@@ -25,6 +25,7 @@ public class DpNpcLinePoolLoader {
     private static final Logger log = LoggerFactory.getLogger(DpNpcLinePoolLoader.class);
     private static final String RESOURCE_PREFIX = "npc-lines/";
     private static final double DEFAULT_SPEAK_PROBABILITY = 0.28;
+    private static final double DEFAULT_SETTLE_SPEAK_MULTIPLIER = 1.45;
 
     private final ConcurrentHashMap<String, Optional<NpcLinePool>> cache = new ConcurrentHashMap<>();
     private final Yaml yaml = new Yaml();
@@ -72,6 +73,9 @@ public class DpNpcLinePoolLoader {
             }
             boolean enabled = bool(map.get("enabled"), true);
             double speakProbability = dbl(map.get("speakProbability"), DEFAULT_SPEAK_PROBABILITY);
+            double settleSpeakProbability = dbl(
+                    map.get("settleSpeakProbability"),
+                    Math.min(1.0, speakProbability * DEFAULT_SETTLE_SPEAK_MULTIPLIER));
             Map<String, List<String>> pools = Collections.emptyMap();
             Object poolsObj = map.get("pools");
             if (poolsObj == null) {
@@ -83,7 +87,7 @@ public class DpNpcLinePoolLoader {
             if (pools.isEmpty()) {
                 log.warn("npc-lines has no lines/pools entries: {}", path);
             }
-            return Optional.of(new NpcLinePool(enabled, speakProbability, pools));
+            return Optional.of(new NpcLinePool(enabled, speakProbability, settleSpeakProbability, pools));
         } catch (Exception e) {
             log.warn("npc-lines load failed: {}", path, e);
             return Optional.empty();

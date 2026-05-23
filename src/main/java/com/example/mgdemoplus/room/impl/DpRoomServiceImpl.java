@@ -3114,6 +3114,7 @@ ownerFieldChanged：房主字段是否发生变化。
         for (DpPlayer p : r.getPlayers()) {
             p.setReady(false);
         }
+        npcTableTalkService.afterHandSettled(r, streakWinnerNicknames);
         // checkAndStartNextHandAfterSettle(r);
     }
 

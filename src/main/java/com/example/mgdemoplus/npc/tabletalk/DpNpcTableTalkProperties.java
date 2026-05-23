@@ -12,11 +12,16 @@ public class DpNpcTableTalkProperties {
     private boolean enabled = true;
 
     /**
-     * 规则 NPC 说话概率（0~1）；非 null 时覆盖各 {@code npc-lines/{style}.yaml} 内默认值。
+     * 规则 NPC 行动中说话概率（0~1）；非 null 时覆盖各 {@code npc-lines/{style}.yaml} 内默认值。
      */
     private Double speakProbability;
 
-    /** 同一房间内同一 bot 两次推送的最小间隔（毫秒）。 */
+    /**
+     * 规则 NPC 进入 {@code settled} 后结算话术概率；非 null 时覆盖 yaml 内 {@code settleSpeakProbability}。
+     */
+    private Double settleSpeakProbability;
+
+    /** 同一房间内同一 bot 两次<strong>行动中</strong>推送的最小间隔（毫秒）；结算话术不节流。 */
     private long minIntervalMs = 8_000L;
 
     public boolean isEnabled() {
@@ -33,6 +38,14 @@ public class DpNpcTableTalkProperties {
 
     public void setSpeakProbability(Double speakProbability) {
         this.speakProbability = speakProbability;
+    }
+
+    public Double getSettleSpeakProbability() {
+        return settleSpeakProbability;
+    }
+
+    public void setSettleSpeakProbability(Double settleSpeakProbability) {
+        this.settleSpeakProbability = settleSpeakProbability;
     }
 
     public long getMinIntervalMs() {

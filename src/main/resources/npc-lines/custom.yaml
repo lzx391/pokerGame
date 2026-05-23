@@ -1,6 +1,7 @@
 meta:
   style: CUSTOM
 speakProbability: 0.24
+settleSpeakProbability: 0.40
 lines:
   FOLD:
     - "这手不符合我的参数，fold。"
@@ -22,8 +23,9 @@ lines:
     - "all in，执行极端线。"
     - "鱼干推满，all in。"
     - "全下，策略要求冲池。"
-  GENERIC:
-    - "自定义策略运行中。"
-    - "按房主参数在打。"
-    - "这手我会按旋钮调整。"
-    - "下一动作看牌面再说。"
+  SETTLE_WIN:
+    - "参数跑对了，收池。"
+    - "按房主配置，这手达标。"
+  SETTLE_LOSE:
+    - "旋钮下把再调。"
+    - "样本记一笔，继续执行。"

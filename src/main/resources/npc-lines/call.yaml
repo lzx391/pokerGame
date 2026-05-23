@@ -1,6 +1,7 @@
 meta:
   style: CALL
 speakProbability: 0.22
+settleSpeakProbability: 0.44
 lines:
   FOLD:
     - "这次不跟了，我 fold。"
@@ -22,8 +23,11 @@ lines:
     - "鱼干全推，跟不跟随你。"
     - "all in！这次我就想被跟。"
     - "全下！我 call station 也冲一次。"
-  GENERIC:
-    - "有牌我就跟，别急。"
-    - "你们打大点，我跟得起。"
-    - "这底池我喜欢，继续跟。"
-    - "慢慢来，我跟得住。"
+  SETTLE_WIN:
+    - "跟到底就是香。"
+    - "你们打，我收。"
+    - "这池我喜欢，跟对了。"
+  SETTLE_LOSE:
+    - "跟太多了…下把还跟。"
+    - "没事，有牌我还跟。"
+    - "鱼干还在，继续看牌。"

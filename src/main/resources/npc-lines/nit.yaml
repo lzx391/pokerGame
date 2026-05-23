@@ -1,5 +1,6 @@
 enabled: true
 speakProbability: 0.15
+settleSpeakProbability: 0.20
 pools:
   FOLD:
     - "太险，弃。"
@@ -10,5 +11,9 @@ pools:
     - "只有强牌才加。"
   ALL_IN:
     - "坚果，全下。"
-  GENERIC:
-    - "……"
+  SETTLE_WIN:
+    - "…收。"
+    - "牌好，没办法。"
+  SETTLE_LOSE:
+    - "…"
+    - "早该fold。"
