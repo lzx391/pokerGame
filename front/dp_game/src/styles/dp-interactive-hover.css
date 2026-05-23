@@ -7,7 +7,10 @@
 :root {
   --dp-hover-lift-y: -2px;
   --dp-hover-lift-scale: 1.02;
+  --dp-hover-lift-y-surface: -1px;
+  --dp-hover-lift-scale-surface: 1.012;
   --dp-hover-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  --dp-hover-shadow-surface: 0 3px 12px rgba(0, 0, 0, 0.14);
   --dp-hover-shadow-accent: 0 4px 14px color-mix(in srgb, var(--dp-accent, #409eff) 28%, transparent);
 }
 
@@ -16,6 +19,9 @@
 button[class*='dp-'],
 .el-button,
 #app .nav-link,
+.room-item,
+.dp-social-list__item,
+.music-upload__card,
 .dp-game-dialog__close,
 .dp-game-sheet__close,
 .dp-play-guide__tab,
@@ -55,6 +61,14 @@ button[class*='dp-'],
     will-change: transform;
   }
 
+  body[data-dp-fluidity='standard'] .room-item:hover,
+  body[data-dp-fluidity='standard'] .dp-social-list__item:hover,
+  body[data-dp-fluidity='standard'] .music-upload__card:hover {
+    transform: translateY(var(--dp-hover-lift-y-surface)) scale(var(--dp-hover-lift-scale-surface));
+    box-shadow: var(--dp-hover-shadow-surface);
+    will-change: transform;
+  }
+
   body[data-dp-game-theme][data-dp-fluidity='standard'] .el-button--primary:not(.is-disabled):hover,
   body[data-dp-game-theme][data-dp-fluidity='standard'] .el-button--default:not(.is-disabled):hover {
     box-shadow: var(--dp-hover-shadow-accent);
@@ -86,13 +100,47 @@ button[class*='dp-'],
     box-shadow: none;
     will-change: auto;
   }
+
+  body[data-dp-fluidity='eco'] .room-item:hover,
+  body[data-dp-fluidity='eco'] .dp-social-list__item:hover,
+  body[data-dp-fluidity='eco'] .music-upload__card:hover {
+    transform: none;
+    box-shadow: none;
+    will-change: auto;
+  }
 }
 
 /* 触屏轻按反馈（可选，非 hover 依赖） */
 @media (hover: none), (pointer: coarse) {
   .dp-btn:not(:disabled):active,
   .el-button:not(.is-disabled):active,
-  #app .nav-link:active {
+  #app .nav-link:active,
+  .room-item:active,
+  .dp-social-list__item:active {
     transform: scale(0.98);
   }
+}
+
+/* 壳层块：圆角与 transform 原点，避免 scale 时贴边发糊 */
+.room-item,
+.dp-social-list__item,
+.music-upload__card,
+#app .nav-link {
+  transform-origin: center center;
+}
+
+.room-item {
+  border-radius: 8px;
+  margin-left: -4px;
+  margin-right: -4px;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+.music-upload__card {
+  border-radius: 8px;
+  margin-left: -4px;
+  margin-right: -4px;
+  padding-left: 4px;
+  padding-right: 4px;
 }

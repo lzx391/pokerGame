@@ -201,10 +201,6 @@ body {
   box-shadow: 0 2px 6px rgba(64, 158, 255, 0.2);
 }
 
-.nav-link:hover {
-  background-color: #338eef;
-}
-
 /* 内容区域 */
 .content-box {
   background: #fff;
