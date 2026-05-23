@@ -85,7 +85,7 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+          fingerprint: eUEuUp2RCI7DgC2U9si9fqE3hZogcgzcStjTunvh/GQ
           script: |
             cd /root
             docker compose -f docker-compose-prod.yml pull
