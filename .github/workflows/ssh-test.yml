@@ -12,14 +12,17 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          echo "--- Key file ---"
-          head -c 50 ~/.ssh/deploy_key
-          echo ""
-          echo "--- SSH debug connect ---"
+          echo "--- file stats ---"
+          wc -c ~/.ssh/deploy_key
+          wc -l ~/.ssh/deploy_key
+          echo "--- first 3 lines ---"
+          head -3 ~/.ssh/deploy_key
+          echo "--- hex dump first 80 bytes ---"
+          xxd ~/.ssh/deploy_key | head -5
+          echo "--- SSH connect ---"
           ssh -vvv -i ~/.ssh/deploy_key \
             -o StrictHostKeyChecking=accept-new \
             -o ConnectTimeout=10 \
             -p ${{ secrets.SSH_PORT }} \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "hostname && echo SSH_TEST_OK" 2>&1 || true
-          echo "EXIT CODE: $?"
