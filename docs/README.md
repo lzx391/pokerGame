@@ -18,7 +18,9 @@
 
 | 文档 | 简介 |
 |------|------|
-| **[ENV_README.md](ENV_README.md)** | `application.properties`、根目录 `.env`、`LocalDotenvLoader`、JWT 与方舟 LLM 配置的读取顺序与变量含义。 |
+| **[CONFIG_LAYERS.md](CONFIG_LAYERS.md)** | **配置分层规范（A/B/C/D）**：读取顺序、yml / `.env.example` / compose 职责、rebuild 矩阵、生产迁移 checklist。 |
+| **[refactor/config-inventory.md](refactor/config-inventory.md)** | 全量配置参数表（yml 每一键、`@Value` / `@ConfigurationProperties`、标准环境变量名）。 |
+| **[ENV_README.md](ENV_README.md)** | `application.yml`、根目录 `.env`、`LocalDotenvLoader`、JWT 与方舟 LLM 配置的读取顺序与变量含义。 |
 
 ---
 
