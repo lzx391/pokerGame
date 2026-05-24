@@ -171,7 +171,7 @@ sequenceDiagram
 - **Bot 入座：** `room/impl/DpRoomServiceImpl` — `add*BotToNextHand` / `addLlmBotToNextHand` / `addGlobalLlmBotToNextHand` / `addRuleNpcBatchToNextHand` 等，经 `readyNextHand` 写入 `waitNextHand`。
 - **执行动作：** `DpRoomServiceImpl.npcAction` 将 `BotAction` 转为 fold/call/raise/all-in 与房间状态机交互。
 
-规则 Bot 在 `decideActionIfReady` 内会 `bot.setNextBotActionTime(0)`；LLM Bot 用 `nextBotActionTime` + `inflightByKey` 控制「发起请求 → 等待完成」两阶段。
+规则 Bot 在 `decideActionIfReady` 内用 `nextBotActionTime` 做思考排期（配置 `dp.npc.rule-think`，默认开启）；LLM Bot 用同字段 + `inflightByKey` 控制「发起请求 → 等待完成」两阶段。心跳层已按昵称分岔，互不干扰。
 
 ---
 

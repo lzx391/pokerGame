@@ -5,10 +5,14 @@ import com.example.mgdemoplus.common.entity.DpPlayer;
 import com.example.mgdemoplus.npc.engine.DpNpcEngine;
 import com.example.mgdemoplus.npc.engine.DpNpcEngine.BotAction;
 import com.example.mgdemoplus.npc.engine.DpNpcEngine.BotActionType;
+import com.example.mgdemoplus.npc.rulethink.DpNpcRuleThinkProperties;
+import com.example.mgdemoplus.npc.rulethink.DpNpcRuleThinkSampler;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -17,6 +21,13 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DpNpcCustomBotTest {
+
+    @BeforeEach
+    void disableRuleThinkForImmediateDecisionTests() {
+        DpNpcRuleThinkProperties props = new DpNpcRuleThinkProperties();
+        props.setEnabled(false);
+        DpNpcRuleThinkSampler.bind(props);
+    }
 
     @Test
     void customNicknameParsingExcludesLlmAndRuleType() {

@@ -13,6 +13,7 @@ import com.example.mgdemoplus.npc.strategy.DpNpcRuleDecisionParams;
 import com.example.mgdemoplus.npc.strategy.DpNpcTagStrategy;
 import com.example.mgdemoplus.npc.strategy.DpNpcUnifiedPreflopStrategy;
 import com.example.mgdemoplus.npc.llm.LlmNpcGameContext;
+import com.example.mgdemoplus.npc.rulethink.DpNpcRuleThinkSampler;
 import com.example.mgdemoplus.utils.DpUtilHandEvaluator;
 import com.example.mgdemoplus.utils.DpUtilHandEvaluator.HandStrength;
 import static com.example.mgdemoplus.utils.DpUtilHandEvaluator.isPlayingBoardPairOnly;
@@ -1880,8 +1881,8 @@ public class DpNpcEngine {
     }
 
     /**
-     * 在定时任务中调用：轮到规则 NPC 且校验通过则立即给出 {@link BotAction}。
-     * 返回 null 表示不该由该机器人行动。
+     * 在定时任务中调用：轮到规则 NPC 且校验通过则给出 {@link BotAction}。
+     * {@code enabled=true} 时先经 {@code nextBotActionTime} 两阶段排期；返回 null 表示尚未到点或不该由该机器人行动。
      */
     public static BotAction decideActionIfReady(DpRoomBO room, DpPlayer bot) {
         if (room == null || bot == null || !room.isPlaying()) {
@@ -1900,19 +1901,37 @@ public class DpNpcEngine {
             return null;
         }
 
-        bot.setNextBotActionTime(0L);
-
         if (isLlmBotNickname(bot.getNickname())) {
             return null;
         }
-        if (isCustomBotNickname(bot.getNickname())) {
-            return decideCustomBotAction(room, bot);
-        }
-        BotType type = getBotTypeByNickname(bot.getNickname());
-        if (type == null) {
+
+        long now = System.currentTimeMillis();
+        long deadline = bot.getNextBotActionTime();
+
+        if (deadline <= 0) {
+            long delay = DpNpcRuleThinkSampler.sampleDelayMs(
+                    buildHandRandomForRuleThink(room, bot));
+            if (delay > 0) {
+                bot.setNextBotActionTime(now + delay);
+                return null;
+            }
+        } else if (now < deadline) {
             return null;
         }
-        return decideBotAction(room, bot, type);
+
+        BotAction action;
+        if (isCustomBotNickname(bot.getNickname())) {
+            action = decideCustomBotAction(room, bot);
+        } else {
+            BotType type = getBotTypeByNickname(bot.getNickname());
+            if (type == null) {
+                bot.setNextBotActionTime(0L);
+                return null;
+            }
+            action = decideBotAction(room, bot, type);
+        }
+        bot.setNextBotActionTime(0L);
+        return action;
     }
 
     /**
@@ -1934,6 +1953,13 @@ public class DpNpcEngine {
         }
         seed ^= (long) (31 * seatIndex + 17);
         return new Random(seed);
+    }
+
+    /**
+     * 规则 NPC 思考延时抽样 RNG：与决策 RNG 同源但 salt 区分，避免与牌力决策共用同一 {@code nextDouble()} 序列。
+     */
+    public static Random buildHandRandomForRuleThink(DpRoomBO room, DpPlayer bot) {
+        return buildHandRandomForTableTalk(room, bot, 0x5448494E4B5F4E50L); // "THINK_NP"
     }
 
     /**

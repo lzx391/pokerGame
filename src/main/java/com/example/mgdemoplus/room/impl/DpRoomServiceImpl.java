@@ -2100,6 +2100,7 @@ ownerFieldChanged：房主字段是否发生变化。
             p.setNpcHandPlanMaxBarrels(0);
             p.setNpcHandPlanAggression(0.0);
             p.setNpcHandPlanTargetVillain(null);
+            p.setNextBotActionTime(0L);
             p.setHoleCards(Arrays.asList(r.getDeck().remove(0), r.getDeck().remove(0)));
         }
         // 留着上一把遗留下来的按钮以便确认下一把的按钮

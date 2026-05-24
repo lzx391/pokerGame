@@ -83,7 +83,7 @@
 
 | 类型 | 识别 | 决策入口 | 执行 |
 |------|------|----------|------|
-| 规则 NPC | `DpNpcEngine.isBotPlayer` 且非 LLM 昵称 | `DpNpcEngine.decideActionIfReady` | 全局 tick `tickNpcTurnOrHumanActionTimeout` 中 `NpcAction` → `bet` / `fold` |
+| 规则 NPC | `DpNpcEngine.isBotPlayer` 且非 LLM 昵称 | `DpNpcEngine.decideActionIfReady` | 全局 tick 1s；`nextBotActionTime` 随机思考窗（`dp.npc.rule-think`，默认 ≤4s + tick 余量）→ `NpcAction` → `bet` / `fold` |
 | `BOT_LLM_*` | `DpNpcEngine.isLlmBotNickname` | `DpLlmNpcDecisionService.decideActionIfReady` | 异步 `CompletableFuture`（固定 4 线程池）+ `inflightByKey`；**票据校验** `handSeed/stage/actorIndex/betToCall/...` 失效则取消在途请求；超时 125s |
 
 **座位加入**：`addLlmBotToNextHand` / 各 `add*Bot` → `readyNextHand`，昵称形如 `BOT_LLM_<序号>`（与 `DpNpcEngine` 约定一致）。

@@ -111,6 +111,16 @@ dp:
       enabled: true
       # speak-probability: 0.35  # 可选：覆盖 npc-lines/*.yaml 内默认概率
       min-interval-ms: 2500
+    rule-think:
+      enabled: true
+      snap-probability: 0.18
+      max-ms: 4000
+      fast-min-ms: 500
+      fast-max-ms: 2000
+      fast-weight: 0.70
+      slow-min-ms: 2000
+      slow-max-ms: 4000
+      slow-weight: 0.30
   llm:
     ark:
       api-key: ${ARK_API_KEY:}

@@ -22,7 +22,7 @@
 ## 1.2 从房间服务到 `BotAction` 的调用链
 
 1. `**DpRoomServiceImpl**` 定时任务发现当前行动者是机器人（`DpNpcEngine.isBotPlayer`），且不是 `BOT_LLM` 时，调用 `**DpNpcEngine.decideActionIfReady(room, bot)**`。
-2. `**decideActionIfReady**` 做守卫（房间在玩、行动位是本人、未弃牌未全下等），通过后立即调用决策（不再使用 `nextBotActionTime` 思考窗）。
+2. `**decideActionIfReady**` 做守卫（房间在玩、行动位是本人、未弃牌未全下等），通过后按 `dp.npc.rule-think` 采样延时写入 `nextBotActionTime`（两阶段）；到点再进入决策。
 3. 通过 `getBotTypeByNickname` 得到 `BotType`，进入 `**decideBotAction(room, bot, type)**`。
 4. `**decideBotAction**` 统一计算：`callAmount`、`callRatio`、`TablePosition`、`SimpleStrength`（真值）、`BoardDanger`、`**mood`（默认关闭，见 `DpNpcEngine.NPC_MOOD_ENABLED`）**、`StyleProfile` 等，然后 `**switch (type)`** 进入各机器人分支。
 5. 返回 `**BotAction`（类型 + 金额）**；房间服务映射为 `fold` / `bet` 等，**不**在引擎里直接改筹码。

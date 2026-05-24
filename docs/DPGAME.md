@@ -659,39 +659,36 @@ public class DpPlayer {
 - 所有可调参数（参与率、加注倍率、诈唬率等）统一放在一个静态配置或枚举上，方便以后微调“AI 难度”；  
 - 保持对真人玩家流程零侵入：即使关掉机器人相关代码，真人照常能玩完整局。
 
-#### 四、机器人“思考时间”与节奏感（强牌长考、弱牌秒出）
+#### 四、机器人“思考时间”与节奏感
 
-> **当前实现**：`DpNpcEngine.decideActionIfReady` 已不再使用 `nextBotActionTime` 等待窗，轮到规则 NPC 即决策；字段仍存在于 `DpPlayer` 仅兼容旧数据。下列为原设计说明。
+> **当前实现（2026-05）**：规则 NPC（含 `BOT_CUSTOM_*`，不含 `BOT_LLM*`）在 `DpNpcEngine.decideActionIfReady` 中复用 `DpPlayer.nextBotActionTime` 做两阶段排期；配置前缀 **`dp.npc.rule-think`**（默认开启）。LLM Bot 仍由 `DpLlmNpcDecisionService` 独占该字段，与规则路径在心跳层已分岔。
 
-为让机器人更像真人玩家，在 `DpRoomServiceImpl` 中对所有 NPC 新增了简单的“思考时间”机制：
+**调度**：`DpRoomHeartbeatScheduler` 每 **1s** tick 一次；轮到规则 Bot 时调用 `decideActionIfReady`。
 
-- **字段**：在 `DpPlayer` 上增加 `nextBotActionTime`（仅 NPC 使用），表示“下一次允许自动行动的时间戳（毫秒）”。
-- **入口**：定时任务中轮到机器人行动时，`autoActForBot(room, bot)` 会先检查：
-  - 若 `nextBotActionTime` 尚未设置，则根据当前牌力 `estimateCurrentStrength`、需要跟注筹码比例、机器人类型与情绪，调用 `calculateBotThinkDelay` 生成一个延迟（毫秒），保存为 `bot.nextBotActionTime`，**本轮先不真正行动**；
-  - 之后每 2 秒定时器再次触发时，只有当 `System.currentTimeMillis() >= nextBotActionTime` 时，才真正调用 `decideBotAction` + `bet/fold` 完成这次行动，并把 `nextBotActionTime` 清零。
+**两阶段（`enabled: true`）**
 
-##### 4.1 分开配置（按机器人类型独立调参）
+1. 首次 tick（`nextBotActionTime == 0`）：采样思考延时 → 写入 `nextBotActionTime = now + delay` → 返回 null（前端仍靠 `currentActorIndex` 高亮「思考中」）。
+2. 后续 tick：`now < nextBotActionTime` 则继续 null；到点后调用 `decideBotAction` / `decideCustomBotAction`，决策完成后清零。
+3. **秒出**：按 `snap-probability`（默认 **0.18**）采样 delay=0，本 tick 内直接决策。
 
-现在思考时间**不是统一一套**，而是按 `BotType` **分开配置**（你想怎么调都行，不用动决策逻辑）：
+**采样（方案 B，偏快）**
 
-- **配置位置**：`DpRoomServiceImpl` 的“机器人思考时间配置”区域里，三个配置对象：
-  - `THINK_DEMO`：普通机器人
-  - `THINK_MANIAC`：疯子（更快、更爱秒出手）
-  - `THINK_SHARK`：聪明型（更爱“故作思考”，但也保留秒 call 的随机性）
-- **你能配置什么**（单位都是毫秒）：
-  - `weakMinMs/weakMaxMs`、`mediumMinMs/mediumMaxMs`、`strongMinMs/strongMaxMs`：三档牌力的思考时间区间
-  - `cheapMinMs/cheapMaxMs` + `cheapSnapProb`：当 `callAmount == 0` 或 `callRatio <= 0.2` 时，走“秒 call / 秒过牌”区间的概率
-  - `globalSnapProb`：无论是否 cheap、无论牌力，直接“秒出手”的概率（用来制造“突然秒 call/秒 raise”的真人感）
-  - `maxCapMs`：单次思考的上限（防止拖慢节奏）
+| 键 | 默认 | 说明 |
+|----|------|------|
+| `enabled` | `true` | `false` 时恒 delay=0，等同即时决策 |
+| `snap-probability` | `0.18` | 秒出概率 |
+| `max-ms` | `4000` | 延时硬上限 |
+| `fast-min-ms` / `fast-max-ms` | `500` / `2000` | 快桶（权重 **70%**） |
+| `slow-min-ms` / `slow-max-ms` | `2000` / `4000` | 慢桶（权重 **30%**） |
 
-这样你就可以做到：
+**体感**：因 1s 心跳粒度，端到端约 **1～6s**（最长约 4s 延时 + 最多 1s tick 余量）。`enabled: false` 可一键回滚为「轮到即决策」。
 
-- `BOT_Maniac`：raise/call 很多时候直接秒出或 1 秒内出手
-- `BOT_Shark`：强牌更可能长考，但也会偶尔秒 call 迷惑对手
+**新一手清零**：`newHandWithoutLobbyUpsert` 玩家重置循环会对每个座位 `setNextBotActionTime(0L)`，避免跨手残留。
 
-##### 4.2 行为规则（只影响机器人，不影响真人超时逻辑）
+<details>
+<summary>历史设计（按 BotType 分档，已废弃）</summary>
 
-整体规则：
+以下为早期在 `DpRoomServiceImpl` 内按 `BotType` 独立配置 `BotThinkProfile` 的设想，**当前代码未使用**；现网统一走 `dp.npc.rule-think` 全局一套参数。
 
 - **强牌（`SimpleStrength.STRONG`）**：
   - 走 `strongMinMs~strongMaxMs`；
@@ -714,6 +711,8 @@ public class DpPlayer {
 - 前端依旧通过 `room.currentActorIndex` 高亮“思考中...”的玩家，因此你会看到：
   - 有时机器人一到自己就立刻 call / all-in；
   - 有时则会在圈内“闪黄圈 + 思考中...”停留几秒，再突然做出一个明显是强牌的慢打或可疑的诈唬动作。
+
+</details>
 
 ---
 

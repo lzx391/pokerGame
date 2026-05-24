@@ -5,13 +5,13 @@
 | 能力 | 说明 |
 |------|------|
 | `isBotPlayer` | 昵称白名单：`BOT_Fish` / `BOT_Maniac` / `BOT_Tag` / `BOT_Shark`（不含 `BOT_LLM`）。 |
-| `decideActionIfReady` | 行动位校验 + 思考延迟 + `decideBotAction`。 |
+| `decideActionIfReady` | 行动位校验 + `nextBotActionTime` 两阶段排期（`dp.npc.rule-think`）+ `decideBotAction` / `decideCustomBotAction`。 |
 | `decideBotAction` | 公共前置计算 + `switch(BotType)`。 |
 | `estimateCurrentStrength` | 手牌 + 公共牌 → `DpUtilHandEvaluator.evaluateBestHand` → `SimpleStrength`。 |
 | `evaluateBoardDanger` | 同花/连张结构 → `DRY` / `WET`。 |
 | `getTablePosition` | 结合庄家与座位顺序 → 位置枚举。 |
-| （已移除）难度噪声 | 历史上曾有按难度的牌力/赔率噪声；当前规则型 NPC 一律用真值。 |
-| （已移除）思考延迟 | 原 `nextBotActionTime` / `BotThinkProfile` 已删；`decideActionIfReady` 校验通过即决策。 |
+| 难度噪声 | 历史上曾有按难度的牌力/赔率噪声；当前规则型 NPC 一律用真值。 |
+| 思考延迟 | `dp.npc.rule-think` 全局采样 + `nextBotActionTime` 两阶段；`enabled=false` 时即时决策。LLM 路径不受影响。 |
 | `buildSmartContext` | 组装 `DpUtilSmartContext`（见 3.3）。Maniac / TAG / Shark 都会用；Fish 主要在同文件内直接决策，不强制依赖 SmartContext。 |
 | `decidePreflopForTagOrShark` | **仅 TAG（以及历史兼容的 SHARK 参数表名）** 使用的翻前表；**当前 Shark 翻前已改为** `DpNpcSharkPreflopStrategy`，不再走此函数。 |
 | `initHandPlanIfNeededForPostflop` | **TAG 与 Shark** 在 flop 首次行动时生成整手计划（见 Shark 文档 4/5）。 |
