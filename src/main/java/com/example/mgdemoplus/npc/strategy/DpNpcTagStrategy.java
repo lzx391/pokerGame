@@ -128,7 +128,7 @@ public final class DpNpcTagStrategy {
 
         double foldProbTag = Math.min(1.0, Math.max(0.0, baseFold + (-p.mood) * 0.05));
         foldProbTag *= (1.0 - 0.5 * p.callStation);
-        foldProbTag = DpNpcEngine.applySoftNoise(foldProbTag, RuleNpcConfig.PROB_NOISE_DELTA, p.random);
+        foldProbTag = Math.min(1.0, Math.max(0.0, foldProbTag));
         if (callAmount > 0 && foldProbTag > 0 && p.random.nextDouble() < foldProbTag) {
             return new BotAction(BotActionType.FOLD, 0);
         }
@@ -174,10 +174,7 @@ public final class DpNpcTagStrategy {
             if (ctx.activeVillains >= 2 && st == SimpleStrength.MEDIUM) {
                 valueBetProb *= 0.72;
             }
-            valueBetProb = DpNpcEngine.applySoftNoise(
-                    Math.min(0.95, Math.max(0.05, valueBetProb)),
-                    RuleNpcConfig.PROB_NOISE_DELTA,
-                    p.random);
+            valueBetProb = Math.min(0.95, Math.max(0.05, valueBetProb));
             if (p.random.nextDouble() < valueBetProb) {
                 if (DpNpcEngine.shouldSkipAggressiveActionByPlan(p.bot, stage)) {
                     return new BotAction(BotActionType.CALL_OR_CHECK, 0);
@@ -229,10 +226,7 @@ public final class DpNpcTagStrategy {
                 raiseProb *= 0.76;
             }
         }
-        raiseProb = DpNpcEngine.applySoftNoise(
-                Math.min(0.9, Math.max(0.05, raiseProb)),
-                RuleNpcConfig.PROB_NOISE_DELTA,
-                p.random);
+        raiseProb = Math.min(0.9, Math.max(0.05, raiseProb));
 
         double r = p.random.nextDouble();
         if (r > raiseProb || p.chips <= callAmount) {

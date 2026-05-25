@@ -8,7 +8,6 @@ import com.example.mgdemoplus.npc.engine.DpNpcEngine.BotActionType;
 import com.example.mgdemoplus.npc.engine.DpNpcEngine.BotType;
 import com.example.mgdemoplus.npc.engine.DpNpcEngine.BoardDanger;
 import com.example.mgdemoplus.npc.engine.DpNpcEngine.HandPlanType;
-import com.example.mgdemoplus.npc.engine.DpNpcEngine.RuleNpcConfig;
 import com.example.mgdemoplus.utils.DpUtilSmartContext;
 
 /**
@@ -110,10 +109,7 @@ public final class DpNpcFishStrategy {
             if (fishCallCtx != null && fishCallCtx.activeVillains >= 2) {
                 bluffProb *= 0.5;
             }
-            bluffProb = DpNpcEngine.applySoftNoise(
-                    Math.min(0.6, Math.max(0.0, bluffProb)),
-                    RuleNpcConfig.PROB_NOISE_DELTA,
-                    p.random);
+            bluffProb = Math.min(0.6, Math.max(0.0, bluffProb));
             if (p.random.nextDouble() < bluffProb) {
                 int pot = p.room.getPot();
                 int bb = p.room.getBigBlindChips();
@@ -139,10 +135,7 @@ public final class DpNpcFishStrategy {
                 }
             }
         }
-        callOrCheckProb = DpNpcEngine.applySoftNoise(
-                Math.min(0.95, Math.max(0.05, callOrCheckProb)),
-                RuleNpcConfig.PROB_NOISE_DELTA,
-                p.random);
+        callOrCheckProb = Math.min(0.95, Math.max(0.05, callOrCheckProb));
 
         if (r < callOrCheckProb) {
             return new BotAction(BotActionType.CALL_OR_CHECK, 0);

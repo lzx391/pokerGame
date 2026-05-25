@@ -47,7 +47,7 @@ public class DpNpcEngine {
     }
 
     /**
-     * 规则 NPC 共用系数：短/深码、equity×底池赔率、c-bet/河牌尺度、概率噪声等（集中便于调参）。
+     * 规则 NPC 共用系数：短/深码、equity×底池赔率、c-bet/河牌尺度等（集中便于调参）。
      */
     public static final class NpcRuleCoeffs {
         /**
@@ -103,14 +103,6 @@ public class DpNpcEngine {
         final double multiwayFoldBoostBase;
 
         /**
-         * 概率类通用软噪声幅度，用于 applySoftNoise：
-         * - 建议范围：0.02~0.08，默认 0.05；
-         * - 调大：所有概率决策抖动更明显，行为更难预测；
-         * - 调小：行为更稳定、更贴近理论值。
-         */
-        final double probNoiseDelta;
-
-        /**
          * 河牌极强牌 overbet 策略：
          * - riverOverbetProb：在 river + 干燥牌面 + 怪兽牌时采用 overbet 的概率（建议 0.05~0.4，默认 0.2）；
          * - riverOverbetMinFactor / MaxFactor：overbet 相对 pot 的倍数，例如 1.2~1.5 表示
@@ -153,7 +145,6 @@ public class DpNpcEngine {
                 double equityFoldBoost,
                 double equityFoldShrinkFactor,
                 double multiwayFoldBoostBase,
-                double probNoiseDelta,
                 double riverOverbetProb,
                 double riverOverbetMinFactor,
                 double riverOverbetMaxFactor,
@@ -172,7 +163,6 @@ public class DpNpcEngine {
             this.equityFoldBoost = equityFoldBoost;
             this.equityFoldShrinkFactor = equityFoldShrinkFactor;
             this.multiwayFoldBoostBase = multiwayFoldBoostBase;
-            this.probNoiseDelta = probNoiseDelta;
             this.riverOverbetProb = riverOverbetProb;
             this.riverOverbetMinFactor = riverOverbetMinFactor;
             this.riverOverbetMaxFactor = riverOverbetMaxFactor;
@@ -197,7 +187,6 @@ public class DpNpcEngine {
                 0.10, // equityFoldBoost — 只在明显落后赔率时才加码弃牌
                 0.68, // equityFoldShrinkFactor — 赔率划算时更敢跟
                 0.11, // multiwayFoldBoostBase — 多人池略少过度弃牌
-                0.03, // probNoiseDelta — PRO 档行为更稳定
                 0.22, // riverOverbetProb — 坚果略多拿一点上限
                 1.20, // riverOverbetMinFactor
                 1.50, // riverOverbetMaxFactor
@@ -225,7 +214,6 @@ public class DpNpcEngine {
         static final double EQUITY_FOLD_BOOST = P.equityFoldBoost;
         static final double EQUITY_FOLD_SHRINK = P.equityFoldShrinkFactor;
         static final double MULTIWAY_FOLD_BOOST = P.multiwayFoldBoostBase;
-        public static final double PROB_NOISE_DELTA = P.probNoiseDelta;
         static final double RIVER_OVERBET_PROB = P.riverOverbetProb;
         static final double RIVER_BLOCK_PROB = P.riverBlockProb;
         static final double RIVER_BLOCK_FACTOR = P.riverBlockFactor;
@@ -271,12 +259,6 @@ public class DpNpcEngine {
      * 为 false：规则 NPC 决策里 mood 恒按 0；思考延迟也不按 mood 缩放；结算不再改写机器人 mood。
      */
     public static final boolean NPC_MOOD_ENABLED = false;
-
-    /**
-     * 为 false：{@link #applySoftNoise} 不再对概率做 ±delta 抖动（Fish/Maniac/TAG 共用）。
-     * 若想保留原先「不那么死板」的抽样，保持 true。
-     */
-    public static final boolean NPC_SOFT_NOISE_ENABLED = false;
 
     /**
      * 为 true：机器人 fold/call/raise 等抽样使用 {@code currentHandSeed ^ 座位} 固定种子，便于同一手牌复现决策序列。
@@ -2035,29 +2017,6 @@ public class DpNpcEngine {
 
     private static double sqAxis(double x) {
         return x * x;
-    }
-
-    /**
-     * 对概率应用一个 [-delta, +delta] 的软噪声，并裁剪在 [0,1]。
-     */
-    public static double applySoftNoise(double prob, double delta, Random random) {
-        if (!NPC_SOFT_NOISE_ENABLED) {
-            delta = 0;
-        }
-        if (delta <= 0 || random == null) {
-            if (prob < 0)
-                return 0.0;
-            if (prob > 1)
-                return 1.0;
-            return prob;
-        }
-        double noise = (random.nextDouble() * 2.0 - 1.0) * delta;
-        double v = prob + noise;
-        if (v < 0)
-            v = 0;
-        if (v > 1)
-            v = 1;
-        return v;
     }
 
     private static int countActiveVillains(DpRoomBO room, DpPlayer hero) {

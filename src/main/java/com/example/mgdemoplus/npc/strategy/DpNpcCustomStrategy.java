@@ -9,7 +9,6 @@ import com.example.mgdemoplus.npc.engine.DpNpcEngine.BoardDanger;
 import com.example.mgdemoplus.npc.engine.DpNpcEngine.BotAction;
 import com.example.mgdemoplus.npc.engine.DpNpcEngine.BotActionType;
 import com.example.mgdemoplus.npc.engine.DpNpcEngine.HandPlanType;
-import com.example.mgdemoplus.npc.engine.DpNpcEngine.RuleNpcConfig;
 import com.example.mgdemoplus.utils.DpUtilSmartContext;
 
 /**
@@ -72,7 +71,7 @@ public final class DpNpcCustomStrategy {
             } else if (st == SimpleStrength.MEDIUM) {
                 leadProb += 0.08 * vpip;
             }
-            leadProb = DpNpcEngine.applySoftNoise(leadProb, RuleNpcConfig.PROB_NOISE_DELTA, p.random);
+            leadProb = clamp01(leadProb);
             if (p.random.nextDouble() < leadProb) {
                 double sizeFactor = (0.75 + 0.5 * cbetFreq) * (0.85 + 0.25 * aggression);
                 int pot = Math.max(p.room.getPot(), p.room.getBigBlindChips());
@@ -87,7 +86,6 @@ public final class DpNpcCustomStrategy {
         }
 
         double foldProb = baseFold;
-        foldProb = DpNpcEngine.applySoftNoise(foldProb, RuleNpcConfig.PROB_NOISE_DELTA, p.random);
         if (p.random.nextDouble() < foldProb) {
             return new BotAction(BotActionType.FOLD, 0);
         }
@@ -101,7 +99,7 @@ public final class DpNpcCustomStrategy {
             raiseProb = Math.min(0.85, 0.35 * bluffFreq);
         }
         raiseProb *= raiseScale;
-        raiseProb = DpNpcEngine.applySoftNoise(raiseProb, RuleNpcConfig.PROB_NOISE_DELTA, p.random);
+        raiseProb = clamp01(raiseProb);
 
         HandPlanType plan = DpNpcEngine.getHandPlanType(p.bot);
         if (plan == HandPlanType.GIVE_UP) {

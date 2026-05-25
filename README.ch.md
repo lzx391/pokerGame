@@ -71,7 +71,7 @@
 #### 酒馆档强度（BOT_Fish，2026-03-25）
 
 - **规则型 NPC 读牌/赔率**：已不再按「难度档」对牌力或底池赔率加人为噪声；`estimateCurrentStrength` 与 `computePotOdds` 一律用真值，强弱差异主要来自 `NpcStyle`/`StyleProfile` 与各 bot 分支逻辑。**情绪 `mood`**：默认关闭（`DpNpcEngine.NPC_MOOD_ENABLED = false`），决策按 mood=0，结算也不再改写机器人 mood；若要恢复，将该常量改为 `true`。
-- **决策概率抖动**：`applySoftNoise` 由 `DpNpcEngine.NPC_SOFT_NOISE_ENABLED` 控制（默认 `false`，已关闭 ±`PROB_NOISE_DELTA`）；与发牌/洗牌无关。
+- **决策概率抖动**：已移除（原 `applySoftNoise` / `NPC_SOFT_NOISE_ENABLED` 通路）；翻后概率由各策略类内裁剪与风格矩阵决定。
 - **机器人决策随机**：`NPC_HAND_SEED_FOR_DECISIONS` 默认 `false`，每次行动 `new Random()`；房间的 `currentHandSeed` 仍用于前端动画 key、牌谱等，**不是发牌种子**，洗牌在 `newDeck()` 里单独 `Collections.shuffle`。
 
 #### Shark（BOT_Shark）现在会“翻前按局势调范围”

@@ -17,7 +17,7 @@
 | `buildSmartContext` | TAG / MANIAC 等翻后使用 |
 | `STYLE_PROFILE_MAP` | `NpcStyle` → `StyleProfile` 数值旋钮 |
 
-全局常量：`NPC_MOOD_ENABLED`、`NPC_SOFT_NOISE_ENABLED`（默认 **false**）；`NPC_HAND_SEED_FOR_DECISIONS`（默认 **true**）。
+全局常量：`NPC_MOOD_ENABLED`（默认 **false**）；`NPC_HAND_SEED_FOR_DECISIONS`（默认 **true**）。概率软噪声通路已移除。
 
 ---
 

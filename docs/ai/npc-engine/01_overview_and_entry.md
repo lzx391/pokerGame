@@ -62,7 +62,6 @@ sequenceDiagram
 | 常量 | 默认 | 含义 |
 |------|------|------|
 | `NPC_MOOD_ENABLED` | `false` | 关闭 mood 对决策的影响 |
-| `NPC_SOFT_NOISE_ENABLED` | `false` | 关闭概率软噪声 |
 | `NPC_HAND_SEED_FOR_DECISIONS` | `true` | `handSeed ^ 座位` 固定 RNG |
 
 ---
