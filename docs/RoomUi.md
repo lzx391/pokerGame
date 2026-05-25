@@ -1,6 +1,10 @@
-# 对局页 UI：组件结构、`seatIndex` 与「本机视角」旋转、主题绑定
+# 对局页 UI：组件结构、`seatIndex` 与主题
 
-本文说明 **DP 游戏对局页**（`front/dp_game`）的界面结构、**主题系统**已做改动，以及后续如何扩展。
+> **核对日期**：2026-05-25  
+> **权威来源**：`front/dp_game/src/components/game.vue` 及 `Game*.vue`  
+> **Status**: maintained
+
+本文说明 **DP 游戏对局页**（`front/dp_game`）的界面结构、**主题系统**，以及与后端 `seatIndex` 的约定。
 
 ---
 

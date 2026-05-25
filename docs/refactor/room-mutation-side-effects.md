@@ -1,13 +1,14 @@
 # 房间副作用盘点 — 数据结构变更 + 开发清单
 
-> **文档摘要（5 行）**  
+> **核对日期**：2026-05-25  
+> **权威来源**：`DpRoomServiceImpl`、`DpRoomBO`、`JoinableQuickMatchRoomIndex`、`DpRoomHallService`、`DpRoomQuickMatchBridge`  
+> **Status**: maintained
+
+> **文档摘要**  
 > - **给谁看**：改房间/快匹/大厅相关业务的开发者与 Code Review 人。  
 > - **解决什么问题**：改 `DpRoomBO` 一处字段后，别漏刷可进房索引、大厅摘要、观众席、presence、WS 等「副作用」。  
-> - **第 1～2 章**：Agent A/B 整理的**现状**词典与行为矩阵（只描述当前代码）。  
-> - **第 3～5 章**：Agent C 整理的**理想判定 + 自检清单 + 技术债分期**（开发时对着用，不是补丁）。  
-> - **用法**：写完业务先过第 4 章 checklist；不确定刷什么时查第 3 章「如果…就…」；矩阵细节回第 2 章。  
->
-> 只读源码整理，描述**当前实现**（2026-05-22 代码树）。与注释冲突处标注「实现 vs 注释」。
+> - **用法**：写完业务先过第 4 章 checklist；矩阵细节见第 2 章。  
+> - 对局 REST/流程总览：[DPGAME.md](../DPGAME.md)。
 
 ---
 

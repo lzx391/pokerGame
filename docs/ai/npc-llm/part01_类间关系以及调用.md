@@ -1,37 +1,86 @@
-# 大模型 NPC（`BOT_LLM`）：核心类分工与端到端调用链
+# 大模型 NPC（`BOT_LLM` / `BOT_LLM_GLOBAL`）：类关系与调用链
 
-**本篇说明**：偏「面试速讲」粒度；方舟（Ark）与 `ARK_*` 环境变量仍以根目录 `README` / [`ENV_README.md`](../../ENV_README.md) 为准。
+> **核对日期**：2026-05-25  
+> **权威来源**：`DpLlmNpcDecisionService`、`DpNpcEngine`、`OpenAiCompatibleChatClient`、`application.yml` 之 `dp.llm.ark.*`  
+> **Status**: maintained
 
-## 1) 涉及核心类
+规则 Bot 分册：[npc-engine/README.md](../npc-engine/README.md)。环境变量见 [ENV_README.md](../../ENV_README.md)。
 
-- [DpNpcEngine.java](../../../src/main/java/com/example/mgdemoplus/service/serviceImpl/dp/DpNpcEngine.java)
-- [DpLlmNpcDecisionService.java](../../../src/main/java/com/example/mgdemoplus/service/serviceImpl/dp/DpLlmNpcDecisionService.java)
-- [DpLlmNpcContextMapper.java](../../../src/main/java/com/example/mgdemoplus/service/serviceImpl/dp/DpLlmNpcContextMapper.java)
-- [LlmNpcGameContext.java](../../../src/main/java/com/example/mgdemoplus/service/serviceImpl/dp/npc/LlmNpcGameContext.java)
-- [LlmNpc.java](../../../src/main/java/com/example/mgdemoplus/service/serviceImpl/dp/npc/LlmNpc.java)
+---
 
-## 2) 一句话职责
+## 1. 核心类
 
-- `DpNpcEngine`：识别 `BOT_LLM` 并提供牌局快照原料。
-- `DpLlmNpcDecisionService`：LLM 决策总控（异步请求、快照校验、解析、兜底、收敛）。
-- `DpLlmNpcContextMapper`：把引擎上下文映射成扁平的 LLM 输入对象。
-- `LlmNpcGameContext`：承载 `M/T/H/E` 关键字段并输出 prompt 块。
-- `LlmNpc`：OpenAI 兼容 HTTP 客户端，负责调用方舟并返回结构化回复。
+| 类 | 包路径 | 职责 |
+|----|--------|------|
+| `DpNpcEngine` | `npc.engine` | 识别 LLM 昵称；`buildLlmNpcGameSnapshot`；**不**处理 LLM 的 `decideActionIfReady` |
+| `DpLlmNpcDecisionService` | `npc.llm` | 异步方舟请求、快照校验、JSON 解析、`normalizeAndClamp`、兜底 |
+| `LlmNpcUserSnapshot` | `npc.llm` | 固定键表 + `----` + 值行的 user 正文（`v1\|BOT_LLM\|snap` / `GLOBAL` 头） |
+| `LlmNpcGameContext` | `npc.llm` | 快照字段 DTO（由引擎上下文填充） |
+| `LlmNpcGlobalHandConversationStore` | `npc.llm` | `BOT_LLM_GLOBAL` 每手多轮 messages 存档 |
+| `OpenAiCompatibleChatClient` | `llm` | HTTP Chat Completions（方舟兼容） |
 
-## 3) 端到端调用链
+**无** `DpLlmNpcContextMapper` / `LlmNpc` 类；旧路径 `service/serviceImpl/dp/` 已废弃。
 
-1. 游戏轮询到 BOT 行动点，进入 `DpLlmNpcDecisionService.decideActionIfReady(...)`。  
-2. 通过 `DpNpcEngine.buildLlmNpcGameSnapshot(...)` 获取牌局摘要。  
-3. `DpLlmNpcContextMapper.map(...)` 生成 `LlmNpcGameContext`。  
-4. `LlmNpcUserSnapshot.formatUserPayload(room, bot, ctx)` 生成固定键表 + `----` + 值行的 user 正文；纪律在 `DpLlmNpcDecisionService` 的 `LLM_SYSTEM_PROMPT`。  
-5. `LlmNpc.chatMessagesDetailed(...)` 请求方舟，返回正文 + reasoning。  
-6. `DpLlmNpcDecisionService` 解析 JSON 动作并做 `normalizeAndClamp(...)`。  
-7. 若超时/解析失败/快照过期，统一回退 `fallback(...)`，保证可执行。  
+---
 
-## 4) 面试可强调的工程点
+## 2. 昵称与前缀
 
-- **一致性**：请求发起与回包阶段都做快照校验，防止“过期动作”落地。  
-- **稳定性**：异步 + 超时 + 本地兜底，模型不可用时也不阻塞游戏流程。  
-- **可观测性**：决策日志与 reasoning 日志分离，可单独调级排查问题。  
-- **边界安全**：对 `raise/all-in/call` 做金额收敛，保证动作合法且可执行。  
+| 前缀 | 行为 |
+|------|------|
+| `BOT_LLM` / `BOT_LLM_<seq>` | 单轮：每行动一次 API，system=`LLM_SYSTEM_PROMPT` |
+| `BOT_LLM_GLOBAL` / `BOT_LLM_GLOBAL_<seq>` | 多轮：同 `handSeed` 内累积 user/assistant；system=`LLM_GLOBAL_SYSTEM_PROMPT`，输出含 `plan_next` |
 
+`DpNpcEngine.isLlmBotNickname` / `isGlobalLlmBotNickname` 在心跳层与规则 Bot 分岔。
+
+---
+
+## 3. 端到端调用链
+
+```mermaid
+sequenceDiagram
+    participant H as DpRoomHeartbeatScheduler
+    participant L as DpLlmNpcDecisionService
+    participant E as DpNpcEngine
+    participant C as OpenAiCompatibleChatClient
+    participant R as DpRoomServiceImpl
+
+    H->>L: decideActionIfReady (async ticket)
+    L->>E: buildLlmNpcGameSnapshot
+    L->>L: LlmNpcUserSnapshot.formatUserPayload
+    L->>C: chatMessagesDetailed
+    C-->>L: JSON 单行 + 可选 reasoning
+    L->>L: normalizeAndClamp / fallback
+    L-->>H: BotAction（或 null 等待中）
+    H->>R: npcAction
+```
+
+1. **1s 心跳**轮到 LLM 座位 → `DpLlmNpcDecisionService.decideActionIfReady`（规则引擎对该昵称返回 `null`）。
+2. 构建快照；发起请求前可用 **in-flight key** 防重入；`PRE_API_DELAY_MS = 0`（无额外人为拖延，耗时主要在 API）。
+3. **回包校验**：房间阶段 / 行动位 / 快照代数过期则丢弃，避免过期动作落地。
+4. 解析失败或超时 → **`fallback`**（本地 fold/check 等），保证对局不卡死。
+5. **`table_talk`**：解析后由桌边话服务推送（配置 `dp.npc.table-talk`）。
+
+---
+
+## 4. 配置要点
+
+| 键 | 说明 |
+|----|------|
+| `dp.llm.ark.api-key` / `ARK_*` | 未配置时走兜底，不阻塞房间 |
+| `dp.llm.ark.base-url`、`model` | 方舟兼容端点 |
+| `logging.level.com.example.mgdemoplus.BotLlmReasoning` | 可选单独看 reasoning |
+
+固定线程池 **4** 线程（`dp-llm-npc`）；多 Bot 同桌会排队，尾延迟叠加。
+
+---
+
+## 5. 与规则 Bot 的边界
+
+| 维度 | 规则 NPC | LLM NPC |
+|------|----------|---------|
+| 入口 | `DpNpcEngine.decideActionIfReady` | `DpLlmNpcDecisionService` |
+| `nextBotActionTime` | `dp.npc.rule-think` 采样延时 | 异步 ticket / 完成后再清零 |
+| 翻前 | `DpNpcUnifiedPreflopStrategy` | 模型 JSON |
+| 配置 | `dp.npc.rule-think.*` | `dp.llm.ark.*` |
+
+**勿写**「思考延迟已移除」：规则路径 **已实现** `rule-think`；LLM 路径从未使用该采样器。

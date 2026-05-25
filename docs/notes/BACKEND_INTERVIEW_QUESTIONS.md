@@ -37,7 +37,7 @@
    - 提示：`computeIfAbsent(roomId, k -> ConcurrentHashMap.newKeySet())` 维护每房间订阅者集合。
 
 4. **浅拷贝 / 深拷贝在本项目里为什么值得注意？**  
-   - 提示：见仓库 `docs/Java对象引用与浅拷贝深拷贝备忘.md`；房间、玩家对象若多处引用，修改一处可能影响别处。
+   - 提示：见 [Java对象引用与浅拷贝深拷贝备忘.md](Java对象引用与浅拷贝深拷贝备忘.md)；`roomMap` 为单机内存，房间/玩家若多处引用，修改一处可能影响别处。
 
 5. **项目里用 `java.util.Timer` 做每秒任务，和 Spring `@Scheduled` 比各有什么优劣？**  
    - 提示：`DpRoomServiceImpl` 中单线程 `Timer` 与异常是否会导致调度终止；`@Scheduled` 线程池、可监控、与 Spring 生命周期一致。

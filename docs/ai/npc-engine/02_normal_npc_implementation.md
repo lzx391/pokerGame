@@ -1,6 +1,10 @@
-# 普通 NPC（`BOT_Fish` / `BOT_Maniac` / `BOT_Tag`）在 `decideBotAction` 中的逐步实现
+# 规则 NPC 翻后分派：`FISH` / `CALL` / `LAG` / `TAG` / `NIT` / `MANIAC`
 
-下文按 **`decideBotAction` 里实际执行顺序** 描述（文件：`DpNpcEngine.java`）。
+> **核对日期**：2026-05-25  
+> **权威来源**：`DpNpcEngine#decideBotAction`、`npc/strategy/*`  
+> **Status**: maintained
+
+翻前统一出口见 [npc-preflop-unified-decision-flow.md](../npc-preflop-unified-decision-flow.md)。下文按 **`decideBotAction`** 翻后 `switch (BotType)` 描述（`DpNpcEngine.java`）。
 
 ---
 
@@ -16,7 +20,7 @@
 
 ---
 
-## 2.2 BOT_Fish（`case DEMO`）
+## 2.2 BOT_Fish（`case FISH`）
 
 **设计目标**：偏被动、可预测，适合新手；仍保留一定加注与小额 bluff，避免纯跟注机器。
 
@@ -45,17 +49,16 @@
 
 ## 2.4 BOT_Tag（`case TAG`）
 
-**设计目标**：紧凶；翻前紧、翻后偏价值；**不做** Shark 级读牌，但会用 `SmartContext` 与 **HandPlan** 控制多街节奏。
+**设计目标**：紧凶；翻前与全 archetype 共用 **`DpNpcUnifiedPreflopStrategy`**；翻后委托 **`DpNpcTagStrategy.decide`**（HandPlan + `SmartContext`）。
 
-1. **翻前**：若 `stage == preflop`，调用 **`decidePreflopForTagOrShark(room, bot, TAG, ...)`**（内部使用 `PREFLOP_TAG_PROFILE` 与手牌分类），得到 fold / call / raise / all-in。
-2. **翻后**：  
-   - **`buildSmartContext`**。  
-   - **`initHandPlanIfNeededForPostflop`**：仅在 **flop**、且玩家身上还没有 `npcHandPlanType` 时生成 **VALUE / BLUFF / POT_CONTROL / GIVE_UP** 之一，并设 `maxBarrels`、`aggression`（与 Shark 共用同一套计划生成框架，但 TAG 不走 `DpNpcSharkExploitHandPlan` 的剥削层）。  
-   - 后续逻辑在 `case TAG` 内继续：结合 `HandPlan`、牌力、赔率、压力等决定 check/call/fold/raise（具体条件见源码同一段落）。
+1. **翻前**：`decideBotAction` 在 `preflop` 阶段已统一返回，**不** 进入 `case TAG` 翻前分支。
+2. **翻后**：`DpNpcTagStrategy` 内 `initHandPlanIfNeededForPostflop`（flop 首次）与多街价值/诈唬节奏；详见策略类源码。
+
+遗留昵称 `BOT_Shark` / `BOT_Tag` 亦映射 **TAG**，见 [04_shark_legacy.md](04_shark_legacy.md)。
 
 ---
 
-## 2.5 三条通用约定（所有普通 NPC + Shark）
+## 2.5 三条通用约定（所有规则 NPC）
 
 1. **免费看牌（`callAmount == 0`）不弃牌**：避免河牌面对方 check 仍 fold 的违和行为。
 2. **`BotAction` 只描述意图**：实际扣筹码、更新底池在 **`DpRoomServiceImpl`**。

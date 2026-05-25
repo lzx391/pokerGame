@@ -9,15 +9,15 @@
 ## 给代码评审
 
 - **项目是什么**：端到端演示「注册登录 → **大厅** / **快匹** → 进房 → **对局页** WebSocket + 轮询驱动的对局」，含规则型 NPC、可选方舟兼容接口的 LLM 座位、手牌历史落库与列表。
-- **能演示什么**：Docker 一键起栈后对局走通；快匹 **REST 入队 + WS 收状态** / 大厅分页 / JWT / 房内推送 / 好友邮箱与 SSE。代码入口：`**DpRoomRegistry.roomMap`**、`[DpRoomQuickMatchBridge](src/main/java/com/example/mgdemoplus/room/support/DpRoomQuickMatchBridge.java)`、`[JoinableQuickMatchRoomIndex](src/main/java/com/example/mgdemoplus/quickmatch/JoinableQuickMatchRoomIndex.java)`、`[DpQuickMatchPairingCoordinator](src/main/java/com/example/mgdemoplus/quickmatch/pairing/DpQuickMatchPairingCoordinator.java)`、`[DpNpcEngine](src/main/java/com/example/mgdemoplus/npc/engine/DpNpcEngine.java)` / `[DpLlmNpcDecisionService](src/main/java/com/example/mgdemoplus/npc/llm/DpLlmNpcDecisionService.java)`；**Flyway V1–V6**。
-- **启动与配置**：`com.example.mgdemoplus.MgDemoPlusApplication` 启动前 `**LocalDotenvLoader`** 加载根目录 `**.env**` → `**System.setProperty**`，便于本地与容器注入（与 Spring `**application.yml**` 占位符配合）；`@MapperScan` 覆盖 `**common` / `user` / `history` / `music` / `lobby` / `social` / `roomchat**` 的 `mapper` 包（`**room` / `npc` / `quickmatch` 无 DB Mapper**，热状态在内存）。
+- **能演示什么**：Docker 一键起栈后对局走通；快匹 **REST 入队 + WS 收状态** / 大厅分页 / JWT / 房内推送 / 好友邮箱与 SSE / 周榜。代码入口：`**DpRoomRegistry.roomMap`**、`[DpRoomQuickMatchBridge](src/main/java/com/example/mgdemoplus/room/support/DpRoomQuickMatchBridge.java)`、`[JoinableQuickMatchRoomIndex](src/main/java/com/example/mgdemoplus/quickmatch/JoinableQuickMatchRoomIndex.java)`、`[DpQuickMatchPairingCoordinator](src/main/java/com/example/mgdemoplus/quickmatch/pairing/DpQuickMatchPairingCoordinator.java)`、`[DpNpcEngine](src/main/java/com/example/mgdemoplus/npc/engine/DpNpcEngine.java)` / `[DpLlmNpcDecisionService](src/main/java/com/example/mgdemoplus/npc/llm/DpLlmNpcDecisionService.java)`；**Flyway V1–V7**（V7 周榜 `dp_leaderboard_weekly`）。
+- **启动与配置**：`com.example.mgdemoplus.MgDemoPlusApplication` 启动前 `**LocalDotenvLoader`** 加载根目录 `**.env**` → `**System.setProperty**`，便于本地与容器注入（与 Spring `**application.yml**` 占位符配合）；`@MapperScan` 覆盖 `**common` / `user` / `history` / `music` / `lobby` / `social` / `roomchat` / `leaderboard**` 的 `mapper` 包（`**room` / `npc` / `quickmatch` 无 DB Mapper**，热状态在内存）。
 - **技术栈一句话**：Java 17、Spring Boot **3.5.11**（`[pom.xml](pom.xml)` parent）、Security/WebSocket、MyBatis-Plus、MySQL 8 + **Flyway**（`[pom.xml](pom.xml)` `flyway-core` / `flyway-mysql`）、Lettuce/Redis、Vue 2 前端。
 - **后端模块化分包（面试官扫读）**：
 
 
 | 包                                                     | 职责                 | 入口/要点                                                                                                          |
 | ----------------------------------------------------- | ------------------ | -------------------------------------------------------------------------------------------------------------- |
-| `**controller/`**                                     | 7 个 REST 控制器       | `/dpRoom`、`/dpUser`、`/dp`、`/dp/social`、`/dpHandHistory`、`/dpMusic`、`/upload`                                   |
+| `**controller/`**                                     | 8 个 REST 控制器       | `/dpRoom`、`/dpUser`、`/dp`、`/dp/social`、`/dpHandHistory`、`/dpMusic`、`/dp/leaderboard`、`/upload`                                   |
 | `**room/**` + `**room/support/**`                     | 对局热状态、建房/下注/踢人     | `**DpRoomRegistry.roomMap**`（`ConcurrentHashMap`）；`DpRoomQuickMatchBridge`、`DpRoomHeartbeatScheduler`（1s tick） |
 | `**lobby/**`                                          | 大厅表与 Redis 分页缓存    | `DpRoomHallServiceImpl`；`**DpRoomLobbyReconcileScheduler**`（DB 与内存对齐，可条件开启）                                    |
 | `**quickmatch/**`                                     | 快匹可进房索引与配对         | `JoinableQuickMatchRoomIndex`、`DpQuickMatchPairingCoordinator`                                                 |
@@ -29,7 +29,7 @@
 | `**websocket/**`                                      | 对局房 / 快匹长连         | `DpGameRoomWebSocketHandler`、`DpQuickMatchWebSocketHandler`                                                    |
 
 
-更全树见 [docs/readme-scan/ARCHITECTURE.md](docs/readme-scan/ARCHITECTURE.md)。
+专题索引与包树说明见 [docs/README.md](docs/README.md)。
 
 - **单实例房间模型（免责）**：`**roomMap` 在单机 JVM**（`[DpRoomRegistry](src/main/java/com/example/mgdemoplus/room/support/DpRoomRegistry.java)`），与 Redis 无关；WS 会话表亦进程内。多实例需会话粘滞或分布式房间方案；生产多副本宜 `**mgdemoplus.dp-lobby-reconcile-enabled=false`**，否则 `[DpRoomLobbyReconcileScheduler](src/main/java/com/example/mgdemoplus/lobby/DpRoomLobbyReconcileScheduler.java)` 可能误删他节点仍在线的大厅行（见 [docs/WEBSOCKET.md](docs/WEBSOCKET.md)）。
 - **更深细节**：专题说明在 **[docs/README.md](docs/README.md)**。
@@ -78,8 +78,8 @@ flowchart LR
 - 服务端实现完整回合流与结算（`[room.impl.DpRoomServiceImpl](src/main/java/com/example/mgdemoplus/room/impl/DpRoomServiceImpl.java)`）；`**roomMap**` 由 `[DpRoomRegistry](src/main/java/com/example/mgdemoplus/room/support/DpRoomRegistry.java)` 持有；房内写路径 `**synchronized (DpRoomBO)**` 串行化。
 - 建房、密码、初始分、踢人批量等见 [docs/DPGAME.md](docs/DPGAME.md) 与 [docs/RoomUi.md](docs/RoomUi.md)。
 - 大厅公开房列表以 `**dp_room_lobby**` 为权威摘要（表在 **Flyway V1** 中建），分页带 Redis 版本缓存（细节 [README.ch.md](README.ch.md) / [docs/Redis.md](docs/Redis.md)）。
-- 对局可落库与按用户分页查询（概览 [docs/DP_PERSISTENCE_README.md](docs/DP_PERSISTENCE_README.md)）。**Flyway（V1–V6）**：`[V1](src/main/resources/db/migration/V1__init_schema.sql)` 基线、`[V2](src/main/resources/db/migration/V2__friend_dm_and_room_chat.sql)` 好友私信与局内聊天、`[V3](src/main/resources/db/migration/V3__room_chat_composite_pk.sql)` 局内聊天主键、`[V4](src/main/resources/db/migration/V4__user_stats.sql)` `**dp_user_stats**`、`[V5](src/main/resources/db/migration/V5__largest_room_net_multiplier.sql)` / `[V6](src/main/resources/db/migration/V6__largest_pot_won_multiplier.sql)` 净赢改为带入倍数。表 `dp_shark_opponent_profile` 仍保留，**服务层已不再读写**。
-- **后端包结构**：模块化域包见上文 **[给代码评审](#给代码评审)** 表；完整树 [docs/readme-scan/ARCHITECTURE.md](docs/readme-scan/ARCHITECTURE.md)。
+- 对局可落库与按用户分页查询（概览 [docs/DP_PERSISTENCE_README.md](docs/DP_PERSISTENCE_README.md)）。**Flyway（V1–V7）**：`[V1](src/main/resources/db/migration/V1__init_schema.sql)` 基线、`[V2](src/main/resources/db/migration/V2__friend_dm_and_room_chat.sql)` 好友私信与局内聊天、`[V3](src/main/resources/db/migration/V3__room_chat_composite_pk.sql)` 局内聊天主键、`[V4](src/main/resources/db/migration/V4__user_stats.sql)` `**dp_user_stats**`、`[V5](src/main/resources/db/migration/V5__largest_room_net_multiplier.sql)` / `[V6](src/main/resources/db/migration/V6__largest_pot_won_multiplier.sql)` 净赢倍数、`[V7](src/main/resources/db/migration/V7__leaderboard_weekly.sql)` 周榜。表 `dp_shark_opponent_profile` 仍保留，**服务层已不再读写**。
+- **后端包结构**：模块化域包见上文 **[给代码评审](#给代码评审)** 表；索引 [docs/README.md](docs/README.md)。
 
 ### 主要 REST 前缀（实现核对）
 
@@ -111,13 +111,13 @@ flowchart LR
 
 - **Spring Security + JWT**（白名单见 [docs/JWT.md](docs/JWT.md)）；密码 **bcrypt**；令牌约 **3 天**过期（`mgdemoplus.jwt.expiration.time`）。若 [docs/DpUserPassword.md](docs/DpUserPassword.md) / [docs/JWT.md](docs/JWT.md) 仍写 MD5 或 `application.properties`，以 **yml + 源码**为准。
 - **主配置**：`[application.yml](src/main/resources/application.yml)`（**无 Spring profiles**、无 `application.properties`）；环境变量见 [docs/ENV_README.md](docs/ENV_README.md)。
-- **好友邮箱 MVP**（申请、邀请、mailbox）：[docs/dp_friend_mailbox_mvp.md](docs/dp_friend_mailbox_mvp.md)。**已实现扩展**：好友私信、删好友、站点心跳、两种跟随进房路径；规格见 [docs/refactor/friend-dm-room-chat-sse-plan.md](docs/refactor/friend-dm-room-chat-sse-plan.md)。
+- **好友邮箱 MVP**（申请、邀请、mailbox、好友私信、SSE）：[docs/dp_friend_mailbox_mvp.md](docs/dp_friend_mailbox_mvp.md)。站点心跳：`GET/POST /dp/presence/site-heartbeat*`。
 - **大厅 SSE**：`GET /dp/social/stream` 推送 `event: notify`（邮箱未读 + 私信未读）；**单 JVM 扇出**（`SocialSseHub`），多副本需粘滞或接受各节点独立推送。Nginx 代理须 `proxy_buffering off`（[docs/NGINX.md](docs/NGINX.md)）。`spring.mvc.async.request-timeout: -1` 避免 SSE 被掐断。
 - 前端：`api.dpSocial.js`、`dpSocialStream.js`、`Vuex dpMailbox`；开发代理见 `[vue.config.js](front/dp_game/vue.config.js)`。
 
 ### 前端（`front/dp_game`）要点
 
-仅列与后端联调相关的一级信息；组件/UI/主题见 `**[front/dp_game/docs/README.md](front/dp_game/docs/README.md)`** 与 [docs/readme-scan/frontend-brief.md](docs/readme-scan/frontend-brief.md)。
+仅列与后端联调相关的一级信息；组件/UI/主题见 `**[front/dp_game/docs/README.md](front/dp_game/docs/README.md)`**。
 
 - **路由**：默认 **hash**（`/#/home`、`#/game/:roomId`）；**401** → 登录由 `[main.js](front/dp_game/src/main.js)` axios 拦截处理。
 - **HTTP**：开发 `**baseURL` `/dev-api`** + `[vue.config.js](front/dp_game/vue.config.js)` 代理 **8088**；生产同域 `**baseURL` 空**。
@@ -127,8 +127,8 @@ flowchart LR
 
 ### AI 与曲库
 
-- **规则 NPC**（`[DpNpcEngine](src/main/java/com/example/mgdemoplus/npc/engine/DpNpcEngine.java)`）：昵称前缀 `BOT_FISH_` / `BOT_TAG_` / `BOT_LAG_` / `BOT_NIT_` / `BOT_CALL_` / `BOT_MANIAC_`（兼容旧 `BOT_Shark`→TAG）；翻前 `[DpNpcUnifiedPreflopStrategy](src/main/java/com/example/mgdemoplus/npc/strategy/DpNpcUnifiedPreflopStrategy.java)`，翻后 `**npc/strategy`** 分策略类。文档：[docs/ai/npc-engine/README.md](docs/ai/npc-engine/README.md)、[docs/ai/npc-preflop-unified-decision-flow.md](docs/ai/npc-preflop-unified-decision-flow.md)。
-- **LLM NPC**（`[DpLlmNpcDecisionService](src/main/java/com/example/mgdemoplus/npc/llm/DpLlmNpcDecisionService.java)`）：`[DpRoomHeartbeatScheduler](src/main/java/com/example/mgdemoplus/room/support/DpRoomHeartbeatScheduler.java)` **1s** tick 轮到 Bot 时异步调方舟兼容 API（`[OpenAiCompatibleChatClient](src/main/java/com/example/mgdemoplus/llm/OpenAiCompatibleChatClient.java)`）；`BOT_LLM_*` 单轮，`BOT_LLM_GLOBAL_*` 每手多轮。REST：`addLlmBot` / `addLlmGlobalBot` / `addRuleNpcBatch` 等。配置 `**dp.llm.ark.*`** / `**ARK_***`（[docs/ENV_README.md](docs/ENV_README.md)）；未配置时本地 fold/check 兜底。
+- **规则 NPC**（`[DpNpcEngine](src/main/java/com/example/mgdemoplus/npc/engine/DpNpcEngine.java)`）：`BOT_FISH_` / `BOT_TAG_` / `BOT_LAG_` / `BOT_NIT_` / `BOT_CALL_` / `BOT_MANIAC_` / `BOT_CUSTOM_`（遗留 `BOT_Shark`→TAG）；翻前统一 `[DpNpcUnifiedPreflopStrategy](src/main/java/com/example/mgdemoplus/npc/strategy/DpNpcUnifiedPreflopStrategy.java)`；翻后 `npc/strategy/*`；思考延时 **`dp.npc.rule-think`**（可关）。文档：[docs/ai/npc-engine/README.md](docs/ai/npc-engine/README.md)、[docs/ai/npc-preflop-unified-decision-flow.md](docs/ai/npc-preflop-unified-decision-flow.md)。
+- **LLM NPC**（`[DpLlmNpcDecisionService](src/main/java/com/example/mgdemoplus/npc/llm/DpLlmNpcDecisionService.java)`）：心跳 **1s** tick 异步方舟 API（`[OpenAiCompatibleChatClient](src/main/java/com/example/mgdemoplus/llm/OpenAiCompatibleChatClient.java)`）；`BOT_LLM_*` 单轮，`BOT_LLM_GLOBAL_*` 每手多轮。REST：`addLlmBot` / `addLlmGlobalBot` / `addRuleNpcBatch` 等。配置 `**dp.llm.ark.*`** / `**ARK_***`（[docs/ENV_README.md](docs/ENV_README.md)）；未配置时本地兜底。分册：[docs/ai/npc-llm/part01_类间关系以及调用.md](docs/ai/npc-llm/part01_类间关系以及调用.md)。
 - 曲库 BGM：[docs/DpMusicWebPath.md](docs/DpMusicWebPath.md)；Redis（登录 JTI、大厅缓存、曲库列表，**非 roomMap**）：[docs/Redis.md](docs/Redis.md)。
 
 ---
@@ -140,7 +140,7 @@ flowchart LR
 | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 后端     | Java **17**、**Spring Boot 3.5.11**（`[pom.xml](pom.xml)`）、Spring Web / Security / WebSocket、**MyBatis-Plus**、**PageHelper**、**Druid**、MySQL 驱动、**Lettuce**（Redis）、**JJWT**                                                                       |
 | 前端（游戏） | **Vue 2**、Vue Router（默认 **hash**）、**Vuex**（`**dpGame`、`dpMailbox`**）、**Element UI**、axios（`**front/dp_game`**）                                                                                                                                  |
-| 数据     | **MySQL 8**（默认库 `school_db`）、**Redis 7**、**Flyway**（`classpath:db/migration`；当前 **V1–V6**，基线 `**[V1__init_schema.sql](src/main/resources/db/migration/V1__init_schema.sql)`**；依赖 `**flyway-core**` / `**flyway-mysql**`，见 `[pom.xml](pom.xml)`） |
+| 数据     | **MySQL 8**（默认库 `school_db`）、**Redis 7**、**Flyway**（`classpath:db/migration`；当前 **V1–V7**，基线 `**[V1__init_schema.sql](src/main/resources/db/migration/V1__init_schema.sql)`**；依赖 `**flyway-core**` / `**flyway-mysql**`，见 `[pom.xml](pom.xml)`） |
 | 构建与部署  | **Maven**、**Docker** / **Docker Compose**（`[Dockerfile](Dockerfile)` 多阶段含 **Node 20** 构建前端）、**Nginx**（`[Dockerfile.nginx](Dockerfile.nginx)` + `[docker/nginx/default.conf](docker/nginx/default.conf)`）                                        |
 
 
@@ -157,7 +157,7 @@ flowchart LR
 
 ### 配置要点（本机 vs Docker）
 
-以 `[application.yml](src/main/resources/application.yml)` 与 [docs/readme-scan/infra-config.md](docs/readme-scan/infra-config.md) 为准（**无 Spring profiles**）：
+以 `[application.yml](src/main/resources/application.yml)` 与 [docs/ENV_README.md](docs/ENV_README.md)、[docs/CONFIG_LAYERS.md](docs/CONFIG_LAYERS.md) 为准（**无 Spring profiles**）：
 
 
 | 项        | 本机 yml 默认                               | Compose（`docker-compose.yml`）                |
@@ -269,7 +269,7 @@ MGDemoPlus/
 ## 文档索引
 
 - **文档总导航**：[docs/README.md](docs/README.md)
-- **README 模块扫描（自动生成）**：[docs/readme-scan/README.md](docs/readme-scan/README.md)
+- **专题文档索引**：[docs/README.md](docs/README.md)
 - **前端专题索引**：[front/dp_game/docs/README.md](front/dp_game/docs/README.md)
 - **环境与变量**：[docs/ENV_README.md](docs/ENV_README.md)
 - **Docker**：[docs/DOCKER.md](docs/DOCKER.md)
@@ -298,7 +298,7 @@ MGDemoPlus/
 ### For reviewers / interviewers
 
 - **What it is**: End-to-end demo from auth → **lobby** / **quick match** → room → **battle screen** (WebSocket + polling); JWT security; NPC + optional LLM; hand history persistence.
-- **What to demo**: After `docker compose up --build`, play through a match; **quick-match REST + WS**, **lobby paging**, **JWT**, **in-room pushes**, **friend mailbox + lobby SSE**. Code: `**DpRoomRegistry.roomMap`**, `**DpRoomQuickMatchBridge**`, `**JoinableQuickMatchRoomIndex**`, `**DpQuickMatchPairingCoordinator**`, `**DpNpcEngine**` / `**DpLlmNpcDecisionService**`, **Flyway V1–V6**.
+- **What to demo**: After `docker compose up --build`, play through a match; **quick-match REST + WS**, **lobby paging**, **JWT**, **in-room pushes**, **friend mailbox + lobby SSE**, **weekly leaderboard**. Code: `**DpRoomRegistry.roomMap`**, `**DpRoomQuickMatchBridge**`, `**JoinableQuickMatchRoomIndex**`, `**DpQuickMatchPairingCoordinator**`, `**DpNpcEngine**` / `**DpLlmNpcDecisionService**`, **Flyway V1–V7**.
 - **Bootstrap**: `MgDemoPlusApplication` runs `**LocalDotenvLoader`** so root `**.env**` can set `**System` properties** before Spring starts; `@MapperScan` covers `**common` / `user` / `history` / `music` / `lobby` / `social` / `roomchat`** mappers (`**room` / `npc` / `quickmatch` have no DB mappers**—hot state in memory).
 - **Stack**: Java 17, Spring Boot **3.5.11** (`[pom.xml](pom.xml)`), Security/WebSocket, MyBatis-Plus, MySQL + Flyway (`flyway-core` / `flyway-mysql` in `[pom.xml](pom.xml)`), Redis (cache/login JTI, etc.), Vue 2 UI.
 - **Modular packages (scan-friendly)**:
@@ -318,7 +318,7 @@ MGDemoPlus/
 | `**websocket/**`                                    | Game-room & quick-match WS       | `DpGameRoomWebSocketHandler`, `DpQuickMatchWebSocketHandler`                                 |
 
 
-Full tree: [docs/readme-scan/ARCHITECTURE.md](docs/readme-scan/ARCHITECTURE.md).
+Doc index: [docs/README.md](docs/README.md).
 
 - **Single-instance caveat**: `**roomMap` is per-JVM** (`[DpRoomRegistry](src/main/java/com/example/mgdemoplus/room/support/DpRoomRegistry.java)`); WS sessions are in-process too. Multi-node needs sticky sessions or distributed rooms; set `**mgdemoplus.dp-lobby-reconcile-enabled=false`** in multi-replica prod or `[DpRoomLobbyReconcileScheduler](src/main/java/com/example/mgdemoplus/lobby/DpRoomLobbyReconcileScheduler.java)` may delete lobby rows for rooms still live on other nodes—see **[docs/WEBSOCKET.md](docs/WEBSOCKET.md)**.
 
@@ -359,8 +359,8 @@ flowchart LR
 
 - Full server-side turns/settlement (`[room.impl.DpRoomServiceImpl](src/main/java/com/example/mgdemoplus/room/impl/DpRoomServiceImpl.java)`); `**roomMap**` in `[DpRoomRegistry](src/main/java/com/example/mgdemoplus/room/support/DpRoomRegistry.java)`; writes under `**synchronized (DpRoomBO)**`.
 - Room creation, passwords, scores, bulk kicks — [docs/DPGAME.md](docs/DPGAME.md), [docs/RoomUi.md](docs/RoomUi.md) (**battle-screen** seat layout).
-- Public lobby list SSOT `**dp_room_lobby`** (Flyway **V1**), Redis-backed paging cache — [README.en.md](README.en.md) / [docs/Redis.md](docs/Redis.md). **Flyway V1–V6**: baseline `**[V1](src/main/resources/db/migration/V1__init_schema.sql)`**, friend DM / room chat **V2**, chat PK **V3**, `**dp_user_stats` V4**, buy-in multipliers **V5** / **V6**. `**dp_shark_opponent_profile`** kept in schema but **not used by services**.
-- **Backend layout**: domain packages under `src/main/java/.../mgdemoplus/` — see **For reviewers** table and [docs/readme-scan/ARCHITECTURE.md](docs/readme-scan/ARCHITECTURE.md). Flat `**service/serviceImpl/`** removed.
+- Public lobby list SSOT `**dp_room_lobby`** (Flyway **V1**), Redis-backed paging cache — [README.en.md](README.en.md) / [docs/Redis.md](docs/Redis.md). **Flyway V1–V7**: baseline **V1**, friend DM / room chat **V2**, chat PK **V3**, `**dp_user_stats` V4**, buy-in multipliers **V5** / **V6**, weekly leaderboard **V7**. `**dp_shark_opponent_profile`** kept in schema but **not used by services**.
+- **Backend layout**: domain packages under `src/main/java/.../mgdemoplus/` — see **For reviewers** table and [docs/README.md](docs/README.md). Flat `**service/serviceImpl/`** removed.
 - Replay persistence — [docs/DP_PERSISTENCE_README.md](docs/DP_PERSISTENCE_README.md).
 
 #### Main REST prefixes (as implemented)
@@ -396,7 +396,7 @@ JWT whitelist — [docs/JWT.md](docs/JWT.md); **Redis JTI single session** per u
 
 #### Frontend (`front/dp_game`)
 
-Backend integration only; UI/theme: `**[front/dp_game/docs/README.md](front/dp_game/docs/README.md)`**, [docs/readme-scan/frontend-brief.md](docs/readme-scan/frontend-brief.md).
+Backend integration only; UI/theme: `**[front/dp_game/docs/README.md](front/dp_game/docs/README.md)`**.
 
 - **Hash routes** (`/#/home`, `#/game/:roomId`); **401** → login via axios in `[main.js](front/dp_game/src/main.js)`.
 - **HTTP**: dev `**baseURL` `/dev-api`** + `[vue.config.js](front/dp_game/vue.config.js)` proxy to **8088**; prod same-origin empty `**baseURL`**.
@@ -419,7 +419,7 @@ UI/theme (“猫咪派对” copy is frontend-only) — **[front/dp_game/docs/RE
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Backend     | Java **17**, **Spring Boot 3.5.11** (`[pom.xml](pom.xml)`), Web / Security / WebSocket, **MyBatis-Plus**, **PageHelper**, **Druid**, MySQL driver, **Lettuce** (Redis), **JJWT**                                             |
 | Frontend    | **Vue 2**, Vue Router (**hash**), **Vuex** (`dpGame`, `dpMailbox`), **Element UI**, axios (`front/dp_game`)                                                                                                                  |
-| Data        | **MySQL 8** (default `school_db`), **Redis 7**, **Flyway** (**V1–V6**; baseline `[V1__init_schema.sql](src/main/resources/db/migration/V1__init_schema.sql)`; `**flyway-core`** / `**flyway-mysql**` — `[pom.xml](pom.xml)`) |
+| Data        | **MySQL 8** (default `school_db`), **Redis 7**, **Flyway** (**V1–V7**; baseline `[V1__init_schema.sql](src/main/resources/db/migration/V1__init_schema.sql)`; `**flyway-core`** / `**flyway-mysql**` — `[pom.xml](pom.xml)`) |
 | Build / Ops | **Maven**, **Docker** / **Compose** (`[Dockerfile](Dockerfile)` frontend stage uses **Node 20**), **Nginx**                                                                                                                  |
 
 
@@ -434,7 +434,7 @@ Battle-screen layout/CSS layering — [front/dp_game/docs/GAME_LAYOUT_TUNING_REA
 
 #### Config (local vs Compose)
 
-Per `[application.yml](src/main/resources/application.yml)` and [docs/readme-scan/infra-config.md](docs/readme-scan/infra-config.md) (**no Spring profiles**):
+Per `[application.yml](src/main/resources/application.yml)` and [docs/ENV_README.md](docs/ENV_README.md) (**no Spring profiles**):
 
 
 |                | Local yml default         | Compose                                                        |
@@ -533,7 +533,7 @@ MGDemoPlus/
 ### Documentation
 
 - **Index:** **[docs/README.md](docs/README.md)**
-- **Module scans (for README refresh):** **[docs/readme-scan/README.md](docs/readme-scan/README.md)**
+- **Docs index:** **[docs/README.md](docs/README.md)**
 - **Frontend index:** **[front/dp_game/docs/README.md](front/dp_game/docs/README.md)**
 - **Env:** [docs/ENV_README.md](docs/ENV_README.md)
 - **Docker:** [docs/DOCKER.md](docs/DOCKER.md)

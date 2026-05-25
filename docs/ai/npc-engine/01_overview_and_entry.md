@@ -1,48 +1,81 @@
-# NPC 引擎总览：普通 BOT 与 Shark、从房间服务到 `BotAction`
+# NPC 引擎总览：规则 Bot 从心跳到 `BotAction`
 
-## 1.1 两类机器人（按实现复杂度分）
+> **核对日期**：2026-05-25  
+> **权威来源**：`DpNpcEngine`、`DpRoomHeartbeatScheduler`、`DpRoomServiceImpl`  
+> **Status**: maintained
 
+## 1. 六档规则 archetype
 
-| 类型         | 昵称常量         | `BotType` | 说明                                                                                     |
-| ---------- | ------------ | --------- | -------------------------------------------------------------------------------------- |
-| **普通 NPC** | `BOT_Fish`   | `DEMO`    | 鱼式演示档，逻辑集中在 `DpNpcEngine` 的 `case DEMO`。                                               |
-| **普通 NPC** | `BOT_Maniac` | `MANIAC`  | 松凶、大量加注/全下，逻辑在 `case MANIAC`。                                                          |
-| **普通 NPC** | `BOT_Tag`    | `TAG`     | 紧凶；翻前用参数表 `decidePreflopForTagOrShark`，翻后在 `case TAG`。                                 |
-| **高级 NPC** | `BOT_Shark`  | `SHARK`   | 翻前委托 `DpNpcSharkPreflopStrategy`，翻后委托 `DpNpcSharkStrategy`，并叠加 HandPlan、剥削剧本、对手学习与持久化。 |
+| 昵称前缀 | `BotType` | 翻前 | 翻后 |
+|----------|-----------|------|------|
+| `BOT_FISH` | FISH | `DpNpcUnifiedPreflopStrategy` | `DpNpcFishStrategy` |
+| `BOT_CALL` | CALL | 同上 | `DpNpcCallStrategy` |
+| `BOT_LAG` | LAG | 同上 | `DpNpcLagStrategy` |
+| `BOT_TAG` | TAG | 同上 | `DpNpcTagStrategy`（含 HandPlan） |
+| `BOT_NIT` | NIT | 同上 | `DpNpcNitStrategy` |
+| `BOT_MANIAC` | MANIAC | 同上 | `DpNpcManiacStrategy`（引擎内联大段逻辑） |
+| `BOT_CUSTOM` | — | 自定义配置档 | `decideCustomBotAction` |
 
+**遗留昵称**（无 `_seq` 的固定串）：`BOT_Shark`、`BOT_Tag`、`BOT_Fish`、`BOT_Maniac` → 分别映射 TAG / TAG / FISH / MANIAC（见 `LEGACY_*` 常量）。
 
-**风格映射（抽象参数，不是第二套决策树）**  
-`DpNpcEngine.getStyleByBotType` 把每种 `BotType` 映射到 `NpcStyle`，再通过 `STYLE_PROFILE_MAP` 得到 `StyleProfile`（紧松、凶度、诈唬频率等）。Fish 为 `LOOSE_FUN`，Maniac 与 Shark 为 `LOOSE_AGGRO`，TAG 为 `TIGHT_AGGRO`。Shark 虽与 Maniac 共用同一套风格数字，但 **翻前/翻后走完全不同的代码路径**。
-
-**牌力与赔率**  
-规则型 NPC 使用 `**estimateCurrentStrength` 得到的 `SimpleStrength` 真值**（不对牌力档做人为降级噪声）；`buildSmartContext` 里的 **底池赔率**亦为真值。强弱观感主要来自 `**StyleProfile`** 与各 `BotType` 分支。
-
----
-
-## 1.2 从房间服务到 `BotAction` 的调用链
-
-1. `**DpRoomServiceImpl**` 定时任务发现当前行动者是机器人（`DpNpcEngine.isBotPlayer`），且不是 `BOT_LLM` 时，调用 `**DpNpcEngine.decideActionIfReady(room, bot)**`。
-2. `**decideActionIfReady**` 做守卫（房间在玩、行动位是本人、未弃牌未全下等），通过后按 `dp.npc.rule-think` 采样延时写入 `nextBotActionTime`（两阶段）；到点再进入决策。
-3. 通过 `getBotTypeByNickname` 得到 `BotType`，进入 `**decideBotAction(room, bot, type)**`。
-4. `**decideBotAction**` 统一计算：`callAmount`、`callRatio`、`TablePosition`、`SimpleStrength`（真值）、`BoardDanger`、`**mood`（默认关闭，见 `DpNpcEngine.NPC_MOOD_ENABLED`）**、`StyleProfile` 等，然后 `**switch (type)`** 进入各机器人分支。
-5. 返回 `**BotAction`（类型 + 金额）**；房间服务映射为 `fold` / `bet` 等，**不**在引擎里直接改筹码。
+`StyleProfile` 由 `STYLE_PROFILE_MAP` 提供 `vpip`、`pfr`、`callStation`、`foldToPressure` 等；翻前 **只** 消费其中四旋钮 + `BotType` 的 `rangeLevelBonus`。
 
 ---
 
-## 1.3 核心类一览
+## 2. 调用链
 
+```mermaid
+sequenceDiagram
+    participant T as Timer 1s
+    participant H as DpRoomHeartbeatScheduler
+    participant E as DpNpcEngine
+    participant L as DpLlmNpcDecisionService
+    participant R as DpRoomServiceImpl
 
-| 类                                 | 职责                                                                        |
-| --------------------------------- | ------------------------------------------------------------------------- |
-| `DpNpcEngine`                     | 入口、共用工具（牌力、牌面危险度、位置、`buildSmartContext`、TAG 翻前、HandPlan 初始化与 barrel 消耗等）。 |
-| `DpUtilHandEvaluator`             | 真实牌型评估与 `SimpleStrength` 粗分档。                                             |
-| `DpUtilSmartContext`              | 仅数据容器：进攻者、统计、赔率、筹码深度、multi-way 计数等；由 `DpNpcEngine.buildSmartContext` 填充。  |
-| `DpNpcSharkPreflopStrategy`       | 仅 Shark 翻前：手牌分组 + `rangeLevel` + 各 spot。                                  |
-| `DpNpcSharkStrategy`              | 仅 Shark 翻后：接 `SmartContext`、HandPlan、大量配置驱动下注与弃牌。                         |
-| `DpNpcSharkExploitHandPlan`       | Shark flop 计划在基础 HandPlan 上叠「剥削剧本」。                                       |
-| `DpNpcSharkLearningLab`           | 按对手昵称累积旋钮（弃牌倾向、尺度、诈唬频率等）。                                                 |
-| `DpNpcSharkOpponentMemoryService` | 桌上有 Shark 时，把统计 + 旋钮持久化到 DB。                                              |
-| `DpRoomServiceImpl`               | 执行 NPC 返回的动作；可选结算时调整机器人 `mood`（由 `NPC_MOOD_ENABLED` 控制）。                  |
+    T->>H: tickNpcTurnOrHumanActionTimeout
+    alt LLM 昵称
+        H->>L: decideActionIfReady (async)
+        L-->>H: null 或 BotAction
+    else 规则 / CUSTOM
+        H->>E: decideActionIfReady (sync)
+        E-->>H: null 或 BotAction
+    end
+    H->>R: npcAction(room, player, action)
+```
 
+1. **`decideActionIfReady`**：校验行动位、未 fold/all-in/离桌；LLM 昵称直接 `return null`。
+2. **`dp.npc.rule-think`**：`nextBotActionTime==0` 时采样延时并返回 `null`；未到点返回 `null`；到点后决策并清零 deadline。
+3. **`decideBotAction`** 或 **`decideCustomBotAction`**。
+4. 房间服务把 `BotAction` 映射为 fold/call/raise/all-in。
+
+---
+
+## 3. `decideBotAction` 骨架
+
+| 阶段 | 行为 |
+|------|------|
+| 翻前 `preflop` | **仅** `DpNpcUnifiedPreflopStrategy.decide(...)`；非 null 即返回 |
+| 翻后 | `estimateCurrentStrength` + `buildSmartContext`（按类型选用）→ `switch (BotType)` 委托策略类 |
+
+全局开关（`DpNpcEngine` 常量）：
+
+| 常量 | 默认 | 含义 |
+|------|------|------|
+| `NPC_MOOD_ENABLED` | `false` | 关闭 mood 对决策的影响 |
+| `NPC_SOFT_NOISE_ENABLED` | `false` | 关闭概率软噪声 |
+| `NPC_HAND_SEED_FOR_DECISIONS` | `true` | `handSeed ^ 座位` 固定 RNG |
+
+---
+
+## 4. 核心类
+
+| 类 | 职责 |
+|----|------|
+| `DpNpcEngine` | 入口、Bot 识别、翻前路由、SmartContext、HandPlan 框架 |
+| `DpNpcUnifiedPreflopStrategy` | G1–G8 + 13×13 矩阵 |
+| `DpNpc*Strategy` | 各 archetype 翻后 |
+| `DpUtilHandEvaluator` | `SimpleStrength` / `HandStrength` |
+| `DpUtilSmartContext` | 翻后 DTO |
+| `DpLlmNpcDecisionService` | LLM（见 npc-llm 分册） |
 
 下一篇：[02_normal_npc_implementation.md](02_normal_npc_implementation.md)。

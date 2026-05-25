@@ -1,12 +1,15 @@
-# DP 对局 NPC 引擎（规则型）文档索引：`DpNpcEngine` · Fish／Maniac／TAG／Shark
+# 规则型 NPC 引擎文档索引
 
-本目录是后端 **规则型 NPC**（`BOT_Fish` / `BOT_Maniac` / `BOT_Tag` / `BOT_Shark`）的实现说明。  
-游戏整体协议与房间流程仍以仓库根目录下的 `docs/DPGAME.md` 为准；这里只讲 **AI 决策与相关类**。
+> **核对日期**：2026-05-25  
+> **权威来源**：`com.example.mgdemoplus.npc.engine.DpNpcEngine`、`npc/strategy/*`、`application.yml` 之 `dp.npc`  
+> **Status**: maintained
 
-**不在本目录展开的内容**
+本目录说明 **规则型 Bot**（`BOT_FISH` / `BOT_TAG` / `BOT_LAG` / `BOT_NIT` / `BOT_CALL` / `BOT_MANIAC` / `BOT_CUSTOM` 及旧昵称兼容）。对局协议与房间流程见 [docs/DPGAME.md](../../DPGAME.md)。
 
-- **大模型机器人 `BOT_LLM`**：走 `DpLlmNpcDecisionService`，与普通 NPC 分流；说明见根目录 `README.md` 的「大模型 NPC」小节。
-- **前端如何加机器人**：仍以 `DPGAME.md` 与房主接口为准。
+**不在此目录展开**
+
+- **大模型 Bot**：`BOT_LLM` / `BOT_LLM_GLOBAL` → [docs/ai/npc-llm/part01_类间关系以及调用.md](../npc-llm/part01_类间关系以及调用.md)
+- **翻前统一策略专文**：[npc-preflop-unified-decision-flow.md](../npc-preflop-unified-decision-flow.md)
 
 ---
 
@@ -14,17 +17,79 @@
 
 | 文件 | 内容 |
 |------|------|
-| [npc-preflop-unified-decision-flow.md](../npc-preflop-unified-decision-flow.md) | **统一翻前**（`DpNpcUnifiedPreflopStrategy`）数据流向：入口、`Spot`、`lateFactor`、`rangeLevel`、分场景动作与加注尺度 |
-| [01_overview_and_entry.md](01_overview_and_entry.md) | 分类（普通 vs Shark）、调用链、核心类一览 |
-| [02_normal_npc_implementation.md](02_normal_npc_implementation.md) | 普通 NPC（Fish / Maniac / TAG）从入口到分支的逐步流程 |
-| [03_normal_npc_modules.md](03_normal_npc_modules.md) | 普通 NPC 共用模块：`DpUtilHandEvaluator`、`StyleProfile`、规则思考延时（`dp.npc.rule-think`）等 |
-| [04_shark_implementation.md](04_shark_implementation.md) | Shark 翻前 → 翻后 HandPlan → 决策委托的逐步流程 |
-| [05_shark_modules.md](05_shark_modules.md) | Shark 专属类：`DpNpcSharkPreflopStrategy`、`DpNpcSharkStrategy`、剥削剧本、学习旋钮、持久化 |
+| [npc-preflop-unified-decision-flow.md](../npc-preflop-unified-decision-flow.md) | `DpNpcUnifiedPreflopStrategy`：`Spot`、`lateFactor`、`rangeLevel`、13×13 查表 |
+| [01_overview_and_entry.md](01_overview_and_entry.md) | 六档 archetype、调用链、`BotType`、与 LLM 分流 |
+| [02_normal_npc_implementation.md](02_normal_npc_implementation.md) | 翻后各策略类在 `decideBotAction` 中的分派 |
+| [03_normal_npc_modules.md](03_normal_npc_modules.md) | 共用模块、**`dp.npc.rule-think` 思考延时**、`StyleProfile` |
+| [04_shark_legacy.md](04_shark_legacy.md) | 遗留 `BOT_Shark` 昵称 → **TAG** 行为（REST 兼容） |
+| [05_shark_modules_legacy.md](05_shark_modules_legacy.md) | `dp_shark_opponent_profile` 等表留存、无运行时写路径 |
 
 ---
 
-## 代码主路径（速查）
+## 代码主路径
 
-- **引擎入口**：`com.example.mgdemoplus.service.serviceImpl.dp.DpNpcEngine`
-- **房间调用**：`DpRoomServiceImpl` 定时任务里 `DpNpcEngine.isBotPlayer` → `decideActionIfReady` → 根据 `BotAction` 调 `bet` / `fold`
-- **牌力评估**：`com.example.mgdemoplus.utils.dp.DpUtilHandEvaluator`（注意：历史文档里的 `DpHandEvaluator` 名称已统一为该类）
+| 角色 | 类 / 配置 |
+|------|-----------|
+| 引擎入口 | `npc.engine.DpNpcEngine`（静态方法，非 Spring Bean） |
+| 翻前 | `npc.strategy.DpNpcUnifiedPreflopStrategy` |
+| 翻后 | `DpNpcFishStrategy`、`DpNpcCallStrategy`、`DpNpcLagStrategy`、`DpNpcManiacStrategy`、`DpNpcTagStrategy`、`DpNpcNitStrategy` |
+| 思考延时 | `npc.rulethink.DpNpcRuleThinkProperties`（`dp.npc.rule-think`）、`DpNpcRuleThinkSampler` |
+| 房间调度 | `room.support.DpRoomHeartbeatScheduler`（1s tick）→ `DpRoomServiceImpl` → `decideActionIfReady` / `npcAction` |
+| 牌力 | `utils.dp.DpUtilHandEvaluator` |
+
+---
+
+## 昵称与前缀（速查）
+
+| 前缀 | `BotType` | REST 示例 |
+|------|-----------|-----------|
+| `BOT_FISH` | FISH | `POST /dpRoom/addFishBot` |
+| `BOT_CALL` | CALL | `addCallBot` |
+| `BOT_LAG` | LAG | `addLagBot` |
+| `BOT_TAG` | TAG | `addTagBot` |
+| `BOT_NIT` | NIT | `addNitBot` |
+| `BOT_MANIAC` | MANIAC | `addManiacBot` |
+| `BOT_CUSTOM` | 自定义 YAML 档 | `addCustomBot` |
+| `BOT_Shark`（遗留） | 映射 **TAG** | `addSharkBot`（兼容旧前端） |
+
+多实例：`{PREFIX}_<seq>`，序号由 `DpRoomBO.allocateBotNicknameSeqBatch` 分配。
+
+### `npc/` 包结构（速查）
+
+```text
+npc/
+├── engine/DpNpcEngine.java          # 规则入口（静态）
+├── strategy/DpNpc*Strategy.java     # 翻后分 archetype；翻前 DpNpcUnifiedPreflopStrategy
+├── llm/DpLlmNpcDecisionService.java # BOT_LLM / BOT_LLM_GLOBAL
+├── rulethink/                       # dp.npc.rule-think 采样
+├── tabletalk/                       # 桌边话池与推送
+├── entity/DpSharkOpponentProfile    # 遗留表映射，无写路径
+└── CustomNpcStyleProfileDto         # BOT_CUSTOM 调参
+```
+
+`room` / `quickmatch` **无** NPC Mapper；Bot 状态在 `DpRoomBO` / `DpPlayer` 内存字段。
+
+---
+
+## 与 LLM 的分流
+
+- `DpNpcEngine.isLlmBotNickname` / `isGlobalLlmBotNickname` → 心跳走 `DpLlmNpcDecisionService`，**不**进入 `decideActionIfReady`。
+- 规则 Bot 与 LLM 共用 `DpPlayer.nextBotActionTime`，但 **仅** `DpNpcEngine.decideActionIfReady` 写入规则思考排期；LLM 用 in-flight ticket 控制两阶段。
+
+---
+
+## 配置（`application.yml`）
+
+```yaml
+dp:
+  npc:
+    rule-think:
+      enabled: true          # DP_NPC_RULE_THINK_ENABLED
+      snap-probability: 0.18 # 本 tick 秒出
+      max-ms: 4000
+      # fast/slow 桶见 DpNpcRuleThinkProperties
+    table-talk:
+      enabled: true          # 桌边话（与 LLM table_talk 字段配合）
+```
+
+`enabled=false` 时规则 Bot **即时** 决策（无 `nextBotActionTime` 等待）。**已实现**，非「已移除思考延迟」。

@@ -28,14 +28,14 @@
 
 **Full categories and one-line intros:** [docs/README.md](docs/README.md). Handy shortcuts:
 
-- [Backend interview questions (aligned with this stack)](docs/BACKEND_INTERVIEW_QUESTIONS.md)
-- [JSON, Map, serialization / deserialization notes](docs/Json-map-serialization.md)
+- [Backend interview questions (aligned with this stack)](docs/notes/BACKEND_INTERVIEW_QUESTIONS.md)
+- [JSON, Map, serialization / deserialization notes](docs/notes/Json-map-serialization.md)
 - [DP game: rules, APIs, dev & ops](docs/DPGAME.md)
 - [DP NPC engine (Fish/Maniac/TAG & Shark)](docs/ai/npc-engine/README.md)
 - [Table layout tuning (top bar / round table / bottom, `dp-game-shell.css`)](front/dp_game/docs/GAME_LAYOUT_TUNING_README.md)
 - [DP music library: `webPath`, disk paths, dev proxy](docs/DpMusicWebPath.md)
 - [DP user passwords: front/back split, validation, recovery](docs/DpUserPassword.md)
-- [Java: references, `roomMap`, shallow vs deep copy notes](docs/Java对象引用与浅拷贝深拷贝备忘.md)
+- [Java: references, `roomMap`, shallow vs deep copy notes](docs/notes/Java对象引用与浅拷贝深拷贝备忘.md)
 - [WebSocket: table page, handlers, `game.vue`](docs/WEBSOCKET.md)
 
 ### In-game WebSocket (no Redis)
@@ -64,7 +64,7 @@
 - **Table chat**: One bubble per seat; protocol in `docs/WEBSOCKET.md`.
 - **Action panel (2026-03-25)**: Narrow two-row layout; wide merges rows.
 - **NL min-raise (2026-03-25)**: `DpRoom.lastRaiseIncrement`, `DpRoomServiceImpl.bet`; `GameActionPanel` shows min total, pot fractions, slider. **2026-04-01**: Min open one big blind; snap to small-blind multiples.
-- **Code**: `DpGameRoomPushService`, `DpGameRoomWebSocketHandler`, `WebSocketGameRoomConfig`; `DpRoomServiceImpl` calls `broadcastIfSubscribed` at end of timer loop.
+- **Code**: `DpGameRoomPushService`, `DpGameRoomWebSocketHandler`, `WebSocketGameRoomConfig`; `DpRoomHeartbeatScheduler` (~1s) calls `broadcastIfSubscribed`.
 
 ### NPC / AI (plain language)
 
@@ -120,7 +120,7 @@ Since 2026-03-18, Shark preflop uses **`DpNpcSharkPreflopStrategy.decideForShark
 - **`user_id`**: Nullable; prefer in-memory `dpUserId`, else lookup by **nickname** in `dp_user`; else `nickname_snapshot`. Bots don’t get rows.
 - **Front**: `loginProfile` / `registerUser` return `ResultUtil`; store `userId` in `localStorage`; optional `userId` on create/join/next-hand when consistent with `dp_user`.
 - **JWT (2026-04-07)**: `SecurityConfig` + `JwtAuthenticationFilter`; whitelist in [docs/JWT.md](docs/JWT.md). Axios interceptors in `main.js`.
-- **Passwords (2026-04-07)**: **`CryptoUtil.md5HexUtf8`** — see [docs/DpUserPassword.md](docs/DpUserPassword.md).
+- **Passwords (2026-05-25 doc alignment)**: **`CryptoUtil.bcryptEncode` / `bcryptMatches`** in `DpUserServiceImpl` — see [docs/DpUserPassword.md](docs/DpUserPassword.md), [docs/JWT.md](docs/JWT.md).
 - **Tokens**: `JwtTokenService`, HMAC-SHA256.
 - **Join**: `POST /dpRoom/joinRoom2` checks nickname vs `SecurityContext`; `ensureDpUserIdInStorage` may call `loginProfile` for token.
 - **History APIs**: List/detail by **`userId`** only; see DTO rules in code.

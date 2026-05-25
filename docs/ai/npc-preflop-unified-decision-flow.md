@@ -1,6 +1,10 @@
-# 规则 NPC 统一翻前：精细数据流向（调用链、`Spot`、`lateFactor`、`rangeLevel`）
+# 规则 NPC 统一翻前：调用链、`Spot`、`lateFactor`、`rangeLevel`
 
-本文描述 **`DpNpcUnifiedPreflopStrategy`** 与 **`DpNpcEngine.decideBotAction`** 在 **`stage == preflop`** 时的完整调用链、参与字段与方法分支。**不包含** `BOT_LLM`（走 `DpLlmNpcDecisionService`）。
+> **核对日期**：2026-05-25  
+> **权威来源**：`DpNpcUnifiedPreflopStrategy`、`DpNpcEngine#decideBotAction`  
+> **Status**: maintained
+
+本文描述 **`DpNpcUnifiedPreflopStrategy`** 与 **`DpNpcEngine.decideBotAction`** 在 **`stage == preflop`** 时的完整调用链、参与字段与方法分支。**不包含** `BOT_LLM` / `BOT_LLM_GLOBAL`（走 `DpLlmNpcDecisionService`）。导航见 [npc-engine/README.md](npc-engine/README.md)。
 
 ---
 
