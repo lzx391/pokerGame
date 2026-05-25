@@ -3,11 +3,14 @@ package com.example.mgdemoplus.npc.tabletalk;
 import com.example.mgdemoplus.common.bo.DpRoomBO;
 import com.example.mgdemoplus.common.entity.DpPlayer;
 import com.example.mgdemoplus.npc.engine.DpNpcEngine;
+import com.example.mgdemoplus.npc.mood.DpNpcMoodProperties;
+import com.example.mgdemoplus.npc.mood.NpcMoodState;
 import com.example.mgdemoplus.websocket.DpGameRoomPushService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
@@ -17,6 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * NPC 行动成功后的桌边话术：规则 bot 走台词池，LLM bot 走模型 {@code table_talk} 字段。
  * 本手进入 {@code settled} 后，规则 bot 另走 {@code SETTLE_WIN} / {@code SETTLE_LOSE} 池（独立概率、不节流）。
+ * mood 分桶见 {@code dp.npc.mood}；七种规则 NPC 共用同一套 mood 台词逻辑。
  */
 @Service
 public class DpNpcTableTalkService {
@@ -26,6 +30,7 @@ public class DpNpcTableTalkService {
             LoggerFactory.getLogger("com.example.mgdemoplus.BotLlmTableTalk");
 
     private final DpNpcTableTalkProperties properties;
+    private final DpNpcMoodProperties moodProperties;
     private final DpNpcLinePoolLoader linePoolLoader;
     private final DpGameRoomPushService gameRoomPushService;
 
@@ -36,9 +41,11 @@ public class DpNpcTableTalkService {
 
     public DpNpcTableTalkService(
             DpNpcTableTalkProperties properties,
+            DpNpcMoodProperties moodProperties,
             DpNpcLinePoolLoader linePoolLoader,
             DpGameRoomPushService gameRoomPushService) {
         this.properties = properties;
+        this.moodProperties = moodProperties;
         this.linePoolLoader = linePoolLoader;
         this.gameRoomPushService = gameRoomPushService;
     }
@@ -127,7 +134,7 @@ public class DpNpcTableTalkService {
             return;
         }
         String poolKey = actionTypeToPoolKey(action.getType());
-        var lines = pool.linesForActionKey(poolKey);
+        List<String> lines = linesForPoolKey(pool, bot, poolKey);
         if (lines.isEmpty()) {
             return;
         }
@@ -149,11 +156,25 @@ public class DpNpcTableTalkService {
             log.debug("settle-talk skip: probability bot={} p={} key={}", bot.getNickname(), probability, poolKey);
             return;
         }
-        var lines = pool.linesForPoolKey(poolKey);
+        List<String> lines = linesForPoolKey(pool, bot, poolKey);
         if (lines.isEmpty()) {
             return;
         }
         tryPublish(room.getRoomId(), bot.getNickname(), lines.get(random.nextInt(lines.size())), "settle", false);
+    }
+
+    private List<String> linesForPoolKey(NpcLinePool pool, DpPlayer bot, String basePoolKey) {
+        if (basePoolKey == null) {
+            return List.of();
+        }
+        NpcMoodState state;
+        if (!moodProperties.isEnabled()) {
+            state = NpcMoodState.NEUTRAL;
+        } else {
+            state = NpcMoodState.fromMood(
+                    bot.getMood(), moodProperties.getHighThreshold(), moodProperties.getLowThreshold());
+        }
+        return pool.linesForPoolKey(state.moodPoolKey(basePoolKey));
     }
 
     private Optional<NpcLinePool> resolveLinePool(DpPlayer bot) {

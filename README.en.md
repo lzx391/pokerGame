@@ -70,7 +70,7 @@
 
 #### Saloon-style Fish (`BOT_Fish`, 2026-03-25)
 
-- **Rule NPCs**: No tiered difficulty noise on strength or pot odds—decisions use real strength and pot odds; style comes from `StyleProfile` and per-bot logic. **`mood`**: off by default (`DpNpcEngine.NPC_MOOD_ENABLED = false`); set `true` to restore post-hand mood updates and mood-weighted probabilities.
+- **Rule NPCs**: No tiered difficulty noise on strength or pot odds—decisions use real strength and pot odds; style comes from `StyleProfile` and per-bot logic. **`mood` (v1)**: does **not** affect decisions; after each hand, rule bots update `mood` from per-hand chip delta (`dp.npc.mood`, enabled by default). Table talk (non-TAG) picks `MOOD_HIGH_*` / `MOOD_NEUTRAL_*` / `MOOD_LOW_*` pools with fallback to legacy keys. LLM bots still use model `table_talk`. Env: `DP_NPC_MOOD_ENABLED`, `DP_NPC_MOOD_DELTA_WIN`, etc.
 
 #### Shark preflop ranges
 

@@ -64,7 +64,7 @@ public final class DpNpcFishStrategy {
                         fishCallCtx.activeVillains,
                         0.55);
             }
-            double foldProb = Math.min(1.0, Math.max(0.0, foldBase + (-p.mood) * 0.2));
+            double foldProb = Math.min(1.0, Math.max(0.0, foldBase));
             if (foldProb > 0 && p.random.nextDouble() < foldProb) {
                 return new BotAction(BotActionType.FOLD, 0);
             }
@@ -72,7 +72,7 @@ public final class DpNpcFishStrategy {
 
         double r = p.random.nextDouble();
 
-        double callOrCheckProb = 0.68 - p.mood * 0.1;
+        double callOrCheckProb = 0.68;
         if (!"preflop".equals(stage)) {
             double baseRaiseProb = 1.0 - callOrCheckProb;
             double raiseProbPart = baseRaiseProb * (0.7 + 0.6 * p.aggression);

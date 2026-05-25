@@ -157,6 +157,12 @@ dp:
       # speak-probability: ${DP_NPC_TABLE_TALK_SPEAK_PROBABILITY:}  # [B] env: DP_NPC_TABLE_TALK_SPEAK_PROBABILITY；可选，覆盖 npc-lines/*.yaml
       # settle-speak-probability: ${DP_NPC_TABLE_TALK_SETTLE_SPEAK_PROBABILITY:}  # [B] env: DP_NPC_TABLE_TALK_SETTLE_SPEAK_PROBABILITY
       min-interval-ms: ${DP_NPC_TABLE_TALK_MIN_INTERVAL_MS:2500}  # [B] env: DP_NPC_TABLE_TALK_MIN_INTERVAL_MS
+    mood:
+      enabled: ${DP_NPC_MOOD_ENABLED:true}  # [B] env: DP_NPC_MOOD_ENABLED
+      delta-win: ${DP_NPC_MOOD_DELTA_WIN:0.2}  # [B] env: DP_NPC_MOOD_DELTA_WIN
+      delta-lose: ${DP_NPC_MOOD_DELTA_LOSE:-0.2}  # [B] env: DP_NPC_MOOD_DELTA_LOSE
+      high-threshold: ${DP_NPC_MOOD_HIGH_THRESHOLD:0.35}  # [B] env: DP_NPC_MOOD_HIGH_THRESHOLD；仅台词分桶
+      low-threshold: ${DP_NPC_MOOD_LOW_THRESHOLD:-0.35}  # [B] env: DP_NPC_MOOD_LOW_THRESHOLD；仅台词分桶
     rule-think:
       enabled: ${DP_NPC_RULE_THINK_ENABLED:true}  # [B] env: DP_NPC_RULE_THINK_ENABLED
       snap-probability: ${DP_NPC_RULE_THINK_SNAP_PROBABILITY:0.18}  # [B] env: DP_NPC_RULE_THINK_SNAP_PROBABILITY

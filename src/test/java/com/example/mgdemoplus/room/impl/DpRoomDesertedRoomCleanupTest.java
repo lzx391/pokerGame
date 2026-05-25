@@ -51,6 +51,7 @@ class DpRoomDesertedRoomCleanupTest {
                 mock(DpSettlePersistenceDispatcher.class),
                 mock(DpLlmNpcDecisionService.class),
                 mock(DpNpcTableTalkService.class),
+                mock(com.example.mgdemoplus.npc.mood.DpNpcMoodProperties.class),
                 mock(DpGameRoomPushService.class),
                 mock(DpUserMapper.class),
                 mock(DpUserStatsMapper.class),

@@ -256,11 +256,6 @@ public class DpNpcEngine {
     public static final String LLM_BOT_NICKNAME = PREFIX_BOT_LLM;
 
     /**
-     * 为 false：规则 NPC 决策里 mood 恒按 0；思考延迟也不按 mood 缩放；结算不再改写机器人 mood。
-     */
-    public static final boolean NPC_MOOD_ENABLED = false;
-
-    /**
      * 为 true：机器人 fold/call/raise 等抽样使用 {@code currentHandSeed ^ 座位} 固定种子，便于同一手牌复现决策序列。
      * 为 false：每次决策 {@code new Random()}，与 handSeed 无关。
      * <p>
@@ -740,7 +735,7 @@ public class DpNpcEngine {
      *
      * <p>
      * <b>翻前</b>：{@link DpNpcUnifiedPreflopStrategy} 只读 {@code vpip}、{@code pfr}、{@code callStation}、
-     * {@code foldToPressure}（外加 mood、座位与局面），<strong>不</strong>经过 {@link #preflopTightness()}、
+     * {@code foldToPressure}（外加座位与局面），<strong>不</strong>经过 {@link #preflopTightness()}、
      * {@link #aggression()} 等兼容 getter。
      * </p>
      * <p>
@@ -2221,7 +2216,6 @@ public class DpNpcEngine {
         String stageForNpc = room.getCurrentStage() != null ? room.getCurrentStage() : "";
         Random random = buildHandRandom(room, bot);
         BoardDanger boardDanger = evaluateBoardDanger(room.getCommunityCards());
-        double mood = NPC_MOOD_ENABLED ? bot.getMood() : 0.0;
         if ("preflop".equals(stageForNpc)) {
             BotAction preUnified = DpNpcUnifiedPreflopStrategy.decide(
                     room,
@@ -2232,7 +2226,6 @@ public class DpNpcEngine {
                     style.pfr,
                     style.callStation,
                     style.foldToPressure,
-                    mood,
                     random,
                     null);
             if (preUnified != null) {
@@ -2252,7 +2245,6 @@ public class DpNpcEngine {
                 stageForNpc,
                 random,
                 boardDanger,
-                mood,
                 strength,
                 style.preflopTightness(),
                 style.aggression(),
@@ -2275,9 +2267,8 @@ public class DpNpcEngine {
         String stageForNpc = room.getCurrentStage() != null ? room.getCurrentStage() : "";
         Random random = buildHandRandom(room, bot);
         // log.info("random: {}", random);
-        /// 这里判断牌面危险度、风格配置（翻前范围、凶度、偷盲率、诈唬频率等）；mood 见 {@link #NPC_MOOD_ENABLED}
+        /// 这里判断牌面危险度、风格配置（翻前范围、凶度、偷盲率、诈唬频率等）
         BoardDanger boardDanger = evaluateBoardDanger(room.getCommunityCards());
-        double mood = NPC_MOOD_ENABLED ? bot.getMood() : 0.0;
         // 统一根据 BotType 拿到风格配置，后续各 case 里不再写死“紧/松、凶/弱”等魔法数字。
         StyleProfile style = STYLE_PROFILE_MAP.get(npcStyleForBotType(type));
         if (style == null) {// 如果没有对应风格默认紧凶
@@ -2294,7 +2285,6 @@ public class DpNpcEngine {
                     style.pfr,
                     style.callStation,
                     style.foldToPressure,
-                    mood,
                     random,
                     type);
             if (preUnified != null) {
@@ -2321,7 +2311,6 @@ public class DpNpcEngine {
                 stageForNpc,
                 random,
                 boardDanger,
-                mood,
                 strength,
                 preflopTight,
                 aggression,

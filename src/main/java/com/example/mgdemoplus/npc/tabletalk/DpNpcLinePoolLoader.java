@@ -17,7 +17,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 加载 {@code classpath:npc-lines/{key}.yaml}。
- * 预制资源使用顶层 {@code lines}（见方案文档）；实现期临时格式可用 {@code pools}。
+ * v2 格式：顶层 {@code happy}/{@code calm}/{@code sad} 各含行动分桶，展平为
+ * {@code MOOD_HIGH_*} / {@code MOOD_NEUTRAL_*} / {@code MOOD_LOW_*}（与 {@link com.example.mgdemoplus.npc.mood.NpcMoodState} 一致）。
  */
 @Component
 public class DpNpcLinePoolLoader {
@@ -26,6 +27,12 @@ public class DpNpcLinePoolLoader {
     private static final String RESOURCE_PREFIX = "npc-lines/";
     private static final double DEFAULT_SPEAK_PROBABILITY = 0.28;
     private static final double DEFAULT_SETTLE_SPEAK_MULTIPLIER = 1.45;
+
+    private static final String[][] MOOD_BLOCK_TO_PREFIX = {
+            {"happy", "MOOD_HIGH_"},
+            {"calm", "MOOD_NEUTRAL_"},
+            {"sad", "MOOD_LOW_"},
+    };
 
     private final ConcurrentHashMap<String, Optional<NpcLinePool>> cache = new ConcurrentHashMap<>();
     private final Yaml yaml = new Yaml();
@@ -76,16 +83,9 @@ public class DpNpcLinePoolLoader {
             double settleSpeakProbability = dbl(
                     map.get("settleSpeakProbability"),
                     Math.min(1.0, speakProbability * DEFAULT_SETTLE_SPEAK_MULTIPLIER));
-            Map<String, List<String>> pools = Collections.emptyMap();
-            Object poolsObj = map.get("pools");
-            if (poolsObj == null) {
-                poolsObj = map.get("lines");
-            }
-            if (poolsObj instanceof Map<?, ?> poolsMap) {
-                pools = parsePools(poolsMap);
-            }
+            Map<String, List<String>> pools = parseMoodBlocks(map);
             if (pools.isEmpty()) {
-                log.warn("npc-lines has no lines/pools entries: {}", path);
+                log.warn("npc-lines has no happy/calm/sad entries: {}", path);
             }
             return Optional.of(new NpcLinePool(enabled, speakProbability, settleSpeakProbability, pools));
         } catch (Exception e) {
@@ -95,15 +95,24 @@ public class DpNpcLinePoolLoader {
     }
 
     @SuppressWarnings("unchecked")
-    private static Map<String, List<String>> parsePools(Map<?, ?> poolsMap) {
+    private static Map<String, List<String>> parseMoodBlocks(Map<?, ?> root) {
         java.util.HashMap<String, List<String>> out = new java.util.HashMap<>();
-        for (Map.Entry<?, ?> e : poolsMap.entrySet()) {
-            if (e.getKey() == null || e.getValue() == null) {
+        for (String[] block : MOOD_BLOCK_TO_PREFIX) {
+            String blockKey = block[0];
+            String prefix = block[1];
+            Object blockObj = root.get(blockKey);
+            if (!(blockObj instanceof Map<?, ?> moodMap)) {
                 continue;
             }
-            String poolKey = String.valueOf(e.getKey()).trim().toUpperCase(Locale.ROOT);
-            if (e.getValue() instanceof List<?> list) {
-                out.put(poolKey, list.stream().map(String::valueOf).filter(s -> !s.isBlank()).toList());
+            for (Map.Entry<?, ?> e : moodMap.entrySet()) {
+                if (e.getKey() == null || e.getValue() == null) {
+                    continue;
+                }
+                String actionKey = String.valueOf(e.getKey()).trim().toUpperCase(Locale.ROOT);
+                String flatKey = prefix + actionKey;
+                if (e.getValue() instanceof List<?> list) {
+                    out.put(flatKey, list.stream().map(String::valueOf).filter(s -> !s.isBlank()).toList());
+                }
             }
         }
         return out;

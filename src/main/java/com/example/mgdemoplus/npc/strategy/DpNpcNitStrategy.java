@@ -127,7 +127,7 @@ public final class DpNpcNitStrategy {
             }
         }
 
-        double foldProbTag = Math.min(1.0, Math.max(0.0, baseFold + (-p.mood) * 0.05));
+        double foldProbTag = Math.min(1.0, Math.max(0.0, baseFold));
         foldProbTag *= (1.0 - 0.5 * p.callStation);
         foldProbTag = Math.min(1.0, Math.max(0.0, foldProbTag));
         if (callAmount > 0 && foldProbTag > 0 && p.random.nextDouble() < foldProbTag) {
@@ -142,13 +142,13 @@ public final class DpNpcNitStrategy {
             double valueBetProb;
             double factor;
             if (st == SimpleStrength.MONSTER) {
-                valueBetProb = 0.85 + p.mood * 0.05;
+                valueBetProb = 0.85;
                 factor = "river".equals(stage) ? 0.9 : 0.7;
             } else if (st == SimpleStrength.STRONG) {
-                valueBetProb = 0.7 + p.mood * 0.05;
+                valueBetProb = 0.7;
                 factor = "river".equals(stage) ? 0.7 : 0.5;
             } else if (st == SimpleStrength.MEDIUM) {
-                valueBetProb = ("river".equals(stage) ? 0.2 : 0.35) + p.mood * 0.03;
+                valueBetProb = "river".equals(stage) ? 0.2 : 0.35;
                 factor = 0.4;
             } else {
                 return new BotAction(BotActionType.CALL_OR_CHECK, 0);
@@ -202,11 +202,11 @@ public final class DpNpcNitStrategy {
 
         double raiseProb;
         if (st == SimpleStrength.MONSTER) {
-            raiseProb = 0.8 + p.mood * 0.05;
+            raiseProb = 0.8;
         } else if (st == SimpleStrength.STRONG) {
-            raiseProb = 0.65 + p.mood * 0.05;
+            raiseProb = 0.65;
         } else if (st == SimpleStrength.MEDIUM) {
-            raiseProb = 0.4 + p.mood * 0.03;
+            raiseProb = 0.4;
         } else {
             raiseProb = 0.1;
         }

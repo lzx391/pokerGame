@@ -35,6 +35,8 @@ import com.example.mgdemoplus.npc.CustomNpcStyleSnapshot;
 import com.example.mgdemoplus.npc.engine.DpNpcEngine;
 import com.example.mgdemoplus.npc.engine.DpNpcStreetActionLog;
 import com.example.mgdemoplus.npc.llm.DpLlmNpcDecisionService;
+import com.example.mgdemoplus.npc.mood.DpNpcMoodProperties;
+import com.example.mgdemoplus.npc.mood.NpcMoodState;
 import com.example.mgdemoplus.npc.tabletalk.DpNpcTableTalkService;
 import com.example.mgdemoplus.npc.llm.LlmNpcGlobalHandConversationStore;
 import com.example.mgdemoplus.utils.ResultUtil;
@@ -74,6 +76,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     private final DpSettlePersistenceDispatcher settlePersistenceDispatcher;
     private final DpLlmNpcDecisionService llmNpcDecisionService;
     private final DpNpcTableTalkService npcTableTalkService;
+    private final DpNpcMoodProperties npcMoodProperties;
     private final DpGameRoomPushService gameRoomPushService;
     private final DpUserMapper dpUserMapper;
     private final DpUserStatsMapper dpUserStatsMapper;
@@ -281,6 +284,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
             DpSettlePersistenceDispatcher settlePersistenceDispatcher,
             DpLlmNpcDecisionService llmNpcDecisionService,
             DpNpcTableTalkService npcTableTalkService,
+            DpNpcMoodProperties npcMoodProperties,
             DpGameRoomPushService gameRoomPushService,
             DpUserMapper dpUserMapper,
             DpUserStatsMapper dpUserStatsMapper,
@@ -298,6 +302,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         this.settlePersistenceDispatcher = settlePersistenceDispatcher;
         this.llmNpcDecisionService = llmNpcDecisionService;
         this.npcTableTalkService = npcTableTalkService;
+        this.npcMoodProperties = npcMoodProperties;
         this.gameRoomPushService = gameRoomPushService;
         this.dpUserMapper = dpUserMapper;
         this.dpUserStatsMapper = dpUserStatsMapper;
@@ -3066,28 +3071,31 @@ ownerFieldChanged：房主字段是否发生变化。
             }
         }
 
-        // 根据赢/输调整机器人情绪（可通过 DpNpcEngine.NPC_MOOD_ENABLED 关闭）
-        if (DpNpcEngine.NPC_MOOD_ENABLED) {
+        // 规则 bot 本手 mood（dp.npc.mood；决策不使用 mood）
+        if (npcMoodProperties.isEnabled()) {
+            int startingChips = r.getStartingChips();
             for (DpPlayer p : r.getPlayers()) {
-                if (!DpNpcEngine.isBotPlayer(p)) {
+                if (!DpNpcEngine.isBotPlayer(p) || DpNpcEngine.isLlmBotNickname(p.getNickname())) {
                     continue;
                 }
-                int initialChips = r.getStartingChips();
-                int diff = p.getChips() - initialChips;
-                double moodDelta;
-                if (diff > 0) {
-                    moodDelta = 0.2;
-                } else if (diff < 0) {
-                    moodDelta = -0.2;
-                } else {
+                Integer chipsBefore = chipsBeforeSettle.get(p.getNickname());
+                if (chipsBefore == null) {
                     continue;
                 }
-                double newMood = p.getMood() + moodDelta;
-                if (newMood > 1.0)
-                    newMood = 1.0;
-                if (newMood < -1.0)
-                    newMood = -1.0;
-                p.setMood(newMood);
+                int handDelta = p.getChips() - chipsBefore;
+                if (handDelta == 0) {
+                    continue;
+                }
+                double moodDelta = 0.0;
+                if (handDelta > 0) {
+                    moodDelta = npcMoodProperties.getDeltaWin();
+                } else if (p.getChips() < startingChips) {
+                    moodDelta = npcMoodProperties.getDeltaLose();
+                }
+                if (moodDelta == 0.0) {
+                    continue;
+                }
+                p.setMood(NpcMoodState.clampMood(p.getMood() + moodDelta));
             }
         }
 

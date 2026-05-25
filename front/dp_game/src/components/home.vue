@@ -937,6 +937,11 @@ export default {
       await this.quickMatch()
     },
     quickMatchWsBaseUrl() {
+      // Electron 桌面客户端：连到 config.json 配置的服务器地址
+      if (typeof window !== 'undefined' && window.dpElectron && window.dpElectron.serverUrl) {
+        var url = window.dpElectron.serverUrl.replace(/\/+$/, '')
+        return url.replace(/^https?:/, url.indexOf('https:') === 0 ? 'wss:' : 'ws:')
+      }
       var secure = window.location.protocol === 'https:'
       return (secure ? 'wss:' : 'ws:') + '//' + window.location.host
     },

@@ -29,7 +29,6 @@ public final class DpNpcManiacStrategy {
         double callRatio = p.callRatio;
         SimpleStrength strength = p.strength;
         BoardDanger boardDanger = p.boardDanger;
-        double mood = p.mood;
         double aggression = p.aggression;
         double callStation = p.callStation;
 
@@ -119,7 +118,7 @@ public final class DpNpcManiacStrategy {
         double r = p.random.nextDouble();
 
         if (callAmount == 0) {
-            double raiseProb = (0.75 + mood * 0.15) * looseAggroMul;
+            double raiseProb = 0.75 * looseAggroMul;
             double aggroFactor = 0.7 + 0.6 * aggression;
             raiseProb *= aggroFactor;
             raiseProb = Math.max(0.5, Math.min(0.98, raiseProb));
@@ -167,7 +166,7 @@ public final class DpNpcManiacStrategy {
                 || maniTier2 == VillainRangeTier.NIT || maniTier2 == VillainRangeTier.TIGHT) {
             maniFoldBase += 0.05;
         }
-        double maniFoldProb = maniFoldBase - mood * 0.2;
+        double maniFoldProb = maniFoldBase;
         maniFoldProb *= (1.0 - 0.4 * callStation);
         if (maniFoldProb < 0.0) {
             maniFoldProb = 0.0;
@@ -189,10 +188,10 @@ public final class DpNpcManiacStrategy {
             return new BotAction(BotActionType.FOLD, 0);
         }
 
-        if (r < 0.25 + mood * 0.05) {
+        if (r < 0.25) {
             return new BotAction(BotActionType.CALL_OR_CHECK, 0);
         }
-        if (r < 0.85 + mood * 0.05) {
+        if (r < 0.85) {
             int minMulti;
             int maxMulti;
             if (strength == SimpleStrength.STRONG) {

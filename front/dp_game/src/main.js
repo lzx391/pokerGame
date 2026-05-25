@@ -63,7 +63,11 @@ Vue.prototype.$message = Message
 Vue.prototype.$confirm = MessageBox.confirm
 Vue.prototype.$alert = MessageBox.alert
 // 开发：走 vue 代理 /dev-api；生产（含 Docker 同域静态资源）：直接请求当前站点根路径
-axios.defaults.baseURL = process.env.NODE_ENV === 'production' ? '' : '/dev-api'
+// Electron 桌面客户端：连到 config.json 配置的服务器地址
+axios.defaults.baseURL =
+  (typeof window !== 'undefined' && window.dpElectron && window.dpElectron.serverUrl)
+    ? window.dpElectron.serverUrl
+    : (process.env.NODE_ENV === 'production' ? '' : '/dev-api')
 
 axios.interceptors.request.use(function (config) {
   var url = config.url || ''

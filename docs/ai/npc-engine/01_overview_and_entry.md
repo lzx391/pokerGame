@@ -57,12 +57,12 @@ sequenceDiagram
 | 翻前 `preflop` | **仅** `DpNpcUnifiedPreflopStrategy.decide(...)`；非 null 即返回 |
 | 翻后 | `estimateCurrentStrength` + `buildSmartContext`（按类型选用）→ `switch (BotType)` 委托策略类 |
 
-全局开关（`DpNpcEngine` 常量）：
+全局开关：
 
-| 常量 | 默认 | 含义 |
+| 配置 / 常量 | 默认 | 含义 |
 |------|------|------|
-| `NPC_MOOD_ENABLED` | `false` | 关闭 mood 对决策的影响 |
-| `NPC_HAND_SEED_FOR_DECISIONS` | `true` | `handSeed ^ 座位` 固定 RNG |
+| `dp.npc.mood.enabled`（`DP_NPC_MOOD_ENABLED`） | `true` | 结算更新 mood；台词按 mood 分桶（TAG 除外）。**决策不使用 mood** |
+| `DpNpcEngine.NPC_HAND_SEED_FOR_DECISIONS` | `true` | `handSeed ^ 座位` 固定 RNG |
 
 ---
 

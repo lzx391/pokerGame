@@ -394,6 +394,11 @@ export default {
     },
 
     gameWsBaseUrl() {
+      // Electron 桌面客户端：连到 config.json 配置的服务器地址
+      if (typeof window !== 'undefined' && window.dpElectron && window.dpElectron.serverUrl) {
+        var url = window.dpElectron.serverUrl.replace(/\/+$/, '')
+        return url.replace(/^https?:/, url.indexOf('https:') === 0 ? 'wss:' : 'ws:')
+      }
       // 与页面同源；开发时游戏 WS 走 vue.config.js 的 /dp-ws → 后端 /ws
       var secure = window.location.protocol === 'https:'
       return (secure ? 'wss:' : 'ws:') + '//' + window.location.host
