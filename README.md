@@ -1,4 +1,4 @@
-# MGDemoPlus(此版本为前瞻版)
+# MGDemoPlus(此版本为主版本)
 
 基于 **Spring Boot 3** 的 Web 演示项目：多人实时房间、卡牌对战流程、AI / 可选大模型玩家、对局回放与大厅匹配。前端 `**front/dp_game`**（**Vue 2** + **Vue Router** + **Vuex** + **Element UI** + **axios**）可由 `**[Dockerfile](Dockerfile)`** 多阶段构建打进后端 JAR（`npm ci` → `dist` → `src/main/resources/static` → `mvn package`），与 REST、WebSocket **同端口**发布。已配置CI/CD
 
