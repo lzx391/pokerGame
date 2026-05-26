@@ -3,6 +3,7 @@ package com.example.mgdemoplus.utils;
 import java.io.File;
 import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * 头像等图片磁盘路径与 {@link com.example.mgdemoplus.config.WebConfig} {@code /images/**} 映射一致。
@@ -12,7 +13,22 @@ public final class DpImageFileSupport {
     public static final Set<String> ALLOWED_IMAGE_EXT =
             Set.of(".jpg", ".jpeg", ".png", ".webp", ".gif");
 
+    /** 缩略图磁盘名，如 {@code 12_sm.webp} */
+    public static final String AVATAR_THUMB_SUFFIX = "_sm.webp";
+
+    /** 原图文件名：{@code {userId}.{ext}}，不含 {@code _sm} */
+    private static final Pattern AVATAR_ORIGINAL_FILENAME =
+            Pattern.compile("^(\\d+)\\.(jpg|jpeg|png|webp|gif)$", Pattern.CASE_INSENSITIVE);
+
     private DpImageFileSupport() {}
+
+    public static String avatarThumbFilename(int userId) {
+        return userId + AVATAR_THUMB_SUFFIX;
+    }
+
+    public static String avatarThumbWebPath(int userId) {
+        return "/images/" + avatarThumbFilename(userId);
+    }
 
     public static String toPhysicalDir(String fileLocation) {
         if (fileLocation == null || fileLocation.isBlank()) {
@@ -76,7 +92,7 @@ public final class DpImageFileSupport {
         }
     }
 
-    /** 删除该用户所有 {@code {userId}.*} 头像文件（扩展名变更时清旧图）。 */
+    /** 删除该用户所有 {@code {userId}.*} 头像原图及 {@code {userId}_sm.webp}。 */
     public static void deleteUserAvatarFiles(String imagesFileLocation, int userId) {
         File dir = new File(toPhysicalDir(imagesFileLocation));
         if (!dir.isDirectory()) {
@@ -84,14 +100,35 @@ public final class DpImageFileSupport {
         }
         String prefix = userId + ".";
         File[] files = dir.listFiles((d, name) -> name != null && name.startsWith(prefix));
-        if (files == null) {
-            return;
-        }
-        for (File f : files) {
-            if (f.isFile()) {
-                //noinspection ResultOfMethodCallIgnored
-                f.delete();
+        if (files != null) {
+            for (File f : files) {
+                if (f.isFile()) {
+                    //noinspection ResultOfMethodCallIgnored
+                    f.delete();
+                }
             }
         }
+        File thumb = new File(dir, avatarThumbFilename(userId));
+        if (thumb.isFile()) {
+            //noinspection ResultOfMethodCallIgnored
+            thumb.delete();
+        }
     }
+
+    /** 从目录名解析用户 id（仅 {@code 12.jpg} 形式，不含 {@code 12_sm.webp}）。 */
+    public static Integer userIdFromAvatarOriginalFilename(String filename) {
+        if (filename == null || filename.isBlank()) {
+            return null;
+        }
+        var m = AVATAR_ORIGINAL_FILENAME.matcher(filename.trim());
+        if (!m.matches()) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(m.group(1));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
 }

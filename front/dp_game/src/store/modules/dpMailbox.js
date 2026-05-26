@@ -2,6 +2,7 @@ import { dpSocialApi } from '@/api/api.dpSocial'
 import { dpResultSuccess, dpResultData, dpResultMessage, dpAxiosErrorMessage } from '@/utils/dpApiResult'
 import { dpFriendsInviteEligible } from '@/utils/dpFriendsInviteEligible'
 import { parseSocialNotifyPayload } from '@/utils/dpSocialStream'
+import { prefetchAvatarUrls } from '@/utils/dpAvatarPrefetch'
 
 function initialState() {
   return {
@@ -175,7 +176,19 @@ export default {
         // data 通常为 { friends: [...] }；兼容误将数组放在 data 根上的响应
         var raw =
           Array.isArray(d.friends) ? d.friends : Array.isArray(d) ? d : []
-        commit('SET_FRIENDS', dpFriendsInviteEligible(raw))
+        var friends = dpFriendsInviteEligible(raw)
+        commit('SET_FRIENDS', friends)
+        var avatarEntries = []
+        for (var fi = 0; fi < friends.length; fi++) {
+          var friend = friends[fi]
+          if (friend && friend.avatarUrl) {
+            avatarEntries.push({
+              avatarUrl: friend.avatarUrl,
+              avatarUpdatedAt: friend.avatarUpdatedAt
+            })
+          }
+        }
+        prefetchAvatarUrls(avatarEntries, { prefetchFull: false }).catch(function () {})
         return { ok: true }
       } catch (e) {
         console.error('dpMailbox/fetchFriends', e)

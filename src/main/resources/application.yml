@@ -80,6 +80,8 @@ mgdemoplus:
   # --- C: 上传路径 ---
   images:
     file-location: ${MGDEMOPLUS_IMAGES_FILE_LOCATION:file:P:/javaworkspace/DPGameFiles/images/}  # [C] env: MGDEMOPLUS_IMAGES_FILE_LOCATION
+    # 启动扫描并生成缺失的 {userId}_sm.webp；默认 false，避免生产意外全目录扫
+    backfill-thumbs: ${MGDEMOPLUS_IMAGES_BACKFILL_THUMBS:false}  # [B] env: MGDEMOPLUS_IMAGES_BACKFILL_THUMBS
   music:
     file-location: ${MGDEMOPLUS_MUSIC_FILE_LOCATION:file:P:/javaworkspace/DPGameFiles/music/}  # [C] env: MGDEMOPLUS_MUSIC_FILE_LOCATION
   files:

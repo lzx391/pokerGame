@@ -8,6 +8,7 @@ import com.example.mgdemoplus.leaderboard.LeaderboardCompetitionRankUtil;
 import com.example.mgdemoplus.leaderboard.entity.DpLeaderboardWeekly;
 import com.example.mgdemoplus.leaderboard.mapper.DpLeaderboardWeeklyMapper;
 import com.example.mgdemoplus.leaderboard.vo.WeeklyLeaderboardItemVO;
+import com.example.mgdemoplus.utils.DpDateTimeSupport;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -111,6 +112,7 @@ public class DpLeaderboardWeeklyReadService {
             if (u != null) {
                 item.setNickname(u.getNickname());
                 item.setAvatarUrl(u.getAvatarUrl());
+                item.setAvatarUpdatedAt(DpDateTimeSupport.toEpochMilli(u.getAvatarUpdatedAt()));
             }
         }
     }

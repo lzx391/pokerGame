@@ -5,18 +5,33 @@
     role="img"
     :aria-label="ariaLabel"
   >
+    <span
+      class="dp-user-avatar__initial"
+      :class="{ 'dp-user-avatar__initial--behind': showImage }"
+      aria-hidden="true"
+    >{{ initial }}</span>
     <img
-      v-if="imageSrc"
-      :src="imageSrc"
+      v-if="showImage"
+      :key="imgKey"
+      :src="displaySrc"
       class="dp-user-avatar__img"
+      :class="{ 'dp-user-avatar__img--loaded': imageLoaded }"
       alt=""
+      decoding="async"
+      :loading="imgLoadingAttr"
+      @load="onImgLoad"
+      @error="onImgError"
     >
-    <span v-else class="dp-user-avatar__initial" aria-hidden="true">{{ initial }}</span>
   </span>
 </template>
 
 <script>
-import { avatarFileSrc, avatarInitialFromNickname } from '@/utils/dpAvatarUrl'
+import {
+  avatarDisplayWebPath,
+  avatarFileSrc,
+  avatarInitialFromNickname,
+  avatarThumbWebPath
+} from '@/utils/dpAvatarUrl'
 
 export default {
   name: 'DpUserAvatar',
@@ -31,18 +46,76 @@ export default {
       }
     },
     cacheBust: { type: [Number, String], default: '' },
-    title: { type: String, default: '' }
+    title: { type: String, default: '' },
+    /** 传给 <img loading>；好友抽屉首屏可 eager 或依赖预取 */
+    imgLoading: { type: String, default: '' }
+  },
+  data: function () {
+    return {
+      useFullFallback: false,
+      imageLoaded: false,
+      imageFailed: false
+    }
   },
   computed: {
-    imageSrc() {
-      return avatarFileSrc(this.avatarUrl, this.cacheBust)
+    resolvedWebPath: function () {
+      if (!this.avatarUrl || this.imageFailed) return ''
+      if (this.useFullFallback || this.size === 'lg') {
+        return this.avatarUrl
+      }
+      return avatarDisplayWebPath(this.avatarUrl, this.size)
     },
-    initial() {
+    displaySrc: function () {
+      if (!this.resolvedWebPath) return ''
+      return avatarFileSrc(this.resolvedWebPath, this.cacheBust, {
+        variant: this.useFullFallback || this.size === 'lg' ? 'full' : 'thumb'
+      })
+    },
+    showImage: function () {
+      return !!this.displaySrc && !this.imageFailed
+    },
+    imgKey: function () {
+      return this.displaySrc + '|' + String(this.useFullFallback)
+    },
+    initial: function () {
       return avatarInitialFromNickname(this.nickname)
     },
-    ariaLabel() {
+    ariaLabel: function () {
       var n = (this.nickname || '').trim()
       return n ? n + ' 的头像' : '用户头像'
+    },
+    imgLoadingAttr: function () {
+      var v = (this.imgLoading || '').trim()
+      if (v === 'lazy' || v === 'eager') return v
+      return undefined
+    }
+  },
+  watch: {
+    avatarUrl: 'resetImageState',
+    cacheBust: 'resetImageState',
+    size: 'resetImageState'
+  },
+  methods: {
+    resetImageState: function () {
+      this.useFullFallback = false
+      this.imageLoaded = false
+      this.imageFailed = false
+    },
+    onImgLoad: function () {
+      this.imageLoaded = true
+    },
+    onImgError: function () {
+      var canThumb =
+        !this.useFullFallback &&
+        this.size !== 'lg' &&
+        !!avatarThumbWebPath(this.avatarUrl)
+      if (canThumb) {
+        this.useFullFallback = true
+        this.imageLoaded = false
+        return
+      }
+      this.imageFailed = true
+      this.imageLoaded = false
     }
   }
 }
@@ -50,6 +123,7 @@ export default {
 
 <style scoped>
 .dp-user-avatar {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -78,13 +152,30 @@ export default {
   height: 72px;
   font-size: 28px;
 }
+.dp-user-avatar__initial {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 0;
+}
+.dp-user-avatar__initial--behind {
+  opacity: 0;
+  pointer-events: none;
+}
 .dp-user-avatar__img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.12s ease;
 }
-.dp-user-avatar__initial {
-  display: block;
+.dp-user-avatar__img--loaded {
+  opacity: 1;
 }
 </style>

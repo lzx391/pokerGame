@@ -8,6 +8,7 @@ public class WeeklyLeaderboardItemVO {
     private int userId;
     private String nickname;
     private String avatarUrl;
+    private Long avatarUpdatedAt;
     private BigDecimal multiplier;
 
     public int getRank() {
@@ -40,6 +41,14 @@ public class WeeklyLeaderboardItemVO {
 
     public void setAvatarUrl(String avatarUrl) {
         this.avatarUrl = avatarUrl;
+    }
+
+    public Long getAvatarUpdatedAt() {
+        return avatarUpdatedAt;
+    }
+
+    public void setAvatarUpdatedAt(Long avatarUpdatedAt) {
+        this.avatarUpdatedAt = avatarUpdatedAt;
     }
 
     public BigDecimal getMultiplier() {

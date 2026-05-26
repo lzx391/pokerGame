@@ -20,6 +20,8 @@ public class DpFriendLinkRow {
     @TableField(exist = false)
     private String friendAvatarUrl;
     @TableField(exist = false)
+    private LocalDateTime friendAvatarUpdatedAt;
+    @TableField(exist = false)
     private Integer friendUserId;
 
     public Long getId() {
@@ -68,6 +70,14 @@ public class DpFriendLinkRow {
 
     public void setFriendAvatarUrl(String friendAvatarUrl) {
         this.friendAvatarUrl = friendAvatarUrl;
+    }
+
+    public LocalDateTime getFriendAvatarUpdatedAt() {
+        return friendAvatarUpdatedAt;
+    }
+
+    public void setFriendAvatarUpdatedAt(LocalDateTime friendAvatarUpdatedAt) {
+        this.friendAvatarUpdatedAt = friendAvatarUpdatedAt;
     }
 
     public Integer getFriendUserId() {

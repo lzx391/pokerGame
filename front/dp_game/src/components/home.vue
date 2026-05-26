@@ -43,7 +43,7 @@
               class="home-header__avatar"
               :avatar-url="user.avatarUrl"
               :nickname="user.nickname"
-              :cache-bust="userAvatarCacheBust"
+              :cache-bust="userAvatarCacheBust || avatarCacheBustFromUpdatedAt(user.avatarUpdatedAt)"
               size="sm"
               :title="user.nickname"
             />
@@ -237,6 +237,7 @@
               <dp-user-avatar
                 :avatar-url="f.avatarUrl"
                 :nickname="friendPrimaryName(f)"
+                :cache-bust="avatarCacheBustFromUpdatedAt(f.avatarUpdatedAt)"
                 size="sm"
               />
               <div class="dp-social-list__text">
@@ -402,6 +403,7 @@
       :peer-user-id="friendChatPeerId"
       :peer-display-name="friendChatPeerName"
       :peer-avatar-url="friendChatPeerAvatar"
+      :peer-avatar-updated-at="friendChatPeerAvatarUpdatedAt"
       :peer-unread-count="friendChatPeerUnread"
       @closed="onFriendChatClosed"
     />
@@ -432,6 +434,8 @@ import {
 import { exitLobbyQuickMatchSilently } from '@/utils/dpLobbyQuickMatchExit'
 import { postQuickMatchCancel2 } from '@/utils/dpQuickMatchExit'
 import { prefetchGameChunk, navigateToGame } from '@/utils/dpPrefetchGameRoute'
+import { prefetchAvatarUrls } from '@/utils/dpAvatarPrefetch'
+import { avatarCacheBustFromUpdatedAt } from '@/utils/dpAvatarUrl'
 
 export default {
   components: { GamePlayGuideModal, HomeProfileModal, FriendChatDialog, DpUserAvatar, DpFluidityToggle },
@@ -478,6 +482,7 @@ export default {
       friendChatPeerId: null,
       friendChatPeerName: '',
       friendChatPeerAvatar: '',
+      friendChatPeerAvatarUpdatedAt: null,
       friendChatPeerUnread: 0,
       /** 好友列表「跟随」连点防护：好友 dp_user.id */
       friendFollowBusyUserId: null
@@ -555,6 +560,7 @@ export default {
     postQuickMatchCancel2(this.$http, this.user)
   },
   methods: {
+    avatarCacheBustFromUpdatedAt,
     ...mapActions('dpMailbox', [
       'fetchUnreadCount',
       'fetchFriendChatUnreadSummary',
@@ -756,6 +762,7 @@ export default {
       this.friendChatPeerId = uid
       this.friendChatPeerName = this.friendPrimaryName(f)
       this.friendChatPeerAvatar = (f && f.avatarUrl) || ''
+      this.friendChatPeerAvatarUpdatedAt = f && f.avatarUpdatedAt != null ? f.avatarUpdatedAt : null
       this.friendChatPeerUnread = this.friendUnreadFor(uid)
       this.friendChatVisible = true
     },
@@ -763,6 +770,7 @@ export default {
       this.friendChatPeerId = null
       this.friendChatPeerName = ''
       this.friendChatPeerAvatar = ''
+      this.friendChatPeerAvatarUpdatedAt = null
       this.friendChatPeerUnread = 0
       this.fetchFriendChatUnreadSummary({ http: this.$http }).catch(() => {})
     },
@@ -908,18 +916,36 @@ export default {
         if (profile.avatarUrl) {
           this.$set(this.user, 'avatarUrl', profile.avatarUrl)
         }
+        if (profile.avatarUpdatedAt != null) {
+          this.$set(this.user, 'avatarUpdatedAt', profile.avatarUpdatedAt)
+        }
+        this.prefetchCurrentUserAvatars()
       } catch (e) {
         /* ignore */
       }
+    },
+    prefetchCurrentUserAvatars() {
+      if (!this.user || !this.user.avatarUrl) return
+      var bust = this.userAvatarCacheBust || avatarCacheBustFromUpdatedAt(this.user.avatarUpdatedAt)
+      prefetchAvatarUrls([{
+        avatarUrl: this.user.avatarUrl,
+        cacheBust: bust
+      }], {
+        prefetchFull: true
+      }).catch(function () {})
     },
     onAvatarUpdated(payload) {
       if (!payload) return
       if (payload.avatarUrl) {
         this.$set(this.user, 'avatarUrl', payload.avatarUrl)
       }
+      if (payload.avatarUpdatedAt != null) {
+        this.$set(this.user, 'avatarUpdatedAt', payload.avatarUpdatedAt)
+      }
       if (payload.cacheBust) {
         this.userAvatarCacheBust = payload.cacheBust
       }
+      this.prefetchCurrentUserAvatars()
       try {
         var raw = localStorage.getItem('userInfo')
         var stored = raw ? JSON.parse(raw) : {}

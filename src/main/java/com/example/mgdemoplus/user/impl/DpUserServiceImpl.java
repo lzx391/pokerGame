@@ -12,6 +12,8 @@ import com.example.mgdemoplus.user.dto.DpPlayerHonorView;
 import com.example.mgdemoplus.user.dto.DpUserProfileView;
 import com.example.mgdemoplus.user.mapper.DpUserStatsMapper;
 import com.example.mgdemoplus.utils.CryptoUtil;
+import com.example.mgdemoplus.utils.DpAvatarThumbnailSupport;
+import com.example.mgdemoplus.utils.DpDateTimeSupport;
 import com.example.mgdemoplus.utils.DpImageFileSupport;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.LocalDateTime;
 
 @Service
 public class DpUserServiceImpl implements DpUserService {
@@ -75,6 +78,7 @@ public class DpUserServiceImpl implements DpUserService {
         view.setId(user.getId());
         view.setNickname(user.getNickname());
         view.setAvatarUrl(user.getAvatarUrl());
+        view.setAvatarUpdatedAt(DpDateTimeSupport.toEpochMilli(user.getAvatarUpdatedAt()));
         view.setPasswordSet(user.getPassword() != null && !user.getPassword().isBlank());
         DpUserStats stats = dpUserStatsMapper.selectByUserId(user.getId());
         if (stats != null) {
@@ -98,6 +102,7 @@ public class DpUserServiceImpl implements DpUserService {
         view.setUserId(user.getId());
         view.setNickname(user.getNickname());
         view.setAvatarUrl(user.getAvatarUrl());
+        view.setAvatarUpdatedAt(DpDateTimeSupport.toEpochMilli(user.getAvatarUpdatedAt()));
         DpUserStats stats = dpUserStatsMapper.selectByUserId(userId);
         if (stats != null) {
             view.setRoyalFlushWins(stats.getRoyalFlushWins());
@@ -228,17 +233,20 @@ public class DpUserServiceImpl implements DpUserService {
 
         String storedFilename = stored.getId() + ext;
         String webPath = "/images/" + storedFilename;
+        File savedOriginal = new File(dir, storedFilename);
         try {
-            file.transferTo(new File(dir, storedFilename));
+            file.transferTo(savedOriginal);
         } catch (IOException e) {
             return DpAvatarUploadResult.fail("保存文件失败");
         }
+        DpAvatarThumbnailSupport.writeThumbnailIfPossible(folder, stored.getId(), savedOriginal);
 
-        if (dpUserMapper.updateAvatarUrl(stored.getId(), webPath) != 1) {
+        LocalDateTime avatarUpdatedAt = LocalDateTime.now();
+        if (dpUserMapper.updateAvatarUrl(stored.getId(), webPath, avatarUpdatedAt) != 1) {
             DpImageFileSupport.deleteWebPathFile(imagesFileLocation, webPath);
             return DpAvatarUploadResult.fail("更新资料失败");
         }
 
-        return DpAvatarUploadResult.ok(webPath);
+        return DpAvatarUploadResult.ok(webPath, DpDateTimeSupport.toEpochMilli(avatarUpdatedAt));
     }
 }

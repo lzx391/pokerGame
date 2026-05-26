@@ -11,6 +11,8 @@ public class DpPlayerHonorView {
     private int userId;
     private String nickname;
     private String avatarUrl;
+    /** 头像最后更新时间（epoch 毫秒） */
+    private Long avatarUpdatedAt;
 
     // ==== 生涯荣誉统计 ====
     private int royalFlushWins;
@@ -42,6 +44,14 @@ public class DpPlayerHonorView {
 
     public void setAvatarUrl(String avatarUrl) {
         this.avatarUrl = avatarUrl;
+    }
+
+    public Long getAvatarUpdatedAt() {
+        return avatarUpdatedAt;
+    }
+
+    public void setAvatarUpdatedAt(Long avatarUpdatedAt) {
+        this.avatarUpdatedAt = avatarUpdatedAt;
     }
 
     public int getRoyalFlushWins() {

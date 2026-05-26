@@ -22,7 +22,7 @@
           <dp-user-avatar
             :avatar-url="form.avatarUrl"
             :nickname="form.nickname"
-            :cache-bust="avatarCacheBust"
+            :cache-bust="avatarCacheBust || avatarCacheBustFromUpdatedAt(form.avatarUpdatedAt)"
             size="lg"
           />
           <div class="home-profile-modal__avatar-actions">
@@ -155,6 +155,7 @@
 import DpUserAvatar from '@/components/DpUserAvatar.vue'
 import { dpResultSuccess, dpResultData, dpResultMessage } from '@/utils/dpApiResult'
 import { formatNetWinMultiplier, formatRoomNetMultiplier } from '@/utils/dpRoomNetMultiplier'
+import { avatarCacheBustFromUpdatedAt } from '@/utils/dpAvatarUrl'
 
 export default {
   name: 'HomeProfileModal',
@@ -176,6 +177,7 @@ export default {
         id: '',
         nickname: '',
         avatarUrl: '',
+        avatarUpdatedAt: null,
         passwordSet: true,
         royalFlushWins: null,
         straightFlushWins: null,
@@ -207,6 +209,7 @@ export default {
     }
   },
   methods: {
+    avatarCacheBustFromUpdatedAt,
     formatNetWinMultiplier,
     formatRoomNetMultiplier,
     onClosed() {
@@ -230,6 +233,8 @@ export default {
         this.form.id = profile.id
         this.form.nickname = profile.nickname || ''
         this.form.avatarUrl = profile.avatarUrl || ''
+        this.form.avatarUpdatedAt = profile.avatarUpdatedAt != null ? profile.avatarUpdatedAt : null
+        this.avatarCacheBust = ''
         this.form.passwordSet = profile.passwordSet !== false
         this.form.royalFlushWins = profile.royalFlushWins
         this.form.straightFlushWins = profile.straightFlushWins
@@ -266,9 +271,18 @@ export default {
         }
         var url = data.avatarUrl || ''
         this.form.avatarUrl = url
-        this.avatarCacheBust = Date.now()
+        if (data.avatarUpdatedAt != null) {
+          this.form.avatarUpdatedAt = data.avatarUpdatedAt
+          this.avatarCacheBust = avatarCacheBustFromUpdatedAt(data.avatarUpdatedAt)
+        } else {
+          this.avatarCacheBust = Date.now()
+        }
         this.$message.success(data.message || '上传成功')
-        this.$emit('avatar-updated', { avatarUrl: url, cacheBust: this.avatarCacheBust })
+        this.$emit('avatar-updated', {
+          avatarUrl: url,
+          cacheBust: this.avatarCacheBust,
+          avatarUpdatedAt: data.avatarUpdatedAt
+        })
       } catch (e) {
         this.$message.error('上传失败')
       } finally {

@@ -8,6 +8,9 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
+    /** 头像等 /images/**：长缓存；同 URL 换图靠 Last-Modified/ETag + 前端 ?t= bust，勿加 immutable */
+    private static final int IMAGES_CACHE_SECONDS = 31536000;
+
     /** 本机默认 P: 盘；Docker 等环境用环境变量 MGDEMOPLUS_IMAGES_FILE_LOCATION 覆盖 */
     @Value("${mgdemoplus.images.file-location:file:P:/javaworkspace/DPGameFiles/images/}")
     private String imagesFileLocation;
@@ -23,7 +26,8 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         registry.addResourceHandler("/images/**")
-                .addResourceLocations(normalizeFileLocation(imagesFileLocation));
+                .addResourceLocations(normalizeFileLocation(imagesFileLocation))
+                .setCachePeriod(IMAGES_CACHE_SECONDS);
         registry.addResourceHandler("/music/**")
                 .addResourceLocations(normalizeFileLocation(musicFileLocation));
         registry.addResourceHandler("/files/**")

@@ -8,6 +8,8 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
+import java.time.LocalDateTime;
+
 @Mapper
 public interface DpUserMapper {
     @Insert("INSERT INTO dp_user (nickname,password) values (#{nickname},#{password})")
@@ -26,6 +28,9 @@ public interface DpUserMapper {
     @Update("UPDATE dp_user SET password = #{password} WHERE id = #{id}")
     int updatePasswordHash(DpUser dpUser);
 
-    @Update("UPDATE dp_user SET avatar_url = #{avatarUrl} WHERE id = #{id}")
-    int updateAvatarUrl(@Param("id") int id, @Param("avatarUrl") String avatarUrl);
+    @Update("UPDATE dp_user SET avatar_url = #{avatarUrl}, avatar_updated_at = #{avatarUpdatedAt} WHERE id = #{id}")
+    int updateAvatarUrl(
+            @Param("id") int id,
+            @Param("avatarUrl") String avatarUrl,
+            @Param("avatarUpdatedAt") LocalDateTime avatarUpdatedAt);
 }

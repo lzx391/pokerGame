@@ -15,6 +15,7 @@ import com.example.mgdemoplus.presence.DpFriendPresenceState;
 import com.example.mgdemoplus.presence.DpFriendPresenceService;
 import com.example.mgdemoplus.presence.DpSitePresenceService;
 import com.example.mgdemoplus.social.notify.SocialNotifyPublisher;
+import com.example.mgdemoplus.utils.DpDateTimeSupport;
 import com.example.mgdemoplus.utils.ResultUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -243,6 +244,7 @@ public class DpFriendSocialService {
             m.put("userId", fid);
             m.put("nickname", fl.getFriendNickname());
             m.put("avatarUrl", fl.getFriendAvatarUrl());
+            m.put("avatarUpdatedAt", DpDateTimeSupport.toEpochMilli(fl.getFriendAvatarUpdatedAt()));
             m.put("friendship_status", ACCEPTED);
             items.add(m);
             presenceEligibleFriendIds.add(fid);

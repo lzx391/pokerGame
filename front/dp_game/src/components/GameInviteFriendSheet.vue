@@ -31,6 +31,7 @@
             <dp-user-avatar
               :avatar-url="f.avatarUrl"
               :nickname="inviteOptionLabel(f)"
+              :cache-bust="avatarCacheBustFromUpdatedAt(f.avatarUpdatedAt)"
               size="sm"
             />
             <div class="dp-invite-friend-sheet__meta">
@@ -69,6 +70,7 @@ import { mapState } from 'vuex'
 import { dpFriendPresenceRowClass, dpFriendPresenceStatusText } from '@/utils/dpFriendPresence'
 import { dpSocialDisplayNickname } from '../utils/dpSocialDisplayName'
 import { dpResultSuccess, dpResultMessage, dpAxiosErrorMessage } from '../utils/dpApiResult'
+import { avatarCacheBustFromUpdatedAt } from '@/utils/dpAvatarUrl'
 
 export default {
   name: 'GameInviteFriendSheet',
@@ -109,6 +111,7 @@ export default {
     }
   },
   methods: {
+    avatarCacheBustFromUpdatedAt,
     friendInvitePresenceClass(f) {
       return dpFriendPresenceRowClass(f)
     },

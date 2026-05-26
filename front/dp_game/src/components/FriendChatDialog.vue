@@ -14,6 +14,7 @@
             class="friend-chat__peer-avatar"
             :avatar-url="peerAvatarUrl"
             :nickname="peerDisplayName"
+            :cache-bust="avatarCacheBustFromUpdatedAt(peerAvatarUpdatedAt)"
             size="md"
           />
           <span
@@ -78,6 +79,7 @@
 
 <script>
 import DpUserAvatar from '@/components/DpUserAvatar.vue'
+import { avatarCacheBustFromUpdatedAt } from '@/utils/dpAvatarUrl'
 import { dpSocialApi } from '@/api/api.dpSocial'
 import { dpResultSuccess, dpResultData, dpResultMessage, dpAxiosErrorMessage } from '@/utils/dpApiResult'
 import { mapActions, mapState } from 'vuex'
@@ -90,6 +92,7 @@ export default {
     peerUserId: { type: [Number, String], default: null },
     peerDisplayName: { type: String, default: '' },
     peerAvatarUrl: { type: String, default: '' },
+    peerAvatarUpdatedAt: { type: [Number, String], default: null },
     /** 打开对话时该好友的未读条数（用于头像红点，已读后由父级刷新） */
     peerUnreadCount: { type: Number, default: 0 }
   },
@@ -160,6 +163,7 @@ export default {
     }
   },
   methods: {
+    avatarCacheBustFromUpdatedAt,
     ...mapActions('dpMailbox', [
       'fetchFriendChatUnreadSummary',
       'fetchNotifySummary'

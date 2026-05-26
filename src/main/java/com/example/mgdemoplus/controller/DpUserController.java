@@ -145,7 +145,8 @@ public class DpUserController {
         }
         return ResultUtil.ok()
                 .data("message", outcome.getMessage())
-                .data("avatarUrl", outcome.getAvatarUrl());
+                .data("avatarUrl", outcome.getAvatarUrl())
+                .data("avatarUpdatedAt", outcome.getAvatarUpdatedAt());
     }
 
     /**

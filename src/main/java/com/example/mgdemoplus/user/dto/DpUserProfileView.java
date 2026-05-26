@@ -10,6 +10,8 @@ public class DpUserProfileView {
     private int id;
     private String nickname;
     private String avatarUrl;
+    /** 头像最后更新时间（epoch 毫秒），无头像或未记录时为 null */
+    private Long avatarUpdatedAt;
     /** 是否已设置登录密码（库内非空） */
     private boolean passwordSet;
 
@@ -43,6 +45,14 @@ public class DpUserProfileView {
 
     public void setAvatarUrl(String avatarUrl) {
         this.avatarUrl = avatarUrl;
+    }
+
+    public Long getAvatarUpdatedAt() {
+        return avatarUpdatedAt;
+    }
+
+    public void setAvatarUpdatedAt(Long avatarUpdatedAt) {
+        this.avatarUpdatedAt = avatarUpdatedAt;
     }
 
     public boolean isPasswordSet() {

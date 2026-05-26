@@ -115,6 +115,12 @@
             <artifactId>dotenv-java</artifactId>
             <version>3.0.0</version>
         </dependency>
+        <!-- 头像缩略图 WebP 写出（ImageIO SPI）；缩放仍用 JDK BufferedImage -->
+        <dependency>
+            <groupId>com.github.gotson</groupId>
+            <artifactId>webp-imageio</artifactId>
+            <version>0.2.2</version>
+        </dependency>
     </dependencies>
 
     <build>
