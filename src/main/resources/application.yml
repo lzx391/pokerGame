@@ -29,9 +29,9 @@ spring:
   datasource:
     type: com.alibaba.druid.pool.DruidDataSource  # [D]
     driver-class-name: com.mysql.cj.jdbc.Driver  # [D]
-    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3307/school_db?useSSL=false&serverTimezone=Asia/Shanghai}  # [C] env: SPRING_DATASOURCE_URL
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/school_db?useSSL=false&serverTimezone=Asia/Shanghai}  # [C] env: SPRING_DATASOURCE_URL
     username: ${SPRING_DATASOURCE_USERNAME:root}  # [A] env: SPRING_DATASOURCE_USERNAME
-    password: ${SPRING_DATASOURCE_PASSWORD:mgdemo_root}  # [A] env: SPRING_DATASOURCE_PASSWORD
+    password: ${SPRING_DATASOURCE_PASSWORD:123456}  # [A] env: SPRING_DATASOURCE_PASSWORD
     druid:
       enable: true  # [D]
   devtools:
@@ -39,13 +39,13 @@ spring:
       additional-paths: src/main/java  # [D]
   servlet:
     multipart:
-      max-file-size: 80MB  # [D]
-      max-request-size: 80MB  # [D]
+      max-file-size: 120MB  # [D]
+      max-request-size: 120MB  # [D]
   data:
     redis:
       host: ${SPRING_DATA_REDIS_HOST:127.0.0.1}  # [C] env: SPRING_DATA_REDIS_HOST
-      port: ${SPRING_DATA_REDIS_PORT:6380}  # [C] env: SPRING_DATA_REDIS_PORT
-      password: ${SPRING_DATA_REDIS_PASSWORD:mgdemo_redis}  # [A] env: SPRING_DATA_REDIS_PASSWORD
+      port: ${SPRING_DATA_REDIS_PORT:6379}  # [C] env: SPRING_DATA_REDIS_PORT
+      password: ${SPRING_DATA_REDIS_PASSWORD:ruoyi123}  # [A] env: SPRING_DATA_REDIS_PASSWORD
       database: 0  # [D]
       timeout: 3000ms  # [D]
   # SSE 长连接：避免默认 ~30s AsyncRequestTimeout 掐断 /dp/social/stream
@@ -79,10 +79,11 @@ mgdemoplus:
 
   # --- C: 上传路径 ---
   images:
-    file-location: ${MGDEMOPLUS_IMAGES_FILE_LOCATION:file:P:/javaworkspace/DPGameFiles/}  # [C] env: MGDEMOPLUS_IMAGES_FILE_LOCATION
+    file-location: ${MGDEMOPLUS_IMAGES_FILE_LOCATION:file:P:/javaworkspace/DPGameFiles/images/}  # [C] env: MGDEMOPLUS_IMAGES_FILE_LOCATION
   music:
     file-location: ${MGDEMOPLUS_MUSIC_FILE_LOCATION:file:P:/javaworkspace/DPGameFiles/music/}  # [C] env: MGDEMOPLUS_MUSIC_FILE_LOCATION
-
+  files:
+    file-location: ${MGDEMOPLUS_FILES_FILE_LOCATION:file:P:/javaworkspace/DPGameFiles/other/}  # [C] env: MGDEMOPLUS_FILES_FILE_LOCATION
   # --- B: 排行榜 Redis 同步 ---
   leaderboard:
     sync-enabled: ${MGDEMOPLUS_LEADERBOARD_SYNC_ENABLED:true}  # [B] env: MGDEMOPLUS_LEADERBOARD_SYNC_ENABLED

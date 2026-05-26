@@ -28,6 +28,12 @@
             :class="['dp-invite-friend-sheet__row', friendInvitePresenceClass(f)]"
         >
           <div class="dp-invite-friend-sheet__left">
+            <dp-user-avatar
+              :avatar-url="f.avatarUrl"
+              :nickname="inviteOptionLabel(f)"
+              size="sm"
+            />
+            <div class="dp-invite-friend-sheet__meta">
             <span
                 class="dp-invite-friend-sheet__name"
                 :title="inviteOptionLabel(f)"
@@ -38,6 +44,7 @@
                 v-if="friendInvitePresenceLine(f)"
                 class="dp-invite-friend-sheet__presence"
             >{{ friendInvitePresenceLine(f) }}</span>
+            </div>
           </div>
           <el-button
               type="primary"
@@ -57,6 +64,7 @@
 
 <script>
 import GameBottomSheet from './GameBottomSheet.vue'
+import DpUserAvatar from '@/components/DpUserAvatar.vue'
 import { mapState } from 'vuex'
 import { dpFriendPresenceRowClass, dpFriendPresenceStatusText } from '@/utils/dpFriendPresence'
 import { dpSocialDisplayNickname } from '../utils/dpSocialDisplayName'
@@ -64,7 +72,7 @@ import { dpResultSuccess, dpResultMessage, dpAxiosErrorMessage } from '../utils/
 
 export default {
   name: 'GameInviteFriendSheet',
-  components: { GameBottomSheet },
+  components: { GameBottomSheet, DpUserAvatar },
   props: {
     visible: { type: Boolean, default: false },
     roomId: { type: String, required: true },
@@ -221,6 +229,15 @@ export default {
 }
 
 .dp-invite-friend-sheet__left {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.dp-invite-friend-sheet__meta {
   flex: 1 1 auto;
   min-width: 0;
   display: flex;

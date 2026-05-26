@@ -60,8 +60,9 @@ services:
       TZ: Asia/Shanghai
 
       # --- C: 容器内上传路径（配合 volumes mgdemo_uploads:/data/mgdemo-files）---
-      MGDEMOPLUS_IMAGES_FILE_LOCATION: file:/data/mgdemo-files/
+      MGDEMOPLUS_IMAGES_FILE_LOCATION: file:/data/mgdemo-files/images/
       MGDEMOPLUS_MUSIC_FILE_LOCATION: file:/data/mgdemo-files/music/
+      MGDEMOPLUS_FILES_FILE_LOCATION: file:/data/mgdemo-files/other/
       MGDEMOPLUS_TIME_ZONE: Asia/Shanghai
 
       # --- C: Docker 网络内 JDBC / Redis（主机名 mysql / redis）---

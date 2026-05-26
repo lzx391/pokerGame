@@ -85,6 +85,7 @@ export default {
         p.startsWith('/hand-history') ||
         p === '/leaderboard' ||
         p === '/music-upload' ||
+        p === '/download-center' ||
         p.startsWith('/room/')
       )
     },

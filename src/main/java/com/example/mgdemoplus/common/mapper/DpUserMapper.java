@@ -4,6 +4,7 @@ import com.example.mgdemoplus.common.entity.DpUser;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Options;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
@@ -24,4 +25,7 @@ public interface DpUserMapper {
 
     @Update("UPDATE dp_user SET password = #{password} WHERE id = #{id}")
     int updatePasswordHash(DpUser dpUser);
+
+    @Update("UPDATE dp_user SET avatar_url = #{avatarUrl} WHERE id = #{id}")
+    int updateAvatarUrl(@Param("id") int id, @Param("avatarUrl") String avatarUrl);
 }

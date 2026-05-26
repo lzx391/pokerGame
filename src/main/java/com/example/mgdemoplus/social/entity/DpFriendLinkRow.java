@@ -18,6 +18,8 @@ public class DpFriendLinkRow {
     @TableField(exist = false)
     private String friendNickname;
     @TableField(exist = false)
+    private String friendAvatarUrl;
+    @TableField(exist = false)
     private Integer friendUserId;
 
     public Long getId() {
@@ -58,6 +60,14 @@ public class DpFriendLinkRow {
 
     public void setFriendNickname(String friendNickname) {
         this.friendNickname = friendNickname;
+    }
+
+    public String getFriendAvatarUrl() {
+        return friendAvatarUrl;
+    }
+
+    public void setFriendAvatarUrl(String friendAvatarUrl) {
+        this.friendAvatarUrl = friendAvatarUrl;
     }
 
     public Integer getFriendUserId() {

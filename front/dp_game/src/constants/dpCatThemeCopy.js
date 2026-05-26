@@ -105,7 +105,10 @@ export const CAT_COPY = Object.freeze({
   musicLibraryHint:
     '音频保存在服务器目录，会写入曲库；支持 mp3、m4a、wav、ogg、flac，单文件建议不超过 80MB。',
   musicLibraryNotReady: '曲库未就绪，请确认后端已启动。',
-  musicListLoadFailed: '暂时无法加载曲库，请稍后再试'
+  musicListLoadFailed: '暂时无法加载曲库，请稍后再试',
+  downloadCenterHint:
+    '安装包保存在服务器目录，会写入下载列表；支持 exe、apk、msi、zip，单文件建议不超过 80MB。',
+  downloadListLoadFailed: '暂时无法加载下载列表，请稍后再试'
 })
 
 /** 池展示名：0=主鱼干池，>0=边鱼干池 N */

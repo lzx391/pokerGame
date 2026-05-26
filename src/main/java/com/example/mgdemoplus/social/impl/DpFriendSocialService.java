@@ -242,6 +242,7 @@ public class DpFriendSocialService {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("userId", fid);
             m.put("nickname", fl.getFriendNickname());
+            m.put("avatarUrl", fl.getFriendAvatarUrl());
             m.put("friendship_status", ACCEPTED);
             items.add(m);
             presenceEligibleFriendIds.add(fid);

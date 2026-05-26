@@ -17,6 +17,36 @@
       class="home-profile-modal__form"
       @submit.native.prevent="onSave"
     >
+      <el-form-item label="头像">
+        <div class="home-profile-modal__avatar-row">
+          <dp-user-avatar
+            :avatar-url="form.avatarUrl"
+            :nickname="form.nickname"
+            :cache-bust="avatarCacheBust"
+            size="lg"
+          />
+          <div class="home-profile-modal__avatar-actions">
+            <el-upload
+              class="home-profile-modal__avatar-upload"
+              action=""
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              :show-file-list="false"
+              :disabled="avatarUploading"
+              :http-request="onAvatarUploadRequest"
+            >
+              <button
+                type="button"
+                class="dp-btn dp-btn--ghost home-profile-modal__avatar-btn"
+                :disabled="avatarUploading"
+              >
+                {{ avatarUploading ? '上传中…' : '更换头像' }}
+              </button>
+            </el-upload>
+            <p class="home-profile-modal__avatar-hint">支持 jpg / png / webp / gif，最大 2MB</p>
+          </div>
+        </div>
+      </el-form-item>
+
       <el-form-item label="用户 ID">
         <el-input :value="String(form.id)" disabled />
       </el-form-item>
@@ -122,11 +152,13 @@
 </template>
 
 <script>
+import DpUserAvatar from '@/components/DpUserAvatar.vue'
 import { dpResultSuccess, dpResultData, dpResultMessage } from '@/utils/dpApiResult'
 import { formatNetWinMultiplier, formatRoomNetMultiplier } from '@/utils/dpRoomNetMultiplier'
 
 export default {
   name: 'HomeProfileModal',
+  components: { DpUserAvatar },
   props: {
     visible: {
       type: Boolean,
@@ -137,10 +169,13 @@ export default {
     return {
       loading: false,
       saving: false,
+      avatarUploading: false,
+      avatarCacheBust: '',
       editingPassword: false,
       form: {
         id: '',
         nickname: '',
+        avatarUrl: '',
         passwordSet: true,
         royalFlushWins: null,
         straightFlushWins: null,
@@ -194,6 +229,7 @@ export default {
         const profile = d.profile || {}
         this.form.id = profile.id
         this.form.nickname = profile.nickname || ''
+        this.form.avatarUrl = profile.avatarUrl || ''
         this.form.passwordSet = profile.passwordSet !== false
         this.form.royalFlushWins = profile.royalFlushWins
         this.form.straightFlushWins = profile.straightFlushWins
@@ -206,6 +242,37 @@ export default {
         this.dialogVisible = false
       } finally {
         this.loading = false
+      }
+    },
+    async onAvatarUploadRequest(options) {
+      var file = options && options.file
+      if (!file) return
+      if (file.size > 2 * 1024 * 1024) {
+        this.$message.warning('图片不能超过 2MB')
+        return
+      }
+      var fd = new FormData()
+      fd.append('file', file)
+      this.avatarUploading = true
+      try {
+        const res = await this.$http.post('/dpUser/avatar', fd, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        })
+        const body = res.data
+        const data = dpResultData(body) || {}
+        if (!dpResultSuccess(body)) {
+          this.$message.error(dpResultMessage(body) || data.message || '上传失败')
+          return
+        }
+        var url = data.avatarUrl || ''
+        this.form.avatarUrl = url
+        this.avatarCacheBust = Date.now()
+        this.$message.success(data.message || '上传成功')
+        this.$emit('avatar-updated', { avatarUrl: url, cacheBust: this.avatarCacheBust })
+      } catch (e) {
+        this.$message.error('上传失败')
+      } finally {
+        this.avatarUploading = false
       }
     },
     async onSave() {
@@ -300,6 +367,28 @@ export default {
   justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
+}
+.home-profile-modal__avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.home-profile-modal__avatar-actions {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+.home-profile-modal__avatar-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--dp-text-muted, #999);
+  line-height: 1.4;
+}
+.home-profile-modal__avatar-btn {
+  font-size: 13px;
+}
+.home-profile-modal__avatar-upload >>> .el-upload {
+  display: block;
 }
 
 /* ---- 荣誉战绩 ---- */

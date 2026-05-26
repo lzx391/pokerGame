@@ -23,6 +23,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.example.mgdemoplus.user.dto.DpAvatarUploadResult;
 
 import java.util.UUID;
 
@@ -126,10 +129,28 @@ public class DpUserController {
         }
         return ok;
     }
-/**
- * 解析当前登录用户
- * @return
- */
+
+    /**
+     * 上传头像：身份仅从 JWT 解析，禁止客户端指定 userId。
+     */
+    @PostMapping("/avatar")
+    public ResultUtil uploadAvatar(@RequestParam("file") MultipartFile file) {
+        DpUser current = requireCurrentUser();
+        if (current == null) {
+            return ResultUtil.error().data("message", "未登录或登录已失效");
+        }
+        DpAvatarUploadResult outcome = dpUserService.uploadAvatar(current, file);
+        if (!outcome.isSuccess()) {
+            return ResultUtil.error().data("message", outcome.getMessage());
+        }
+        return ResultUtil.ok()
+                .data("message", outcome.getMessage())
+                .data("avatarUrl", outcome.getAvatarUrl());
+    }
+
+    /**
+     * 解析当前登录用户
+     */
     private DpUser requireCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated()

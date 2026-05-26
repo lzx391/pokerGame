@@ -95,6 +95,10 @@ export default new Router({
     {
       path: '/music-upload',
       component: () => import(/* webpackChunkName: "route-music-upload" */ '@/components/MusicUpload.vue')
+    },
+    {
+      path: '/download-center',
+      component: () => import(/* webpackChunkName: "route-download-center" */ '@/components/DownloadCenter.vue')
     }
   ]
 })

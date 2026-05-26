@@ -14,7 +14,7 @@ function pathPattern(path) {
 
 var GAME = '/game/:id'
 var LOBBY_ENTER_GAME = ['/home', '/room/:id', '/create-room']
-var LOBBY_SUB = ['/leaderboard', '/hand-history', '/music-upload', '/image_upload']
+var LOBBY_SUB = ['/leaderboard', '/hand-history', '/music-upload', '/download-center', '/image_upload']
 var AUTH = ['/login', '/register', '/']
 
 function isLobbySub(p) {

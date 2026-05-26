@@ -56,6 +56,18 @@
   min-width: 0;
 }
 
+.dp-social-list__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.dp-social-list__row .dp-social-list__text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 /**
  * 好友空闲 / 游戏中（与 Element 成功色、危险色协调的浅色底；正文仍用 --dp-text-primary）。
  */

@@ -5,7 +5,11 @@
     :style="customThemeInlineStyle"
   >
     <div class="dp-lobby-inner home-inner">
-      <home-profile-modal :visible.sync="profileVisible" @saved="onProfileSaved" />
+      <home-profile-modal
+        :visible.sync="profileVisible"
+        @saved="onProfileSaved"
+        @avatar-updated="onAvatarUpdated"
+      />
 
       <game-play-guide-modal
         :visible="playGuideVisible"
@@ -34,6 +38,15 @@
             <dp-fluidity-toggle label-class="home-fluidity-toggle" />
           </div>
           <div class="user-info">
+            <dp-user-avatar
+              v-if="user && user.nickname"
+              class="home-header__avatar"
+              :avatar-url="user.avatarUrl"
+              :nickname="user.nickname"
+              :cache-bust="userAvatarCacheBust"
+              size="sm"
+              :title="user.nickname"
+            />
             <span v-if="user && user.nickname">当前用户：{{ user.nickname }}</span>
             <button type="button" class="dp-btn dp-btn--ghost logout-btn" @click="openPlayGuide(false)">玩法说明</button>
             <button type="button" class="dp-btn dp-btn--ghost logout-btn" @click="goButtonGuide">新手一分钟</button>
@@ -59,6 +72,7 @@
             <button type="button" class="dp-btn dp-btn--ghost" @click="goHandHistory">历史对局</button>
             <button type="button" class="dp-btn dp-btn--ghost" @click="goLeaderboard">排行榜</button>
             <button type="button" class="dp-btn dp-btn--ghost" @click="goMusicUpload">曲库上传</button>
+            <button type="button" class="dp-btn dp-btn--ghost" @click="goDownloadCenter">下载中心</button>
             <el-badge
               :value="unreadCount"
               :hidden="!unreadCount"
@@ -219,7 +233,13 @@
             :key="'friend-' + f.userId"
             :class="['dp-social-list__item', friendPresenceRowClass(f)]"
           >
-            <div class="dp-social-list__text">
+            <div class="dp-social-list__row">
+              <dp-user-avatar
+                :avatar-url="f.avatarUrl"
+                :nickname="friendPrimaryName(f)"
+                size="sm"
+              />
+              <div class="dp-social-list__text">
               <div class="dp-social-list__primary dp-social-list__primary--dm">
                 <span>{{ friendPrimaryName(f) }}</span>
                 <span
@@ -242,6 +262,7 @@
               >
                 ID {{ f.userId }}
               </button>
+              </div>
             </div>
             <div class="dp-social-list__actions">
               <el-badge
@@ -380,6 +401,7 @@
       :visible.sync="friendChatVisible"
       :peer-user-id="friendChatPeerId"
       :peer-display-name="friendChatPeerName"
+      :peer-avatar-url="friendChatPeerAvatar"
       :peer-unread-count="friendChatPeerUnread"
       @closed="onFriendChatClosed"
     />
@@ -397,6 +419,7 @@ import { dpResultSuccess, dpResultData, dpResultMessage } from '@/utils/dpApiRes
 import GamePlayGuideModal from '@/components/GamePlayGuideModal.vue'
 import HomeProfileModal from '@/components/HomeProfileModal.vue'
 import FriendChatDialog from '@/components/FriendChatDialog.vue'
+import DpUserAvatar from '@/components/DpUserAvatar.vue'
 import DpFluidityToggle from '@/components/DpFluidityToggle.vue'
 import { buildSocialStreamUrl } from '@/utils/dpSocialStream'
 import { mapGetters, mapState, mapActions } from 'vuex'
@@ -411,7 +434,7 @@ import { postQuickMatchCancel2 } from '@/utils/dpQuickMatchExit'
 import { prefetchGameChunk, navigateToGame } from '@/utils/dpPrefetchGameRoute'
 
 export default {
-  components: { GamePlayGuideModal, HomeProfileModal, FriendChatDialog, DpFluidityToggle },
+  components: { GamePlayGuideModal, HomeProfileModal, FriendChatDialog, DpUserAvatar, DpFluidityToggle },
   mixins: [dpLobbyThemeMixin],
   data() {
     return {
@@ -420,6 +443,7 @@ export default {
       playGuideTab: 'flow',
       playGuideFirstRun: false,
       user: {},
+      userAvatarCacheBust: '',
       roomDtos: [],
       roomsLoading: true,
       roomsError: '',
@@ -453,6 +477,7 @@ export default {
       friendChatVisible: false,
       friendChatPeerId: null,
       friendChatPeerName: '',
+      friendChatPeerAvatar: '',
       friendChatPeerUnread: 0,
       /** 好友列表「跟随」连点防护：好友 dp_user.id */
       friendFollowBusyUserId: null
@@ -501,6 +526,7 @@ export default {
     }, 10000)
     if (this.user && this.user.token) {
       this.bootstrapSocial()
+      this.loadCurrentUserAvatar()
       prefetchGameChunk()
     }
   },
@@ -729,12 +755,14 @@ export default {
       if (!isFinite(uid) || uid <= 0) return
       this.friendChatPeerId = uid
       this.friendChatPeerName = this.friendPrimaryName(f)
+      this.friendChatPeerAvatar = (f && f.avatarUrl) || ''
       this.friendChatPeerUnread = this.friendUnreadFor(uid)
       this.friendChatVisible = true
     },
     onFriendChatClosed() {
       this.friendChatPeerId = null
       this.friendChatPeerName = ''
+      this.friendChatPeerAvatar = ''
       this.friendChatPeerUnread = 0
       this.fetchFriendChatUnreadSummary({ http: this.$http }).catch(() => {})
     },
@@ -871,6 +899,36 @@ export default {
       }
       this.onPlayGuideClose()
     },
+    async loadCurrentUserAvatar() {
+      try {
+        const res = await this.$http.get('/dpUser/profile')
+        const body = res.data
+        if (!dpResultSuccess(body)) return
+        const profile = (dpResultData(body) || {}).profile || {}
+        if (profile.avatarUrl) {
+          this.$set(this.user, 'avatarUrl', profile.avatarUrl)
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    },
+    onAvatarUpdated(payload) {
+      if (!payload) return
+      if (payload.avatarUrl) {
+        this.$set(this.user, 'avatarUrl', payload.avatarUrl)
+      }
+      if (payload.cacheBust) {
+        this.userAvatarCacheBust = payload.cacheBust
+      }
+      try {
+        var raw = localStorage.getItem('userInfo')
+        var stored = raw ? JSON.parse(raw) : {}
+        if (payload.avatarUrl) stored.avatarUrl = payload.avatarUrl
+        localStorage.setItem('userInfo', JSON.stringify(stored))
+      } catch (e) {
+        /* ignore */
+      }
+    },
     onProfileSaved(payload) {
       if (!payload) return
       if (payload.nickname) {
@@ -907,6 +965,9 @@ export default {
     },
     goMusicUpload() {
       this.$router.push('/music-upload')
+    },
+    goDownloadCenter() {
+      this.$router.push('/download-center')
     },
     async goCreateRoom() {
       await this.exitQuickMatchBeforeRoomAction()
@@ -1319,6 +1380,9 @@ export default {
 }
 .home-theme-row {
   justify-content: flex-end;
+}
+.home-header__avatar {
+  flex-shrink: 0;
 }
 .user-info {
   display: flex;

@@ -5,15 +5,22 @@ import com.example.mgdemoplus.common.entity.DpUserStats;
 import com.example.mgdemoplus.common.mapper.DpUserMapper;
 import com.example.mgdemoplus.moderation.DpSensitiveWordService;
 import com.example.mgdemoplus.user.DpUserService;
+import com.example.mgdemoplus.user.dto.DpAvatarUploadResult;
 import com.example.mgdemoplus.user.dto.DpUserProfileUpdateRequest;
 import com.example.mgdemoplus.user.dto.DpUserProfileUpdateResult;
 import com.example.mgdemoplus.user.dto.DpPlayerHonorView;
 import com.example.mgdemoplus.user.dto.DpUserProfileView;
 import com.example.mgdemoplus.user.mapper.DpUserStatsMapper;
 import com.example.mgdemoplus.utils.CryptoUtil;
+import com.example.mgdemoplus.utils.DpImageFileSupport;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.File;
+import java.io.IOException;
 
 @Service
 public class DpUserServiceImpl implements DpUserService {
@@ -23,6 +30,11 @@ public class DpUserServiceImpl implements DpUserService {
     DpUserStatsMapper dpUserStatsMapper;
     @Autowired
     DpSensitiveWordService sensitiveWordService;
+
+    @Value("${mgdemoplus.images.file-location:file:P:/javaworkspace/DPGameFiles/images/}")
+    private String imagesFileLocation;
+
+    private static final long MAX_AVATAR_BYTES = 2L * 1024 * 1024;
 
     /** 注册成功 */
     public static final int REGISTER_OK = 1;
@@ -181,5 +193,52 @@ public class DpUserServiceImpl implements DpUserService {
 
         result.setMessage("保存成功");
         return result;
+    }
+
+    @Override
+    public DpAvatarUploadResult uploadAvatar(DpUser current, MultipartFile file) {
+        if (current == null || current.getId() <= 0) {
+            return DpAvatarUploadResult.fail("未登录或用户无效");
+        }
+        if (file == null || file.isEmpty()) {
+            return DpAvatarUploadResult.fail("请选择图片文件");
+        }
+        if (file.getSize() > MAX_AVATAR_BYTES) {
+            return DpAvatarUploadResult.fail("图片不能超过 2MB");
+        }
+        String ext = DpImageFileSupport.extensionOf(file.getOriginalFilename());
+        if (!DpImageFileSupport.isAllowedImageExtension(ext)) {
+            return DpAvatarUploadResult.fail("仅支持 jpg、png、webp、gif");
+        }
+
+        DpUser stored = dpUserMapper.selectById(current.getId());
+        if (stored == null) {
+            return DpAvatarUploadResult.fail("用户不存在");
+        }
+
+        String dir = DpImageFileSupport.toPhysicalDir(imagesFileLocation);
+        File folder = new File(dir);
+        if (!folder.exists() && !folder.mkdirs()) {
+            return DpAvatarUploadResult.fail("无法创建图片目录");
+        }
+
+        String oldUrl = stored.getAvatarUrl();
+        DpImageFileSupport.deleteWebPathFile(imagesFileLocation, oldUrl);
+        DpImageFileSupport.deleteUserAvatarFiles(imagesFileLocation, stored.getId());
+
+        String storedFilename = stored.getId() + ext;
+        String webPath = "/images/" + storedFilename;
+        try {
+            file.transferTo(new File(dir, storedFilename));
+        } catch (IOException e) {
+            return DpAvatarUploadResult.fail("保存文件失败");
+        }
+
+        if (dpUserMapper.updateAvatarUrl(stored.getId(), webPath) != 1) {
+            DpImageFileSupport.deleteWebPathFile(imagesFileLocation, webPath);
+            return DpAvatarUploadResult.fail("更新资料失败");
+        }
+
+        return DpAvatarUploadResult.ok(webPath);
     }
 }
