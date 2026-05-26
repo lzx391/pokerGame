@@ -4,6 +4,7 @@ import com.example.mgdemoplus.common.bo.DpRoomBO;
 import com.example.mgdemoplus.common.entity.DpPlayer;
 import com.example.mgdemoplus.common.entity.DpPlayerStats;
 import com.example.mgdemoplus.npc.strategy.DpNpcCallStrategy;
+import com.example.mgdemoplus.npc.strategy.DpNpcCustomStrategy;
 import com.example.mgdemoplus.npc.strategy.DpNpcFishStrategy;
 import com.example.mgdemoplus.npc.strategy.DpNpcLagStrategy;
 import com.example.mgdemoplus.npc.strategy.DpNpcManiacStrategy;
@@ -11,8 +12,8 @@ import com.example.mgdemoplus.npc.strategy.DpNpcNitStrategy;
 import com.example.mgdemoplus.npc.strategy.DpNpcRuleDecisionParams;
 import com.example.mgdemoplus.npc.strategy.DpNpcTagStrategy;
 import com.example.mgdemoplus.npc.strategy.DpNpcUnifiedPreflopStrategy;
-import com.example.mgdemoplus.npc.strategy.DpNpcUnifiedPreflopStrategy;
 import com.example.mgdemoplus.npc.llm.LlmNpcGameContext;
+import com.example.mgdemoplus.npc.rulethink.DpNpcRuleThinkSampler;
 import com.example.mgdemoplus.utils.DpUtilHandEvaluator;
 import com.example.mgdemoplus.utils.DpUtilHandEvaluator.HandStrength;
 import static com.example.mgdemoplus.utils.DpUtilHandEvaluator.isPlayingBoardPairOnly;
@@ -46,7 +47,7 @@ public class DpNpcEngine {
     }
 
     /**
-     * 规则 NPC 共用系数：短/深码、equity×底池赔率、c-bet/河牌尺度、概率噪声等（集中便于调参）。
+     * 规则 NPC 共用系数：短/深码、equity×底池赔率、c-bet/河牌尺度等（集中便于调参）。
      */
     public static final class NpcRuleCoeffs {
         /**
@@ -102,14 +103,6 @@ public class DpNpcEngine {
         final double multiwayFoldBoostBase;
 
         /**
-         * 概率类通用软噪声幅度，用于 applySoftNoise：
-         * - 建议范围：0.02~0.08，默认 0.05；
-         * - 调大：所有概率决策抖动更明显，行为更难预测；
-         * - 调小：行为更稳定、更贴近理论值。
-         */
-        final double probNoiseDelta;
-
-        /**
          * 河牌极强牌 overbet 策略：
          * - riverOverbetProb：在 river + 干燥牌面 + 怪兽牌时采用 overbet 的概率（建议 0.05~0.4，默认 0.2）；
          * - riverOverbetMinFactor / MaxFactor：overbet 相对 pot 的倍数，例如 1.2~1.5 表示
@@ -152,7 +145,6 @@ public class DpNpcEngine {
                 double equityFoldBoost,
                 double equityFoldShrinkFactor,
                 double multiwayFoldBoostBase,
-                double probNoiseDelta,
                 double riverOverbetProb,
                 double riverOverbetMinFactor,
                 double riverOverbetMaxFactor,
@@ -171,7 +163,6 @@ public class DpNpcEngine {
             this.equityFoldBoost = equityFoldBoost;
             this.equityFoldShrinkFactor = equityFoldShrinkFactor;
             this.multiwayFoldBoostBase = multiwayFoldBoostBase;
-            this.probNoiseDelta = probNoiseDelta;
             this.riverOverbetProb = riverOverbetProb;
             this.riverOverbetMinFactor = riverOverbetMinFactor;
             this.riverOverbetMaxFactor = riverOverbetMaxFactor;
@@ -196,7 +187,6 @@ public class DpNpcEngine {
                 0.10, // equityFoldBoost — 只在明显落后赔率时才加码弃牌
                 0.68, // equityFoldShrinkFactor — 赔率划算时更敢跟
                 0.11, // multiwayFoldBoostBase — 多人池略少过度弃牌
-                0.03, // probNoiseDelta — PRO 档行为更稳定
                 0.22, // riverOverbetProb — 坚果略多拿一点上限
                 1.20, // riverOverbetMinFactor
                 1.50, // riverOverbetMaxFactor
@@ -224,7 +214,6 @@ public class DpNpcEngine {
         static final double EQUITY_FOLD_BOOST = P.equityFoldBoost;
         static final double EQUITY_FOLD_SHRINK = P.equityFoldShrinkFactor;
         static final double MULTIWAY_FOLD_BOOST = P.multiwayFoldBoostBase;
-        public static final double PROB_NOISE_DELTA = P.probNoiseDelta;
         static final double RIVER_OVERBET_PROB = P.riverOverbetProb;
         static final double RIVER_BLOCK_PROB = P.riverBlockProb;
         static final double RIVER_BLOCK_FACTOR = P.riverBlockFactor;
@@ -243,6 +232,8 @@ public class DpNpcEngine {
     public static final String PREFIX_BOT_FISH = "BOT_FISH";
     public static final String PREFIX_BOT_CALL = "BOT_CALL";
     public static final String PREFIX_BOT_MANIAC = "BOT_MANIAC";
+    /** 房主自定义调参 NPC：{@code BOT_CUSTOM_<序号>} */
+    public static final String PREFIX_BOT_CUSTOM = "BOT_CUSTOM";
     /**
      * 大模型机器人前缀：{@code BOT_LLM} 或 {@code BOT_LLM_<uuid>}。
      */
@@ -263,17 +254,6 @@ public class DpNpcEngine {
 
     /** 与 {@link #PREFIX_BOT_LLM} 一致，供文档与精确匹配旧逻辑引用。 */
     public static final String LLM_BOT_NICKNAME = PREFIX_BOT_LLM;
-
-    /**
-     * 为 false：规则 NPC 决策里 mood 恒按 0；思考延迟也不按 mood 缩放；结算不再改写机器人 mood。
-     */
-    public static final boolean NPC_MOOD_ENABLED = false;
-
-    /**
-     * 为 false：{@link #applySoftNoise} 不再对概率做 ±delta 抖动（Fish/Maniac/TAG 共用）。
-     * 若想保留原先「不那么死板」的抽样，保持 true。
-     */
-    public static final boolean NPC_SOFT_NOISE_ENABLED = false;
 
     /**
      * 为 true：机器人 fold/call/raise 等抽样使用 {@code currentHandSeed ^ 座位} 固定种子，便于同一手牌复现决策序列。
@@ -341,15 +321,33 @@ public class DpNpcEngine {
     }
 
     /**
-     * NPC 决策结果：动作 + 金额。
+     * LLM 桌边话术：{@link #RULE} 由 {@link com.example.mgdemoplus.npc.tabletalk.DpNpcTableTalkService} 走台词池；
+     * {@link #SILENT} 不推送；{@link #SAY} 推送 {@link #llmTableTalkText}。
+     */
+    public enum LlmTableTalkMode {
+        RULE,
+        SILENT,
+        SAY
+    }
+
+    /**
+     * NPC 决策结果：动作 + 金额；可选 LLM 桌边话术（规则 NPC 恒为 {@link LlmTableTalkMode#RULE}）。
      */
     public static class BotAction {
         private final BotActionType type;
         private final int amount;
+        private final LlmTableTalkMode llmTableTalkMode;
+        private final String llmTableTalkText;
 
         public BotAction(BotActionType type, int amount) {
+            this(type, amount, LlmTableTalkMode.RULE, null);
+        }
+
+        public BotAction(BotActionType type, int amount, LlmTableTalkMode llmTableTalkMode, String llmTableTalkText) {
             this.type = type;
             this.amount = amount;
+            this.llmTableTalkMode = llmTableTalkMode != null ? llmTableTalkMode : LlmTableTalkMode.RULE;
+            this.llmTableTalkText = llmTableTalkText;
         }
 
         public BotActionType getType() {
@@ -358,6 +356,26 @@ public class DpNpcEngine {
 
         public int getAmount() {
             return amount;
+        }
+
+        public LlmTableTalkMode getLlmTableTalkMode() {
+            return llmTableTalkMode;
+        }
+
+        public String getLlmTableTalkText() {
+            return llmTableTalkText;
+        }
+
+        public boolean isRuleTableTalk() {
+            return llmTableTalkMode == LlmTableTalkMode.RULE;
+        }
+
+        /** 规范化执行后保留 LLM 桌边话术字段。 */
+        public static BotAction withExecution(BotAction source, BotActionType type, int amount) {
+            if (source == null || source.isRuleTableTalk()) {
+                return new BotAction(type, amount);
+            }
+            return new BotAction(type, amount, source.llmTableTalkMode, source.llmTableTalkText);
         }
     }
 
@@ -717,7 +735,7 @@ public class DpNpcEngine {
      *
      * <p>
      * <b>翻前</b>：{@link DpNpcUnifiedPreflopStrategy} 只读 {@code vpip}、{@code pfr}、{@code callStation}、
-     * {@code foldToPressure}（外加 mood、座位与局面），<strong>不</strong>经过 {@link #preflopTightness()}、
+     * {@code foldToPressure}（外加座位与局面），<strong>不</strong>经过 {@link #preflopTightness()}、
      * {@link #aggression()} 等兼容 getter。
      * </p>
      * <p>
@@ -819,6 +837,17 @@ public class DpNpcEngine {
         static StyleProfile presetManiac() {
             return new StyleProfile(0.48, 0.90, 0.88, 0.68, 0.22, 0.10);
         }
+    }
+
+    /** 由 {@link com.example.mgdemoplus.npc.CustomNpcStyleSnapshot} 或入座后的 {@link DpPlayer} 六维字段构建。 */
+    public static StyleProfile styleProfileFromValues(
+            double vpip,
+            double pfr,
+            double cbetFreq,
+            double bluffFreq,
+            double callStation,
+            double foldToPressure) {
+        return new StyleProfile(vpip, pfr, cbetFreq, bluffFreq, callStation, foldToPressure);
     }
 
     private static final Map<NpcStyle, StyleProfile> STYLE_PROFILE_MAP = new EnumMap<>(NpcStyle.class);
@@ -935,6 +964,20 @@ public class DpNpcEngine {
         return PREFIX_BOT_LLM_GLOBAL + "_" + seq;
     }
 
+    /** 自定义调参 NPC：{@code BOT_CUSTOM_<序号>} */
+    public static String customBotNickname(int seq) {
+        if (seq <= 0) {
+            throw new IllegalArgumentException("seq must be positive");
+        }
+        return PREFIX_BOT_CUSTOM + "_" + seq;
+    }
+
+    /** {@code BOT_CUSTOM} 或 {@code BOT_CUSTOM_<seq>}；与 LLM 线互斥。 */
+    public static boolean isCustomBotNickname(String name) {
+        return name != null
+                && (PREFIX_BOT_CUSTOM.equals(name) || name.startsWith(PREFIX_BOT_CUSTOM + "_"));
+    }
+
     private static BotType resolveRuleBotType(String nickname) {
         if (nickname == null || !nickname.startsWith("BOT_")) {
             return null;
@@ -985,6 +1028,9 @@ public class DpNpcEngine {
         if (isLlmBotNickname(name)) {
             return true;
         }
+        if (isCustomBotNickname(name)) {
+            return true;
+        }
         return resolveRuleBotType(name) != null;
     }
 
@@ -995,7 +1041,7 @@ public class DpNpcEngine {
     }
 
     public static BotType getBotTypeByNickname(String nickname) {
-        if (nickname == null || isLlmBotNickname(nickname)) {
+        if (nickname == null || isLlmBotNickname(nickname) || isCustomBotNickname(nickname)) {
             return null;
         }
         return resolveRuleBotType(nickname);
@@ -1812,8 +1858,8 @@ public class DpNpcEngine {
     }
 
     /**
-     * 在定时任务中调用：轮到规则 NPC 且校验通过则立即给出 {@link BotAction}。
-     * 返回 null 表示不该由该机器人行动。
+     * 在定时任务中调用：轮到规则 NPC 且校验通过则给出 {@link BotAction}。
+     * {@code enabled=true} 时先经 {@code nextBotActionTime} 两阶段排期；返回 null 表示尚未到点或不该由该机器人行动。
      */
     public static BotAction decideActionIfReady(DpRoomBO room, DpPlayer bot) {
         if (room == null || bot == null || !room.isPlaying()) {
@@ -1832,14 +1878,37 @@ public class DpNpcEngine {
             return null;
         }
 
-        bot.setNextBotActionTime(0L);
-
-        BotType type = getBotTypeByNickname(bot.getNickname());
-        if (type == null) {
+        if (isLlmBotNickname(bot.getNickname())) {
             return null;
         }
-        // 决策逻辑
-        return decideBotAction(room, bot, type);
+
+        long now = System.currentTimeMillis();
+        long deadline = bot.getNextBotActionTime();
+
+        if (deadline <= 0) {
+            long delay = DpNpcRuleThinkSampler.sampleDelayMs(
+                    buildHandRandomForRuleThink(room, bot));
+            if (delay > 0) {
+                bot.setNextBotActionTime(now + delay);
+                return null;
+            }
+        } else if (now < deadline) {
+            return null;
+        }
+
+        BotAction action;
+        if (isCustomBotNickname(bot.getNickname())) {
+            action = decideCustomBotAction(room, bot);
+        } else {
+            BotType type = getBotTypeByNickname(bot.getNickname());
+            if (type == null) {
+                bot.setNextBotActionTime(0L);
+                return null;
+            }
+            action = decideBotAction(room, bot, type);
+        }
+        bot.setNextBotActionTime(0L);
+        return action;
     }
 
     /**
@@ -1864,26 +1933,85 @@ public class DpNpcEngine {
     }
 
     /**
-     * 对概率应用一个 [-delta, +delta] 的软噪声，并裁剪在 [0,1]。
+     * 规则 NPC 思考延时抽样 RNG：与决策 RNG 同源但 salt 区分，避免与牌力决策共用同一 {@code nextDouble()} 序列。
      */
-    public static double applySoftNoise(double prob, double delta, Random random) {
-        if (!NPC_SOFT_NOISE_ENABLED) {
-            delta = 0;
+    public static Random buildHandRandomForRuleThink(DpRoomBO room, DpPlayer bot) {
+        return buildHandRandomForTableTalk(room, bot, 0x5448494E4B5F4E50L); // "THINK_NP"
+    }
+
+    /**
+     * 桌边话术抽样：与决策 RNG 同源但混入 {@code rollSalt}，避免每手牌每次行动都抽到相同的第一个 {@code nextDouble()}。
+     */
+    public static Random buildHandRandomForTableTalk(DpRoomBO room, DpPlayer bot, long rollSalt) {
+        if (!NPC_HAND_SEED_FOR_DECISIONS) {
+            return new Random(rollSalt ^ System.nanoTime());
         }
-        if (delta <= 0 || random == null) {
-            if (prob < 0)
-                return 0.0;
-            if (prob > 1)
-                return 1.0;
-            return prob;
+        long seed = room != null ? room.getCurrentHandSeed() : System.currentTimeMillis();
+        int seatIndex = -1;
+        if (room != null && room.getPlayers() != null) {
+            seatIndex = room.getPlayers().indexOf(bot);
         }
-        double noise = (random.nextDouble() * 2.0 - 1.0) * delta;
-        double v = prob + noise;
-        if (v < 0)
-            v = 0;
-        if (v > 1)
-            v = 1;
-        return v;
+        if (seatIndex < 0) {
+            seatIndex = 0;
+        }
+        seed ^= (long) (31 * seatIndex + 17);
+        seed ^= 0x54414C4B5F4E5043L; // "TALK_NPC" — 与决策 RNG 区分
+        seed ^= rollSalt;
+        if (room != null) {
+            seed ^= room.getLastActionTime();
+            seed ^= (long) room.getCurrentActorIndex() * 997L;
+        }
+        return new Random(seed);
+    }
+
+    /**
+     * 规则 / CUSTOM NPC 桌边台词风格：Legacy 与 {@link #getBotTypeByNickname} 映射；CUSTOM 六维最近邻预设。
+     */
+    public static NpcStyle resolveNpcStyleForTableTalk(DpPlayer bot) {
+        if (bot == null) {
+            return null;
+        }
+        String nick = bot.getNickname();
+        if (isCustomBotNickname(nick)) {
+            return nearestNpcStyleForCustomSixAxis(bot);
+        }
+        BotType type = getBotTypeByNickname(nick);
+        return type == null ? null : npcStyleForBotType(type);
+    }
+
+    private static NpcStyle nearestNpcStyleForCustomSixAxis(DpPlayer bot) {
+        double vpip = bot.getNpcStyleVpip();
+        double pfr = bot.getNpcStylePfr();
+        double cbet = bot.getNpcStyleCbetFreq();
+        double bluff = bot.getNpcStyleBluffFreq();
+        double callStation = bot.getNpcStyleCallStation();
+        double foldPressure = bot.getNpcStyleFoldToPressure();
+        if (vpip < 0 && pfr < 0) {
+            return NpcStyle.TAG;
+        }
+        NpcStyle best = NpcStyle.TAG;
+        double bestDist = Double.MAX_VALUE;
+        for (NpcStyle style : NpcStyle.values()) {
+            StyleProfile preset = STYLE_PROFILE_MAP.get(style);
+            if (preset == null) {
+                continue;
+            }
+            double d = sqAxis(vpip - preset.vpip)
+                    + sqAxis(pfr - preset.pfr)
+                    + sqAxis(cbet - preset.cbetFreq)
+                    + sqAxis(bluff - preset.bluffFreq)
+                    + sqAxis(callStation - preset.callStation)
+                    + sqAxis(foldPressure - preset.foldToPressure);
+            if (d < bestDist) {
+                bestDist = d;
+                best = style;
+            }
+        }
+        return best;
+    }
+
+    private static double sqAxis(double x) {
+        return x * x;
     }
 
     private static int countActiveVillains(DpRoomBO room, DpPlayer hero) {
@@ -2066,6 +2194,67 @@ public class DpNpcEngine {
         return LlmNpcGameContext.map(room, bot, ctx, stage, callAmount, strength, position);
     }
 
+    private static BotAction decideCustomBotAction(DpRoomBO room, DpPlayer bot) {
+        if (!bot.isNpcCustomStyleReady()) {
+            log.error("CUSTOM bot {} seated without style profile", bot.getNickname());
+            return null;
+        }
+        StyleProfile style = styleProfileFromValues(
+                bot.getNpcStyleVpip(),
+                bot.getNpcStylePfr(),
+                bot.getNpcStyleCbetFreq(),
+                bot.getNpcStyleBluffFreq(),
+                bot.getNpcStyleCallStation(),
+                bot.getNpcStyleFoldToPressure());
+        int chips = bot.getChips();
+        if (chips <= 0) {
+            return new BotAction(BotActionType.FOLD, 0);
+        }
+        int callAmount = Math.max(0, room.getCurrentBetToCall() - bot.getBet());
+        double callRatio = chips == 0 || callAmount >= chips ? 1.0 : (callAmount * 1.0 / chips);
+        TablePosition position = getTablePosition(room, bot);
+        String stageForNpc = room.getCurrentStage() != null ? room.getCurrentStage() : "";
+        Random random = buildHandRandom(room, bot);
+        BoardDanger boardDanger = evaluateBoardDanger(room.getCommunityCards());
+        if ("preflop".equals(stageForNpc)) {
+            BotAction preUnified = DpNpcUnifiedPreflopStrategy.decide(
+                    room,
+                    bot,
+                    callAmount,
+                    callRatio,
+                    style.vpip,
+                    style.pfr,
+                    style.callStation,
+                    style.foldToPressure,
+                    random,
+                    null);
+            if (preUnified != null) {
+                return preUnified;
+            }
+            return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+        }
+        SimpleStrength strength = estimateCurrentStrength(room, bot);
+        DpNpcRuleDecisionParams ruleParams = new DpNpcRuleDecisionParams(
+                room,
+                bot,
+                null,
+                chips,
+                callAmount,
+                callRatio,
+                position,
+                stageForNpc,
+                random,
+                boardDanger,
+                strength,
+                style.preflopTightness(),
+                style.aggression(),
+                style.bluffFrequency(),
+                style.callStation,
+                style.stealBlindFrequency(),
+                style.checkRaiseFear());
+        return DpNpcCustomStrategy.decide(ruleParams);
+    }
+
     private static BotAction decideBotAction(DpRoomBO room, DpPlayer bot, BotType type) {
         int chips = bot.getChips();
         if (chips <= 0) {
@@ -2078,9 +2267,8 @@ public class DpNpcEngine {
         String stageForNpc = room.getCurrentStage() != null ? room.getCurrentStage() : "";
         Random random = buildHandRandom(room, bot);
         // log.info("random: {}", random);
-        /// 这里判断牌面危险度、风格配置（翻前范围、凶度、偷盲率、诈唬频率等）；mood 见 {@link #NPC_MOOD_ENABLED}
+        /// 这里判断牌面危险度、风格配置（翻前范围、凶度、偷盲率、诈唬频率等）
         BoardDanger boardDanger = evaluateBoardDanger(room.getCommunityCards());
-        double mood = NPC_MOOD_ENABLED ? bot.getMood() : 0.0;
         // 统一根据 BotType 拿到风格配置，后续各 case 里不再写死“紧/松、凶/弱”等魔法数字。
         StyleProfile style = STYLE_PROFILE_MAP.get(npcStyleForBotType(type));
         if (style == null) {// 如果没有对应风格默认紧凶
@@ -2097,7 +2285,6 @@ public class DpNpcEngine {
                     style.pfr,
                     style.callStation,
                     style.foldToPressure,
-                    mood,
                     random,
                     type);
             if (preUnified != null) {
@@ -2124,7 +2311,6 @@ public class DpNpcEngine {
                 stageForNpc,
                 random,
                 boardDanger,
-                mood,
                 strength,
                 preflopTight,
                 aggression,

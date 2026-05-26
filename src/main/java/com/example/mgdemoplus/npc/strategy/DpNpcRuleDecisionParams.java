@@ -11,6 +11,7 @@ import java.util.Random;
 
 /**
  * {@link com.example.mgdemoplus.npc.engine.DpNpcEngine#decideBotAction} 在分发到各规则 NPC 策略类时的入参快照。
+ * mood 不参与决策，见 {@code dp.npc.mood} 与 {@link com.example.mgdemoplus.npc.mood.DpNpcMoodProperties}。
  */
 public final class DpNpcRuleDecisionParams {
     public final DpRoomBO room;
@@ -24,7 +25,6 @@ public final class DpNpcRuleDecisionParams {
     public final String stageForNpc;
     public final Random random;
     public final BoardDanger boardDanger;
-    public final double mood;
     public final SimpleStrength strength;
     public final double preflopTight;
     public final double aggression;
@@ -44,7 +44,6 @@ public final class DpNpcRuleDecisionParams {
             String stageForNpc,
             Random random,
             BoardDanger boardDanger,
-            double mood,
             SimpleStrength strength,
             double preflopTight,
             double aggression,
@@ -62,7 +61,6 @@ public final class DpNpcRuleDecisionParams {
         this.stageForNpc = stageForNpc;
         this.random = random;
         this.boardDanger = boardDanger;
-        this.mood = mood;
         this.strength = strength;
         this.preflopTight = preflopTight;
         this.aggression = aggression;

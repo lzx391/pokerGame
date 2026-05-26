@@ -7,6 +7,7 @@
       @click.self="$emit('close')"
   >
     <div
+        ref="guideSheetPanel"
         class="dp-game-sheet"
         :class="{ 'dp-game-sheet--wide': wide }"
         @click.stop
@@ -29,6 +30,7 @@
         <slot />
       </div>
     </div>
+    <slot name="overlay"></slot>
   </div>
 </template>
 

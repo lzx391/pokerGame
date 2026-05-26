@@ -17,9 +17,77 @@
       class="home-profile-modal__form"
       @submit.native.prevent="onSave"
     >
+      <el-form-item label="头像">
+        <div class="home-profile-modal__avatar-row">
+          <dp-user-avatar
+            :avatar-url="form.avatarUrl"
+            :nickname="form.nickname"
+            :cache-bust="avatarCacheBust || avatarCacheBustFromUpdatedAt(form.avatarUpdatedAt)"
+            size="lg"
+          />
+          <div class="home-profile-modal__avatar-actions">
+            <el-upload
+              class="home-profile-modal__avatar-upload"
+              action=""
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              :show-file-list="false"
+              :disabled="avatarUploading"
+              :http-request="onAvatarUploadRequest"
+            >
+              <button
+                type="button"
+                class="dp-btn dp-btn--ghost home-profile-modal__avatar-btn"
+                :disabled="avatarUploading"
+              >
+                {{ avatarUploading ? '上传中…' : '更换头像' }}
+              </button>
+            </el-upload>
+            <p class="home-profile-modal__avatar-hint">支持 jpg / png / webp / gif，最大 2MB</p>
+          </div>
+        </div>
+      </el-form-item>
+
       <el-form-item label="用户 ID">
         <el-input :value="String(form.id)" disabled />
       </el-form-item>
+
+      <!-- 生涯荣誉战绩 -->
+      <el-form-item v-if="form.totalHandsPlayed != null" label="生涯战绩">
+        <div class="home-profile-modal__honor">
+          <div class="home-profile-modal__honor-row">
+            <div class="honor-badge honor-badge--royal">
+              <span class="honor-badge__icon">RF</span>
+              <span class="honor-badge__label">皇家同花顺</span>
+              <span class="honor-badge__count">{{ form.royalFlushWins || 0 }}</span>
+            </div>
+            <div class="honor-badge honor-badge--straight">
+              <span class="honor-badge__icon">SF</span>
+              <span class="honor-badge__label">同花顺</span>
+              <span class="honor-badge__count">{{ form.straightFlushWins || 0 }}</span>
+            </div>
+            <div class="honor-badge honor-badge--four">
+              <span class="honor-badge__icon">4K</span>
+              <span class="honor-badge__label">四条</span>
+              <span class="honor-badge__count">{{ form.fourOfAKindWins || 0 }}</span>
+            </div>
+          </div>
+          <div class="home-profile-modal__honor-stats">
+            <div class="honor-stat">
+              <span class="honor-stat__label">单局最高净赢倍数</span>
+              <span class="honor-stat__value">{{ formatNetWinMultiplier(form.largestPotWon) }}</span>
+            </div>
+            <div class="honor-stat">
+              <span class="honor-stat__label">单房间最高净赢倍数</span>
+              <span class="honor-stat__value">{{ formatRoomNetMultiplier(form.largestRoomNet) }}</span>
+            </div>
+            <div class="honor-stat">
+              <span class="honor-stat__label">生涯总局数</span>
+              <span class="honor-stat__value">{{ form.totalHandsPlayed || 0 }}</span>
+            </div>
+          </div>
+        </div>
+      </el-form-item>
+
       <el-form-item label="昵称" required>
         <el-input
           v-model.trim="form.nickname"
@@ -84,10 +152,14 @@
 </template>
 
 <script>
+import DpUserAvatar from '@/components/DpUserAvatar.vue'
 import { dpResultSuccess, dpResultData, dpResultMessage } from '@/utils/dpApiResult'
+import { formatNetWinMultiplier, formatRoomNetMultiplier } from '@/utils/dpRoomNetMultiplier'
+import { avatarCacheBustFromUpdatedAt } from '@/utils/dpAvatarUrl'
 
 export default {
   name: 'HomeProfileModal',
+  components: { DpUserAvatar },
   props: {
     visible: {
       type: Boolean,
@@ -98,11 +170,21 @@ export default {
     return {
       loading: false,
       saving: false,
+      avatarUploading: false,
+      avatarCacheBust: '',
       editingPassword: false,
       form: {
         id: '',
         nickname: '',
+        avatarUrl: '',
+        avatarUpdatedAt: null,
         passwordSet: true,
+        royalFlushWins: null,
+        straightFlushWins: null,
+        fourOfAKindWins: null,
+        largestPotWon: null,
+        largestRoomNet: null,
+        totalHandsPlayed: null,
         oldPassword: '',
         newPassword: '',
         confirmPassword: ''
@@ -127,6 +209,9 @@ export default {
     }
   },
   methods: {
+    avatarCacheBustFromUpdatedAt,
+    formatNetWinMultiplier,
+    formatRoomNetMultiplier,
     onClosed() {
       this.editingPassword = false
       this.form.oldPassword = ''
@@ -147,12 +232,61 @@ export default {
         const profile = d.profile || {}
         this.form.id = profile.id
         this.form.nickname = profile.nickname || ''
+        this.form.avatarUrl = profile.avatarUrl || ''
+        this.form.avatarUpdatedAt = profile.avatarUpdatedAt != null ? profile.avatarUpdatedAt : null
+        this.avatarCacheBust = ''
         this.form.passwordSet = profile.passwordSet !== false
+        this.form.royalFlushWins = profile.royalFlushWins
+        this.form.straightFlushWins = profile.straightFlushWins
+        this.form.fourOfAKindWins = profile.fourOfAKindWins
+        this.form.largestPotWon = profile.largestPotWon
+        this.form.largestRoomNet = profile.largestRoomNet
+        this.form.totalHandsPlayed = profile.totalHandsPlayed
       } catch (e) {
         this.$message.error('加载资料失败')
         this.dialogVisible = false
       } finally {
         this.loading = false
+      }
+    },
+    async onAvatarUploadRequest(options) {
+      var file = options && options.file
+      if (!file) return
+      if (file.size > 2 * 1024 * 1024) {
+        this.$message.warning('图片不能超过 2MB')
+        return
+      }
+      var fd = new FormData()
+      fd.append('file', file)
+      this.avatarUploading = true
+      try {
+        const res = await this.$http.post('/dpUser/avatar', fd, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        })
+        const body = res.data
+        const data = dpResultData(body) || {}
+        if (!dpResultSuccess(body)) {
+          this.$message.error(dpResultMessage(body) || data.message || '上传失败')
+          return
+        }
+        var url = data.avatarUrl || ''
+        this.form.avatarUrl = url
+        if (data.avatarUpdatedAt != null) {
+          this.form.avatarUpdatedAt = data.avatarUpdatedAt
+          this.avatarCacheBust = avatarCacheBustFromUpdatedAt(data.avatarUpdatedAt)
+        } else {
+          this.avatarCacheBust = Date.now()
+        }
+        this.$message.success(data.message || '上传成功')
+        this.$emit('avatar-updated', {
+          avatarUrl: url,
+          cacheBust: this.avatarCacheBust,
+          avatarUpdatedAt: data.avatarUpdatedAt
+        })
+      } catch (e) {
+        this.$message.error('上传失败')
+      } finally {
+        this.avatarUploading = false
       }
     },
     async onSave() {
@@ -247,6 +381,102 @@ export default {
   justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
+}
+.home-profile-modal__avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.home-profile-modal__avatar-actions {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+.home-profile-modal__avatar-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--dp-text-muted, #999);
+  line-height: 1.4;
+}
+.home-profile-modal__avatar-btn {
+  font-size: 13px;
+}
+.home-profile-modal__avatar-upload >>> .el-upload {
+  display: block;
+}
+
+/* ---- 荣誉战绩 ---- */
+.home-profile-modal__honor {
+  background: var(--dp-subpanel-bg, #fafafa);
+  border-radius: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--dp-subpanel-border, #e8e8e8);
+}
+.home-profile-modal__honor-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.honor-badge {
+  flex: 1 1 90px;
+  min-width: 80px;
+  border-radius: 8px;
+  padding: 10px 8px;
+  text-align: center;
+  border: 1px solid;
+}
+.honor-badge--royal {
+  background: color-mix(in srgb, var(--dp-warning, #faad14) 10%, transparent);
+  border-color: var(--dp-warning, #faad14);
+  color: var(--dp-warning, #b45309);
+}
+.honor-badge--straight {
+  background: color-mix(in srgb, var(--dp-accent, #1890ff) 10%, transparent);
+  border-color: var(--dp-accent, #1890ff);
+  color: var(--dp-accent, #1565c0);
+}
+.honor-badge--four {
+  background: color-mix(in srgb, var(--dp-danger, #ff4d4f) 10%, transparent);
+  border-color: var(--dp-danger, #ff4d4f);
+  color: var(--dp-danger, #c62828);
+}
+.honor-badge__icon {
+  display: block;
+  font-size: 16px;
+  font-weight: 800;
+  margin-bottom: 2px;
+  letter-spacing: 1px;
+}
+.honor-badge__label {
+  display: block;
+  font-size: 11px;
+  color: var(--dp-text-muted, #999);
+  margin-bottom: 3px;
+}
+.honor-badge__count {
+  display: block;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--dp-text-primary, #333);
+}
+.home-profile-modal__honor-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.honor-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+.honor-stat__label {
+  color: var(--dp-text-muted, #999);
+}
+.honor-stat__value {
+  font-weight: 600;
+  color: var(--dp-text-primary, #333);
 }
 </style>
 

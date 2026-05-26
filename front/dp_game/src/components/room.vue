@@ -58,6 +58,7 @@ import '@/styles/dp-game-themes.css'
 import '@/styles/dp-lobby-shell.css'
 import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import { dpDisplayNickname } from '../utils/dpDisplayNickname'
+import { prefetchGameChunk, navigateToGame } from '@/utils/dpPrefetchGameRoute'
 
 export default {
   name: 'Room',
@@ -74,6 +75,7 @@ export default {
   created() {
     this.roomId = this.$route.params.roomId
     this.user = JSON.parse(localStorage.getItem('userInfo'))
+    prefetchGameChunk()
     this.fetchRoomInfo()
 
     this.timer = setInterval(this.fetchRoomInfo, 2000)
@@ -118,7 +120,7 @@ export default {
         alert('开局失败，请确认你是房主且房间仍有效')
         return
       }
-      this.$router.push(`/game/${this.roomId}`)
+      await navigateToGame(this.$router, this.roomId)
     },
 
     async exit() {
@@ -149,8 +151,8 @@ export default {
 
         this.room = room
 
-        if (room.playing) {
-          this.$router.push('/game/' + this.roomId)
+        if (room.playing && !this.$route.path.startsWith('/game/')) {
+          await navigateToGame(this.$router, this.roomId)
         }
       } catch (e) {
         console.error('获取房间信息失败', e)

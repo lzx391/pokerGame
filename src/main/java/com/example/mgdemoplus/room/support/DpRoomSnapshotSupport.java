@@ -78,14 +78,37 @@ public final class DpRoomSnapshotSupport {
         }
         return snapshotForViewerFromLive(live, viewerNickname);
     }
-
+/**
+ * 裁剪json给不同视角的人看
+ * @param live
+ * @param viewerNickname
+ * @return
+ */
     public DpRoomBO snapshotForViewerFromLive(DpRoomBO live, String viewerNickname) {
         if (live == null) {
             return null;
         }
         DpRoomBO copy = deepCopyRoomForSnapshot(live);
         sanitizeHoleCardsForViewer(copy, viewerNickname);
+        attachViewerCarryIn(copy, live, viewerNickname);
         return copy;
+    }
+
+    private static void attachViewerCarryIn(DpRoomBO snapshot, DpRoomBO live, String viewerNickname) {
+        if (snapshot == null) {
+            return;
+        }
+        int carryIn = 0;
+        if (live != null && viewerNickname != null) {
+            String v = viewerNickname.trim();
+            if (!v.isEmpty()) {
+                Integer ci = live.getCarryInChips().get(v);
+                if (ci != null && ci > 0) {
+                    carryIn = ci;
+                }
+            }
+        }
+        snapshot.setMyCarryInChips(carryIn);
     }
 
     private DpRoomBO deepCopyRoomForSnapshot(DpRoomBO live) {

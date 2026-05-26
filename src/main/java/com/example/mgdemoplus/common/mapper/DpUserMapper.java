@@ -4,8 +4,11 @@ import com.example.mgdemoplus.common.entity.DpUser;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Options;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
+
+import java.time.LocalDateTime;
 
 @Mapper
 public interface DpUserMapper {
@@ -24,4 +27,10 @@ public interface DpUserMapper {
 
     @Update("UPDATE dp_user SET password = #{password} WHERE id = #{id}")
     int updatePasswordHash(DpUser dpUser);
+
+    @Update("UPDATE dp_user SET avatar_url = #{avatarUrl}, avatar_updated_at = #{avatarUpdatedAt} WHERE id = #{id}")
+    int updateAvatarUrl(
+            @Param("id") int id,
+            @Param("avatarUrl") String avatarUrl,
+            @Param("avatarUpdatedAt") LocalDateTime avatarUpdatedAt);
 }

@@ -29,6 +29,8 @@
 </template>
 
 <script>
+import { CAT_COPY } from '../constants/dpCatThemeCopy'
+
 export default {
   name: 'GameSettledPrepareBar',
   props: {
@@ -41,7 +43,7 @@ export default {
     primaryLabel() {
       var bb = Number(this.bigBlind)
       if (this.myChips < bb) {
-        return '小鱼干不足大猫注(' + bb + ')，无法准备'
+        return '小鱼干不足' + CAT_COPY.bigBlindFish + '(' + bb + ')，无法准备'
       }
       if (this.myReady) return '取消准备'
       var t = Math.max(0, Math.floor(Number(this.readyTimeLeft)))

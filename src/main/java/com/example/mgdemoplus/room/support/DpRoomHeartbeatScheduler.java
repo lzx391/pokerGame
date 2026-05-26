@@ -59,13 +59,18 @@ public final class DpRoomHeartbeatScheduler {
         }
         tickNpcTurnOrHumanActionTimeout(room);
         tickSettledBotsAutoReady(room);
+        tickSettledCheckAndStartIfReady(room);
         if (skipBroadcastForLoneSettledPlayerWaitingNothing(room)) {
             return;
         }
         maybeInvokeReadyTimeoutWhenDeadlinePassed(room);
         broadcastRoomAndMaybeRefreshLobbyAfterHeartbeatTick(room, lobbyDirty);
     }
-
+/**
+ * 清理无人房间
+ * @param room
+ * @return
+ */
     public boolean removeDesertedRoomInGlobalTickIfNoLiveHumans(DpRoomBO room) {
         int size = DpRoomHumanCounts.liveHumanTableCount(room);
         if (size == 0 && room.getSpectators().isEmpty()) {
@@ -105,7 +110,9 @@ public final class DpRoomHeartbeatScheduler {
         }
         return lobbyDirty;
     }
-
+/**
+ * 清理掉没有心跳的观众玩家，移出房间
+ */
     private boolean tickEvictStaleSpectatorsOnHeartbeat(DpRoomBO room) {
         List<String> specList = room.getSpectators();
         if (specList == null || specList.isEmpty()) {
@@ -131,7 +138,9 @@ public final class DpRoomHeartbeatScheduler {
         }
         return lobbyDirty;
     }
-
+/**
+ * 机器人决策与玩家行动超时判定
+ */
     private void tickNpcTurnOrHumanActionTimeout(DpRoomBO room) {
         if (room.isPlaying()
                 && room.getCurrentActorIndex() >= 0
@@ -158,10 +167,12 @@ public final class DpRoomHeartbeatScheduler {
             }
         }
     }
-
+/**
+ * 机器人补码与自动准备
+ * @param room
+ */
     private void tickSettledBotsAutoReady(DpRoomBO room) {
         if (room.isPlaying() && "settled".equals(room.getCurrentStage())) {
-            boolean botTouched = false;
             for (DpPlayer p : room.getPlayers()) {
                 if (!DpNpcEngine.isBotPlayer(p)) {
                     continue;
@@ -172,13 +183,20 @@ public final class DpRoomHeartbeatScheduler {
                 if (p.getChips() >= room.getBigBlindChips() && !p.isReady()
                         && !(room.getPlayers().size() == 1 && room.getWaitNextHand().isEmpty())) {
                     p.setReady(true);
-                    botTouched = true;
                 }
             }
-            if (botTouched) {
-                if (callbacks.checkAndStartNextHandAfterSettleReturning(room)) {
-                    lobbySync.refreshJoinableQmIndexThenSyncLobby(room.getRoomId());
-                }
+        }
+    }
+
+    /**
+     * 判断是否可以开新局
+     * settled 阶段每秒重判：补码窗口（0~10s）→筹码筛选（10s~30s）的时间边界由心跳驱动，
+     * 避免 10s 时刻判定标准切换后无人触发 {@code checkAndStartNextHandAfterSettleReturning}。
+     */
+    private void tickSettledCheckAndStartIfReady(DpRoomBO room) {
+        if (room.isPlaying() && "settled".equals(room.getCurrentStage())) {
+            if (callbacks.checkAndStartNextHandAfterSettleReturning(room)) {
+                lobbySync.refreshJoinableQmIndexThenSyncLobby(room.getRoomId());
             }
         }
     }
@@ -191,7 +209,9 @@ public final class DpRoomHeartbeatScheduler {
                 && room.getPlayers().size() == 1
                 && room.getWaitNextHand().isEmpty();
     }
-
+ /**
+  * 处理准备超时玩家
+  */
     private void maybeInvokeReadyTimeoutWhenDeadlinePassed(DpRoomBO room) {
         if (room.isPlaying()
                 && "settled".equals(room.getCurrentStage())
@@ -200,7 +220,11 @@ public final class DpRoomHeartbeatScheduler {
             callbacks.handleReadyTimeout(room);
         }
     }
-
+/**
+ * 定时推送房间信息到前端
+ * @param room
+ * @param lobbyDirty
+ */
     private void broadcastRoomAndMaybeRefreshLobbyAfterHeartbeatTick(DpRoomBO room, boolean lobbyDirty) {
         gameRoomPushService.broadcastIfSubscribed(room.getRoomId());
         if (lobbyDirty) {

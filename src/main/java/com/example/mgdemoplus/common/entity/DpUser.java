@@ -1,10 +1,13 @@
 package com.example.mgdemoplus.common.entity;
 
+import java.time.LocalDateTime;
+
 public class DpUser {
     private int id;
     private String nickname;
     private String password;
     private String avatarUrl;
+    private LocalDateTime avatarUpdatedAt;
 
     @Override
     public String toString() {
@@ -45,5 +48,13 @@ public class DpUser {
 
     public void setAvatarUrl(String avatarUrl) {
         this.avatarUrl = avatarUrl;
+    }
+
+    public LocalDateTime getAvatarUpdatedAt() {
+        return avatarUpdatedAt;
+    }
+
+    public void setAvatarUpdatedAt(LocalDateTime avatarUpdatedAt) {
+        this.avatarUpdatedAt = avatarUpdatedAt;
     }
 }

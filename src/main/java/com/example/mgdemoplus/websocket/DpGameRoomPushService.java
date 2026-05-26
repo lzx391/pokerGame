@@ -35,6 +35,8 @@ public class DpGameRoomPushService {
     /** 房间聊天：内存缓冲，摘房落库；广播帧带 ttlMs 供前端气泡 */
     private static final long CHAT_TTL_MS = 15_000L;
     private static final int CHAT_MAX_LEN = 200;
+    /** NPC 桌边话术（不落库） */
+    private static final int NPC_TABLE_TALK_MAX_LEN = 80;
     private static final long CHAT_MIN_INTERVAL_MS = 1_200L;
 
     /** 房间 BGM：最后一次广播的 JSON，新连接触发第二条消息（与房间快照去重无关） */
@@ -313,6 +315,59 @@ public class DpGameRoomPushService {
     // ========== 推送与快照/广播相关 ==========
 
     /**
+     * NPC 桌边话术：与玩家聊天相同的 {@code _ws:chat} 帧，不经 {@link RoomChatBuffer} 落库。
+     *
+     * @return 是否已向至少一个订阅会话发送（无订阅者时 no-op）
+     */
+    public boolean publishNpcTableTalk(String roomId, String botNickname, String text) {
+        if (roomId == null || roomId.isEmpty() || botNickname == null || botNickname.isEmpty()) {
+            log.debug("npc table-talk skip: missing roomId or nickname");
+            return false;
+        }
+        if (text == null) {
+            log.debug("npc table-talk skip: null text room={} bot={}", roomId, botNickname);
+            return false;
+        }
+        String trimmed = text.replace('\r', ' ').replace('\n', ' ').trim();
+        if (trimmed.isEmpty()) {
+            log.debug("npc table-talk skip: empty text room={} bot={}", roomId, botNickname);
+            return false;
+        }
+        if (trimmed.length() > NPC_TABLE_TALK_MAX_LEN) {
+            trimmed = trimmed.substring(0, NPC_TABLE_TALK_MAX_LEN);
+        }
+        if (!hasSubscribers(roomId)) {
+            log.debug("npc table-talk skip: no subscribers room={} bot={}", roomId, botNickname);
+            return false;
+        }
+        DpRoomBO room = roomService.getAllRooms(roomId);
+        if (room == null || !roomService.isNicknameInRoom(room, botNickname)) {
+            log.debug("npc table-talk skip: bot not in room room={} bot={}", roomId, botNickname);
+            return false;
+        }
+        final String displayText = sensitiveWordService.maskForChat(trimmed);
+        long now = System.currentTimeMillis();
+        try {
+            ObjectNode out = objectMapper.createObjectNode();
+            out.put("_ws", "chat");
+            out.put("id", "npc-" + now);
+            out.put("nickname", botNickname);
+            out.put("text", displayText);
+            out.put("serverTime", now);
+            out.put("ttlMs", CHAT_TTL_MS);
+            Integer senderUserId = roomService.resolveDpUserIdForNickname(room, botNickname);
+            if (senderUserId != null) {
+                out.put("senderUserId", senderUserId);
+            }
+            broadcastRawJsonToRoom(roomId, objectMapper.writeValueAsString(out));
+            return true;
+        } catch (Exception e) {
+            log.warn("npc table-talk broadcast failed roomId={} bot={}", roomId, botNickname, e);
+            return false;
+        }
+    }
+
+    /**
      * 判断房间是否有订阅者。
      */
     public boolean hasSubscribers(String roomId) {
@@ -363,6 +418,7 @@ public class DpGameRoomPushService {
             if (set == null || set.isEmpty()) {
                 return;
             }
+            //遍历每个订阅者，然后推送个性化json数据，发前裁剪，看变没变，变了才发
             for (WebSocketSession s : new ArrayList<>(set)) {
                 if (!s.isOpen()) {
                     removeSessionFromRoom(roomId, s);

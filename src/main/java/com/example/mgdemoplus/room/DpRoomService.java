@@ -17,7 +17,12 @@ public interface DpRoomService {
                         String roomPassword, int maxSeatCount);
 
     ResultUtil listRecentRoomChat(String roomId, String viewerNickname, int limit);
-
+/**
+ * 裁剪json给不同的人看
+ * @param roomId
+ * @param viewerNickname
+ * @return
+ */
     DpRoomBO getRoomSnapshotForViewer(String roomId, String viewerNickname);
 
     DpRoomBO snapshotForViewerFromLive(DpRoomBO live, String viewerNickname);
@@ -85,6 +90,12 @@ public interface DpRoomService {
     boolean addCallStationBotToNextHand(String roomId);
 
     boolean addRuleNpcBatchToNextHand(String roomId, String archetypeKey, int count);
+
+    boolean addCustomNpcBatchToNextHand(
+            String roomId,
+            String requesterNickname,
+            int count,
+            com.example.mgdemoplus.npc.CustomNpcStyleSnapshot profile);
 
     boolean addLlmBotToNextHand(String roomId);
 

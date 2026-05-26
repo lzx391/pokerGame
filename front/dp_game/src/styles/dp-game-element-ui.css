@@ -415,3 +415,92 @@ body[data-dp-game-theme] .el-upload-list__item-name {
 body[data-dp-game-theme] .el-upload-list__item:hover {
   background-color: var(--dp-subpanel-bg);
 }
+
+/* ---------- Dialog / Drawer / 遮罩：标准档淡入 + 微缩放/位移（0.28–0.32s） ---------- */
+.dialog-fade-enter-active,
+.dialog-fade-leave-active {
+  transition: opacity var(--dp-motion-duration-dialog, 0.3s) ease;
+}
+
+.dialog-fade-enter,
+.dialog-fade-leave-to {
+  opacity: 0;
+}
+
+.dialog-fade-enter-active .el-dialog,
+.dialog-fade-leave-active .el-dialog {
+  transition:
+    transform var(--dp-motion-duration-dialog, 0.3s) cubic-bezier(0.22, 1, 0.36, 1),
+    opacity var(--dp-motion-duration-dialog, 0.3s) ease;
+}
+
+.dialog-fade-enter .el-dialog,
+.dialog-fade-leave-to .el-dialog {
+  transform: scale(0.96) translateY(8px);
+  opacity: 0;
+}
+
+.el-drawer-fade-enter-active,
+.el-drawer-fade-leave-active {
+  transition: opacity var(--dp-motion-duration-dialog, 0.3s) ease;
+}
+
+.el-drawer-fade-enter,
+.el-drawer-fade-leave-to {
+  opacity: 0;
+}
+
+.el-drawer-fade-enter-active .el-drawer,
+.el-drawer-fade-leave-active .el-drawer {
+  transition: transform var(--dp-motion-duration-dialog, 0.3s) cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.el-drawer-fade-enter .el-drawer.rtl,
+.el-drawer-fade-leave-to .el-drawer.rtl {
+  transform: translateX(100%);
+}
+
+.el-drawer-fade-enter .el-drawer.ltr,
+.el-drawer-fade-leave-to .el-drawer.ltr {
+  transform: translateX(-100%);
+}
+
+.el-drawer-fade-enter .el-drawer.ttb,
+.el-drawer-fade-leave-to .el-drawer.ttb {
+  transform: translateY(-100%);
+}
+
+.el-drawer-fade-enter .el-drawer.btt,
+.el-drawer-fade-leave-to .el-drawer.btt {
+  transform: translateY(100%);
+}
+
+.v-modal {
+  opacity: 1;
+}
+
+.v-modal-enter {
+  animation: dp-v-modal-in var(--dp-motion-duration-dialog, 0.3s) ease forwards;
+}
+
+.v-modal-leave {
+  animation: dp-v-modal-out var(--dp-motion-duration-dialog, 0.3s) ease forwards;
+}
+
+@keyframes dp-v-modal-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dp-v-modal-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}

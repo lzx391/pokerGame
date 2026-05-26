@@ -12,9 +12,11 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         "com.example.mgdemoplus.history.mapper",
         "com.example.mgdemoplus.lobby.mapper",
         "com.example.mgdemoplus.music.mapper",
+        "com.example.mgdemoplus.download.mapper",
         "com.example.mgdemoplus.roomchat.mapper",
         "com.example.mgdemoplus.social.mapper",
-        "com.example.mgdemoplus.user.mapper"
+        "com.example.mgdemoplus.user.mapper",
+        "com.example.mgdemoplus.leaderboard.mapper"
 })
 @EnableScheduling
 public class MgDemoPlusApplication {

@@ -2,6 +2,9 @@
  * 统一维护 document.body[data-dp-game-theme]，避免各页在 beforeDestroy 里清掉属性
  * 导致 SPA 跳转后主题变量与背景不同步、整页高度/滚动错乱。
  * 「自定义」主题时：属性值为**预设底** id，强调色用内联 --dp-* 覆盖（与 store 一致）。
+ *
+ * 大厅路由真源（与 App.vue isLobbyRoute 保持一致）：/home、/create-room、/hand-history*、
+ * /leaderboard、/music-upload、/download-center、/room/*。
  */
 import {
   resolveEffectiveThemeId,
@@ -17,7 +20,9 @@ export function syncDpBodyGameTheme(store, router) {
       path === '/home' ||
       path === '/create-room' ||
       path.startsWith('/hand-history') ||
+      path === '/leaderboard' ||
       path === '/music-upload' ||
+      path === '/download-center' ||
       path.startsWith('/room/')
     var gameLike = path.indexOf('/game') === 0
     var authLike =

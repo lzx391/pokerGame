@@ -16,7 +16,7 @@ import java.util.Random;
  * 由 <b>13×13 固定查表</b> 实现：{@code rangeLevel(1~8)} × {@link DpNpcEngine.TablePosition}（4 类）× 各局面一张表，
  * 单元格 1=可（沿用旧阈值语义）、0=否；<b>对子占对角</b>，<b>下三角</b>（行&gt;列）为<strong>杂色</strong>，
  * <b>上三角</b>（行&lt;列）为<strong>同色</strong>（高牌点在下标较大的一侧）。
- * {@code rangeLevel} 由 vpip、人数、有效筹码深度、callStation、foldToPressure、mood 驱动；3bet/4bet 侵略性由 pfr 缩放；
+ * {@code rangeLevel} 由 vpip、人数、有效筹码深度、callStation、foldToPressure 驱动；3bet/4bet 侵略性由 pfr 缩放；
  * {@link DpNpcEngine.BotType} 做小幅档位加成（MANIAC +2、LAG/FISH/CALL +1、NIT −2）。
  *
  * <p>
@@ -120,7 +120,6 @@ public final class DpNpcUnifiedPreflopStrategy {
             double pfr,
             double callStation,
             double foldToPressure,
-            double mood,
             Random random,
             DpNpcEngine.BotType botType) {
         if (room == null || hero == null || random == null) {
@@ -159,7 +158,7 @@ public final class DpNpcUnifiedPreflopStrategy {
         double lateFactor = computePreflopLateFactor(room, hero);
         DpNpcEngine.TablePosition position = pseudoTablePosition(lateFactor, hero.getBlind());
 
-        int rangeLevel = computeRangeLevel(activePlayers, effStackBB, vpip, callStation, foldToPressure, mood);
+        int rangeLevel = computeRangeLevel(activePlayers, effStackBB, vpip, callStation, foldToPressure);
         rangeLevel += rangeLevelBonus(botType);
         rangeLevel = clampInt(rangeLevel, 1, 8);
         // 位置 + rangeLevel → 矩阵切片；开局加注额、3bet/4bet 概率与倍数不再单独按座位二次调节
@@ -170,27 +169,24 @@ public final class DpNpcUnifiedPreflopStrategy {
 
         // === 终局规则：到 4bet 往后收敛到 all-in / call / fold ===
         if (spot == PreflopSpot.FACING_4BET) {
-            return decideFacing4Bet(hero, bb, sb, callAmount, callRatio, effStackBB, hole, tier, mood, random);
+            return decideFacing4Bet(hero, bb, sb, callAmount, callRatio, effStackBB, hole, tier, random);
         }
 
         // === 无人加注：open / limp-check / fold ===
         if (spot == PreflopSpot.UNOPENED) {
-            return decideUnopened(hero, bb, sb, activePlayers, effStackBB, hole, openAllow[posIdx][levelIdx], mood,
-                    random);
+            return decideUnopened(hero, bb, sb, activePlayers, effStackBB, hole, openAllow[posIdx][levelIdx], random);
         }
 
         // === 面对 open：call / 3bet / fold ===
         if (spot == PreflopSpot.FACING_OPEN) {
             return decideFacingOpen(room, hero, bb, sb, callAmount, effStackBB, hole, g,
-                    vsOpenContinueAllow[posIdx][levelIdx], vsOpen3BetValueAllow[posIdx][levelIdx], tier, mood, pfr,
-                    random);
+                    vsOpenContinueAllow[posIdx][levelIdx], vsOpen3BetValueAllow[posIdx][levelIdx], tier, pfr, random);
         }
 
         // === 你 open 后被 3bet：call / 4bet / fold ===
         if (spot == PreflopSpot.FACING_3BET) {
             return decideFacing3Bet(room, hero, bb, sb, callAmount, callRatio, effStackBB, hole, g,
-                    vs3BetContinueAllow[posIdx][levelIdx], vs3Bet4BetValueAllow[posIdx][levelIdx], tier, mood, pfr,
-                    random);
+                    vs3BetContinueAllow[posIdx][levelIdx], vs3Bet4BetValueAllow[posIdx][levelIdx], tier, pfr, random);
         }
 
         // fallback：默认跟/过牌（尽量不断线）
@@ -237,7 +233,6 @@ public final class DpNpcUnifiedPreflopStrategy {
             double effStackBB,
             HoleInfo hole,
             byte[][] openSlice,
-            double mood,
             Random random) {
         boolean canOpen = matrixAllows(openSlice, hole);
         if (!canOpen) {
@@ -245,7 +240,7 @@ public final class DpNpcUnifiedPreflopStrategy {
             return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
         }
 
-        int openSizeBB = baseOpenSizeBB(activePlayers, effStackBB, mood, random);
+        int openSizeBB = baseOpenSizeBB(activePlayers, effStackBB, random);
         int raiseAmount = Math.min(hero.getChips(), openSizeBB * bb);
         raiseAmount = roundToSB(raiseAmount, sb, hero.getChips());
         if (raiseAmount <= 0) {
@@ -266,7 +261,6 @@ public final class DpNpcUnifiedPreflopStrategy {
             byte[][] vsOpenContinueSlice,
             byte[][] vsOpen3BetValueSlice,
             VillainTier tier,
-            double mood,
             double pfr,
             Random random) {
         boolean canContinue = matrixAllows(vsOpenContinueSlice, hole);
@@ -278,7 +272,6 @@ public final class DpNpcUnifiedPreflopStrategy {
         boolean can3BetBluff = is3BetBluffCandidate(g) && tier == VillainTier.LOOSE_OR_AGGRO;
 
         double base3betProb = can3BetValue ? 0.62 : (can3BetBluff ? 0.16 : 0.0);
-        base3betProb += mood * 0.04;
         base3betProb *= pfrAggressionScale(pfr);
         base3betProb = clamp01(base3betProb);
 
@@ -306,7 +299,6 @@ public final class DpNpcUnifiedPreflopStrategy {
             byte[][] vs3BetContinueSlice,
             byte[][] vs3Bet4BetValueSlice,
             VillainTier tier,
-            double mood,
             double pfr,
             Random random) {
         // continue range：比面对 open 更紧
@@ -325,8 +317,7 @@ public final class DpNpcUnifiedPreflopStrategy {
             if (effStackBB >= 35 && random.nextDouble() < 0.22) {
                 return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
             }
-            double foldP = 0.55 + 0.25 * Math.min(1.0, callRatio);
-            foldP = clamp01(foldP - mood * 0.05);
+            double foldP = clamp01(0.55 + 0.25 * Math.min(1.0, callRatio));
             if (random.nextDouble() < foldP) {
                 return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.FOLD, 0);
             }
@@ -334,7 +325,6 @@ public final class DpNpcUnifiedPreflopStrategy {
         }
 
         double fourBetProb = value4bet ? 0.72 : (bluff4bet ? 0.14 : 0.0);
-        fourBetProb += mood * 0.04;
         fourBetProb *= pfrAggressionScale(pfr);
         fourBetProb = clamp01(fourBetProb);
 
@@ -362,7 +352,6 @@ public final class DpNpcUnifiedPreflopStrategy {
             double effStackBB,
             HoleInfo hole,
             VillainTier tier,
-            double mood,
             Random random) {
         // 便宜跟注保护：底池很大而跟注很便宜时，避免被小幅 5bet 反复剥削
         double potOdds;
@@ -385,7 +374,6 @@ public final class DpNpcUnifiedPreflopStrategy {
         if (jamValue) {
             // 对松凶玩家稍微更愿意打光；对紧玩家给一点平跟空间（更像真人）
             double jamProb = (tier == VillainTier.TIGHT_OR_NIT) ? 0.70 : 0.82;
-            jamProb += mood * 0.05;
             if (effStackBB >= 45)
                 jamProb -= 0.12;
             jamProb = clamp01(jamProb);
@@ -400,7 +388,7 @@ public final class DpNpcUnifiedPreflopStrategy {
             double foldP = 0.35 + 0.25 * Math.min(1.0, callRatio);
             if (tier == VillainTier.TIGHT_OR_NIT)
                 foldP += 0.10;
-            foldP = clamp01(foldP - mood * 0.04);
+            foldP = clamp01(foldP);
             if (random.nextDouble() < foldP) {
                 return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.FOLD, 0);
             }
@@ -471,11 +459,10 @@ public final class DpNpcUnifiedPreflopStrategy {
         return roundToSB(raiseAmount, sb, hero.getChips());
     }
 
-    /** 开局加注倍数（以大盲计）；松紧已由开局范围矩阵 {@link #openAllow} 体现，此处仅用人数 / 深度 / mood 微调体量。 */
+    /** 开局加注倍数（以大盲计）；松紧已由开局范围矩阵 {@link #openAllow} 体现，此处仅用人数 / 深度微调体量。 */
     private static int baseOpenSizeBB(
             int activePlayers,
             double effStackBB,
-            double mood,
             Random random) {
         int base = 3;
         if (activePlayers <= 3)
@@ -485,7 +472,7 @@ public final class DpNpcUnifiedPreflopStrategy {
         if (effStackBB >= 60)
             base = Math.min(4, base + 1);
 
-        double jitter = (random.nextDouble() * 0.4 - 0.2) + mood * 0.10;
+        double jitter = random.nextDouble() * 0.4 - 0.2;
         if (jitter > 0.20)
             base += 1;
         if (jitter < -0.20)
@@ -602,8 +589,7 @@ public final class DpNpcUnifiedPreflopStrategy {
             double effStackBB,
             double vpip,
             double callStation,
-            double foldToPressure,
-            double mood) {
+            double foldToPressure) {
         // 1~8：数字越大越松；位置松紧主要由 thresholdsFor(pseudoPosition(lateFactor)) 承担，此处不再按座位粗分。
         int base = 4;
 
@@ -623,7 +609,6 @@ public final class DpNpcUnifiedPreflopStrategy {
         base += (int) Math.round((vpip - 0.30) * 5.0);
         base += (int) Math.round(callStation * 1.0);
         base -= (int) Math.round(foldToPressure * 0.8);
-        base += (int) Math.round(mood * 1.0);
 
         return clampInt(base, 1, 8);
     }

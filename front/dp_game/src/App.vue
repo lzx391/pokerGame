@@ -21,7 +21,7 @@
           @custom-overrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
         />
       </div>
-      <h1 class="app-title">POKER GAME</h1>
+      <h1 class="app-title">{{ appAuthTitle }}</h1>
       <div class="nav-bar">
         <router-link to="/login" class="nav-link">登录</router-link>
         <router-link to="/register" class="nav-link">注册</router-link>
@@ -32,41 +32,84 @@
     </div>
 
     <!-- 其他路由：全屏展示，不显示登录 / 注册按钮 -->
-    <div v-else class="full-page" :class="{ 'full-page--lobby': isLobbyRoute, 'full-page--dp-game': isGameRoute }">
-      <router-view></router-view>
+    <div
+      v-else
+      class="full-page"
+      :class="{
+        'full-page--lobby': isLobbyRoute,
+        'full-page--dp-game': isGameRoute,
+        'full-page--route-shell': useRouteTransition
+      }"
+    >
+      <router-view v-if="!useRouteTransition" :key="routeViewKey"></router-view>
+      <transition v-else :name="routeTransitionName" mode="out-in">
+        <router-view :key="routeViewKey"></router-view>
+      </transition>
     </div>
   </div>
 </template>
 
 <script>
 import { mapState } from 'vuex'
+import { CAT_COPY } from '@/constants/dpCatThemeCopy'
+import { resolveRouteTransitionName } from '@/utils/dpRouteTransition'
+import { isRouteTransitionEnabled } from '@/utils/dpRouteTransitionFlag'
 
 export default {
   name: 'App',
+  data() {
+    return {
+      appAuthTitle: CAT_COPY.appAuthTitle,
+      prevRoute: { path: '/' }
+    }
+  },
   computed: {
     ...mapState('dpGame', [
       'gameUiTheme',
       'gameThemeOptions',
       'customThemeBase',
-      'customThemeOverrides'
+      'customThemeOverrides',
+      'ecoMode'
     ]),
     isAuthPage() {
       const path = this.$route.path
       return path === '/login' || path === '/register' || path === '/'
     },
     /** 大厅与主题子页：#app 不铺灰底，由 .dp-game-root / body[data-dp-game-theme] 铺色 */
+    /** 与 dpBodyGameTheme.isLobbyRoute 真源一致（含 /create-room，验收 A12） */
     isLobbyRoute() {
       const p = this.$route.path
       return (
         p === '/home' ||
+        p === '/create-room' ||
         p.startsWith('/hand-history') ||
+        p === '/leaderboard' ||
         p === '/music-upload' ||
+        p === '/download-center' ||
         p.startsWith('/room/')
       )
     },
     /** 对局页：铺满视口、与 .dp-game-root 组成 flex 链，减少底部露灰/白边 */
     isGameRoute() {
-      return this.$route.path.startsWith('/game')
+      return this.$route.path.startsWith('/game') || this.$route.path === '/guide'
+    },
+    routeViewKey() {
+      return this.$route.fullPath
+    },
+    routeTransitionName() {
+      var fluidity = this.ecoMode ? 'eco' : 'standard'
+      return resolveRouteTransitionName(this.$route, this.prevRoute, { fluidity })
+    },
+    useRouteTransition() {
+      if (this.ecoMode || !isRouteTransitionEnabled()) return false
+      return this.routeTransitionName !== 'dp-route-none'
+    }
+  },
+  watch: {
+    $route: function (to, from) {
+      if (from && from.path) {
+        this.prevRoute = from
+      }
     }
   },
   methods: {
@@ -156,14 +199,7 @@ body {
   text-decoration: none;
   font-size: 16px;
   font-weight: 500;
-  transition: all 0.3s ease;
   box-shadow: 0 2px 6px rgba(64, 158, 255, 0.2);
-}
-
-.nav-link:hover {
-  background-color: #338eef;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(64, 158, 255, 0.3);
 }
 
 /* 内容区域 */

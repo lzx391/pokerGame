@@ -3,6 +3,7 @@ package com.example.mgdemoplus.common.bo;
 import com.example.mgdemoplus.common.entity.DpPlayer;
 import com.example.mgdemoplus.common.entity.DpPlayerStats;
 import com.example.mgdemoplus.common.entity.DpPot;
+import com.example.mgdemoplus.npc.CustomNpcStyleSnapshot;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.ArrayList;
@@ -27,6 +28,13 @@ public class DpRoomBO {
      */
     @JsonIgnore
     private final Map<String, Long> spectatorLastPresenceMs = new ConcurrentHashMap<>();
+
+    /**
+     * 房间内每位真人玩家累计带入筹码（初始 + 每次 rebuy 的补码量）。
+     * 离座/退房时按 (当前筹码 − 累计带入) / 累计带入 结算净赢倍数并清除；key=昵称，不退发 JSON。
+     */
+    @JsonIgnore
+    private final Map<String, Integer> carryInChips = new HashMap<>();
 
     // 德扑核心
     private String currentStage = "preflop";
@@ -89,6 +97,18 @@ public class DpRoomBO {
     private List<String> waitNextHand = new ArrayList<>();
 
     /**
+     * 候补自定义 BOT：nickname → 六维风格快照（入座时拷贝到 {@link DpPlayer} 后移除）。
+     */
+    @JsonIgnore
+    private final Map<String, CustomNpcStyleSnapshot> pendingCustomNpcProfiles = new HashMap<>();
+
+    /**
+     * 进入 settled 阶段的时间戳（毫秒），用于区分补码窗口 / 筹码筛选 / 准备超时三阶段。
+     * 为 0 表示当前不在 settled 阶段。
+     */
+    private long settledAtMs = 0L;
+
+    /**
      * 结算后准备阶段的截止时间戳（毫秒）。为 0 表示当前没有准备倒计时。
      */
     private long readyDeadline = 0L;
@@ -111,6 +131,11 @@ public class DpRoomBO {
      * 供前端座位底牌光效使用，不持久化。
      */
     private List<String> chipLeaderNicknames = new ArrayList<>();
+
+    /**
+     * 当前观看者本段在桌累计带入（初始上桌 + rebuy）；仅快照下发，内存房中恒为 0。
+     */
+    private int myCarryInChips = 0;
 
     /**
      * 上一手进入结算时是否至少两名未弃牌玩家参与比牌（摊牌公开底牌）。
@@ -210,6 +235,12 @@ public class DpRoomBO {
     public void setPots(List<DpPot> pots) { this.pots = pots; }
     public List<String> getWaitNextHand() { return waitNextHand; }
     public void setWaitNextHand(List<String> waitNextHand) { this.waitNextHand = waitNextHand; }
+
+    public Map<String, CustomNpcStyleSnapshot> getPendingCustomNpcProfiles() {
+        return pendingCustomNpcProfiles;
+    }
+    public long getSettledAtMs() { return settledAtMs; }
+    public void setSettledAtMs(long settledAtMs) { this.settledAtMs = settledAtMs; }
     public long getReadyDeadline() { return readyDeadline; }
     public void setReadyDeadline(long readyDeadline) { this.readyDeadline = readyDeadline; }
     public static int getHeartTimeout() { return HEART_TIMEOUT; }
@@ -331,5 +362,17 @@ public class DpRoomBO {
         int call = Math.max(0, currentBetToCall - p.getBet());
         int inc = lastRaiseIncrement > 0 ? lastRaiseIncrement : bb;
         return Math.max(0, call + inc);
+    }
+
+    public Map<String, Integer> getCarryInChips() {
+        return carryInChips;
+    }
+
+    public int getMyCarryInChips() {
+        return myCarryInChips;
+    }
+
+    public void setMyCarryInChips(int myCarryInChips) {
+        this.myCarryInChips = Math.max(0, myCarryInChips);
     }
 }

@@ -3,6 +3,9 @@
  */
 
 export function dpHttpBaseUrl() {
+  if (typeof window !== 'undefined' && window.dpElectron && window.dpElectron.serverUrl) {
+    return window.dpElectron.serverUrl
+  }
   return process.env.NODE_ENV === 'production' ? '' : '/dev-api'
 }
 

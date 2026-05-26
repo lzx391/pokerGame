@@ -8,7 +8,6 @@ import com.example.mgdemoplus.npc.engine.DpNpcEngine.BotActionType;
 import com.example.mgdemoplus.npc.engine.DpNpcEngine.BotType;
 import com.example.mgdemoplus.npc.engine.DpNpcEngine.BoardDanger;
 import com.example.mgdemoplus.npc.engine.DpNpcEngine.HandPlanType;
-import com.example.mgdemoplus.npc.engine.DpNpcEngine.RuleNpcConfig;
 import com.example.mgdemoplus.utils.DpUtilSmartContext;
 
 /**
@@ -74,7 +73,7 @@ public final class DpNpcCallStrategy {
                             || p.strength == SimpleStrength.MONSTER)) {
                 foldBase *= 0.68;
             }
-            double foldProb = Math.min(1.0, Math.max(0.0, foldBase + (-p.mood) * 0.2));
+            double foldProb = Math.min(1.0, Math.max(0.0, foldBase));
             if (foldProb > 0 && p.random.nextDouble() < foldProb) {
                 return new BotAction(BotActionType.FOLD, 0);
             }
@@ -82,7 +81,7 @@ public final class DpNpcCallStrategy {
 
         double r = p.random.nextDouble();
 
-        double callOrCheckProb = 0.80 - p.mood * 0.1;
+        double callOrCheckProb = 0.80;
         if (!"preflop".equals(stage)) {
             double baseRaiseProb = 1.0 - callOrCheckProb;
             double raiseProbPart = baseRaiseProb * (0.7 + 0.6 * p.aggression);
@@ -119,10 +118,7 @@ public final class DpNpcCallStrategy {
             if (fishCallCtx != null && fishCallCtx.activeVillains >= 2) {
                 bluffProb *= 0.48;
             }
-            bluffProb = DpNpcEngine.applySoftNoise(
-                    Math.min(0.6, Math.max(0.0, bluffProb)),
-                    RuleNpcConfig.PROB_NOISE_DELTA,
-                    p.random);
+            bluffProb = Math.min(0.6, Math.max(0.0, bluffProb));
             if (p.random.nextDouble() < bluffProb) {
                 int pot = p.room.getPot();
                 int bb = p.room.getBigBlindChips();
@@ -148,10 +144,7 @@ public final class DpNpcCallStrategy {
                 }
             }
         }
-        callOrCheckProb = DpNpcEngine.applySoftNoise(
-                Math.min(0.95, Math.max(0.05, callOrCheckProb)),
-                RuleNpcConfig.PROB_NOISE_DELTA,
-                p.random);
+        callOrCheckProb = Math.min(0.95, Math.max(0.05, callOrCheckProb));
 
         if (r < callOrCheckProb) {
             return new BotAction(BotActionType.CALL_OR_CHECK, 0);

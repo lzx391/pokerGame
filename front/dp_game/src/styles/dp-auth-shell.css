@@ -38,12 +38,14 @@
   box-shadow: var(--dp-panel-shadow);
 }
 
-#app.app--auth .nav-link:hover {
-  filter: brightness(1.06);
-}
-
 #app.app--auth .nav-link.router-link-active {
   box-shadow: 0 0 0 2px var(--dp-accent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  body[data-dp-fluidity='standard'] #app.app--auth .nav-link:not(.router-link-active):hover {
+    filter: brightness(1.05);
+  }
 }
 
 #app.app--auth .content-box {

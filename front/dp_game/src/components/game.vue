@@ -52,6 +52,7 @@
         :hero-my-chips="myChips"
         :hero-economy-secondary-label="topBarHeroEconomySecondaryLabel"
         :hero-economy-secondary-value="topBarHeroEconomySecondaryValue"
+        :hero-carry-in-chips="myCarryInChips"
     />
 
     </header>
@@ -144,6 +145,8 @@ import { ensureDpUserIdInStorage } from '../utils/dpEnsureUserId'
 import { dpResultSuccess, dpResultData, dpResultMessage } from '../utils/dpApiResult'
 import { dpRoomApi } from '@/api/api.dpRoom'
 import { mapState, mapGetters } from 'vuex'
+import { encodeRoomApplyFingerprint } from '../utils/dpGameRoomFingerprint'
+import { CAT_COPY, dpPotDisplayLabel } from '../constants/dpCatThemeCopy'
 
 export default {
   mixins: [dpGameFullscreenMixin, dpGameTableFitMixin, dpGameActionCountdownMixin, dpGameLayoutTierMixin],
@@ -162,6 +165,8 @@ export default {
   data() {
     return {
       communityCardsFlipCompleteTimer: null,
+      /** WS/HTTP 房间快照指纹；与 {@link encodeRoomApplyFingerprint} 一致，未变则跳过 APPLY_ROOM */
+      _lastRoomApplyFingerprint: '',
       gameWs: null,
       gameWsConnected: false,
       /** 每开一条新连接前自增，用于丢弃旧 socket 的 onclose/onopen，避免顶替连接时误触重连 */
@@ -186,7 +191,7 @@ export default {
 
   computed: {
     ...mapState('dpGame', [
-      'gameUiTheme', 'customThemeBase', 'customThemeOverrides', 'ecoMode', 'gameThemeOptions', 'roomId', 'user', 'currentHandSeed', 'owner', 'players', 'playing', 'stage', 'communityCards', 'pot', 'pots', 'currentBetToCall', 'lastRaiseIncrement', 'actIndex', 'spectators', 'waitNextHand', 'raiseAmount', 'selectedWinners', 'potWinners', 'nextHandReady', 'loading', 'communityCardsFlipState', 'communityCardsFlipComplete', 'seatChatTextByNick', 'roomChatMessages', 'chatInputDraft', 'showPlayGuideModal', 'playGuideTab', 'showSpectatorModal', 'showWaitNextHandModal', 'showHandHistoryModal', 'showOpponentHandHistoryModal', 'opponentHandHistoryOtherUserId', 'opponentHandHistoryDisplayName', 'showMusicBoxModal', 'musicTracks', 'musicTracksLoading', 'musicTracksError', 'roomMusicState', 'showOwnerHubSheet', 'ownerToolType', 'ownerActionTarget', 'demoBotAdding', 'demoBotAddedTip', 'maniacBotAdding', 'maniacBotAddedTip', 'tagBotAdding', 'tagBotAddedTip', 'lagBotAdding', 'lagBotAddedTip', 'nitBotAdding', 'nitBotAddedTip', 'callBotAdding', 'callBotAddedTip', 'llmBotAdding', 'llmBotAddedTip', 'llmGlobalBotAdding', 'llmGlobalBotAddedTip', 'ownerRevealAll', 'showMobileHandSheet', 'showMobileActionSheet', 'heroHoleDealIntroDone', 'chipLeaderNicknames'
+      'gameUiTheme', 'customThemeBase', 'customThemeOverrides', 'ecoMode', 'gameThemeOptions', 'roomId', 'user', 'currentHandSeed', 'owner', 'players', 'playing', 'stage', 'communityCards', 'pot', 'pots', 'currentBetToCall', 'lastRaiseIncrement', 'actIndex', 'spectators', 'waitNextHand', 'raiseAmount', 'selectedWinners', 'potWinners', 'nextHandReady', 'loading', 'communityCardsFlipState', 'communityCardsFlipComplete', 'seatChatTextByNick', 'roomChatMessages', 'chatInputDraft', 'showPlayGuideModal', 'playGuideTab', 'showSpectatorModal', 'showWaitNextHandModal', 'showHandHistoryModal', 'showOpponentHandHistoryModal', 'opponentHandHistoryOtherUserId', 'opponentHandHistoryDisplayName', 'showMusicBoxModal', 'musicTracks', 'musicTracksLoading', 'musicTracksError', 'roomMusicState', 'showOwnerHubSheet', 'showCustomNpcStyleDialog', 'customNpcPendingCount', 'ownerToolType', 'ownerActionTarget', 'demoBotAdding', 'demoBotAddedTip', 'maniacBotAdding', 'maniacBotAddedTip', 'tagBotAdding', 'tagBotAddedTip', 'lagBotAdding', 'lagBotAddedTip', 'nitBotAdding', 'nitBotAddedTip', 'callBotAdding', 'callBotAddedTip', 'llmBotAdding', 'llmBotAddedTip', 'llmGlobalBotAdding', 'llmGlobalBotAddedTip', 'customBotAdding', 'customBotAddedTip', 'ownerRevealAll', 'showMobileHandSheet', 'showMobileActionSheet', 'heroHoleDealIntroDone', 'chipLeaderNicknames', 'myCarryInChips'
     ]),
     ...mapGetters('dpGame', [
       'effectiveThemeForCss', 'customThemeInlineStyle', 'handRankReference', 'stageCN', 'isOwner', 'canInviteFriend', 'isMyTurn', 'myPlayer', 'showSpectatorPrepareBlock', 'myReady', 'myChips', 'myBet', 'callAmount', 'smallBlind', 'bigBlind', 'lastRaiseIncrementEffective', 'minTotalToRaise', 'minRaise', 'allPotsHaveWinners', 'inSettledStage', 'ownerActionPlayers', 'playersDisplayOrder', 'viewerSeatedAtTable', 'holeDealPlayerCountForAnim', 'heroDockRow', 'dealerDisplayIndex', 'showdownHandLeaderNicknames', 'spectatorSeatChatEntries', 'tableActionActorDisplayName', 'mobileHeroDockActive', 'showHeroViewHandButton', 'showBottomHeroDock'
@@ -268,8 +273,23 @@ export default {
     }
   },
 
+  beforeRouteUpdate(to, from, next) {
+    if (to.params.roomId !== from.params.roomId) {
+      this.resetRoomChatUiForEnter()
+      this.$store.commit('dpGame/SET_SESSION', { roomId: to.params.roomId })
+      var self = this
+      this.loadGame().then(function () {
+        self.fetchRoomChatRecent()
+        self.shutdownGameWsPermanently()
+        self.connectGameWs()
+      })
+    }
+    next()
+  },
+
   created() {
     this._seatChatTimers = Object.create(null)
+    this.resetRoomChatUiForEnter()
     this.$store.commit('dpGame/SET_SESSION', { roomId: this.$route.params.roomId })
 
     var self = this
@@ -325,6 +345,7 @@ export default {
   },
 
   beforeDestroy() {
+    this.$store.commit('dpGame/SET_MODAL', { showCustomNpcStyleDialog: false })
     try {
       var bgm = this.$refs.roomBgm
       if (bgm) {
@@ -339,6 +360,7 @@ export default {
     if (this.actionTimer) clearInterval(this.actionTimer)
     if (this.readyTimer) clearInterval(this.readyTimer)
     if (this.communityCardsFlipCompleteTimer) clearTimeout(this.communityCardsFlipCompleteTimer)
+    this._lastRoomApplyFingerprint = ''
     if (this._seatChatTimers) {
       var self = this
       Object.keys(this._seatChatTimers).forEach(function (k) {
@@ -372,6 +394,11 @@ export default {
     },
 
     gameWsBaseUrl() {
+      // Electron 桌面客户端：连到 config.json 配置的服务器地址
+      if (typeof window !== 'undefined' && window.dpElectron && window.dpElectron.serverUrl) {
+        var url = window.dpElectron.serverUrl.replace(/\/+$/, '')
+        return url.replace(/^https?:/, url.indexOf('https:') === 0 ? 'wss:' : 'ws:')
+      }
       // 与页面同源；开发时游戏 WS 走 vue.config.js 的 /dp-ws → 后端 /ws
       var secure = window.location.protocol === 'https:'
       return (secure ? 'wss:' : 'ws:') + '//' + window.location.host
@@ -671,7 +698,7 @@ export default {
         this.$store.commit('dpGame/SET_MUSIC_TRACKS', {
           tracks: [],
           loading: false,
-          error: '曲库列表加载失败，请确认后端与 dp_music_track 已就绪。'
+          error: CAT_COPY.musicListLoadFailed
         })
       }
     },
@@ -685,6 +712,19 @@ export default {
         text: text,
         serverTime: data.serverTime != null ? Number(data.serverTime) : Date.now(),
         senderUserId: data.senderUserId != null ? data.senderUserId : null
+      }
+    },
+
+    /** 进房 / 换房：清空上一局的聊天列表与座位气泡（NPC 桌边话仅存前端，不落库） */
+    resetRoomChatUiForEnter() {
+      this.$store.commit('dpGame/CLEAR_ROOM_CHAT_MESSAGES')
+      this.$store.commit('dpGame/CLEAR_ALL_SEAT_CHAT')
+      if (this._seatChatTimers) {
+        var self = this
+        Object.keys(this._seatChatTimers).forEach(function (k) {
+          clearTimeout(self._seatChatTimers[k])
+        })
+        this._seatChatTimers = Object.create(null)
       }
     },
 
@@ -733,7 +773,7 @@ export default {
             }
           })
           .filter(Boolean)
-        this.$store.commit('dpGame/MERGE_ROOM_CHAT_MESSAGES', rows)
+        this.$store.commit('dpGame/REPLACE_ROOM_CHAT_MESSAGES', rows)
       } catch (e) {
         console.warn('fetchRoomChatRecent', e)
       }
@@ -765,6 +805,17 @@ export default {
     },
 
     applyRoomFromServer(room) {
+      var fp = encodeRoomApplyFingerprint(room)
+      if (fp && fp === this._lastRoomApplyFingerprint) {
+        this.$nextTick(function () {
+          this.syncActionCountdown()
+          if (this.isMyTurn && this.raiseAmount < this.minRaise) {
+            this.$store.commit('dpGame/SET_RAISE_AMOUNT', this.minRaise)
+          }
+        }.bind(this))
+        return
+      }
+      this._lastRoomApplyFingerprint = fp
       this.$store.commit('dpGame/APPLY_ROOM', room)
       this.syncCommunityCardsFlipState(room.communityCards || [])
       this.$nextTick(function () {
@@ -773,6 +824,15 @@ export default {
           this.$store.commit('dpGame/SET_RAISE_AMOUNT', this.minRaise)
         }
       }.bind(this))
+    },
+
+    /** eco 或系统「减少动态效果」：公共牌翻面走短定时，与 CSS 瞬时翻转对齐 */
+    prefersReducedMotionForFlip() {
+      try {
+        return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      } catch (e) {
+        return false
+      }
     },
 
     // ---- 拉取房间状态 ----
@@ -1012,7 +1072,7 @@ export default {
       for (var i = 0; i < this.pots.length; i++) {
         var winners = this.potWinners[i] || []
         if (winners.length === 0) {
-          this.$message.warning('第 ' + (i === 0 ? '主' : i) + ' 池还没选赢家')
+          this.$message.warning(dpPotDisplayLabel(i) + ' 还没选赢家')
           return
         }
         parts.push(i + ':' + winners.join(','))
@@ -1022,7 +1082,7 @@ export default {
       // 组装确认信息（HTML 换行，避免原生 confirm 打断全屏）
       var lines = ['确认结算？']
       for (var j = 0; j < this.pots.length; j++) {
-        var potName = j === 0 ? '主池' : '边池 ' + j
+        var potName = dpPotDisplayLabel(j)
         lines.push(
           potName + '(' + this.pots[j].amount + ') -> '
           + (this.potWinners[j] || []).map(dpDisplayNickname).join(', ')
@@ -1201,6 +1261,50 @@ export default {
       }
     },
 
+    closeCustomNpcStyleDialog () {
+      this.$store.commit('dpGame/SET_MODAL', { showCustomNpcStyleDialog: false })
+    },
+
+    /**
+     * 自定义 NPC：弹窗确定后提交（本批共用一套 profile）。
+     */
+    async submitCustomNpcBatch (profile) {
+      if (!this.roomId || !this.user || !this.user.nickname) {
+        this.$message.warning('请先登录')
+        return
+      }
+      var count = this.customNpcPendingCount
+      this.$store.commit('dpGame/SET_MODAL', { showCustomNpcStyleDialog: false })
+      this.$store.commit('dpGame/SET_BOT_STATE', {
+        customBotAdding: true,
+        customBotAddedTip: ''
+      })
+      try {
+        var res = await this.$http.post('/dpRoom/addCustomNpcBatch', {
+          roomId: this.roomId,
+          count: count,
+          requesterNickname: this.user.nickname,
+          profile: profile
+        })
+        var msg
+        if (res.data === 'ok') {
+          msg =
+            '已请求在下一局加入最多 ' +
+            count +
+            ' 个自定义 NPC（受空位限制；本批共用一套参数），请等待本局结束。'
+        } else {
+          msg = '添加失败：' + res.data
+        }
+        this.$store.commit('dpGame/SET_BOT_STATE', { customBotAddedTip: msg })
+      } catch (e) {
+        this.$store.commit('dpGame/SET_BOT_STATE', {
+          customBotAddedTip: '网络错误：' + (e && e.message ? e.message : e)
+        })
+      } finally {
+        this.$store.commit('dpGame/SET_BOT_STATE', { customBotAdding: false })
+      }
+    },
+
     /**
      * 房主神器：按数量将 NPC 加入下一局等待列表（规则档走 addRuleNpcBatch）。
      */
@@ -1210,6 +1314,14 @@ export default {
       var count = parseInt(payload.count, 10)
       if (isNaN(count) || count < 1) count = 1
       if (count > 9) count = 9
+
+      if (type === 'custom') {
+        this.$store.commit('dpGame/SET_MODAL', {
+          customNpcPendingCount: count,
+          showCustomNpcStyleDialog: true
+        })
+        return
+      }
 
       var ruleStore = {
         FISH: { prefix: 'demoBot' },
@@ -1331,6 +1443,7 @@ export default {
       } catch (e) {
         return
       }
+      this.$store.commit('dpGame/SET_MODAL', { showCustomNpcStyleDialog: false })
       this.beginIntentionalLeave()
       try {
         await this.$http.post('/dpRoom/exitRoom', null, {
@@ -1386,6 +1499,7 @@ export default {
      * 因此仅在公共牌变少（新一手）或新增公共牌（numNew>0）时取消并重设定时器。
      */
     syncCommunityCardsFlipState(newCards) {
+      var instantFlip = this.ecoMode || this.prefersReducedMotionForFlip()
       var prevLen = this.communityCardsFlipState.length
       if (newCards.length < prevLen) {
         if (this.communityCardsFlipCompleteTimer) {
@@ -1406,28 +1520,38 @@ export default {
       }
       var flip = this.communityCardsFlipState.slice()
       for (var i = flip.length; i < newCards.length; i++) {
-        flip.push(false)
+        flip.push(instantFlip)
       }
       if (flip.length !== this.communityCardsFlipState.length) {
         this.$store.commit('dpGame/SET_COMMUNITY_FLIP_STATE', flip)
       }
-      for (var j = prevLen; j < newCards.length; j++) {
-        var self = this
-        ;(function (capturedIdx, capturedDelay) {
-          setTimeout(function () {
-            if (self.communityCardsFlipState.length > capturedIdx) {
-              self.$store.commit('dpGame/SET_FLIP_AT', { index: capturedIdx, value: true })
-            }
-          }, capturedDelay)
-        })(j, 520 + 350 * (j - prevLen))
-      }
-      if (numNew > 0) {
-        var flipDuration = 800
-        var lastFlipStart = 520 + 350 * (numNew - 1)
-        var self = this
+      if (numNew > 0 && instantFlip) {
+        for (var k = 0; k < newCards.length; k++) {
+          flip[k] = true
+        }
+        this.$store.commit('dpGame/SET_COMMUNITY_FLIP_STATE', flip)
+        var selfInstant = this
         this.communityCardsFlipCompleteTimer = setTimeout(function () {
-          self.$store.commit('dpGame/SET_COMMUNITY_FLIP_COMPLETE', true)
-          self.communityCardsFlipCompleteTimer = null
+          selfInstant.$store.commit('dpGame/SET_COMMUNITY_FLIP_COMPLETE', true)
+          selfInstant.communityCardsFlipCompleteTimer = null
+        }, 180)
+      } else if (numNew > 0) {
+        for (var j = prevLen; j < newCards.length; j++) {
+          var self = this
+          ;(function (capturedIdx, capturedDelay) {
+            setTimeout(function () {
+              if (self.communityCardsFlipState.length > capturedIdx) {
+                self.$store.commit('dpGame/SET_FLIP_AT', { index: capturedIdx, value: true })
+              }
+            }, capturedDelay)
+          })(j, 520 + 350 * (j - prevLen))
+        }
+        var flipDuration = 480
+        var lastFlipStart = 520 + 350 * (numNew - 1)
+        var selfDone = this
+        this.communityCardsFlipCompleteTimer = setTimeout(function () {
+          selfDone.$store.commit('dpGame/SET_COMMUNITY_FLIP_COMPLETE', true)
+          selfDone.communityCardsFlipCompleteTimer = null
         }, lastFlipStart + flipDuration)
       } else if (newCards.length > 0 && this.communityCardsFlipState.every(function (x) {
         return x

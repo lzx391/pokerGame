@@ -1,107 +1,190 @@
+# =============================================================================
+# MGDemoPlus 配置分层说明（详见 docs/CONFIG_LAYERS.md）
+# =============================================================================
+# A 密钥       — 仅 env（.env / compose environment），勿提交真值
+# B 运维可调   — env 可覆盖，yml 为 ${ENV:默认}
+# C 部署路径   — compose 为主 + env 传入容器
+# D 产品/框架  — yml 写死或弱默认；改 D → Docker 需 rebuild 镜像
+#
+# 读取顺序（优先级从高到低）：
+#   ① 操作系统 / docker compose 注入的环境变量
+#   ② 根目录 .env → LocalDotenvLoader（仅当 ① 未设置同名键）
+#   ③ application.yml 字面默认值或 ${ENV:default} 的 default 段
+#
+# Docker 生产：镜像内不依赖磁盘 .env；宿主机 compose 读 .env 做 ${VAR} 替换后注入。
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# spring — 框架 / 数据源 / Redis（D + A/C）
+# -----------------------------------------------------------------------------
 spring:
   application:
-    name: MGDemoPlus
+    name: MGDemoPlus  # [D]
   flyway:
-    locations: classpath:db/migration
+    locations: classpath:db/migration  # [D]
     # 库已有业务表但从未跑过 Flyway（无 flyway_schema_history）时启用；首次会在当前库打 baseline 再执行更高版本脚本。
-    baseline-on-migrate: true
+    baseline-on-migrate: true  # [D]
   autoconfigure:
-    exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+    exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration  # [D]
   datasource:
-    type: com.alibaba.druid.pool.DruidDataSource
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/school_db?useSSL=false&serverTimezone=Asia/Shanghai}
-    username: ${SPRING_DATASOURCE_USERNAME:root}
-    password: ${SPRING_DATASOURCE_PASSWORD:123456}
+    type: com.alibaba.druid.pool.DruidDataSource  # [D]
+    driver-class-name: com.mysql.cj.jdbc.Driver  # [D]
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/school_db?useSSL=false&serverTimezone=Asia/Shanghai}  # [C] env: SPRING_DATASOURCE_URL
+    username: ${SPRING_DATASOURCE_USERNAME:root}  # [A] env: SPRING_DATASOURCE_USERNAME
+    password: ${SPRING_DATASOURCE_PASSWORD:123456}  # [A] env: SPRING_DATASOURCE_PASSWORD
     druid:
-      enable: true
+      enable: true  # [D]
   devtools:
     restart:
-      additional-paths: src/main/java
+      additional-paths: src/main/java  # [D]
   servlet:
     multipart:
-      max-file-size: 80MB
-      max-request-size: 80MB
+      max-file-size: 120MB  # [D]
+      max-request-size: 120MB  # [D]
   data:
     redis:
-      host: ${SPRING_DATA_REDIS_HOST:127.0.0.1}
-      port: ${SPRING_DATA_REDIS_PORT:6379}
-      password: ${SPRING_DATA_REDIS_PASSWORD:ruoyi123}
-      database: 0
-      timeout: 3000ms
+      host: ${SPRING_DATA_REDIS_HOST:127.0.0.1}  # [C] env: SPRING_DATA_REDIS_HOST
+      port: ${SPRING_DATA_REDIS_PORT:6379}  # [C] env: SPRING_DATA_REDIS_PORT
+      password: ${SPRING_DATA_REDIS_PASSWORD:ruoyi123}  # [A] env: SPRING_DATA_REDIS_PASSWORD
+      database: 0  # [D]
+      timeout: 3000ms  # [D]
   # SSE 长连接：避免默认 ~30s AsyncRequestTimeout 掐断 /dp/social/stream
   mvc:
     async:
-      request-timeout: -1
+      request-timeout: -1  # [D]
 
+# -----------------------------------------------------------------------------
+# mgdemoplus — 业务配置（A / B / C / D）
+# -----------------------------------------------------------------------------
 mgdemoplus:
-  # JVM 默认时区（北京时间 Asia/Shanghai；LocalDateTime.now、好友私信 created_at 等）；Docker 未设 TZ 时多为 UTC，会导致少 8 小时
-  time-zone: ${MGDEMOPLUS_TIME_ZONE:Asia/Shanghai}
-  jwt:
-    secret: ${JWT_SECRET:abcdefghhgfedcbaabcdefghhgfedcba} # JWT 签名密钥（UTF-8 至少 32 字节）；可由环境变量 JWT_SECRET 覆盖（.env 经 LocalDotenvLoader 写入系统属性）
-    expiration:
-      time: 259200000
-  cache:
-    music-list-ttl-seconds: ${MGDEMOPLUS_CACHE_MUSIC_LIST_TTL_SECONDS:300} # 曲库列表 Redis 缓存 TTL（秒）；上传成功后会主动删缓存键。
-  dp-lobby-reconcile-enabled: true # DP 大厅表 dp_room_lobby 与内存 roomMap 对齐（清幽灵房）；单机房模型默认开启，多实例请设 false
-  dp-lobby-reconcile-ms: 60000 # 对齐间隔（毫秒）；启动时也会立即跑一轮
-  dp-quick-match-prune-ms: 30000 # 默认快匹等待队列：清理超时/已在房内的条目（毫秒，fixedDelay）
-  # 站点在线：last_seen_site 判定窗口。宜 &gt; 2～3×客户端 POST /dp/presence/site-heartbeat 间隔（默认 90s≈30s 间隔×3）。环境变量 MGDEMOPLUS_DP_SITE_PRESENCE_TTL_MS
-  dp-site-presence-ttl-ms: ${MGDEMOPLUS_DP_SITE_PRESENCE_TTL_MS:90000}
-  images:
-    file-location: ${MGDEMOPLUS_IMAGES_FILE_LOCATION:file:P:/javaworkspace/DPGameFiles/} # 头像等上传文件落盘目录（与 WebConfig `/images/**` 一致）；Docker 用环境变量 MGDEMOPLUS_IMAGES_FILE_LOCATION 覆盖
-  music:
-    file-location: ${MGDEMOPLUS_MUSIC_FILE_LOCATION:file:P:/javaworkspace/DPGameFiles/music/} # 曲库音频（与 WebConfig `/music/**`、DpMusicController 一致）；可设 MGDEMOPLUS_MUSIC_FILE_LOCATION
+  # --- C: 时区 ---
+  time-zone: ${MGDEMOPLUS_TIME_ZONE:Asia/Shanghai}  # [C] env: MGDEMOPLUS_TIME_ZONE
 
+  # --- A: JWT ---
+  jwt:
+    secret: ${JWT_SECRET:abcdefghhgfedcbaabcdefghhgfedcba}  # [A] env: JWT_SECRET（UTF-8 ≥32 字节；未设则用开发弱默认）
+    expiration:
+      time: 259200000  # [D] 约 3 天
+
+  # --- B: Redis 缓存 TTL ---
+  cache:
+    music-list-ttl-seconds: ${MGDEMOPLUS_CACHE_MUSIC_LIST_TTL_SECONDS:300}  # [B] env: MGDEMOPLUS_CACHE_MUSIC_LIST_TTL_SECONDS
+    dp-room-public-rooms-ttl-seconds: ${MGDEMOPLUS_CACHE_DP_ROOM_PUBLIC_ROOMS_TTL_SECONDS:120}  # [B] env: MGDEMOPLUS_CACHE_DP_ROOM_PUBLIC_ROOMS_TTL_SECONDS
+
+  # --- B: 大厅 / 快匹 / 站点在线 ---
+  dp-lobby-reconcile-enabled: ${MGDEMOPLUS_DP_LOBBY_RECONCILE_ENABLED:true}  # [B] env: MGDEMOPLUS_DP_LOBBY_RECONCILE_ENABLED；多实例请 false
+  dp-lobby-reconcile-ms: ${MGDEMOPLUS_DP_LOBBY_RECONCILE_MS:60000}  # [B] env: MGDEMOPLUS_DP_LOBBY_RECONCILE_MS
+  dp-quick-match-prune-ms: ${MGDEMOPLUS_DP_QUICK_MATCH_PRUNE_MS:30000}  # [B] env: MGDEMOPLUS_DP_QUICK_MATCH_PRUNE_MS
+  dp-site-presence-ttl-ms: ${MGDEMOPLUS_DP_SITE_PRESENCE_TTL_MS:90000}  # [B] env: MGDEMOPLUS_DP_SITE_PRESENCE_TTL_MS
+
+  # --- C: 上传路径 ---
+  images:
+    file-location: ${MGDEMOPLUS_IMAGES_FILE_LOCATION:file:P:/javaworkspace/DPGameFiles/images/}  # [C] env: MGDEMOPLUS_IMAGES_FILE_LOCATION
+    # 启动扫描并生成缺失的 {userId}_sm.webp；默认 false，避免生产意外全目录扫
+    backfill-thumbs: ${MGDEMOPLUS_IMAGES_BACKFILL_THUMBS:false}  # [B] env: MGDEMOPLUS_IMAGES_BACKFILL_THUMBS
+  music:
+    file-location: ${MGDEMOPLUS_MUSIC_FILE_LOCATION:file:P:/javaworkspace/DPGameFiles/music/}  # [C] env: MGDEMOPLUS_MUSIC_FILE_LOCATION
+  files:
+    file-location: ${MGDEMOPLUS_FILES_FILE_LOCATION:file:P:/javaworkspace/DPGameFiles/other/}  # [C] env: MGDEMOPLUS_FILES_FILE_LOCATION
+  # --- B: 排行榜 Redis 同步 ---
+  leaderboard:
+    sync-enabled: ${MGDEMOPLUS_LEADERBOARD_SYNC_ENABLED:true}  # [B] env: MGDEMOPLUS_LEADERBOARD_SYNC_ENABLED
+    sync-interval-ms: ${MGDEMOPLUS_LEADERBOARD_SYNC_INTERVAL_MS:60000}  # [B] env: MGDEMOPLUS_LEADERBOARD_SYNC_INTERVAL_MS
+    redis-ttl-days: ${MGDEMOPLUS_LEADERBOARD_REDIS_TTL_DAYS:14}  # [B] env: MGDEMOPLUS_LEADERBOARD_REDIS_TTL_DAYS
+
+  # --- B: 结算持久化 ---
+  settle-persist:
+    async-enabled: ${MGDEMOPLUS_SETTLE_PERSIST_ASYNC_ENABLED:true}  # [B] env: MGDEMOPLUS_SETTLE_PERSIST_ASYNC_ENABLED
+    queue-capacity: ${MGDEMOPLUS_SETTLE_PERSIST_QUEUE_CAPACITY:256}  # [B] env: MGDEMOPLUS_SETTLE_PERSIST_QUEUE_CAPACITY
+
+# -----------------------------------------------------------------------------
+# mybatis-plus / pagehelper — 持久层（D）
+# -----------------------------------------------------------------------------
 mybatis-plus:
-  mapper-locations: classpath*:mapper/**/*.xml
+  mapper-locations: classpath*:mapper/**/*.xml  # [D]
   configuration:
     # StdOutImpl 会刷屏打印每条 SQL；需要看 SQL 时改为 Slf4jImpl 并设 logging.level 下对应 Mapper 包为 DEBUG
-    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl  # [D]
 
 pagehelper:
-  helper-dialect: mysql
-  reasonable: true
-  support-methods-arguments: true
+  helper-dialect: mysql  # [D]
+  reasonable: true  # [D]
+  support-methods-arguments: true  # [D]
 
+# -----------------------------------------------------------------------------
+# server — 端口（D）
+# -----------------------------------------------------------------------------
 server:
-  port: 8088
+  port: 8088  # [D]
 
+# -----------------------------------------------------------------------------
+# logging — 当前整段注释（启用后 C/D；改 yml 需 rebuild 镜像）
+# -----------------------------------------------------------------------------
 # 只盯大模型 SLF4J：root 安静，只放开下面两个 Logger。（MyBatis 已用 Slf4j；SQL 默认不刷。）
 # System.out（SHARK、flop 阶段、SqlSession 等）不受此配置控制 → 终端搜索 [BOT_LLM] 或 BotLlmReasoning。
 # 日志文件：避免 Cursor 终端滚动顶掉历史；可用环境变量 LOG_FILE 覆盖路径。
-# logging:
-#   charset:
-#     file: UTF-8
-#   file:
-#     name: ${LOG_FILE:logs/mgdemoplus.log}
-#   logback:
-#     rollingpolicy:
-#       max-file-size: 50MB
-#       max-history: 14
-#       total-size-cap: 1GB
-#   level:
-#     root: WARN
-#     com.example.mgdemoplus.BotLlmReasoning: INFO
-#     com.example.mgdemoplus.service.serviceImpl.DpNpcEngine: INFO
-#     com.example.mgdemoplus.service.serviceImpl.DpLlmNpcDecisionService: DEBUG
-#     # 大厅 SSE / 进房邀请联调（[social-sse] 为 INFO）；稳定后可改回 WARN
-#     com.example.mgdemoplus.social: INFO
-#     com.example.mgdemoplus.controller.DpSocialController: INFO
-#     com.example.mgdemoplus.controller.DpFriendMailboxController: INFO
-#     com.example.mgdemoplus.security.JwtAuthenticationFilter: INFO
-#     com.example.mgdemoplus.social.impl.DpFriendSocialService: INFO
-#     org.springframework: WARN
-#     com.alibaba.druid: WARN
 # 只要思考、不要【已发起】【采用】：把 DpLlmNpcDecisionService 改成 WARN。
 # 要查 SQL：com.example.mgdemoplus.mapper: DEBUG。
 
+# logging:
+#   charset:
+#     file: UTF-8  # [D]
+#   file:
+#     name: ${LOG_FILE:logs/mgdemoplus.log}  # [C] env: LOG_FILE
+#   logback:
+#     rollingpolicy:
+#       max-file-size: 50MB  # [D]
+#       max-history: 14  # [D]
+#       total-size-cap: 1GB  # [D]
+#   level:
+#     root: WARN  # [D]
+#     com.example.mgdemoplus.BotLlmReasoning: INFO  # [D]
+#     com.example.mgdemoplus.service.serviceImpl.DpNpcEngine: INFO  # [D]
+#     com.example.mgdemoplus.service.serviceImpl.DpLlmNpcDecisionService: DEBUG  # [D]
+#     # 大厅 SSE / 进房邀请联调（[social-sse] 为 INFO）；稳定后可改回 WARN
+#     com.example.mgdemoplus.social: INFO  # [D]
+#     com.example.mgdemoplus.controller.DpSocialController: INFO  # [D]
+#     com.example.mgdemoplus.controller.DpFriendMailboxController: INFO  # [D]
+#     com.example.mgdemoplus.security.JwtAuthenticationFilter: INFO  # [D]
+#     com.example.mgdemoplus.social.impl.DpFriendSocialService: INFO  # [D]
+#     org.springframework: WARN  # [D]
+#     com.alibaba.druid: WARN  # [D]
+
+# -----------------------------------------------------------------------------
+# dp.npc — NPC 桌边话 / 规则思考延时（B）
+# -----------------------------------------------------------------------------
 dp:
+  npc:
+    table-talk:
+      enabled: ${DP_NPC_TABLE_TALK_ENABLED:true}  # [B] env: DP_NPC_TABLE_TALK_ENABLED
+      # speak-probability: ${DP_NPC_TABLE_TALK_SPEAK_PROBABILITY:}  # [B] env: DP_NPC_TABLE_TALK_SPEAK_PROBABILITY；可选，覆盖 npc-lines/*.yaml
+      # settle-speak-probability: ${DP_NPC_TABLE_TALK_SETTLE_SPEAK_PROBABILITY:}  # [B] env: DP_NPC_TABLE_TALK_SETTLE_SPEAK_PROBABILITY
+      min-interval-ms: ${DP_NPC_TABLE_TALK_MIN_INTERVAL_MS:2500}  # [B] env: DP_NPC_TABLE_TALK_MIN_INTERVAL_MS
+    mood:
+      enabled: ${DP_NPC_MOOD_ENABLED:true}  # [B] env: DP_NPC_MOOD_ENABLED
+      delta-win: ${DP_NPC_MOOD_DELTA_WIN:0.2}  # [B] env: DP_NPC_MOOD_DELTA_WIN
+      delta-lose: ${DP_NPC_MOOD_DELTA_LOSE:-0.2}  # [B] env: DP_NPC_MOOD_DELTA_LOSE
+      high-threshold: ${DP_NPC_MOOD_HIGH_THRESHOLD:0.35}  # [B] env: DP_NPC_MOOD_HIGH_THRESHOLD；仅台词分桶
+      low-threshold: ${DP_NPC_MOOD_LOW_THRESHOLD:-0.35}  # [B] env: DP_NPC_MOOD_LOW_THRESHOLD；仅台词分桶
+    rule-think:
+      enabled: ${DP_NPC_RULE_THINK_ENABLED:true}  # [B] env: DP_NPC_RULE_THINK_ENABLED
+      snap-probability: ${DP_NPC_RULE_THINK_SNAP_PROBABILITY:0.18}  # [B] env: DP_NPC_RULE_THINK_SNAP_PROBABILITY
+      max-ms: ${DP_NPC_RULE_THINK_MAX_MS:4000}  # [B] env: DP_NPC_RULE_THINK_MAX_MS
+      fast-min-ms: ${DP_NPC_RULE_THINK_FAST_MIN_MS:500}  # [B] env: DP_NPC_RULE_THINK_FAST_MIN_MS
+      fast-max-ms: ${DP_NPC_RULE_THINK_FAST_MAX_MS:2000}  # [B] env: DP_NPC_RULE_THINK_FAST_MAX_MS
+      fast-weight: ${DP_NPC_RULE_THINK_FAST_WEIGHT:0.70}  # [B] env: DP_NPC_RULE_THINK_FAST_WEIGHT
+      slow-min-ms: ${DP_NPC_RULE_THINK_SLOW_MIN_MS:2000}  # [B] env: DP_NPC_RULE_THINK_SLOW_MIN_MS
+      slow-max-ms: ${DP_NPC_RULE_THINK_SLOW_MAX_MS:4000}  # [B] env: DP_NPC_RULE_THINK_SLOW_MAX_MS
+      slow-weight: ${DP_NPC_RULE_THINK_SLOW_WEIGHT:0.30}  # [B] env: DP_NPC_RULE_THINK_SLOW_WEIGHT
+
+  # -----------------------------------------------------------------------------
+  # dp.llm — 方舟大模型 BOT_LLM（A / B）
+  # -----------------------------------------------------------------------------
   llm:
     ark:
-      api-key: ${ARK_API_KEY:}
-      endpoint-id: ${ARK_ENDPOINT_ID:}
-      base-url: ${ARK_BASE_URL:}
-      reasoning-effort: ${ARK_REASONING_EFFORT:} # 推理强度：high 思维链很长；要「仍开思考但更省时间」建议 medium/low（留空则按服务商默认）
-      thinking-type: ${ARK_THINKING_TYPE:} # 方舟不接受 low+disabled 等同传；代码在 thinking-type=disabled 时会忽略 reasoning-effort
-      response-json-object: ${ARK_RESPONSE_JSON_OBJECT:true} # BOT_LLM 请求加 response_format=json_object；若接口 400 可设 false，仍靠解析器容错
+      api-key: ${ARK_API_KEY:}  # [A] env: ARK_API_KEY
+      endpoint-id: ${ARK_ENDPOINT_ID:}  # [A] env: ARK_ENDPOINT_ID
+      base-url: ${ARK_BASE_URL:}  # [A] env: ARK_BASE_URL
+      reasoning-effort: ${ARK_REASONING_EFFORT:high}  # [B] env: ARK_REASONING_EFFORT；high 思维链很长，建议 medium/low
+      thinking-type: ${ARK_THINKING_TYPE:enabled}  # [B] env: ARK_THINKING_TYPE；disabled 时忽略 reasoning-effort
+      response-json-object: ${ARK_RESPONSE_JSON_OBJECT:true}  # [B] env: ARK_RESPONSE_JSON_OBJECT；接口 400 可设 false

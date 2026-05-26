@@ -10,7 +10,13 @@
     <template slot="title">
       <div class="friend-chat__header">
         <div class="friend-chat__peer-card" :title="peerDisplayName">
-          <span class="friend-chat__peer-avatar" aria-hidden="true">{{ peerInitial }}</span>
+          <dp-user-avatar
+            class="friend-chat__peer-avatar"
+            :avatar-url="peerAvatarUrl"
+            :nickname="peerDisplayName"
+            :cache-bust="avatarCacheBustFromUpdatedAt(peerAvatarUpdatedAt)"
+            size="md"
+          />
           <span
             v-if="showPeerUnreadDot"
             class="friend-chat__peer-unread-dot"
@@ -72,16 +78,21 @@
 </template>
 
 <script>
+import DpUserAvatar from '@/components/DpUserAvatar.vue'
+import { avatarCacheBustFromUpdatedAt } from '@/utils/dpAvatarUrl'
 import { dpSocialApi } from '@/api/api.dpSocial'
 import { dpResultSuccess, dpResultData, dpResultMessage, dpAxiosErrorMessage } from '@/utils/dpApiResult'
 import { mapActions, mapState } from 'vuex'
 
 export default {
   name: 'FriendChatDialog',
+  components: { DpUserAvatar },
   props: {
     visible: { type: Boolean, default: false },
     peerUserId: { type: [Number, String], default: null },
     peerDisplayName: { type: String, default: '' },
+    peerAvatarUrl: { type: String, default: '' },
+    peerAvatarUpdatedAt: { type: [Number, String], default: null },
     /** 打开对话时该好友的未读条数（用于头像红点，已读后由父级刷新） */
     peerUnreadCount: { type: Number, default: 0 }
   },
@@ -152,6 +163,7 @@ export default {
     }
   },
   methods: {
+    avatarCacheBustFromUpdatedAt,
     ...mapActions('dpMailbox', [
       'fetchFriendChatUnreadSummary',
       'fetchNotifySummary'
@@ -345,17 +357,7 @@ export default {
   flex-shrink: 0;
 }
 .friend-chat__peer-avatar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  font-size: 18px;
-  font-weight: 700;
-  background: color-mix(in srgb, #409eff 22%, var(--dp-subpanel-bg, #eef3ff));
-  color: var(--dp-text-primary, #1e2330);
-  border: 1px solid var(--dp-subpanel-border, rgba(0, 0, 0, 0.1));
+  display: block;
 }
 .friend-chat__peer-unread-dot {
   position: absolute;

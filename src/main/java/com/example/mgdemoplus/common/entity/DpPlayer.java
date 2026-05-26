@@ -102,6 +102,22 @@ public class DpPlayer {
      */
     private String npcHandPlanTargetVillain;
 
+    /** 自定义 BOT 六维风格（0～1）；仅 {@code BOT_CUSTOM_*} 入座后写入，不下发 JSON。 */
+    @JsonIgnore
+    private double npcStyleVpip = -1.0;
+    @JsonIgnore
+    private double npcStylePfr = -1.0;
+    @JsonIgnore
+    private double npcStyleCbetFreq = -1.0;
+    @JsonIgnore
+    private double npcStyleBluffFreq = -1.0;
+    @JsonIgnore
+    private double npcStyleCallStation = -1.0;
+    @JsonIgnore
+    private double npcStyleFoldToPressure = -1.0;
+    @JsonIgnore
+    private boolean npcCustomStyleReady = false;
+
     // getter & setter
     public boolean isActed() { return acted; }
     public void setActed(boolean acted) { this.acted = acted; }
@@ -190,5 +206,61 @@ public class DpPlayer {
 
     public void setNpcHandPlanTargetVillain(String npcHandPlanTargetVillain) {
         this.npcHandPlanTargetVillain = npcHandPlanTargetVillain;
+    }
+
+    public double getNpcStyleVpip() {
+        return npcStyleVpip;
+    }
+
+    public void setNpcStyleVpip(double npcStyleVpip) {
+        this.npcStyleVpip = npcStyleVpip;
+    }
+
+    public double getNpcStylePfr() {
+        return npcStylePfr;
+    }
+
+    public void setNpcStylePfr(double npcStylePfr) {
+        this.npcStylePfr = npcStylePfr;
+    }
+
+    public double getNpcStyleCbetFreq() {
+        return npcStyleCbetFreq;
+    }
+
+    public void setNpcStyleCbetFreq(double npcStyleCbetFreq) {
+        this.npcStyleCbetFreq = npcStyleCbetFreq;
+    }
+
+    public double getNpcStyleBluffFreq() {
+        return npcStyleBluffFreq;
+    }
+
+    public void setNpcStyleBluffFreq(double npcStyleBluffFreq) {
+        this.npcStyleBluffFreq = npcStyleBluffFreq;
+    }
+
+    public double getNpcStyleCallStation() {
+        return npcStyleCallStation;
+    }
+
+    public void setNpcStyleCallStation(double npcStyleCallStation) {
+        this.npcStyleCallStation = npcStyleCallStation;
+    }
+
+    public double getNpcStyleFoldToPressure() {
+        return npcStyleFoldToPressure;
+    }
+
+    public void setNpcStyleFoldToPressure(double npcStyleFoldToPressure) {
+        this.npcStyleFoldToPressure = npcStyleFoldToPressure;
+    }
+
+    public boolean isNpcCustomStyleReady() {
+        return npcCustomStyleReady;
+    }
+
+    public void setNpcCustomStyleReady(boolean npcCustomStyleReady) {
+        this.npcCustomStyleReady = npcCustomStyleReady;
     }
 }

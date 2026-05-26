@@ -39,6 +39,10 @@ public class DpLlmNpcDecisionService {
      * 仅模型 reasoning（思考链）；要「控制台几乎只看思考」可把本 logger 设为 INFO、本类设为 WARN。
      */
     private static final Logger LOG_REASONING = LoggerFactory.getLogger("com.example.mgdemoplus.BotLlmReasoning");
+    /** LLM {@code table_talk} 解析与桌边话推送；默认 INFO 即可对照模型 JSON。 */
+    private static final Logger LOG_TABLE_TALK =
+            LoggerFactory.getLogger("com.example.mgdemoplus.BotLlmTableTalk");
+    private static final int TABLE_TALK_JSON_LOG_MAX = 600;
 
     /**
      * BOT_LLM 系统提示：纪律、教学与输出契约；局面数值仅见 user 快照（见 {@link LlmNpcUserSnapshot}）。
@@ -51,7 +55,8 @@ public class DpLlmNpcDecisionService {
             【行动】你还须支付（见快照 call_amount_chips）=0：仅可 CALL_OR_CHECK（过牌/看牌，chips_to_add=0）或 RAISE/ALL_IN，禁止 FOLD。call_amount>0：一般比较 equity_estimate 与 equity_gate_impl_ratio；该跟则 CALL_OR_CHECK；该弃则 FOLD；但若对手偏 MANIAC/LOOSE 或 showdown_bluffiness≥0.65 或 counter_strategy_kw 含 bluffCatch/callDown 且 equity 与门槛差距≤0.03，可优先考虑跟注抓诈。数学上必须跟注时（胜率不低于门槛）不得编造理由弃牌。
             【策略】翻前综合位置、前序行动、手牌结构与加注层级，按 GTO 粗表+合理剥削；翻后先干/湿面与听牌环境，再把手牌分强/中/听牌/空气，结合对手范围、下注尺度、可信度与 SPR 决策，当你持顶对或更好牌力时，优先考虑下注/加注拿价值，而非仅过牌。进攻：价值与半诈唬用 RAISE，须给出具体再加注额。全下：仅当选择 ALL_IN；chips_to_add 为全下总额（通常后手）。
             【成牌标签】hsl_en 为服务端最佳成牌英文标签，勿推翻。PAIR_OF_x：若 hsl 为 PAIR_OF_某点且底牌不含该点，多为板对弱踢脚，勿口述为顶对。
-            【输出】先极短内部思考（禁止长篇独白/自我辩论快照），然后**仅一行** JSON 对象：{action,chips_to_add,brief_reason}；action（FOLD|CALL_OR_CHECK|RAISE|ALL_IN）；chips_to_add（整数）；brief_reason（≤120 字中文，与 action、stage_en **一致**）。brief_reason **必须出现**当前街中文名之一（翻前/翻牌/转牌/河牌，与 stage_en 对应）；preflop 时禁止把「翻后/河牌/转牌/翻牌圈/在翻牌/到翻牌」当成当前已发生语境（「便宜看翻牌」类意图除外）。FOLD/CALL_OR_CHECK 时 chips_to_add=0；CALL_OR_CHECK 且需跟注时由解析侧规范化；RAISE：chips_to_add=面对档位之上的再加；ALL_IN：chips_to_add=全下总额。禁止 markdown、代码围栏、多余 JSON 外套或口癖；除该行 JSON 外禁止任何字符。
+            【桌边话术 table_talk——强制开口】每轮 JSON **必须**输出 table_talk，且**必须是 1～80 字的中文字符串**（口语化桌边对白/心理战/唬人/自嘲均可，可误导，但**必须与本轮 action 完全一致**：说弃牌只能 FOLD，说加注/梭了只能 RAISE/ALL_IN，说跟/过只能 CALL_OR_CHECK）。**禁止** table_talk 为 boolean false、null 或空串；FOLD / CALL_OR_CHECK / RAISE / ALL_IN **每一种行动都要说话**，不要沉默。与 brief_reason 严格分工：brief_reason=冷静决策理由（可偏教学）；table_talk=牌桌上演给别人听的短句（别复述 brief_reason）。缺失或非字符串视为不合格输出。
+            【输出】先极短内部思考（禁止长篇独白/自我辩论快照），然后**仅一行** JSON 对象：{action,chips_to_add,brief_reason,table_talk}；action（FOLD|CALL_OR_CHECK|RAISE|ALL_IN）；chips_to_add（整数）；brief_reason（≤120 字中文，与 action、stage_en **一致**）。brief_reason **必须出现**当前街中文名之一（翻前/翻牌/转牌/河牌，与 stage_en 对应）；preflop 时禁止把「翻后/河牌/转牌/翻牌圈/在翻牌/到翻牌」当成当前已发生语境（「便宜看翻牌」类意图除外）。table_talk（必填字符串，1～80 字）。FOLD/CALL_OR_CHECK 时 chips_to_add=0；CALL_OR_CHECK 且需跟注时由解析侧规范化；RAISE：chips_to_add=面对档位之上的再加；ALL_IN：chips_to_add=全下总额。禁止 markdown、代码围栏、多余 JSON 外套或口癖；除该行 JSON 外禁止任何字符。
             """.stripIndent();
 
     /**
@@ -66,7 +71,8 @@ public class DpLlmNpcDecisionService {
             【策略】翻前综合位置、前序行动、手牌结构与加注层级，按 GTO 粗表+合理剥削；翻后先干/湿面与听牌环境，再把手牌分强/中/听牌/空气，结合对手范围、下注尺度、可信度与 SPR 决策,当你持顶对或更好牌力时，优先考虑下注/加注拿价值，而非仅过牌。进攻：价值与半诈唬用 RAISE，须给出具体再加注额。全下：仅当选择 ALL_IN；chips_to_add 为全下总额（通常后手）。可参照你在上一轮 JSON 里的 plan_next 调整线路，但以本轮快照为准。
             【计划对照】当本条请求的 messages 里已出现**上一轮 assistant 单行 JSON**（其中有你当时的 plan_next）：**brief_reason 必须显式接上计划**——在同一 brief_reason 内，用极简中文写清「与上轮计划一致」或「因本轮快照变化而修正」（各用 ≤25 字的短分句串联即可，总得仍受 brief_reason 字数上限）；须扣住上轮 JSON 里的 plan_next 要义，禁止空洞套话、禁止编造上一轮没有的内容。**首轮**轮到该 hero、尚无历史 assistant 时本条免写。**内部思考**可先核对上轮 plan_next 与本轮 street_action_esc / call_amount，但最终对外仍只出一行 JSON。
             【成牌标签】hsl_en 为服务端最佳成牌英文标签，勿推翻；不得把已成牌（顺子、同花、葫芦等）说成「仍在听」「仅听牌」类未成章口径。PAIR_OF_x：若 hsl 为 PAIR_OF_某点且底牌不含该点，多为板对弱踢脚，勿口述为顶对。
-            【输出】先极短内部思考（禁止长篇独白/自我辩论快照），然后**仅一行** JSON 对象，字段：**action,chips_to_add,brief_reason,plan_next**；另可选 reasoning **或** thought 其一（极短调试句，服务端可记日志，不得替代 brief_reason）。action（FOLD|CALL_OR_CHECK|RAISE|ALL_IN）；chips_to_add（整数）；brief_reason（≤140 字中文，与 action、stage_en **一致**）。brief_reason **必须出现**当前街中文名之一（翻前/翻牌/转牌/河牌，与 stage_en 对应）；并遵守上文【计划对照】。preflop 时禁止把「翻后/河牌/转牌/翻牌圈/在翻牌/到翻牌」当成当前已发生语境（「便宜看翻牌」类意图除外）。**plan_next**（必填，≤120 字中文）：写给「下一轮到你的冻结快照」时快速接续的策略要点（可含下一街假设与调整条件），勿写废话剧情。**follow_up**（可选，≤80 字）：对 plan_next 的一行补丁或备忘。FOLD/CALL_OR_CHECK 时 chips_to_add=0；CALL_OR_CHECK 且需跟注时由解析侧规范化；RAISE：chips_to_add=面对档位之上的再加；ALL_IN：chips_to_add=全下总额。禁止 markdown、代码围栏、多余 JSON 外套或口癖；除该行 JSON 外禁止任何字符。
+            【桌边话术 table_talk——强制开口】每轮 JSON **必须**输出 table_talk，且**必须是 1～80 字的中文字符串**（口语化桌边对白/心理战/唬人/自嘲均可，可误导，但**必须与本轮 action 完全一致**：说弃牌只能 FOLD，说加注/梭了只能 RAISE/ALL_IN，说跟/过只能 CALL_OR_CHECK）。**禁止** table_talk 为 boolean false、null 或空串；FOLD / CALL_OR_CHECK / RAISE / ALL_IN **每一种行动都要说话**，不要沉默。与 brief_reason 严格分工：brief_reason=冷静决策理由（可偏教学、可接 plan_next）；table_talk=牌桌上演给别人听的短句（别复述 brief_reason）。缺失或非字符串视为不合格输出。
+            【输出】先极短内部思考（禁止长篇独白/自我辩论快照），然后**仅一行** JSON 对象，字段：**action,chips_to_add,brief_reason,table_talk,plan_next**；另可选 reasoning **或** thought 其一（极短调试句，服务端可记日志，不得替代 brief_reason）。action（FOLD|CALL_OR_CHECK|RAISE|ALL_IN）；chips_to_add（整数）；brief_reason（≤140 字中文，与 action、stage_en **一致**）。brief_reason **必须出现**当前街中文名之一（翻前/翻牌/转牌/河牌，与 stage_en 对应）；并遵守上文【计划对照】。preflop 时禁止把「翻后/河牌/转牌/翻牌圈/在翻牌/到翻牌」当成当前已发生语境（「便宜看翻牌」类意图除外）。table_talk（必填字符串，1～80 字）。**plan_next**（必填，≤120 字中文）：写给「下一轮到你的冻结快照」时快速接续的策略要点（可含下一街假设与调整条件），勿写废话剧情。**follow_up**（可选，≤80 字）：对 plan_next 的一行补丁或备忘。FOLD/CALL_OR_CHECK 时 chips_to_add=0；CALL_OR_CHECK 且需跟注时由解析侧规范化；RAISE：chips_to_add=面对档位之上的再加；ALL_IN：chips_to_add=全下总额。禁止 markdown、代码围栏、多余 JSON 外套或口癖；除该行 JSON 外禁止任何字符。
             """.stripIndent();
     /** 轮到 BOT_LLM 后、发起方舟请求前的额外等待；0 表示不人为拖延（总耗时几乎全在 API 侧）。 */
     private static final long PRE_API_DELAY_MS = 0L;
@@ -319,6 +325,7 @@ public class DpLlmNpcDecisionService {
                 logTag, sinceDispatchMs, room.getRoomId(), room.getCurrentStage());
         LOG.info("{} 【采用大模型】解析动作={} chips_to_add={} -> 规范化执行={} amount={}",
                 logTag, parsed.getType(), parsed.getAmount(), executed.getType(), executed.getAmount());
+        logLlmTableTalkLanding(logTag, room.getRoomId(), bot.getNickname(), executed, outcome.rawAssistantBody());
         return executed;
     }
 
@@ -331,8 +338,13 @@ public class DpLlmNpcDecisionService {
     /** 未走模型或丢弃模型结果时的本地兜底，统一打日志便于对照控制台。 */
     private DpNpcEngine.BotAction applyLocalFallback(DpRoomBO room, DpPlayer bot, String reason) {
         DpNpcEngine.BotAction a = fallback(room, bot);
-        LOG.info("{} 【本地决策】原因={} -> {} amount={}",
-                logTagForNickname(bot != null ? bot.getNickname() : null), reason, a.getType(), a.getAmount());
+        String logTag = logTagForNickname(bot != null ? bot.getNickname() : null);
+        LOG.info("{} 【本地决策】原因={} -> {} amount={}", logTag, reason, a.getType(), a.getAmount());
+        LOG_TABLE_TALK.info(
+                "{} table_talk 不推送: 本地兜底(无模型 table_talk) room={} bot={}",
+                logTag,
+                room != null ? room.getRoomId() : "?",
+                bot != null ? bot.getNickname() : "?");
         return a;
     }
 
@@ -448,6 +460,7 @@ public class DpLlmNpcDecisionService {
                         parsed.path(),
                         action.getType(),
                         action.getAmount());
+                logLlmTableTalkParse(logTag, roomId, raw, action);
             }
             String body = raw == null ? "" : raw.strip();
             return new AsyncLlmDecision(action, body);
@@ -728,6 +741,8 @@ public class DpLlmNpcDecisionService {
         return s.length() > cap ? s.substring(0, cap) + "…" : s;
     }
 
+    private static final int TABLE_TALK_MAX_CHARS = 80;
+
     private DpNpcEngine.BotAction botActionFromJsonNode(JsonNode root) {
         if (root == null || !root.has("action")) {
             return null;
@@ -737,14 +752,167 @@ public class DpLlmNpcDecisionService {
         if (chipsToAdd < 0) {
             chipsToAdd = 0;
         }
+        DpNpcEngine.LlmTableTalkMode talkMode;
+        String talkText;
+        TableTalkParsed talk = parseTableTalkFromJsonNode(root);
+        talkMode = talk.mode();
+        talkText = talk.text();
         return switch (action) {
-            case "FOLD" -> new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.FOLD, 0);
+            case "FOLD" -> new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.FOLD, 0, talkMode, talkText);
             case "CALL_OR_CHECK", "CHECK", "CALL", "CHECK_OR_CALL" ->
-                new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
-            case "ALL_IN", "ALLIN" -> new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.ALL_IN, chipsToAdd);
-            case "RAISE", "BET" -> new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.RAISE, chipsToAdd);
+                new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0, talkMode, talkText);
+            case "ALL_IN", "ALLIN" ->
+                new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.ALL_IN, chipsToAdd, talkMode, talkText);
+            case "RAISE", "BET" ->
+                new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.RAISE, chipsToAdd, talkMode, talkText);
             default -> null;
         };
+    }
+
+    private record TableTalkParsed(DpNpcEngine.LlmTableTalkMode mode, String text, String parseNote) {}
+
+    /** 缺失或非字符串且非 false → 不说话；string → trim 后推送。 */
+    private static TableTalkParsed parseTableTalkFromJsonNode(JsonNode root) {
+        if (root == null || !root.has("table_talk")) {
+            return new TableTalkParsed(DpNpcEngine.LlmTableTalkMode.SILENT, null, "absent");
+        }
+        JsonNode tt = root.get("table_talk");
+        if (tt == null || tt.isNull()) {
+            return new TableTalkParsed(DpNpcEngine.LlmTableTalkMode.SILENT, null, "null");
+        }
+        if (tt.isBoolean()) {
+            if (!tt.asBoolean()) {
+                return new TableTalkParsed(DpNpcEngine.LlmTableTalkMode.SILENT, null, "boolean:false");
+            }
+            return new TableTalkParsed(DpNpcEngine.LlmTableTalkMode.SILENT, null, "boolean:true(未支持)");
+        }
+        if (tt.isTextual()) {
+            String s = tt.asText("").replace('\r', ' ').replace('\n', ' ').trim();
+            if (s.isEmpty()) {
+                return new TableTalkParsed(DpNpcEngine.LlmTableTalkMode.SILENT, null, "string:empty");
+            }
+            if (s.length() > TABLE_TALK_MAX_CHARS) {
+                s = s.substring(0, TABLE_TALK_MAX_CHARS);
+            }
+            return new TableTalkParsed(DpNpcEngine.LlmTableTalkMode.SAY, s, "string:len=" + s.length());
+        }
+        if (tt.isNumber()) {
+            String s = tt.asText("").trim();
+            if (s.isEmpty()) {
+                return new TableTalkParsed(DpNpcEngine.LlmTableTalkMode.SILENT, null, "number:empty");
+            }
+            if (s.length() > TABLE_TALK_MAX_CHARS) {
+                s = s.substring(0, TABLE_TALK_MAX_CHARS);
+            }
+            return new TableTalkParsed(DpNpcEngine.LlmTableTalkMode.SAY, s, "number:asText");
+        }
+        return new TableTalkParsed(
+                DpNpcEngine.LlmTableTalkMode.SILENT, null, "unsupported:" + tt.getNodeType());
+    }
+
+    private void logLlmTableTalkParse(String logTag, String roomId, String raw, DpNpcEngine.BotAction action) {
+        if (!LOG_TABLE_TALK.isInfoEnabled() || action == null) {
+            return;
+        }
+        String jsonLine = extractDecisionJsonLine(raw);
+        if (jsonLine != null) {
+            LOG_TABLE_TALK.info("{} table_talk 模型JSON行 room={} {}", logTag, roomId, capForLog(jsonLine, TABLE_TALK_JSON_LOG_MAX));
+        }
+        JsonNode root = tryReadDecisionJsonRoot(raw);
+        String parseNote = null;
+        if (root != null) {
+            if (root.has("table_talk")) {
+                LOG_TABLE_TALK.info(
+                        "{} table_talk 原始字段 room={} {}",
+                        logTag,
+                        roomId,
+                        capForLog(root.get("table_talk").toString(), 200));
+            }
+            parseNote = parseTableTalkFromJsonNode(root).parseNote();
+        }
+        LOG_TABLE_TALK.info(
+                "{} table_talk 解析结果 room={} mode={} text={} note={}",
+                logTag,
+                roomId,
+                action.getLlmTableTalkMode(),
+                action.getLlmTableTalkText(),
+                parseNote != null ? parseNote : describeTableTalkOnAction(action));
+    }
+
+    private static void logLlmTableTalkLanding(
+            String logTag, String roomId, String botNick, DpNpcEngine.BotAction executed, String rawAssistantBody) {
+        if (!LOG_TABLE_TALK.isInfoEnabled()) {
+            return;
+        }
+        LOG_TABLE_TALK.info(
+                "{} table_talk 落地待推送 room={} bot={} mode={} text={}",
+                logTag,
+                roomId,
+                botNick,
+                executed.getLlmTableTalkMode(),
+                executed.getLlmTableTalkText());
+        if (executed.isRuleTableTalk() && rawAssistantBody != null && !rawAssistantBody.isBlank()) {
+            LOG_TABLE_TALK.warn(
+                    "{} table_talk 异常: 模型有正文但 BotAction 仍为 RULE(未解析到 table_talk) room={} jsonLine={}",
+                    logTag,
+                    roomId,
+                    capForLog(extractDecisionJsonLine(rawAssistantBody), TABLE_TALK_JSON_LOG_MAX));
+        }
+    }
+
+    private static String describeTableTalkOnAction(DpNpcEngine.BotAction action) {
+        if (action.isRuleTableTalk()) {
+            return "rule-path";
+        }
+        if (action.getLlmTableTalkMode() == DpNpcEngine.LlmTableTalkMode.SAY) {
+            return "say";
+        }
+        return "silent";
+    }
+
+    private static String capForLog(String s, int max) {
+        if (s == null) {
+            return "";
+        }
+        String t = s.strip();
+        return t.length() > max ? t.substring(0, max) + "…" : t;
+    }
+
+    /** 从模型正文中抽出含 action 的首个 JSON 行（单行决策）。 */
+    private static String extractDecisionJsonLine(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        for (String line : raw.split("\n")) {
+            String t = line.trim();
+            if (t.contains("\"action\"") && t.startsWith("{")) {
+                return t;
+            }
+        }
+        int brace = raw.indexOf('{');
+        int end = raw.lastIndexOf('}');
+        if (brace >= 0 && end > brace) {
+            String slice = raw.substring(brace, end + 1).trim();
+            if (slice.contains("\"action\"")) {
+                return slice.length() > TABLE_TALK_JSON_LOG_MAX
+                        ? slice.substring(0, TABLE_TALK_JSON_LOG_MAX) + "…"
+                        : slice;
+            }
+        }
+        return null;
+    }
+
+    private JsonNode tryReadDecisionJsonRoot(String raw) {
+        String line = extractDecisionJsonLine(raw);
+        if (line == null) {
+            return null;
+        }
+        String json = line.endsWith("…") ? line.substring(0, line.length() - 1).trim() : line;
+        try {
+            return objectMapper.readTree(json);
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     // 已学习，简单离线决策，有钱直接跟或者过牌，没钱直接弃
@@ -764,28 +932,28 @@ public class DpLlmNpcDecisionService {
         int callAmount = Math.max(0, room.getCurrentBetToCall() - bot.getBet());
         int chips = bot.getChips();
         if (a.getType() == DpNpcEngine.BotActionType.FOLD) {
-            return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.FOLD, 0);
+            return DpNpcEngine.BotAction.withExecution(a, DpNpcEngine.BotActionType.FOLD, 0);
         }
         if (a.getType() == DpNpcEngine.BotActionType.CALL_OR_CHECK) {
             // 跟注额超过后手时只能全下：与 ALL_IN 等价（bet 会夹成全下），避免误以为「call 失败会弃牌」
             if (callAmount > chips) {
                 if (chips <= 0) {
-                    return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.FOLD, 0);
+                    return DpNpcEngine.BotAction.withExecution(a, DpNpcEngine.BotActionType.FOLD, 0);
                 }
-                return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.ALL_IN, chips);
+                return DpNpcEngine.BotAction.withExecution(a, DpNpcEngine.BotActionType.ALL_IN, chips);
             }
-            return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
+            return DpNpcEngine.BotAction.withExecution(a, DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
         }
         if (a.getType() == DpNpcEngine.BotActionType.ALL_IN) {
-            return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.ALL_IN, Math.max(0, chips));
+            return DpNpcEngine.BotAction.withExecution(a, DpNpcEngine.BotActionType.ALL_IN, Math.max(0, chips));
         }
         if (a.getType() == DpNpcEngine.BotActionType.RAISE) {
             int add = Math.max(0, a.getAmount());
             if (chips <= 0) {
-                return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.FOLD, 0);
+                return DpNpcEngine.BotAction.withExecution(a, DpNpcEngine.BotActionType.FOLD, 0);
             }
             if (add >= chips) {
-                return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.ALL_IN, chips);
+                return DpNpcEngine.BotAction.withExecution(a, DpNpcEngine.BotActionType.ALL_IN, chips);
             }
             int newTotal = bot.getBet() + add;
             int bb = Math.max(1, room.getBigBlindChips());
@@ -798,12 +966,12 @@ public class DpLlmNpcDecisionService {
             }
             int chipsNeeded = newTotal - bot.getBet();
             if (chipsNeeded > chips) {
-                return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.ALL_IN, chips);
+                return DpNpcEngine.BotAction.withExecution(a, DpNpcEngine.BotActionType.ALL_IN, chips);
             }
             if (chipsNeeded <= 0) {
                 return fallback(room, bot);
             }
-            return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.RAISE, chipsNeeded);
+            return DpNpcEngine.BotAction.withExecution(a, DpNpcEngine.BotActionType.RAISE, chipsNeeded);
         }
         return fallback(room, bot);
     }

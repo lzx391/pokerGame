@@ -1,9 +1,10 @@
 <template>
+  <transition :name="embedded ? 'dp-overlay-none' : 'dp-overlay'">
   <div
       v-if="embedded || visible"
       :class="embedded ? 'game-owner-tool-embedded-root' : 'hand-rank-modal-mask'"
       @click="embedded ? null : $emit('close')"
-  > 
+  >
     <div
         :class="embedded ? 'game-owner-tool-embedded' : 'hand-rank-modal hand-rank-modal--legacy'"
         @click.stop
@@ -16,17 +17,9 @@
             @click="$emit('close')"
         >×</button>
       </div>
-      <div v-else class="game-owner-tool-embedded__title">房间管理 · 机器人与踢人</div>
+      <div v-else class="game-owner-tool-embedded__title">房主神器</div>
 
-      <div class="game-owner-tool__rule-hint">
-        <template v-if="ownerToolType === 'transfer'">
-          移交对象：桌上本局真人（不含僵尸位）与观众席真人；不含机器人与房主。
-        </template>
-        <template v-else>
-          踢人仅针对本局在座玩家（不含房主与僵尸位）。
-        </template>
-      </div>
-
+      <section class="game-owner-tool__npc-section" aria-label="添加 NPC">
       <div style="margin-bottom:12px; padding:8px; border-radius:6px; background:#fff7e6; border:1px dashed #ffa940;">
         <div style="font-size:13px; font-weight:bold; color:#d46b08; margin-bottom:4px;">
           实验功能：加入演示 NPC
@@ -39,6 +32,7 @@
           <span style="font-weight:bold;">BOT_NIT</span>、
           <span style="font-weight:bold;">BOT_CALL</span>、
           <span style="font-weight:bold;">BOT_MANIAC</span>；
+          <span style="font-weight:bold;">BOT_CUSTOM</span>（自定义性格，弹窗调参）；
           另有 <span style="font-weight:bold;">BOT_LLM</span>（大模型）与
           <span style="font-weight:bold;">BOT_LLM_GLOBAL</span>（整手叙事 / 多轮上下文）。
           服务端会为 BOT 生成唯一后缀；JSON 里仍是完整 nickname，牌桌上展示为前缀 + uuid 去横线后的前 4 位。
@@ -87,6 +81,46 @@
               {{ row.adding ? '提交中…' : '确认添加' }}
             </button>
             <span v-if="row.tip" style="flex:1 1 220px; color:#595959;">{{ row.tip }}</span>
+          </div>
+
+          <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:12px;">
+            <span style="min-width:148px; font-weight:600; color:#531dab;">自定义 NPC BOT_CUSTOM</span>
+            <span style="display:inline-flex; align-items:center; gap:4px;">
+              <button
+                type="button"
+                class="owner-npc-count-btn"
+                :disabled="customBotAdding || npcCounts.custom <= 1"
+                @click="bumpNpcCount('custom', -1, 9)"
+              >
+                −
+              </button>
+              <input
+                v-model.number="npcCounts.custom"
+                type="number"
+                min="1"
+                max="9"
+                class="owner-npc-count-input"
+                :disabled="customBotAdding"
+                @change="normalizeNpcCount('custom', 9)"
+              >
+              <button
+                type="button"
+                class="owner-npc-count-btn"
+                :disabled="customBotAdding || npcCounts.custom >= 9"
+                @click="bumpNpcCount('custom', 1, 9)"
+              >
+                +
+              </button>
+            </span>
+            <button
+              type="button"
+              :disabled="customBotAdding"
+              :style="confirmNpcStyle('#531dab', !customBotAdding)"
+              @click.stop="emitOpenCustomNpcDialog"
+            >
+              {{ customBotAdding ? '提交中…' : '配置并添加' }}
+            </button>
+            <span v-if="customBotAddedTip" style="flex:1 1 220px; color:#595959;">{{ customBotAddedTip }}</span>
           </div>
 
           <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:12px;">
@@ -170,7 +204,10 @@
           </div>
         </div>
       </div>
+      </section>
 
+      <section class="game-owner-tool__room-mgmt" aria-label="移交房主与踢人">
+      <div class="game-owner-tool__section-title">房间管理</div>
       <div class="game-owner-tool__mgmt-row">
         <button
           type="button"
@@ -193,6 +230,15 @@
         >
           {{ ownerRevealAll ? '关闭看穿' : '看穿底牌' }}
         </button>
+      </div>
+
+      <div class="game-owner-tool__mgmt-hint">
+        <template v-if="ownerToolType === 'transfer'">
+          移交对象：桌上本局真人（不含僵尸位）与观众席真人；不含机器人与房主。
+        </template>
+        <template v-else>
+          踢人仅针对本局在座玩家（不含房主与僵尸位）。
+        </template>
       </div>
 
       <div class="game-owner-tool__action-prompt">
@@ -254,6 +300,7 @@
           </div>
         </div>
       </template>
+      </section>
 
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:4px;">
         <button
@@ -284,6 +331,7 @@
       </div>
     </div>
   </div>
+  </transition>
 </template>
 
 <script>
@@ -300,6 +348,7 @@ export default {
         nit: 1,
         call: 1,
         maniac: 1,
+        custom: 1,
         llm: 1,
         llmGlobal: 1
       },
@@ -338,7 +387,9 @@ export default {
     llmBotAdding: { type: Boolean, default: false },
     llmBotAddedTip: { type: String, default: '' },
     llmGlobalBotAdding: { type: Boolean, default: false },
-    llmGlobalBotAddedTip: { type: String, default: '' }
+    llmGlobalBotAddedTip: { type: String, default: '' },
+    customBotAdding: { type: Boolean, default: false },
+    customBotAddedTip: { type: String, default: '' }
   },
   computed: {
     anyLlmBotSubmitting () {
@@ -452,6 +503,12 @@ export default {
         count: this.clampCount(this.npcCounts[row.id], 9)
       })
     },
+    emitOpenCustomNpcDialog () {
+      this.$emit('confirm-add-npcs', {
+        type: 'custom',
+        count: this.clampCount(this.npcCounts.custom, 9)
+      })
+    },
     confirmNpcStyle (bg, enabled) {
       return {
         padding: '6px 12px',
@@ -495,9 +552,26 @@ export default {
 </script>
 
 <style scoped>
-.game-owner-tool__rule-hint {
+.game-owner-tool__npc-section {
+  margin-bottom: 16px;
+}
+
+.game-owner-tool__room-mgmt {
   margin-bottom: 12px;
-  font-size: 13px;
+  padding-top: 12px;
+  border-top: 1px solid var(--dp-subpanel-border, #e8e8e8);
+}
+
+.game-owner-tool__section-title {
+  margin-bottom: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--dp-text-primary, #252018);
+}
+
+.game-owner-tool__mgmt-hint {
+  margin-bottom: 8px;
+  font-size: 12px;
   line-height: 1.45;
   color: var(--dp-text-secondary, #595959);
 }

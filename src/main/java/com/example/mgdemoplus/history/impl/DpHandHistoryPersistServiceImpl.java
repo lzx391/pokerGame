@@ -180,6 +180,9 @@ public class DpHandHistoryPersistServiceImpl implements DpHandHistoryPersistServ
                 BoardDto d = new BoardDto();
                 d.stage = b.stage;
                 d.communityCards = new ArrayList<>(b.communityCards);
+                if (b.handRankNameByPlayer != null && !b.handRankNameByPlayer.isEmpty()) {
+                    d.handRankNameByPlayer = new LinkedHashMap<>(b.handRankNameByPlayer);
+                }
                 p.boardsByStreet.add(d);
             }
             p.actions = new ArrayList<>();
@@ -219,6 +222,7 @@ public class DpHandHistoryPersistServiceImpl implements DpHandHistoryPersistServ
     private static final class BoardDto {
         public String stage;
         public List<String> communityCards;
+        public Map<String, String> handRankNameByPlayer;
     }
 
     private static final class ActionDto {

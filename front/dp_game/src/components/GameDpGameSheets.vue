@@ -1,5 +1,6 @@
 <template>
   <div>
+    <transition name="dp-sheet">
     <game-bottom-sheet
         v-if="vm.showMobileHandSheet && vm.heroDockRow"
         title="我的手牌"
@@ -34,14 +35,17 @@
         />
       </div>
     </game-bottom-sheet>
+    </transition>
 
+    <transition name="dp-sheet">
     <game-bottom-sheet
         v-if="vm.showMobileActionSheet && (vm.isMyTurn || vm.inSettledStage)"
+        ref="guideActionSheet"
         :title="vm.inSettledStage ? '结算阶段' : '本轮行动'"
         :aria-label="vm.inSettledStage ? '结算阶段' : '本轮行动'"
         :wide="true"
         body-modifier="action"
-        @close="$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileActionSheet: false })"
+        @close="onGuideActionSheetClose"
     >
       <game-settled-prepare-bar
           v-if="vm.inSettledStage"
@@ -54,6 +58,7 @@
       />
       <game-action-panel
           v-else
+          ref="guideSheetActionPanel"
           :time-left="vm.timeLeft"
           :my-bet="vm.myBet"
           :call-amount="vm.callAmount"
@@ -72,7 +77,9 @@
           @fold="vm.doFold"
       />
     </game-bottom-sheet>
+    </transition>
 
+    <transition name="dp-sheet">
     <game-bottom-sheet
         v-if="vm.showOwnerHubSheet && vm.isOwner"
         title="房主操作"
@@ -81,6 +88,16 @@
         body-modifier="owner-hub"
         @close="vm.closeOwnerHubPanel"
     >
+      <template slot="overlay">
+        <custom-npc-style-dialog
+            v-if="vm.showCustomNpcStyleDialog"
+            :visible="true"
+            :pending-count="vm.customNpcPendingCount"
+            :submitting="vm.customBotAdding"
+            @cancel="vm.closeCustomNpcStyleDialog"
+            @confirm="(profile) => vm.submitCustomNpcBatch(profile)"
+        />
+      </template>
       <game-owner-panel
           hide-title
           hide-tool-entry
@@ -121,12 +138,15 @@
           :llm-bot-added-tip="vm.llmBotAddedTip"
           :llm-global-bot-adding="vm.llmGlobalBotAdding"
           :llm-global-bot-added-tip="vm.llmGlobalBotAddedTip"
+          :custom-bot-adding="vm.customBotAdding"
+          :custom-bot-added-tip="vm.customBotAddedTip"
           @close="vm.closeOwnerHubPanel"
-          @confirm-add-npcs="vm.confirmAddOwnerNpcs"
-          @transfer-owner="vm.doTransferOwner"
-          @kick-players="vm.doKickPlayers"
+          @confirm-add-npcs="(p) => vm.confirmAddOwnerNpcs(p)"
+          @transfer-owner="() => vm.doTransferOwner()"
+          @kick-players="(nicks) => vm.doKickPlayers(nicks)"
       />
     </game-bottom-sheet>
+    </transition>
     <game-player-social-sheet
         v-if="vm.playerSocialOpen && vm.playerSocialTarget"
         :visible="true"
@@ -141,6 +161,7 @@
         :my-user-id="inviteFriendMyUserId"
         @close="vm.closeInviteFriendSheet"
     />
+
   </div>
 </template>
 
@@ -153,6 +174,7 @@ import GameOwnerPanel from './GameOwnerPanel.vue'
 import GameOwnerToolModal from './GameOwnerToolModal.vue'
 import GamePlayerSocialSheet from './GamePlayerSocialSheet.vue'
 import GameInviteFriendSheet from './GameInviteFriendSheet.vue'
+import CustomNpcStyleDialog from './CustomNpcStyleDialog.vue'
 
 export default {
   name: 'GameDpGameSheets',
@@ -164,7 +186,8 @@ export default {
     GameOwnerPanel,
     GameOwnerToolModal,
     GamePlayerSocialSheet,
-    GameInviteFriendSheet
+    GameInviteFriendSheet,
+    CustomNpcStyleDialog
   },
   inject: ['dpGameView'],
   computed: {
@@ -175,6 +198,14 @@ export default {
       var u = this.vm && this.vm.user
       var n = u && u.userId != null && u.userId !== '' ? Number(u.userId) : 0
       return isNaN(n) || n <= 0 ? 0 : n
+    }
+  },
+  methods: {
+    onGuideActionSheetClose: function () {
+      if (this.vm && this.vm.dpGuideMode && this.vm.isGuideActionPanelStep && this.vm.isGuideActionPanelStep()) {
+        return
+      }
+      this.$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileActionSheet: false })
     }
   }
 }

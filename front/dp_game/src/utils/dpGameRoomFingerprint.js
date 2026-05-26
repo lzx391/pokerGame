@@ -62,6 +62,7 @@ export function encodeRoomApplyFingerprint(room) {
     stableJsonSlice(room.spectators),
     stableJsonSlice(room.waitNextHand),
     stableJsonSlice(room.chipLeaderNicknames),
+    String(Number(room.myCarryInChips) || 0),
     seatParts.join(';')
   ]
   return parts.join('|')
