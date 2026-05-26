@@ -68,6 +68,8 @@ function initialState() {
     musicTracksError: '',
     roomMusicState: null,
     showOwnerHubSheet: false,
+    showCustomNpcStyleDialog: false,
+    customNpcPendingCount: 1,
     ownerToolType: 'transfer',
     ownerActionTarget: '',
     demoBotAdding: false,
@@ -86,12 +88,16 @@ function initialState() {
     llmBotAddedTip: '',
     llmGlobalBotAdding: false,
     llmGlobalBotAddedTip: '',
+    customBotAdding: false,
+    customBotAddedTip: '',
     ownerRevealAll: false,
     showMobileHandSheet: false,
     showMobileActionSheet: false,
     heroHoleDealIntroDone: false,
     /** 后端 autoSettle 后写入的「场上积分并列最高」昵称，未结算过为空 */
-    chipLeaderNicknames: []
+    chipLeaderNicknames: [],
+    /** 当前用户本段累计带入（快照字段 myCarryInChips） */
+    myCarryInChips: 0
   }
 }
 
@@ -351,6 +357,7 @@ export default {
         overrides: state.customThemeOverrides
       })
     },
+    /** 仅用户手动切换；禁止 UA/PRM 自动调用 writeEcoMode（策略 B）。body 档位见 dpBodyFluidity.js */
     SET_ECO_MODE: function (state, on) {
       state.ecoMode = !!on
       writeEcoMode(!!on)
@@ -390,6 +397,10 @@ export default {
       var nick = state.user && state.user.nickname
       state.nextHandReady = !!(nick && list.indexOf(nick) !== -1)
       state.chipLeaderNicknames = room.chipLeaderNicknames || []
+      state.myCarryInChips =
+        room.myCarryInChips != null && isFinite(Number(room.myCarryInChips))
+          ? Math.max(0, Math.floor(Number(room.myCarryInChips)))
+          : 0
     },
     SET_LOADING: function (state, v) {
       state.loading = !!v
@@ -413,6 +424,27 @@ export default {
     },
     CLEAR_ROOM_CHAT_MESSAGES: function (state) {
       state.roomChatMessages = []
+    },
+    CLEAR_ALL_SEAT_CHAT: function (state) {
+      state.seatChatTextByNick = {}
+    },
+    /** 进房 HTTP 拉取：整表替换，避免与上一房间 WS 缓存合并 */
+    REPLACE_ROOM_CHAT_MESSAGES: function (state, items) {
+      if (!Array.isArray(items) || !items.length) {
+        state.roomChatMessages = []
+        return
+      }
+      var merged = items.slice()
+      merged.sort(function (a, b) {
+        var ta = a.serverTime != null ? Number(a.serverTime) : 0
+        var tb = b.serverTime != null ? Number(b.serverTime) : 0
+        if (ta !== tb) return ta - tb
+        var ia = parseInt(String(a.id), 10)
+        var ib = parseInt(String(b.id), 10)
+        if (isFinite(ia) && isFinite(ib) && ia !== ib) return ia - ib
+        return String(a.id).localeCompare(String(b.id))
+      })
+      state.roomChatMessages = merged
     },
     MERGE_ROOM_CHAT_MESSAGES: function (state, items) {
       if (!Array.isArray(items) || !items.length) return
@@ -507,6 +539,15 @@ export default {
         state.opponentHandHistoryDisplayName = payload.opponentHandHistoryDisplayName || ''
       }
       if (payload.showMusicBoxModal !== undefined) state.showMusicBoxModal = payload.showMusicBoxModal
+      if (payload.showCustomNpcStyleDialog !== undefined) {
+        state.showCustomNpcStyleDialog = payload.showCustomNpcStyleDialog
+      }
+      if (payload.customNpcPendingCount !== undefined) {
+        var npcPending = parseInt(payload.customNpcPendingCount, 10)
+        if (isNaN(npcPending) || npcPending < 1) npcPending = 1
+        if (npcPending > 9) npcPending = 9
+        state.customNpcPendingCount = npcPending
+      }
     },
     SET_MUSIC_TRACKS: function (state, payload) {
       if (payload.tracks !== undefined) state.musicTracks = payload.tracks
@@ -534,6 +575,7 @@ export default {
     },
     CLOSE_OWNER_HUB: function (state) {
       state.showOwnerHubSheet = false
+      state.showCustomNpcStyleDialog = false
       state.ownerActionTarget = ''
     },
     SET_OWNER_TOOL: function (state, payload) {
@@ -562,6 +604,8 @@ export default {
       if (payload.llmBotAddedTip !== undefined) state.llmBotAddedTip = payload.llmBotAddedTip
       if (payload.llmGlobalBotAdding !== undefined) state.llmGlobalBotAdding = payload.llmGlobalBotAdding
       if (payload.llmGlobalBotAddedTip !== undefined) state.llmGlobalBotAddedTip = payload.llmGlobalBotAddedTip
+      if (payload.customBotAdding !== undefined) state.customBotAdding = payload.customBotAdding
+      if (payload.customBotAddedTip !== undefined) state.customBotAddedTip = payload.customBotAddedTip
     },
     SET_MOBILE_SHEETS: function (state, payload) {
       if (payload.showMobileHandSheet !== undefined) state.showMobileHandSheet = payload.showMobileHandSheet
@@ -573,6 +617,7 @@ export default {
     RESET_ON_ROOM_CLOSED: function (state) {
       state.roomMusicState = null
       state.roomChatMessages = []
+      state.seatChatTextByNick = {}
     }
   }
 }

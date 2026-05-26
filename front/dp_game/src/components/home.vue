@@ -5,6 +5,12 @@
     :style="customThemeInlineStyle"
   >
     <div class="dp-lobby-inner home-inner">
+      <home-profile-modal
+        :visible.sync="profileVisible"
+        @saved="onProfileSaved"
+        @avatar-updated="onAvatarUpdated"
+      />
+
       <game-play-guide-modal
         :visible="playGuideVisible"
         :active-tab="playGuideTab"
@@ -29,10 +35,22 @@
               @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
               @custom-overrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
             />
+            <dp-fluidity-toggle label-class="home-fluidity-toggle" />
           </div>
           <div class="user-info">
+            <dp-user-avatar
+              v-if="user && user.nickname"
+              class="home-header__avatar"
+              :avatar-url="user.avatarUrl"
+              :nickname="user.nickname"
+              :cache-bust="userAvatarCacheBust || avatarCacheBustFromUpdatedAt(user.avatarUpdatedAt)"
+              size="sm"
+              :title="user.nickname"
+            />
             <span v-if="user && user.nickname">当前用户：{{ user.nickname }}</span>
             <button type="button" class="dp-btn dp-btn--ghost logout-btn" @click="openPlayGuide(false)">玩法说明</button>
+            <button type="button" class="dp-btn dp-btn--ghost logout-btn" @click="goButtonGuide">新手一分钟</button>
+            <button type="button" class="dp-btn dp-btn--ghost logout-btn" @click="profileVisible = true">个人资料</button>
             <button type="button" class="dp-btn dp-btn--danger logout-btn" @click="logout">退出登录</button>
           </div>
         </div>
@@ -52,7 +70,9 @@
             </button>
             <button type="button" class="dp-btn dp-btn--primary" @click="goCreateRoom">创建房间</button>
             <button type="button" class="dp-btn dp-btn--ghost" @click="goHandHistory">历史对局</button>
+            <button type="button" class="dp-btn dp-btn--ghost" @click="goLeaderboard">排行榜</button>
             <button type="button" class="dp-btn dp-btn--ghost" @click="goMusicUpload">曲库上传</button>
+            <button type="button" class="dp-btn dp-btn--ghost" @click="goDownloadCenter">下载中心</button>
             <el-badge
               :value="unreadCount"
               :hidden="!unreadCount"
@@ -213,7 +233,14 @@
             :key="'friend-' + f.userId"
             :class="['dp-social-list__item', friendPresenceRowClass(f)]"
           >
-            <div class="dp-social-list__text">
+            <div class="dp-social-list__row">
+              <dp-user-avatar
+                :avatar-url="f.avatarUrl"
+                :nickname="friendPrimaryName(f)"
+                :cache-bust="avatarCacheBustFromUpdatedAt(f.avatarUpdatedAt)"
+                size="sm"
+              />
+              <div class="dp-social-list__text">
               <div class="dp-social-list__primary dp-social-list__primary--dm">
                 <span>{{ friendPrimaryName(f) }}</span>
                 <span
@@ -236,6 +263,7 @@
               >
                 ID {{ f.userId }}
               </button>
+              </div>
             </div>
             <div class="dp-social-list__actions">
               <el-badge
@@ -374,6 +402,8 @@
       :visible.sync="friendChatVisible"
       :peer-user-id="friendChatPeerId"
       :peer-display-name="friendChatPeerName"
+      :peer-avatar-url="friendChatPeerAvatar"
+      :peer-avatar-updated-at="friendChatPeerAvatarUpdatedAt"
       :peer-unread-count="friendChatPeerUnread"
       @closed="onFriendChatClosed"
     />
@@ -389,7 +419,10 @@ import { dpFriendPresenceRowClass, dpFriendPresenceStatusText, dpFriendPresenceB
 import { dpSocialDisplayNickname } from '@/utils/dpSocialDisplayName'
 import { dpResultSuccess, dpResultData, dpResultMessage } from '@/utils/dpApiResult'
 import GamePlayGuideModal from '@/components/GamePlayGuideModal.vue'
+import HomeProfileModal from '@/components/HomeProfileModal.vue'
 import FriendChatDialog from '@/components/FriendChatDialog.vue'
+import DpUserAvatar from '@/components/DpUserAvatar.vue'
+import DpFluidityToggle from '@/components/DpFluidityToggle.vue'
 import { buildSocialStreamUrl } from '@/utils/dpSocialStream'
 import { mapGetters, mapState, mapActions } from 'vuex'
 import {
@@ -400,16 +433,21 @@ import {
 } from '@/constants/dpCatThemeCopy'
 import { exitLobbyQuickMatchSilently } from '@/utils/dpLobbyQuickMatchExit'
 import { postQuickMatchCancel2 } from '@/utils/dpQuickMatchExit'
+import { prefetchGameChunk, navigateToGame } from '@/utils/dpPrefetchGameRoute'
+import { prefetchAvatarUrls } from '@/utils/dpAvatarPrefetch'
+import { avatarCacheBustFromUpdatedAt } from '@/utils/dpAvatarUrl'
 
 export default {
-  components: { GamePlayGuideModal, FriendChatDialog },
+  components: { GamePlayGuideModal, HomeProfileModal, FriendChatDialog, DpUserAvatar, DpFluidityToggle },
   mixins: [dpLobbyThemeMixin],
   data() {
     return {
+      profileVisible: false,
       playGuideVisible: false,
       playGuideTab: 'flow',
       playGuideFirstRun: false,
       user: {},
+      userAvatarCacheBust: '',
       roomDtos: [],
       roomsLoading: true,
       roomsError: '',
@@ -443,6 +481,8 @@ export default {
       friendChatVisible: false,
       friendChatPeerId: null,
       friendChatPeerName: '',
+      friendChatPeerAvatar: '',
+      friendChatPeerAvatarUpdatedAt: null,
       friendChatPeerUnread: 0,
       /** 好友列表「跟随」连点防护：好友 dp_user.id */
       friendFollowBusyUserId: null
@@ -472,6 +512,9 @@ export default {
       } else {
         this.closeSocialStream()
       }
+    },
+    quickMatchPolling: function (val) {
+      if (val) prefetchGameChunk()
     }
   },
   async created() {
@@ -488,9 +531,14 @@ export default {
     }, 10000)
     if (this.user && this.user.token) {
       this.bootstrapSocial()
+      this.loadCurrentUserAvatar()
+      prefetchGameChunk()
     }
   },
   mounted() {
+    if (this.user && this.user.token) {
+      prefetchGameChunk()
+    }
     if (peekCatTutorialRequested()) {
       clearCatTutorialSessionFlag()
       if (!isCatTutorialDismissedPermanently()) {
@@ -512,6 +560,7 @@ export default {
     postQuickMatchCancel2(this.$http, this.user)
   },
   methods: {
+    avatarCacheBustFromUpdatedAt,
     ...mapActions('dpMailbox', [
       'fetchUnreadCount',
       'fetchFriendChatUnreadSummary',
@@ -712,12 +761,16 @@ export default {
       if (!isFinite(uid) || uid <= 0) return
       this.friendChatPeerId = uid
       this.friendChatPeerName = this.friendPrimaryName(f)
+      this.friendChatPeerAvatar = (f && f.avatarUrl) || ''
+      this.friendChatPeerAvatarUpdatedAt = f && f.avatarUpdatedAt != null ? f.avatarUpdatedAt : null
       this.friendChatPeerUnread = this.friendUnreadFor(uid)
       this.friendChatVisible = true
     },
     onFriendChatClosed() {
       this.friendChatPeerId = null
       this.friendChatPeerName = ''
+      this.friendChatPeerAvatar = ''
+      this.friendChatPeerAvatarUpdatedAt = null
       this.friendChatPeerUnread = 0
       this.fetchFriendChatUnreadSummary({ http: this.$http }).catch(() => {})
     },
@@ -790,7 +843,7 @@ export default {
           return
         }
         this.friendsDrawerVisible = false
-        this.$router.push('/game/' + rid)
+        await navigateToGame(this.$router, rid)
       } finally {
         this.friendFollowBusyUserId = null
       }
@@ -834,7 +887,7 @@ export default {
         return
       }
       this.mailboxVisible = false
-      this.$router.push('/game/' + rid)
+      await navigateToGame(this.$router, rid)
     },
     async onRejectRoomInvite(id) {
       await this.rejectRoomInvite({ http: this.$http, id })
@@ -854,6 +907,74 @@ export default {
       }
       this.onPlayGuideClose()
     },
+    async loadCurrentUserAvatar() {
+      try {
+        const res = await this.$http.get('/dpUser/profile')
+        const body = res.data
+        if (!dpResultSuccess(body)) return
+        const profile = (dpResultData(body) || {}).profile || {}
+        if (profile.avatarUrl) {
+          this.$set(this.user, 'avatarUrl', profile.avatarUrl)
+        }
+        if (profile.avatarUpdatedAt != null) {
+          this.$set(this.user, 'avatarUpdatedAt', profile.avatarUpdatedAt)
+        }
+        this.prefetchCurrentUserAvatars()
+      } catch (e) {
+        /* ignore */
+      }
+    },
+    prefetchCurrentUserAvatars() {
+      if (!this.user || !this.user.avatarUrl) return
+      var bust = this.userAvatarCacheBust || avatarCacheBustFromUpdatedAt(this.user.avatarUpdatedAt)
+      prefetchAvatarUrls([{
+        avatarUrl: this.user.avatarUrl,
+        cacheBust: bust
+      }], {
+        prefetchFull: true
+      }).catch(function () {})
+    },
+    onAvatarUpdated(payload) {
+      if (!payload) return
+      if (payload.avatarUrl) {
+        this.$set(this.user, 'avatarUrl', payload.avatarUrl)
+      }
+      if (payload.avatarUpdatedAt != null) {
+        this.$set(this.user, 'avatarUpdatedAt', payload.avatarUpdatedAt)
+      }
+      if (payload.cacheBust) {
+        this.userAvatarCacheBust = payload.cacheBust
+      }
+      this.prefetchCurrentUserAvatars()
+      try {
+        var raw = localStorage.getItem('userInfo')
+        var stored = raw ? JSON.parse(raw) : {}
+        if (payload.avatarUrl) stored.avatarUrl = payload.avatarUrl
+        localStorage.setItem('userInfo', JSON.stringify(stored))
+      } catch (e) {
+        /* ignore */
+      }
+    },
+    onProfileSaved(payload) {
+      if (!payload) return
+      if (payload.nickname) {
+        this.user.nickname = payload.nickname
+      }
+      if (payload.token) {
+        this.user.token = payload.token
+      }
+      try {
+        var raw = localStorage.getItem('userInfo')
+        var stored = raw ? JSON.parse(raw) : {}
+        if (payload.nickname) stored.nickname = payload.nickname
+        if (payload.token) stored.token = payload.token
+        if (payload.newPassword) stored.password = payload.newPassword
+        else if (payload.passwordForStorage) stored.password = payload.passwordForStorage
+        localStorage.setItem('userInfo', JSON.stringify(stored))
+      } catch (e) {
+        /* ignore */
+      }
+    },
     logout() {
       this.closeSocialStream()
       localStorage.removeItem('userInfo')
@@ -862,8 +983,17 @@ export default {
     goHandHistory() {
       this.$router.push('/hand-history')
     },
+    goLeaderboard() {
+      this.$router.push('/leaderboard')
+    },
+    goButtonGuide() {
+      this.$router.push({ name: 'GameButtonGuide' })
+    },
     goMusicUpload() {
       this.$router.push('/music-upload')
+    },
+    goDownloadCenter() {
+      this.$router.push('/download-center')
     },
     async goCreateRoom() {
       await this.exitQuickMatchBeforeRoomAction()
@@ -894,6 +1024,11 @@ export default {
       await this.quickMatch()
     },
     quickMatchWsBaseUrl() {
+      // Electron 桌面客户端：连到 config.json 配置的服务器地址
+      if (typeof window !== 'undefined' && window.dpElectron && window.dpElectron.serverUrl) {
+        var url = window.dpElectron.serverUrl.replace(/\/+$/, '')
+        return url.replace(/^https?:/, url.indexOf('https:') === 0 ? 'wss:' : 'ws:')
+      }
       var secure = window.location.protocol === 'https:'
       return (secure ? 'wss:' : 'ws:') + '//' + window.location.host
     },
@@ -1063,7 +1198,7 @@ export default {
           this.quickMatchPolling = false
           this.quickMatchLoading = false
           this.disconnectQuickMatchWs()
-          this.$router.push('/game/' + data.roomId)
+          navigateToGame(this.$router, data.roomId)
           return
         }
         if (data.state === 'IDLE') {
@@ -1109,11 +1244,12 @@ export default {
         const data = dpResultData(body) || {}
         if (data.roomId) {
           this.disconnectQuickMatchWs()
-          this.$router.push('/game/' + data.roomId)
+          await navigateToGame(this.$router, data.roomId)
           return
         }
         if (data.queued && data.state === 'WAITING') {
           this.quickMatchPolling = true
+          prefetchGameChunk()
           return
         }
         this.disconnectQuickMatchWs()
@@ -1263,7 +1399,16 @@ export default {
   gap: 10px;
 }
 .home-theme-row {
+  flex-wrap: wrap;
+}
+.home-fluidity-toggle {
+  margin-left: 0;
+}
+.home-theme-row {
   justify-content: flex-end;
+}
+.home-header__avatar {
+  flex-shrink: 0;
 }
 .user-info {
   display: flex;

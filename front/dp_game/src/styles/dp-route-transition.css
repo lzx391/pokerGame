@@ -1,0 +1,96 @@
+/**
+ * 路由转场：仅标准档 GPU 友好（opacity + translateY）；节能/flag off 瞬时。
+ */
+
+/* ---------- enter-game（进对局） ---------- */
+body[data-dp-fluidity='standard'] .dp-route-enter-game-enter-active,
+body[data-dp-fluidity='standard'] .dp-route-enter-game-leave-active {
+  transition:
+    opacity var(--dp-motion-duration-route-max, 0.38s) ease,
+    transform var(--dp-motion-duration-route-max, 0.38s) ease;
+  will-change: opacity;
+}
+
+body[data-dp-fluidity='standard'] .dp-route-enter-game-leave-active {
+  transition-duration: var(--dp-motion-duration-route-leave, 0.22s);
+}
+
+body[data-dp-fluidity='standard'] .dp-route-enter-game-enter {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+body[data-dp-fluidity='standard'] .dp-route-enter-game-enter-to,
+body[data-dp-fluidity='standard'] .dp-route-enter-game-leave-to {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+body[data-dp-fluidity='standard'] .dp-route-enter-game-leave-to {
+  opacity: 0;
+  transform: translateY(-2px);
+}
+
+/* ---------- leave-game（退出对局） ---------- */
+body[data-dp-fluidity='standard'] .dp-route-leave-game-enter-active,
+body[data-dp-fluidity='standard'] .dp-route-leave-game-leave-active {
+  transition: opacity var(--dp-motion-duration-route-leave, 0.22s) ease;
+  will-change: opacity;
+}
+
+body[data-dp-fluidity='standard'] .dp-route-leave-game-enter {
+  opacity: 0;
+}
+
+body[data-dp-fluidity='standard'] .dp-route-leave-game-leave-to {
+  opacity: 0;
+}
+
+/* ---------- lobby 短过渡 ---------- */
+body[data-dp-fluidity='standard'] .dp-route-lobby-enter-active,
+body[data-dp-fluidity='standard'] .dp-route-lobby-leave-active {
+  transition: opacity var(--dp-motion-duration-route-min, 0.12s) ease;
+  will-change: opacity;
+}
+
+body[data-dp-fluidity='standard'] .dp-route-lobby-enter {
+  opacity: 0;
+}
+
+body[data-dp-fluidity='standard'] .dp-route-lobby-leave-to {
+  opacity: 0;
+}
+
+/* ---------- 无动画 / 节能 / flag off ---------- */
+.dp-route-none-enter-active,
+.dp-route-none-leave-active,
+body[data-dp-fluidity='eco'] .dp-route-enter-game-enter-active,
+body[data-dp-fluidity='eco'] .dp-route-enter-game-leave-active,
+body[data-dp-fluidity='eco'] .dp-route-leave-game-enter-active,
+body[data-dp-fluidity='eco'] .dp-route-leave-game-leave-active,
+body[data-dp-fluidity='eco'] .dp-route-lobby-enter-active,
+body[data-dp-fluidity='eco'] .dp-route-lobby-leave-active,
+body[data-dp-route-transition='off'] .dp-route-enter-game-enter-active,
+body[data-dp-route-transition='off'] .dp-route-enter-game-leave-active,
+body[data-dp-route-transition='off'] .dp-route-leave-game-enter-active,
+body[data-dp-route-transition='off'] .dp-route-leave-game-leave-active,
+body[data-dp-route-transition='off'] .dp-route-lobby-enter-active,
+body[data-dp-route-transition='off'] .dp-route-lobby-leave-active {
+  transition: none !important;
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-dp-fluidity='standard'] .dp-route-enter-game-enter-active,
+  body[data-dp-fluidity='standard'] .dp-route-leave-game-leave-active {
+    transition-duration: 0.08s !important;
+  }
+}
+
+/* 转场期间 full-page 用主题底，减少 #f5f7fa 露底 */
+body[data-dp-game-theme] .full-page--route-shell {
+  background-color: var(--dp-depth-app-bg, var(--dp-game-bg, #f0f2f5));
+  background-image: var(--dp-game-bg-image, none);
+  min-height: 100%;
+  min-height: 100dvh;
+}

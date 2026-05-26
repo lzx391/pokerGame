@@ -1,9 +1,10 @@
 package com.example.mgdemoplus.websocket;
 
-import com.example.mgdemoplus.bo.DpRoomBO;
-import com.example.mgdemoplus.room.RoomChatBuffer;
-import com.example.mgdemoplus.room.RoomChatEntry;
-import com.example.mgdemoplus.service.serviceImpl.DpRoomServiceImpl;
+import com.example.mgdemoplus.common.bo.DpRoomBO;
+import com.example.mgdemoplus.moderation.DpSensitiveWordService;
+import com.example.mgdemoplus.roomchat.buffer.RoomChatBuffer;
+import com.example.mgdemoplus.roomchat.buffer.RoomChatEntry;
+import com.example.mgdemoplus.room.DpRoomService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -34,6 +35,8 @@ public class DpGameRoomPushService {
     /** 房间聊天：内存缓冲，摘房落库；广播帧带 ttlMs 供前端气泡 */
     private static final long CHAT_TTL_MS = 15_000L;
     private static final int CHAT_MAX_LEN = 200;
+    /** NPC 桌边话术（不落库） */
+    private static final int NPC_TABLE_TALK_MAX_LEN = 80;
     private static final long CHAT_MIN_INTERVAL_MS = 1_200L;
 
     /** 房间 BGM：最后一次广播的 JSON，新连接触发第二条消息（与房间快照去重无关） */
@@ -41,8 +44,9 @@ public class DpGameRoomPushService {
     private static final int MUSIC_DISPLAY_NAME_MAX = 120;
 
     private final ObjectMapper objectMapper;
-    private final DpRoomServiceImpl roomService;
+    private final DpRoomService roomService;
     private final RoomChatBuffer roomChatBuffer;
+    private final DpSensitiveWordService sensitiveWordService;
 
 //Map<String, Set<WebSocketSession>> roomSessions = new ConcurrentHashMap<>(); 的作用是：存储房间ID和订阅者的映射关系，每个房间ID对应一个订阅者集合，集合中存储的是WebSocketSession对象，用于标识每个订阅者的连接会话。
     private final Map<String, Set<WebSocketSession>> roomSessions = new ConcurrentHashMap<>();
@@ -54,11 +58,13 @@ public class DpGameRoomPushService {
     // lazy注解的作用是？在Spring容器初始化时，不立即创建对象，而是在需要时创建对象，这样可以避免循环依赖
     public DpGameRoomPushService(
             ObjectMapper objectMapper,
-            @Lazy DpRoomServiceImpl roomService,
-            RoomChatBuffer roomChatBuffer) {
+            @Lazy DpRoomService roomService,
+            RoomChatBuffer roomChatBuffer,
+            DpSensitiveWordService sensitiveWordService) {
         this.objectMapper = objectMapper;
         this.roomService = roomService;
         this.roomChatBuffer = roomChatBuffer;
+        this.sensitiveWordService = sensitiveWordService;
     }
 
     // ====== 房间会话注册与注销相关 ======
@@ -90,7 +96,7 @@ public class DpGameRoomPushService {
     }
 
     /**
-     * 房间对象已从 {@link DpRoomServiceImpl} 移除时调用: 关断该房全部长连并清理本地状态。
+     * 房间对象已从 {@link com.example.mgdemoplus.room.impl.DpRoomServiceImpl} 移除时调用: 关断该房全部长连并清理本地状态。
      */
     public void shutdownSubscriptionsForRoom(String roomId) {
         if (roomId == null || roomId.isEmpty()) {
@@ -203,6 +209,8 @@ public class DpGameRoomPushService {
         if (text.length() > CHAT_MAX_LEN) {
             text = text.substring(0, CHAT_MAX_LEN);
         }
+        final String rawText = text;
+        final String displayText = sensitiveWordService.maskForChat(rawText);
         long now = System.currentTimeMillis();
         Long last = (Long) session.getAttributes().get("_chatLastMs");
         if (last != null && now - last < CHAT_MIN_INTERVAL_MS) {
@@ -215,7 +223,7 @@ public class DpGameRoomPushService {
         session.getAttributes().put("_chatLastMs", now);
         Integer senderUserId = roomService.resolveDpUserIdForNickname(room, nickname);
         RoomChatEntry entry =
-                roomChatBuffer.append(roomId, senderUserId, nickname, text, now);
+                roomChatBuffer.append(roomId, senderUserId, nickname, rawText, now);
         if (entry == null) {
             return;
         }
@@ -224,7 +232,7 @@ public class DpGameRoomPushService {
             out.put("_ws", "chat");
             out.put("id", String.valueOf(entry.getId()));
             out.put("nickname", nickname);
-            out.put("text", text);
+            out.put("text", displayText);
             out.put("serverTime", now);
             out.put("ttlMs", CHAT_TTL_MS);
             if (senderUserId != null) {
@@ -307,6 +315,59 @@ public class DpGameRoomPushService {
     // ========== 推送与快照/广播相关 ==========
 
     /**
+     * NPC 桌边话术：与玩家聊天相同的 {@code _ws:chat} 帧，不经 {@link RoomChatBuffer} 落库。
+     *
+     * @return 是否已向至少一个订阅会话发送（无订阅者时 no-op）
+     */
+    public boolean publishNpcTableTalk(String roomId, String botNickname, String text) {
+        if (roomId == null || roomId.isEmpty() || botNickname == null || botNickname.isEmpty()) {
+            log.debug("npc table-talk skip: missing roomId or nickname");
+            return false;
+        }
+        if (text == null) {
+            log.debug("npc table-talk skip: null text room={} bot={}", roomId, botNickname);
+            return false;
+        }
+        String trimmed = text.replace('\r', ' ').replace('\n', ' ').trim();
+        if (trimmed.isEmpty()) {
+            log.debug("npc table-talk skip: empty text room={} bot={}", roomId, botNickname);
+            return false;
+        }
+        if (trimmed.length() > NPC_TABLE_TALK_MAX_LEN) {
+            trimmed = trimmed.substring(0, NPC_TABLE_TALK_MAX_LEN);
+        }
+        if (!hasSubscribers(roomId)) {
+            log.debug("npc table-talk skip: no subscribers room={} bot={}", roomId, botNickname);
+            return false;
+        }
+        DpRoomBO room = roomService.getAllRooms(roomId);
+        if (room == null || !roomService.isNicknameInRoom(room, botNickname)) {
+            log.debug("npc table-talk skip: bot not in room room={} bot={}", roomId, botNickname);
+            return false;
+        }
+        final String displayText = sensitiveWordService.maskForChat(trimmed);
+        long now = System.currentTimeMillis();
+        try {
+            ObjectNode out = objectMapper.createObjectNode();
+            out.put("_ws", "chat");
+            out.put("id", "npc-" + now);
+            out.put("nickname", botNickname);
+            out.put("text", displayText);
+            out.put("serverTime", now);
+            out.put("ttlMs", CHAT_TTL_MS);
+            Integer senderUserId = roomService.resolveDpUserIdForNickname(room, botNickname);
+            if (senderUserId != null) {
+                out.put("senderUserId", senderUserId);
+            }
+            broadcastRawJsonToRoom(roomId, objectMapper.writeValueAsString(out));
+            return true;
+        } catch (Exception e) {
+            log.warn("npc table-talk broadcast failed roomId={} bot={}", roomId, botNickname, e);
+            return false;
+        }
+    }
+
+    /**
      * 判断房间是否有订阅者。
      */
     public boolean hasSubscribers(String roomId) {
@@ -357,6 +418,7 @@ public class DpGameRoomPushService {
             if (set == null || set.isEmpty()) {
                 return;
             }
+            //遍历每个订阅者，然后推送个性化json数据，发前裁剪，看变没变，变了才发
             for (WebSocketSession s : new ArrayList<>(set)) {
                 if (!s.isOpen()) {
                     removeSessionFromRoom(roomId, s);

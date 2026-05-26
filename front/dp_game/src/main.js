@@ -4,15 +4,22 @@ import axios from 'axios'
 import router from './router'
 import store from './store'
 import { syncDpBodyGameTheme } from './utils/dpBodyGameTheme'
+import { syncDpBodyFluidity } from './utils/dpBodyFluidity'
+import { syncDpBodyRouteTransitionFlag } from './utils/dpRouteTransitionFlag'
 import { syncDpSiteHeartbeat } from './utils/dpSiteHeartbeat'
 import DpThemePicker from './components/DpThemePicker.vue'
 
 Vue.component('DpThemePicker', DpThemePicker)
 /* 主题变量需先于 lobby-shell（body 背景用 var(--dp-game-bg)） */
 import './styles/dp-game-themes.css'
+import './styles/dp-depth-tokens.css'
 /* 尽早加载：大厅 #app.app--lobby 与 .dp-game-root 布局 */
 import './styles/dp-lobby-shell.css'
 import './styles/dp-auth-shell.css'
+import './styles/dp-motion-tokens.css'
+import './styles/dp-route-transition.css'
+import './styles/dp-interactive-hover.css'
+import './styles/dp-game-modals.css'
 import './styles/dp-game-responsive-type.css'
 import './styles/dp-game-layout-tiers.css'
 import './styles/dp-game-element-ui.css'
@@ -28,6 +35,7 @@ import {
   InputNumber,
   Message,
   MessageBox,
+  Slider,
   Table,
   TableColumn,
   Tooltip,
@@ -45,6 +53,7 @@ Vue.use(Form)
 Vue.use(FormItem)
 Vue.use(Input)
 Vue.use(InputNumber)
+Vue.use(Slider)
 Vue.use(Table)
 Vue.use(TableColumn)
 Vue.use(Tooltip)
@@ -54,7 +63,11 @@ Vue.prototype.$message = Message
 Vue.prototype.$confirm = MessageBox.confirm
 Vue.prototype.$alert = MessageBox.alert
 // 开发：走 vue 代理 /dev-api；生产（含 Docker 同域静态资源）：直接请求当前站点根路径
-axios.defaults.baseURL = process.env.NODE_ENV === 'production' ? '' : '/dev-api'
+// Electron 桌面客户端：连到 config.json 配置的服务器地址
+axios.defaults.baseURL =
+  (typeof window !== 'undefined' && window.dpElectron && window.dpElectron.serverUrl)
+    ? window.dpElectron.serverUrl
+    : (process.env.NODE_ENV === 'production' ? '' : '/dev-api')
 
 axios.interceptors.request.use(function (config) {
   var url = config.url || ''
@@ -111,10 +124,14 @@ Vue.prototype.$http =axios
 
 router.afterEach(function () {
   syncDpBodyGameTheme(store, router)
+  syncDpBodyFluidity(store)
+  syncDpBodyRouteTransitionFlag()
   syncDpSiteHeartbeat(axios, router)
 })
 router.onReady(function () {
   syncDpBodyGameTheme(store, router)
+  syncDpBodyFluidity(store)
+  syncDpBodyRouteTransitionFlag()
   syncDpSiteHeartbeat(axios, router)
 })
 store.subscribe(function (mutation) {
@@ -123,6 +140,9 @@ store.subscribe(function (mutation) {
     mutation.type === 'dpGame/SET_CUSTOM_THEME'
   ) {
     syncDpBodyGameTheme(store, router)
+  }
+  if (mutation.type === 'dpGame/SET_ECO_MODE') {
+    syncDpBodyFluidity(store)
   }
 })
 

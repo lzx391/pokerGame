@@ -53,12 +53,21 @@ export default new Router({
       component: () => import(/* webpackChunkName: "route-home" */ '@/components/home.vue')
     },
     {
+      path: '/guide',
+      name: 'GameButtonGuide',
+      component: () => import(/* webpackChunkName: "route-guide" */ '@/components/GameButtonGuidePage.vue')
+    },
+    {
       path: '/create-room',
       component: () => import(/* webpackChunkName: "route-create-room" */ '@/components/CreateRoom.vue')
     },
     {
       path: '/hand-history',
       component: () => import(/* webpackChunkName: "route-hand-history" */ '@/components/HandHistory.vue')
+    },
+    {
+      path: '/leaderboard',
+      component: () => import(/* webpackChunkName: "route-leaderboard" */ '@/components/LeaderboardPage.vue')
     },
     {
       path: '/hand-history/detail/:handHistoryId',
@@ -71,7 +80,13 @@ export default new Router({
     },
     {
       path: '/game/:roomId',
-      component: () => import(/* webpackChunkName: "route-game" */ '@/components/game.vue')
+      meta: { transition: 'dp-route-enter-game' },
+      component: () =>
+        import(
+          /* webpackChunkName: "route-game" */
+          /* webpackPrefetch: true */
+          '@/components/game.vue'
+        )
     },
     {
       path: '/image_upload',
@@ -80,6 +95,10 @@ export default new Router({
     {
       path: '/music-upload',
       component: () => import(/* webpackChunkName: "route-music-upload" */ '@/components/MusicUpload.vue')
+    },
+    {
+      path: '/download-center',
+      component: () => import(/* webpackChunkName: "route-download-center" */ '@/components/DownloadCenter.vue')
     }
   ]
 })

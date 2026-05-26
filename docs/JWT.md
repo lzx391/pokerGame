@@ -1,26 +1,76 @@
-# JWT 鉴权与白名单：`JwtTokenService`、`SecurityConfig`、前端 axios 带 token
+# JWT 鉴权与白名单
 
-## JwtTokenService
+> **核对日期**：2026-05-25  
+> **权威来源**：`SecurityConfig`、`JwtAuthenticationFilter`、`JwtTokenService`、`JwtSecurityConstants`  
+> **Status**: maintained
 
-负责生成 token、从 `Authorization` 头剥离 Bearer、校验签名与过期时间；`subject` 为登录用户昵称（与 `DpUserController#loginProfile` 一致）。密钥来自配置项 **`mgdemoplus.jwt.secret`**（可由环境变量 **`JWT_SECRET`** 经 `application.properties` 映射）。
+---
 
-## 全局鉴权（Spring Security）
+## 1. 职责划分
 
-- **依赖**：`spring-boot-starter-security`。
-- **配置**：`config/SecurityConfig.java` —— 无 Session（`STATELESS`）、关闭 CSRF（前后端分离 API）、白名单见 `security/JwtSecurityConstants`。
-- **过滤器**：`security/JwtAuthenticationFilter.java` —— 解析 `Authorization: Bearer <jwt>`，校验成功后把 `subject` 写入 `SecurityContextHolder`（`UsernamePasswordAuthenticationToken`，`getName()` 即昵称）。
-- **未登录**：`security/JwtAuthenticationEntryPoint.java` 返回 JSON：`success=false`，HTTP 401。
-- **白名单**：登录/注册、静态资源、`/ws/**`、大厅/房间快照等只读接口，以及 **`GET /dp/presence/site-heartbeat/config`**（站点心跳公开参数）；其余请求需合法 JWT。完整列表见 **`JwtSecurityConstants.PERMIT_ALL`**。
+| 类 | 包路径 | 作用 |
+|----|--------|------|
+| `JwtTokenService` | `security/JwtTokenService.java` | 签发/解析 JWT；`subject` = 登录昵称 |
+| `JwtAuthenticationFilter` | `security/JwtAuthenticationFilter.java` | 从 `Authorization: Bearer` 或 SSE 的 `?token=` 写入 `SecurityContextHolder` |
+| `JwtAuthenticationEntryPoint` | `security/JwtAuthenticationEntryPoint.java` | 未认证 → HTTP 401 + JSON `success=false` |
+| `SecurityConfig` | `config/SecurityConfig.java` | `STATELESS`、无 CSRF、白名单 + 其余 `authenticated()` |
+| `JwtSecurityConstants` | `security/JwtSecurityConstants.java` | `PERMIT_ALL` 路径数组 |
 
-业务代码里需要当前用户时：`SecurityContextHolder.getContext().getAuthentication().getName()`（与 token 一致时再与请求参数里的昵称比对）。
+密钥与过期：`mgdemoplus.jwt.secret`（环境变量 `JWT_SECRET`）、`mgdemoplus.jwt.expiration.time`（默认约 3 天）。配置在 **`application.yml`**，无 `application.properties` 主配置。
 
-## 前端
+---
 
-`front/dp_game/src/main.js` 中 axios：
+## 2. 业务侧取当前用户
 
-- **请求**拦截器：除 `loginProfile`、`registerUser` 外，自动从 `localStorage.userInfo.token` 带上 `Authorization: Bearer`。
-- **响应**拦截器：收到 **HTTP 401** 时用 Element `Message.error` 展示后端 `message`（或默认「未登录或登录已失效」），清除 `localStorage.userInfo`，并 `router.replace('/login')`（已在登录页则不再跳转），与后端 JSON 约定一致。
+```java
+SecurityContextHolder.getContext().getAuthentication().getName(); // 昵称
+```
 
-## 迭代说明
+`DpRoomController` 的 `joinRoom2` / `quickMatch2` 等会校验 **JWT subject 与请求参数 `nickname` 一致**。口令校验仅在登录时一次，见 [DpUserPassword.md](./DpUserPassword.md)（**bcrypt**，非 MD5）。
 
-口令存储为 **MD5 摘要**（`CryptoUtil`），与「Spring Security 表单登录 / BCrypt」不同路；当前为 **JWT + 过滤器链** 的全局应用。口令流程说明见 [DpUserPassword.md](./DpUserPassword.md)。
+---
+
+## 3. `PERMIT_ALL`（与对局/实时/社交相关）
+
+源码：`JwtSecurityConstants.PERMIT_ALL`。
+
+| 路径 | 说明 |
+|------|------|
+| `/dpUser/loginProfile`、`/dpUser/registerUser` | 登录/注册 |
+| `/ws/**` | WebSocket 握手不强制 JWT；**快匹**在 `DpQuickMatchWebSocketHandler` 内校验 `token`+`nickname` |
+| `/dpRoom/getNowRoom`、`/dpRoom/getAllRooms2` | 房间快照/内存 id 列表（旁观、分享链接） |
+| `/dp/presence/site-heartbeat/config` | 站点心跳公开参数 |
+| `/dpMusic/list` | 曲库列表 |
+| `/dp/leaderboard/weekly/hand`、`/dp/leaderboard/weekly/room` | 周榜只读（Flyway **V7**） |
+| `/images/**`、`/music/**`、静态 `index.html` 等 | 资源 |
+
+**需 JWT**（节选）：其余 `/dpRoom/**`（含 `publicRooms`）、`/dp/**` 好友与邮箱、`/dp/social/notify-summary`。  
+**SSE**：`GET /dp/social/stream` **不在** `permitAll`；过滤器对 **该路径** 支持 `?token=` 写入上下文（与 Bearer 二选一）。详见 [dp_friend_mailbox_mvp.md](./dp_friend_mailbox_mvp.md)。
+
+---
+
+## 4. 登录后会话（Redis JTI）
+
+`DpUserServiceImpl#loginProfile` 签发 JWT 后，`DpRedisLoginCacheService` 按用户存 **JTI**；新登录覆盖旧 JTI，旧 token 校验失败（单会话踢旧）。与房间 `roomMap` 无关。
+
+---
+
+## 5. 前端（`front/dp_game`）
+
+`src/main.js` axios：
+
+- **请求**：除 `loginProfile`、`registerUser` 外，从 `localStorage.userInfo.token` 附加 `Authorization: Bearer`。
+- **响应 401**：提示、`localStorage` 清除、`router.replace('/login')`。
+
+SSE：`dpSocialStream.js` 使用 `GET /dp/social/stream?token=...`。
+
+---
+
+## 6. 交叉引用
+
+| 主题 | 文档 |
+|------|------|
+| 口令 bcrypt | [DpUserPassword.md](./DpUserPassword.md) |
+| 对局 WS | [WEBSOCKET.md](./WEBSOCKET.md) |
+| 环境变量 | [ENV_README.md](./ENV_README.md) |
+| Nginx SSE | [NGINX.md](./NGINX.md) |

@@ -1,6 +1,10 @@
-# 对局 WebSocket：链路概览、`/ws/dp-game` 与心跳、BGM／聊天载荷
+# 对局与快匹 WebSocket
 
-面向想入门、又想知道「在我们工程里具体怎么接到游戏页上」的读者。不要求先会网络协议细节。
+> **核对日期**：2026-05-25  
+> **权威来源**：`DpGameRoomWebSocketHandler`、`DpQuickMatchWebSocketHandler`、`DpGameRoomPushService`、`DpQuickMatchPushService`、`WebSocketGameRoomConfig`  
+> **Status**: maintained
+
+面向想入门、又想知道「在我们工程里具体怎么接到游戏页上」的读者。
 
 ---
 
@@ -35,14 +39,14 @@
     → Spring 握手匹配 /ws/dp-game
     → DpGameRoomWebSocketHandler（建连 / 断连 / 收文本）
     → DpGameRoomPushService（按 roomId 挂会话、发快照、定时广播、聊天与 BGM）
-    → DpRoomServiceImpl（内存 roomMap + 每秒 Timer 里调用 broadcastIfSubscribed）
+    → DpRoomHeartbeatScheduler（1s）→ broadcastIfSubscribed
 ```
 
 | 环节 | 做什么 |
 |------|--------|
 | **连接 URL** | **`ws(s)://当前站点主机/ws/dp-game?roomId=…&nickname=…`**。`roomId` **必填**；`nickname` 建议带（对局页会带当前用户昵称），用于 **按观看者过滤** 的 JSON（例如隐藏他人底牌）。开发环境见下文 **`/dp-ws`**。 |
 | **首包** | 连上后立刻 **`sendInitialSnapshot`**：若房间不存在则发 `{"_ws":"roomClosed"}` 并关连接；否则发 **与 `GET /dpRoom/getNowRoom` 同结构** 的房间 JSON（经 `getRoomSnapshotForViewer` 按昵称过滤）。若该房有人播过 BGM，会 **再发一帧** `roomMusic`（与快照去重无关）。 |
-| **下行（房间状态）** | **`DpRoomServiceImpl`** 里 **`Timer.scheduleAtFixedRate(..., 0, 1000)`** 每秒遍历 `roomMap`；每个房间在当次循环末尾（除非中间 `continue` 整段跳过，例如空房已删）调用 **`gameRoomPushService.broadcastIfSubscribed(roomId)`**。仅当该房 **至少有一个 WS 订阅者** 时才序列化并发送。 |
+| **下行（房间状态）** | **`DpRoomHeartbeatScheduler`**（`room/support/`，约 **1s**）遍历 `roomMap`；每房末尾调用 **`DpGameRoomPushService#broadcastIfSubscribed(roomId)`**。仅当该房 **至少有一个 WS 订阅者** 时才序列化并发送。 |
 | **下行去重** | **`DpGameRoomPushService`** 对每个 **`WebSocketSession`** 记下 **`lastBroadcastPayloadBySession`**：若本次要发的 JSON 字符串与 **该连接上次成功下发的快照** 相同，则 **本连接不再发送**（减流量；挂机时状态不变则多为 skip）。注意：**不同客户端** 因 `nickname` 不同，JSON 可能不同，各自独立去重。 |
 | **上行（同一条连接）** | 客户端可发文本 JSON：`{"_ws":"chatSend",...}` 房间聊天、`{"_ws":"roomMusicSync",...}` 曲库同步；服务端校验昵称属于该房 **玩家或观众** 后广播，详见第 6 节。 |
 | **Redis** | **未使用**。`roomId → Set<WebSocketSession>` 在 **单机内存**；多实例需另行设计跨节点广播。 |
@@ -63,7 +67,7 @@
    - **`sendInitialSnapshot`** / **`broadcastIfSubscribed`**：通过 **`DpRoomServiceImpl.getRoomSnapshotForViewer`** / **`snapshotForViewerFromLive`** 生成 **按观看者视角** 的 `DpRoom`，再 **`ObjectMapper.writeValueAsString`**；广播路径上与上次字符串相同则 **跳过该 session**（见上表）。  
    - 房间已从 `roomMap` 消失时，对该房 session 发 **`roomClosed`** 并清理。  
    - **`@Lazy DpRoomServiceImpl`**：打破与 **`DpRoomServiceImpl`** 注入 **`DpGameRoomPushService`** 的循环依赖。
-4. **`DpRoomServiceImpl`**：构造器里注册 **每秒** 定时任务，循环内末尾 **`broadcastIfSubscribed(room.getRoomId())`**。
+4. **`DpRoomHeartbeatScheduler`**：约 **每秒** tick，循环内末尾 **`broadcastIfSubscribed(room.getRoomId())`**（与心跳踢人、NPC 同调度器）。
 
 ---
 
@@ -146,14 +150,29 @@
 - **聊天 / BGM** 与快照 **同连接**，协议字段 **`_ws`** 区分。  
 - 开发用 **`/dp-ws`** 避开 HMR 占用 **`/ws`**。  
 
+## 13. 快匹 WebSocket（`/ws/dp-quick-match`）
+
+| 项 | 说明 |
+|----|------|
+| 注册 | `WebSocketGameRoomConfig` → `DpQuickMatchWebSocketHandler` |
+| URL | `/ws/dp-quick-match?nickname=…&token=…`（**必填**；JWT subject 须等于 nickname） |
+| 推送 | `DpQuickMatchPushService`：`_ws:"quickMatch"`，`state`: `WAITING` / `MATCHED` / `IDLE` |
+| REST 配合 | `POST /dpRoom/quickMatch2` 入队；**匹配详情依赖 WS**，见 [dp-quick-match-flow.md](./dp-quick-match-flow.md) |
+
+开发代理：`/dp-ws/dp-quick-match` → `/ws/dp-quick-match`（同 §9）。
+
+---
+
+## 14. 实现映射（快照裁剪）
+
+| 方法 | 类 | 作用 |
+|------|-----|------|
+| `getRoomSnapshotForViewer` | `DpRoomServiceImpl` | 按 roomId + viewer 昵称出 JSON |
+| `snapshotForViewerFromLive` | 同上 | 从 live `DpRoomBO` 生成 |
+| `deepCopyRoomForSnapshot` | 同上 | 深拷贝避免污染 `roomMap` |
+| `sanitizeHoleCardsForViewer` | 同上 | 隐藏他人底牌 |
+
+`DpGameRoomPushService#lastBroadcastPayloadBySession`：按 **session** 去重相同 JSON 字符串。
+
 如有文档与实现不一致，以当前代码为准。
---- 
-# 自己的笔记
-当session连接上的时候，通过sessionurl把房间id和玩家解析并存入session的Attributes中  
-首先用房间id和每个人的会话作为键值对存入roomSessions  
-然后用lastBroadcastPayloadBySession这个Map存会话和应推送的裁剪后的房间状态json，以下是大致实现思路：首先深拷贝一份房间状态(不是简单赋值，简单复制改的还是原来的房间，而深拷贝出来的房间信息后续怎么改都不影响原来roomMap里的房间状态)然后按session中Attributes中的昵称去裁剪信息，把其他人的信息设置成空，然后挂在lastBroadcastPayloadBySession里，等推送的时候按照昵称分别推送   
-getRoomSnapshotForViewer->通过房间id和昵称实现处理  
-snapshotForViewerFromLive->通过房间和昵称实现处理
-deepCopyRoomForSnapshot->深拷贝过程
-sanitizeHoleCardsForViewer->具体裁剪过程
 

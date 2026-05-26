@@ -28,14 +28,14 @@
 
 **完整分类与每篇简介**见 **[docs/README.md](docs/README.md)**；下列为常用直达。
 
-- [后端面试题清单（结合本仓库技术栈）](docs/BACKEND_INTERVIEW_QUESTIONS.md)
-- [JSON、Map、序列化/反序列化与接口数据（备忘）](docs/Json-map-serialization.md)
+- [后端面试题清单（结合本仓库技术栈）](docs/notes/BACKEND_INTERVIEW_QUESTIONS.md)
+- [JSON、Map、序列化/反序列化与接口数据（备忘）](docs/notes/Json-map-serialization.md)
 - [DP游戏详细文档（规则、接口、开发与维护）](docs/DPGAME.md)
 - [DP NPC 引擎笔记（Fish/Maniac/TAG 与 Shark 分册）](docs/ai/npc-engine/README.md)
 - [对局页布局调参（顶栏 / 圆桌 / 底栏间距，`dp-game-shell.css`）](front/dp_game/docs/GAME_LAYOUT_TUNING_README.md)
 - [DP 曲库：`webPath`、磁盘目录与试听代理流程](docs/DpMusicWebPath.md)
 - [DP 用户密码：前后端分工、校验方式、找回密码现状](docs/DpUserPassword.md)
-- [Java：对象引用、`roomMap` 与浅拷贝 / 深拷贝（备忘）](docs/Java对象引用与浅拷贝深拷贝备忘.md)
+- [Java：对象引用、`roomMap` 与浅拷贝 / 深拷贝（备忘）](docs/notes/Java对象引用与浅拷贝深拷贝备忘.md)
 - [WebSocket：对局页长连接、后端 Handler/PushService 与前端 `game.vue` 串接说明](docs/WEBSOCKET.md)
 
 ### 游戏对局 WebSocket（无 Redis）
@@ -64,14 +64,14 @@
 - **房间聊天（短时气泡）**：与同一 WS 连接收发；**每人只在对应座位卡片上方显示一条**，新发顶掉旧文案；**有手牌/行动底栏时输入栏与该栏同一行**；观众消息在操作区上方条带展示；协议见 `docs/WEBSOCKET.md`。
 - **行动面板布局（2026-03-25）**：窄屏采用常见扑克客户端结构：**第一行** 倒计时 + 跟注/过牌 + 加注额 +「加注」；**第二行** 全宽两列 **All-In | 弃牌**（约 44px 触控高），避免横滑把弃牌挡在屏外或安全区外。**宽屏（≥680px）** 两行并为一行，底行两钮仍跟在主控件右侧，主区可横向滑动。
 - **标准 NL 最小加注 + 操作区（2026-03-25）**：后端 `DpRoom.lastRaiseIncrement` 与 `DpRoomServiceImpl.bet` 校验：再加注总注须 ≥ `currentBetToCall + lastRaiseIncrement`（**不足最小加注的全下**仍允许；**短全下**不抬高最小增量）。每新街重置增量为大盲。前端 `GameActionPanel` 展示「最少抬到的总注」、**⅓～1½ 池**快捷按钮与**滑动条**（筹码量取「跟注 + round((底池+跟注)×比例)」的近似，与常见线上桌一致）。说明见 `docs/DPGAME.md`。**2026-04-01**：无人跟注时合法加注总注下限为 **一个大盲**（不再出现 1 筹码开池）；底池比例与输入/滑条对齐到 **小盲整数倍**（比例结果先算再向下取档，若低于最小加注则取不低于最小加注的最小小盲倍数）。
-- **相关代码**：`DpGameRoomPushService`、`DpGameRoomWebSocketHandler`、`WebSocketGameRoomConfig`；`DpRoomServiceImpl` 定时循环末尾调用 `broadcastIfSubscribed`。
+- **相关代码**：`DpGameRoomPushService`、`DpGameRoomWebSocketHandler`、`WebSocketGameRoomConfig`；`DpRoomHeartbeatScheduler`（约 1s）末尾调用 `broadcastIfSubscribed`。
 
 ### NPC / AI（给不懂代码的人看的）
 
 #### 酒馆档强度（BOT_Fish，2026-03-25）
 
-- **规则型 NPC 读牌/赔率**：已不再按「难度档」对牌力或底池赔率加人为噪声；`estimateCurrentStrength` 与 `computePotOdds` 一律用真值，强弱差异主要来自 `NpcStyle`/`StyleProfile` 与各 bot 分支逻辑。**情绪 `mood`**：默认关闭（`DpNpcEngine.NPC_MOOD_ENABLED = false`），决策按 mood=0，结算也不再改写机器人 mood；若要恢复，将该常量改为 `true`。
-- **决策概率抖动**：`applySoftNoise` 由 `DpNpcEngine.NPC_SOFT_NOISE_ENABLED` 控制（默认 `false`，已关闭 ±`PROB_NOISE_DELTA`）；与发牌/洗牌无关。
+- **规则型 NPC 读牌/赔率**：已不再按「难度档」对牌力或底池赔率加人为噪声；`estimateCurrentStrength` 与 `computePotOdds` 一律用真值，强弱差异主要来自 `NpcStyle`/`StyleProfile` 与各 bot 分支逻辑。**情绪 `mood`（v1）**：**不参与决策**；每手结算后按本手筹码增减更新规则 bot 的 `mood`（`dp.npc.mood`，默认开启）；桌边台词在非 TAG 风格下按 `HIGH`/`NEUTRAL`/`LOW` 分桶（`MOOD_*` 池，空则回退 `FOLD`/`SETTLE_WIN` 等原 key）。LLM bot 仍走模型 `table_talk`。环境变量示例：`DP_NPC_MOOD_ENABLED`、`DP_NPC_MOOD_DELTA_WIN`。
+- **决策概率抖动**：已移除（原 `applySoftNoise` / `NPC_SOFT_NOISE_ENABLED` 通路）；翻后概率由各策略类内裁剪与风格矩阵决定。
 - **机器人决策随机**：`NPC_HAND_SEED_FOR_DECISIONS` 默认 `false`，每次行动 `new Random()`；房间的 `currentHandSeed` 仍用于前端动画 key、牌谱等，**不是发牌种子**，洗牌在 `newDeck()` 里单独 `Collections.shuffle`。
 
 #### Shark（BOT_Shark）现在会“翻前按局势调范围”
@@ -138,7 +138,7 @@
 - **user_id**：列上**可为 NULL**；入库时优先用内存 `dpUserId`，否则按 **昵称** 查 `dp_user`（昵称全局唯一时可补全）；仍无账号则只存 `nickname_snapshot`。机器人不占行。
 - **前端**：`GET /dpUser/loginProfile`、`POST /dpUser/registerUser` 返回统一 `ResultUtil`（`success` / `code` / `message` / `data`）；登录成功时 `data` 含 `userId`、`nickname`、`token`。前端用 `userId` 写入 `localStorage`；**创建房间 / 加入房间 / 观众「下一局加入」** 可带可选 `userId`（与昵称须与 `dp_user` 一致才采纳），界面只展示昵称。
 - **JWT 全局鉴权（2026-04-07）**：引入 `spring-boot-starter-security`，`SecurityConfig` + `JwtAuthenticationFilter` 对除白名单外的请求要求 `Authorization: Bearer`；未登录返回 HTTP 401 JSON。白名单含：登录/注册、`/ws/**`、静态资源、`GET /dpRoom/getNowRoom`、`GET /dpRoom/getAllRooms2`、`GET /dpMusic/list`（旁观/分享链接与曲库列表）；详见 [docs/JWT.md](docs/JWT.md)。前端 `main.js`：axios **请求**拦截器自动带 token（登录/注册请求除外）；**响应**拦截器对 HTTP 401 弹窗提示、清 `userInfo` 并跳转登录页。
-- **用户密码加密（2026-04-07）**：`DpUserServiceImpl` 在 `registerUser`、`loginUser`、`loginProfile`（经 `loginUserOrNull`）与 `updateUserInfo` 中统一经 **`CryptoUtil.md5HexUtf8`** 使用 **MD5(UTF-8)** 处理密码，数据库 `dp_user.password` 存储 32 位小写 MD5 字符串。**前端传明文、后端摘要**；校验与找回密码说明见 [docs/DpUserPassword.md](docs/DpUserPassword.md)。
+- **用户密码（2026-05-25 文档对齐）**：`DpUserServiceImpl` 在注册/登录/改密路径使用 **`CryptoUtil.bcryptEncode` / `bcryptMatches`**（BCrypt 强度 10），`dp_user.password` 存 bcrypt 哈希。**前端传明文、服务端哈希**；说明见 [docs/DpUserPassword.md](docs/DpUserPassword.md)、鉴权见 [docs/JWT.md](docs/JWT.md)。
 - **会话令牌**：`JwtTokenService` 使用 **JWT**，签名算法为 **HMAC-SHA256**（JJWT 默认与 `Keys.hmacShaKeyFor` 一致）；与口令摘要工具类分离。
 - **加入房间（JWT）**：`POST /dpRoom/joinRoom2` 在全局鉴权通过后校验 `SecurityContext` 中昵称与参数 `nickname` 一致；大厅「加入」走该接口。旧 `POST /dpRoom/joinRoom` 同样需带 token。旧缓存仅有 `userId` 无 `token` 时，`ensureDpUserIdInStorage` 会再调 `loginProfile` 补 `token`。
 - **历史查询（列表/详情）**：仅按 **`userId`**（`dp_user.id` + 参与者表 `user_id`）；不再支持仅昵称查询。

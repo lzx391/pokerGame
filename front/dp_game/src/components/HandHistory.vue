@@ -35,8 +35,7 @@
 
     <template v-else>
       <p v-if="total === 0" class="hand-history-page__empty">
-        暂无记录。若数据库里只有牌谱主表 <code>dp_observed_hand_history</code> 而没有
-        <code>dp_observed_hand_participant</code> 参与者行（例如未登录/未解析到昵称），则不会出现在此列表。
+        {{ catCopy.handHistoryEmptyHint }}
       </p>
       <template v-else>
         <p class="hand-history-page__meta">
@@ -48,7 +47,7 @@
               <tr>
                 <th>结束时间</th>
                 <th>房间</th>
-                <th>主池</th>
+                <th>{{ catCopy.mainPot }}</th>
                 <th>鱼干输赢</th>
                 <!-- <th>座位</th> -->
                 <th>角色</th>
@@ -106,6 +105,7 @@ import '@/styles/dp-game-themes.css'
 import '@/styles/dp-lobby-shell.css'
 import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
+import { CAT_COPY } from '@/constants/dpCatThemeCopy'
 
 export default {
   name: 'HandHistory',
@@ -126,6 +126,7 @@ export default {
   },
   data() {
     return {
+      catCopy: CAT_COPY,
       user: null,
       rows: [],
       total: 0,
@@ -244,7 +245,7 @@ export default {
         this.rows = Array.isArray(data.records) ? data.records : []
       } catch (e) {
         console.error('hand history list', e)
-        this.loadError = '加载失败：请确认后端已启动且已建表 dp_observed_hand_participant。'
+        this.loadError = CAT_COPY.loadFailedRetry
         this.rows = []
         this.total = 0
       } finally {

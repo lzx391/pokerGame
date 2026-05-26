@@ -47,6 +47,13 @@
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
 
+        <!-- 敏感词过滤：DFA算法 + 内置词表 https://github.com/houbb/sensitive-word -->
+        <dependency>
+            <groupId>com.github.houbb</groupId>
+            <artifactId>sensitive-word</artifactId>
+            <version>0.19.0</version>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -107,6 +114,12 @@
             <groupId>io.github.cdimascio</groupId>
             <artifactId>dotenv-java</artifactId>
             <version>3.0.0</version>
+        </dependency>
+        <!-- 头像缩略图 WebP 写出（ImageIO SPI）；缩放仍用 JDK BufferedImage -->
+        <dependency>
+            <groupId>com.github.gotson</groupId>
+            <artifactId>webp-imageio</artifactId>
+            <version>0.2.2</version>
         </dependency>
     </dependencies>
 

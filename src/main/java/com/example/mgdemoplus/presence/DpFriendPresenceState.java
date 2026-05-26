@@ -2,8 +2,8 @@ package com.example.mgdemoplus.presence;
 
 /**
  * JVM 内存「房内」好友态（单机）：在座或观众为 {@link #IN_GAME}，否则 {@link #IDLE}。
- * 好友列表对外展示时由 {@link com.example.mgdemoplus.service.serviceImpl.DpFriendSocialService#listFriends}
- * 与 {@link com.example.mgdemoplus.service.DpSitePresenceService} 合成，可能为 {@link #OFFLINE}。
+ * 好友列表对外展示时由 {@link com.example.mgdemoplus.social.impl.DpFriendSocialService#listFriends}
+ * 与 {@link DpSitePresenceService} 合成，可能为 {@link #OFFLINE}。
  */
 public enum DpFriendPresenceState {
     /** 房内未记为在局（缺省）。*/

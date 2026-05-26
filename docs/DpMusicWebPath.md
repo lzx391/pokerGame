@@ -1,6 +1,10 @@
-# DP 曲库 `webPath`：磁盘落盘、`GET /music/**` 试听与开发代理
+# DP 曲库 `webPath`：磁盘落盘与 `/music/**`
 
-本文说明 **曲库元数据表 `dp_music_track` 里的 `web_path`** 如何对应 **磁盘上的文件**，以及前端 `<audio>` / 对局 BGM 如何通过 HTTP 拿到音频。**不涉及** `GET /dpMusic/list` 的 JSON 字段细节；列表接口只返回「逻辑路径」，真正播放是另一条 **静态资源** 链路。
+> **核对日期**：2026-05-25  
+> **权威来源**：`DpMusicController`、`WebConfig#addResourceHandlers`、`mgdemoplus.music.file-location`  
+> **Status**: maintained
+
+本文说明 **`dp_music_track.web_path`** 与磁盘文件、`<audio>` / 对局 BGM（WS `roomMusicSync`）的关系。列表 JSON 见 `GET /dpMusic/list`（**permitAll**）。
 
 ---
 
@@ -26,7 +30,7 @@
 
 因此：**磁盘文件名** 与 **URL 最后一段** 一致；**URL 路径前缀** 固定为 `/music/`。
 
-相关代码：`src/main/java/com/example/mgdemoplus/controller/dp/DpMusicController.java`。
+相关代码：`src/main/java/com/example/mgdemoplus/controller/DpMusicController.java`。
 
 ---
 

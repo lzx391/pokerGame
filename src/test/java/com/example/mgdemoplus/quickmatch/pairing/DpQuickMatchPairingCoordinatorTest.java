@@ -1,6 +1,6 @@
 package com.example.mgdemoplus.quickmatch.pairing;
 
-import com.example.mgdemoplus.bo.DpRoomBO;
+import com.example.mgdemoplus.common.bo.DpRoomBO;
 import com.example.mgdemoplus.quickmatch.JoinableQuickMatchRoomIndex;
 import org.junit.jupiter.api.Test;
 
@@ -14,9 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 /**
- * 占位编译 + 烟雾：空队列下 {@link DpQuickMatchPairingCoordinator#attemptPairing()} 应迅速返回。
- * Agent C 接入真实 Host 后应补充业务向测试。
- */
+ * 鍗犱綅缂栬瘧 + 鐑熼浘锛氱┖闃熷垪涓?{@link DpQuickMatchPairingCoordinator#attemptPairing()} 搴旇繀閫熻繑鍥炪€? * Agent C 鎺ュ叆鐪熷疄 Host 鍚庡簲琛ュ厖涓氬姟鍚戞祴璇曘€? */
 class DpQuickMatchPairingCoordinatorTest {
 
     @Test

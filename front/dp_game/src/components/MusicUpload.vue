@@ -27,7 +27,7 @@
       </div>
 
       <p class="music-upload__hint">
-        音频保存在服务器目录，入库到 <code>dp_music_track</code>；支持 mp3、m4a、wav、ogg、flac，单文件建议不超过 80MB。
+        {{ catCopy.musicLibraryHint }}
       </p>
 
       <div class="dp-lobby-panel music-upload__panel">
@@ -115,12 +115,14 @@
 import '@/styles/dp-game-themes.css'
 import '@/styles/dp-lobby-shell.css'
 import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
+import { CAT_COPY } from '@/constants/dpCatThemeCopy'
 
 export default {
   name: 'MusicUpload',
   mixins: [dpLobbyThemeMixin],
   data() {
     return {
+      catCopy: CAT_COPY,
       user: {},
       displayName: '',
       sortOrder: 0,
@@ -191,7 +193,7 @@ export default {
         this.tracks = Array.isArray(res.data) ? res.data : []
       } catch (e) {
         console.error('dpMusic/list', e)
-        this.listError = '列表加载失败，请确认已建表 dp_music_track 且后端已启动。'
+        this.listError = CAT_COPY.musicListLoadFailed
         this.tracks = []
       } finally {
         this.listLoading = false

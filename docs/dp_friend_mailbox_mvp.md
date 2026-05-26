@@ -1,198 +1,133 @@
-# DP 好友 / 邮箱邀请（REST MVP）
+# 好友、邮箱、私信、SSE 与局内聊天
 
-**鉴权**：全部接口需 JWT；当前用户仅从 token `subject`（昵称）映射 `dp_user.id`，不信任请求体的 userId。
+> **核对日期**：2026-05-25  
+> **权威来源**：`DpFriendMailboxController`、`DpFriendSocialService`、`DpFriendChatService`、`SocialSseHub`、`DpSocialController`；Flyway **V1**（好友/邀请）、**V2/V3**（私信与局内聊天）  
+> **Status**: maintained
 
-**已知限制（本轮刻意不做）**：
-
-- **超员**：观众进房不因座位满而拦截；与前端约定见人满时仍可进观众席或由错误提示收口（当前实现：**始终写入观众**，未开局仅占观众列表）。
-- **反骚扰**：无频率限制、黑名单等。
-- **仅大厅可见邮箱**：服务端不校验调用场景，仅用前端约束展示。
-
-**房主进房邀约**：默认仅**房主**可 `POST /dp/room-invites`；座位上的非房主好友本轮不可代发邀约。
+**鉴权**：`/dp/**` 下接口需 JWT；当前用户由 token `subject`（昵称）映射 `dp_user.id`，不信任 body 中的 userId。
 
 ---
 
-## 表结构
+## 1. 数据表（Flyway）
 
-表结构参见 `src/main/resources/db/migration/V1__init_schema.sql`（Flyway；应用启动时自动执行）。
+| 表 | 版本 | 用途 |
+|----|------|------|
+| `dp_friend_request`、`dp_friend_link`、`dp_room_invite` | V1 | 好友申请、好友关系、进房邀请 |
+| `dp_friend_message`、`dp_friend_chat_read` | V2 | 好友私信、已读游标 |
+| `dp_room_chat_message` | V2；主键 **V3** `(room_id, id)` | 摘房后局内聊天批量落库 |
 
----
-
-## 接口列表
-
-JSON 时间与工程一致：**LocalDateTime 字符串**，无后缀时客户端按服务端时区理解即可。
-
-### 1. POST `/dp/friends/requests`
-
-发好友申请（方向：`from`=当前登录，`to`=body）。
-
-请求：
-
-```json
-{ "toUserId": 2 }
-```
-
-响应示例：
-
-```json
-{
-  "success": true,
-  "message": "成功",
-  "data": {
-    "message": "已发送申请"
-  }
-}
-```
+私信容量：每无序好友对双向合计最多 **500** 条，超限删最旧 `id`。
 
 ---
 
-### 2. GET `/dp/friends/requests/pending`
+## 2. REST — 好友与邮箱（`DpFriendMailboxController`，`/dp`）
 
-我收到的待处理好友申请。
+| 方法 | 路径 | 服务要点 |
+|------|------|----------|
+| POST | `/friends/requests` | `sendFriendRequest` |
+| GET | `/friends/requests/pending` |  inbound PENDING |
+| POST | `/friends/requests/{id}/accept` \| `/reject` | |
+| GET | `/friends` | 列表 + `presence`（`OFFLINE`/`IDLE`/`IN_GAME`） |
+| DELETE | `/friends/{peerUserId}` | `removeFriend` |
+| POST | `/room-invites` | 房主邀请；60s 有效；重复同房替换 PENDING |
+| GET | `/mailbox` | 待处理申请 + 未过期邀请 |
+| GET | `/mailbox/unread-count` | 红点计数 |
+| POST | `/room-invites/{id}/accept` | 观众进房 `joinRoomInviteAsSpectator` |
+| POST | `/room-invites/{id}/reject` | |
+| POST | `/friends/follow-room` | 跟随好友所在房 |
+| GET | `/friends/{friendUserId}/spectate-room` | 观战上下文 |
+| POST | `/room-follow/spectate` | 跟随进房为观众 |
+| GET | `/presence/site-heartbeat/config` | **permitAll** |
+| POST | `/presence/site-heartbeat` | JWT；TTL `mgdemoplus.dp-site-presence-ttl-ms`（默认 90s） |
 
-响应示例：
-
-```json
-{
-  "success": true,
-  "message": "成功",
-  "data": {
-    "items": [
-      {
-        "id": 1,
-        "fromUserId": 2,
-        "toUserId": 3,
-        "fromNickname": "alice",
-        "status": "PENDING",
-        "createdAt": "2026-05-11T12:00:00",
-        "kind": "FRIEND_REQUEST"
-      }
-    ]
-  }
-}
-```
+**房主邀请**：默认仅房主可 `POST /room-invites`。  
+**超员**：观众进房不因满座拦截（产品约定由前端提示）。
 
 ---
 
-### 3. POST `/dp/friends/requests/{id}/accept`
+## 3. REST — 好友私信
 
-同意好友申请（仅 `to_user` 可操作）。
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/friends/{peerUserId}/messages` | body `{"body":"..."}`；非好友拒绝；约 **1200ms** 频控 |
+| GET | `/friends/{peerUserId}/messages?beforeId=&limit=` | 分页，默认 limit 50，上限 100 |
+| POST | `/friends/{peerUserId}/messages/read` | `{"lastReadMessageId":42}` |
+| GET | `/friends/chat-unread-summary` | `totalUnread` + `perFriend` |
 
-响应示例：`data.message` = `已同意并成为好友`（重复同意返回说明性成功/失败语义见实现）。
+实现：`social` 包 `DpFriendChatService`；写成功后 `SocialNotifyPublisher` 通知**接收方**。
 
 ---
 
-### 4. POST `/dp/friends/requests/{id}/reject`
+## 4. REST — 局内聊天近期（`DpRoomController`）
 
-拒绝好友申请。
+`GET /dpRoom/{roomId}/chat/recent?limit=50` — JWT；须在房内（与 WS `chatSend` 同口径 `isNicknameInRoom`）。  
+数据源：内存 `RoomChatBuffer`（非 DB）；房间不在 `roomMap` 返回 404。
 
 ---
 
-### 5. GET `/dp/friends`
+## 5. 局内聊天：内存 + WebSocket
 
-好友列表：`userId` + `nickname`（关联 `dp_user`）。
+- **`RoomChatBuffer`**：`roomId →` 最多 **500** 条；单调 `id`。  
+- **`DpGameRoomPushService#handleClientTextMessage`**：`_ws:"chatSend"` → 校验昵称在房 → `append` → 广播 `_ws:"chat"`（`ttlMs` 约 15000）。  
+- **摘房**：`DpRoomServiceImpl#finalizeHallAfterRoomRemoved` → `DpRoomChatPersistenceService#flushRoomToDatabase` → `INSERT dp_room_chat_message`。  
+
+协议详见 [WEBSOCKET.md](./WEBSOCKET.md) §6。
+
+---
+
+## 6. 大厅 SSE（`DpSocialController`）
+
+| 方法 | 路径 | 鉴权 |
+|------|------|------|
+| GET | `/dp/social/stream` | JWT：`Authorization` 或 **`?token=`**（仅本路径；`EventSource` 无法带头） |
+| GET | `/dp/social/notify-summary` | Bearer |
+
+**不在** `JwtSecurityConstants.PERMIT_ALL`（身份由过滤器写上下文）。
+
+### 事件 `notify`
 
 ```json
 {
-  "success": true,
-  "data": {
-    "friends": [
-      { "userId": 2, "nickname": "alice" }
-    ]
-  }
+  "mailboxUnread": 2,
+  "friendChatUnreadTotal": 3,
+  "friendChatUnreadByFriendUserId": { "123": 1 }
 }
 ```
 
----
+- `SocialSseHub`：每用户最多 **3** 连接；**30s** 注释心跳；**单 JVM** 扇出（多副本需粘滞或 Redis Pub/Sub，未实现）。  
+- Nginx：`proxy_buffering off`（[NGINX.md](./NGINX.md)）。  
+- `spring.mvc.async.request-timeout: -1` 避免 SSE 被掐断。
 
-### 6. POST `/dp/room-invites`
+### 推送触发（写成功后）
 
-房主向好友发起进房邀请（60 秒内有效；重复同三房会替换上一条 **PENDING**）。
+| 操作 | 通知对象 |
+|------|----------|
+| 私信 `sendMessage` | 接收方 |
+| `markRead` | 读方（未读下降） |
+| 好友申请/接受/拒绝 | 相关用户 |
+| 进房邀请/接受/拒绝/过期 | 邀请方或被邀请方 |
+| `removeFriend` | 双方 |
 
-请求：
-
-```json
-{
-  "roomId": "a1b2c3d4",
-  "inviteeUserId": 2
-}
-```
-
-响应示例：
-
-```json
-{
-  "success": true,
-  "data": {
-    "inviteId": 10,
-    "roomId": "a1b2c3d4",
-    "expiresAt": "2026-05-11T12:01:01.123456"
-  }
-}
-```
+前端：`api.dpSocial.js`、`dpSocialStream.js`、`Vuex dpMailbox`。
 
 ---
 
-### 7. GET `/dp/mailbox`
+## 7. 实现类索引
 
-合并：**待处理好友申请** + **未过期进房邀约**。
+| 类 | 职责 |
+|----|------|
+| `DpFriendSocialService` | 好友、邀请、mailbox、跟随 |
+| `DpFriendChatService` | 私信 CRUD、未读 |
+| `SocialSseHub` / `SocialNotifyPublisher` | SSE |
+| `RoomChatBuffer` / `DpRoomChatPersistenceService` | 局内聊天 |
+| `DpGameRoomPushService` | WS 聊天 |
 
-```json
-{
-  "success": true,
-  "data": {
-    "friendRequests": [ /* 同 pending 条目 */ ],
-    "roomInvites": [
-      {
-        "id": 10,
-        "roomId": "a1b2c3d4",
-        "inviterUserId": 1,
-        "inviterNickname": "bob",
-        "inviteeUserId": 2,
-        "status": "PENDING",
-        "createdAt": "...",
-        "expiresAt": "...",
-        "remainingSeconds": 45,
-        "kind": "ROOM_INVITE"
-      }
-    ]
-  }
-}
-```
-
-进入列表前会对全局 `expires_at <= NOW(3)` 的 **PENDING** 邀约批量标为 **EXPIRED**。
+Mapper：`src/main/resources/mapper/dp/DpFriendSocialMapper.xml` 等。
 
 ---
 
-### 8. GET `/dp/mailbox/unread-count`
+## 8. 交叉引用
 
-红点：待处理好友申请数 + 未过期邀约数之和。
-
-```json
-{ "success": true, "data": { "count": 3 } }
-```
-
----
-
-### 9. POST `/dp/room-invites/{id}/accept`
-
-受邀人同意；**不写密码**，以观众进房（`joinRoomInviteAsSpectator`）。幂等：`ACCEPTED` 不报错。
-
-无需 body。
-
----
-
-### 10. POST `/dp/room-invites/{id}/reject`
-
-受邀人拒绝进房邀约。幂等对非 `PENDING`。
-
----
-
-## MyBatis
-
-`src/main/resources/mapper/dp/DpFriendSocialMapper.xml`，`application.yml` 已配置：
-
-```yaml
-mybatis-plus:
-  mapper-locations: classpath*:mapper/**/*.xml
-```
+- 对局/进退房：[DPGAME.md](./DPGAME.md)  
+- JWT / 白名单：[JWT.md](./JWT.md)  
+- 房间副作用（摘房 flush）：[refactor/room-mutation-side-effects.md](./refactor/room-mutation-side-effects.md)

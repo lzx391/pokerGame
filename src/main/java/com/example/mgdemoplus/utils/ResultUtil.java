@@ -71,6 +71,14 @@ public class ResultUtil {
         return result;
     }
 
+    public static ResultUtil invalidNickname() {
+        ResultUtil result = new ResultUtil();
+        result.setSuccess(false);
+        result.setCode(ResultCode.INVALID_NICKNAME);
+        result.setMessage("昵称最多10个字符");
+        return result;
+    }
+
     public static ResultUtil sensitiveUsername() {
         ResultUtil result = new ResultUtil();
         result.setSuccess(false);
@@ -88,4 +96,5 @@ public class ResultUtil {
         this.setData(data);
         return this;
     }
+
 }

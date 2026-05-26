@@ -1,4 +1,8 @@
-# 大厅快速匹配（`quickMatch2`）：默认 FIFO 队列全流程与实现对齐
+# 大厅快速匹配（`quickMatch2`）
+
+> **核对日期**：2026-05-25  
+> **权威来源**：`DpQuickMatchPairingCoordinator`、`DpRoomQuickMatchBridge`、`DpRoomController#quickMatch2`  
+> **Status**: maintained
 
 本文档描述 **「快速匹配 2」** 相关业务：**先尝试进入已有公开房；若无房可进则进入内存 FIFO 队列，满两人自动按默认参数建新公开房并准备/开局**。覆盖 **HTTP 接口、WebSocket 推送、服务端核心方法、加锁顺序、前端交互** 与 **已知边界**。
 

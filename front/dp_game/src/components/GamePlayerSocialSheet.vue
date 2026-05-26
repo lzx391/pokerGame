@@ -8,6 +8,40 @@
     <div class="dp-player-social-sheet">
       <div class="dp-player-social-sheet__name">{{ displayName }}</div>
       <p class="dp-player-social-sheet__subtitle">游戏玩家</p>
+
+      <!-- 生涯荣誉战绩 -->
+      <div v-if="honor" class="dp-player-social-sheet__honor">
+        <div class="dp-player-honor__title">生涯战绩</div>
+        <div class="dp-player-honor__badges">
+          <div class="honor-chip honor-chip--royal">
+            <span class="honor-chip__icon">RF</span>
+            <span>{{ honor.royalFlushWins || 0 }}</span>
+          </div>
+          <div class="honor-chip honor-chip--straight">
+            <span class="honor-chip__icon">SF</span>
+            <span>{{ honor.straightFlushWins || 0 }}</span>
+          </div>
+          <div class="honor-chip honor-chip--four">
+            <span class="honor-chip__icon">4K</span>
+            <span>{{ honor.fourOfAKindWins || 0 }}</span>
+          </div>
+        </div>
+        <div class="dp-player-honor__stats">
+          <div class="honor-line">
+            <span>单局最高净赢倍数</span>
+            <strong>{{ formatNetWinMultiplier(honor.largestPotWon) }}</strong>
+          </div>
+          <div class="honor-line">
+            <span>单房间最高净赢倍数</span>
+            <strong>{{ formatRoomNetMultiplier(honor.largestRoomNet) }}</strong>
+          </div>
+          <div class="honor-line">
+            <span>生涯总局数</span>
+            <strong>{{ honor.totalHandsPlayed || 0 }}</strong>
+          </div>
+        </div>
+      </div>
+
       <div
           v-if="socialPrimaryIsStaticHint"
           class="dp-player-social-sheet__hint"
@@ -42,6 +76,7 @@ import GameBottomSheet from './GameBottomSheet.vue'
 import { mapState } from 'vuex'
 import { dpDisplayNickname } from '../utils/dpDisplayNickname'
 import { dpResultSuccess, dpResultMessage, dpAxiosErrorMessage } from '../utils/dpApiResult'
+import { formatNetWinMultiplier, formatRoomNetMultiplier } from '../utils/dpRoomNetMultiplier'
 
 export default {
   name: 'GamePlayerSocialSheet',
@@ -58,7 +93,8 @@ export default {
     return {
       sending: false,
       sentOk: false,
-      tip: ''
+      tip: '',
+      honor: null
     }
   },
   computed: {
@@ -103,10 +139,27 @@ export default {
     }
   },
   methods: {
+    formatNetWinMultiplier,
+    formatRoomNetMultiplier,
     refresh() {
       this.tip = ''
       this.sentOk = false
+      this.honor = null
       this.loadFriends()
+      this.loadHonor()
+    },
+    async loadHonor() {
+      if (!this.target) return
+      var uid = Number(this.target.userId)
+      if (!uid || uid <= 0 || isNaN(uid)) return
+      try {
+        var res = await this.$http.get('/dpUser/stats/' + uid)
+        if (dpResultSuccess(res.data)) {
+          this.honor = (res.data.data && res.data.data.honor) || null
+        }
+      } catch (e) {
+        // 静默：战绩加载不影响主要功能
+      }
     },
     async loadFriends() {
       try {
@@ -209,5 +262,75 @@ export default {
   font-size: 13px;
   color: var(--dp-text-muted, #888);
   line-height: 1.45;
+}
+
+/* ---- 生涯荣誉 ---- */
+.dp-player-social-sheet__honor {
+  background: var(--dp-subpanel-bg, #fafafa);
+  border-radius: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--dp-subpanel-border, #e8e8e8);
+  margin-bottom: 12px;
+}
+.dp-player-honor__title {
+  font-size: 12px;
+  color: var(--dp-text-muted, #999);
+  font-weight: 600;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.dp-player-honor__badges {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.honor-chip {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  border: 1px solid;
+}
+.honor-chip--royal {
+  background: color-mix(in srgb, var(--dp-warning, #faad14) 12%, transparent);
+  border-color: var(--dp-warning, #faad14);
+  color: var(--dp-warning, #b45309);
+}
+.honor-chip--straight {
+  background: color-mix(in srgb, var(--dp-accent, #1890ff) 12%, transparent);
+  border-color: var(--dp-accent, #1890ff);
+  color: var(--dp-accent, #1565c0);
+}
+.honor-chip--four {
+  background: color-mix(in srgb, var(--dp-danger, #ff4d4f) 12%, transparent);
+  border-color: var(--dp-danger, #ff4d4f);
+  color: var(--dp-danger, #c62828);
+}
+.honor-chip__icon {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+.dp-player-honor__stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.honor-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--dp-text-muted, #999);
+}
+.honor-line strong {
+  color: var(--dp-text-primary, #333);
+  font-weight: 600;
 }
 </style>

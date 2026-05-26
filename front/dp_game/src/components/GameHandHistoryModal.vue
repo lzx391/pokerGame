@@ -1,4 +1,5 @@
 <template>
+  <transition name="dp-overlay">
   <div v-if="visible" class="hand-rank-modal-mask" @click="$emit('close')">
     <div
         class="hand-rank-modal hand-rank-modal--hand-history"
@@ -38,6 +39,7 @@
       </div>
     </div>
   </div>
+  </transition>
 </template>
 
 <script>

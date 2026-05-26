@@ -1,14 +1,16 @@
 package com.example.mgdemoplus.controller;
 
-import com.example.mgdemoplus.bo.DpRoomBO;
-import com.example.mgdemoplus.bo.DpRoomLobbySearchParamBO;
-import com.example.mgdemoplus.entity.DpRoom;
-import com.example.mgdemoplus.entity.DpUser;
-import com.example.mgdemoplus.mapper.DpUserMapper;
-import com.example.mgdemoplus.service.DpRoomHallService;
-import com.example.mgdemoplus.service.serviceImpl.DpRoomServiceImpl;
+import com.example.mgdemoplus.common.bo.DpRoomBO;
+import com.example.mgdemoplus.lobby.bo.DpRoomLobbySearchParamBO;
+import com.example.mgdemoplus.common.entity.DpRoom;
+import com.example.mgdemoplus.common.entity.DpUser;
+import com.example.mgdemoplus.common.mapper.DpUserMapper;
+import com.example.mgdemoplus.lobby.DpRoomHallService;
+import com.example.mgdemoplus.npc.CustomNpcStyleSnapshot;
+import com.example.mgdemoplus.room.DpRoomService;
+import com.example.mgdemoplus.room.KickPlayersBatchResult;
+import com.example.mgdemoplus.room.dto.AddCustomNpcBatchRequest;
 import com.example.mgdemoplus.utils.ResultUtil;
-import com.example.mgdemoplus.service.serviceImpl.DpRoomServiceImpl.KickPlayersBatchResult;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -27,7 +29,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class DpRoomController {
 
     @Autowired
-    private DpRoomServiceImpl dpRoomService;
+    private DpRoomService dpRoomService;
     @Autowired
     private DpRoomHallService dpRoomHallService;
     @Autowired
@@ -305,6 +307,25 @@ public class DpRoomController {
             @RequestParam String archetype,
             @RequestParam(defaultValue = "1") int count) {
         return dpRoomService.addRuleNpcBatchToNextHand(roomId, archetype, count) ? "ok" : "fail";
+    }
+
+    /**
+     * 批量添加自定义调参 NPC（同批共用 profile）；仅房主；昵称 {@code BOT_CUSTOM_<序号>}。
+     */
+    @PostMapping("/addCustomNpcBatch")
+    public String addCustomNpcBatch(@RequestBody AddCustomNpcBatchRequest req) {
+        if (req == null || req.getRoomId() == null || req.getRoomId().isEmpty()) {
+            return "fail";
+        }
+        CustomNpcStyleSnapshot profile = CustomNpcStyleSnapshot.fromRequestProfile(req.getProfile());
+        if (profile == null) {
+            return "fail";
+        }
+        return dpRoomService.addCustomNpcBatchToNextHand(
+                req.getRoomId(),
+                req.getRequesterNickname(),
+                req.getCount(),
+                profile) ? "ok" : "fail";
     }
 
     /**

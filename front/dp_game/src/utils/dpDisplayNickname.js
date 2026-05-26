@@ -7,6 +7,7 @@ const BOT_TRUNC_HEADS = [
   'BOT_CALL_',
   'BOT_LLM_GLOBAL_',
   'BOT_LLM_',
+  'BOT_CUSTOM_',
   'BOT_LAG_',
   'BOT_TAG_',
   'BOT_NIT_',
@@ -39,11 +40,16 @@ export function dpDisplayNickname (nicknameOrPlayer) {
   return shortenBotUuidNickname(nickname)
 }
 
-/** 与后端 DpNpcEngine.isBotNickname 对齐（含多实例 BOT_*_uuid） */
+/**
+ * 与后端 DpNpcEngine.isBotNickname 对齐（规则 / 自定义 / LLM，含多实例 BOT_*_<seq>）。
+ * BOT_LLM_GLOBAL 须先于 BOT_LLM 判断，避免误匹配。
+ */
 export function isDpBotNickname (nickname) {
   if (!nickname || typeof nickname !== 'string') return false
   if (!nickname.startsWith('BOT_')) return false
+  if (nickname === 'BOT_LLM_GLOBAL' || nickname.startsWith('BOT_LLM_GLOBAL_')) return true
   if (nickname === 'BOT_LLM' || nickname.startsWith('BOT_LLM_')) return true
+  if (nickname === 'BOT_CUSTOM' || nickname.startsWith('BOT_CUSTOM_')) return true
   const legacy = ['BOT_Fish', 'BOT_Maniac', 'BOT_Shark', 'BOT_Tag']
   if (legacy.indexOf(nickname) !== -1) return true
   const prefixBodies = ['MANIAC', 'CALL', 'LAG', 'TAG', 'NIT', 'FISH']

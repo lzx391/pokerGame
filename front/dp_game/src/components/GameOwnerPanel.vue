@@ -40,7 +40,7 @@
           class="dp-pot-block"
         >
           <div class="dp-pot-block__title">
-            {{ pi === 0 ? '主池' : '边池 ' + pi }} - 金额: <span class="dp-top-bar__pot">{{ potItem.amount }}</span>
+            {{ potDisplayLabel(pi) }} - 金额: <span class="dp-top-bar__pot">{{ potItem.amount }}</span>
           </div>
           <div class="dp-pot-block__eligible">
             有资格的玩家: {{ formatNickList(potItem.eligiblePlayers) }}
@@ -95,6 +95,7 @@
 
 <script>
 import { dpDisplayNickname } from '../utils/dpDisplayNickname'
+import { dpPotDisplayLabel } from '../constants/dpCatThemeCopy'
 
 export default {
   name: 'GameOwnerPanel',
@@ -113,6 +114,9 @@ export default {
     allPotsHaveWinners: { type: Boolean, default: false }
   },
   methods: {
+    potDisplayLabel(pi) {
+      return dpPotDisplayLabel(pi)
+    },
     displayNick(nickname) {
       return dpDisplayNickname(nickname)
     },

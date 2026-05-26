@@ -1,6 +1,6 @@
 package com.example.mgdemoplus.quickmatch.pairing;
 
-import com.example.mgdemoplus.bo.DpRoomBO;
+import com.example.mgdemoplus.common.bo.DpRoomBO;
 import com.example.mgdemoplus.quickmatch.DpQuickMatchRoomSemantics;
 import com.example.mgdemoplus.quickmatch.JoinableQuickMatchRoomIndex;
 

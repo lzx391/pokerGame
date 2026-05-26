@@ -28,7 +28,7 @@
         </div>
         <div class="hand-detail-page__hero-text">
           <h1 class="hand-detail-page__title">牌谱详情</h1>
-          <p class="hand-detail-page__subtitle">按街复盘行动与公共牌，结算页查看盈亏与边池。</p>
+          <p class="hand-detail-page__subtitle">按街复盘行动与公共牌，结算页查看盈亏与{{ catCopy.sidePot }}。</p>
         </div>
       </header>
 
@@ -49,7 +49,7 @@
             <span class="hand-detail-page__meta-v">{{ formatTime(detail.endedAtMs) }}</span>
           </div>
           <div class="hand-detail-page__meta-chip" title="小猫/大猫小鱼干注">
-            <span class="hand-detail-page__meta-k">开局注</span>
+            <span class="hand-detail-page__meta-k">{{ catCopy.anteLine }}</span>
             <span class="hand-detail-page__meta-v">{{ detail.smallBlindChips }} / {{ detail.bigBlindChips }}</span>
           </div>
           <div class="hand-detail-page__meta-chip" title="发牌猫">
@@ -107,6 +107,7 @@
                     scope="col"
                   >{{ label }}</th>
                   <th scope="col">底牌</th>
+                  <th scope="col">牌型</th>
                 </tr>
               </thead>
               <tbody>
@@ -147,6 +148,13 @@
                     </div>
                     <span v-else class="hand-detail-page__no-holes">—</span>
                   </td>
+                  <td class="hand-detail-table__rank-cell">
+                    <span
+                      v-if="handRankTextForStreet(nick)"
+                      class="hand-detail-page__rank-pill"
+                    >{{ handRankTextForStreet(nick) }}</span>
+                    <span v-else class="hand-detail-page__no-holes">—</span>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -182,6 +190,7 @@
                   <th scope="col">玩家</th>
                   <th scope="col">鱼干输赢</th>
                   <th scope="col">底牌</th>
+                  <th scope="col">牌型</th>
                 </tr>
               </thead>
               <tbody>
@@ -211,15 +220,22 @@
                     </div>
                     <span v-else class="hand-detail-page__no-holes">—</span>
                   </td>
+                  <td class="hand-detail-table__rank-cell">
+                    <span
+                      v-if="handRankTextForSettlement(row.nick, row.folded, row.isSelf)"
+                      class="hand-detail-page__rank-pill"
+                    >{{ handRankTextForSettlement(row.nick, row.folded, row.isSelf) }}</span>
+                    <span v-else class="hand-detail-page__no-holes">—</span>
+                  </td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <h2 class="hand-detail-page__subh">边池</h2>
+          <h2 class="hand-detail-page__subh">{{ catCopy.sidePot }}</h2>
           <ul v-if="pots.length" class="hand-detail-page__pots">
             <li v-for="(p, i) in pots" :key="'pot' + i" class="hand-detail-page__pot-item">
-              <span class="hand-detail-page__pot-index">池 {{ i + 1 }}</span>
+              <span class="hand-detail-page__pot-index">{{ potDisplayLabel(i) }}</span>
               <span class="hand-detail-page__pot-amount">{{ p.amount }}</span>
               <span class="hand-detail-page__pot-names">{{ (p.eligibleNicknames || []).join('、') || '—' }}</span>
             </li>
@@ -238,6 +254,7 @@ import '@/styles/dp-lobby-shell.css'
 import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import '@/styles/dp-poker-cards.css'
 import { getCardClass, getCardDisplay } from '@/utils/dpGameCardVisual'
+import { getHandRank } from '@/utils/dpGameHandRank'
 import {
   STREET_TABS,
   seatNicknamesOrdered,
@@ -245,6 +262,8 @@ import {
   splitRoundsByRaises,
   buildRoundGrid,
   boardForStreet,
+  handRankNameByStreet,
+  finalHandRankNameByPlayer,
   formatActionText,
   firstFoldStage,
   shouldShowHoleCardsOnStreetTab,
@@ -252,6 +271,7 @@ import {
   playerRoleTagsByNickname
 } from '@/utils/dpHandHistoryReplay.js'
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
+import { CAT_COPY, dpPotDisplayLabel } from '@/constants/dpCatThemeCopy'
 
 export default {
   name: 'HandHistoryDetail',
@@ -266,6 +286,7 @@ export default {
   },
   data() {
     return {
+      catCopy: CAT_COPY,
       STREET_TABS,
       user: null,
       detail: null,
@@ -469,6 +490,9 @@ export default {
     this.fetchDetail()
   },
   methods: {
+    potDisplayLabel(i) {
+      return dpPotDisplayLabel(i)
+    },
     cardClass(c) {
       return getCardClass(c)
     },
@@ -499,6 +523,37 @@ export default {
       if (n > 0) return 'hand-detail-table__net--win'
       if (n < 0) return 'hand-detail-table__net--lose'
       return ''
+    },
+    handRankTextForStreet(nick) {
+      if (!nick || this.activeTab === 'settlement') return ''
+      const viewer = this.user && this.user.nickname
+      const isSelf = viewer && nick === viewer
+      const holesCell = this.holeCardsByNickForStreet[nick]
+      if (!isSelf && holesCell === null) return ''
+      const community = this.communityCardsForTab
+      if (!community || community.length < 3) return ''
+      const map = handRankNameByStreet(this.boardsByStreet, this.activeTab)
+      let text = map[nick]
+      if (text && String(text).trim()) return String(text).trim()
+      if (!isSelf) return ''
+      const holeList = Array.isArray(holesCell) ? holesCell : []
+      if (holeList.length < 2) return ''
+      return getHandRank(holeList, community) || ''
+    },
+    handRankTextForSettlement(nick, folded, isSelf) {
+      if (!nick) return ''
+      if (folded && !isSelf) return ''
+      const community = this.finalBoardCards
+      if (!community || community.length < 3) return ''
+      const map = finalHandRankNameByPlayer(this.boardsByStreet)
+      let text = map[nick]
+      if (text && String(text).trim()) return String(text).trim()
+      if (!isSelf) return ''
+      const holes = this.payload.holeCardsAtEnd
+      const holeMap = holes && typeof holes === 'object' ? holes : {}
+      const holeList = Array.isArray(holeMap[nick]) ? holeMap[nick] : []
+      if (holeList.length < 2) return ''
+      return getHandRank(holeList, community) || ''
     },
     cellText(nick, colIdx) {
       const g = this.roundGrid
@@ -1055,6 +1110,23 @@ export default {
   color: #dc2626;
 }
 
+.hand-detail-table__rank-cell {
+  min-width: 88px;
+  vertical-align: middle;
+}
+
+.hand-detail-page__rank-pill {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f5c45;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
 /* 对局弹层内：与 .dp-game-root 主题 --dp-* 对齐 */
 .hand-detail-page--embedded {
   font-family: var(--dp-font-ui, inherit);
@@ -1228,6 +1300,12 @@ export default {
 
 .hand-detail-page--embedded .hand-detail-table__net--lose {
   color: var(--dp-danger, #dc2626);
+}
+
+.hand-detail-page--embedded .hand-detail-page__rank-pill {
+  color: var(--dp-success, #0f5c45);
+  background: color-mix(in srgb, var(--dp-success, #10b981) 12%, var(--dp-panel-bg, #fff));
+  border-color: color-mix(in srgb, var(--dp-success, #10b981) 35%, transparent);
 }
 
 @media (max-width: 520px) {

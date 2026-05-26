@@ -1,10 +1,10 @@
 package com.example.mgdemoplus.controller;
 
-import com.example.mgdemoplus.service.DpHandHistoryService;
-import com.example.mgdemoplus.vo.DpHandHistoryDetailVO;
-import com.example.mgdemoplus.vo.DpHandHistoryPageVO;
+import com.example.mgdemoplus.history.DpHandHistoryService;
+import com.example.mgdemoplus.history.vo.DpHandHistoryDetailVO;
+import com.example.mgdemoplus.history.vo.DpHandHistoryPageVO;
 
-// import com.example.mgdemoplus.service.serviceImpl.DpHandHistoryServiceImpl;
+// import com.example.mgdemoplus.history.impl.DpHandHistoryServiceImpl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

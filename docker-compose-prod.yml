@@ -1,0 +1,106 @@
+# 云服务器部署用（docker compose -f docker-compose-prod.yml up -d）
+# 直接复制到服务器上跑，别放项目里跟代码一起推
+
+services:
+  mysql:
+    image: mysql:8.0
+    mem_limit: 450m
+    cpus: "0.5"
+    environment:
+      MYSQL_ROOT_PASSWORD: mgdemo_root
+      MYSQL_DATABASE: school_db
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -pmgdemo_root || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  redis:
+    image: redis:7-alpine
+    mem_limit: 64m
+    cpus: "0.2"
+    command: redis-server --appendonly yes --requirepass mgdemo_redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "mgdemo_redis", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  nginx:
+    image: 1933886418/dpgame-nginx:v1.0.1
+    mem_limit: 64m
+    cpus: "0.1"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - app
+
+  app: 
+    image: 1933886418/dpgame:v1.0.1 
+    mem_limit: 1200m
+    cpus: "1.2"
+    ports:
+      - "8088:8088"
+    environment:
+      # --- C: JVM / 时区 ---
+      JAVA_OPTS: "-Xms256m -Xmx800m"
+      TZ: Asia/Shanghai
+
+      # --- C: 容器内上传路径（配合 volumes mgdemo_uploads:/data/mgdemo-files）---
+      MGDEMOPLUS_IMAGES_FILE_LOCATION: file:/data/mgdemo-files/images/
+      MGDEMOPLUS_MUSIC_FILE_LOCATION: file:/data/mgdemo-files/music/
+      MGDEMOPLUS_FILES_FILE_LOCATION: file:/data/mgdemo-files/other/
+      MGDEMOPLUS_TIME_ZONE: Asia/Shanghai
+
+      # --- C: Docker 网络内 JDBC / Redis（主机名 mysql / redis）---
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/school_db?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: mgdemo_root  # A：生产应换强口令
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: "6379"
+      SPRING_DATA_REDIS_PASSWORD: mgdemo_redis  # A
+
+      # --- B: 运维可调（不填则用 application.yml 默认；按需取消注释）---
+      MGDEMOPLUS_CACHE_MUSIC_LIST_TTL_SECONDS: "300"
+      # MGDEMOPLUS_DP_LOBBY_RECONCILE_ENABLED: "true"
+      # MGDEMOPLUS_DP_LOBBY_RECONCILE_MS: "60000"
+      # DP_NPC_TABLE_TALK_ENABLED: "true"
+      # DP_NPC_RULE_THINK_ENABLED: "true"
+
+      # --- A: 方舟 LLM（宿主机 .env 代入）---
+      ARK_API_KEY: ${ARK_API_KEY:-}
+      ARK_ENDPOINT_ID: ${ARK_ENDPOINT_ID:-}
+      ARK_BASE_URL: ${ARK_BASE_URL:-}
+      ARK_REASONING_EFFORT: ${ARK_REASONING_EFFORT:-}
+      ARK_THINKING_TYPE: ${ARK_THINKING_TYPE:-}
+      ARK_RESPONSE_JSON_OBJECT: ${ARK_RESPONSE_JSON_OBJECT:-true}
+
+      # --- A: JWT（生产公网强烈建议填写；勿写入真实密钥到 Git）---
+      JWT_SECRET: ${JWT_SECRET:-}
+    volumes:
+      - mgdemo_uploads:/data/mgdemo-files
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+
+volumes:
+  mysql_data:
+  redis_data:
+  mgdemo_uploads:

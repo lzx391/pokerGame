@@ -1,10 +1,10 @@
 package com.example.mgdemoplus.controller;
 
-import com.example.mgdemoplus.entity.DpUser;
-import com.example.mgdemoplus.mapper.DpUserMapper;
-import com.example.mgdemoplus.social.SocialNotifyPayload;
-import com.example.mgdemoplus.social.SocialNotifySummaryService;
-import com.example.mgdemoplus.social.SocialSseHub;
+import com.example.mgdemoplus.common.entity.DpUser;
+import com.example.mgdemoplus.common.mapper.DpUserMapper;
+import com.example.mgdemoplus.social.notify.SocialNotifyPayload;
+import com.example.mgdemoplus.social.notify.SocialNotifySummaryService;
+import com.example.mgdemoplus.social.notify.SocialSseHub;
 import com.example.mgdemoplus.utils.ResultUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
