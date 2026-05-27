@@ -15,6 +15,15 @@
         />
       </div>
       <div class="dp-player-social-sheet__name">{{ displayName }}</div>
+      <button
+          v-if="target && target.userId != null && target.userId !== ''"
+          type="button"
+          class="dp-player-social-sheet__userid dp-social-list__idline"
+          title="点击复制用户 ID"
+          @click="onCopyUserId"
+      >
+        用户 ID：{{ target.userId }}
+      </button>
       <p class="dp-player-social-sheet__subtitle">游戏玩家</p>
 
       <!-- 生涯荣誉战绩 -->
@@ -84,9 +93,11 @@ import GameBottomSheet from './GameBottomSheet.vue'
 import DpUserAvatar from '@/components/DpUserAvatar.vue'
 import { mapState } from 'vuex'
 import { dpDisplayNickname } from '../utils/dpDisplayNickname'
-import { dpResultSuccess, dpResultMessage, dpAxiosErrorMessage } from '../utils/dpApiResult'
+import { dpResultSuccess, dpResultData, dpResultMessage, dpAxiosErrorMessage } from '../utils/dpApiResult'
+import { dpSocialApi } from '@/api/api.dpSocial'
 import { formatNetWinMultiplier, formatRoomNetMultiplier } from '../utils/dpRoomNetMultiplier'
 import { avatarCacheBustFromUpdatedAt } from '@/utils/dpAvatarUrl'
+import { copySocialId as copySocialIdToClipboard } from '@/utils/dpCopySocialId'
 
 export default {
   name: 'GamePlayerSocialSheet',
@@ -104,11 +115,13 @@ export default {
       sending: false,
       sentOk: false,
       tip: '',
-      honor: null
+      honor: null,
+      /** 来自 GET /dp/users/lookup 的 addStatus，用于判断已是好友/申请态 */
+      lookupAddStatus: ''
     }
   },
   computed: {
-    ...mapState('dpMailbox', ['friends', 'friendsLoading']),
+    ...mapState('dpMailbox', ['friends']),
     displayName() {
       if (!this.target || !this.target.nickname) return ''
       return dpDisplayNickname(this.target)
@@ -127,20 +140,25 @@ export default {
       })
     },
     isFriend() {
+      if (this.lookupAddStatus === 'ALREADY_FRIENDS') return true
       if (!this.target) return false
       return this.friendIds.indexOf(Number(this.target.userId)) !== -1
     },
     primaryLabel() {
       if (this.isFriend) return '已是好友'
-      if (this.sentOk) return '申请已发送'
+      if (this.sentOk || this.lookupAddStatus === 'PENDING_OUTBOUND') return '申请已发送'
       return '发送好友申请'
     },
     /** 禁用态主按钮在 Element 里会非常浅，改用普通文本块以保持可读 */
     socialPrimaryIsStaticHint() {
-      return this.isFriend || this.sentOk
+      return (
+        this.isFriend ||
+        this.sentOk ||
+        this.lookupAddStatus === 'PENDING_OUTBOUND'
+      )
     },
     primaryDisabled() {
-      return this.friendsLoading || this.socialPrimaryIsStaticHint || !!this.tip
+      return this.socialPrimaryIsStaticHint || !!this.tip
     }
   },
   watch: {
@@ -157,11 +175,21 @@ export default {
   methods: {
     formatNetWinMultiplier,
     formatRoomNetMultiplier,
+    onCopyUserId() {
+      if (!this.target) return
+      var self = this
+      copySocialIdToClipboard(this.target.userId, {
+        onSuccess: function () {
+          if (self.$message) self.$message.success('已复制 ID')
+        }
+      })
+    },
     refresh() {
       this.tip = ''
       this.sentOk = false
+      this.lookupAddStatus = ''
       this.honor = null
-      this.loadFriends()
+      this.loadFriendAddStatus()
       this.loadHonor()
     },
     async loadHonor() {
@@ -177,9 +205,20 @@ export default {
         // 静默：战绩加载不影响主要功能
       }
     },
-    async loadFriends() {
+    async loadFriendAddStatus() {
+      if (!this.target) return
+      var uid = Number(this.target.userId)
+      if (!uid || uid <= 0 || isNaN(uid)) return
       try {
-        await this.$store.dispatch('dpMailbox/fetchFriends', { http: this.$http })
+        var res = await dpSocialApi(this.$http).lookupUser(String(uid))
+        if (!dpResultSuccess(res.data)) return
+        var d = dpResultData(res.data) || {}
+        var status = d.addStatus != null ? String(d.addStatus) : ''
+        this.lookupAddStatus = status
+        if (status === 'PENDING_OUTBOUND') this.sentOk = true
+        if (status === 'PENDING_INBOUND') {
+          this.tip = '对方已向您发来申请，请在大厅邮箱中处理。'
+        }
       } catch (e) {
         /* 静默：仍可尝试发申请 */
       }
@@ -212,12 +251,13 @@ export default {
           return
         }
         if (msg.indexOf('已是好友') !== -1) {
-          await this.loadFriends()
+          this.lookupAddStatus = 'ALREADY_FRIENDS'
           this.$message.info(msg)
           return
         }
         if (msg.indexOf('申请已存在') !== -1) {
           this.sentOk = true
+          this.lookupAddStatus = 'PENDING_OUTBOUND'
           this.$message.success(msg)
           return
         }
@@ -247,6 +287,15 @@ export default {
   color: var(--dp-text-strong, #1a1a1a);
   text-align: center;
   margin-bottom: 6px;
+}
+.dp-player-social-sheet__userid {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto 8px;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
 }
 .dp-player-social-sheet__subtitle {
   font-size: 13px;

@@ -2,6 +2,7 @@ package com.example.mgdemoplus.social.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.mgdemoplus.social.entity.DpFriendLinkRow;
 import com.example.mgdemoplus.social.entity.DpFriendRequestRow;
 import com.example.mgdemoplus.roomchat.entity.DpRoomInviteRow;
@@ -10,6 +11,7 @@ import com.example.mgdemoplus.social.mapper.DpFriendLinkMapper;
 import com.example.mgdemoplus.social.mapper.DpFriendRequestMapper;
 import com.example.mgdemoplus.roomchat.mapper.DpRoomInviteMapper;
 import com.example.mgdemoplus.common.mapper.DpUserMapper;
+import com.example.mgdemoplus.npc.engine.DpNpcEngine;
 import com.example.mgdemoplus.room.DpRoomService;
 import com.example.mgdemoplus.presence.DpFriendPresenceState;
 import com.example.mgdemoplus.presence.DpFriendPresenceService;
@@ -17,6 +19,8 @@ import com.example.mgdemoplus.presence.DpSitePresenceService;
 import com.example.mgdemoplus.social.notify.SocialNotifyPublisher;
 import com.example.mgdemoplus.utils.DpDateTimeSupport;
 import com.example.mgdemoplus.utils.ResultUtil;
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,6 +51,20 @@ public class DpFriendSocialService {
     private static final String REJECTED = "REJECTED";
     private static final String EXPIRED = "EXPIRED";
     private static final String CANCELLED = "CANCELLED";
+
+    private static final int DEFAULT_FRIENDS_PAGE_SIZE = 20;
+    private static final int MAX_FRIENDS_PAGE_SIZE = 100;
+
+    /** 加好友查人：可发起申请 */
+    public static final String ADD_STATUS_CAN_ADD = "CAN_ADD";
+    /** 查到自己 */
+    public static final String ADD_STATUS_SELF = "SELF";
+    /** 已是好友 */
+    public static final String ADD_STATUS_ALREADY_FRIENDS = "ALREADY_FRIENDS";
+    /** 我已向对方发出待处理申请 */
+    public static final String ADD_STATUS_PENDING_OUTBOUND = "PENDING_OUTBOUND";
+    /** 对方向我发出待处理申请 */
+    public static final String ADD_STATUS_PENDING_INBOUND = "PENDING_INBOUND";
 
     @Autowired
     private DpFriendRequestMapper friendRequestMapper;
@@ -139,7 +157,15 @@ public class DpFriendSocialService {
             if (countFriendLinksBetween(low, high) > 0) {
                 return ResultUtil.error().data("message", "已是好友");
             }
-            return ResultUtil.error().data("message", "申请记录状态异常");
+            friendRequestMapper.update(
+                    null,
+                    new LambdaUpdateWrapper<DpFriendRequestRow>()
+                            .set(DpFriendRequestRow::getStatus, PENDING)
+                            .set(DpFriendRequestRow::getCreatedAt, LocalDateTime.now())
+                            .eq(DpFriendRequestRow::getFromUserId, fromUserId)
+                            .eq(DpFriendRequestRow::getToUserId, toUserId));
+            pushSocialNotify(toUserId);
+            return ResultUtil.ok().data("message", "已发送申请");
         }
         if (REJECTED.equals(row.getStatus()) || EXPIRED.equals(row.getStatus())) {
             friendRequestMapper.update(
@@ -181,7 +207,9 @@ public class DpFriendSocialService {
             if (countFriendLinksBetween(low, high) > 0) {
                 return ResultUtil.ok().data("message", "已同意过了");
             }
-            return ResultUtil.error().data("message", "申请状态异常");
+            insertFriendLink(low, high);
+            pushSocialNotify(currentUserId);
+            return ResultUtil.ok().data("message", "已同意并成为好友");
         }
         if (!PENDING.equals(row.getStatus())) {
             return ResultUtil.ok().data("message", "申请已失效或已处理");
@@ -226,9 +254,120 @@ public class DpFriendSocialService {
         return ResultUtil.ok().data("message", "已拒绝");
     }
 
-    public ResultUtil listFriends(int currentUserId) {
+    /**
+     * 分页好友列表：筛选 {@code q}（纯数字→好友 id；否则昵称包含，不区分大小写）；
+     * 按最近私信时间降序（无消息则按成为好友时间），再昵称升序。
+     */
+    public ResultUtil listFriends(int currentUserId, int page, int pageSize, String q) {
         touchExpireRoomInvites();
-        List<DpFriendLinkRow> rows = friendLinkMapper.listFriendsOfUser(currentUserId);
+        int safePage = Math.max(page, 1);
+        int safeSize = pageSize > 0 ? pageSize : DEFAULT_FRIENDS_PAGE_SIZE;
+        safeSize = Math.min(safeSize, MAX_FRIENDS_PAGE_SIZE);
+
+        FriendListFilter filter = parseFriendListFilter(q);
+
+        // PageHelper方式
+        PageHelper.startPage(safePage, safeSize);
+
+        List<DpFriendLinkRow> rows = friendLinkMapper.listFriendsOfUserPaged(
+            currentUserId,
+            filter.filterFriendUserId(),
+            filter.nicknameContains()
+        );
+
+        PageInfo<DpFriendLinkRow> pageInfo = new PageInfo<>(rows);
+
+        List<Map<String, Object>> items = buildFriendListItems(currentUserId, pageInfo.getList());
+        return ResultUtil.ok()
+                .data("friends", items)
+                .data("total", pageInfo.getTotal())
+                .data("page", pageInfo.getPageNum())
+                .data("pageSize", pageInfo.getPageSize());
+    }
+
+    /**
+     * 加好友前精确查人：纯数字且 &gt;0 → {@link DpUserMapper#selectById}；否则 {@link DpUserMapper#selectByNickname} 全等。
+     * 仅返回公开资料字段；机器人不可添加。
+     */
+    public ResultUtil lookupUserForFriendAdd(int currentUserId, String q) {
+        touchExpireRoomInvites();
+        String trimmed = q == null ? "" : q.trim();
+        if (trimmed.isEmpty()) {
+            return ResultUtil.error().data("message", "请输入用户 id 或昵称");
+        }
+        DpUser target = resolveUserForExactLookup(trimmed);
+        if (target == null) {
+            return ResultUtil.error().data("message", "用户不存在");
+        }
+        if (DpNpcEngine.isBotNickname(target.getNickname())) {
+            return ResultUtil.error().data("message", "不可添加");
+        }
+        Map<String, Object> user = toPublicUserPayload(target);
+        String addStatus = resolveFriendAddStatus(currentUserId, target.getId());
+        return ResultUtil.ok().data("user", user).data("addStatus", addStatus);
+    }
+
+    static FriendListFilter parseFriendListFilter(String rawQ) {
+        String trimmed = rawQ == null ? "" : rawQ.trim();
+        if (trimmed.isEmpty()) {
+            return new FriendListFilter(null, null);
+        }
+        if (trimmed.matches("\\d+")) {
+            long id = Long.parseLong(trimmed);
+            if (id > 0 && id <= Integer.MAX_VALUE) {
+                return new FriendListFilter((int) id, null);
+            }
+        }
+        return new FriendListFilter(null, trimmed);
+    }
+
+    static DpUser resolveUserForExactLookup(String trimmedQ, DpUserMapper userMapper) {
+        if (trimmedQ.matches("\\d+")) {
+            long id = Long.parseLong(trimmedQ);
+            if (id > 0 && id <= Integer.MAX_VALUE) {
+                return userMapper.selectById((int) id);
+            }
+            return null;
+        }
+        return userMapper.selectByNickname(trimmedQ);
+    }
+
+    record FriendListFilter(Integer filterFriendUserId, String nicknameContains) {}
+
+    private DpUser resolveUserForExactLookup(String trimmedQ) {
+        return resolveUserForExactLookup(trimmedQ, dpUserMapper);
+    }
+
+    private String resolveFriendAddStatus(int currentUserId, int targetUserId) {
+        if (currentUserId == targetUserId) {
+            return ADD_STATUS_SELF;
+        }
+        int low = Math.min(currentUserId, targetUserId);
+        int high = Math.max(currentUserId, targetUserId);
+        if (countFriendLinksBetween(low, high) > 0) {
+            return ADD_STATUS_ALREADY_FRIENDS;
+        }
+        DpFriendRequestRow outbound = selectFriendRequestByPair(currentUserId, targetUserId);
+        if (outbound != null && PENDING.equals(outbound.getStatus())) {
+            return ADD_STATUS_PENDING_OUTBOUND;
+        }
+        DpFriendRequestRow inbound = selectFriendRequestByPair(targetUserId, currentUserId);
+        if (inbound != null && PENDING.equals(inbound.getStatus())) {
+            return ADD_STATUS_PENDING_INBOUND;
+        }
+        return ADD_STATUS_CAN_ADD;
+    }
+
+    private static Map<String, Object> toPublicUserPayload(DpUser u) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("userId", u.getId());
+        m.put("nickname", u.getNickname());
+        m.put("avatarUrl", u.getAvatarUrl());
+        m.put("avatarUpdatedAt", DpDateTimeSupport.toEpochMilli(u.getAvatarUpdatedAt()));
+        return m;
+    }
+
+    private List<Map<String, Object>> buildFriendListItems(int currentUserId, List<DpFriendLinkRow> rows) {
         List<Map<String, Object>> items = new ArrayList<>();
         List<Integer> presenceEligibleFriendIds = new ArrayList<>();
         Set<Integer> seenFriendIds = new LinkedHashSet<>();
@@ -265,7 +404,7 @@ public class DpFriendSocialService {
                     resolveFriendListPresence(inRoom, sitePresenceService.isOnlineSite(fid));
             m.put("presence", display.name());
         }
-        return ResultUtil.ok().data("friends", items);
+        return items;
     }
 
     /**
@@ -284,7 +423,8 @@ public class DpFriendSocialService {
     }
 
     /**
-     * 解除互为好友：删除无序 friend_link，并将双方 PENDING 进房邀请置为 CANCELLED；幂等。
+     * 解除互为好友：删除无序 friend_link，将双方 PENDING 进房邀请置为 CANCELLED，
+     * 并将双向 ACCEPTED 好友申请置为 EXPIRED（以 link 为准，无好友即清错误接受态）；幂等。
      */
     @Transactional(rollbackFor = Exception.class)
     public ResultUtil removeFriend(int currentUserId, int friendUserId) {
@@ -298,6 +438,7 @@ public class DpFriendSocialService {
         int lo = Math.min(currentUserId, friendUserId);
         int hi = Math.max(currentUserId, friendUserId);
         cancelPendingRoomInvitesBetweenUsers(currentUserId, friendUserId);
+        expireAcceptedFriendRequestsBetweenUsers(currentUserId, friendUserId);
         int removed = friendLinkMapper.delete(
                 new LambdaQueryWrapper<DpFriendLinkRow>()
                         .apply(
@@ -630,6 +771,22 @@ public class DpFriendSocialService {
                                                 .or()
                                                 .eq(DpRoomInviteRow::getInviterUserId, userB)
                                                 .eq(DpRoomInviteRow::getInviteeUserId, userA)));
+    }
+
+    /** 双向将 ACCEPTED 好友申请标为 EXPIRED（删好友或幂等删 link 时兜底，不推 SSE）。 */
+    private void expireAcceptedFriendRequestsBetweenUsers(int userA, int userB) {
+        friendRequestMapper.update(
+                null,
+                new LambdaUpdateWrapper<DpFriendRequestRow>()
+                        .set(DpFriendRequestRow::getStatus, EXPIRED)
+                        .eq(DpFriendRequestRow::getStatus, ACCEPTED)
+                        .and(
+                                w ->
+                                        w.eq(DpFriendRequestRow::getFromUserId, userA)
+                                                .eq(DpFriendRequestRow::getToUserId, userB)
+                                                .or()
+                                                .eq(DpFriendRequestRow::getFromUserId, userB)
+                                                .eq(DpFriendRequestRow::getToUserId, userA)));
     }
 
     /** 始终写入 user_low_id &lt; user_high_id，与表注释一致。 */

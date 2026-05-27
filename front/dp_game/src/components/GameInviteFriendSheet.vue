@@ -128,7 +128,9 @@ export default {
     async opened() {
       this.sendingUserId = null
       try {
-        var r = await this.$store.dispatch('dpMailbox/fetchFriends', { http: this.$http })
+        var r = await this.$store.dispatch('dpMailbox/fetchAllFriendsForInvite', {
+          http: this.$http
+        })
         var n = (this.friends && this.friends.length) || 0
         if (r && r.ok) {
           console.info('[dp][invite] mailbox/fetchFriends OK, friends count=', n, '(same GET /dp/friends as 好友列表)')

@@ -220,6 +220,77 @@ button.dp-social-list__idline:focus-visible {
   padding: 12px clamp(12px, 4vw, 18px) max(20px, env(safe-area-inset-bottom, 0px));
 }
 
+.home-friends-drawer__toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.home-friends-drawer__search {
+  width: 100%;
+}
+
+.home-friends-drawer__add-btn {
+  align-self: flex-start;
+}
+
+.home-friends-drawer__pager {
+  margin-top: 14px;
+  text-align: center;
+}
+
+.home-add-friend__search-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.home-add-friend__search-row .el-input {
+  flex: 1 1 auto;
+}
+
+.home-add-friend__error {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--dp-danger, #f56c6c);
+}
+
+.home-add-friend__card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--dp-panel-border, rgba(0, 0, 0, 0.08));
+  background: var(--dp-subpanel-bg, #fafafa);
+}
+
+.home-add-friend__card-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.home-add-friend__card-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--dp-text-primary);
+  margin-bottom: 4px;
+}
+
+.home-add-friend__status {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--dp-text-muted);
+  line-height: 1.45;
+}
+
+.home-add-friend__send {
+  width: 100%;
+  margin-top: 14px;
+}
+
 .dp-social-list__primary--dm {
   display: inline-flex;
   align-items: center;

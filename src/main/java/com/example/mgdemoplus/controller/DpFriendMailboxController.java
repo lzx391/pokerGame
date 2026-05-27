@@ -23,8 +23,12 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 /**
- * 好友双向申请 / 局内成员进房邀请（邮箱 MVP）。全部需 JWT；当前用户仅从 token 昵称解析 dp_user.id，
- * 与请求体 {@code toUserId} / {@code inviteeUserId} 分离以避免越权。
+ * 好友双向申请 / 私信 / 局内成员进房邀请（邮箱 MVP）。全部需 JWT；当前用户仅从 token 昵称解析
+ * {@code dp_user.id}，与请求体 {@code toUserId} / {@code inviteeUserId} 分离以避免越权。
+ * <p>{@code GET /dp/friends}：分页好友列表（默认 page=1、pageSize=20，最大 100），可选 {@code q}
+ * 筛选（纯数字→好友 userId；否则昵称包含、不区分大小写），按最近私信时间降序（无消息则按成为好友时间）。</p>
+ * <p>{@code GET /dp/users/lookup?q=}：加好友前精确查人（数字→id，否则昵称全等），仅返回公开资料 +
+ * {@code addStatus}（CAN_ADD / SELF / ALREADY_FRIENDS / PENDING_*）。</p>
  */
 @RestController
 @RequestMapping("/dp")
@@ -101,14 +105,33 @@ public class DpFriendMailboxController {
         return dpFriendSocialService.rejectFriendRequest(me.getId(), id);
     }
 
+    /**
+     * 好友列表（分页）。响应 {@code data.friends}、{@code data.total}、{@code data.page}、{@code data.pageSize}。
+     */
     @GetMapping("/friends")
-    public ResultUtil friends() {
+    public ResultUtil friends(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize,
+            @RequestParam(required = false) String q) {
         ResultUtil err = ResultUtil.error();
         DpUser me = requireCurrentUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
-        return dpFriendSocialService.listFriends(me.getId());
+        return dpFriendSocialService.listFriends(me.getId(), page, pageSize, q);
+    }
+
+    /**
+     * 加好友精确查人：{@code q} 为纯数字且 &gt;0 时按 id；否则按昵称全等（与 {@link DpUserMapper#selectByNickname} 一致）。
+     */
+    @GetMapping("/users/lookup")
+    public ResultUtil lookupUserForFriendAdd(@RequestParam("q") String q) {
+        ResultUtil err = ResultUtil.error();
+        DpUser me = requireCurrentUser(err);
+        if (me == null) {
+            return err.data("message", err.getMessage());
+        }
+        return dpFriendSocialService.lookupUserForFriendAdd(me.getId(), q);
     }
 
     /**

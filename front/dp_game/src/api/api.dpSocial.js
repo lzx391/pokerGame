@@ -23,7 +23,9 @@ export const DP_SOCIAL_PATHS = {
   acceptRoomInvite: (id) => `/dp/room-invites/${id}/accept`,
   rejectRoomInvite: (id) => `/dp/room-invites/${id}/reject`,
   /** 互为好友、对方在房内时观众跟随进房（服务端走与接受进房邀请相同的 joinRoomInviteAsSpectator） */
-  followFriendRoom: '/dp/friends/follow-room'
+  followFriendRoom: '/dp/friends/follow-room',
+  /** 加好友前精确查人（数字→id，否则昵称全等） */
+  lookupUser: '/dp/users/lookup'
 }
 
 /**
@@ -43,8 +45,19 @@ export function dpSocialApi(http) {
     rejectFriendRequest(id) {
       return http.post(DP_SOCIAL_PATHS.rejectFriendRequest(id))
     },
-    listFriends() {
-      return http.get(DP_SOCIAL_PATHS.friends)
+    /**
+     * @param {{ page?: number, pageSize?: number, q?: string }} [opts]
+     */
+    listFriends(opts) {
+      var params = {}
+      opts = opts || {}
+      if (opts.page != null) params.page = opts.page
+      if (opts.pageSize != null) params.pageSize = opts.pageSize
+      if (opts.q != null && String(opts.q).trim() !== '') params.q = String(opts.q).trim()
+      return http.get(DP_SOCIAL_PATHS.friends, { params: params })
+    },
+    lookupUser(q) {
+      return http.get(DP_SOCIAL_PATHS.lookupUser, { params: { q: q } })
     },
     deleteFriend(friendUserId) {
       return http.delete(DP_SOCIAL_PATHS.deleteFriend(friendUserId))

@@ -33,6 +33,7 @@ import {
   FormItem,
   Input,
   InputNumber,
+  Pagination,
   Message,
   MessageBox,
   Slider,
@@ -53,6 +54,7 @@ Vue.use(Form)
 Vue.use(FormItem)
 Vue.use(Input)
 Vue.use(InputNumber)
+Vue.use(Pagination)
 Vue.use(Slider)
 Vue.use(Table)
 Vue.use(TableColumn)

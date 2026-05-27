@@ -225,9 +225,33 @@
       @open="onFriendsDrawerOpen"
     >
       <div class="dp-social-sheet dp-social-sheet--drawer">
+        <div class="home-friends-drawer__toolbar">
+          <el-input
+            v-model="friendsSearchInput"
+            clearable
+            size="small"
+            placeholder="搜索好友昵称或 ID"
+            prefix-icon="el-icon-search"
+            class="home-friends-drawer__search"
+            @input="onFriendsSearchInput"
+            @clear="onFriendsSearchClear"
+          />
+          <el-button
+            type="primary"
+            size="small"
+            plain
+            class="home-friends-drawer__add-btn"
+            @click="openAddFriendDialog"
+          >
+            添加好友
+          </el-button>
+        </div>
         <p v-if="friendsLoading" class="dp-social-sheet__hint">加载中…</p>
-        <p v-else-if="!friends.length" class="dp-social-sheet__hint">暂无好友</p>
-        <ul v-else class="dp-social-list" role="list" aria-label="好友">
+        <p v-else-if="friendsTotal === 0" class="dp-social-sheet__hint">
+          {{ friendsQuery ? '没有匹配的好友' : '暂无好友' }}
+        </p>
+        <template v-else>
+        <ul class="dp-social-list" role="list" aria-label="好友">
           <li
             v-for="f in friends"
             :key="'friend-' + f.userId"
@@ -305,8 +329,84 @@
             </div>
           </li>
         </ul>
+        <el-pagination
+          v-if="friendsTotal > friendsPageSize"
+          class="home-friends-drawer__pager"
+          layout="prev, pager, next"
+          :total="friendsTotal"
+          :page-size="friendsPageSize"
+          :current-page="friendsPage"
+          @current-change="onFriendsPageChange"
+        />
+        </template>
       </div>
     </el-drawer>
+
+    <el-dialog
+      title="添加好友"
+      :visible.sync="addFriendDialogVisible"
+      width="400px"
+      append-to-body
+      custom-class="home-add-friend-dialog"
+      @open="onAddFriendDialogOpen"
+      @closed="onAddFriendDialogClosed"
+    >
+      <div class="home-add-friend">
+        <div class="home-add-friend__search-row">
+          <el-input
+            v-model="addFriendLookupInput"
+            clearable
+            placeholder="输入用户 ID 或完整昵称"
+            @keyup.enter.native="onAddFriendLookup"
+          />
+          <el-button
+            type="primary"
+            :loading="addFriendLookupLoading"
+            @click="onAddFriendLookup"
+          >
+            搜索
+          </el-button>
+        </div>
+        <p v-if="addFriendLookupError" class="home-add-friend__error">{{ addFriendLookupError }}</p>
+        <div
+          v-if="addFriendLookupUser"
+          class="home-add-friend__card"
+        >
+          <dp-user-avatar
+            :avatar-url="addFriendLookupUser.avatarUrl"
+            :nickname="addFriendLookupDisplayName"
+            :cache-bust="avatarCacheBustFromUpdatedAt(addFriendLookupUser.avatarUpdatedAt)"
+            size="sm"
+          />
+          <div class="home-add-friend__card-text">
+            <div class="home-add-friend__card-name">{{ addFriendLookupDisplayName }}</div>
+            <button
+              type="button"
+              class="dp-social-list__idline"
+              title="点击复制用户 ID"
+              @click="copySocialId(addFriendLookupUser.userId)"
+            >
+              ID {{ addFriendLookupUser.userId }}
+            </button>
+          </div>
+        </div>
+        <div
+          v-if="addFriendLookupUser && addFriendStatusHint"
+          class="home-add-friend__status"
+        >
+          {{ addFriendStatusHint }}
+        </div>
+        <el-button
+          v-if="addFriendLookupUser && addFriendCanSend"
+          type="primary"
+          class="home-add-friend__send"
+          :loading="addFriendSendBusy"
+          @click="onAddFriendSendRequest"
+        >
+          发送好友申请
+        </el-button>
+      </div>
+    </el-dialog>
 
     <el-dialog
       title="消息"
@@ -417,7 +517,9 @@ import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
 import { dpFriendPresenceRowClass, dpFriendPresenceStatusText, dpFriendPresenceBucket } from '@/utils/dpFriendPresence'
 import { dpSocialDisplayNickname } from '@/utils/dpSocialDisplayName'
-import { dpResultSuccess, dpResultData, dpResultMessage } from '@/utils/dpApiResult'
+import { dpResultSuccess, dpResultData, dpResultMessage, dpAxiosErrorMessage } from '@/utils/dpApiResult'
+import { dpSocialApi } from '@/api/api.dpSocial'
+import { copySocialId as copySocialIdToClipboard } from '@/utils/dpCopySocialId'
 import GamePlayGuideModal from '@/components/GamePlayGuideModal.vue'
 import HomeProfileModal from '@/components/HomeProfileModal.vue'
 import FriendChatDialog from '@/components/FriendChatDialog.vue'
@@ -470,6 +572,15 @@ export default {
       quickMatchWsReconnectTimer: null,
       quickMatchWsReconnectAttempt: 0,
       friendsDrawerVisible: false,
+      friendsSearchInput: '',
+      friendsSearchDebounceTimer: null,
+      addFriendDialogVisible: false,
+      addFriendLookupInput: '',
+      addFriendLookupUser: null,
+      addFriendLookupAddStatus: '',
+      addFriendLookupLoading: false,
+      addFriendLookupError: '',
+      addFriendSendBusy: false,
       mailboxVisible: false,
       /** 邮箱内进房邀约倒计时本地递减（每秒） */
       mailboxTickSeconds: 0,
@@ -496,11 +607,30 @@ export default {
       'friendRequests',
       'roomInvites',
       'friends',
+      'friendsTotal',
+      'friendsPage',
+      'friendsPageSize',
+      'friendsQuery',
       'mailboxLoading',
       'friendsLoading',
       'actionBusyId'
     ]),
     ...mapGetters('dpMailbox', ['friendUnreadForUser']),
+    addFriendLookupDisplayName() {
+      var u = this.addFriendLookupUser
+      return dpSocialDisplayNickname(u && u.nickname, u && u.userId, '未知用户')
+    },
+    addFriendStatusHint() {
+      var s = this.addFriendLookupAddStatus
+      if (s === 'SELF') return '不能添加自己'
+      if (s === 'ALREADY_FRIENDS') return '已是好友'
+      if (s === 'PENDING_OUTBOUND') return '申请已发送'
+      if (s === 'PENDING_INBOUND') return '对方已向您发来申请，请在大厅邮箱中处理'
+      return ''
+    },
+    addFriendCanSend() {
+      return this.addFriendLookupAddStatus === 'CAN_ADD'
+    },
     pageSize() {
       return 20
     }
@@ -551,6 +681,10 @@ export default {
       console.log('正在销毁定时器')
       clearInterval(this.timer)
       this.timer = null
+    }
+    if (this.friendsSearchDebounceTimer != null) {
+      clearTimeout(this.friendsSearchDebounceTimer)
+      this.friendsSearchDebounceTimer = null
     }
     this.closeSocialStream()
     this.stopMailboxTick()
@@ -617,30 +751,12 @@ export default {
       return dpSocialDisplayNickname(row && row.inviterNickname, row && row.inviterUserId, '未知用户')
     },
     copySocialId(raw) {
-      var s = raw != null ? String(raw).trim() : ''
-      if (!s) return
       var self = this
-      var done = function () {
-        if (self.$message) self.$message.success('已复制 ID')
-      }
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(s).then(done).catch(function () {})
-        return
-      }
-      try {
-        var ta = document.createElement('textarea')
-        ta.value = s
-        ta.setAttribute('readonly', '')
-        ta.style.position = 'fixed'
-        ta.style.opacity = '0'
-        document.body.appendChild(ta)
-        ta.select()
-        document.execCommand('copy')
-        document.body.removeChild(ta)
-        done()
-      } catch (e) {
-        /* ignore */
-      }
+      copySocialIdToClipboard(raw, {
+        onSuccess: function () {
+          if (self.$message) self.$message.success('已复制 ID')
+        }
+      })
     },
     inviteRemainingLabel(inv) {
       var base = inv && inv.remainingSeconds != null ? Number(inv.remainingSeconds) : NaN
@@ -817,10 +933,146 @@ export default {
     },
     async onFriendsDrawerOpen() {
       if (!this.user || !this.user.token) return
+      this.friendsSearchInput = this.friendsQuery || ''
       var http = this.$http
-      var r = await this.fetchFriends({ http })
+      var r = await this.fetchFriends({
+        http,
+        page: 1,
+        pageSize: this.friendsPageSize,
+        q: this.friendsQuery
+      })
       if (r && r.ok === false && r.message) {
         alert(r.message)
+      }
+    },
+    onFriendsSearchInput() {
+      var self = this
+      if (this.friendsSearchDebounceTimer != null) {
+        clearTimeout(this.friendsSearchDebounceTimer)
+      }
+      this.friendsSearchDebounceTimer = setTimeout(function () {
+        self.friendsSearchDebounceTimer = null
+        self.reloadFriendsPageOne()
+      }, 350)
+    },
+    onFriendsSearchClear() {
+      this.friendsSearchInput = ''
+      this.reloadFriendsPageOne()
+    },
+    async reloadFriendsPageOne() {
+      if (!this.user || !this.user.token) return
+      var q = (this.friendsSearchInput || '').trim()
+      var r = await this.fetchFriends({
+        http: this.$http,
+        page: 1,
+        pageSize: this.friendsPageSize,
+        q: q
+      })
+      if (r && r.ok === false && r.message && this.$message) {
+        this.$message.error(r.message)
+      }
+    },
+    async onFriendsPageChange(page) {
+      if (!this.user || !this.user.token) return
+      var r = await this.fetchFriends({
+        http: this.$http,
+        page: page,
+        pageSize: this.friendsPageSize,
+        q: (this.friendsSearchInput || '').trim()
+      })
+      if (r && r.ok === false && r.message && this.$message) {
+        this.$message.error(r.message)
+      }
+    },
+    openAddFriendDialog() {
+      if (!this.user || !this.user.token) {
+        alert('请先登录')
+        return
+      }
+      this.addFriendDialogVisible = true
+    },
+    onAddFriendDialogOpen() {
+      this.addFriendLookupInput = ''
+      this.addFriendLookupUser = null
+      this.addFriendLookupAddStatus = ''
+      this.addFriendLookupError = ''
+      this.addFriendSendBusy = false
+    },
+    onAddFriendDialogClosed() {
+      this.addFriendLookupLoading = false
+      this.addFriendSendBusy = false
+    },
+    async onAddFriendLookup() {
+      var q = (this.addFriendLookupInput || '').trim()
+      if (!q) {
+        this.addFriendLookupError = '请输入用户 id 或昵称'
+        this.addFriendLookupUser = null
+        this.addFriendLookupAddStatus = ''
+        return
+      }
+      this.addFriendLookupLoading = true
+      this.addFriendLookupError = ''
+      this.addFriendLookupUser = null
+      this.addFriendLookupAddStatus = ''
+      try {
+        var api = dpSocialApi(this.$http)
+        var res = await api.lookupUser(q)
+        var body = res.data
+        if (!dpResultSuccess(body)) {
+          this.addFriendLookupError = dpResultMessage(body) || '未找到用户'
+          return
+        }
+        var d = dpResultData(body) || {}
+        this.addFriendLookupUser = d.user || null
+        this.addFriendLookupAddStatus = d.addStatus != null ? String(d.addStatus) : ''
+        if (!this.addFriendLookupUser) {
+          this.addFriendLookupError = '未找到用户'
+        }
+      } catch (e) {
+        this.addFriendLookupError = dpAxiosErrorMessage(e, '搜索失败')
+      } finally {
+        this.addFriendLookupLoading = false
+      }
+    },
+    async onAddFriendSendRequest() {
+      if (!this.addFriendCanSend || !this.addFriendLookupUser) return
+      var uid = Number(this.addFriendLookupUser.userId)
+      if (!uid || uid <= 0) return
+      this.addFriendSendBusy = true
+      try {
+        var res = await this.$http.post('/dp/friends/requests', { toUserId: uid })
+        if (dpResultSuccess(res.data)) {
+          this.addFriendLookupAddStatus = 'PENDING_OUTBOUND'
+          this.$message.success((res.data.data && res.data.data.message) || '已发送')
+          return
+        }
+        var msg = dpResultMessage(res.data)
+        if (msg.indexOf('对方已向您发来申请') !== -1) {
+          this.addFriendLookupAddStatus = 'PENDING_INBOUND'
+          this.$message.info(msg + '，请在大厅邮箱中处理。')
+          return
+        }
+        if (msg.indexOf('已是好友') !== -1) {
+          this.addFriendLookupAddStatus = 'ALREADY_FRIENDS'
+          await this.fetchFriends({
+            http: this.$http,
+            page: this.friendsPage,
+            pageSize: this.friendsPageSize,
+            q: (this.friendsSearchInput || '').trim()
+          })
+          this.$message.info(msg)
+          return
+        }
+        if (msg.indexOf('申请已存在') !== -1) {
+          this.addFriendLookupAddStatus = 'PENDING_OUTBOUND'
+          this.$message.success(msg)
+          return
+        }
+        this.$message.error(msg)
+      } catch (err) {
+        this.$message.error(dpAxiosErrorMessage(err, '无法发送好友申请，请稍后重试'))
+      } finally {
+        this.addFriendSendBusy = false
       }
     },
     async onFollowFriend(f) {
