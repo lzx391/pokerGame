@@ -29,7 +29,11 @@ public final class DpImageFileSupport {
     public static String avatarThumbWebPath(int userId) {
         return "/images/" + avatarThumbFilename(userId);
     }
-
+/**
+ * 合法物理路径
+ * @param fileLocation
+ * @return
+ */
     public static String toPhysicalDir(String fileLocation) {
         if (fileLocation == null || fileLocation.isBlank()) {
             return "P:/javaworkspace/DPGameFiles/images/";
@@ -43,7 +47,11 @@ public final class DpImageFileSupport {
         }
         return s;
     }
-
+/**
+ * 获取文件扩展名
+ * @param originalFilename
+ * @return
+ */
     public static String extensionOf(String originalFilename) {
         if (originalFilename == null || originalFilename.isBlank()) {
             return "";

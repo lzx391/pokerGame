@@ -6,6 +6,14 @@
       @close="$emit('close')"
   >
     <div class="dp-player-social-sheet">
+      <div class="dp-player-social-sheet__avatar-wrap">
+        <dp-user-avatar
+            size="md"
+            :nickname="displayName"
+            :avatar-url="honorAvatarUrl"
+            :cache-bust="honorAvatarCacheBust"
+        />
+      </div>
       <div class="dp-player-social-sheet__name">{{ displayName }}</div>
       <p class="dp-player-social-sheet__subtitle">游戏玩家</p>
 
@@ -73,14 +81,16 @@
 
 <script>
 import GameBottomSheet from './GameBottomSheet.vue'
+import DpUserAvatar from '@/components/DpUserAvatar.vue'
 import { mapState } from 'vuex'
 import { dpDisplayNickname } from '../utils/dpDisplayNickname'
 import { dpResultSuccess, dpResultMessage, dpAxiosErrorMessage } from '../utils/dpApiResult'
 import { formatNetWinMultiplier, formatRoomNetMultiplier } from '../utils/dpRoomNetMultiplier'
+import { avatarCacheBustFromUpdatedAt } from '@/utils/dpAvatarUrl'
 
 export default {
   name: 'GamePlayerSocialSheet',
-  components: { GameBottomSheet },
+  components: { GameBottomSheet, DpUserAvatar },
   props: {
     visible: { type: Boolean, default: false },
     /** @type {{ nickname: string, userId: number }} */
@@ -102,6 +112,12 @@ export default {
     displayName() {
       if (!this.target || !this.target.nickname) return ''
       return dpDisplayNickname(this.target)
+    },
+    honorAvatarUrl() {
+      return this.honor && this.honor.avatarUrl ? this.honor.avatarUrl : ''
+    },
+    honorAvatarCacheBust() {
+      return avatarCacheBustFromUpdatedAt(this.honor && this.honor.avatarUpdatedAt)
     },
     friendIds() {
       return (this.friends || []).map(function (f) {
@@ -220,16 +236,23 @@ export default {
 .dp-player-social-sheet {
   padding: 4px 2px 8px;
 }
+.dp-player-social-sheet__avatar-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+}
 .dp-player-social-sheet__name {
   font-size: 17px;
   font-weight: 600;
   color: var(--dp-text-strong, #1a1a1a);
+  text-align: center;
   margin-bottom: 6px;
 }
 .dp-player-social-sheet__subtitle {
   font-size: 13px;
   color: var(--dp-text-secondary, #5a5248);
   margin: 0 0 12px;
+  text-align: center;
 }
 .dp-player-social-sheet__hint {
   width: 100%;

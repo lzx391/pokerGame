@@ -226,11 +226,13 @@ public class DpUserServiceImpl implements DpUserService {
         if (!folder.exists() && !folder.mkdirs()) {
             return DpAvatarUploadResult.fail("无法创建图片目录");
         }
-
+//获取旧的头像url
         String oldUrl = stored.getAvatarUrl();
+        //删除旧的头像文件
         DpImageFileSupport.deleteWebPathFile(imagesFileLocation, oldUrl);
+        //删除旧的头像文件和粗略头像文件
         DpImageFileSupport.deleteUserAvatarFiles(imagesFileLocation, stored.getId());
-
+        //获取新的头像文件名
         String storedFilename = stored.getId() + ext;
         String webPath = "/images/" + storedFilename;
         File savedOriginal = new File(dir, storedFilename);
