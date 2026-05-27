@@ -298,6 +298,10 @@ export default {
         this.$message.warning('昵称不能为空')
         return
       }
+      if (/^\d+$/.test(this.form.nickname)) {
+        this.$message.warning('昵称不能为纯数字')
+        return
+      }
       if (this.editingPassword && this.form.newPassword) {
         if (this.form.newPassword.length < 6) {
           this.$message.warning('新密码至少 6 位')

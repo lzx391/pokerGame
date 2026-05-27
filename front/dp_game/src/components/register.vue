@@ -1,7 +1,7 @@
 <template>
   <div class="register-form">
     <h2 class="register-form__title">用户注册</h2>
-    <p class="register-form__hint">注册后即可用昵称登录并进入房间</p>
+    <p class="register-form__hint">注册后即可用昵称登录并进入房间。昵称不能为纯数字。</p>
 
     <div class="form-item">
       <label for="reg-nickname">昵称</label>
@@ -9,7 +9,7 @@
         id="reg-nickname"
         v-model="form.nickname"
         type="text"
-        placeholder="请设置登录昵称"
+        placeholder="请设置登录昵称（不能为纯数字）"
         autocomplete="off"
       >
     </div>
@@ -46,8 +46,13 @@ export default {
   },
   methods: {
     handleRegister() {
-      if (!this.form.nickname.trim()) {
+      var nickname = this.form.nickname.trim()
+      if (!nickname) {
         alert('请输入昵称！')
+        return
+      }
+      if (/^\d+$/.test(nickname)) {
+        alert('昵称不能为纯数字')
         return
       }
       if (!this.form.password) {
@@ -56,7 +61,10 @@ export default {
       }
 
       this.$http
-        .post('/dpUser/registerUser', this.form)
+        .post('/dpUser/registerUser', {
+          nickname: nickname,
+          password: this.form.password
+        })
         .then((res) => {
           console.log('注册结果：', res.data)
           var d = res.data

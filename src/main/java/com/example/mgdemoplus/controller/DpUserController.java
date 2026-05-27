@@ -60,6 +60,9 @@ public class DpUserController {
         if (code == DpUserServiceImpl.REGISTER_INVALID_NICKNAME) {
             return ResultUtil.invalidNickname();
         }
+        if (code == DpUserServiceImpl.REGISTER_NUMERIC_NICKNAME) {
+            return ResultUtil.numericNickname();
+        }
         return ResultUtil.repeatUsername();
     }
 

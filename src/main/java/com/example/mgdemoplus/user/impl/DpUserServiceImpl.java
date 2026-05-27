@@ -47,17 +47,25 @@ public class DpUserServiceImpl implements DpUserService {
     public static final int REGISTER_SENSITIVE = 2;
     /** 昵称超长 */
     public static final int REGISTER_INVALID_NICKNAME = 3;
+    /** 昵称为纯数字 */
+    public static final int REGISTER_NUMERIC_NICKNAME = 4;
 
     public static final String MSG_SENSITIVE = "敏感词汇";
+    public static final String MSG_NUMERIC_NICKNAME = "昵称不能为纯数字";
 
     public int registerUser(DpUser dpUser) {
-        if (dpUser.getNickname() == null || dpUser.getNickname().length() > 10) {
+        String nickname = dpUser.getNickname() == null ? "" : dpUser.getNickname().trim();
+        if (nickname.matches("\\d+")) {
+            return REGISTER_NUMERIC_NICKNAME;
+        }
+        if (nickname.isEmpty() || nickname.length() > 10) {
             return REGISTER_INVALID_NICKNAME;
         }
-        if (sensitiveWordService.containsSensitive(dpUser.getNickname())) {
+        dpUser.setNickname(nickname);
+        if (sensitiveWordService.containsSensitive(nickname)) {
             return REGISTER_SENSITIVE;
         }
-        DpUser repetition = dpUserMapper.selectByNickname(dpUser.getNickname());
+        DpUser repetition = dpUserMapper.selectByNickname(nickname);
         if (repetition != null) {
             return 0;
         }
@@ -151,6 +159,10 @@ public class DpUserServiceImpl implements DpUserService {
         //验证昵称长度
         if (newNickname.length() > 10) {
             result.setMessage("昵称最多 10 个字符");
+            return result;
+        }
+        if (newNickname.matches("\\d+")) {
+            result.setMessage(MSG_NUMERIC_NICKNAME);
             return result;
         }
         if (sensitiveWordService.containsSensitive(newNickname)) {

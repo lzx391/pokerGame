@@ -122,8 +122,8 @@ public class DpFriendMailboxController {
     }
 
     /**
-     * 加好友精确查人：{@code q} 为纯数字且 &gt;0 时 {@link DpUserMapper#selectById} 并再
-     * {@link DpUserMapper#selectByNickname} 全等；非纯数字仅昵称全等。成功时 {@code data.items} 为候选列表。
+     * 加好友精确查人：{@code q} 为纯数字且 0&lt;id≤{@link Integer#MAX_VALUE} 时仅 {@link DpUserMapper#selectById}；
+     * 否则仅昵称全等。成功时 {@code data.user} 与 {@code data.addStatus}。
      */
     @GetMapping("/users/lookup")
     public ResultUtil lookupUserForFriendAdd(@RequestParam("q") String q) {
