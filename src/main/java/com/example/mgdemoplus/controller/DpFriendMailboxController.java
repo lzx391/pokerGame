@@ -27,8 +27,8 @@ import java.util.Map;
  * {@code dp_user.id}，与请求体 {@code toUserId} / {@code inviteeUserId} 分离以避免越权。
  * <p>{@code GET /dp/friends}：分页好友列表（默认 page=1、pageSize=20，最大 100），可选 {@code q}
  * 筛选（纯数字→好友 userId；否则昵称包含、不区分大小写），按最近私信时间降序（无消息则按成为好友时间）。</p>
- * <p>{@code GET /dp/users/lookup?q=}：加好友前精确查人（数字→id，否则昵称全等），仅返回公开资料 +
- * {@code addStatus}（CAN_ADD / SELF / ALREADY_FRIENDS / PENDING_*）。</p>
+ * <p>{@code GET /dp/users/lookup?q=}：加好友前精确查人；纯数字且 &gt;0 时同时按 id 与昵称全等查询，
+ * 返回 {@code items} 数组（每项含公开资料 {@code user} 与 {@code addStatus}）。</p>
  */
 @RestController
 @RequestMapping("/dp")
@@ -122,7 +122,8 @@ public class DpFriendMailboxController {
     }
 
     /**
-     * 加好友精确查人：{@code q} 为纯数字且 &gt;0 时按 id；否则按昵称全等（与 {@link DpUserMapper#selectByNickname} 一致）。
+     * 加好友精确查人：{@code q} 为纯数字且 &gt;0 时 {@link DpUserMapper#selectById} 并再
+     * {@link DpUserMapper#selectByNickname} 全等；非纯数字仅昵称全等。成功时 {@code data.items} 为候选列表。
      */
     @GetMapping("/users/lookup")
     public ResultUtil lookupUserForFriendAdd(@RequestParam("q") String q) {

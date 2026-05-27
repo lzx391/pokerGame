@@ -286,8 +286,8 @@ public class DpFriendSocialService {
     }
 
     /**
-     * 加好友前精确查人：纯数字且 &gt;0 → {@link DpUserMapper#selectById}；否则 {@link DpUserMapper#selectByNickname} 全等。
-     * 仅返回公开资料字段；机器人不可添加。
+     * 加好友前精确查人：纯数字且 &gt;0 → {@link DpUserMapper#selectById} 并再 {@link DpUserMapper#selectByNickname} 全等；
+     * 非纯数字仅昵称全等。返回 {@code items}，每项含公开资料与 {@code addStatus}；机器人跳过，全为机器人则不可添加。
      */
     public ResultUtil lookupUserForFriendAdd(int currentUserId, String q) {
         touchExpireRoomInvites();
@@ -295,16 +295,24 @@ public class DpFriendSocialService {
         if (trimmed.isEmpty()) {
             return ResultUtil.error().data("message", "请输入用户 id 或昵称");
         }
-        DpUser target = resolveUserForExactLookup(trimmed);
-        if (target == null) {
+        List<DpUser> candidates = resolveUsersForExactLookup(trimmed, dpUserMapper);
+        List<Map<String, Object>> items = new ArrayList<>();
+        for (DpUser target : candidates) {
+            if (DpNpcEngine.isBotNickname(target.getNickname())) {
+                continue;
+            }
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("user", toPublicUserPayload(target));
+            item.put("addStatus", resolveFriendAddStatus(currentUserId, target.getId()));
+            items.add(item);
+        }
+        if (items.isEmpty()) {
+            if (!candidates.isEmpty()) {
+                return ResultUtil.error().data("message", "不可添加");
+            }
             return ResultUtil.error().data("message", "用户不存在");
         }
-        if (DpNpcEngine.isBotNickname(target.getNickname())) {
-            return ResultUtil.error().data("message", "不可添加");
-        }
-        Map<String, Object> user = toPublicUserPayload(target);
-        String addStatus = resolveFriendAddStatus(currentUserId, target.getId());
-        return ResultUtil.ok().data("user", user).data("addStatus", addStatus);
+        return ResultUtil.ok().data("items", items);
     }
 
     static FriendListFilter parseFriendListFilter(String rawQ) {
@@ -321,22 +329,25 @@ public class DpFriendSocialService {
         return new FriendListFilter(null, trimmed);
     }
 
-    static DpUser resolveUserForExactLookup(String trimmedQ, DpUserMapper userMapper) {
+    static List<DpUser> resolveUsersForExactLookup(String trimmedQ, DpUserMapper userMapper) {
+        Map<Integer, DpUser> byId = new LinkedHashMap<>();
         if (trimmedQ.matches("\\d+")) {
             long id = Long.parseLong(trimmedQ);
             if (id > 0 && id <= Integer.MAX_VALUE) {
-                return userMapper.selectById((int) id);
+                DpUser found = userMapper.selectById((int) id);
+                if (found != null) {
+                    byId.put(found.getId(), found);
+                }
             }
-            return null;
         }
-        return userMapper.selectByNickname(trimmedQ);
+        DpUser byNickname = userMapper.selectByNickname(trimmedQ);
+        if (byNickname != null) {
+            byId.putIfAbsent(byNickname.getId(), byNickname);
+        }
+        return new ArrayList<>(byId.values());
     }
 
     record FriendListFilter(Integer filterFriendUserId, String nicknameContains) {}
-
-    private DpUser resolveUserForExactLookup(String trimmedQ) {
-        return resolveUserForExactLookup(trimmedQ, dpUserMapper);
-    }
 
     private String resolveFriendAddStatus(int currentUserId, int targetUserId) {
         if (currentUserId == targetUserId) {
