@@ -249,6 +249,10 @@
 </template>
 
 <script>
+/**
+ * 洞牌展示：权威数据由后端 GET /dpHandHistory/detail 脱敏（如 holeCardsAtEnd）；
+ * 本组件 computed（如 holeCardsByNickForStreet）及 dpHandHistoryReplay 规则仅作 UI 兜底，与接口裁切可能重复，保留供负责人评估。
+ */
 import '@/styles/dp-game-themes.css'
 import '@/styles/dp-lobby-shell.css'
 import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'

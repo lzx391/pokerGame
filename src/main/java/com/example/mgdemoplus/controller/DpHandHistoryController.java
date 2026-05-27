@@ -38,7 +38,9 @@ public class DpHandHistoryController {
     }
 
     /**
-     * 单条牌谱回放数据（payload）；仅参与者（user_id）可读，他人洞牌已脱敏。
+     * 单条牌谱回放数据（payload）；仅参与者（user_id）可读。
+     * 响应前按观看者昵称脱敏：盖牌（FOLD）玩家的 holeCardsAtEnd、boardsByStreet[].handRankNameByPlayer
+     * 对非本人移除；本人始终保留；未盖牌玩家对他人仍可见（与牌谱详情页一致）。
      */
     @GetMapping("/detail")
     public ResponseEntity<DpHandHistoryDetailVO> detail(

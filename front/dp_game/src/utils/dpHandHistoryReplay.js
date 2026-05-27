@@ -1,5 +1,8 @@
 /**
  * 牌谱回放：按街拆分行动轮次、行动文案（与 dp_observed_hand_history.payload_json 对齐）。
+ *
+ * 洞牌展示：后端 GET /dpHandHistory/detail 已对洞牌等字段脱敏；
+ * shouldShowHoleCardsOnStreetTab 等仅作前端 UI 兜底，与接口裁切可能重复，未删除以便负责人评估。
  */
 
 import { DP_GAME_STAGE_LABELS } from '../constants/dpCatThemeCopy'
