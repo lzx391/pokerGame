@@ -74,18 +74,28 @@ public final class DpHandHistoryPayloadSanitizer {
         }
         return folded;
     }
-
+/**
+ * 抹除盖牌者的手牌
+ */
     @SuppressWarnings("unchecked")
     private static void removeFromHoleCardsAtEnd(Map<String, Object> payload, String nickname) {
         Object holesObj = payload.get("holeCardsAtEnd");
+        //检查是不是Map类型
         if (!(holesObj instanceof Map<?, ?> holes)) {
             return;
         }
+        //创建一个可变Map
         Map<String, Object> mutable = new LinkedHashMap<>((Map<String, Object>) holes);
+        //删除盖牌者的手牌
         mutable.remove(nickname);
+        //覆盖原来payload的holeCardsAtEnd
         payload.put("holeCardsAtEnd", mutable);
     }
-
+/**
+ * 抹除盖牌者的牌力
+ * @param payload
+ * @param nickname
+ */
     @SuppressWarnings("unchecked")
     private static void removeFromBoardHandRanks(Map<String, Object> payload, String nickname) {
         Object boardsObj = payload.get("boardsByStreet");

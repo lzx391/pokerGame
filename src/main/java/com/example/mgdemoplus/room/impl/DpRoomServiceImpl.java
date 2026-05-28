@@ -889,30 +889,55 @@ ownerFieldChanged：房主字段是否发生变化。
         }
     }
 
+    @Override
+    public void presenceMarkIdleHuman(int dpUserId, String trigger) {
+        if (dpUserId > 0) {
+            friendPresence.markIdle(dpUserId, trigger);
+        }
+    }
+
     /**
-     * 当昵称已不在任何房间的 players/spectators 中时置 IDLE（离房幂等；多路径重复调用无害）。
+     * 昵称是否仍在任一内存房的「有效在房」集合中：观众席，或 players 中本手未离座（{@code leftThisHand} 僵尸位不算）。
+     */
+    private boolean isNicknameActivelyPresentInAnyRoom(String nickname) {
+        if (nickname == null) {
+            return false;
+        }
+        for (DpRoomBO r : roomMap.values()) {
+            List<String> specs = r.getSpectators();
+            if (specs != null && specs.contains(nickname)) {
+                return true;
+            }
+            List<DpPlayer> ps = r.getPlayers();
+            if (ps == null) {
+                continue;
+            }
+            for (DpPlayer p : ps) {
+                if (p != null && nickname.equals(p.getNickname()) && !p.isLeftThisHand()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 当昵称已不在任何房间的「有效在房」集合中时置 IDLE（离房幂等；多路径重复调用无害）。
+     * {@code leftThisHand} 仅占位维持本手流程，视为已离房，与 {@link #exitRoom} 口径一致。
      */
     @Override
     public void presenceTryMarkIdleFullyLeft(String nickname, Integer hintedUserId, DpRoomBO roomHint, String trigger) {
         if (nickname == null || DpNpcEngine.isBotNickname(nickname)) {//昵称为空返回
             return;
         }
-
-        if (findRoomContainingNickname(nickname) != null) {//发现房间包含自己名字，直接返回
-            List<DpPlayer> players = roomHint.getPlayers();
-            if (players != null) {
-                for (DpPlayer p : players) {
-                    if (p != null && nickname.equals(p.getNickname()) && !p.isLeftThisHand()) {
-                        System.out.println("清理的时候只清理观众和等待下一把的人，所以僵尸位要单独判断一下");
-                        return;
-                    }
-                }
-            }
+        if (isNicknameActivelyPresentInAnyRoom(nickname)) {
+            return;
         }
         Integer uid = resolvePresenceUserIdPreferHint(nickname, hintedUserId, roomHint);
         if (uid != null) {
-            //昵称合法就设置空闲状态
             friendPresence.markIdle(uid, trigger);
+        } else {
+            log.warn("friend_presence markIdle skipped: uid unresolved nickname={} trigger={}", nickname, trigger);
         }
     }
 /**

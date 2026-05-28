@@ -17,7 +17,9 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DpFriendPresenceService {
 
     private static final Logger log = LoggerFactory.getLogger(DpFriendPresenceService.class);
-
+/**
+ * 存所有用户的状态的map
+ */
     private final ConcurrentHashMap<Integer, DpFriendPresenceState> presenceByUserId = new ConcurrentHashMap<>();
 
     /** 未出现在 map 中时视为 IDLE（隐含默认态，避免注册用户必须预热）。 */

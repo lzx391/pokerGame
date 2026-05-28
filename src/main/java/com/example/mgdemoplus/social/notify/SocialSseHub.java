@@ -125,6 +125,52 @@ public class SocialSseHub {
         log.info("[social-sse] broadcast done userId={} sentTo={}/{}", userId, sent, n);
     }
 
+    /** 好友 presence 增量（与 {@code notify} 共用连接，独立事件名）。 */
+    public void broadcastFriendPresence(int userId, FriendPresenceNotifyPayload payload) {
+        if (userId <= 0 || payload == null) {
+            return;
+        }
+        Set<SseEmitter> set = emittersByUser.get(userId);
+        int n = set != null ? set.size() : 0;
+        if (n == 0) {
+            log.warn(
+                    "[social-sse] friendPresence skipped: no active SSE for userId={} friendUserId={} presence={} "
+                            + "onlineUserIds={}",
+                    userId,
+                    payload.getFriendUserId(),
+                    payload.getPresence(),
+                    onlineUserIdsSnapshot());
+            return;
+        }
+        log.info(
+                "[social-sse] friendPresence broadcast userId={} connections={} friendUserId={} presence={} reason={}",
+                userId,
+                n,
+                payload.getFriendUserId(),
+                payload.getPresence(),
+                payload.getReason());
+        int sent = 0;
+        for (SseEmitter emitter : set) {
+            try {
+                sendFriendPresenceEvent(emitter, payload);
+                sent++;
+            } catch (IOException e) {
+                log.warn(
+                        "[social-sse] friendPresence send failed userId={} emitter={} reason={}",
+                        userId,
+                        System.identityHashCode(emitter),
+                        e.toString());
+                unregister(userId, emitter, "friendPresence-send-failed");
+                try {
+                    emitter.completeWithError(e);
+                } catch (Exception ignored) {
+                    // already closed
+                }
+            }
+        }
+        log.info("[social-sse] friendPresence done userId={} sentTo={}/{}", userId, sent, n);
+    }
+
     private void register(int userId, SseEmitter emitter) {
         Set<SseEmitter> set =
                 emittersByUser.computeIfAbsent(userId, k -> ConcurrentHashMap.newKeySet());
@@ -174,6 +220,15 @@ public class SocialSseHub {
                         .name("notify")
                         .data(json, MediaType.APPLICATION_JSON));
         log.debug("[social-sse] notify event written phase={} bytes={}", phase, json.length());
+    }
+
+    private void sendFriendPresenceEvent(SseEmitter emitter, FriendPresenceNotifyPayload payload)
+            throws IOException {
+        String json = objectMapper.writeValueAsString(payload.toDataMap());
+        emitter.send(
+                SseEmitter.event()
+                        .name("friendPresence")
+                        .data(json, MediaType.APPLICATION_JSON));
     }
 
     private int connectionCount(int userId) {

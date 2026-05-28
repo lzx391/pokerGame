@@ -72,3 +72,24 @@ export function parseSocialNotifyPayload(data) {
   out.friendChatUnreadTotal = isFinite(tv) && tv > 0 ? tv : 0
   return out
 }
+
+/**
+ * 解析 SSE {@code friendPresence} 载荷（与 GET /dp/friends 的 presence 同口径）。
+ * @param {any} data
+ * @returns {{ friendUserId: number, presence: string, reason: string } | null}
+ */
+export function parseFriendPresencePayload(data) {
+  if (!data || typeof data !== 'object') return null
+  var uid =
+    data.friendUserId != null
+      ? data.friendUserId
+      : data.userId != null
+        ? data.userId
+        : 0
+  var id = parseInt(String(uid), 10)
+  if (!isFinite(id) || id <= 0) return null
+  var presence = data.presence != null ? String(data.presence).trim().toUpperCase() : ''
+  if (!presence) return null
+  var reason = data.reason != null ? String(data.reason) : ''
+  return { friendUserId: id, presence: presence, reason: reason }
+}

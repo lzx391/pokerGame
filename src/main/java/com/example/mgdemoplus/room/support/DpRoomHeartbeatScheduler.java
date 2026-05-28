@@ -104,6 +104,10 @@ public final class DpRoomHeartbeatScheduler {
                 String hbNick = p.getNickname();
                 Integer hbUid = p.getDpUserId();
                 it.remove();
+                // 心跳踢人已从 players 摘除：优先按已知 userId 直写 IDLE，避免仅依赖 tryMarkIdle 的昵称解析
+                if (hbUid != null && hbUid > 0) {
+                    callbacks.presenceMarkIdleHuman(hbUid, "heartbeat_evict_player");
+                }
                 callbacks.presenceTryMarkIdleFullyLeft(hbNick, hbUid, room, "heartbeat_evict_player");
                 lobbyDirty = true;
             }

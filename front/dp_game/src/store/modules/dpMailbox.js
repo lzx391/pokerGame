@@ -1,7 +1,7 @@
 import { dpSocialApi } from '@/api/api.dpSocial'
 import { dpResultSuccess, dpResultData, dpResultMessage, dpAxiosErrorMessage } from '@/utils/dpApiResult'
 import { dpFriendsInviteEligible } from '@/utils/dpFriendsInviteEligible'
-import { parseSocialNotifyPayload } from '@/utils/dpSocialStream'
+import { parseSocialNotifyPayload, parseFriendPresencePayload } from '@/utils/dpSocialStream'
 import { prefetchAvatarUrls } from '@/utils/dpAvatarPrefetch'
 
 function initialState() {
@@ -65,6 +65,22 @@ export default {
       state.unreadCount = parsed.mailboxUnread
       state.friendChatUnreadTotal = parsed.friendChatUnreadTotal
       state.friendChatUnreadByUserId = normalizePerFriendMap(parsed.perFriend)
+    },
+    PATCH_FRIEND_PRESENCE(state, payload) {
+      var parsed = parseFriendPresencePayload(payload)
+      if (!parsed) return
+      var key = String(parsed.friendUserId)
+      var next = parsed.presence
+      var list = state.friends
+      if (!Array.isArray(list) || list.length === 0) return
+      for (var i = 0; i < list.length; i++) {
+        var f = list[i]
+        if (f && String(f.userId) === key) {
+          if (f.presence === next) return
+          list.splice(i, 1, Object.assign({}, f, { presence: next }))
+          return
+        }
+      }
     },
     SET_MAILBOX(state, payload) {
       payload = payload || {}
@@ -157,6 +173,9 @@ export default {
     },
     applyNotifyPayload({ commit }, payload) {
       commit('APPLY_NOTIFY_SUMMARY', payload)
+    },
+    applyFriendPresencePayload({ commit }, payload) {
+      commit('PATCH_FRIEND_PRESENCE', payload)
     },
     async fetchMailbox({ commit }, { http }) {
       var client = http

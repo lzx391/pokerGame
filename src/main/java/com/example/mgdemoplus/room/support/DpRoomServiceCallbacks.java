@@ -39,6 +39,8 @@ public interface DpRoomServiceCallbacks {
 
     void presenceMarkInGameHuman(DpRoomBO r, String nickname, Integer requestedUserId, String trigger);
 
+    void presenceMarkIdleHuman(int dpUserId, String trigger);
+
     boolean exitRoom(String roomId, String nickname);
 
     void giveOwner(String roomId, String ownerNickname);

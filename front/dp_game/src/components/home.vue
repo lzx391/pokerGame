@@ -700,6 +700,7 @@ export default {
       'fetchFriendChatUnreadSummary',
       'fetchNotifySummary',
       'applyNotifyPayload',
+      'applyFriendPresencePayload',
       'fetchMailbox',
       'fetchFriends',
       'removeFriend',
@@ -787,8 +788,10 @@ export default {
       }
       var es = this.socialEventSource
       var notifyHandler = this._socialNotifyHandler
+      var presenceHandler = this._socialFriendPresenceHandler
       this.socialEventSource = null
       this._socialNotifyHandler = null
+      this._socialFriendPresenceHandler = null
       if (es) {
         es.onopen = null
         es.onerror = null
@@ -796,6 +799,11 @@ export default {
         if (notifyHandler) {
           try {
             es.removeEventListener('notify', notifyHandler)
+          } catch (e) { /* ignore */ }
+        }
+        if (presenceHandler) {
+          try {
+            es.removeEventListener('friendPresence', presenceHandler)
           } catch (e) { /* ignore */ }
         }
         try {
@@ -836,8 +844,14 @@ export default {
         if (self.socialEsSession !== session) return
         self.onSocialNotify(ev && ev.data)
       }
+      this._socialFriendPresenceHandler = function (ev) {
+        if (self.socialEsSession !== session) return
+        self.onSocialFriendPresence(ev && ev.data)
+      }
       var onNotify = this._socialNotifyHandler
+      var onFriendPresence = this._socialFriendPresenceHandler
       es.addEventListener('notify', onNotify)
+      es.addEventListener('friendPresence', onFriendPresence)
       es.onmessage = onNotify
       es.onopen = function () {
         if (self.socialEsSession !== session) return
@@ -871,6 +885,20 @@ export default {
         }
       }
       this.fetchNotifySummary({ http: this.$http }).catch(() => {})
+    },
+    onSocialFriendPresence(raw) {
+      if (!raw) return
+      try {
+        var parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+        if (process.env.NODE_ENV !== 'production') {
+          console.info('[social-sse] friendPresence received', parsed)
+        }
+        this.applyFriendPresencePayload(parsed)
+      } catch (e) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('[social-sse] friendPresence parse failed', raw, e)
+        }
+      }
     },
     openFriendChat(f) {
       var uid = f && f.userId != null ? Number(f.userId) : 0

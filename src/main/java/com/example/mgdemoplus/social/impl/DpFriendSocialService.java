@@ -419,6 +419,25 @@ public class DpFriendSocialService {
     }
 
     /**
+     * 跟随失败且确认好友不在目标房：校正房内 {@link DpFriendPresenceState#IDLE}（幂等），
+     * 并向跟随者推送 {@code friendPresence} SSE，与 {@link #listFriends} 展示口径一致。
+     */
+    private void correctStaleFriendPresenceOnFollowMiss(int watcherUserId, int friendUserId, String trigger) {
+        if (friendUserId <= 0) {
+            return;
+        }
+        friendPresenceService.markIdle(friendUserId, trigger);
+        if (watcherUserId <= 0) {
+            return;
+        }
+        DpFriendPresenceState display =
+                resolveFriendListPresence(
+                        DpFriendPresenceState.IDLE, sitePresenceService.isOnlineSite(friendUserId));
+        socialNotifyPublisher.notifyFriendPresence(
+                watcherUserId, friendUserId, display.name(), trigger);
+    }
+
+    /**
      * 解除互为好友：删除无序 friend_link，将双方 PENDING 进房邀请置为 CANCELLED，
      * 并将双向 ACCEPTED 好友申请置为 EXPIRED（以 link 为准，无好友即清错误接受态）；幂等。
      */
@@ -565,9 +584,13 @@ public class DpFriendSocialService {
         String friendNick = friend.getNickname().trim();
         String roomId = dpRoomService.findRoomIdContainingNickname(friendNick);
         if (roomId == null || roomId.isBlank()) {
+            correctStaleFriendPresenceOnFollowMiss(
+                    currentUserId, friendUserId, "followFriendToTheirRoom:not_in_room");
             return ResultUtil.error().data("message", "好友不在房间内");
         }
         if (!dpRoomService.dpRoomExistsInMemory(roomId)) {
+            correctStaleFriendPresenceOnFollowMiss(
+                    currentUserId, friendUserId, "followFriendToTheirRoom:room_gone");
             return ResultUtil.error().data("message", "房间已不存在").data("roomId", roomId);
         }
         String join = dpRoomService.joinRoomInviteAsSpectator(roomId, cn, currentUserId);
