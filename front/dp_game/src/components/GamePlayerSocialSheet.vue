@@ -1,95 +1,174 @@
 <template>
-  <game-bottom-sheet
+  <!-- 全屏炸裂玩家档案 -->
+  <transition name="prof-burst">
+    <div
       v-if="visible && target"
-      title="玩家信息"
-      aria-label="查看玩家并发送好友申请"
-      @close="$emit('close')"
-  >
-    <div class="dp-player-social-sheet">
-      <div class="dp-player-social-sheet__avatar-wrap">
-        <dp-user-avatar
-            size="md"
-            :nickname="displayName"
-            :avatar-url="honorAvatarUrl"
-            :cache-bust="honorAvatarCacheBust"
-        />
-      </div>
-      <div class="dp-player-social-sheet__name">{{ displayName }}</div>
-      <button
-          v-if="target && target.userId != null && target.userId !== ''"
-          type="button"
-          class="dp-player-social-sheet__userid dp-social-list__idline"
-          title="点击复制用户 ID"
-          @click="onCopyUserId"
-      >
-        用户 ID：{{ target.userId }}
-      </button>
-      <p class="dp-player-social-sheet__subtitle">游戏玩家</p>
+      class="prof-player-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="玩家信息"
+      @click.self="$emit('close')"
+    >
+      <!-- 炸裂粒子 -->
+      <span class="prof-particle prof-particle--1"></span>
+      <span class="prof-particle prof-particle--2"></span>
+      <span class="prof-particle prof-particle--3"></span>
+      <span class="prof-particle prof-particle--4"></span>
+      <span class="prof-particle prof-particle--5"></span>
+      <span class="prof-particle prof-particle--6"></span>
 
-      <!-- 生涯荣誉战绩 -->
-      <div v-if="honor" class="dp-player-social-sheet__honor">
-        <div class="dp-player-honor__title">生涯战绩</div>
-        <div class="dp-player-honor__badges">
-          <div class="honor-chip honor-chip--royal">
-            <span class="honor-chip__icon">RF</span>
-            <span>{{ honor.royalFlushWins || 0 }}</span>
+      <!-- 主体卡片 -->
+      <div class="prof-player-card" @click.stop>
+        <!-- 关闭按钮 -->
+        <button type="button" class="prof-player-close" @click="$emit('close')" aria-label="关闭">
+          <i class="el-icon-close"></i>
+        </button>
+
+        <!-- 装饰底纹：巨型卡牌花色 -->
+        <span class="prof-player-watermark" aria-hidden="true">♠</span>
+
+        <!-- ===== 第一区：头像 + 身份 ===== -->
+        <div class="prof-player-hero">
+          <div class="prof-player-hero__avatar">
+            <dp-user-avatar
+              size="lg"
+              :nickname="displayName"
+              :avatar-url="honorAvatarUrl"
+              :cache-bust="honorAvatarCacheBust"
+            />
           </div>
-          <div class="honor-chip honor-chip--straight">
-            <span class="honor-chip__icon">SF</span>
-            <span>{{ honor.straightFlushWins || 0 }}</span>
-          </div>
-          <div class="honor-chip honor-chip--four">
-            <span class="honor-chip__icon">4K</span>
-            <span>{{ honor.fourOfAKindWins || 0 }}</span>
+          <div class="prof-player-hero__info">
+            <div class="prof-player-hero__name">{{ displayName }}</div>
+            <button
+              v-if="target && target.userId != null && target.userId !== ''"
+              type="button"
+              class="prof-player-hero__id"
+              title="点击复制用户 ID"
+              @click="onCopyUserId"
+            >
+              #{{ target.userId }}
+            </button>
+            <div class="prof-player-hero__rank-tag">游戏玩家</div>
           </div>
         </div>
-        <div class="dp-player-honor__stats">
-          <div class="honor-line">
-            <span>单局最高净赢倍数</span>
-            <strong>{{ formatNetWinMultiplier(honor.largestPotWon) }}</strong>
+
+        <!-- ===== 第二区：周榜排名（大标） ===== -->
+        <div v-if="hasWeeklyRank" class="prof-player-rank">
+          <div class="prof-player-rank__header">
+            <span class="prof-player-glory__deco">♠</span>
+            本周排名
+            <span class="prof-player-glory__deco">♠</span>
           </div>
-          <div class="honor-line">
-            <span>单房间最高净赢倍数</span>
-            <strong>{{ formatRoomNetMultiplier(honor.largestRoomNet) }}</strong>
-          </div>
-          <div class="honor-line">
-            <span>生涯总局数</span>
-            <strong>{{ honor.totalHandsPlayed || 0 }}</strong>
+          <div class="prof-player-rank__cards">
+            <!-- 单局之最 -->
+            <div class="prof-rank-card prof-rank-card--hand">
+              <div class="prof-rank-card__badge">
+                <span class="prof-rank-card__rank-num">{{ rankHandDisplay }}</span>
+                <span class="prof-rank-card__rank-suffix">名</span>
+              </div>
+              <div class="prof-rank-card__info">
+                <span class="prof-rank-card__type">单局之最</span>
+                <span v-if="honor.leaderboardWeeklyHand && honor.leaderboardWeeklyHand.multiplier != null" class="prof-rank-card__mult">{{ formatMulti(honor.leaderboardWeeklyHand.multiplier) }}x</span>
+              </div>
+            </div>
+            <!-- 单房之最 -->
+            <div class="prof-rank-card prof-rank-card--room">
+              <div class="prof-rank-card__badge">
+                <span class="prof-rank-card__rank-num">{{ rankRoomDisplay }}</span>
+                <span class="prof-rank-card__rank-suffix">名</span>
+              </div>
+              <div class="prof-rank-card__info">
+                <span class="prof-rank-card__type">单房之最</span>
+                <span v-if="honor.leaderboardWeeklyRoom && honor.leaderboardWeeklyRoom.multiplier != null" class="prof-rank-card__mult">{{ formatMulti(honor.leaderboardWeeklyRoom.multiplier) }}x</span>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div
-          v-if="socialPrimaryIsStaticHint"
-          class="dp-player-social-sheet__hint"
-      >
-        {{ primaryLabel }}
+        <!-- ===== 第三区：生涯荣誉勋章 ===== -->
+        <div v-if="honor && honor.totalHandsPlayed != null" class="prof-player-glory">
+          <div class="prof-player-glory__header">
+            <span class="prof-player-glory__deco">♦</span>
+            生涯荣誉
+            <span class="prof-player-glory__deco">♦</span>
+          </div>
+          <div class="prof-player-glory__big-numbers">
+            <!-- 皇家同花顺 -->
+            <div class="prof-glory-item prof-glory-item--royal">
+              <span class="prof-glory-item__number">{{ honor.royalFlushWins || 0 }}</span>
+              <span class="prof-glory-item__unit">次</span>
+              <span class="prof-glory-item__label">皇家同花顺</span>
+              <span class="prof-glory-item__suit">♛</span>
+            </div>
+            <!-- 同花顺 -->
+            <div class="prof-glory-item prof-glory-item--straight">
+              <span class="prof-glory-item__number">{{ honor.straightFlushWins || 0 }}</span>
+              <span class="prof-glory-item__unit">次</span>
+              <span class="prof-glory-item__label">同花顺</span>
+              <span class="prof-glory-item__suit">♠</span>
+            </div>
+            <!-- 四条 -->
+            <div class="prof-glory-item prof-glory-item--four">
+              <span class="prof-glory-item__number">{{ honor.fourOfAKindWins || 0 }}</span>
+              <span class="prof-glory-item__unit">次</span>
+              <span class="prof-glory-item__label">四条</span>
+              <span class="prof-glory-item__suit">4</span>
+            </div>
+            <!-- 生涯总局数 -->
+            <div class="prof-glory-item prof-glory-item--total">
+              <span class="prof-glory-item__number">{{ honor.totalHandsPlayed || 0 }}</span>
+              <span class="prof-glory-item__unit">局</span>
+              <span class="prof-glory-item__label">生涯总局数</span>
+              <span class="prof-glory-item__suit">♣</span>
+            </div>
+          </div>
+          <!-- 辅助统计 -->
+          <div class="prof-player-glory__extras">
+            <div class="prof-glory-extra">
+              <span class="prof-glory-extra__num">{{ formatNetWinMultiplier(honor.largestPotWon) }}</span>
+              <span class="prof-glory-extra__desc">单局最高净赢</span>
+            </div>
+            <div class="prof-glory-extra">
+              <span class="prof-glory-extra__num">{{ formatRoomNetMultiplier(honor.largestRoomNet) }}</span>
+              <span class="prof-glory-extra__desc">单房最高净赢</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== 第三区：操作区 ===== -->
+        <div class="prof-player-actions">
+          <!-- 好友申请 -->
+          <div v-if="socialPrimaryIsStaticHint" class="prof-player-actions__status">
+            {{ primaryLabel }}
+          </div>
+          <button
+            v-else
+            type="button"
+            class="prof-player-btn prof-player-btn--friend"
+            :disabled="primaryDisabled"
+            @click="onSendRequest"
+          >
+            <span v-if="!sending">发送好友申请</span>
+            <span v-else><i class="el-icon-loading"></i> 发送中…</span>
+          </button>
+
+          <!-- 历史对局 -->
+          <button
+            type="button"
+            class="prof-player-btn prof-player-btn--history"
+            @click="onViewHandHistoryWithOpponent"
+          >
+            查看历史对局
+          </button>
+
+          <p v-if="tip" class="prof-player-actions__tip">{{ tip }}</p>
+        </div>
       </div>
-      <el-button
-          v-else
-          type="primary"
-          class="dp-player-social-sheet__btn"
-          :disabled="primaryDisabled"
-          :loading="sending"
-          @click="onSendRequest"
-      >
-        {{ primaryLabel }}
-      </el-button>
-      <el-button
-          type="default"
-          plain
-          class="dp-player-social-sheet__btn dp-player-social-sheet__btn--secondary"
-          @click="onViewHandHistoryWithOpponent"
-      >
-        查看与该玩家的历史对局
-      </el-button>
-      <p v-if="tip" class="dp-player-social-sheet__tip">{{ tip }}</p>
     </div>
-  </game-bottom-sheet>
+  </transition>
 </template>
 
 <script>
-import GameBottomSheet from './GameBottomSheet.vue'
 import DpUserAvatar from '@/components/DpUserAvatar.vue'
 import { mapState } from 'vuex'
 import { dpDisplayNickname } from '../utils/dpDisplayNickname'
@@ -101,10 +180,9 @@ import { copySocialId as copySocialIdToClipboard } from '@/utils/dpCopySocialId'
 
 export default {
   name: 'GamePlayerSocialSheet',
-  components: { GameBottomSheet, DpUserAvatar },
+  components: { DpUserAvatar },
   props: {
     visible: { type: Boolean, default: false },
-    /** @type {{ nickname: string, userId: number }} */
     target: {
       type: Object,
       default: null
@@ -116,7 +194,6 @@ export default {
       sentOk: false,
       tip: '',
       honor: null,
-      /** 来自 GET /dp/users/lookup 的 addStatus，用于判断已是好友/申请态 */
       lookupAddStatus: ''
     }
   },
@@ -149,7 +226,6 @@ export default {
       if (this.sentOk || this.lookupAddStatus === 'PENDING_OUTBOUND') return '申请已发送'
       return '发送好友申请'
     },
-    /** 禁用态主按钮在 Element 里会非常浅，改用普通文本块以保持可读 */
     socialPrimaryIsStaticHint() {
       return (
         this.isFriend ||
@@ -159,6 +235,20 @@ export default {
     },
     primaryDisabled() {
       return this.socialPrimaryIsStaticHint || !!this.tip
+    },
+    hasWeeklyRank() {
+      if (!this.honor) return false
+      var h = this.honor.leaderboardWeeklyHand
+      var r = this.honor.leaderboardWeeklyRoom
+      return (h && h.rank != null) || (r && r.rank != null)
+    },
+    rankHandDisplay() {
+      var r = this.honor && this.honor.leaderboardWeeklyHand && this.honor.leaderboardWeeklyHand.rank
+      return r != null ? r : '—'
+    },
+    rankRoomDisplay() {
+      var r = this.honor && this.honor.leaderboardWeeklyRoom && this.honor.leaderboardWeeklyRoom.rank
+      return r != null ? r : '—'
     }
   },
   watch: {
@@ -175,6 +265,10 @@ export default {
   methods: {
     formatNetWinMultiplier,
     formatRoomNetMultiplier,
+    formatMulti(v) {
+      if (v == null || isNaN(Number(v))) return '—'
+      return Number(v).toFixed(1)
+    },
     onCopyUserId() {
       if (!this.target) return
       var self = this
@@ -202,7 +296,7 @@ export default {
           this.honor = (res.data.data && res.data.data.honor) || null
         }
       } catch (e) {
-        // 静默：战绩加载不影响主要功能
+        // 静默
       }
     },
     async loadFriendAddStatus() {
@@ -220,7 +314,7 @@ export default {
           this.tip = '对方已向您发来申请，请在大厅邮箱中处理。'
         }
       } catch (e) {
-        /* 静默：仍可尝试发申请 */
+        /* 静默 */
       }
     },
     onViewHandHistoryWithOpponent() {
@@ -273,136 +367,489 @@ export default {
 </script>
 
 <style scoped>
-.dp-player-social-sheet {
-  padding: 4px 2px 8px;
-}
-.dp-player-social-sheet__avatar-wrap {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 10px;
-}
-.dp-player-social-sheet__name {
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--dp-text-strong, #1a1a1a);
-  text-align: center;
-  margin-bottom: 6px;
-}
-.dp-player-social-sheet__userid {
-  display: block;
-  width: fit-content;
-  max-width: 100%;
-  margin: 0 auto 8px;
-  font-size: 13px;
-  font-weight: 500;
-  text-align: center;
-}
-.dp-player-social-sheet__subtitle {
-  font-size: 13px;
-  color: var(--dp-text-secondary, #5a5248);
-  margin: 0 0 12px;
-  text-align: center;
-}
-.dp-player-social-sheet__hint {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 10px 12px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 600;
-  text-align: center;
-  color: var(--dp-text-primary, #1a1a1a);
-  background: rgba(136, 136, 136, 0.12);
-  border: 1px solid rgba(136, 136, 136, 0.28);
-  margin-bottom: 2px;
-}
+/* ============================================
+   对局玩家档案 — 星辰炸裂
+   ============================================ */
 
-@supports (color: color-mix(in srgb, red, blue)) {
-  .dp-player-social-sheet__hint {
-    background: color-mix(in srgb, var(--dp-text-muted, #888) 14%, transparent);
-    border: 1px solid color-mix(in srgb, var(--dp-text-muted, #888) 38%, transparent);
-  }
-}
-.dp-player-social-sheet__btn {
-  width: 100%;
-}
-.dp-player-social-sheet__btn--secondary {
-  margin-top: 10px;
-}
-.dp-player-social-sheet__tip {
-  margin: 12px 0 0;
-  font-size: 13px;
-  color: var(--dp-text-muted, #888);
-  line-height: 1.45;
-}
-
-/* ---- 生涯荣誉 ---- */
-.dp-player-social-sheet__honor {
-  background: var(--dp-subpanel-bg, #fafafa);
-  border-radius: 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--dp-subpanel-border, #e8e8e8);
-  margin-bottom: 12px;
-}
-.dp-player-honor__title {
-  font-size: 12px;
-  color: var(--dp-text-muted, #999);
-  font-weight: 600;
-  margin-bottom: 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.dp-player-honor__badges {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-.honor-chip {
-  flex: 1;
+/* ---- 全屏遮罩 ---- */
+.prof-player-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 6px 8px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 700;
-  border: 1px solid;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  overflow-y: auto;
+  padding: 20px;
 }
-.honor-chip--royal {
-  background: color-mix(in srgb, var(--dp-warning, #faad14) 12%, transparent);
-  border-color: var(--dp-warning, #faad14);
-  color: var(--dp-warning, #b45309);
+
+/* ======== 炸裂动画 ======== */
+.prof-burst-enter-active {
+  animation: prof-burst-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
-.honor-chip--straight {
-  background: color-mix(in srgb, var(--dp-accent, #1890ff) 12%, transparent);
-  border-color: var(--dp-accent, #1890ff);
-  color: var(--dp-accent, #1565c0);
+.prof-burst-leave-active {
+  animation: prof-burst-out 0.22s ease-in both;
 }
-.honor-chip--four {
-  background: color-mix(in srgb, var(--dp-danger, #ff4d4f) 12%, transparent);
-  border-color: var(--dp-danger, #ff4d4f);
-  color: var(--dp-danger, #c62828);
+.prof-burst-enter-active .prof-player-card {
+  animation: prof-card-bounce 0.5s 0.05s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
-.honor-chip__icon {
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
+.prof-burst-enter-active .prof-particle {
+  animation: prof-particle-burst 0.6s cubic-bezier(0, 1, 0.5, 1) both;
 }
-.dp-player-honor__stats {
+.prof-burst-enter-active .prof-player-hero__avatar {
+  animation: prof-slide-in-left 0.4s 0.12s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.prof-burst-enter-active .prof-player-hero__info {
+  animation: prof-fade-up 0.4s 0.18s ease-out both;
+}
+.prof-burst-enter-active .prof-player-glory {
+  animation: prof-fade-up 0.4s 0.24s ease-out both;
+}
+.prof-burst-enter-active .prof-player-actions {
+  animation: prof-fade-up 0.4s 0.30s ease-out both;
+}
+
+@keyframes prof-burst-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes prof-burst-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes prof-card-bounce {
+  from { transform: scale(0.3) rotate(-8deg); opacity: 0; }
+  60%  { transform: scale(1.04) rotate(0.5deg); opacity: 1; }
+  to   { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+@keyframes prof-slide-in-left {
+  from { transform: translateX(-30px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+@keyframes prof-fade-up {
+  from { transform: translateY(16px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+/* 粒子炸开 */
+@keyframes prof-particle-burst {
+  0%   { transform: translate(0, 0) scale(1); opacity: 0.8; }
+  100% { opacity: 0; }
+}
+.prof-particle--1 { --px: -120px; --py: -80px;  animation-delay: 0s;    }
+.prof-particle--2 { --px: 100px;  --py: -100px; animation-delay: 0.02s; }
+.prof-particle--3 { --px: -90px;  --py: 90px;   animation-delay: 0.04s; }
+.prof-particle--4 { --px: 110px;  --py: 70px;   animation-delay: 0.01s; }
+.prof-particle--5 { --px: -140px; --py: 10px;   animation-delay: 0.03s; }
+.prof-particle--6 { --px: 130px;  --py: -20px;  animation-delay: 0.05s; }
+
+@keyframes prof-particle-burst {
+  0%   { transform: translate(0, 0) scale(1); opacity: 0.8; }
+  100% { transform: translate(var(--px), var(--py)) scale(0); opacity: 0; }
+}
+
+/* ======== 粒子 ======== */
+.prof-particle {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 12px; height: 12px;
+  margin-left: -6px; margin-top: -6px;
+  border-radius: 3px;
+  background: var(--dp-warning, #c8963e);
+  pointer-events: none;
+  z-index: 0;
+  transform: scale(0);
+}
+.prof-particle--2 { background: var(--dp-accent, #1890ff); width: 8px; height: 8px; border-radius: 50%; }
+.prof-particle--3 { background: var(--dp-danger, #ff4d4f); width: 14px; height: 14px; border-radius: 2px; }
+.prof-particle--4 { background: var(--dp-success, #52c41a); width: 6px; height: 6px; border-radius: 50%; }
+.prof-particle--5 { background: var(--dp-warning, #c8963e); width: 10px; height: 10px; border-radius: 50%; }
+.prof-particle--6 { background: var(--dp-accent, #1890ff); width: 7px; height: 7px; border-radius: 2px; }
+
+/* ======== 主卡片 ======== */
+.prof-player-card {
+  position: relative;
+  z-index: 2;
+  width: min(94vw, 460px);
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(255,255,255,0.08) 0%, transparent 60%),
+    var(--dp-panel-bg);
+  border-radius: 24px;
+  padding: 32px 24px 24px;
+  box-shadow:
+    0 24px 64px rgba(0,0,0,0.25),
+    0 0 0 1px rgba(255,255,255,0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ---- 关掉 ---- */
+.prof-player-close {
+  position: absolute;
+  top: 14px; right: 14px;
+  z-index: 10;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0,0,0,0.06);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  color: var(--dp-text-muted);
+  transition: all 0.2s;
+}
+.prof-player-close:hover {
+  background: rgba(0,0,0,0.12);
+  color: var(--dp-danger);
+}
+
+/* ---- 巨型水印花色 ---- */
+.prof-player-watermark {
+  position: absolute;
+  top: 50%; right: -30px;
+  transform: translateY(-50%);
+  font-size: 200px;
+  line-height: 1;
+  color: var(--dp-subpanel-bg);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.6;
+}
+
+/* ======== Hero ======== */
+.prof-player-hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: relative;
+  z-index: 1;
+}
+.prof-player-hero__info {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
-.honor-line {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
-  color: var(--dp-text-muted, #999);
+.prof-player-hero__name {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--dp-text-primary);
+  letter-spacing: 0.03em;
+  line-height: 1.2;
 }
-.honor-line strong {
-  color: var(--dp-text-primary, #333);
+.prof-player-hero__id {
+  display: inline-block;
+  width: fit-content;
+  padding: 2px 10px;
+  font-size: 12px;
+  font-family: 'Courier New', monospace;
   font-weight: 600;
+  color: var(--dp-text-muted);
+  background: var(--dp-subpanel-bg);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.prof-player-hero__id:hover {
+  color: var(--dp-accent);
+  background: color-mix(in srgb, var(--dp-accent) 10%, var(--dp-subpanel-bg));
+}
+.prof-player-hero__rank-tag {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dp-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ======== 周榜排名区 ======== */
+.prof-player-rank {
+  position: relative;
+  z-index: 1;
+  padding: 16px;
+  border-radius: 18px;
+  background: linear-gradient(155deg, var(--dp-subpanel-bg), color-mix(in srgb, var(--dp-subpanel-bg) 85%, var(--dp-panel-bg)));
+  border: 1px solid var(--dp-subpanel-border);
+}
+.prof-player-rank__header {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--dp-text-secondary);
+  letter-spacing: 0.08em;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.prof-player-rank__cards {
+  display: flex;
+  gap: 10px;
+}
+.prof-rank-card {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 14px;
+  border-radius: 16px;
+  background: var(--dp-panel-bg);
+  border: 1px solid var(--dp-subpanel-border);
+  transition: transform 0.2s ease;
+}
+.prof-rank-card:hover { transform: translateY(-2px); }
+
+.prof-rank-card__badge {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+}
+.prof-rank-card--hand .prof-rank-card__badge {
+  background: radial-gradient(circle at 35% 28%, rgba(255,255,255,0.45), transparent 50%),
+    conic-gradient(
+      color-mix(in srgb, var(--dp-accent) 70%, #fff),
+      var(--dp-accent),
+      color-mix(in srgb, var(--dp-accent) 70%, #000),
+      var(--dp-accent),
+      color-mix(in srgb, var(--dp-accent) 70%, #fff)
+    );
+  box-shadow: 0 0 16px color-mix(in srgb, var(--dp-accent) 25%, transparent);
+}
+.prof-rank-card--room .prof-rank-card__badge {
+  background: radial-gradient(circle at 35% 28%, rgba(255,255,255,0.45), transparent 50%),
+    conic-gradient(
+      color-mix(in srgb, var(--dp-success) 70%, #fff),
+      var(--dp-success),
+      color-mix(in srgb, var(--dp-success) 70%, #000),
+      var(--dp-success),
+      color-mix(in srgb, var(--dp-success) 70%, #fff)
+    );
+  box-shadow: 0 0 16px color-mix(in srgb, var(--dp-success) 25%, transparent);
+}
+
+.prof-rank-card__rank-num {
+  font-size: 26px;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.25);
+}
+.prof-rank-card__rank-suffix {
+  font-size: 11px;
+  color: rgba(255,255,255,0.85);
+  margin-top: 1px;
+  font-weight: 600;
+}
+.prof-rank-card__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.prof-rank-card__type {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--dp-text-primary);
+}
+.prof-rank-card__mult {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dp-text-muted);
+}
+
+/* ======== 生涯荣誉区 ======== */
+.prof-player-glory {
+  position: relative;
+  z-index: 1;
+  padding: 18px 16px;
+  border-radius: 18px;
+  background: linear-gradient(155deg, var(--dp-subpanel-bg), color-mix(in srgb, var(--dp-subpanel-bg) 80%, var(--dp-panel-bg)));
+  border: 1px solid var(--dp-subpanel-border);
+}
+.prof-player-glory__header {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--dp-text-secondary);
+  letter-spacing: 0.08em;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.prof-player-glory__deco {
+  font-size: 10px;
+  opacity: 0.4;
+}
+
+/* ---- 大数字网格 ---- */
+.prof-player-glory__big-numbers {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+@media (max-width: 400px) {
+  .prof-player-glory__big-numbers {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.prof-glory-item {
+  position: relative;
+  text-align: center;
+  padding: 10px 6px;
+  border-radius: 14px;
+  background: var(--dp-panel-bg);
+  overflow: hidden;
+  transition: transform 0.25s ease;
+}
+.prof-glory-item:hover {
+  transform: translateY(-2px);
+}
+.prof-glory-item__number {
+  display: block;
+  font-size: 36px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.prof-glory-item__unit {
+  font-size: 13px;
+  font-weight: 600;
+  margin-left: 2px;
+}
+.prof-glory-item__label {
+  display: block;
+  font-size: 10px;
+  color: var(--dp-text-muted);
+  margin-top: 4px;
+  letter-spacing: 0.04em;
+}
+.prof-glory-item__suit {
+  position: absolute;
+  bottom: -6px; right: -4px;
+  font-size: 40px;
+  line-height: 1;
+  opacity: 0.06;
+  pointer-events: none;
+}
+
+.prof-glory-item--royal .prof-glory-item__number { color: var(--dp-warning); }
+.prof-glory-item--royal .prof-glory-item__unit  { color: var(--dp-warning); }
+.prof-glory-item--straight .prof-glory-item__number { color: var(--dp-accent); }
+.prof-glory-item--straight .prof-glory-item__unit  { color: var(--dp-accent); }
+.prof-glory-item--four .prof-glory-item__number { color: var(--dp-danger); }
+.prof-glory-item--four .prof-glory-item__unit  { color: var(--dp-danger); }
+.prof-glory-item--total .prof-glory-item__number { color: var(--dp-text-primary); }
+.prof-glory-item--total .prof-glory-item__unit  { color: var(--dp-text-primary); }
+
+/* ---- 辅助统计 ---- */
+.prof-player-glory__extras {
+  display: flex;
+  gap: 8px;
+}
+.prof-glory-extra {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px;
+  border-radius: 10px;
+  background: var(--dp-panel-bg);
+}
+.prof-glory-extra__num {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--dp-text-primary);
+  line-height: 1.1;
+}
+.prof-glory-extra__desc {
+  font-size: 11px;
+  color: var(--dp-text-muted);
+}
+
+/* ======== 操作区 ======== */
+.prof-player-actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.prof-player-actions__status {
+  padding: 12px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--dp-text-primary);
+  background: var(--dp-subpanel-bg);
+  border-radius: 12px;
+  border: 1px solid var(--dp-subpanel-border);
+}
+.prof-player-actions__tip {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--dp-text-muted);
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* ---- 按钮 ---- */
+.prof-player-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 13px 20px;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: inherit;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  position: relative;
+  overflow: hidden;
+}
+.prof-player-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.15);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.prof-player-btn:hover::after { opacity: 1; }
+.prof-player-btn:active { transform: scale(0.97); }
+.prof-player-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.prof-player-btn--friend {
+  background: linear-gradient(135deg, var(--dp-warning), color-mix(in srgb, var(--dp-warning) 75%, #000));
+  color: #fff;
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--dp-warning) 35%, transparent);
+}
+.prof-player-btn--history {
+  background: transparent;
+  color: var(--dp-text-secondary);
+  border: 1.5px solid var(--dp-input-border);
+  font-weight: 600;
+}
+.prof-player-btn--history:hover {
+  border-color: var(--dp-accent);
+  color: var(--dp-accent);
 }
 </style>
