@@ -81,3 +81,18 @@ body[data-dp-fluidity='eco'] .lb-page__tab {
 body[data-dp-fluidity='eco'] #app .nav-link {
   transition: none;
 }
+
+/* ---------- 大厅资料卡 honor glitch / backdrop blur ---------- */
+body[data-dp-fluidity='eco'] .home-prof-honor-val--reveal {
+  animation: none !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-prof-honor-val--reveal {
+    animation: none !important;
+    filter: none !important;
+    transform: none !important;
+  }
+}
