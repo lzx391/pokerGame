@@ -10,6 +10,7 @@ import com.example.mgdemoplus.user.dto.DpUserProfileUpdateRequest;
 import com.example.mgdemoplus.user.dto.DpUserProfileUpdateResult;
 import com.example.mgdemoplus.user.dto.DpPlayerHonorView;
 import com.example.mgdemoplus.user.dto.DpUserProfileView;
+import com.example.mgdemoplus.leaderboard.impl.DpLeaderboardWeeklyReadService;
 import com.example.mgdemoplus.user.mapper.DpUserStatsMapper;
 import com.example.mgdemoplus.utils.CryptoUtil;
 import com.example.mgdemoplus.utils.DpAvatarThumbnailSupport;
@@ -33,6 +34,8 @@ public class DpUserServiceImpl implements DpUserService {
     DpUserStatsMapper dpUserStatsMapper;
     @Autowired
     DpSensitiveWordService sensitiveWordService;
+    @Autowired
+    DpLeaderboardWeeklyReadService dpLeaderboardWeeklyReadService;
 
     @Value("${mgdemoplus.images.file-location:file:P:/javaworkspace/DPGameFiles/images/}")
     private String imagesFileLocation;
@@ -120,6 +123,8 @@ public class DpUserServiceImpl implements DpUserService {
             view.setLargestRoomNet(stats.getLargestRoomNet());
             view.setTotalHandsPlayed(stats.getTotalHandsPlayed());
         }
+        view.setLeaderboardWeeklyHand(dpLeaderboardWeeklyReadService.placementForHand(userId));
+        view.setLeaderboardWeeklyRoom(dpLeaderboardWeeklyReadService.placementForRoom(userId));
         return view;
     }
 

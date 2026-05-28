@@ -7,7 +7,10 @@ import com.example.mgdemoplus.leaderboard.DpLeaderboardWeekUtil;
 import com.example.mgdemoplus.leaderboard.LeaderboardCompetitionRankUtil;
 import com.example.mgdemoplus.leaderboard.entity.DpLeaderboardWeekly;
 import com.example.mgdemoplus.leaderboard.mapper.DpLeaderboardWeeklyMapper;
+import com.example.mgdemoplus.leaderboard.vo.DpWeeklyLeaderboardPlacementView;
 import com.example.mgdemoplus.leaderboard.vo.WeeklyLeaderboardItemVO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.example.mgdemoplus.utils.DpDateTimeSupport;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -26,7 +29,11 @@ import org.springframework.stereotype.Service;
 @Service
 public class DpLeaderboardWeeklyReadService {
 
+    private static final Logger log = LoggerFactory.getLogger(DpLeaderboardWeeklyReadService.class);
+
     public static final String STALE_HINT = "榜单约每分钟更新";
+    public static final String BOARD_HAND = "hand";
+    public static final String BOARD_ROOM = "room";
 
     private final StringRedisTemplate stringRedisTemplate;
     private final DpLeaderboardWeeklyMapper dpLeaderboardWeeklyMapper;
@@ -45,11 +52,48 @@ public class DpLeaderboardWeeklyReadService {
     }
 
     public Map<String, Object> getHandBoard(int limit, Integer viewerUserId) {
-        return buildBoard("hand", DpLeaderboardWeekUtil.handRedisKey(currentWeek()), limit, viewerUserId, true);
+        return buildBoard(BOARD_HAND, DpLeaderboardWeekUtil.handRedisKey(currentWeek()), limit, viewerUserId);
     }
 
     public Map<String, Object> getRoomBoard(int limit, Integer viewerUserId) {
-        return buildBoard("room", DpLeaderboardWeekUtil.roomRedisKey(currentWeek()), limit, viewerUserId, false);
+        return buildBoard(BOARD_ROOM, DpLeaderboardWeekUtil.roomRedisKey(currentWeek()), limit, viewerUserId);
+    }
+
+    /** 指定用户在手牌周榜上的位次与倍数（Redis + MySQL，与榜单接口 myRank/myMultiplier 一致）。 */
+    public DpWeeklyLeaderboardPlacementView placementForHand(int userId) {
+        return lookupPlacement(BOARD_HAND, userId);
+    }
+
+    /** 指定用户在房间净赢周榜上的位次与倍数。 */
+    public DpWeeklyLeaderboardPlacementView placementForRoom(int userId) {
+        return lookupPlacement(BOARD_ROOM, userId);
+    }
+
+    public DpWeeklyLeaderboardPlacementView lookupPlacement(String board, int userId) {
+        if (userId <= 0) {
+            return null;
+        }
+        LocalDate weekMonday = currentWeek();
+        boolean handBoard = BOARD_HAND.equals(board);
+        String redisKey = handBoard
+                ? DpLeaderboardWeekUtil.handRedisKey(weekMonday)
+                : DpLeaderboardWeekUtil.roomRedisKey(weekMonday);
+
+        DpWeeklyLeaderboardPlacementView placement = new DpWeeklyLeaderboardPlacementView();
+        placement.setBoard(board);
+        placement.setWeekMonday(weekMonday.toString());
+
+        try {
+            Long revRank = stringRedisTemplate.opsForZSet().reverseRank(redisKey, String.valueOf(userId));
+            if (revRank != null) {
+                placement.setRank(revRank.intValue() + 1);
+            }
+        } catch (Exception e) {
+            log.warn("leaderboard redis rank lookup failed board={} userId={}: {}", board, userId, e.toString());
+        }
+
+        placement.setMultiplier(resolveMultiplierFromMysql(weekMonday, userId, handBoard));
+        return placement;
     }
 
     private LocalDate currentWeek() {
@@ -59,8 +103,7 @@ public class DpLeaderboardWeeklyReadService {
     private Map<String, Object> buildBoard(String board,
                                            String redisKey,
                                            int limit,
-                                           Integer viewerUserId,
-                                           boolean handBoard) {
+                                           Integer viewerUserId) {
         int capped = Math.min(Math.max(limit, 1), 50);
         LocalDate weekMonday = currentWeek();
         Map<String, Object> data = new HashMap<>();
@@ -72,7 +115,7 @@ public class DpLeaderboardWeeklyReadService {
                 stringRedisTemplate.opsForZSet().reverseRangeWithScores(redisKey, 0, capped - 1);
         if (tuples == null || tuples.isEmpty()) {
             data.put("items", List.of());
-            attachMyStats(data, weekMonday, viewerUserId, handBoard, redisKey);
+            attachMyStats(data, board, viewerUserId);
             return data;
         }
 
@@ -91,7 +134,7 @@ public class DpLeaderboardWeeklyReadService {
                 items, WeeklyLeaderboardItemVO::getMultiplier, WeeklyLeaderboardItemVO::setRank);
         enrichNicknames(items);
         data.put("items", items);
-        attachMyStats(data, weekMonday, viewerUserId, handBoard, redisKey);
+        attachMyStats(data, board, viewerUserId);
         return data;
     }
 
@@ -117,29 +160,24 @@ public class DpLeaderboardWeeklyReadService {
         }
     }
 
-    private void attachMyStats(Map<String, Object> data,
-                               LocalDate weekMonday,
-                               Integer viewerUserId,
-                               boolean handBoard,
-                               String redisKey) {
+    private void attachMyStats(Map<String, Object> data, String board, Integer viewerUserId) {
         if (viewerUserId == null || viewerUserId <= 0) {
             return;
         }
-        Long revRank = stringRedisTemplate.opsForZSet().reverseRank(redisKey, String.valueOf(viewerUserId));
-        if (revRank != null) {
-            data.put("myRank", revRank.intValue() + 1);
-        } else {
-            data.put("myRank", null);
-        }
+        DpWeeklyLeaderboardPlacementView placement = lookupPlacement(board, viewerUserId);
+        data.put("myRank", placement.getRank());
+        data.put("myMultiplier", placement.getMultiplier());
+    }
 
-        DpLeaderboardWeekly row = dpLeaderboardWeeklyMapper.selectByWeekAndUser(weekMonday, viewerUserId);
-        BigDecimal myMultiplier = null;
-        if (row != null) {
-            myMultiplier = handBoard ? row.getBestHandMultiplier() : row.getBestRoomMultiplier();
-            if (myMultiplier != null && myMultiplier.signum() <= 0) {
-                myMultiplier = null;
-            }
+    private BigDecimal resolveMultiplierFromMysql(LocalDate weekMonday, int userId, boolean handBoard) {
+        DpLeaderboardWeekly row = dpLeaderboardWeeklyMapper.selectByWeekAndUser(weekMonday, userId);
+        if (row == null) {
+            return null;
         }
-        data.put("myMultiplier", myMultiplier);
+        BigDecimal multiplier = handBoard ? row.getBestHandMultiplier() : row.getBestRoomMultiplier();
+        if (multiplier != null && multiplier.signum() <= 0) {
+            return null;
+        }
+        return multiplier;
     }
 }

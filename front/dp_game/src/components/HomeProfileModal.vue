@@ -1,151 +1,194 @@
 <template>
   <el-dialog
-    title="个人资料"
     :visible.sync="dialogVisible"
-    width="min(92vw, 420px)"
+    width="min(94vw, 460px)"
     custom-class="home-profile-dialog"
     append-to-body
     :close-on-click-modal="!saving"
+    :show-close="false"
     @closed="onClosed"
   >
-    <div v-if="loading" class="home-profile-modal__loading">加载中…</div>
-    <el-form
-      v-else
-      ref="formRef"
-      :model="form"
-      label-position="top"
-      class="home-profile-modal__form"
-      @submit.native.prevent="onSave"
-    >
-      <el-form-item label="头像">
-        <div class="home-profile-modal__avatar-row">
-          <dp-user-avatar
-            :avatar-url="form.avatarUrl"
-            :nickname="form.nickname"
-            :cache-bust="avatarCacheBust || avatarCacheBustFromUpdatedAt(form.avatarUpdatedAt)"
-            size="lg"
-          />
-          <div class="home-profile-modal__avatar-actions">
-            <el-upload
-              class="home-profile-modal__avatar-upload"
-              action=""
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              :show-file-list="false"
-              :disabled="avatarUploading"
-              :http-request="onAvatarUploadRequest"
-            >
-              <button
-                type="button"
-                class="dp-btn dp-btn--ghost home-profile-modal__avatar-btn"
-                :disabled="avatarUploading"
-              >
-                {{ avatarUploading ? '上传中…' : '更换头像' }}
-              </button>
-            </el-upload>
-            <p class="home-profile-modal__avatar-hint">支持 jpg / png / webp / gif，最大 2MB</p>
+    <div slot="title" class="prof-title-bar">
+      <div class="prof-title-bar__deco">
+        <span class="prof-suit prof-suit--spade">♠</span>
+        <span class="prof-suit prof-suit--heart">♥</span>
+        <span class="prof-title-bar__text">个人资料</span>
+        <span class="prof-suit prof-suit--diamond">♦</span>
+        <span class="prof-suit prof-suit--club">♣</span>
+      </div>
+      <button type="button" class="prof-title-bar__close" :disabled="saving" @click="dialogVisible = false" aria-label="关闭">
+        <i class="el-icon-close"></i>
+      </button>
+    </div>
+
+    <div v-if="loading" class="prof-loading">
+      <span class="prof-loading__chip"></span>
+      <span>加载中…</span>
+    </div>
+
+    <div v-else class="prof-body">
+      <!-- 头像区 -->
+      <div class="prof-avatar-stage">
+        <div class="prof-avatar-frame prof-avatar-frame--normal">
+          <div class="prof-avatar-frame__bezel">
+            <dp-user-avatar
+              :avatar-url="form.avatarUrl"
+              :nickname="form.nickname"
+              :cache-bust="avatarCacheBust || avatarCacheBustFromUpdatedAt(form.avatarUpdatedAt)"
+              size="lg"
+            />
           </div>
+          <span class="prof-avatar-frame__corner prof-avatar-frame__corner--tl"></span>
+          <span class="prof-avatar-frame__corner prof-avatar-frame__corner--tr"></span>
+          <span class="prof-avatar-frame__corner prof-avatar-frame__corner--bl"></span>
+          <span class="prof-avatar-frame__corner prof-avatar-frame__corner--br"></span>
         </div>
-      </el-form-item>
-
-      <el-form-item label="用户 ID">
-        <el-input :value="String(form.id)" disabled />
-      </el-form-item>
-
-      <!-- 生涯荣誉战绩 -->
-      <el-form-item v-if="form.totalHandsPlayed != null" label="生涯战绩">
-        <div class="home-profile-modal__honor">
-          <div class="home-profile-modal__honor-row">
-            <div class="honor-badge honor-badge--royal">
-              <span class="honor-badge__icon">RF</span>
-              <span class="honor-badge__label">皇家同花顺</span>
-              <span class="honor-badge__count">{{ form.royalFlushWins || 0 }}</span>
-            </div>
-            <div class="honor-badge honor-badge--straight">
-              <span class="honor-badge__icon">SF</span>
-              <span class="honor-badge__label">同花顺</span>
-              <span class="honor-badge__count">{{ form.straightFlushWins || 0 }}</span>
-            </div>
-            <div class="honor-badge honor-badge--four">
-              <span class="honor-badge__icon">4K</span>
-              <span class="honor-badge__label">四条</span>
-              <span class="honor-badge__count">{{ form.fourOfAKindWins || 0 }}</span>
-            </div>
-          </div>
-          <div class="home-profile-modal__honor-stats">
-            <div class="honor-stat">
-              <span class="honor-stat__label">单局最高净赢倍数</span>
-              <span class="honor-stat__value">{{ formatNetWinMultiplier(form.largestPotWon) }}</span>
-            </div>
-            <div class="honor-stat">
-              <span class="honor-stat__label">单房间最高净赢倍数</span>
-              <span class="honor-stat__value">{{ formatRoomNetMultiplier(form.largestRoomNet) }}</span>
-            </div>
-            <div class="honor-stat">
-              <span class="honor-stat__label">生涯总局数</span>
-              <span class="honor-stat__value">{{ form.totalHandsPlayed || 0 }}</span>
-            </div>
-          </div>
-        </div>
-      </el-form-item>
-
-      <el-form-item label="昵称" required>
-        <el-input
-          v-model.trim="form.nickname"
-          maxlength="10"
-          show-word-limit
-          autocomplete="username"
-          placeholder="最多 10 字"
-        />
-      </el-form-item>
-      <el-form-item label="登录密码">
-        <div class="home-profile-modal__pwd-row">
-          <span class="home-profile-modal__pwd-hint">
-            {{ form.passwordSet ? '已设置（服务器仅存加密摘要，无法展示原文）' : '未设置' }}
-          </span>
-          <button
-            v-if="!editingPassword"
-            type="button"
-            class="dp-btn dp-btn--ghost home-profile-modal__pwd-toggle"
-            @click="editingPassword = true"
-          >
-            修改密码
+        <div class="prof-avatar-name">{{ form.nickname || '未设置昵称' }}</div>
+        <div class="prof-avatar-id">ID: {{ form.id }}</div>
+        <el-upload
+          class="prof-avatar-upload"
+          action=""
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          :show-file-list="false"
+          :disabled="avatarUploading"
+          :http-request="onAvatarUploadRequest"
+        >
+          <button type="button" class="prof-btn prof-btn--outline" :disabled="avatarUploading">
+            <i class="el-icon-camera"></i> {{ avatarUploading ? '上传中…' : '更换头像' }}
           </button>
+        </el-upload>
+        <p class="prof-avatar-hint">jpg / png / webp / gif，最大 2MB</p>
+      </div>
+
+      <!-- 生涯荣誉勋章墙 -->
+      <div v-if="form.totalHandsPlayed != null" class="prof-honor-wall">
+        <div class="prof-honor-wall__title">
+          <span class="prof-section-deco">♦</span> 生涯荣誉 <span class="prof-section-deco">♦</span>
         </div>
-        <template v-if="editingPassword">
-          <el-input
-            v-model="form.newPassword"
-            type="password"
-            show-password
-            autocomplete="new-password"
-            placeholder="新密码（至少 6 位，留空表示不改）"
-            class="home-profile-modal__field-gap"
-          />
-          <el-input
-            v-model="form.confirmPassword"
-            type="password"
-            show-password
-            autocomplete="new-password"
-            placeholder="再次输入新密码"
-            class="home-profile-modal__field-gap"
-          />
-        </template>
-      </el-form-item>
-      <el-form-item label="当前密码" required>
-        <el-input
-          v-model="form.oldPassword"
-          type="password"
-          show-password
-          autocomplete="current-password"
-          placeholder="保存前须验证当前密码"
-        />
-      </el-form-item>
-    </el-form>
-    <span slot="footer" class="home-profile-modal__footer">
-      <button type="button" class="dp-btn dp-btn--ghost" :disabled="saving" @click="dialogVisible = false">
+        <div class="prof-honor-wall__medals">
+          <div class="prof-medal prof-medal--royal">
+            <div class="prof-medal__chip">
+              <span class="prof-medal__suit prof-medal__suit--royal">♛</span>
+            </div>
+            <div class="prof-medal__body">
+              <span class="prof-medal__name">皇家同花顺</span>
+              <span class="prof-medal__count">{{ form.royalFlushWins || 0 }}<small> 次</small></span>
+            </div>
+          </div>
+          <div class="prof-medal prof-medal--straight">
+            <div class="prof-medal__chip">
+              <span class="prof-medal__suit prof-medal__suit--straight">♠</span>
+            </div>
+            <div class="prof-medal__body">
+              <span class="prof-medal__name">同花顺</span>
+              <span class="prof-medal__count">{{ form.straightFlushWins || 0 }}<small> 次</small></span>
+            </div>
+          </div>
+          <div class="prof-medal prof-medal--four">
+            <div class="prof-medal__chip">
+              <span class="prof-medal__suit prof-medal__suit--four">4</span>
+            </div>
+            <div class="prof-medal__body">
+              <span class="prof-medal__name">四条</span>
+              <span class="prof-medal__count">{{ form.fourOfAKindWins || 0 }}<small> 次</small></span>
+            </div>
+          </div>
+        </div>
+        <div class="prof-honor-wall__stats">
+          <div class="prof-stat-card">
+            <span class="prof-stat-card__label">最高净赢倍数</span>
+            <span class="prof-stat-card__value">{{ formatNetWinMultiplier(form.largestPotWon) }}</span>
+          </div>
+          <div class="prof-stat-card">
+            <span class="prof-stat-card__label">单房最高净赢</span>
+            <span class="prof-stat-card__value">{{ formatRoomNetMultiplier(form.largestRoomNet) }}</span>
+          </div>
+          <div class="prof-stat-card">
+            <span class="prof-stat-card__label">生涯总局数</span>
+            <span class="prof-stat-card__value">{{ form.totalHandsPlayed || 0 }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 编辑区 -->
+      <div class="prof-edit-section">
+        <div class="prof-edit-section__title">
+          <span class="prof-section-deco">♣</span> 编辑资料 <span class="prof-section-deco">♣</span>
+        </div>
+
+        <el-form
+          ref="formRef"
+          :model="form"
+          label-position="top"
+          class="prof-form"
+          @submit.native.prevent="onSave"
+        >
+          <el-form-item label="昵称" required>
+            <el-input
+              v-model.trim="form.nickname"
+              maxlength="10"
+              show-word-limit
+              autocomplete="username"
+              placeholder="最多 10 字"
+            />
+          </el-form-item>
+
+          <el-form-item label="登录密码">
+            <div class="prof-pwd-row">
+              <span class="prof-pwd-hint">
+                {{ form.passwordSet ? '已设置（加密存储，不可查看）' : '未设置' }}
+              </span>
+              <button
+                v-if="!editingPassword"
+                type="button"
+                class="prof-btn prof-btn--outline prof-btn--sm"
+                @click="editingPassword = true"
+              >
+                修改密码
+              </button>
+            </div>
+            <template v-if="editingPassword">
+              <el-input
+                v-model="form.newPassword"
+                type="password"
+                show-password
+                autocomplete="new-password"
+                placeholder="新密码（至少 6 位，留空不改）"
+                class="prof-field-gap"
+              />
+              <el-input
+                v-model="form.confirmPassword"
+                type="password"
+                show-password
+                autocomplete="new-password"
+                placeholder="再次输入新密码"
+                class="prof-field-gap"
+              />
+            </template>
+          </el-form-item>
+
+          <el-form-item label="当前密码" required>
+            <el-input
+              v-model="form.oldPassword"
+              type="password"
+              show-password
+              autocomplete="current-password"
+              placeholder="保存前须验证当前密码"
+            />
+          </el-form-item>
+        </el-form>
+      </div>
+    </div>
+
+    <span slot="footer" class="prof-footer">
+      <button type="button" class="prof-btn prof-btn--ghost" :disabled="saving" @click="dialogVisible = false">
         取消
       </button>
-      <button type="button" class="dp-btn dp-btn--primary" :disabled="loading || saving" @click="onSave">
-        {{ saving ? '保存中…' : '保存' }}
+      <button type="button" class="prof-btn prof-btn--gold" :disabled="loading || saving" @click="onSave">
+        <span v-if="!saving">保存</span>
+        <span v-else class="prof-btn__saving">
+          <i class="el-icon-loading"></i> 保存中…
+        </span>
       </button>
     </span>
   </el-dialog>
@@ -351,146 +394,468 @@ export default {
 </script>
 
 <style scoped>
-.home-profile-modal__loading {
-  text-align: center;
-  padding: 24px 0;
-  color: var(--dp-text-secondary, #666);
-}
-.home-profile-modal__form >>> .el-form-item__label {
-  padding-bottom: 4px;
-  line-height: 1.3;
-}
-.home-profile-modal__pwd-row {
+/* ============================================
+   个人资料 — 扑克荣誉勋章墙（主题自适应）
+   ============================================ */
+
+/* ---- 标题栏 ---- */
+.prof-title-bar {
   display: flex;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 4px;
+}
+.prof-title-bar__deco {
+  display: flex;
   align-items: center;
   gap: 8px;
 }
-.home-profile-modal__pwd-hint {
-  flex: 1 1 160px;
+.prof-title-bar__text {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--dp-text-primary);
+}
+.prof-suit {
+  font-size: 14px;
+  line-height: 1;
+}
+.prof-suit--spade  { color: var(--dp-text-primary); }
+.prof-suit--heart  { color: var(--dp-danger); }
+.prof-suit--diamond{ color: var(--dp-danger); }
+.prof-suit--club   { color: var(--dp-text-primary); }
+.prof-title-bar__close {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--dp-input-border);
+  background: var(--dp-panel-bg);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  color: var(--dp-text-muted);
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.prof-title-bar__close:hover {
+  background: color-mix(in srgb, var(--dp-danger) 12%, var(--dp-panel-bg));
+  border-color: var(--dp-danger);
+  color: var(--dp-danger);
+}
+
+/* ---- 加载态 ---- */
+.prof-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 40px 0;
+  color: var(--dp-text-muted);
+  font-size: 14px;
+}
+.prof-loading__chip {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 3px solid var(--dp-subpanel-border);
+  border-top-color: var(--dp-warning);
+  animation: prof-spin 0.8s linear infinite;
+}
+@keyframes prof-spin { to { transform: rotate(360deg); } }
+
+/* ---- Body ---- */
+.prof-body {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ---- 头像区 ---- */
+.prof-avatar-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 0 8px;
+  position: relative;
+}
+.prof-avatar-stage::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 20%; right: 20%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--dp-warning), transparent);
+}
+/* ---- 头像相框 ---- */
+.prof-avatar-frame {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 50%;
+  /* 默认相框：银灰色金属拉丝感 */
+  background: linear-gradient(145deg,
+    color-mix(in srgb, var(--dp-text-muted) 30%, var(--dp-panel-bg)),
+    color-mix(in srgb, var(--dp-text-muted) 50%, var(--dp-panel-bg)) 30%,
+    color-mix(in srgb, var(--dp-text-muted) 40%, var(--dp-panel-bg)) 55%,
+    color-mix(in srgb, var(--dp-text-muted) 15%, var(--dp-panel-bg)) 85%
+  );
+  box-shadow:
+    0 4px 16px rgba(0,0,0,0.12),
+    0 0 0 1px rgba(0,0,0,0.06),
+    inset 0 1px 0 rgba(255,255,255,0.4);
+}
+/* 内圈：像框压在照片上的斜面 */
+.prof-avatar-frame__bezel {
+  position: relative;
+  z-index: 2;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow:
+    inset 0 2px 6px rgba(0,0,0,0.15),
+    0 0 0 2px rgba(0,0,0,0.08);
+}
+/* 四角铆钉 */
+.prof-avatar-frame__corner {
+  position: absolute;
+  z-index: 3;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--dp-text-muted) 60%, var(--dp-panel-bg));
+  box-shadow:
+    0 1px 3px rgba(0,0,0,0.2),
+    inset 0 1px 0 rgba(255,255,255,0.5);
+}
+.prof-avatar-frame__corner--tl { top: 6px;  left: calc(50% - 4px); }
+.prof-avatar-frame__corner--tr { top: 6px;  right: calc(50% - 4px); }
+.prof-avatar-frame__corner--bl { bottom: 6px; left: calc(50% - 4px); }
+.prof-avatar-frame__corner--br { bottom: 6px; right: calc(50% - 4px); }
+
+/* 未来段位相框预留：加 .prof-avatar-frame--bronze / --silver / --gold 等 */
+.prof-avatar-frame--normal {
+  /* 当前默认样式，后期按段位覆盖 frame 的 background / box-shadow / corner 颜色 */
+}
+.prof-avatar-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--dp-text-primary);
+  letter-spacing: 0.03em;
+}
+.prof-avatar-id {
+  font-size: 12px;
+  color: var(--dp-text-muted);
+  font-family: 'Courier New', monospace;
+  background: var(--dp-subpanel-bg);
+  padding: 3px 12px;
+  border-radius: 10px;
+}
+.prof-avatar-hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--dp-text-muted);
+}
+
+/* ---- 通用按钮 ---- */
+.prof-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  border-radius: 8px;
+  font-family: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 9px 20px;
+  font-weight: 600;
+  transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.prof-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.prof-btn--sm { font-size: 12px; padding: 5px 12px; }
+.prof-btn--outline {
+  background: transparent;
+  border: 1.5px solid var(--dp-warning);
+  color: var(--dp-warning);
+}
+.prof-btn--outline:hover:not(:disabled) {
+  background: var(--dp-warning);
+  color: #fff;
+}
+.prof-btn--ghost {
+  background: var(--dp-subpanel-bg);
+  color: var(--dp-text-secondary);
+}
+.prof-btn--ghost:hover:not(:disabled) {
+  background: var(--dp-input-border);
+}
+.prof-btn--gold {
+  background: linear-gradient(135deg, var(--dp-warning), color-mix(in srgb, var(--dp-warning) 70%, #000));
+  color: #fff;
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--dp-warning) 35%, transparent);
+}
+.prof-btn--gold:hover:not(:disabled) {
+  box-shadow: 0 5px 18px color-mix(in srgb, var(--dp-warning) 50%, transparent);
+  transform: translateY(-1px);
+}
+.prof-btn--gold:active:not(:disabled) {
+  transform: translateY(0);
+}
+.prof-btn__saving { display: inline-flex; align-items: center; gap: 4px; }
+
+/* ---- 分区装饰 ---- */
+.prof-section-deco {
+  font-size: 12px;
+  opacity: 0.5;
+}
+
+/* ======== 生涯荣誉勋章墙 ======== */
+.prof-honor-wall {
+  background: linear-gradient(160deg, var(--dp-subpanel-bg) 0%, color-mix(in srgb, var(--dp-subpanel-bg) 85%, var(--dp-panel-bg)) 100%);
+  border-radius: 14px;
+  padding: 18px 16px;
+  border: 1px solid var(--dp-subpanel-border);
+  position: relative;
+  overflow: hidden;
+}
+/* 背景装饰：透明卡牌花纹 */
+.prof-honor-wall::before {
+  content: '♠ ♥ ♦ ♣ ♠ ♥ ♦ ♣';
+  position: absolute;
+  top: -8px; right: -20px;
+  font-size: 60px;
+  letter-spacing: 8px;
+  line-height: 1;
+  color: color-mix(in srgb, var(--dp-warning) 4%, transparent);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.prof-honor-wall__title {
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--dp-text-primary);
+  margin-bottom: 14px;
+  letter-spacing: 0.06em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.prof-honor-wall__medals {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.prof-honor-wall__stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+/* ---- 勋章 ---- */
+.prof-medal {
+  flex: 1 1 0;
+  min-width: 0;
+  background: var(--dp-panel-bg);
+  border-radius: 12px;
+  padding: 12px 8px;
+  text-align: center;
+  border: 1.5px solid;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  position: relative;
+}
+.prof-medal:hover {
+  transform: translateY(-3px);
+}
+.prof-medal--royal {
+  border-color: var(--dp-warning);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--dp-warning) 12%, transparent);
+}
+.prof-medal--royal:hover { box-shadow: 0 6px 20px color-mix(in srgb, var(--dp-warning) 25%, transparent); }
+.prof-medal--straight {
+  border-color: var(--dp-accent);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--dp-accent) 8%, transparent);
+}
+.prof-medal--straight:hover { box-shadow: 0 6px 20px color-mix(in srgb, var(--dp-accent) 18%, transparent); }
+.prof-medal--four {
+  border-color: var(--dp-danger);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--dp-danger) 8%, transparent);
+}
+.prof-medal--four:hover { box-shadow: 0 6px 20px color-mix(in srgb, var(--dp-danger) 18%, transparent); }
+.prof-medal__chip {
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  margin: 0 auto 8px;
+  display: flex; align-items: center; justify-content: center;
+}
+.prof-medal--royal .prof-medal__chip {
+  background: radial-gradient(circle at 35% 28%, rgba(255,255,255,0.55), transparent 50%),
+    conic-gradient(
+      color-mix(in srgb, var(--dp-warning) 70%, #fff),
+      var(--dp-warning),
+      color-mix(in srgb, var(--dp-warning) 70%, #000),
+      var(--dp-warning),
+      color-mix(in srgb, var(--dp-warning) 70%, #fff)
+    );
+  box-shadow: 0 0 12px color-mix(in srgb, var(--dp-warning) 30%, transparent);
+}
+.prof-medal--straight .prof-medal__chip {
+  background: radial-gradient(circle at 35% 28%, rgba(255,255,255,0.55), transparent 50%),
+    conic-gradient(
+      color-mix(in srgb, var(--dp-accent) 70%, #fff),
+      var(--dp-accent),
+      color-mix(in srgb, var(--dp-accent) 70%, #000),
+      var(--dp-accent),
+      color-mix(in srgb, var(--dp-accent) 70%, #fff)
+    );
+  box-shadow: 0 0 12px color-mix(in srgb, var(--dp-accent) 25%, transparent);
+}
+.prof-medal--four .prof-medal__chip {
+  background: radial-gradient(circle at 35% 28%, rgba(255,255,255,0.55), transparent 50%),
+    conic-gradient(
+      color-mix(in srgb, var(--dp-danger) 70%, #fff),
+      var(--dp-danger),
+      color-mix(in srgb, var(--dp-danger) 70%, #000),
+      var(--dp-danger),
+      color-mix(in srgb, var(--dp-danger) 70%, #fff)
+    );
+  box-shadow: 0 0 12px color-mix(in srgb, var(--dp-danger) 25%, transparent);
+}
+.prof-medal__suit {
+  font-size: 20px;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  line-height: 1;
+}
+.prof-medal__body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.prof-medal__name {
+  font-size: 11px;
+  color: var(--dp-text-muted);
+  letter-spacing: 0.03em;
+}
+.prof-medal__count {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--dp-text-primary);
+  line-height: 1;
+}
+.prof-medal__count small {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--dp-text-muted);
+}
+
+/* ---- 统计小卡 ---- */
+.prof-stat-card {
+  background: var(--dp-panel-bg);
+  border-radius: 10px;
+  padding: 10px 10px;
+  text-align: center;
+  border: 1px solid var(--dp-subpanel-border);
+  transition: transform 0.2s ease;
+}
+.prof-stat-card:hover { transform: translateY(-2px); }
+.prof-stat-card__label {
+  display: block;
+  font-size: 11px;
+  color: var(--dp-text-muted);
+  margin-bottom: 4px;
+}
+.prof-stat-card__value {
+  display: block;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--dp-text-primary);
+  line-height: 1.2;
+}
+
+/* ======== 编辑资料区 ======== */
+.prof-edit-section {
+  background: linear-gradient(160deg, var(--dp-subpanel-bg) 0%, color-mix(in srgb, var(--dp-subpanel-bg) 85%, var(--dp-panel-bg)) 100%);
+  border-radius: 14px;
+  padding: 18px 16px;
+  border: 1px solid var(--dp-subpanel-border);
+}
+.prof-edit-section__title {
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--dp-text-primary);
+  margin-bottom: 14px;
+  letter-spacing: 0.06em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* ---- 表单 ---- */
+.prof-form >>> .el-form-item__label {
+  padding-bottom: 4px;
+  font-weight: 600;
   font-size: 13px;
-  color: var(--dp-text-secondary, #666);
+  color: var(--dp-text-primary);
+}
+.prof-form >>> .el-input__inner {
+  border-radius: 8px;
+  border-color: var(--dp-input-border);
+  font-size: 14px;
+  background: var(--dp-input-bg);
+  color: var(--dp-text-primary);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.prof-form >>> .el-input__inner:focus {
+  border-color: var(--dp-warning);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--dp-warning) 12%, transparent);
+}
+.prof-form >>> .el-input.is-disabled .el-input__inner {
+  background: var(--dp-subpanel-bg);
+  color: var(--dp-text-muted);
+  border-color: var(--dp-subpanel-border);
+}
+
+.prof-pwd-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.prof-pwd-hint {
+  flex: 1 1 140px;
+  font-size: 13px;
+  color: var(--dp-text-muted);
   line-height: 1.4;
 }
-.home-profile-modal__pwd-toggle {
-  flex-shrink: 0;
-  padding: 4px 10px;
-  font-size: 13px;
-}
-.home-profile-modal__field-gap {
-  margin-top: 8px;
-}
-.home-profile-modal__footer {
+.prof-field-gap { margin-top: 8px; }
+
+/* ---- Footer ---- */
+.prof-footer {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
 }
-.home-profile-modal__avatar-row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-.home-profile-modal__avatar-actions {
-  flex: 1 1 160px;
-  min-width: 0;
-}
-.home-profile-modal__avatar-hint {
-  margin: 8px 0 0;
-  font-size: 12px;
-  color: var(--dp-text-muted, #999);
-  line-height: 1.4;
-}
-.home-profile-modal__avatar-btn {
-  font-size: 13px;
-}
-.home-profile-modal__avatar-upload >>> .el-upload {
-  display: block;
-}
-
-/* ---- 荣誉战绩 ---- */
-.home-profile-modal__honor {
-  background: var(--dp-subpanel-bg, #fafafa);
-  border-radius: 8px;
-  padding: 12px 14px;
-  border: 1px solid var(--dp-subpanel-border, #e8e8e8);
-}
-.home-profile-modal__honor-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 10px;
-  flex-wrap: wrap;
-}
-.honor-badge {
-  flex: 1 1 90px;
-  min-width: 80px;
-  border-radius: 8px;
-  padding: 10px 8px;
-  text-align: center;
-  border: 1px solid;
-}
-.honor-badge--royal {
-  background: color-mix(in srgb, var(--dp-warning, #faad14) 10%, transparent);
-  border-color: var(--dp-warning, #faad14);
-  color: var(--dp-warning, #b45309);
-}
-.honor-badge--straight {
-  background: color-mix(in srgb, var(--dp-accent, #1890ff) 10%, transparent);
-  border-color: var(--dp-accent, #1890ff);
-  color: var(--dp-accent, #1565c0);
-}
-.honor-badge--four {
-  background: color-mix(in srgb, var(--dp-danger, #ff4d4f) 10%, transparent);
-  border-color: var(--dp-danger, #ff4d4f);
-  color: var(--dp-danger, #c62828);
-}
-.honor-badge__icon {
-  display: block;
-  font-size: 16px;
-  font-weight: 800;
-  margin-bottom: 2px;
-  letter-spacing: 1px;
-}
-.honor-badge__label {
-  display: block;
-  font-size: 11px;
-  color: var(--dp-text-muted, #999);
-  margin-bottom: 3px;
-}
-.honor-badge__count {
-  display: block;
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--dp-text-primary, #333);
-}
-.home-profile-modal__honor-stats {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.honor-stat {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 13px;
-}
-.honor-stat__label {
-  color: var(--dp-text-muted, #999);
-}
-.honor-stat__value {
-  font-weight: 600;
-  color: var(--dp-text-primary, #333);
-}
 </style>
 
 <style>
-/* 窄屏：对话框贴边留白 */
 .home-profile-dialog {
   max-width: calc(100vw - 16px);
+  border-radius: 16px !important;
+  overflow: hidden;
+}
+.home-profile-dialog .el-dialog__header {
+  padding: 18px 20px 8px;
+  background: var(--dp-panel-bg);
 }
 .home-profile-dialog .el-dialog__body {
-  padding-top: 8px;
-  padding-bottom: 8px;
+  padding: 8px 20px 16px;
+  background: var(--dp-panel-bg);
+}
+.home-profile-dialog .el-dialog__footer {
+  padding: 12px 20px 18px;
+  background: var(--dp-panel-bg);
 }
 </style>

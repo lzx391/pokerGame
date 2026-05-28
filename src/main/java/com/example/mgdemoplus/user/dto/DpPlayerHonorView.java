@@ -1,5 +1,6 @@
 package com.example.mgdemoplus.user.dto;
 
+import com.example.mgdemoplus.leaderboard.vo.DpWeeklyLeaderboardPlacementView;
 import java.math.BigDecimal;
 
 /**
@@ -21,6 +22,11 @@ public class DpPlayerHonorView {
     private BigDecimal largestPotWon;
     private BigDecimal largestRoomNet;
     private int totalHandsPlayed;
+
+    /** 本周手牌倍数周榜（board=hand） */
+    private DpWeeklyLeaderboardPlacementView leaderboardWeeklyHand;
+    /** 本周房间净赢倍数周榜（board=room） */
+    private DpWeeklyLeaderboardPlacementView leaderboardWeeklyRoom;
 
     public int getUserId() {
         return userId;
@@ -100,5 +106,21 @@ public class DpPlayerHonorView {
 
     public void setTotalHandsPlayed(int totalHandsPlayed) {
         this.totalHandsPlayed = totalHandsPlayed;
+    }
+
+    public DpWeeklyLeaderboardPlacementView getLeaderboardWeeklyHand() {
+        return leaderboardWeeklyHand;
+    }
+
+    public void setLeaderboardWeeklyHand(DpWeeklyLeaderboardPlacementView leaderboardWeeklyHand) {
+        this.leaderboardWeeklyHand = leaderboardWeeklyHand;
+    }
+
+    public DpWeeklyLeaderboardPlacementView getLeaderboardWeeklyRoom() {
+        return leaderboardWeeklyRoom;
+    }
+
+    public void setLeaderboardWeeklyRoom(DpWeeklyLeaderboardPlacementView leaderboardWeeklyRoom) {
+        this.leaderboardWeeklyRoom = leaderboardWeeklyRoom;
     }
 }
