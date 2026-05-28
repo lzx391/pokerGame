@@ -46,6 +46,14 @@ body[data-dp-game-theme='default'] {
   --dp-subpanel-bg: #fafafa;
   --dp-subpanel-border: #e8e8e8;
 
+  /* 排行榜 Top3 领奖台（P0 default） */
+  --dp-lb-podium-gold: #c9a227;
+  --dp-lb-podium-silver: #8b9aab;
+  --dp-lb-podium-bronze: #b87333;
+  --dp-lb-podium-row-bg-gold: color-mix(in srgb, var(--dp-lb-podium-gold) 14%, var(--dp-subpanel-bg));
+  --dp-lb-podium-row-bg-silver: color-mix(in srgb, var(--dp-lb-podium-silver) 12%, var(--dp-subpanel-bg));
+  --dp-lb-podium-row-bg-bronze: color-mix(in srgb, var(--dp-lb-podium-bronze) 12%, var(--dp-subpanel-bg));
+
   --dp-player-card-bg: #ffffff;
   --dp-player-card-offline-bg: #f5f5f5;
   --dp-player-card-offline-border: #d9d9d9;
@@ -170,6 +178,13 @@ body[data-dp-game-theme='scifi'] {
   --dp-subpanel-bg: rgba(3, 16, 30, 0.94);
   --dp-subpanel-border: rgba(0, 188, 212, 0.16);
 
+  --dp-lb-podium-gold: #ffd54f;
+  --dp-lb-podium-silver: #90caf9;
+  --dp-lb-podium-bronze: #ffab76;
+  --dp-lb-podium-row-bg-gold: color-mix(in srgb, var(--dp-lb-podium-gold) 16%, var(--dp-subpanel-bg));
+  --dp-lb-podium-row-bg-silver: color-mix(in srgb, var(--dp-lb-podium-silver) 14%, var(--dp-subpanel-bg));
+  --dp-lb-podium-row-bg-bronze: color-mix(in srgb, var(--dp-lb-podium-bronze) 14%, var(--dp-subpanel-bg));
+
   --dp-player-card-bg: rgba(10, 34, 54, 0.97);
   --dp-player-card-offline-bg: rgba(14, 24, 38, 0.82);
   --dp-player-card-offline-border: #355a6e;
@@ -291,6 +306,13 @@ body[data-dp-game-theme='gothic'] {
 
   --dp-subpanel-bg: #171018;
   --dp-subpanel-border: #3d2832;
+
+  --dp-lb-podium-gold: #e0c975;
+  --dp-lb-podium-silver: #b8b0a8;
+  --dp-lb-podium-bronze: #c17a4a;
+  --dp-lb-podium-row-bg-gold: color-mix(in srgb, var(--dp-lb-podium-gold) 16%, var(--dp-subpanel-bg));
+  --dp-lb-podium-row-bg-silver: color-mix(in srgb, var(--dp-lb-podium-silver) 14%, var(--dp-subpanel-bg));
+  --dp-lb-podium-row-bg-bronze: color-mix(in srgb, var(--dp-lb-podium-bronze) 14%, var(--dp-subpanel-bg));
 
   --dp-player-card-bg: #2a1e26;
   --dp-player-card-offline-bg: #150c12;
@@ -416,6 +438,13 @@ body[data-dp-game-theme='macau'] {
   --dp-subpanel-bg: rgba(8, 28, 20, 0.94);
   --dp-subpanel-border: rgba(80, 180, 168, 0.26);
 
+  --dp-lb-podium-gold: #ecd078;
+  --dp-lb-podium-silver: #b8c4c0;
+  --dp-lb-podium-bronze: #c9885a;
+  --dp-lb-podium-row-bg-gold: color-mix(in srgb, var(--dp-lb-podium-gold) 16%, var(--dp-subpanel-bg));
+  --dp-lb-podium-row-bg-silver: color-mix(in srgb, var(--dp-lb-podium-silver) 14%, var(--dp-subpanel-bg));
+  --dp-lb-podium-row-bg-bronze: color-mix(in srgb, var(--dp-lb-podium-bronze) 14%, var(--dp-subpanel-bg));
+
   --dp-player-card-bg: rgba(12, 40, 30, 0.97);
   --dp-player-card-offline-bg: rgba(6, 20, 14, 0.9);
   --dp-player-card-offline-border: #3a5c4c;
@@ -538,6 +567,13 @@ body[data-dp-game-theme='midnight'] {
 
   --dp-subpanel-bg: rgba(6, 18, 38, 0.93);
   --dp-subpanel-border: rgba(92, 122, 158, 0.24);
+
+  --dp-lb-podium-gold: #fde047;
+  --dp-lb-podium-silver: #c5d8f0;
+  --dp-lb-podium-bronze: #d4a574;
+  --dp-lb-podium-row-bg-gold: color-mix(in srgb, var(--dp-lb-podium-gold) 16%, var(--dp-subpanel-bg));
+  --dp-lb-podium-row-bg-silver: color-mix(in srgb, var(--dp-lb-podium-silver) 14%, var(--dp-subpanel-bg));
+  --dp-lb-podium-row-bg-bronze: color-mix(in srgb, var(--dp-lb-podium-bronze) 14%, var(--dp-subpanel-bg));
 
   --dp-player-card-bg: rgba(14, 30, 54, 0.97);
   --dp-player-card-offline-bg: rgba(10, 20, 36, 0.86);
@@ -662,6 +698,13 @@ body[data-dp-game-theme='forest'] {
   --dp-subpanel-bg: rgba(10, 32, 20, 0.93);
   --dp-subpanel-border: rgba(76, 120, 72, 0.32);
 
+  --dp-lb-podium-gold: #ffc107;
+  --dp-lb-podium-silver: #a8b8a8;
+  --dp-lb-podium-bronze: #c17a4a;
+  --dp-lb-podium-row-bg-gold: color-mix(in srgb, var(--dp-lb-podium-gold) 16%, var(--dp-subpanel-bg));
+  --dp-lb-podium-row-bg-silver: color-mix(in srgb, var(--dp-lb-podium-silver) 14%, var(--dp-subpanel-bg));
+  --dp-lb-podium-row-bg-bronze: color-mix(in srgb, var(--dp-lb-podium-bronze) 14%, var(--dp-subpanel-bg));
+
   --dp-player-card-bg: rgba(20, 48, 32, 0.97);
   --dp-player-card-offline-bg: rgba(12, 28, 18, 0.9);
   --dp-player-card-offline-border: #4a6e52;
@@ -785,6 +828,13 @@ body[data-dp-game-theme='sunset'] {
   --dp-subpanel-bg: rgba(36, 20, 32, 0.92);
   --dp-subpanel-border: rgba(186, 104, 200, 0.28);
 
+  --dp-lb-podium-gold: #ffb74d;
+  --dp-lb-podium-silver: #d4b8c8;
+  --dp-lb-podium-bronze: #e09856;
+  --dp-lb-podium-row-bg-gold: color-mix(in srgb, var(--dp-lb-podium-gold) 16%, var(--dp-subpanel-bg));
+  --dp-lb-podium-row-bg-silver: color-mix(in srgb, var(--dp-lb-podium-silver) 14%, var(--dp-subpanel-bg));
+  --dp-lb-podium-row-bg-bronze: color-mix(in srgb, var(--dp-lb-podium-bronze) 14%, var(--dp-subpanel-bg));
+
   --dp-player-card-bg: rgba(52, 30, 46, 0.97);
   --dp-player-card-offline-bg: rgba(30, 16, 28, 0.9);
   --dp-player-card-offline-border: #6d4c62;
@@ -906,6 +956,13 @@ body[data-dp-game-theme='ink'] {
 
   --dp-subpanel-bg: #f2ede4;
   --dp-subpanel-border: #cfc4b8;
+
+  --dp-lb-podium-gold: #b8860b;
+  --dp-lb-podium-silver: #607d8b;
+  --dp-lb-podium-bronze: #8d5524;
+  --dp-lb-podium-row-bg-gold: color-mix(in srgb, var(--dp-lb-podium-gold) 14%, var(--dp-subpanel-bg));
+  --dp-lb-podium-row-bg-silver: color-mix(in srgb, var(--dp-lb-podium-silver) 12%, var(--dp-subpanel-bg));
+  --dp-lb-podium-row-bg-bronze: color-mix(in srgb, var(--dp-lb-podium-bronze) 12%, var(--dp-subpanel-bg));
 
   --dp-player-card-bg: #fffdf8;
   --dp-player-card-offline-bg: #efe8de;
@@ -1030,6 +1087,13 @@ body[data-dp-game-theme='strawberry'] {
 
   --dp-subpanel-bg: rgba(255, 242, 250, 0.95);
   --dp-subpanel-border: rgba(251, 182, 206, 0.42);
+
+  --dp-lb-podium-gold: #d97706;
+  --dp-lb-podium-silver: #64748b;
+  --dp-lb-podium-bronze: #b45309;
+  --dp-lb-podium-row-bg-gold: color-mix(in srgb, var(--dp-lb-podium-gold) 14%, var(--dp-subpanel-bg));
+  --dp-lb-podium-row-bg-silver: color-mix(in srgb, var(--dp-lb-podium-silver) 12%, var(--dp-subpanel-bg));
+  --dp-lb-podium-row-bg-bronze: color-mix(in srgb, var(--dp-lb-podium-bronze) 12%, var(--dp-subpanel-bg));
 
   /* 座位卡：须带明显玫粉色相；勿用近 255 的白，否则与落日融金深色座卡对比像「白卡片贴图」 */
   --dp-player-card-bg: rgba(252, 218, 232, 0.97);
@@ -1158,6 +1222,13 @@ body[data-dp-game-theme='cotton'] {
   --dp-subpanel-bg: rgba(247, 242, 255, 0.95);
   --dp-subpanel-border: rgba(196, 181, 253, 0.42);
 
+  --dp-lb-podium-gold: #ca8a04;
+  --dp-lb-podium-silver: #6b7280;
+  --dp-lb-podium-bronze: #a16207;
+  --dp-lb-podium-row-bg-gold: color-mix(in srgb, var(--dp-lb-podium-gold) 14%, var(--dp-subpanel-bg));
+  --dp-lb-podium-row-bg-silver: color-mix(in srgb, var(--dp-lb-podium-silver) 12%, var(--dp-subpanel-bg));
+  --dp-lb-podium-row-bg-bronze: color-mix(in srgb, var(--dp-lb-podium-bronze) 12%, var(--dp-subpanel-bg));
+
   /* 座位卡：淡紫云雾底，避免与 #fff 无差；与落日融金的深色座卡同为「有色相的面板」 */
   --dp-player-card-bg: rgba(230, 220, 252, 0.97);
   --dp-player-card-offline-bg: rgba(216, 206, 244, 0.92);
@@ -1285,6 +1356,13 @@ body[data-dp-game-theme='halloween'] {
   --dp-subpanel-bg: rgba(30, 12, 38, 0.93);
   --dp-subpanel-border: rgba(167, 139, 250, 0.26);
 
+  --dp-lb-podium-gold: #fde047;
+  --dp-lb-podium-silver: #c4b5fd;
+  --dp-lb-podium-bronze: #d4884a;
+  --dp-lb-podium-row-bg-gold: color-mix(in srgb, var(--dp-lb-podium-gold) 16%, var(--dp-subpanel-bg));
+  --dp-lb-podium-row-bg-silver: color-mix(in srgb, var(--dp-lb-podium-silver) 14%, var(--dp-subpanel-bg));
+  --dp-lb-podium-row-bg-bronze: color-mix(in srgb, var(--dp-lb-podium-bronze) 14%, var(--dp-subpanel-bg));
+
   --dp-player-card-bg: rgba(50, 28, 60, 0.97);
   --dp-player-card-offline-bg: rgba(28, 14, 36, 0.9);
   --dp-player-card-offline-border: #6d28d9;
@@ -1410,6 +1488,13 @@ body[data-dp-game-theme='christmas'] {
 
   --dp-subpanel-bg: rgba(14, 34, 30, 0.93);
   --dp-subpanel-border: rgba(129, 199, 132, 0.22);
+
+  --dp-lb-podium-gold: #e8c547;
+  --dp-lb-podium-silver: #cfd8dc;
+  --dp-lb-podium-bronze: #c9885a;
+  --dp-lb-podium-row-bg-gold: color-mix(in srgb, var(--dp-lb-podium-gold) 16%, var(--dp-subpanel-bg));
+  --dp-lb-podium-row-bg-silver: color-mix(in srgb, var(--dp-lb-podium-silver) 14%, var(--dp-subpanel-bg));
+  --dp-lb-podium-row-bg-bronze: color-mix(in srgb, var(--dp-lb-podium-bronze) 14%, var(--dp-subpanel-bg));
 
   --dp-player-card-bg: rgba(22, 48, 42, 0.97);
   --dp-player-card-offline-bg: rgba(12, 26, 24, 0.92);

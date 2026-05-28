@@ -73,9 +73,42 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(row, idx) in items" :key="row.userId + '-' + idx">
-                  <td class="lb-table__rank">{{ row.rank }}</td>
-                  <td class="lb-table__nick">{{ row.nickname || '—' }}</td>
+                <tr
+                  v-for="(row, idx) in items"
+                  :key="row.userId + '-' + idx"
+                  :class="podiumRowClass(row.rank)"
+                >
+                  <td class="lb-table__rank">
+                    <span class="lb-table__rank-cell">
+                      <svg
+                        v-if="isPodiumRank(row.rank)"
+                        class="lb-table__crown"
+                        :class="'lb-table__crown--' + podiumTier(row.rank)"
+                        width="18"
+                        height="14"
+                        viewBox="0 0 18 14"
+                        fill="currentColor"
+                        aria-hidden="true"
+                        focusable="false"
+                      >
+                        <path d="M2 12h14v2H2v-2zm1.5-2L5.5 2 8 6.2 10 1l2 5.2L13.5 2 16.5 10H3.5z" />
+                      </svg>
+                      <span class="lb-table__rank-num">{{ row.rank }}</span>
+                    </span>
+                  </td>
+                  <td class="lb-table__nick">
+                    <div v-if="isPodiumRank(row.rank)" class="lb-table__nick-podium">
+                      <dp-user-avatar
+                        :avatar-url="row.avatarUrl"
+                        :nickname="row.nickname"
+                        :cache-bust="avatarCacheBustFromUpdatedAt(row.avatarUpdatedAt)"
+                        size="sm"
+                        img-loading="lazy"
+                      />
+                      <span class="lb-table__nick-text">{{ row.nickname || '—' }}</span>
+                    </div>
+                    <template v-else>{{ row.nickname || '—' }}</template>
+                  </td>
                   <td class="lb-table__mult">{{ formatMultiplier(row.multiplier) }}</td>
                 </tr>
               </tbody>
@@ -105,14 +138,16 @@ import '@/styles/dp-game-themes.css'
 import '@/styles/dp-lobby-shell.css'
 import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import DpFluidityToggle from '@/components/DpFluidityToggle.vue'
+import DpUserAvatar from '@/components/DpUserAvatar.vue'
 import { getWeeklyHandLeaderboard, getWeeklyRoomLeaderboard } from '@/api/api.dpLeaderboard'
 import { dpResultSuccess, dpResultData, dpResultMessage, dpAxiosErrorMessage } from '@/utils/dpApiResult'
+import { avatarCacheBustFromUpdatedAt } from '@/utils/dpAvatarUrl'
 
 var TAB_CACHE_MS = 30000
 
 export default {
   name: 'LeaderboardPage',
-  components: { DpFluidityToggle },
+  components: { DpFluidityToggle, DpUserAvatar },
   mixins: [dpLobbyThemeMixin],
   data() {
     return {
@@ -161,6 +196,22 @@ export default {
       var n = Number(value)
       if (!Number.isFinite(n)) return '—'
       return '×' + n.toFixed(2)
+    },
+    avatarCacheBustFromUpdatedAt: avatarCacheBustFromUpdatedAt,
+    isPodiumRank(rank) {
+      return rank === 1 || rank === 2 || rank === 3
+    },
+    podiumTier(rank) {
+      if (rank === 1) return 'gold'
+      if (rank === 2) return 'silver'
+      if (rank === 3) return 'bronze'
+      return ''
+    },
+    podiumRowClass(rank) {
+      if (rank === 1) return 'lb-table__row--podium-gold'
+      if (rank === 2) return 'lb-table__row--podium-silver'
+      if (rank === 3) return 'lb-table__row--podium-bronze'
+      return ''
     },
     applyPayload(data) {
       this.items = Array.isArray(data.items) ? data.items : []
@@ -358,7 +409,7 @@ export default {
   border-bottom: none;
 }
 .lb-table__col-rank {
-  width: 72px;
+  width: clamp(56px, 14vw, 80px);
 }
 .lb-table__col-mult {
   width: 100px;
@@ -366,6 +417,71 @@ export default {
 }
 .lb-table__rank {
   font-weight: 600;
+  color: var(--dp-text-primary, #303133);
+}
+.lb-table__rank-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.lb-table__crown {
+  flex-shrink: 0;
+  display: block;
+}
+.lb-table__crown--gold {
+  color: var(--dp-lb-podium-gold);
+}
+.lb-table__crown--silver {
+  color: var(--dp-lb-podium-silver);
+}
+.lb-table__crown--bronze {
+  color: var(--dp-lb-podium-bronze);
+}
+.lb-table__rank-num {
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.lb-table__nick-podium {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.lb-table__nick-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.lb-table__row--podium-gold td {
+  background: var(--dp-lb-podium-row-bg-gold);
+  box-shadow: inset 4px 0 0 var(--dp-lb-podium-gold);
+}
+.lb-table__row--podium-gold .lb-table__rank,
+.lb-table__row--podium-gold .lb-table__nick-text {
+  color: var(--dp-lb-podium-gold);
+}
+.lb-table__row--podium-silver td {
+  background: var(--dp-lb-podium-row-bg-silver);
+  box-shadow: inset 4px 0 0 var(--dp-lb-podium-silver);
+}
+.lb-table__row--podium-silver .lb-table__rank,
+.lb-table__row--podium-silver .lb-table__nick-text {
+  color: var(--dp-lb-podium-silver);
+}
+.lb-table__row--podium-bronze td {
+  background: var(--dp-lb-podium-row-bg-bronze);
+  box-shadow: inset 4px 0 0 var(--dp-lb-podium-bronze);
+}
+.lb-table__row--podium-bronze .lb-table__rank,
+.lb-table__row--podium-bronze .lb-table__nick-text {
+  color: var(--dp-lb-podium-bronze);
+}
+.lb-table__row--podium-gold .lb-table__mult,
+.lb-table__row--podium-silver .lb-table__mult,
+.lb-table__row--podium-bronze .lb-table__mult {
   color: var(--dp-text-primary, #303133);
 }
 .lb-table__mult {
