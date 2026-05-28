@@ -1,167 +1,201 @@
 <template>
-  <!-- 全屏炸裂玩家档案 -->
-  <transition name="prof-burst">
+  <transition name="game-prof-fade">
     <div
       v-if="visible && target"
-      class="prof-player-overlay"
+      class="game-prof-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="玩家信息"
       @click.self="$emit('close')"
     >
-      <!-- 炸裂粒子 -->
-      <span class="prof-particle prof-particle--1"></span>
-      <span class="prof-particle prof-particle--2"></span>
-      <span class="prof-particle prof-particle--3"></span>
-      <span class="prof-particle prof-particle--4"></span>
-      <span class="prof-particle prof-particle--5"></span>
-      <span class="prof-particle prof-particle--6"></span>
+      <div
+        class="game-prof-card"
+        :class="{ 'game-prof-card--effects-off': shouldSkipEffects() }"
+        @click.stop
+      >
+        <div
+          v-if="showBackdrop"
+          class="game-prof-backdrop"
+          aria-hidden="true"
+        >
+          <img
+            class="game-prof-backdrop__img"
+            :src="backdropSrc"
+            alt=""
+            decoding="async"
+          >
+          <div class="game-prof-backdrop__scrim"></div>
+        </div>
 
-      <!-- 主体卡片 -->
-      <div class="prof-player-card" @click.stop>
-        <!-- 关闭按钮 -->
-        <button type="button" class="prof-player-close" @click="$emit('close')" aria-label="关闭">
-          <i class="el-icon-close"></i>
-        </button>
-
-        <!-- 装饰底纹：巨型卡牌花色 -->
-        <span class="prof-player-watermark" aria-hidden="true">♠</span>
-
-        <!-- ===== 第一区：头像 + 身份 ===== -->
-        <div class="prof-player-hero">
-          <div class="prof-player-hero__avatar">
-            <dp-user-avatar
-              size="lg"
-              :nickname="displayName"
-              :avatar-url="honorAvatarUrl"
-              :cache-bust="honorAvatarCacheBust"
-            />
+        <div class="game-prof-title-bar">
+          <div class="game-prof-title-bar__deco">
+            <span class="game-prof-suit game-prof-suit--spade" aria-hidden="true">♠</span>
+            <span class="game-prof-suit game-prof-suit--heart" aria-hidden="true">♥</span>
+            <span class="game-prof-title-bar__text">玩家资料</span>
+            <span class="game-prof-suit game-prof-suit--diamond" aria-hidden="true">♦</span>
+            <span class="game-prof-suit game-prof-suit--club" aria-hidden="true">♣</span>
           </div>
-          <div class="prof-player-hero__info">
-            <div class="prof-player-hero__name">{{ displayName }}</div>
-            <button
-              v-if="target && target.userId != null && target.userId !== ''"
-              type="button"
-              class="prof-player-hero__id"
-              title="点击复制用户 ID"
-              @click="onCopyUserId"
-            >
-              #{{ target.userId }}
-            </button>
-            <div class="prof-player-hero__rank-tag">游戏玩家</div>
+          <button type="button" class="game-prof-title-bar__close" @click="$emit('close')" aria-label="关闭">
+            <i class="el-icon-close"></i>
+          </button>
+        </div>
+
+        <div class="game-prof-card__inner">
+          <div class="game-prof-identity">
+            <div class="game-prof-avatar-frame">
+              <div class="game-prof-avatar-frame__bezel">
+                <dp-user-avatar
+                  size="lg"
+                  :nickname="displayName"
+                  :avatar-url="honorAvatarUrl"
+                  :cache-bust="honorAvatarCacheBust"
+                />
+              </div>
+              <span class="game-prof-avatar-frame__corner game-prof-avatar-frame__corner--tl" aria-hidden="true"></span>
+              <span class="game-prof-avatar-frame__corner game-prof-avatar-frame__corner--tr" aria-hidden="true"></span>
+              <span class="game-prof-avatar-frame__corner game-prof-avatar-frame__corner--bl" aria-hidden="true"></span>
+              <span class="game-prof-avatar-frame__corner game-prof-avatar-frame__corner--br" aria-hidden="true"></span>
+            </div>
+            <div class="game-prof-identity__meta">
+              <h2 class="game-prof-name">{{ displayName }}</h2>
+              <button
+                v-if="target && target.userId != null && target.userId !== ''"
+                type="button"
+                class="game-prof-id"
+                title="点击复制用户 ID"
+                @click="onCopyUserId"
+              >
+                ID: {{ target.userId }}
+              </button>
+            </div>
+          </div>
+
+          <div v-if="hasWeeklyRank" class="game-prof-weekly">
+            <div class="game-prof-weekly__title">
+              <span class="game-prof-section-deco" aria-hidden="true">♠</span>
+              本周排名
+              <span class="game-prof-section-deco" aria-hidden="true">♠</span>
+            </div>
+            <div class="game-prof-weekly__cards">
+              <div class="game-prof-weekly-card game-prof-weekly-card--hand">
+                <span class="game-prof-weekly-card__rank">{{ rankHandDisplay }}</span>
+                <span class="game-prof-weekly-card__label">单局之最</span>
+                <span
+                  v-if="honor.leaderboardWeeklyHand && honor.leaderboardWeeklyHand.multiplier != null"
+                  class="game-prof-weekly-card__mult"
+                >{{ formatMulti(honor.leaderboardWeeklyHand.multiplier) }}x</span>
+              </div>
+              <div class="game-prof-weekly-card game-prof-weekly-card--room">
+                <span class="game-prof-weekly-card__rank">{{ rankRoomDisplay }}</span>
+                <span class="game-prof-weekly-card__label">单房之最</span>
+                <span
+                  v-if="honor.leaderboardWeeklyRoom && honor.leaderboardWeeklyRoom.multiplier != null"
+                  class="game-prof-weekly-card__mult"
+                >{{ formatMulti(honor.leaderboardWeeklyRoom.multiplier) }}x</span>
+              </div>
+            </div>
+          </div>
+
+          <div
+            v-if="honor && honor.totalHandsPlayed != null"
+            class="game-prof-honor"
+            :aria-busy="honorGlitchPhase !== 'revealed'"
+          >
+            <div class="game-prof-honor__title">
+              <span class="game-prof-section-deco" aria-hidden="true">♦</span>
+              生涯荣誉
+              <span class="game-prof-section-deco" aria-hidden="true">♦</span>
+            </div>
+            <div class="game-prof-honor__medals">
+              <div class="game-prof-medal game-prof-medal--royal">
+                <div class="game-prof-medal__body">
+                  <span class="game-prof-medal__name">皇家同花顺</span>
+                  <span
+                    class="game-prof-honor-val"
+                    :class="honorValClass"
+                    :aria-label="'皇家同花顺 ' + honorDisplayCount('royalFlushWins') + ' 次'"
+                  >{{ honorDisplayCount('royalFlushWins') }}<small> 次</small></span>
+                </div>
+              </div>
+              <div class="game-prof-medal game-prof-medal--straight">
+                <div class="game-prof-medal__body">
+                  <span class="game-prof-medal__name">同花顺</span>
+                  <span
+                    class="game-prof-honor-val"
+                    :class="honorValClass"
+                    :aria-label="'同花顺 ' + honorDisplayCount('straightFlushWins') + ' 次'"
+                  >{{ honorDisplayCount('straightFlushWins') }}<small> 次</small></span>
+                </div>
+              </div>
+              <div class="game-prof-medal game-prof-medal--four">
+                <div class="game-prof-medal__body">
+                  <span class="game-prof-medal__name">四条</span>
+                  <span
+                    class="game-prof-honor-val"
+                    :class="honorValClass"
+                    :aria-label="'四条 ' + honorDisplayCount('fourOfAKindWins') + ' 次'"
+                  >{{ honorDisplayCount('fourOfAKindWins') }}<small> 次</small></span>
+                </div>
+              </div>
+            </div>
+            <div class="game-prof-honor__stats">
+              <div class="game-prof-stat-card">
+                <span class="game-prof-stat-card__label">最高净赢倍数</span>
+                <span
+                  class="game-prof-honor-val game-prof-stat-card__value"
+                  :class="honorValClass"
+                  :aria-label="'最高净赢倍数 ' + honorDisplayStat('largestPotWon')"
+                >{{ honorDisplayStat('largestPotWon') }}</span>
+              </div>
+              <div class="game-prof-stat-card">
+                <span class="game-prof-stat-card__label">单房最高净赢</span>
+                <span
+                  class="game-prof-honor-val game-prof-stat-card__value"
+                  :class="honorValClass"
+                  :aria-label="'单房最高净赢 ' + honorDisplayStat('largestRoomNet')"
+                >{{ honorDisplayStat('largestRoomNet') }}</span>
+              </div>
+              <div class="game-prof-stat-card">
+                <span class="game-prof-stat-card__label">生涯总局数</span>
+                <span
+                  class="game-prof-honor-val game-prof-stat-card__value"
+                  :class="honorValClass"
+                  :aria-label="'生涯总局数 ' + honorDisplayCount('totalHandsPlayed')"
+                >{{ honorDisplayCount('totalHandsPlayed') }}</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- ===== 第二区：周榜排名（大标） ===== -->
-        <div v-if="hasWeeklyRank" class="prof-player-rank">
-          <div class="prof-player-rank__header">
-            <span class="prof-player-glory__deco">♠</span>
-            本周排名
-            <span class="prof-player-glory__deco">♠</span>
-          </div>
-          <div class="prof-player-rank__cards">
-            <!-- 单局之最 -->
-            <div class="prof-rank-card prof-rank-card--hand">
-              <div class="prof-rank-card__badge">
-                <span class="prof-rank-card__rank-num">{{ rankHandDisplay }}</span>
-                <span class="prof-rank-card__rank-suffix">名</span>
-              </div>
-              <div class="prof-rank-card__info">
-                <span class="prof-rank-card__type">单局之最</span>
-                <span v-if="honor.leaderboardWeeklyHand && honor.leaderboardWeeklyHand.multiplier != null" class="prof-rank-card__mult">{{ formatMulti(honor.leaderboardWeeklyHand.multiplier) }}x</span>
-              </div>
-            </div>
-            <!-- 单房之最 -->
-            <div class="prof-rank-card prof-rank-card--room">
-              <div class="prof-rank-card__badge">
-                <span class="prof-rank-card__rank-num">{{ rankRoomDisplay }}</span>
-                <span class="prof-rank-card__rank-suffix">名</span>
-              </div>
-              <div class="prof-rank-card__info">
-                <span class="prof-rank-card__type">单房之最</span>
-                <span v-if="honor.leaderboardWeeklyRoom && honor.leaderboardWeeklyRoom.multiplier != null" class="prof-rank-card__mult">{{ formatMulti(honor.leaderboardWeeklyRoom.multiplier) }}x</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ===== 第三区：生涯荣誉勋章 ===== -->
-        <div v-if="honor && honor.totalHandsPlayed != null" class="prof-player-glory">
-          <div class="prof-player-glory__header">
-            <span class="prof-player-glory__deco">♦</span>
-            生涯荣誉
-            <span class="prof-player-glory__deco">♦</span>
-          </div>
-          <div class="prof-player-glory__big-numbers">
-            <!-- 皇家同花顺 -->
-            <div class="prof-glory-item prof-glory-item--royal">
-              <span class="prof-glory-item__number">{{ honor.royalFlushWins || 0 }}</span>
-              <span class="prof-glory-item__unit">次</span>
-              <span class="prof-glory-item__label">皇家同花顺</span>
-              <span class="prof-glory-item__suit">♛</span>
-            </div>
-            <!-- 同花顺 -->
-            <div class="prof-glory-item prof-glory-item--straight">
-              <span class="prof-glory-item__number">{{ honor.straightFlushWins || 0 }}</span>
-              <span class="prof-glory-item__unit">次</span>
-              <span class="prof-glory-item__label">同花顺</span>
-              <span class="prof-glory-item__suit">♠</span>
-            </div>
-            <!-- 四条 -->
-            <div class="prof-glory-item prof-glory-item--four">
-              <span class="prof-glory-item__number">{{ honor.fourOfAKindWins || 0 }}</span>
-              <span class="prof-glory-item__unit">次</span>
-              <span class="prof-glory-item__label">四条</span>
-              <span class="prof-glory-item__suit">4</span>
-            </div>
-            <!-- 生涯总局数 -->
-            <div class="prof-glory-item prof-glory-item--total">
-              <span class="prof-glory-item__number">{{ honor.totalHandsPlayed || 0 }}</span>
-              <span class="prof-glory-item__unit">局</span>
-              <span class="prof-glory-item__label">生涯总局数</span>
-              <span class="prof-glory-item__suit">♣</span>
-            </div>
-          </div>
-          <!-- 辅助统计 -->
-          <div class="prof-player-glory__extras">
-            <div class="prof-glory-extra">
-              <span class="prof-glory-extra__num">{{ formatNetWinMultiplier(honor.largestPotWon) }}</span>
-              <span class="prof-glory-extra__desc">单局最高净赢</span>
-            </div>
-            <div class="prof-glory-extra">
-              <span class="prof-glory-extra__num">{{ formatRoomNetMultiplier(honor.largestRoomNet) }}</span>
-              <span class="prof-glory-extra__desc">单房最高净赢</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- ===== 第三区：操作区 ===== -->
-        <div class="prof-player-actions">
-          <!-- 好友申请 -->
-          <div v-if="socialPrimaryIsStaticHint" class="prof-player-actions__status">
+        <div class="game-prof-footer">
+          <button
+            type="button"
+            class="game-prof-btn game-prof-btn--ghost"
+            @click="$emit('close')"
+          >
+            关闭
+          </button>
+          <button
+            type="button"
+            class="game-prof-btn game-prof-btn--outline"
+            @click="onViewHandHistoryWithOpponent"
+          >
+            历史对局
+          </button>
+          <div v-if="socialPrimaryIsStaticHint" class="game-prof-footer__hint">
             {{ primaryLabel }}
           </div>
           <button
             v-else
             type="button"
-            class="prof-player-btn prof-player-btn--friend"
-            :disabled="primaryDisabled"
+            class="game-prof-btn game-prof-btn--gold"
+            :disabled="primaryDisabled || sending"
             @click="onSendRequest"
           >
-            <span v-if="!sending">发送好友申请</span>
+            <span v-if="!sending">加好友</span>
             <span v-else><i class="el-icon-loading"></i> 发送中…</span>
           </button>
-
-          <!-- 历史对局 -->
-          <button
-            type="button"
-            class="prof-player-btn prof-player-btn--history"
-            @click="onViewHandHistoryWithOpponent"
-          >
-            查看历史对局
-          </button>
-
-          <p v-if="tip" class="prof-player-actions__tip">{{ tip }}</p>
+          <p v-if="tip" class="game-prof-footer__tip">{{ tip }}</p>
         </div>
       </div>
     </div>
@@ -175,8 +209,12 @@ import { dpDisplayNickname } from '../utils/dpDisplayNickname'
 import { dpResultSuccess, dpResultData, dpResultMessage, dpAxiosErrorMessage } from '../utils/dpApiResult'
 import { dpSocialApi } from '@/api/api.dpSocial'
 import { formatNetWinMultiplier, formatRoomNetMultiplier } from '../utils/dpRoomNetMultiplier'
-import { avatarCacheBustFromUpdatedAt } from '@/utils/dpAvatarUrl'
+import { avatarCacheBustFromUpdatedAt, avatarFileSrc } from '@/utils/dpAvatarUrl'
 import { copySocialId as copySocialIdToClipboard } from '@/utils/dpCopySocialId'
+
+var HONOR_GLITCH_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%&*'
+var HONOR_SCRAMBLE_MS = 320
+var HONOR_SCRAMBLE_TICK_MS = 48
 
 export default {
   name: 'GamePlayerSocialSheet',
@@ -194,7 +232,11 @@ export default {
       sentOk: false,
       tip: '',
       honor: null,
-      lookupAddStatus: ''
+      lookupAddStatus: '',
+      honorGlitchPhase: 'idle',
+      honorGlitchTick: 0,
+      honorGlitchTimer: null,
+      honorRevealTimer: null
     }
   },
   computed: {
@@ -208,6 +250,19 @@ export default {
     },
     honorAvatarCacheBust() {
       return avatarCacheBustFromUpdatedAt(this.honor && this.honor.avatarUpdatedAt)
+    },
+    showBackdrop() {
+      if (this.shouldSkipEffects()) return false
+      return !!this.backdropSrc
+    },
+    backdropSrc() {
+      if (!this.honorAvatarUrl) return ''
+      return avatarFileSrc(this.honorAvatarUrl, this.honorAvatarCacheBust, { variant: 'full' })
+    },
+    honorValClass() {
+      return {
+        'game-prof-honor-val--reveal': this.honorGlitchPhase === 'revealed' && !this.shouldSkipEffects()
+      }
     },
     friendIds() {
       return (this.friends || []).map(function (f) {
@@ -255,12 +310,19 @@ export default {
     visible: {
       immediate: true,
       handler(v) {
-        if (v && this.target) this.refresh()
+        if (v && this.target) {
+          this.refresh()
+        } else {
+          this.stopHonorGlitch()
+        }
       }
     },
     target() {
       if (this.visible && this.target) this.refresh()
     }
+  },
+  beforeDestroy() {
+    this.stopHonorGlitch()
   },
   methods: {
     formatNetWinMultiplier,
@@ -268,6 +330,98 @@ export default {
     formatMulti(v) {
       if (v == null || isNaN(Number(v))) return '—'
       return Number(v).toFixed(1)
+    },
+    shouldSkipEffects() {
+      if (typeof document !== 'undefined' && document.body.getAttribute('data-dp-fluidity') === 'eco') {
+        return true
+      }
+      if (
+        typeof window !== 'undefined' &&
+        window.matchMedia &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      ) {
+        return true
+      }
+      return false
+    },
+    stopHonorGlitch() {
+      if (this.honorGlitchTimer != null) {
+        clearInterval(this.honorGlitchTimer)
+        this.honorGlitchTimer = null
+      }
+      if (this.honorRevealTimer != null) {
+        clearTimeout(this.honorRevealTimer)
+        this.honorRevealTimer = null
+      }
+    },
+    startHonorGlitch() {
+      this.stopHonorGlitch()
+      if (!this.honor || this.honor.totalHandsPlayed == null) {
+        this.honorGlitchPhase = 'idle'
+        return
+      }
+      if (this.shouldSkipEffects()) {
+        this.honorGlitchPhase = 'revealed'
+        return
+      }
+      var self = this
+      this.honorGlitchPhase = 'scrambling'
+      this.honorGlitchTick = 0
+      this.honorGlitchTimer = setInterval(function () {
+        self.honorGlitchTick++
+      }, HONOR_SCRAMBLE_TICK_MS)
+      this.honorRevealTimer = setTimeout(function () {
+        if (self.honorGlitchTimer != null) {
+          clearInterval(self.honorGlitchTimer)
+          self.honorGlitchTimer = null
+        }
+        self.honorGlitchPhase = 'revealed'
+      }, HONOR_SCRAMBLE_MS)
+    },
+    randomGlitchString(len) {
+      var s = ''
+      var n = len > 0 ? len : 3
+      for (var i = 0; i < n; i++) {
+        s += HONOR_GLITCH_CHARS.charAt(Math.floor(Math.random() * HONOR_GLITCH_CHARS.length))
+      }
+      return s
+    },
+    honorResolvedCount(key) {
+      if (!this.honor) return '0'
+      var v = this.honor[key]
+      return v != null ? String(v) : '0'
+    },
+    honorResolvedStat(key) {
+      if (!this.honor) return '—'
+      if (key === 'largestPotWon') {
+        return formatNetWinMultiplier(this.honor.largestPotWon)
+      }
+      if (key === 'largestRoomNet') {
+        return formatRoomNetMultiplier(this.honor.largestRoomNet)
+      }
+      return this.honorResolvedCount(key)
+    },
+    honorDisplayCount(key) {
+      var resolved = this.honorResolvedCount(key)
+      if (this.honorGlitchPhase === 'revealed' || this.shouldSkipEffects()) {
+        return resolved
+      }
+      if (this.honorGlitchPhase === 'scrambling') {
+        void this.honorGlitchTick
+        return this.randomGlitchString(resolved.length || 2)
+      }
+      return '···'
+    },
+    honorDisplayStat(key) {
+      var resolved = this.honorResolvedStat(key)
+      if (this.honorGlitchPhase === 'revealed' || this.shouldSkipEffects()) {
+        return resolved
+      }
+      if (this.honorGlitchPhase === 'scrambling') {
+        void this.honorGlitchTick
+        return this.randomGlitchString(Math.max(resolved.length, 3))
+      }
+      return '···'
     },
     onCopyUserId() {
       if (!this.target) return
@@ -283,6 +437,8 @@ export default {
       this.sentOk = false
       this.lookupAddStatus = ''
       this.honor = null
+      this.honorGlitchPhase = 'idle'
+      this.stopHonorGlitch()
       this.loadFriendAddStatus()
       this.loadHonor()
     },
@@ -297,6 +453,11 @@ export default {
         }
       } catch (e) {
         // 静默
+      } finally {
+        var self = this
+        this.$nextTick(function () {
+          self.startHonorGlitch()
+        })
       }
     },
     async loadFriendAddStatus() {
@@ -368,488 +529,618 @@ export default {
 
 <style scoped>
 /* ============================================
-   对局玩家档案 — 星辰炸裂
+   对局玩家资料卡 — 对齐大厅 home-prof 布局
    ============================================ */
 
-/* ---- 全屏遮罩 ---- */
-.prof-player-overlay {
+.game-prof-overlay {
   position: fixed;
   inset: 0;
   z-index: 9000;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0,0,0,0.55);
+  background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   overflow-y: auto;
-  padding: 20px;
+  padding: 16px;
 }
 
-/* ======== 炸裂动画 ======== */
-.prof-burst-enter-active {
-  animation: prof-burst-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+.game-prof-fade-enter-active {
+  animation: game-prof-overlay-in 0.32s ease-out both;
 }
-.prof-burst-leave-active {
-  animation: prof-burst-out 0.22s ease-in both;
+.game-prof-fade-leave-active {
+  animation: game-prof-overlay-out 0.2s ease-in both;
 }
-.prof-burst-enter-active .prof-player-card {
-  animation: prof-card-bounce 0.5s 0.05s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+.game-prof-fade-enter-active .game-prof-card {
+  animation: game-prof-card-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-.prof-burst-enter-active .prof-particle {
-  animation: prof-particle-burst 0.6s cubic-bezier(0, 1, 0.5, 1) both;
-}
-.prof-burst-enter-active .prof-player-hero__avatar {
-  animation: prof-slide-in-left 0.4s 0.12s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-.prof-burst-enter-active .prof-player-hero__info {
-  animation: prof-fade-up 0.4s 0.18s ease-out both;
-}
-.prof-burst-enter-active .prof-player-glory {
-  animation: prof-fade-up 0.4s 0.24s ease-out both;
-}
-.prof-burst-enter-active .prof-player-actions {
-  animation: prof-fade-up 0.4s 0.30s ease-out both;
-}
-
-@keyframes prof-burst-in {
+@keyframes game-prof-overlay-in {
   from { opacity: 0; }
-  to   { opacity: 1; }
+  to { opacity: 1; }
 }
-@keyframes prof-burst-out {
+@keyframes game-prof-overlay-out {
   from { opacity: 1; }
-  to   { opacity: 0; }
+  to { opacity: 0; }
 }
-@keyframes prof-card-bounce {
-  from { transform: scale(0.3) rotate(-8deg); opacity: 0; }
-  60%  { transform: scale(1.04) rotate(0.5deg); opacity: 1; }
-  to   { transform: scale(1) rotate(0deg); opacity: 1; }
-}
-@keyframes prof-slide-in-left {
-  from { transform: translateX(-30px); opacity: 0; }
-  to   { transform: translateX(0); opacity: 1; }
-}
-@keyframes prof-fade-up {
-  from { transform: translateY(16px); opacity: 0; }
-  to   { transform: translateY(0); opacity: 1; }
+@keyframes game-prof-card-in {
+  from { opacity: 0; transform: scale(0.94) translateY(12px); }
+  to { opacity: 1; transform: none; }
 }
 
-/* 粒子炸开 */
-@keyframes prof-particle-burst {
-  0%   { transform: translate(0, 0) scale(1); opacity: 0.8; }
-  100% { opacity: 0; }
-}
-.prof-particle--1 { --px: -120px; --py: -80px;  animation-delay: 0s;    }
-.prof-particle--2 { --px: 100px;  --py: -100px; animation-delay: 0.02s; }
-.prof-particle--3 { --px: -90px;  --py: 90px;   animation-delay: 0.04s; }
-.prof-particle--4 { --px: 110px;  --py: 70px;   animation-delay: 0.01s; }
-.prof-particle--5 { --px: -140px; --py: 10px;   animation-delay: 0.03s; }
-.prof-particle--6 { --px: 130px;  --py: -20px;  animation-delay: 0.05s; }
-
-@keyframes prof-particle-burst {
-  0%   { transform: translate(0, 0) scale(1); opacity: 0.8; }
-  100% { transform: translate(var(--px), var(--py)) scale(0); opacity: 0; }
-}
-
-/* ======== 粒子 ======== */
-.prof-particle {
-  position: absolute;
-  top: 50%; left: 50%;
-  width: 12px; height: 12px;
-  margin-left: -6px; margin-top: -6px;
-  border-radius: 3px;
-  background: var(--dp-warning, #c8963e);
-  pointer-events: none;
-  z-index: 0;
-  transform: scale(0);
-}
-.prof-particle--2 { background: var(--dp-accent, #1890ff); width: 8px; height: 8px; border-radius: 50%; }
-.prof-particle--3 { background: var(--dp-danger, #ff4d4f); width: 14px; height: 14px; border-radius: 2px; }
-.prof-particle--4 { background: var(--dp-success, #52c41a); width: 6px; height: 6px; border-radius: 50%; }
-.prof-particle--5 { background: var(--dp-warning, #c8963e); width: 10px; height: 10px; border-radius: 50%; }
-.prof-particle--6 { background: var(--dp-accent, #1890ff); width: 7px; height: 7px; border-radius: 2px; }
-
-/* ======== 主卡片 ======== */
-.prof-player-card {
+.game-prof-card {
+  --game-prof-glitch-duration: 800ms;
+  --game-prof-avatar-desktop: clamp(88px, 22vw, 120px);
   position: relative;
-  z-index: 2;
-  width: min(94vw, 460px);
-  background:
-    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(255,255,255,0.08) 0%, transparent 60%),
-    var(--dp-panel-bg);
-  border-radius: 24px;
-  padding: 32px 24px 24px;
+  z-index: 1;
+  width: min(94vw, 520px);
+  max-width: calc(100vw - 16px);
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--dp-panel-bg);
   box-shadow:
-    0 24px 64px rgba(0,0,0,0.25),
-    0 0 0 1px rgba(255,255,255,0.1);
+    0 24px 64px rgba(0, 0, 0, 0.28),
+    0 0 0 1px color-mix(in srgb, var(--dp-subpanel-border) 60%, transparent);
   display: flex;
   flex-direction: column;
-  gap: 24px;
 }
 
-/* ---- 关掉 ---- */
-.prof-player-close {
+.game-prof-backdrop {
+  display: none;
   position: absolute;
-  top: 14px; right: 14px;
-  z-index: 10;
-  width: 32px; height: 32px;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.game-prof-backdrop__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(1.08);
+  transform: scale(1.08);
+}
+.game-prof-backdrop__scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--dp-panel-bg) 50%, transparent),
+    color-mix(in srgb, var(--dp-panel-bg) 80%, #000 16%)
+  );
+}
+
+.game-prof-title-bar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 16px 8px;
+  flex-shrink: 0;
+}
+.game-prof-title-bar__deco {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.game-prof-title-bar__text {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--dp-text-primary);
+}
+.game-prof-suit {
+  font-size: 13px;
+  line-height: 1;
+}
+.game-prof-suit--spade,
+.game-prof-suit--club { color: var(--dp-text-primary); }
+.game-prof-suit--heart,
+.game-prof-suit--diamond { color: var(--dp-danger); }
+.game-prof-title-bar__close {
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  border: none;
-  background: rgba(0,0,0,0.06);
+  border: 1px solid var(--dp-input-border);
+  background: color-mix(in srgb, var(--dp-panel-bg) 85%, transparent);
   cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
   color: var(--dp-text-muted);
   transition: all 0.2s;
+  flex-shrink: 0;
 }
-.prof-player-close:hover {
-  background: rgba(0,0,0,0.12);
+.game-prof-title-bar__close:hover {
+  background: color-mix(in srgb, var(--dp-danger) 12%, var(--dp-panel-bg));
+  border-color: var(--dp-danger);
   color: var(--dp-danger);
 }
 
-/* ---- 巨型水印花色 ---- */
-.prof-player-watermark {
-  position: absolute;
-  top: 50%; right: -30px;
-  transform: translateY(-50%);
-  font-size: 200px;
-  line-height: 1;
-  color: var(--dp-subpanel-bg);
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.6;
-}
-
-/* ======== Hero ======== */
-.prof-player-hero {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+.game-prof-card__inner {
   position: relative;
   z-index: 1;
-}
-.prof-player-hero__info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 12px;
+  padding: 4px 14px 8px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
-.prof-player-hero__name {
-  font-size: 22px;
-  font-weight: 800;
+
+.game-prof-identity {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.game-prof-avatar-frame {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 12px;
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--dp-text-muted) 30%, var(--dp-panel-bg)),
+    color-mix(in srgb, var(--dp-text-muted) 50%, var(--dp-panel-bg)) 30%,
+    color-mix(in srgb, var(--dp-text-muted) 40%, var(--dp-panel-bg)) 55%,
+    color-mix(in srgb, var(--dp-text-muted) 15%, var(--dp-panel-bg)) 85%
+  );
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.12),
+    0 0 0 1px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+.game-prof-avatar-frame__bezel {
+  position: relative;
+  z-index: 2;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.15),
+    0 0 0 2px rgba(0, 0, 0, 0.08);
+}
+.game-prof-avatar-frame__corner {
+  position: absolute;
+  z-index: 3;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--dp-text-muted) 60%, var(--dp-panel-bg));
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.game-prof-avatar-frame__corner--tl { top: 6px; left: 6px; }
+.game-prof-avatar-frame__corner--tr { top: 6px; right: 6px; }
+.game-prof-avatar-frame__corner--bl { bottom: 6px; left: 6px; }
+.game-prof-avatar-frame__corner--br { bottom: 6px; right: 6px; }
+
+.game-prof-identity__meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+.game-prof-name {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
   color: var(--dp-text-primary);
   letter-spacing: 0.03em;
-  line-height: 1.2;
+  line-height: 1.25;
 }
-.prof-player-hero__id {
-  display: inline-block;
-  width: fit-content;
-  padding: 2px 10px;
+.game-prof-id {
+  margin: 0;
+  padding: 3px 12px;
   font-size: 12px;
   font-family: 'Courier New', monospace;
-  font-weight: 600;
   color: var(--dp-text-muted);
-  background: var(--dp-subpanel-bg);
+  background: color-mix(in srgb, var(--dp-subpanel-bg) 88%, transparent);
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s;
 }
-.prof-player-hero__id:hover {
+.game-prof-id:hover {
   color: var(--dp-accent);
   background: color-mix(in srgb, var(--dp-accent) 10%, var(--dp-subpanel-bg));
 }
-.prof-player-hero__rank-tag {
+
+.game-prof-section-deco {
   font-size: 12px;
-  font-weight: 600;
-  color: var(--dp-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  opacity: 0.5;
 }
 
-/* ======== 周榜排名区 ======== */
-.prof-player-rank {
-  position: relative;
-  z-index: 1;
-  padding: 16px;
-  border-radius: 18px;
-  background: linear-gradient(155deg, var(--dp-subpanel-bg), color-mix(in srgb, var(--dp-subpanel-bg) 85%, var(--dp-panel-bg)));
-  border: 1px solid var(--dp-subpanel-border);
+/* ---- 本周排名 ---- */
+.game-prof-weekly {
+  background: color-mix(in srgb, var(--dp-subpanel-bg) 72%, transparent);
+  border-radius: 14px;
+  padding: 12px 10px;
+  border: 1px solid color-mix(in srgb, var(--dp-subpanel-border) 80%, transparent);
 }
-.prof-player-rank__header {
+.game-prof-weekly__title {
   text-align: center;
   font-size: 13px;
   font-weight: 700;
-  color: var(--dp-text-secondary);
-  letter-spacing: 0.08em;
-  margin-bottom: 12px;
+  color: var(--dp-text-primary);
+  margin-bottom: 10px;
+  letter-spacing: 0.06em;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
 }
-.prof-player-rank__cards {
+.game-prof-weekly__cards {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
-.prof-rank-card {
+.game-prof-weekly-card {
   flex: 1;
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 14px;
-  border-radius: 16px;
-  background: var(--dp-panel-bg);
-  border: 1px solid var(--dp-subpanel-border);
-  transition: transform 0.2s ease;
-}
-.prof-rank-card:hover { transform: translateY(-2px); }
-
-.prof-rank-card__badge {
-  width: 64px; height: 64px;
-  border-radius: 50%;
-  display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  position: relative;
-}
-.prof-rank-card--hand .prof-rank-card__badge {
-  background: radial-gradient(circle at 35% 28%, rgba(255,255,255,0.45), transparent 50%),
-    conic-gradient(
-      color-mix(in srgb, var(--dp-accent) 70%, #fff),
-      var(--dp-accent),
-      color-mix(in srgb, var(--dp-accent) 70%, #000),
-      var(--dp-accent),
-      color-mix(in srgb, var(--dp-accent) 70%, #fff)
-    );
-  box-shadow: 0 0 16px color-mix(in srgb, var(--dp-accent) 25%, transparent);
-}
-.prof-rank-card--room .prof-rank-card__badge {
-  background: radial-gradient(circle at 35% 28%, rgba(255,255,255,0.45), transparent 50%),
-    conic-gradient(
-      color-mix(in srgb, var(--dp-success) 70%, #fff),
-      var(--dp-success),
-      color-mix(in srgb, var(--dp-success) 70%, #000),
-      var(--dp-success),
-      color-mix(in srgb, var(--dp-success) 70%, #fff)
-    );
-  box-shadow: 0 0 16px color-mix(in srgb, var(--dp-success) 25%, transparent);
-}
-
-.prof-rank-card__rank-num {
-  font-size: 26px;
-  font-weight: 900;
-  color: #fff;
-  line-height: 1;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.25);
-}
-.prof-rank-card__rank-suffix {
-  font-size: 11px;
-  color: rgba(255,255,255,0.85);
-  margin-top: 1px;
-  font-weight: 600;
-}
-.prof-rank-card__info {
-  display: flex;
-  flex-direction: column;
   gap: 2px;
-  min-width: 0;
+  padding: 10px 8px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--dp-panel-bg) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--dp-subpanel-border) 75%, transparent);
 }
-.prof-rank-card__type {
+.game-prof-weekly-card--hand {
+  border-color: color-mix(in srgb, var(--dp-accent) 45%, transparent);
+}
+.game-prof-weekly-card--room {
+  border-color: color-mix(in srgb, var(--dp-success) 45%, transparent);
+}
+.game-prof-weekly-card__rank {
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--dp-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.game-prof-weekly-card--hand .game-prof-weekly-card__rank {
+  color: var(--dp-accent);
+}
+.game-prof-weekly-card--room .game-prof-weekly-card__rank {
+  color: var(--dp-success);
+}
+.game-prof-weekly-card__label {
+  font-size: 10px;
+  color: var(--dp-text-muted);
+}
+.game-prof-weekly-card__mult {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dp-text-secondary);
+}
+
+/* ---- 荣誉墙（对齐大厅） ---- */
+.game-prof-honor {
+  background: color-mix(in srgb, var(--dp-subpanel-bg) 72%, transparent);
+  border-radius: 14px;
+  padding: 14px 12px;
+  border: 1px solid color-mix(in srgb, var(--dp-subpanel-border) 80%, transparent);
+  position: relative;
+  overflow: hidden;
+}
+.game-prof-honor__title {
+  text-align: center;
   font-size: 14px;
   font-weight: 700;
   color: var(--dp-text-primary);
-}
-.prof-rank-card__mult {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--dp-text-muted);
-}
-
-/* ======== 生涯荣誉区 ======== */
-.prof-player-glory {
-  position: relative;
-  z-index: 1;
-  padding: 18px 16px;
-  border-radius: 18px;
-  background: linear-gradient(155deg, var(--dp-subpanel-bg), color-mix(in srgb, var(--dp-subpanel-bg) 80%, var(--dp-panel-bg)));
-  border: 1px solid var(--dp-subpanel-border);
-}
-.prof-player-glory__header {
-  text-align: center;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--dp-text-secondary);
-  letter-spacing: 0.08em;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
+  letter-spacing: 0.06em;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
 }
-.prof-player-glory__deco {
-  font-size: 10px;
-  opacity: 0.4;
-}
-
-/* ---- 大数字网格 ---- */
-.prof-player-glory__big-numbers {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-@media (max-width: 400px) {
-  .prof-player-glory__big-numbers {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-.prof-glory-item {
-  position: relative;
-  text-align: center;
-  padding: 10px 6px;
-  border-radius: 14px;
-  background: var(--dp-panel-bg);
-  overflow: hidden;
-  transition: transform 0.25s ease;
-}
-.prof-glory-item:hover {
-  transform: translateY(-2px);
-}
-.prof-glory-item__number {
-  display: block;
-  font-size: 36px;
-  font-weight: 900;
-  line-height: 1;
-  letter-spacing: -0.02em;
-}
-.prof-glory-item__unit {
-  font-size: 13px;
-  font-weight: 600;
-  margin-left: 2px;
-}
-.prof-glory-item__label {
-  display: block;
-  font-size: 10px;
-  color: var(--dp-text-muted);
-  margin-top: 4px;
-  letter-spacing: 0.04em;
-}
-.prof-glory-item__suit {
-  position: absolute;
-  bottom: -6px; right: -4px;
-  font-size: 40px;
-  line-height: 1;
-  opacity: 0.06;
-  pointer-events: none;
-}
-
-.prof-glory-item--royal .prof-glory-item__number { color: var(--dp-warning); }
-.prof-glory-item--royal .prof-glory-item__unit  { color: var(--dp-warning); }
-.prof-glory-item--straight .prof-glory-item__number { color: var(--dp-accent); }
-.prof-glory-item--straight .prof-glory-item__unit  { color: var(--dp-accent); }
-.prof-glory-item--four .prof-glory-item__number { color: var(--dp-danger); }
-.prof-glory-item--four .prof-glory-item__unit  { color: var(--dp-danger); }
-.prof-glory-item--total .prof-glory-item__number { color: var(--dp-text-primary); }
-.prof-glory-item--total .prof-glory-item__unit  { color: var(--dp-text-primary); }
-
-/* ---- 辅助统计 ---- */
-.prof-player-glory__extras {
+.game-prof-honor__medals {
   display: flex;
   gap: 8px;
+  margin-bottom: 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
-.prof-glory-extra {
-  flex: 1;
+.game-prof-honor__stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.game-prof-medal {
+  flex: 1 1 0;
+  min-width: 88px;
+  min-height: 96px;
+  border-radius: 12px;
+  padding: 10px 6px;
+  text-align: center;
+  border: 1.5px solid;
+  position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 8px;
-  border-radius: 10px;
-  background: var(--dp-panel-bg);
+  justify-content: flex-end;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
-.prof-glory-extra__num {
+.game-prof-medal::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.78) 0%,
+    rgba(0, 0, 0, 0.48) 42%,
+    rgba(0, 0, 0, 0.12) 100%
+  );
+  pointer-events: none;
+}
+.game-prof-medal--royal {
+  border-color: color-mix(in srgb, var(--dp-warning) 65%, transparent);
+  background-image: url('/RF.png');
+}
+.game-prof-medal--straight {
+  border-color: color-mix(in srgb, var(--dp-accent) 65%, transparent);
+  background-image: url('/SF.png');
+}
+.game-prof-medal--four {
+  border-color: color-mix(in srgb, var(--dp-danger) 65%, transparent);
+  background-image: url('/4K.png');
+}
+.game-prof-medal__body {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.game-prof-medal__name {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.82);
+}
+.game-prof-medal .game-prof-honor-val {
+  color: #fff;
+}
+.game-prof-medal .game-prof-honor-val small {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.game-prof-honor-val {
   font-size: 20px;
   font-weight: 800;
   color: var(--dp-text-primary);
-  line-height: 1.1;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
-.prof-glory-extra__desc {
+.game-prof-honor-val small {
   font-size: 11px;
+  font-weight: 500;
   color: var(--dp-text-muted);
 }
 
-/* ======== 操作区 ======== */
-.prof-player-actions {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+@keyframes game-prof-honor-reveal {
+  0% {
+    opacity: 0.35;
+    filter: brightness(2);
+    transform: scale(1.06);
+  }
+  40% {
+    opacity: 1;
+    filter: brightness(1.35);
+  }
+  100% {
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
 }
-.prof-player-actions__status {
-  padding: 12px;
+.game-prof-honor-val--reveal {
+  animation: game-prof-honor-reveal var(--game-prof-glitch-duration) cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.game-prof-stat-card {
+  background: color-mix(in srgb, var(--dp-panel-bg) 88%, transparent);
+  border-radius: 10px;
+  padding: 8px 6px;
   text-align: center;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--dp-text-primary);
-  background: var(--dp-subpanel-bg);
-  border-radius: 12px;
-  border: 1px solid var(--dp-subpanel-border);
+  border: 1px solid color-mix(in srgb, var(--dp-subpanel-border) 75%, transparent);
 }
-.prof-player-actions__tip {
-  margin: 4px 0 0;
+.game-prof-stat-card__label {
+  display: block;
+  font-size: 10px;
+  color: var(--dp-text-muted);
+  margin-bottom: 4px;
+  line-height: 1.2;
+}
+.game-prof-stat-card__value {
+  display: block;
+  font-size: 16px;
+}
+
+/* ---- Footer 操作 ---- */
+.game-prof-footer {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px 14px;
+  flex-shrink: 0;
+}
+.game-prof-footer__hint {
+  flex: 1 1 100%;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dp-text-secondary);
+  padding: 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--dp-subpanel-bg) 80%, transparent);
+}
+.game-prof-footer__tip {
+  flex: 1 1 100%;
+  margin: 0;
   font-size: 12px;
   color: var(--dp-text-muted);
   text-align: center;
   line-height: 1.4;
 }
 
-/* ---- 按钮 ---- */
-.prof-player-btn {
-  width: 100%;
-  display: flex;
+.game-prof-btn {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 13px 20px;
-  font-size: 15px;
-  font-weight: 700;
-  font-family: inherit;
+  gap: 5px;
   border: none;
-  border-radius: 14px;
+  border-radius: 8px;
+  font-family: inherit;
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  position: relative;
-  overflow: hidden;
-}
-.prof-player-btn::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: rgba(255,255,255,0.15);
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-.prof-player-btn:hover::after { opacity: 1; }
-.prof-player-btn:active { transform: scale(0.97); }
-.prof-player-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-.prof-player-btn--friend {
-  background: linear-gradient(135deg, var(--dp-warning), color-mix(in srgb, var(--dp-warning) 75%, #000));
-  color: #fff;
-  box-shadow: 0 4px 16px color-mix(in srgb, var(--dp-warning) 35%, transparent);
-}
-.prof-player-btn--history {
-  background: transparent;
-  color: var(--dp-text-secondary);
-  border: 1.5px solid var(--dp-input-border);
+  font-size: 14px;
+  padding: 9px 18px;
   font-weight: 600;
+  transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
-.prof-player-btn--history:hover {
+.game-prof-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.game-prof-btn--ghost {
+  background: color-mix(in srgb, var(--dp-subpanel-bg) 88%, transparent);
+  color: var(--dp-text-secondary);
+}
+.game-prof-btn--ghost:hover:not(:disabled) {
+  background: var(--dp-input-border);
+}
+.game-prof-btn--outline {
+  background: transparent;
+  border: 1.5px solid var(--dp-input-border);
+  color: var(--dp-text-secondary);
+}
+.game-prof-btn--outline:hover:not(:disabled) {
   border-color: var(--dp-accent);
   color: var(--dp-accent);
+}
+.game-prof-btn--gold {
+  background: linear-gradient(135deg, var(--dp-warning), color-mix(in srgb, var(--dp-warning) 70%, #000));
+  color: #fff;
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--dp-warning) 35%, transparent);
+}
+.game-prof-btn--gold:hover:not(:disabled) {
+  box-shadow: 0 5px 18px color-mix(in srgb, var(--dp-warning) 50%, transparent);
+  transform: translateY(-1px);
+}
+
+/* ---- 桌面方卡 ≥641px ---- */
+@media (min-width: 641px) {
+  .game-prof-card:not(.game-prof-card--effects-off) .game-prof-backdrop {
+    display: block;
+  }
+
+  .game-prof-card {
+    aspect-ratio: 1 / 1;
+    max-height: min(92vw, 520px);
+  }
+
+  .game-prof-identity {
+    flex-direction: row;
+    align-items: flex-start;
+    text-align: left;
+    gap: 14px;
+  }
+
+  .game-prof-identity__meta {
+    align-items: flex-start;
+    flex: 1;
+    min-width: 0;
+    padding-top: 4px;
+  }
+
+  .game-prof-avatar-frame {
+    flex-shrink: 0;
+    width: var(--game-prof-avatar-desktop);
+    height: var(--game-prof-avatar-desktop);
+    padding: 6px;
+    box-sizing: border-box;
+  }
+
+  .game-prof-avatar-frame__bezel {
+    width: 100%;
+    height: 100%;
+  }
+
+  .game-prof-avatar-frame__bezel >>> .dp-user-avatar--lg {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .game-prof-name {
+    font-size: clamp(17px, 2.5vw, 20px);
+  }
+}
+
+/* ---- 手机竖卡 ≤640px ---- */
+@media (max-width: 640px) {
+  .game-prof-card {
+    width: min(94vw, 400px);
+  }
+
+  .game-prof-honor-val {
+    font-size: 18px;
+  }
+
+  .game-prof-stat-card__value {
+    font-size: 14px;
+  }
+
+  .game-prof-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .game-prof-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+</style>
+
+<style>
+body[data-dp-fluidity='eco'] .game-prof-backdrop {
+  display: none !important;
+}
+body[data-dp-fluidity='eco'] .game-prof-honor-val--reveal {
+  animation: none !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-prof-backdrop {
+    display: none !important;
+  }
+  .game-prof-honor-val--reveal {
+    animation: none !important;
+    filter: none !important;
+    transform: none !important;
+  }
+  .game-prof-fade-enter-active .game-prof-card {
+    animation: none !important;
+  }
 }
 </style>
