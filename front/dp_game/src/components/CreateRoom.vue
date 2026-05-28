@@ -21,7 +21,12 @@
         </div>
       </header>
 
-      <section class="dp-lobby-panel create-room-panel">
+      <section
+        class="dp-lobby-panel create-room-panel"
+        v-loading="creating"
+        element-loading-text="正在开局…"
+        element-loading-background="rgba(0, 0, 0, 0.35)"
+      >
         <h1 class="create-room-panel__title">创建房间</h1>
         <p class="create-room-panel__intro">在此设置本桌小猫小鱼干数（大猫自动为其 2 倍）、每人带入倍数（以大猫鱼干数为 1 倍）、一桌最多几名玩家（2～9）与可选进房密码。创建后将直接开桌进入对局页，你可先独自上桌，朋友随时可从大厅加入。</p>
 
@@ -70,8 +75,8 @@
         </div>
 
         <div class="create-room-actions">
-          <button type="button" class="dp-btn dp-btn--primary" :disabled="submitting" @click="submit">
-            {{ submitting ? '创建中…' : '创建并开桌' }}
+          <button type="button" class="dp-btn dp-btn--primary" :disabled="creating" @click="submit">
+            {{ creating ? '正在开局…' : '创建并开桌' }}
           </button>
         </div>
       </section>
@@ -85,6 +90,7 @@ import '@/styles/dp-lobby-shell.css'
 import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
 import { exitLobbyQuickMatchSilently } from '@/utils/dpLobbyQuickMatchExit'
+import { prefetchGameChunk } from '@/utils/dpPrefetchGameRoute'
 
 export default {
   name: 'CreateRoom',
@@ -96,7 +102,7 @@ export default {
       startingStackBb: 50,
       maxSeatCount: 9,
       roomPassword: '',
-      submitting: false
+      creating: false
     }
   },
   computed: {
@@ -117,13 +123,18 @@ export default {
       this.$router.replace('/login')
     }
   },
+  mounted() {
+    prefetchGameChunk().catch(function () {
+      /* chunk 预加载失败不阻塞创建页 */
+    })
+  },
   methods: {
     goHome() {
       this.$router.push('/home')
     },
     async submit() {
-      if (this.submitting) return
-      this.submitting = true
+      if (this.creating) return
+      this.creating = true
       try {
         await exitLobbyQuickMatchSilently(this.$http, this.user, {})
         var sc = Math.max(1, Number(this.smallBlind) || 5)
@@ -146,6 +157,7 @@ export default {
         const roomId = res.data && res.data.roomId
         if (!roomId) {
           alert('创建失败：未返回房间号')
+          this.creating = false
           return
         }
         const startRes = await this.$http.post('/dpRoom/startGame', null, {
@@ -156,15 +168,14 @@ export default {
         })
         if (startRes.data !== 'ok') {
           alert('房间已创建但开局未成功，请从大厅进入该房间重试')
-          this.$router.replace('/game/' + roomId)
+          this.$router.replace({ name: 'game', params: { roomId: roomId } })
           return
         }
-        this.$router.replace('/game/' + roomId)
+        this.$router.replace({ name: 'game', params: { roomId: roomId } })
       } catch (e) {
         console.error('createRoom', e)
         alert('创建失败，请检查网络或后端是否已启动')
-      } finally {
-        this.submitting = false
+        this.creating = false
       }
     }
   }
@@ -172,6 +183,10 @@ export default {
 </script>
 
 <style scoped>
+.create-room-panel {
+  position: relative;
+  min-height: 280px;
+}
 .create-room-inner {
   padding: 16px 0 32px;
 }

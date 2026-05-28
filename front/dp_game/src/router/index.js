@@ -59,6 +59,8 @@ export default new Router({
     },
     {
       path: '/create-room',
+      name: 'create-room',
+      meta: { transition: 'slide-from-right' },
       component: () => import(/* webpackChunkName: "route-create-room" */ '@/components/CreateRoom.vue')
     },
     {
@@ -80,7 +82,8 @@ export default new Router({
     },
     {
       path: '/game/:roomId',
-      meta: { transition: 'dp-route-enter-game' },
+      name: 'game',
+      meta: { transition: 'zoom-fade-in' },
       component: () =>
         import(
           /* webpackChunkName: "route-game" */

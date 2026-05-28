@@ -42,6 +42,8 @@ import {
   Tooltip,
   Upload
 } from 'element-ui'
+import Loading from 'element-ui/lib/loading'
+import 'element-ui/lib/theme-chalk/loading.css'
 import 'element-ui/lib/theme-chalk/icon.css'
 
 Vue.config.productionTip = false
@@ -60,6 +62,7 @@ Vue.use(Table)
 Vue.use(TableColumn)
 Vue.use(Tooltip)
 Vue.use(Upload)
+Vue.use(Loading.directive)
 
 Vue.prototype.$message = Message
 Vue.prototype.$confirm = MessageBox.confirm

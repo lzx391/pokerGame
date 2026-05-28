@@ -1,5 +1,5 @@
 /**
- * 路由 path → transition name（仅标准档 + flag on 时由 App.vue 挂载 <transition>）
+ * 路由 path / meta → transition name（仅标准档 + flag on 时由 App.vue 挂载 <transition>）
  */
 import { isRouteTransitionEnabled } from './dpRouteTransitionFlag'
 
@@ -12,12 +12,16 @@ function pathPattern(path) {
 }
 
 var GAME = '/game/:id'
-var LOBBY_ENTER_GAME = ['/home', '/create-room']
 var LOBBY_SUB = ['/leaderboard', '/hand-history', '/music-upload', '/download-center', '/image_upload']
 var AUTH = ['/login', '/register', '/']
 
 function isLobbySub(p) {
   return LOBBY_SUB.indexOf(p) >= 0 || p === '/hand-history/detail/:id'
+}
+
+/** @param {import('vue-router').Route} route */
+function metaTransition(route) {
+  return route && route.meta && route.meta.transition
 }
 
 /**
@@ -38,6 +42,10 @@ export function resolveRouteTransitionName(to, from, opts) {
     return 'dp-route-none'
   }
 
+  if (metaTransition(to) === 'none' || metaTransition(from) === 'none') {
+    return 'dp-route-none'
+  }
+
   var toP = pathPattern(to && to.path)
   var fromP = pathPattern(from && from.path)
 
@@ -45,20 +53,24 @@ export function resolveRouteTransitionName(to, from, opts) {
     return 'dp-route-leave-game'
   }
 
-  if (toP === GAME && fromP !== '/guide') {
-    if (LOBBY_ENTER_GAME.indexOf(fromP) >= 0) {
-      return 'dp-route-enter-game'
-    }
-    if (fromP !== GAME && fromP !== '/guide') {
-      return 'dp-route-enter-game'
-    }
+  /* home ↔ 创建页：右侧滑入 */
+  if (
+    (fromP === '/home' && toP === '/create-room') ||
+    (fromP === '/create-room' && toP === '/home')
+  ) {
+    return 'dp-route-slide-from-right'
+  }
+
+  /* 进对局：轻微放大 + 淡入（创建页 / 大厅等 → game） */
+  if (toP === GAME && fromP !== '/guide' && fromP !== GAME) {
+    return 'dp-route-zoom-fade-in'
   }
 
   if (
     (fromP === '/home' && isLobbySub(toP)) ||
     (toP === '/home' && isLobbySub(fromP))
   ) {
-    return 'dp-route-lobby'
+    return 'dp-route-fade'
   }
 
   if (AUTH.indexOf(fromP) >= 0 && toP === '/home') {
@@ -69,9 +81,10 @@ export function resolveRouteTransitionName(to, from, opts) {
     return 'dp-route-none'
   }
 
-  if (to && to.meta && to.meta.transition === 'none') {
-    return 'dp-route-none'
-  }
+  var toMeta = metaTransition(to)
+  if (toMeta === 'slide-from-right') return 'dp-route-slide-from-right'
+  if (toMeta === 'zoom-fade-in') return 'dp-route-zoom-fade-in'
+  if (toMeta === 'fade') return 'dp-route-fade'
 
   return 'dp-route-none'
 }
