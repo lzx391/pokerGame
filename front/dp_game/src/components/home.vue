@@ -21,200 +21,317 @@
         @confirm="onPlayGuideConfirm"
       />
 
-      <header class="home-header">
-        <h2 class="home-title">猫咪牌局 · 大厅</h2>
-        <div class="home-header__right">
-          <div class="dp-game-theme-row home-theme-row">
-            <span class="dp-game-theme-row__label">界面主题</span>
-            <dp-theme-picker
-              :game-ui-theme="gameUiTheme"
-              :theme-options="gameThemeOptions"
-              :custom-theme-base="customThemeBase"
-              :custom-theme-overrides="customThemeOverrides"
-              @input-theme="onLobbyThemeChange($event)"
-              @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
-              @custom-overrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
-            />
-            <dp-fluidity-toggle label-class="home-fluidity-toggle" />
+      <!-- ====== 顶部品牌横幅 ====== -->
+      <header class="home-hero">
+        <div class="home-hero__brand">
+          <div class="home-hero__logo">
+            <span class="home-hero__logo-paw" aria-hidden="true"></span>
+            <h1 class="home-hero__title">猫咪牌局</h1>
           </div>
-          <div class="user-info">
-            <dp-user-avatar
-              v-if="user && user.nickname"
-              class="home-header__avatar"
-              :avatar-url="user.avatarUrl"
-              :nickname="user.nickname"
-              :cache-bust="userAvatarCacheBust || avatarCacheBustFromUpdatedAt(user.avatarUpdatedAt)"
-              size="sm"
-              :title="user.nickname"
-            />
-            <span v-if="user && user.nickname">当前用户：{{ user.nickname }}</span>
-            <button type="button" class="dp-btn dp-btn--ghost logout-btn" @click="openPlayGuide(false)">玩法说明</button>
-            <button type="button" class="dp-btn dp-btn--ghost logout-btn" @click="goButtonGuide">新手一分钟</button>
-            <button type="button" class="dp-btn dp-btn--ghost logout-btn" @click="profileVisible = true">个人资料</button>
-            <button type="button" class="dp-btn dp-btn--danger logout-btn" @click="logout">退出登录</button>
+          <p class="home-hero__subtitle">约上好友，来一局优雅的猫咪扑克</p>
+        </div>
+        <div class="home-hero__user">
+          <dp-user-avatar
+            v-if="user && user.nickname"
+            class="home-hero__avatar"
+            :avatar-url="user.avatarUrl"
+            :nickname="user.nickname"
+            :cache-bust="userAvatarCacheBust || avatarCacheBustFromUpdatedAt(user.avatarUpdatedAt)"
+            size="sm"
+            :title="user.nickname"
+          />
+          <div class="home-hero__user-text">
+            <span v-if="user && user.nickname" class="home-hero__username">{{ user.nickname }}</span>
+            <span class="home-hero__user-label">在线</span>
           </div>
         </div>
       </header>
 
-      <section class="dp-lobby-panel home-actions">
-        <h3 class="dp-lobby-panel__title home-actions__title">快捷入口</h3>
-        <div class="btns">
-          <div class="home-actions__primary-row">
+      <!-- ====== 主题与工具栏 ====== -->
+      <div class="home-toolbar">
+        <div class="dp-game-theme-row">
+          <span class="dp-game-theme-row__label">界面主题</span>
+          <dp-theme-picker
+            :game-ui-theme="gameUiTheme"
+            :theme-options="gameThemeOptions"
+            :custom-theme-base="customThemeBase"
+            :custom-theme-overrides="customThemeOverrides"
+            @input-theme="onLobbyThemeChange($event)"
+            @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
+            @custom-overrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
+          />
+          <dp-fluidity-toggle label-class="home-fluidity-toggle" />
+        </div>
+        <div class="home-toolbar__actions">
+          <button type="button" class="home-tool-btn" @click="openPlayGuide(false)">玩法说明</button>
+          <button type="button" class="home-tool-btn" @click="goButtonGuide">新手一分钟</button>
+          <button type="button" class="home-tool-btn" @click="profileVisible = true">个人资料</button>
+          <button type="button" class="home-tool-btn home-tool-btn--danger" @click="logout">退出</button>
+        </div>
+      </div>
+
+      <!-- ====== 快捷入口卡片网格 ====== -->
+      <section class="home-quick">
+        <h3 class="home-section-title">
+          快捷入口
+        </h3>
+        <div class="home-quick__grid">
+          <!-- 快速匹配 - 主推操作 -->
+          <button
+            type="button"
+            class="home-quick-card home-quick-card--primary"
+            :disabled="quickMatchLoading && !quickMatchPolling"
+            @click="onQuickMatchButtonClick"
+          >
+            <span class="home-quick-card__icon-wrap home-quick-card__icon-wrap--match">
+              <i class="el-icon-s-flag"></i>
+            </span>
+            <span class="home-quick-card__label">{{ quickMatchPolling ? '取消匹配' : quickMatchLoading ? '匹配中…' : '快速匹配' }}</span>
+            <span class="home-quick-card__desc">{{ quickMatchPolling ? '正在寻找对手…' : '即刻加入对局' }}</span>
+          </button>
+
+          <!-- 创建房间 -->
+          <button type="button" class="home-quick-card home-quick-card--accent" @click="goCreateRoom">
+            <span class="home-quick-card__icon-wrap home-quick-card__icon-wrap--create">
+              <i class="el-icon-s-home"></i>
+            </span>
+            <span class="home-quick-card__label">创建房间</span>
+            <span class="home-quick-card__desc">自定义规则开桌</span>
+          </button>
+
+          <!-- 历史对局 -->
+          <button type="button" class="home-quick-card" @click="goHandHistory">
+            <span class="home-quick-card__icon-wrap">
+              <i class="el-icon-document"></i>
+            </span>
+            <span class="home-quick-card__label">历史对局</span>
+            <span class="home-quick-card__desc">回顾精彩牌局</span>
+          </button>
+
+          <!-- 排行榜 -->
+          <button type="button" class="home-quick-card" @click="goLeaderboard">
+            <span class="home-quick-card__icon-wrap">
+              <i class="el-icon-s-data"></i>
+            </span>
+            <span class="home-quick-card__label">排行榜</span>
+            <span class="home-quick-card__desc">猫王争霸</span>
+          </button>
+
+          <!-- 曲库上传 -->
+          <button type="button" class="home-quick-card" @click="goMusicUpload">
+            <span class="home-quick-card__icon-wrap">
+              <i class="el-icon-upload"></i>
+            </span>
+            <span class="home-quick-card__label">曲库上传</span>
+            <span class="home-quick-card__desc">管理背景音乐</span>
+          </button>
+
+          <!-- 下载中心 -->
+          <button type="button" class="home-quick-card" @click="goDownloadCenter">
+            <span class="home-quick-card__icon-wrap">
+              <i class="el-icon-download"></i>
+            </span>
+            <span class="home-quick-card__label">下载中心</span>
+            <span class="home-quick-card__desc">获取客户端</span>
+          </button>
+
+          <!-- 邮箱 -->
+          <el-badge
+            :value="unreadCount"
+            :hidden="!unreadCount"
+            :max="99"
+            class="home-quick-card__badge"
+          >
             <button
               type="button"
-              class="dp-btn dp-btn--success"
-              :disabled="quickMatchLoading && !quickMatchPolling"
-              @click="onQuickMatchButtonClick"
+              class="home-quick-card"
+              aria-label="打开邮箱"
+              title="邮箱（好友申请 / 进房邀请）"
+              @click="openMailbox"
             >
-              {{ quickMatchPolling ? '取消匹配' : quickMatchLoading ? '匹配中…' : '快速匹配' }}
+              <span class="home-quick-card__icon-wrap">
+                <i class="el-icon-message"></i>
+              </span>
+              <span class="home-quick-card__label">邮箱</span>
+              <span class="home-quick-card__desc">申请与邀请</span>
             </button>
-            <button type="button" class="dp-btn dp-btn--primary" @click="goCreateRoom">创建房间</button>
-            <button type="button" class="dp-btn dp-btn--ghost" @click="goHandHistory">历史对局</button>
-            <button type="button" class="dp-btn dp-btn--ghost" @click="goLeaderboard">排行榜</button>
-            <button type="button" class="dp-btn dp-btn--ghost" @click="goMusicUpload">曲库上传</button>
-            <button type="button" class="dp-btn dp-btn--ghost" @click="goDownloadCenter">下载中心</button>
-            <el-badge
-              :value="unreadCount"
-              :hidden="!unreadCount"
-              :max="99"
-              class="home-actions__mail-badge home-actions__mail-badge--inline"
+          </el-badge>
+
+          <!-- 好友 -->
+          <el-badge
+            :value="friendChatUnreadTotal"
+            :hidden="!friendChatUnreadTotal"
+            :max="99"
+            class="home-quick-card__badge"
+          >
+            <button
+              type="button"
+              class="home-quick-card"
+              aria-label="好友列表"
+              title="好友列表"
+              @click="openFriendsDrawer"
             >
-              <button
-                type="button"
-                class="dp-btn dp-btn--ghost"
-                aria-label="打开邮箱"
-                title="邮箱（好友申请 / 进房邀请）"
-                @click="openMailbox"
-              >
-                邮箱
-              </button>
-            </el-badge>
-            <el-badge
-              :value="friendChatUnreadTotal"
-              :hidden="!friendChatUnreadTotal"
-              :max="99"
-              class="home-actions__mail-badge home-actions__mail-badge--inline"
-            >
-              <button
-                type="button"
-                class="dp-btn dp-btn--ghost"
-                aria-label="好友列表"
-                title="好友列表"
-                @click="openFriendsDrawer"
-              >
-                好友
-              </button>
-            </el-badge>
-          </div>
+              <span class="home-quick-card__icon-wrap">
+                <i class="el-icon-user"></i>
+              </span>
+              <span class="home-quick-card__label">好友</span>
+              <span class="home-quick-card__desc">私信与跟随</span>
+            </button>
+          </el-badge>
         </div>
       </section>
 
-      <section class="dp-lobby-panel home-room-list">
-        <div class="home-room-list__head">
-          <h3 class="dp-lobby-panel__title home-room-list__title">房间列表</h3>
-          <button
-            type="button"
-            class="dp-btn dp-btn--ghost home-room-list__refresh"
-            :disabled="roomsLoading"
-            title="立即刷新列表（可与自动刷新并存）"
-            aria-label="刷新房间列表"
-            @click="refreshRoomList"
-          >
-            <i
-              class="el-icon-refresh"
-              :class="{ 'home-room-list__refresh-ico--spin': roomsLoading }"
-              aria-hidden="true"
-            />
-            刷新
+      <!-- ====== 房间列表区 ====== -->
+      <section class="home-rooms">
+        <div class="home-rooms__head">
+          <h3 class="home-section-title">
+            房间列表
+          </h3>
+          <div class="home-rooms__head-right">
+            <span v-if="useFilterQuery" class="home-rooms__mode-badge">条件筛选</span>
+            <span v-else class="home-rooms__mode-badge home-rooms__mode-badge--dim">默认列表</span>
+            <button
+              type="button"
+              class="home-rooms__refresh-btn"
+              :disabled="roomsLoading"
+              title="立即刷新"
+              @click="refreshRoomList"
+            >
+              <i class="el-icon-refresh" :class="{ 'home-rooms__refresh-ico--spin': roomsLoading }"></i>
+              刷新
+            </button>
+          </div>
+        </div>
+
+        <!-- 可折叠筛选栏 -->
+        <div class="home-filters" :class="{ 'home-filters--open': filterOpen }">
+          <button type="button" class="home-filters__toggle" @click="filterOpen = !filterOpen">
+            <i :class="filterOpen ? 'el-icon-arrow-up' : 'el-icon-arrow-down'" class="home-filters__toggle-icon"></i>
+            筛选条件
+            <span v-if="filtersActiveFromForm()" class="home-filters__active-dot" title="有激活的筛选条件"></span>
           </button>
-        </div>
-        <div class="home-filters" aria-label="筛选与搜索">
-          <div class="home-filters__row">
-            <label class="home-filters__item">
-              <span class="home-filters__label">房间号</span>
-              <input
-                v-model.trim="filters.roomId"
-                type="text"
-                class="home-filters__input"
-                placeholder="精确匹配"
-                maxlength="32"
-                @keyup.enter="applyFilters"
-              />
-            </label>
-            <label class="home-filters__item home-filters__item--num">
-              <span class="home-filters__label">大猫鱼干≥</span>
-              <input
-                v-model="filters.minBigBlind"
-                type="number"
-                min="0"
-                class="home-filters__input"
-                placeholder="可选"
-              />
-            </label>
-            <label class="home-filters__item home-filters__item--num">
-              <span class="home-filters__label">大猫鱼干≤</span>
-              <input
-                v-model="filters.maxBigBlind"
-                type="number"
-                min="0"
-                class="home-filters__input"
-                placeholder="可选"
-              />
-            </label>
-            <label class="home-filters__item home-filters__item--num">
-              <span class="home-filters__label">人数≥</span>
-              <input
-                v-model="filters.minPlayers"
-                type="number"
-                min="0"
-                class="home-filters__input"
-                placeholder="可选"
-              />
-            </label>
-            <label class="home-filters__item home-filters__item--num">
-              <span class="home-filters__label">人数≤</span>
-              <input
-                v-model="filters.maxPlayers"
-                type="number"
-                min="0"
-                class="home-filters__input"
-                placeholder="可选"
-              />
-            </label>
-            <label class="home-filters__item">
-              <span class="home-filters__label">房间</span>
-              <select v-model="filters.password" class="home-filters__select">
-                <option value="any">全部</option>
-                <option value="locked">仅密码房</option>
-                <option value="open">仅公开</option>
-              </select>
-            </label>
-          </div>
-          <div class="home-filters__actions">
-            <button type="button" class="dp-btn dp-btn--primary" @click="applyFilters">搜索</button>
-            <button type="button" class="dp-btn dp-btn--ghost" @click="resetFilters">重置</button>
-            <span v-if="useFilterQuery" class="home-filters__mode">当前：条件查询（缓存加速）</span>
-            <span v-else class="home-filters__mode">当前：默认列表（缓存加速）</span>
+          <div v-if="filterOpen" class="home-filters__body">
+            <div class="home-filters__row">
+              <label class="home-filters__item">
+                <span class="home-filters__label">房间号</span>
+                <input
+                  v-model.trim="filters.roomId"
+                  type="text"
+                  class="home-filters__input"
+                  placeholder="精确匹配"
+                  maxlength="32"
+                  @keyup.enter="applyFilters"
+                />
+              </label>
+              <label class="home-filters__item home-filters__item--num">
+                <span class="home-filters__label">大猫鱼干 ≥</span>
+                <input
+                  v-model="filters.minBigBlind"
+                  type="number"
+                  min="0"
+                  class="home-filters__input"
+                  placeholder="可选"
+                />
+              </label>
+              <label class="home-filters__item home-filters__item--num">
+                <span class="home-filters__label">大猫鱼干 ≤</span>
+                <input
+                  v-model="filters.maxBigBlind"
+                  type="number"
+                  min="0"
+                  class="home-filters__input"
+                  placeholder="可选"
+                />
+              </label>
+              <label class="home-filters__item home-filters__item--num">
+                <span class="home-filters__label">人数 ≥</span>
+                <input
+                  v-model="filters.minPlayers"
+                  type="number"
+                  min="0"
+                  class="home-filters__input"
+                  placeholder="可选"
+                />
+              </label>
+              <label class="home-filters__item home-filters__item--num">
+                <span class="home-filters__label">人数 ≤</span>
+                <input
+                  v-model="filters.maxPlayers"
+                  type="number"
+                  min="0"
+                  class="home-filters__input"
+                  placeholder="可选"
+                />
+              </label>
+              <label class="home-filters__item home-filters__item--select">
+                <span class="home-filters__label">类型</span>
+                <select v-model="filters.password" class="home-filters__select">
+                  <option value="any">全部</option>
+                  <option value="locked">仅密码房</option>
+                  <option value="open">仅公开</option>
+                </select>
+              </label>
+            </div>
+            <div class="home-filters__actions">
+              <button type="button" class="home-filters__btn home-filters__btn--search" @click="applyFilters">搜索</button>
+              <button type="button" class="home-filters__btn home-filters__btn--reset" @click="resetFilters">重置</button>
+            </div>
           </div>
         </div>
-        <p v-if="roomsLoading" class="room-list__hint">加载中…</p>
-        <p v-else-if="roomsError" class="room-list__hint room-list__hint--error">{{ roomsError }}</p>
-        <p v-else-if="!roomDtos.length" class="room-list__hint">暂无房间，可先点「创建房间」开一桌。</p>
-        <div v-else class="room-list__items">
-          <div class="room-item" v-for="roomDto in roomDtos" :key="roomDto.roomId">
-            <span class="room-item__text">
-              房间 {{ roomDto.roomId }} ({{ roomDto.playerSize }}/{{ roomDto.maxSeatCount != null ? roomDto.maxSeatCount : 9 }}人)
-              <span v-if="roomDto.smallBlindChips != null && roomDto.bigBlindChips != null" class="room-item__blinds">
-                · 小猫/大猫 {{ roomDto.smallBlindChips }}/{{ roomDto.bigBlindChips }}<template v-if="roomDto.startingStackBb"> · {{ roomDto.startingStackBb }} 倍</template>
-              </span>
-              <span v-if="roomDto.passwordProtected" class="room-item__lock" title="需要密码">🔒</span>
-            </span>
-            <button type="button" class="dp-btn dp-btn--primary room-item__join" @click="joinRoom(roomDto)">加入</button>
+
+        <!-- 房间列表内容 -->
+        <p v-if="roomsLoading" class="home-rooms__hint">
+          <span class="home-rooms__spinner"></span> 加载中…
+        </p>
+        <p v-else-if="roomsError" class="home-rooms__hint home-rooms__hint--error">{{ roomsError }}</p>
+        <p v-else-if="!roomDtos.length" class="home-rooms__empty">
+          <i class="el-icon-s-home home-rooms__empty-icon"></i>
+          <span>还没有房间哦，快去「创建房间」开一桌吧！</span>
+        </p>
+        <div v-else class="home-rooms__grid">
+          <div
+            v-for="roomDto in roomDtos"
+            :key="roomDto.roomId"
+            class="room-card"
+            :class="{ 'room-card--locked': roomDto.passwordProtected }"
+          >
+            <div class="room-card__felt">
+              <div class="room-card__header">
+                <span class="room-card__room-id">#{{ roomDto.roomId }}</span>
+                <i v-if="roomDto.passwordProtected" class="el-icon-lock room-card__lock" title="需要密码"></i>
+              </div>
+              <div class="room-card__body">
+                <div class="room-card__players">
+                  <span class="room-card__player-count">{{ roomDto.playerSize }}</span>
+                  <span class="room-card__player-sep">/</span>
+                  <span class="room-card__player-max">{{ roomDto.maxSeatCount != null ? roomDto.maxSeatCount : 9 }}</span>
+                  <span class="room-card__player-label">人</span>
+                </div>
+                <div v-if="roomDto.smallBlindChips != null && roomDto.bigBlindChips != null" class="room-card__blinds">
+                  <span class="room-card__blind-chip room-card__blind-chip--small">{{ roomDto.smallBlindChips }}</span>
+                  <span class="room-card__blind-sep">/</span>
+                  <span class="room-card__blind-chip room-card__blind-chip--big">{{ roomDto.bigBlindChips }}</span>
+                  <span v-if="roomDto.startingStackBb" class="room-card__bb-label">{{ roomDto.startingStackBb }}×</span>
+                </div>
+              </div>
+              <div class="room-card__footer">
+                <div class="room-card__seats">
+                  <span
+                    v-for="i in (roomDto.maxSeatCount || 9)"
+                    :key="'s' + i"
+                    class="room-card__seat"
+                    :class="{ 'is-filled': i <= roomDto.playerSize }"
+                  ></span>
+                </div>
+                <button type="button" class="room-card__join" @click="joinRoom(roomDto)">加入</button>
+              </div>
+            </div>
           </div>
         </div>
       </section>
     </div>
 
+    <!-- ====== 以下弹层保持原样 ====== -->
     <el-drawer
       title="好友列表"
       :visible.sync="friendsDrawerVisible"
@@ -553,7 +670,7 @@ export default {
       roomDtos: [],
       roomsLoading: true,
       roomsError: '',
-      /** 表单绑定；是否走 /publicRooms/query 由 applyFilters 写入 useFilterQuery */
+      filterOpen: false,
       filters: {
         roomId: '',
         minBigBlind: '',
@@ -564,7 +681,6 @@ export default {
       },
       useFilterQuery: false,
       quickMatchLoading: false,
-      /** 已入默认快匹队列，靠 /ws/dp-quick-match 推送直至 MATCHED */
       quickMatchPolling: false,
       quickMatchWs: null,
       quickMatchWsSession: 0,
@@ -582,7 +698,6 @@ export default {
       addFriendLookupError: '',
       addFriendSendBusy: false,
       mailboxVisible: false,
-      /** 邮箱内进房邀约倒计时本地递减（每秒） */
       mailboxTickSeconds: 0,
       mailboxTickTimer: null,
       socialEventSource: null,
@@ -595,7 +710,6 @@ export default {
       friendChatPeerAvatar: '',
       friendChatPeerAvatarUpdatedAt: null,
       friendChatPeerUnread: 0,
-      /** 好友列表「跟随」连点防护：好友 dp_user.id */
       friendFollowBusyUserId: null
     }
   },
@@ -797,18 +911,12 @@ export default {
         es.onerror = null
         es.onmessage = null
         if (notifyHandler) {
-          try {
-            es.removeEventListener('notify', notifyHandler)
-          } catch (e) { /* ignore */ }
+          try { es.removeEventListener('notify', notifyHandler) } catch (e) { /* ignore */ }
         }
         if (presenceHandler) {
-          try {
-            es.removeEventListener('friendPresence', presenceHandler)
-          } catch (e) { /* ignore */ }
+          try { es.removeEventListener('friendPresence', presenceHandler) } catch (e) { /* ignore */ }
         }
-        try {
-          es.close()
-        } catch (e) { /* ignore */ }
+        try { es.close() } catch (e) { /* ignore */ }
       }
     },
     scheduleSocialStreamReconnect() {
@@ -833,12 +941,7 @@ export default {
       var session = ++this.socialEsSession
       var self = this
       var es
-      try {
-        es = new EventSource(url)
-      } catch (e) {
-        this.scheduleSocialStreamReconnect()
-        return
-      }
+      try { es = new EventSource(url) } catch (e) { this.scheduleSocialStreamReconnect(); return }
       this.socialEventSource = es
       this._socialNotifyHandler = function (ev) {
         if (self.socialEsSession !== session) return
@@ -862,9 +965,7 @@ export default {
       }
       es.onerror = function () {
         if (self.socialEsSession !== session) return
-        try {
-          es.close()
-        } catch (err) { /* ignore */ }
+        try { es.close() } catch (err) { /* ignore */ }
         if (self.socialEventSource === es) self.socialEventSource = null
         self.scheduleSocialStreamReconnect()
       }
@@ -922,9 +1023,7 @@ export default {
       var self = this
       this.stopMailboxTick()
       this.mailboxTickSeconds = 0
-      this.mailboxTickTimer = setInterval(function () {
-        self.mailboxTickSeconds++
-      }, 1000)
+      this.mailboxTickTimer = setInterval(function () { self.mailboxTickSeconds++ }, 1000)
     },
     stopMailboxTick() {
       if (this.mailboxTickTimer != null) {
@@ -934,7 +1033,6 @@ export default {
       this.mailboxTickSeconds = 0
     },
     async onMailboxDialogOpen() {
-      /* 打开即用服务端列表刷新红点，不因「只看一眼」清零 */
       this.mailboxTickSeconds = 0
       var http = this.$http
       await this.fetchMailbox({ http })
@@ -946,77 +1044,42 @@ export default {
       this.fetchUnreadCount({ http: this.$http }).catch(() => {})
     },
     async openMailbox() {
-      if (!this.user || !this.user.token) {
-        alert('请先登录')
-        return
-      }
+      if (!this.user || !this.user.token) { alert('请先登录'); return }
       this.mailboxVisible = true
     },
     async openFriendsDrawer() {
-      if (!this.user || !this.user.token) {
-        alert('请先登录')
-        return
-      }
+      if (!this.user || !this.user.token) { alert('请先登录'); return }
       this.friendsDrawerVisible = true
     },
     async onFriendsDrawerOpen() {
       if (!this.user || !this.user.token) return
       this.friendsSearchInput = this.friendsQuery || ''
       var http = this.$http
-      var r = await this.fetchFriends({
-        http,
-        page: 1,
-        pageSize: this.friendsPageSize,
-        q: this.friendsQuery
-      })
-      if (r && r.ok === false && r.message) {
-        alert(r.message)
-      }
+      var r = await this.fetchFriends({ http, page: 1, pageSize: this.friendsPageSize, q: this.friendsQuery })
+      if (r && r.ok === false && r.message) { alert(r.message) }
     },
     onFriendsSearchInput() {
       var self = this
-      if (this.friendsSearchDebounceTimer != null) {
-        clearTimeout(this.friendsSearchDebounceTimer)
-      }
+      if (this.friendsSearchDebounceTimer != null) { clearTimeout(this.friendsSearchDebounceTimer) }
       this.friendsSearchDebounceTimer = setTimeout(function () {
         self.friendsSearchDebounceTimer = null
         self.reloadFriendsPageOne()
       }, 350)
     },
-    onFriendsSearchClear() {
-      this.friendsSearchInput = ''
-      this.reloadFriendsPageOne()
-    },
+    onFriendsSearchClear() { this.friendsSearchInput = ''; this.reloadFriendsPageOne() },
     async reloadFriendsPageOne() {
       if (!this.user || !this.user.token) return
       var q = (this.friendsSearchInput || '').trim()
-      var r = await this.fetchFriends({
-        http: this.$http,
-        page: 1,
-        pageSize: this.friendsPageSize,
-        q: q
-      })
-      if (r && r.ok === false && r.message && this.$message) {
-        this.$message.error(r.message)
-      }
+      var r = await this.fetchFriends({ http: this.$http, page: 1, pageSize: this.friendsPageSize, q: q })
+      if (r && r.ok === false && r.message && this.$message) { this.$message.error(r.message) }
     },
     async onFriendsPageChange(page) {
       if (!this.user || !this.user.token) return
-      var r = await this.fetchFriends({
-        http: this.$http,
-        page: page,
-        pageSize: this.friendsPageSize,
-        q: (this.friendsSearchInput || '').trim()
-      })
-      if (r && r.ok === false && r.message && this.$message) {
-        this.$message.error(r.message)
-      }
+      var r = await this.fetchFriends({ http: this.$http, page: page, pageSize: this.friendsPageSize, q: (this.friendsSearchInput || '').trim() })
+      if (r && r.ok === false && r.message && this.$message) { this.$message.error(r.message) }
     },
     openAddFriendDialog() {
-      if (!this.user || !this.user.token) {
-        alert('请先登录')
-        return
-      }
+      if (!this.user || !this.user.token) { alert('请先登录'); return }
       this.addFriendDialogVisible = true
     },
     onAddFriendDialogOpen() {
@@ -1026,18 +1089,10 @@ export default {
       this.addFriendLookupError = ''
       this.addFriendSendBusy = false
     },
-    onAddFriendDialogClosed() {
-      this.addFriendLookupLoading = false
-      this.addFriendSendBusy = false
-    },
+    onAddFriendDialogClosed() { this.addFriendLookupLoading = false; this.addFriendSendBusy = false },
     async onAddFriendLookup() {
       var q = (this.addFriendLookupInput || '').trim()
-      if (!q) {
-        this.addFriendLookupError = '请输入用户 id 或昵称'
-        this.addFriendLookupUser = null
-        this.addFriendLookupAddStatus = ''
-        return
-      }
+      if (!q) { this.addFriendLookupError = '请输入用户 id 或昵称'; this.addFriendLookupUser = null; this.addFriendLookupAddStatus = ''; return }
       this.addFriendLookupLoading = true
       this.addFriendLookupError = ''
       this.addFriendLookupUser = null
@@ -1046,21 +1101,14 @@ export default {
         var api = dpSocialApi(this.$http)
         var res = await api.lookupUser(q)
         var body = res.data
-        if (!dpResultSuccess(body)) {
-          this.addFriendLookupError = dpResultMessage(body) || '未找到用户'
-          return
-        }
+        if (!dpResultSuccess(body)) { this.addFriendLookupError = dpResultMessage(body) || '未找到用户'; return }
         var d = dpResultData(body) || {}
         this.addFriendLookupUser = d.user || null
         this.addFriendLookupAddStatus = d.addStatus != null ? String(d.addStatus) : ''
-        if (!this.addFriendLookupUser) {
-          this.addFriendLookupError = '未找到用户'
-        }
+        if (!this.addFriendLookupUser) { this.addFriendLookupError = '未找到用户' }
       } catch (e) {
         this.addFriendLookupError = dpAxiosErrorMessage(e, '搜索失败')
-      } finally {
-        this.addFriendLookupLoading = false
-      }
+      } finally { this.addFriendLookupLoading = false }
     },
     async onAddFriendSendRequest() {
       if (!this.addFriendCanSend || !this.addFriendLookupUser) return
@@ -1069,122 +1117,63 @@ export default {
       this.addFriendSendBusy = true
       try {
         var res = await this.$http.post('/dp/friends/requests', { toUserId: uid })
-        if (dpResultSuccess(res.data)) {
-          this.addFriendLookupAddStatus = 'PENDING_OUTBOUND'
-          this.$message.success((res.data.data && res.data.data.message) || '已发送')
-          return
-        }
+        if (dpResultSuccess(res.data)) { this.addFriendLookupAddStatus = 'PENDING_OUTBOUND'; this.$message.success((res.data.data && res.data.data.message) || '已发送'); return }
         var msg = dpResultMessage(res.data)
-        if (msg.indexOf('对方已向您发来申请') !== -1) {
-          this.addFriendLookupAddStatus = 'PENDING_INBOUND'
-          this.$message.info(msg + '，请在大厅邮箱中处理。')
-          return
-        }
+        if (msg.indexOf('对方已向您发来申请') !== -1) { this.addFriendLookupAddStatus = 'PENDING_INBOUND'; this.$message.info(msg + '，请在大厅邮箱中处理。'); return }
         if (msg.indexOf('已是好友') !== -1) {
           this.addFriendLookupAddStatus = 'ALREADY_FRIENDS'
-          await this.fetchFriends({
-            http: this.$http,
-            page: this.friendsPage,
-            pageSize: this.friendsPageSize,
-            q: (this.friendsSearchInput || '').trim()
-          })
-          this.$message.info(msg)
-          return
+          await this.fetchFriends({ http: this.$http, page: this.friendsPage, pageSize: this.friendsPageSize, q: (this.friendsSearchInput || '').trim() })
+          this.$message.info(msg); return
         }
-        if (msg.indexOf('申请已存在') !== -1) {
-          this.addFriendLookupAddStatus = 'PENDING_OUTBOUND'
-          this.$message.success(msg)
-          return
-        }
+        if (msg.indexOf('申请已存在') !== -1) { this.addFriendLookupAddStatus = 'PENDING_OUTBOUND'; this.$message.success(msg); return }
         this.$message.error(msg)
-      } catch (err) {
-        this.$message.error(dpAxiosErrorMessage(err, '无法发送好友申请，请稍后重试'))
-      } finally {
-        this.addFriendSendBusy = false
-      }
+      } catch (err) { this.$message.error(dpAxiosErrorMessage(err, '无法发送好友申请，请稍后重试')) }
+      finally { this.addFriendSendBusy = false }
     },
     async onFollowFriend(f) {
       var uid = f && f.userId != null ? Number(f.userId) : 0
       if (!isFinite(uid) || uid <= 0) return
       if (this.friendFollowBusyUserId != null) return
       if (dpFriendPresenceBucket(f) !== 'in_game') return
-      if (!this.user || !this.user.token) {
-        alert('请先登录')
-        return
-      }
+      if (!this.user || !this.user.token) { alert('请先登录'); return }
       this.friendFollowBusyUserId = uid
       try {
         await this.exitQuickMatchBeforeRoomAction()
         const res = await this.followFriendToTheirRoom({ http: this.$http, friendUserId: uid })
         if (!res || !res.ok) return
         var rid = res.roomId != null && res.roomId !== '' ? String(res.roomId).trim() : ''
-        if (!rid) {
-          alert('未返回房间号')
-          return
-        }
+        if (!rid) { alert('未返回房间号'); return }
         this.friendsDrawerVisible = false
         await navigateToGame(this.$router, rid)
-      } finally {
-        this.friendFollowBusyUserId = null
-      }
+      } finally { this.friendFollowBusyUserId = null }
     },
     async onRemoveFriend(f) {
       var uid = f && f.userId != null ? Number(f.userId) : 0
       if (!isFinite(uid) || uid <= 0) return
       var label = this.friendPrimaryName(f)
       try {
-        await this.$confirm(
-          '确定删除好友「' + label + '」？删除后须重新添加互为好友才可再发进房邀请。',
-          '删除好友',
-          { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
-        )
-      } catch (e) {
-        return
-      }
+        await this.$confirm('确定删除好友「' + label + '」？删除后须重新添加互为好友才可再发进房邀请。', '删除好友', { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' })
+      } catch (e) { return }
       var r = await this.removeFriend({ http: this.$http, friendUserId: uid })
-      if (r && r.ok) {
-        this.$message.success((r.message) || '已删除')
-      } else {
-        this.$message.error((r && r.message) || '删除失败')
-      }
+      if (r && r.ok) { this.$message.success((r.message) || '已删除') }
+      else { this.$message.error((r && r.message) || '删除失败') }
     },
-    async onAcceptFriend(id) {
-      await this.acceptFriend({ http: this.$http, id })
-    },
-    async onRejectFriend(id) {
-      await this.rejectFriend({ http: this.$http, id })
-    },
+    async onAcceptFriend(id) { await this.acceptFriend({ http: this.$http, id }) },
+    async onRejectFriend(id) { await this.rejectFriend({ http: this.$http, id }) },
     async onAcceptRoomInvite(row) {
       const id = row && row.id
       const res = await this.acceptRoomInvite({ http: this.$http, id })
       if (!res || !res.ok) return
-      var rid =
-        res.roomId ||
-        (row && row.roomId) ||
-        ''
-      if (!rid) {
-        alert('未返回房间号')
-        return
-      }
+      var rid = res.roomId || (row && row.roomId) || ''
+      if (!rid) { alert('未返回房间号'); return }
       this.mailboxVisible = false
       await navigateToGame(this.$router, rid)
     },
-    async onRejectRoomInvite(id) {
-      await this.rejectRoomInvite({ http: this.$http, id })
-    },
-    openPlayGuide(firstRun) {
-      this.playGuideFirstRun = !!firstRun
-      this.playGuideTab = 'flow'
-      this.playGuideVisible = true
-    },
-    onPlayGuideClose() {
-      this.playGuideVisible = false
-      this.playGuideFirstRun = false
-    },
+    async onRejectRoomInvite(id) { await this.rejectRoomInvite({ http: this.$http, id }) },
+    openPlayGuide(firstRun) { this.playGuideFirstRun = !!firstRun; this.playGuideTab = 'flow'; this.playGuideVisible = true },
+    onPlayGuideClose() { this.playGuideVisible = false; this.playGuideFirstRun = false },
     onPlayGuideConfirm(payload) {
-      if (payload && payload.dontShowAgain) {
-        setCatTutorialDismissedPermanently()
-      }
+      if (payload && payload.dontShowAgain) { setCatTutorialDismissedPermanently() }
       this.onPlayGuideClose()
     },
     async loadCurrentUserAvatar() {
@@ -1193,56 +1182,33 @@ export default {
         const body = res.data
         if (!dpResultSuccess(body)) return
         const profile = (dpResultData(body) || {}).profile || {}
-        if (profile.avatarUrl) {
-          this.$set(this.user, 'avatarUrl', profile.avatarUrl)
-        }
-        if (profile.avatarUpdatedAt != null) {
-          this.$set(this.user, 'avatarUpdatedAt', profile.avatarUpdatedAt)
-        }
+        if (profile.avatarUrl) { this.$set(this.user, 'avatarUrl', profile.avatarUrl) }
+        if (profile.avatarUpdatedAt != null) { this.$set(this.user, 'avatarUpdatedAt', profile.avatarUpdatedAt) }
         this.prefetchCurrentUserAvatars()
-      } catch (e) {
-        /* ignore */
-      }
+      } catch (e) { /* ignore */ }
     },
     prefetchCurrentUserAvatars() {
       if (!this.user || !this.user.avatarUrl) return
       var bust = this.userAvatarCacheBust || avatarCacheBustFromUpdatedAt(this.user.avatarUpdatedAt)
-      prefetchAvatarUrls([{
-        avatarUrl: this.user.avatarUrl,
-        cacheBust: bust
-      }], {
-        prefetchFull: true
-      }).catch(function () {})
+      prefetchAvatarUrls([{ avatarUrl: this.user.avatarUrl, cacheBust: bust }], { prefetchFull: true }).catch(function () {})
     },
     onAvatarUpdated(payload) {
       if (!payload) return
-      if (payload.avatarUrl) {
-        this.$set(this.user, 'avatarUrl', payload.avatarUrl)
-      }
-      if (payload.avatarUpdatedAt != null) {
-        this.$set(this.user, 'avatarUpdatedAt', payload.avatarUpdatedAt)
-      }
-      if (payload.cacheBust) {
-        this.userAvatarCacheBust = payload.cacheBust
-      }
+      if (payload.avatarUrl) { this.$set(this.user, 'avatarUrl', payload.avatarUrl) }
+      if (payload.avatarUpdatedAt != null) { this.$set(this.user, 'avatarUpdatedAt', payload.avatarUpdatedAt) }
+      if (payload.cacheBust) { this.userAvatarCacheBust = payload.cacheBust }
       this.prefetchCurrentUserAvatars()
       try {
         var raw = localStorage.getItem('userInfo')
         var stored = raw ? JSON.parse(raw) : {}
         if (payload.avatarUrl) stored.avatarUrl = payload.avatarUrl
         localStorage.setItem('userInfo', JSON.stringify(stored))
-      } catch (e) {
-        /* ignore */
-      }
+      } catch (e) { /* ignore */ }
     },
     onProfileSaved(payload) {
       if (!payload) return
-      if (payload.nickname) {
-        this.user.nickname = payload.nickname
-      }
-      if (payload.token) {
-        this.user.token = payload.token
-      }
+      if (payload.nickname) { this.user.nickname = payload.nickname }
+      if (payload.token) { this.user.token = payload.token }
       try {
         var raw = localStorage.getItem('userInfo')
         var stored = raw ? JSON.parse(raw) : {}
@@ -1251,60 +1217,27 @@ export default {
         if (payload.newPassword) stored.password = payload.newPassword
         else if (payload.passwordForStorage) stored.password = payload.passwordForStorage
         localStorage.setItem('userInfo', JSON.stringify(stored))
-      } catch (e) {
-        /* ignore */
-      }
+      } catch (e) { /* ignore */ }
     },
-    logout() {
-      this.closeSocialStream()
-      localStorage.removeItem('userInfo')
-      this.$router.push('/')
-    },
-    goHandHistory() {
-      this.$router.push('/hand-history')
-    },
-    goLeaderboard() {
-      this.$router.push('/leaderboard')
-    },
-    goButtonGuide() {
-      this.$router.push({ name: 'GameButtonGuide' })
-    },
-    goMusicUpload() {
-      this.$router.push('/music-upload')
-    },
-    goDownloadCenter() {
-      this.$router.push('/download-center')
-    },
-    async goCreateRoom() {
-      await this.exitQuickMatchBeforeRoomAction()
-      this.$router.push('/create-room')
-    },
-    /**
-     * 创建/加入房间前：断开 /ws/dp-quick-match（若仍存在）并联调取消接口，降低前后端并发态。
-     * 幂等；取消失败仅日志，不阻塞后续导航或 join/create。
-     */
+    logout() { this.closeSocialStream(); localStorage.removeItem('userInfo'); this.$router.push('/') },
+    goHandHistory() { this.$router.push('/hand-history') },
+    goLeaderboard() { this.$router.push('/leaderboard') },
+    goButtonGuide() { this.$router.push({ name: 'GameButtonGuide' }) },
+    goMusicUpload() { this.$router.push('/music-upload') },
+    goDownloadCenter() { this.$router.push('/download-center') },
+    async goCreateRoom() { await this.exitQuickMatchBeforeRoomAction(); this.$router.push('/create-room') },
     async exitQuickMatchBeforeRoomAction() {
       var self = this
       await exitLobbyQuickMatchSilently(this.$http, this.user, {
-        resetQuickMatchUiFlags: function () {
-          self.quickMatchPolling = false
-          self.quickMatchLoading = false
-        },
-        disconnectQuickMatchWs: function () {
-          self.disconnectQuickMatchWs()
-        }
+        resetQuickMatchUiFlags: function () { self.quickMatchPolling = false; self.quickMatchLoading = false },
+        disconnectQuickMatchWs: function () { self.disconnectQuickMatchWs() }
       })
     },
-    /** 排队中再点一次：断开快匹 WebSocket 并取消后端队列 */
     async onQuickMatchButtonClick() {
-      if (this.quickMatchPolling) {
-        await this.exitQuickMatchBeforeRoomAction()
-        return
-      }
+      if (this.quickMatchPolling) { await this.exitQuickMatchBeforeRoomAction(); return }
       await this.quickMatch()
     },
     quickMatchWsBaseUrl() {
-      // Electron 桌面客户端：连到 config.json 配置的服务器地址
       if (typeof window !== 'undefined' && window.dpElectron && window.dpElectron.serverUrl) {
         var url = window.dpElectron.serverUrl.replace(/\/+$/, '')
         return url.replace(/^https?:/, url.indexOf('https:') === 0 ? 'wss:' : 'ws:')
@@ -1317,27 +1250,12 @@ export default {
       this.clearQuickMatchWsReconnectTimer()
       this.quickMatchWsReconnectAttempt = 0
       this.quickMatchWsSession++
-      var w = this.quickMatchWs
-      this.quickMatchWs = null
-      if (w) {
-        w.onopen = null
-        w.onclose = null
-        w.onerror = null
-        w.onmessage = null
-        try {
-          w.close()
-        } catch (e) { /* ignore */ }
-      }
+      var w = this.quickMatchWs; this.quickMatchWs = null
+      if (w) { w.onopen = null; w.onclose = null; w.onerror = null; w.onmessage = null; try { w.close() } catch (e) { /* ignore */ } }
     },
     clearQuickMatchWsReconnectTimer() {
-      if (this.quickMatchWsReconnectTimer != null) {
-        clearTimeout(this.quickMatchWsReconnectTimer)
-        this.quickMatchWsReconnectTimer = null
-      }
+      if (this.quickMatchWsReconnectTimer != null) { clearTimeout(this.quickMatchWsReconnectTimer); this.quickMatchWsReconnectTimer = null }
     },
-    /**
-     * 排队等待 MATCHED 时 WebSocket 断线：指数退避重连；成功后服务端 {@link pushQuickMatchLobbySnapshot} 会补发状态。
-     */
     scheduleQuickMatchWsReconnect(sessionAtClose) {
       var self = this
       if (this.quickMatchWsNoReconnect) return
@@ -1366,107 +1284,44 @@ export default {
       this.quickMatchWsSession++
       var sessionAtOpen = this.quickMatchWsSession
       if (this.quickMatchWs) {
-        var old = this.quickMatchWs
-        this.quickMatchWs = null
-        old.onopen = null
-        old.onclose = null
-        old.onerror = null
-        old.onmessage = null
-        try {
-          old.close()
-        } catch (e) { /* ignore */ }
+        var old = this.quickMatchWs; this.quickMatchWs = null
+        old.onopen = null; old.onclose = null; old.onerror = null; old.onmessage = null
+        try { old.close() } catch (e) { /* ignore */ }
       }
-      var path =
-        process.env.NODE_ENV === 'development' ? '/dp-ws/dp-quick-match' : '/ws/dp-quick-match'
-      var url =
-        this.quickMatchWsBaseUrl() +
-        path +
-        '?nickname=' +
-        encodeURIComponent(this.user.nickname) +
-        '&token=' +
-        encodeURIComponent(String(this.user.token))
+      var path = process.env.NODE_ENV === 'development' ? '/dp-ws/dp-quick-match' : '/ws/dp-quick-match'
+      var url = this.quickMatchWsBaseUrl() + path + '?nickname=' + encodeURIComponent(this.user.nickname) + '&token=' + encodeURIComponent(String(this.user.token))
       var ws
-      try {
-        ws = new WebSocket(url)
-      } catch (e) {
-        this.scheduleQuickMatchWsReconnect(sessionAtOpen)
-        return
-      }
+      try { ws = new WebSocket(url) } catch (e) { this.scheduleQuickMatchWsReconnect(sessionAtOpen); return }
       this.quickMatchWs = ws
-      ws.onopen = function () {
-        if (self.quickMatchWsSession !== sessionAtOpen || self.quickMatchWsNoReconnect) return
-        self.quickMatchWsReconnectAttempt = 0
-      }
-      ws.onerror = function () { /* onclose 里统一兜底重连 */ }
-      ws.onclose = function () {
-        if (self.quickMatchWsSession !== sessionAtOpen) return
-        if (self.quickMatchWs === ws) self.quickMatchWs = null
-        self.scheduleQuickMatchWsReconnect(sessionAtOpen)
-      }
-      ws.onmessage = function (ev) {
-        self.handleQuickMatchWsMessage(ev, sessionAtOpen)
-      }
+      ws.onopen = function () { if (self.quickMatchWsSession !== sessionAtOpen || self.quickMatchWsNoReconnect) return; self.quickMatchWsReconnectAttempt = 0 }
+      ws.onerror = function () {}
+      ws.onclose = function () { if (self.quickMatchWsSession !== sessionAtOpen) return; if (self.quickMatchWs === ws) self.quickMatchWs = null; self.scheduleQuickMatchWsReconnect(sessionAtOpen) }
+      ws.onmessage = function (ev) { self.handleQuickMatchWsMessage(ev, sessionAtOpen) }
     },
     connectQuickMatchWs() {
       var self = this
       return new Promise(function (resolve, reject) {
-        if (!self.user || !self.user.nickname) {
-          reject(new Error('no user'))
-          return
-        }
+        if (!self.user || !self.user.nickname) { reject(new Error('no user')); return }
         var tok = self.user.token ? String(self.user.token) : ''
-        if (!tok) {
-          reject(new Error('no token'))
-          return
-        }
+        if (!tok) { reject(new Error('no token')); return }
         self.disconnectQuickMatchWs()
         self.quickMatchWsNoReconnect = false
         var sessionAtOpen = ++self.quickMatchWsSession
-        var path =
-          process.env.NODE_ENV === 'development' ? '/dp-ws/dp-quick-match' : '/ws/dp-quick-match'
-        var url =
-          self.quickMatchWsBaseUrl() +
-          path +
-          '?nickname=' +
-          encodeURIComponent(self.user.nickname) +
-          '&token=' +
-          encodeURIComponent(tok)
+        var path = process.env.NODE_ENV === 'development' ? '/dp-ws/dp-quick-match' : '/ws/dp-quick-match'
+        var url = self.quickMatchWsBaseUrl() + path + '?nickname=' + encodeURIComponent(self.user.nickname) + '&token=' + encodeURIComponent(tok)
         var ws
-        try {
-          ws = new WebSocket(url)
-        } catch (e) {
-          reject(e)
-          return
-        }
+        try { ws = new WebSocket(url) } catch (e) { reject(e); return }
         self.quickMatchWs = ws
         var settled = false
-        ws.onopen = function () {
-          if (self.quickMatchWsSession !== sessionAtOpen || self.quickMatchWsNoReconnect) return
-          if (settled) return
-          settled = true
-          self.quickMatchWsReconnectAttempt = 0
-          resolve()
-        }
-        ws.onerror = function () {
-          if (self.quickMatchWsSession !== sessionAtOpen) return
-          if (!settled) {
-            settled = true
-            reject(new Error('ws error'))
-          }
-        }
+        ws.onopen = function () { if (self.quickMatchWsSession !== sessionAtOpen || self.quickMatchWsNoReconnect) return; if (settled) return; settled = true; self.quickMatchWsReconnectAttempt = 0; resolve() }
+        ws.onerror = function () { if (self.quickMatchWsSession !== sessionAtOpen) return; if (!settled) { settled = true; reject(new Error('ws error')) } }
         ws.onclose = function () {
           if (self.quickMatchWsSession !== sessionAtOpen) return
-          if (!settled) {
-            settled = true
-            reject(new Error('ws closed before open'))
-            return
-          }
+          if (!settled) { settled = true; reject(new Error('ws closed before open')); return }
           if (self.quickMatchWs === ws) self.quickMatchWs = null
           self.scheduleQuickMatchWsReconnect(sessionAtOpen)
         }
-        ws.onmessage = function (ev) {
-          self.handleQuickMatchWsMessage(ev, sessionAtOpen)
-        }
+        ws.onmessage = function (ev) { self.handleQuickMatchWsMessage(ev, sessionAtOpen) }
       })
     },
     handleQuickMatchWsMessage(ev, sessionAtOpen) {
@@ -1475,79 +1330,34 @@ export default {
         var data = JSON.parse(ev.data)
         if (data._ws !== 'quickMatch') return
         if (data.state === 'MATCHED' && data.roomId) {
-          this.quickMatchPolling = false
-          this.quickMatchLoading = false
-          this.disconnectQuickMatchWs()
-          navigateToGame(this.$router, data.roomId)
-          return
+          this.quickMatchPolling = false; this.quickMatchLoading = false; this.disconnectQuickMatchWs()
+          navigateToGame(this.$router, data.roomId); return
         }
         if (data.state === 'IDLE') {
-          this.quickMatchPolling = false
-          this.quickMatchLoading = false
-          this.disconnectQuickMatchWs()
+          this.quickMatchPolling = false; this.quickMatchLoading = false; this.disconnectQuickMatchWs()
           alert(data.message || '已不在匹配队列')
         }
-      } catch (e) {
-        console.error('quickMatchWs message', e)
-      }
+      } catch (e) { console.error('quickMatchWs message', e) }
     },
     async quickMatch() {
-      if (!this.user || !this.user.nickname) {
-        alert('请先登录后再快速匹配')
-        return
-      }
-      if (!this.user.token) {
-        alert('登录已失效，请重新登录')
-        return
-      }
+      if (!this.user || !this.user.nickname) { alert('请先登录后再快速匹配'); return }
+      if (!this.user.token) { alert('登录已失效，请重新登录'); return }
       this.quickMatchLoading = true
-      try {
-        await this.connectQuickMatchWs()
-      } catch (e) {
-        console.error('quickMatch ws', e)
-        alert('匹配通道连接失败，请稍后重试')
-        this.quickMatchLoading = false
-        return
-      }
+      try { await this.connectQuickMatchWs() } catch (e) { console.error('quickMatch ws', e); alert('匹配通道连接失败，请稍后重试'); this.quickMatchLoading = false; return }
       try {
         const params = { nickname: this.user.nickname }
-        if (this.user.userId != null && this.user.userId !== '') {
-          params.userId = this.user.userId
-        }
+        if (this.user.userId != null && this.user.userId !== '') { params.userId = this.user.userId }
         const res = await this.$http.post('/dpRoom/quickMatch2', null, { params })
         const body = res.data
-        if (!dpResultSuccess(body)) {
-          this.disconnectQuickMatchWs()
-          alert(dpResultMessage(body))
-          return
-        }
+        if (!dpResultSuccess(body)) { this.disconnectQuickMatchWs(); alert(dpResultMessage(body)); return }
         const data = dpResultData(body) || {}
-        if (data.roomId) {
-          this.disconnectQuickMatchWs()
-          await navigateToGame(this.$router, data.roomId)
-          return
-        }
-        if (data.queued && data.state === 'WAITING') {
-          this.quickMatchPolling = true
-          prefetchGameChunk()
-          return
-        }
-        this.disconnectQuickMatchWs()
-        alert('匹配响应异常，请稍后重试')
-      } catch (e) {
-        console.error('quickMatch', e)
-        this.disconnectQuickMatchWs()
-        alert('网络错误，请稍后重试')
-      } finally {
-        if (!this.quickMatchPolling) {
-          this.quickMatchLoading = false
-        }
-      }
+        if (data.roomId) { this.disconnectQuickMatchWs(); await navigateToGame(this.$router, data.roomId); return }
+        if (data.queued && data.state === 'WAITING') { this.quickMatchPolling = true; prefetchGameChunk(); return }
+        this.disconnectQuickMatchWs(); alert('匹配响应异常，请稍后重试')
+      } catch (e) { console.error('quickMatch', e); this.disconnectQuickMatchWs(); alert('网络错误，请稍后重试') }
+      finally { if (!this.quickMatchPolling) { this.quickMatchLoading = false } }
     },
-    cancelQuickMatchRemote() {
-      return postQuickMatchCancel2(this.$http, this.user)
-    },
-    /** 与当前 filters 是否应走 MyBatis 查询一致（用于搜索按钮） */
+    cancelQuickMatchRemote() { return postQuickMatchCancel2(this.$http, this.user) },
     filtersActiveFromForm() {
       if ((this.filters.roomId || '').length > 0) return true
       if (this.filters.password !== 'any') return true
@@ -1563,43 +1373,22 @@ export default {
       const rid = (this.filters.roomId || '').trim()
       if (rid) o.roomId = rid
       const n = (s) => (s === '' || s == null ? NaN : parseInt(String(s), 10))
-      const minBB = n(this.filters.minBigBlind)
-      if (!isNaN(minBB)) o.minBigBlindChips = minBB
-      const maxBB = n(this.filters.maxBigBlind)
-      if (!isNaN(maxBB)) o.maxBigBlindChips = maxBB
-      const minP = n(this.filters.minPlayers)
-      if (!isNaN(minP)) o.minPlayerCount = minP
-      const maxP = n(this.filters.maxPlayers)
-      if (!isNaN(maxP)) o.maxPlayerCount = maxP
+      const minBB = n(this.filters.minBigBlind); if (!isNaN(minBB)) o.minBigBlindChips = minBB
+      const maxBB = n(this.filters.maxBigBlind); if (!isNaN(maxBB)) o.maxBigBlindChips = maxBB
+      const minP = n(this.filters.minPlayers); if (!isNaN(minP)) o.minPlayerCount = minP
+      const maxP = n(this.filters.maxPlayers); if (!isNaN(maxP)) o.maxPlayerCount = maxP
       if (this.filters.password === 'locked') o.passwordProtected = true
       if (this.filters.password === 'open') o.passwordProtected = false
       return o
     },
-    applyFilters() {
-      this.useFilterQuery = this.filtersActiveFromForm()
-      this.getRooms({ showSpinner: true })
-    },
+    applyFilters() { this.useFilterQuery = this.filtersActiveFromForm(); this.getRooms({ showSpinner: true }) },
     resetFilters() {
-      this.filters = {
-        roomId: '',
-        minBigBlind: '',
-        maxBigBlind: '',
-        minPlayers: '',
-        maxPlayers: '',
-        password: 'any'
-      }
-      this.useFilterQuery = false
-      this.getRooms({ showSpinner: true })
+      this.filters = { roomId: '', minBigBlind: '', maxBigBlind: '', minPlayers: '', maxPlayers: '', password: 'any' }
+      this.useFilterQuery = false; this.getRooms({ showSpinner: true })
     },
-    /**
-     * @param {{ showSpinner?: boolean }} [opts]
-     *        showSpinner true：按钮/搜索等主动刷新时显示「加载中」；定时轮询不传，列表已有数据时静默更新。
-     */
     async getRooms(opts) {
       try {
-        if (this.useFilterQuery && !this.filtersActiveFromForm()) {
-          this.useFilterQuery = false
-        }
+        if (this.useFilterQuery && !this.filtersActiveFromForm()) { this.useFilterQuery = false }
         const useQuery = this.useFilterQuery && this.filtersActiveFromForm()
         const forceSpinner = !!(opts && opts.showSpinner)
         if (forceSpinner || !this.roomDtos.length) this.roomsLoading = true
@@ -1610,43 +1399,24 @@ export default {
         const res = await this.$http.get(url, { params })
         var list = res && res.data ? res.data.list : []
         this.roomDtos = Array.isArray(list) ? list : []
-      } catch (e) {
-        console.error('getRooms', e)
-        this.roomsError = '房间列表加载失败，请确认后端已启动。'
-        this.roomDtos = []
-      } finally {
-        this.roomsLoading = false
-      }
+      } catch (e) { console.error('getRooms', e); this.roomsError = '房间列表加载失败，请确认后端已启动。'; this.roomDtos = [] }
+      finally { this.roomsLoading = false }
     },
-
-    /** 手动刷新；以后可关掉定时器、改成长轮询后仍复用本入口 */
-    refreshRoomList() {
-      this.getRooms({ showSpinner: true })
-    },
+    refreshRoomList() { this.getRooms({ showSpinner: true }) },
     async joinRoom(roomDto) {
       await this.exitQuickMatchBeforeRoomAction()
       const roomId = typeof roomDto === 'string' ? roomDto : roomDto.roomId
       let roomPassword = ''
       if (roomDto && roomDto.passwordProtected) {
         roomPassword = window.prompt('请输入房间密码') || ''
-        if (!roomPassword.trim()) {
-          alert('需要输入密码才能加入')
-          return
-        }
+        if (!roomPassword.trim()) { alert('需要输入密码才能加入'); return }
       }
       const params = { roomId, nickname: this.user.nickname }
-      if (roomPassword) {
-        params.roomPassword = roomPassword.trim()
-      }
-      if (this.user.userId != null && this.user.userId !== '') {
-        params.userId = this.user.userId
-      }
+      if (roomPassword) { params.roomPassword = roomPassword.trim() }
+      if (this.user.userId != null && this.user.userId !== '') { params.userId = this.user.userId }
       const res = await this.$http.post('/dpRoom/joinRoom2', null, { params })
       const body = res.data
-      if (!dpResultSuccess(body)) {
-        alert(dpResultMessage(body))
-        return
-      }
+      if (!dpResultSuccess(body)) { alert(dpResultMessage(body)); return }
       await navigateToGame(this.$router, roomId)
     }
   }
@@ -1654,82 +1424,412 @@ export default {
 </script>
 
 <style scoped>
+/* ============================================
+   猫咪牌局 大厅 - 温暖扑克客厅
+   ============================================ */
+
+/* ---------- 基础间距 ---------- */
 .home-inner {
-  padding-bottom: 24px;
+  padding-bottom: clamp(20px, 4vw, 32px);
 }
-.home-header {
+
+/* ---------- 品牌横幅 ---------- */
+.home-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: clamp(16px, 3.5vw, 24px) clamp(16px, 3.5vw, 24px);
+  margin-bottom: clamp(14px, 3vw, 20px);
+  background: var(--dp-panel-bg);
+  border: 1px solid var(--dp-panel-border);
+  border-radius: clamp(12px, 2.4vw, 18px);
+  box-shadow: var(--dp-panel-shadow);
+  position: relative;
+  overflow: hidden;
+  flex-wrap: wrap;
+}
+
+/* 装饰性背景纹理 */
+.home-hero::before {
+  content: '';
+  position: absolute;
+  top: -30%;
+  right: -10%;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--dp-accent) 0%, transparent 70%);
+  opacity: 0.06;
+  pointer-events: none;
+}
+
+.home-hero::after {
+  content: '';
+  position: absolute;
+  bottom: -20%;
+  left: 5%;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--dp-warning, #faad14) 0%, transparent 70%);
+  opacity: 0.08;
+  pointer-events: none;
+}
+
+.home-hero__brand {
+  position: relative;
+  z-index: 1;
+}
+
+.home-hero__logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* CSS 猫爪图标：一个大圆 + 四个小趾 */
+.home-hero__logo-paw {
+  position: relative;
+  width: clamp(28px, 5vw, 36px);
+  height: clamp(28px, 5vw, 36px);
+  flex-shrink: 0;
+  animation: home-paw-float 3s ease-in-out infinite;
+}
+
+.home-hero__logo-paw::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 55%;
+  height: 55%;
+  border-radius: 50% 50% 45% 45%;
+  background: var(--dp-text-primary);
+}
+
+.home-hero__logo-paw::after {
+  content: '';
+  position: absolute;
+  top: 4%;
+  left: 4%;
+  width: 35%;
+  height: 38%;
+  border-radius: 50% 50% 40% 40%;
+  background: var(--dp-text-primary);
+  box-shadow:
+    18px -3px 0 -2px var(--dp-text-primary),
+    36px 5px 0 -3px var(--dp-text-primary),
+    48px 20px 0 -4px var(--dp-text-primary);
+}
+
+@keyframes home-paw-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-3px) rotate(-3deg); }
+  75% { transform: translateY(-2px) rotate(3deg); }
+}
+
+.home-hero__title {
+  margin: 0;
+  font-size: clamp(1.3rem, 4.5vw, 1.7rem);
+  font-weight: 700;
+  color: var(--dp-text-primary);
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+.home-hero__subtitle {
+  margin: 6px 0 0 0;
+  font-size: clamp(12px, 2.4vw, 14px);
+  color: var(--dp-text-muted);
+  line-height: 1.4;
+}
+
+.home-hero__user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--dp-subpanel-bg);
+  border-radius: 12px;
+  border: 1px solid var(--dp-subpanel-border);
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+}
+
+.home-hero__avatar {
+  flex-shrink: 0;
+}
+
+.home-hero__user-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.home-hero__username {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--dp-text-primary);
+}
+
+.home-hero__user-label {
+  font-size: 11px;
+  color: var(--dp-success);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.home-hero__user-label::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dp-success);
+}
+
+/* ---------- 工具栏 ---------- */
+.home-toolbar {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: clamp(10px, 2.5vw, 16px);
-  margin-bottom: clamp(12px, 3vw, 20px);
+  gap: 12px;
+  margin-bottom: clamp(14px, 3vw, 20px);
   flex-wrap: wrap;
 }
-.home-title {
-  margin: 0;
-  font-size: clamp(1.12rem, 3.8vw, 1.4rem);
+
+.home-toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.home-tool-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-family: var(--dp-font-ui);
+  border: 1px solid var(--dp-input-border);
+  border-radius: 7px;
+  background: var(--dp-panel-bg);
+  color: var(--dp-text-secondary);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.home-tool-btn:hover {
+  border-color: var(--dp-accent);
+  color: var(--dp-accent);
+  background: var(--dp-subpanel-bg);
+}
+
+.home-tool-btn--danger {
+  color: var(--dp-danger);
+}
+
+.home-tool-btn--danger:hover {
+  border-color: var(--dp-danger);
+  background: rgba(255, 77, 79, 0.06);
+}
+
+/* ---------- 区块标题 ---------- */
+.home-section-title {
+  margin: 0 0 clamp(10px, 2.4vw, 14px);
+  font-size: clamp(0.95rem, 2.6vw, 1.05rem);
   font-weight: 600;
   color: var(--dp-text-primary);
-  line-height: 1.25;
-}
-.home-header__right {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 10px;
-}
-.home-theme-row {
-  flex-wrap: wrap;
-}
-.home-fluidity-toggle {
-  margin-left: 0;
-}
-.home-theme-row {
-  justify-content: flex-end;
-}
-.home-header__avatar {
-  flex-shrink: 0;
-}
-.user-info {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 14px;
-  color: var(--dp-text-secondary);
-  flex-wrap: wrap;
+  gap: 8px;
 }
-.logout-btn {
-  padding: 6px 10px;
-  font-size: 13px;
+
+
+/* ---------- 快捷入口卡片网格 ---------- */
+.home-quick {
+  background: var(--dp-panel-bg);
+  border: 1px solid var(--dp-panel-border);
+  border-radius: clamp(12px, 2.4vw, 16px);
+  box-shadow: var(--dp-panel-shadow);
+  padding: clamp(14px, 3vw, 20px) clamp(14px, 3vw, 22px);
+  margin-bottom: clamp(14px, 3vw, 20px);
 }
-.home-actions__title {
-  margin-bottom: 14px;
+
+.home-quick__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: clamp(8px, 2vw, 12px);
 }
-.btns {
+
+@media (max-width: 640px) {
+  .home-quick__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* 快捷入口卡片 */
+.home-quick-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: clamp(12px, 2.5vw, 16px) clamp(8px, 2vw, 12px);
+  border: 1px solid var(--dp-subpanel-border);
+  border-radius: clamp(10px, 2vw, 14px);
+  background: var(--dp-subpanel-bg);
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  font-family: var(--dp-font-ui);
   text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 10px;
+  position: relative;
+  overflow: hidden;
 }
-.home-actions__primary-row {
+
+.home-quick-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--dp-accent);
+  opacity: 0;
+  transition: opacity 0.22s ease;
+  pointer-events: none;
+}
+
+.home-quick-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+  border-color: var(--dp-accent);
+}
+
+.home-quick-card:hover::after {
+  opacity: 0.03;
+}
+
+.home-quick-card:active {
+  transform: translateY(0);
+  transition: all 0.08s ease;
+}
+
+.home-quick-card:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.home-quick-card:disabled:hover {
+  border-color: var(--dp-subpanel-border);
+  box-shadow: none;
+}
+
+/* 主推：快速匹配 */
+.home-quick-card--primary {
+  background: linear-gradient(135deg, var(--dp-success) 0%, color-mix(in srgb, var(--dp-success) 80%, #000) 100%);
+  border-color: transparent;
+  color: #fff;
+}
+
+.home-quick-card--primary .home-quick-card__label,
+.home-quick-card--primary .home-quick-card__desc {
+  color: #fff;
+}
+
+.home-quick-card--primary .home-quick-card__icon-wrap {
+  background: rgba(255,255,255,0.2);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+/* 次推：创建房间 */
+.home-quick-card--accent {
+  background: var(--dp-accent);
+  border-color: transparent;
+  color: #fff;
+}
+
+.home-quick-card--accent .home-quick-card__label,
+.home-quick-card--accent .home-quick-card__desc {
+  color: #fff;
+}
+
+.home-quick-card--accent .home-quick-card__icon-wrap {
+  background: rgba(255,255,255,0.2);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+
+.home-quick-card__icon-wrap {
+  width: clamp(36px, 7vw, 44px);
+  height: clamp(36px, 7vw, 44px);
+  border-radius: 12px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
+  background: var(--dp-panel-bg);
+  flex-shrink: 0;
+  transition: transform 0.22s ease;
 }
-.home-actions__mail-badge {
+
+.home-quick-card:hover .home-quick-card__icon-wrap {
+  transform: scale(1.08);
+}
+
+.home-quick-card__icon-wrap .el-icon-s-flag,
+.home-quick-card__icon-wrap .el-icon-s-home,
+.home-quick-card__icon-wrap .el-icon-document,
+.home-quick-card__icon-wrap .el-icon-s-data,
+.home-quick-card__icon-wrap .el-icon-upload,
+.home-quick-card__icon-wrap .el-icon-download,
+.home-quick-card__icon-wrap .el-icon-message,
+.home-quick-card__icon-wrap .el-icon-user {
+  font-size: clamp(18px, 3.5vw, 22px);
   line-height: 1;
-  display: inline-block;
+  color: var(--dp-text-secondary);
 }
-.home-actions__mail-badge >>> .el-badge__content {
+
+/* 主推/次推卡片图标始终白色 */
+.home-quick-card--primary .home-quick-card__icon-wrap i,
+.home-quick-card--accent .home-quick-card__icon-wrap i {
+  color: #fff;
+}
+
+.home-quick-card__label {
+  font-size: clamp(12px, 2.4vw, 14px);
+  font-weight: 600;
+  color: var(--dp-text-primary);
+  line-height: 1.3;
+}
+
+.home-quick-card__desc {
+  font-size: clamp(10px, 2vw, 11px);
+  color: var(--dp-text-muted);
+  line-height: 1.3;
+}
+
+/* Badge 包裹 */
+.home-quick-card__badge {
+  display: block;
+}
+
+.home-quick-card__badge .home-quick-card {
+  width: 100%;
+}
+
+.home-quick-card__badge >>> .el-badge__content {
   border: none;
 }
-.home-actions__mail-badge--inline {
-  vertical-align: middle;
+
+/* ---------- 房间列表区 ---------- */
+.home-rooms {
+  background: var(--dp-panel-bg);
+  border: 1px solid var(--dp-panel-border);
+  border-radius: clamp(12px, 2.4vw, 16px);
+  box-shadow: var(--dp-panel-shadow);
+  padding: clamp(14px, 3vw, 20px) clamp(14px, 3vw, 22px);
 }
-.home-room-list__head {
+
+.home-rooms__head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1737,120 +1837,487 @@ export default {
   gap: 8px;
   margin-bottom: 8px;
 }
-.home-room-list__title {
-  margin-bottom: 0;
+
+.home-rooms__head-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-.home-room-list__refresh {
-  flex-shrink: 0;
-}
-.home-room-list__refresh-ico--spin {
-  animation: home-room-list-spin 0.8s linear infinite;
-}
-@keyframes home-room-list-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-.home-filters {
-  margin-bottom: 12px;
-  padding: 12px;
+
+.home-rooms__mode-badge {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: var(--dp-subpanel-bg);
+  color: var(--dp-accent);
   border: 1px solid var(--dp-subpanel-border);
-  border-radius: 8px;
-  background: var(--dp-subpanel-bg, rgba(0, 0, 0, 0.04));
+  white-space: nowrap;
 }
+
+.home-rooms__mode-badge--dim {
+  color: var(--dp-text-muted);
+}
+
+.home-rooms__refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-family: var(--dp-font-ui);
+  border: 1px solid var(--dp-input-border);
+  border-radius: 7px;
+  background: var(--dp-panel-bg);
+  color: var(--dp-text-secondary);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.home-rooms__refresh-btn:hover:not(:disabled) {
+  border-color: var(--dp-accent);
+  color: var(--dp-accent);
+}
+
+.home-rooms__refresh-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.home-rooms__refresh-ico,
+.home-rooms__refresh-btn .el-icon-refresh {
+  font-size: 14px;
+  line-height: 1;
+  color: inherit;
+}
+
+.home-rooms__refresh-ico--spin {
+  animation: home-rooms-spin 0.8s linear infinite;
+}
+
+@keyframes home-rooms-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ---------- 可折叠筛选栏 ---------- */
+.home-filters {
+  margin-bottom: 14px;
+  border: 1px solid var(--dp-subpanel-border);
+  border-radius: 10px;
+  background: var(--dp-subpanel-bg);
+  overflow: hidden;
+  transition: all 0.25s ease;
+}
+
+.home-filters__toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-family: var(--dp-font-ui);
+  border: none;
+  background: none;
+  color: var(--dp-text-secondary);
+  cursor: pointer;
+  transition: color 0.18s ease;
+}
+
+.home-filters__toggle:hover {
+  color: var(--dp-text-primary);
+}
+
+.home-filters__toggle-icon {
+  font-size: 12px;
+  color: var(--dp-text-muted);
+  transition: transform 0.25s ease;
+}
+
+.home-filters__active-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--dp-accent);
+  flex-shrink: 0;
+  animation: home-dot-pulse 2s ease-in-out infinite;
+}
+
+@keyframes home-dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.home-filters__body {
+  padding: 0 14px 14px;
+  animation: home-filter-slide 0.25s ease;
+}
+
+@keyframes home-filter-slide {
+  from { opacity: 0; max-height: 0; }
+  to { opacity: 1; max-height: 300px; }
+}
+
 .home-filters__row {
   display: flex;
   flex-wrap: wrap;
   gap: 10px 12px;
   align-items: flex-end;
 }
+
 .home-filters__item {
   display: flex;
   flex-direction: column;
   gap: 4px;
   min-width: 0;
 }
+
 .home-filters__item--num {
-  max-width: 110px;
+  max-width: 100px;
 }
+
+.home-filters__item--select {
+  min-width: 100px;
+}
+
 .home-filters__label {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--dp-text-muted);
+  white-space: nowrap;
 }
+
 .home-filters__input,
 .home-filters__select {
-  padding: 6px 8px;
-  font-size: 14px;
-  border: 1px solid var(--dp-subpanel-border);
-  border-radius: 6px;
-  background: var(--dp-panel-bg, #fff);
+  padding: 7px 10px;
+  font-size: 13px;
+  font-family: var(--dp-font-ui);
+  border: 1px solid var(--dp-input-border);
+  border-radius: 7px;
+  background: var(--dp-input-bg);
   color: var(--dp-text-primary);
   min-width: 0;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
+
 .home-filters__input:focus,
 .home-filters__select:focus {
-  outline: 2px solid var(--dp-accent, #409eff);
-  outline-offset: 0;
+  outline: none;
+  border-color: var(--dp-accent);
+  box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.1);
 }
+
 .home-filters__actions {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin-top: 10px;
+  margin-top: 12px;
 }
-.home-filters__mode {
-  font-size: 12px;
+
+.home-filters__btn {
+  padding: 7px 18px;
+  font-size: 13px;
+  font-family: var(--dp-font-ui);
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.home-filters__btn--search {
+  background: var(--dp-btn-primary-bg);
+  color: var(--dp-btn-primary-fg);
+}
+
+.home-filters__btn--search:hover {
+  filter: brightness(1.08);
+}
+
+.home-filters__btn--reset {
+  background: transparent;
   color: var(--dp-text-muted);
-  margin-left: 4px;
+  border: 1px solid var(--dp-input-border);
 }
-.room-list__hint {
-  margin: 12px 0;
-  padding: 8px 0;
+
+.home-filters__btn--reset:hover {
+  border-color: var(--dp-text-muted);
+  color: var(--dp-text-primary);
+}
+
+/* ---------- 加载/空态/错误 ---------- */
+.home-rooms__hint {
+  margin: 16px 0;
+  padding: 12px;
+  text-align: center;
   color: var(--dp-text-muted);
   font-size: 14px;
-  line-height: 1.5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
-.room-list__hint--error {
+
+.home-rooms__hint--error {
   color: var(--dp-danger);
 }
-.room-list__items {
-  margin-top: 8px;
+
+.home-rooms__spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--dp-subpanel-border);
+  border-top-color: var(--dp-accent);
+  border-radius: 50%;
+  animation: home-rooms-spin 0.7s linear infinite;
+  display: inline-block;
 }
-.room-item {
+
+.home-rooms__empty {
+  margin: 24px 0;
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--dp-text-muted);
+  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.home-rooms__empty-icon {
+  font-size: 40px;
+  opacity: 0.35;
+  color: var(--dp-text-muted);
+}
+
+/* ---------- 房间卡片网格 ---------- */
+.home-rooms__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  gap: clamp(10px, 2vw, 14px);
+  margin-top: 10px;
+}
+
+/* ---------- 单张房间卡 ---------- */
+.room-card {
+  border-radius: clamp(10px, 2vw, 14px);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  position: relative;
+}
+
+.room-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+}
+
+.room-card:hover .room-card__join {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.room-card__felt {
+  padding: clamp(12px, 2.5vw, 16px);
+  /* 模拟台呢质感 */
+  background:
+    linear-gradient(160deg, rgba(255,255,255,0.05) 0%, transparent 70%),
+    var(--dp-subpanel-bg);
+  border: 1px solid var(--dp-subpanel-border);
+  border-radius: inherit;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 台呢纹理装饰 */
+.room-card__felt::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background:
+    repeating-linear-gradient(
+      45deg,
+      transparent 0 3px,
+      rgba(128,128,128,0.02) 3px 4px
+    );
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* 密码房边框 */
+.room-card--locked .room-card__felt {
+  border-color: var(--dp-warning, #faad14);
+}
+
+.room-card__header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--dp-subpanel-border);
+  margin-bottom: 10px;
+  position: relative;
+  z-index: 1;
 }
-.room-item:last-child {
-  border-bottom: none;
-}
-.room-item__text {
+
+.room-card__room-id {
+  font-size: clamp(13px, 2.6vw, 15px);
+  font-weight: 700;
   color: var(--dp-text-primary);
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.03em;
+}
+
+.room-card__lock {
   font-size: 14px;
-  line-height: 1.4;
+  line-height: 1;
+  color: var(--dp-warning, #faad14);
 }
-.room-item__blinds {
+
+.room-card__body {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.room-card__players {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.room-card__player-count {
+  font-size: clamp(22px, 4.5vw, 26px);
+  font-weight: 700;
+  color: var(--dp-text-primary);
+  line-height: 1;
+}
+
+.room-card__player-sep {
+  font-size: 14px;
   color: var(--dp-text-muted);
-  font-size: 13px;
+  margin: 0 1px;
 }
-.room-item__lock {
-  margin-left: 4px;
-  font-size: 13px;
+
+.room-card__player-max {
+  font-size: clamp(15px, 3vw, 18px);
+  color: var(--dp-text-secondary);
+  line-height: 1;
 }
-.room-item__join {
-  flex-shrink: 0;
+
+.room-card__player-label {
+  font-size: 12px;
+  color: var(--dp-text-muted);
+  margin-left: 2px;
+}
+
+.room-card__blinds {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.room-card__blind-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.room-card__blind-chip--small {
+  background: var(--dp-subpanel-bg);
+  color: var(--dp-text-secondary);
+  border: 1.5px solid var(--dp-text-muted);
+}
+
+.room-card__blind-chip--big {
+  background: var(--dp-accent);
+  color: #fff;
+  border: 1.5px solid transparent;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+
+.room-card__blind-sep {
+  font-size: 12px;
+  color: var(--dp-text-muted);
+}
+
+.room-card__bb-label {
+  font-size: 11px;
+  color: var(--dp-text-muted);
+  margin-left: 2px;
+  font-weight: 500;
+}
+
+.room-card__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  z-index: 1;
+}
+
+/* 座位指示器 */
+.room-card__seats {
+  display: flex;
+  gap: 3px;
+}
+
+.room-card__seat {
+  width: clamp(6px, 1.5vw, 8px);
+  height: clamp(6px, 1.5vw, 8px);
+  border-radius: 50%;
+  background: var(--dp-subpanel-border);
+  transition: background 0.3s ease;
+}
+
+.room-card__seat.is-filled {
+  background: var(--dp-success);
+  box-shadow: 0 0 4px rgba(82, 196, 26, 0.4);
+}
+
+/* 加入按钮 */
+.room-card__join {
+  padding: 6px 16px;
+  font-size: 13px;
+  font-family: var(--dp-font-ui);
+  font-weight: 600;
+  border: none;
+  border-radius: 7px;
+  background: var(--dp-btn-primary-bg);
+  color: var(--dp-btn-primary-fg);
+  cursor: pointer;
+  transition: all 0.22s ease;
+  opacity: 0.75;
+  transform: translateY(1px);
+}
+
+.room-card:hover .room-card__join {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.room-card__join:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.room-card__join:active {
+  transform: scale(0.96);
+  transition: all 0.06s ease;
 }
 </style>
 
 <style>
-/* append-to-body 弹层：分区标题与邮箱空态（条目样式见全局 dp-social-lists.css） */
+/* append-to-body 弹层样式保持不变 */
 .home-mailbox__sec {
   margin-bottom: clamp(14px, 3.6vw, 20px);
 }
