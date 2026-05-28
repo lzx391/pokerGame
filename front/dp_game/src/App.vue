@@ -85,8 +85,7 @@ export default {
         p.startsWith('/hand-history') ||
         p === '/leaderboard' ||
         p === '/music-upload' ||
-        p === '/download-center' ||
-        p.startsWith('/room/')
+        p === '/download-center'
       )
     },
     /** 对局页：铺满视口、与 .dp-game-root 组成 flex 链，减少底部露灰/白边 */

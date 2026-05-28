@@ -76,7 +76,7 @@ export default new Router({
     },
     {
       path: '/room/:roomId',
-      component: () => import(/* webpackChunkName: "route-room" */ '@/components/room.vue')
+      redirect: (to) => ({ path: '/game/' + to.params.roomId })
     },
     {
       path: '/game/:roomId',

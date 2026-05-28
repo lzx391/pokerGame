@@ -155,8 +155,8 @@ export default {
           }
         })
         if (startRes.data !== 'ok') {
-          alert('房间已创建但开局未成功，请从大厅进入该房间后由房主点「开始游戏」')
-          this.$router.replace('/room/' + roomId)
+          alert('房间已创建但开局未成功，请从大厅进入该房间重试')
+          this.$router.replace('/game/' + roomId)
           return
         }
         this.$router.replace('/game/' + roomId)

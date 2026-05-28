@@ -1647,7 +1647,7 @@ export default {
         alert(dpResultMessage(body))
         return
       }
-      this.$router.push('/room/' + roomId)
+      await navigateToGame(this.$router, roomId)
     }
   }
 }

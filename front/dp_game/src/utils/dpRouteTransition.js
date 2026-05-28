@@ -6,14 +6,13 @@ import { isRouteTransitionEnabled } from './dpRouteTransitionFlag'
 function pathPattern(path) {
   if (!path) return ''
   if (path.startsWith('/game/')) return '/game/:id'
-  if (path.startsWith('/room/')) return '/room/:id'
   if (path.startsWith('/hand-history/detail')) return '/hand-history/detail/:id'
   if (path.startsWith('/hand-history')) return '/hand-history'
   return path
 }
 
 var GAME = '/game/:id'
-var LOBBY_ENTER_GAME = ['/home', '/room/:id', '/create-room']
+var LOBBY_ENTER_GAME = ['/home', '/create-room']
 var LOBBY_SUB = ['/leaderboard', '/hand-history', '/music-upload', '/download-center', '/image_upload']
 var AUTH = ['/login', '/register', '/']
 
@@ -53,14 +52,6 @@ export function resolveRouteTransitionName(to, from, opts) {
     if (fromP !== GAME && fromP !== '/guide') {
       return 'dp-route-enter-game'
     }
-  }
-
-  if (fromP === '/home' && toP === '/room/:id') {
-    return 'dp-route-lobby'
-  }
-
-  if (fromP === '/room/:id' && toP === GAME) {
-    return 'dp-route-enter-game'
   }
 
   if (
