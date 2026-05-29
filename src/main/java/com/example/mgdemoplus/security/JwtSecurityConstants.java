@@ -21,6 +21,8 @@ public final class JwtSecurityConstants {
             "/index.html",
             "/favicon.ico",
             "/fonts/**",
+            // 静态资源增加 assets 文件夹匹配：前端 front\dp_game\src\assets 对应
+            "/assets/**",
             // 大厅列表、房间快照轮询：未登录可访问（分享链接、旁观）；其余 /dpRoom/** 需 JWT
             "/dpRoom/getNowRoom",
             "/dpRoom/getAllRooms2",

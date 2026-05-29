@@ -70,7 +70,7 @@
             </div>
           </div>
 
-          <div v-if="hasWeeklyRank" class="game-prof-weekly">
+          <!-- <div v-if="hasWeeklyRank" class="game-prof-weekly">
             <div class="game-prof-weekly__title">
               <span class="game-prof-section-deco" aria-hidden="true">♠</span>
               本周排名
@@ -94,7 +94,7 @@
                 >{{ formatMulti(honor.leaderboardWeeklyRoom.multiplier) }}x</span>
               </div>
             </div>
-          </div>
+          </div> -->
 
           <div
             v-if="honor && honor.totalHandsPlayed != null"
