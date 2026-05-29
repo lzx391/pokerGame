@@ -940,15 +940,15 @@ export default {
 }
 .home-prof-medal--royal {
   border-color: color-mix(in srgb, var(--dp-warning) 65%, transparent);
-  background-image: url('~@/assets/RF.png');
+  background-image: url('~@/assets/RF.webp');
 }
 .home-prof-medal--straight {
   border-color: color-mix(in srgb, var(--dp-accent) 65%, transparent);
-  background-image: url('~@/assets/SF.png');
+  background-image: url('~@/assets/SF.webp');
 }
 .home-prof-medal--four {
   border-color: color-mix(in srgb, var(--dp-danger) 65%, transparent);
-  background-image: url('~@/assets/4K.png');
+  background-image: url('~@/assets/4K.webp');
 }
 .home-prof-medal__body {
   position: relative;
