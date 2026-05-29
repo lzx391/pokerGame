@@ -35,6 +35,7 @@
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
 import { dpResultSuccess, dpResultData, dpResultMessage } from '@/utils/dpApiResult'
 import { flagCatTutorialAfterLogin } from '@/constants/dpCatThemeCopy'
+import { enterLobbyAfterAuth } from '@/utils/dpAuthEnterLobby'
 
 export default {
   data() {
@@ -54,7 +55,7 @@ export default {
         this.nickname = user.nickname
         this.password = user.password
         await ensureDpUserIdInStorage(this.$http)
-        this.$router.push('/home')
+        enterLobbyAfterAuth(this.$router, this, { showMessage: false })
       }
     } catch (e) {
       console.error('读取本地用户信息失败', e)
@@ -81,7 +82,6 @@ export default {
           if (dpResultSuccess(d)) {
             var payload = dpResultData(d) || {}
             flagCatTutorialAfterLogin()
-            alert('登录成功！')
             var row = {
               nickname: payload.nickname || this.nickname,
               password: this.password,
@@ -89,7 +89,7 @@ export default {
             }
             if (payload.token) row.token = payload.token
             localStorage.setItem('userInfo', JSON.stringify(row))
-            this.$router.push('/home')
+            enterLobbyAfterAuth(this.$router, this, { message: '登录成功' })
           } else {
             alert('登录失败：' + dpResultMessage(d))
           }

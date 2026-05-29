@@ -34,6 +34,8 @@
         <router-view :key="routeViewKey"></router-view>
       </transition>
     </div>
+
+    <dp-crt-fullscreen-overlay ref="authCrtOverlay" />
   </div>
 </template>
 
@@ -42,11 +44,13 @@ import { mapState } from 'vuex'
 import { CAT_COPY } from '@/constants/dpCatThemeCopy'
 import { resolveRouteTransitionName } from '@/utils/dpRouteTransition'
 import { isRouteTransitionEnabled } from '@/utils/dpRouteTransitionFlag'
+import { bindAuthCrtOverlay } from '@/utils/dpAuthEnterLobby'
 import DpAuthStage from '@/components/DpAuthStage.vue'
+import DpCrtFullscreenOverlay from '@/components/DpCrtFullscreenOverlay.vue'
 
 export default {
   name: 'App',
-  components: { DpAuthStage },
+  components: { DpAuthStage, DpCrtFullscreenOverlay },
   data() {
     return {
       appAuthTitle: CAT_COPY.appAuthTitle,
@@ -93,6 +97,19 @@ export default {
       if (this.ecoMode || !isRouteTransitionEnabled()) return false
       return this.routeTransitionName !== 'dp-route-none'
     }
+  },
+  mounted() {
+    var overlay = this.$refs.authCrtOverlay
+    if (overlay) {
+      bindAuthCrtOverlay({
+        play: function (timing, onNavigate) {
+          overlay.play(timing, onNavigate)
+        }
+      })
+    }
+  },
+  beforeDestroy() {
+    bindAuthCrtOverlay(null)
   },
   watch: {
     $route: function (to, from) {

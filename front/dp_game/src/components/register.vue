@@ -34,6 +34,7 @@
 <script>
 import { dpResultSuccess, dpResultData, dpResultMessage } from '@/utils/dpApiResult'
 import { flagCatTutorialAfterLogin } from '@/constants/dpCatThemeCopy'
+import { enterLobbyAfterAuth } from '@/utils/dpAuthEnterLobby'
 
 export default {
   data() {
@@ -72,7 +73,6 @@ export default {
             var inner = dpResultData(d) || {}
             var msg = inner.message != null ? String(inner.message) : '注册成功'
             flagCatTutorialAfterLogin()
-            alert(msg + '，正在进入大厅')
             var row = {
               nickname: inner.nickname != null ? String(inner.nickname) : this.form.nickname.trim(),
               password: this.form.password,
@@ -80,7 +80,9 @@ export default {
             }
             if (inner.token) row.token = String(inner.token)
             localStorage.setItem('userInfo', JSON.stringify(row))
-            this.$router.push('/home')
+            enterLobbyAfterAuth(this.$router, this, {
+              message: msg + '，正在进入大厅'
+            })
           } else {
             alert(dpResultMessage(d))
           }
