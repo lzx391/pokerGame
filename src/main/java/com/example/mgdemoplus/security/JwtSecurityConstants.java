@@ -20,6 +20,7 @@ public final class JwtSecurityConstants {
             "/",
             "/index.html",
             "/favicon.ico",
+            "/img/**",
             "/fonts/**",
             // 静态资源增加 assets 文件夹匹配：前端 front\dp_game\src\assets 对应
             "/assets/**",
