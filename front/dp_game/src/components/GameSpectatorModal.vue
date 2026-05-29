@@ -14,16 +14,29 @@
         </button>
       </div>
       <div class="dp-game-dialog__body">
-        <p v-if="!spectators || spectators.length === 0" class="spectator-modal__empty">
+        <p v-if="!spectatorRows.length" class="spectator-modal__empty">
           当前没有观众。
         </p>
         <ul v-else class="spectator-modal__list">
           <li
-              v-for="name in spectators"
-              :key="name"
+              v-for="row in spectatorRows"
+              :key="row.nickname"
               class="spectator-modal__item"
           >
-            {{ displayNickname(name) }}
+            <button
+                type="button"
+                class="spectator-modal__profile-btn"
+                :aria-label="'查看 ' + row.displayName + ' 的资料'"
+                @click="onSpectatorProfileClick(row)"
+            >
+              <dp-user-avatar
+                  :avatar-url="row.avatarUrl"
+                  :nickname="row.displayName"
+                  :cache-bust="avatarCacheBustFromUpdatedAt(row.avatarUpdatedAt)"
+                  size="sm"
+              />
+              <span class="spectator-modal__name">{{ row.displayName }}</span>
+            </button>
           </li>
         </ul>
       </div>
@@ -33,16 +46,62 @@
 </template>
 
 <script>
-import { dpDisplayNickname } from '../utils/dpDisplayNickname'
+import { mapState } from 'vuex'
+import DpUserAvatar from '@/components/DpUserAvatar.vue'
+import { dpDisplayNickname, isDpBotNickname } from '../utils/dpDisplayNickname'
+import { resolveRoomPersonMeta } from '../utils/dpRoomPlayerLookup'
+import { avatarCacheBustFromUpdatedAt } from '@/utils/dpAvatarUrl'
 
 export default {
   name: 'GameSpectatorModal',
+  components: { DpUserAvatar },
+  inject: ['dpGameView'],
   props: {
     visible: { type: Boolean, default: false },
-    spectators: { type: Array, default: function () { return [] } }
+    spectators: { type: Array, default: function () { return [] } },
+    players: { type: Array, default: function () { return [] } }
+  },
+  computed: {
+    ...mapState('dpMailbox', ['friends']),
+    spectatorRows: function () {
+      var specs = this.spectators || []
+      var players = this.players || []
+      var friends = this.friends || []
+      var out = []
+      for (var i = 0; i < specs.length; i++) {
+        var name = specs[i]
+        if (!name || typeof name !== 'string') continue
+        var meta = resolveRoomPersonMeta({
+          players: players,
+          friends: friends,
+          nickname: name
+        })
+        out.push({
+          nickname: name,
+          displayName: dpDisplayNickname(name),
+          userId: meta.userId,
+          avatarUrl: meta.avatarUrl || '',
+          avatarUpdatedAt: meta.avatarUpdatedAt
+        })
+      }
+      return out
+    }
   },
   methods: {
-    displayNickname: dpDisplayNickname
+    avatarCacheBustFromUpdatedAt,
+    onSpectatorProfileClick: function (row) {
+      if (!row || !row.nickname) return
+      var vm = this.dpGameView
+      if (!vm || typeof vm.openPlayerSocialProfile !== 'function') return
+      if (isDpBotNickname(row.nickname)) {
+        if (vm.$message) vm.$message.info('机器人不支持该功能')
+        return
+      }
+      vm.openPlayerSocialProfile({
+        nickname: row.nickname,
+        userId: row.userId || undefined
+      })
+    }
   }
 }
 </script>

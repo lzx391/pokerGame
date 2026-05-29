@@ -131,6 +131,8 @@ import '../styles/dp-game-eco-mode.css'
 import GameTopBar from './GameTopBar.vue'
 import { holeDealOrderFromDealer as holeDealOrderFromDealerUtil } from '../utils/dpGameRoundTableLayout'
 import { dpDisplayNickname, isDpBotNickname } from '../utils/dpDisplayNickname'
+import { resolveRoomPersonMeta } from '../utils/dpRoomPlayerLookup'
+import { dpSocialApi } from '../api/api.dpSocial'
 import { musicFileSrc } from '../utils/dpGameMusicUrl'
 import GameRoundTable from './GameRoundTable.vue'
 import GameHeroDockFooter from './GameHeroDockFooter.vue'
@@ -1033,13 +1035,48 @@ export default {
         return
       }
 
+      var rawUid = typeof payload === 'object' && payload ? payload.userId : null
+      this.openPlayerSocialProfile({ nickname: nickname, userId: rawUid })
+    },
+    /**
+     * 观众席 / 邀请好友等入口：打开局内玩家资料（与点击桌上玩家卡片一致）。
+     * @param {{ nickname: string, userId?: number|string }} payload
+     */
+    async openPlayerSocialProfile(payload) {
+      var nickname = payload && payload.nickname
+      if (!nickname) return
+
+      if (this.user && nickname === this.user.nickname) {
+        return
+      }
+
       if (isDpBotNickname(nickname)) {
         this.$message.info('机器人不支持该功能')
         return
       }
 
-      var rawUid = typeof payload === 'object' && payload ? payload.userId : null
-      var uid = rawUid != null && rawUid !== '' ? Number(rawUid) : NaN
+      var friends = (this.$store.state.dpMailbox && this.$store.state.dpMailbox.friends) || []
+      var meta = resolveRoomPersonMeta({
+        players: this.players,
+        friends: friends,
+        nickname: nickname,
+        userId: payload && payload.userId
+      })
+      var uid = meta.userId
+
+      if (!uid || uid <= 0 || isNaN(uid)) {
+        try {
+          var res = await dpSocialApi(this.$http).lookupUser(String(nickname))
+          if (dpResultSuccess(res.data)) {
+            var user = (dpResultData(res.data) || {}).user
+            var looked = user && user.userId != null ? Number(user.userId) : 0
+            if (looked > 0 && !isNaN(looked)) uid = looked
+          }
+        } catch (e) {
+          /* 静默，沿用下方统一提示 */
+        }
+      }
+
       if (!uid || uid <= 0 || isNaN(uid)) {
         this.$message.warning('无法获取该玩家的账号信息，请对方使用已登录账号进房后再试')
         return

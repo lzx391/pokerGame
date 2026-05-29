@@ -27,7 +27,12 @@
             :key="f.userId"
             :class="['dp-invite-friend-sheet__row', friendInvitePresenceClass(f)]"
         >
-          <div class="dp-invite-friend-sheet__left">
+          <button
+              type="button"
+              class="dp-invite-friend-sheet__left"
+              :aria-label="'查看 ' + inviteOptionLabel(f) + ' 的资料'"
+              @click="onFriendProfileClick(f)"
+          >
             <dp-user-avatar
               :avatar-url="f.avatarUrl"
               :nickname="inviteOptionLabel(f)"
@@ -46,7 +51,7 @@
                 class="dp-invite-friend-sheet__presence"
             >{{ friendInvitePresenceLine(f) }}</span>
             </div>
-          </div>
+          </button>
           <el-button
               type="primary"
               size="small"
@@ -75,6 +80,7 @@ import { avatarCacheBustFromUpdatedAt } from '@/utils/dpAvatarUrl'
 export default {
   name: 'GameInviteFriendSheet',
   components: { GameBottomSheet, DpUserAvatar },
+  inject: ['dpGameView'],
   props: {
     visible: { type: Boolean, default: false },
     roomId: { type: String, required: true },
@@ -142,6 +148,17 @@ export default {
         console.error('[dp][invite] fetchFriends', e)
         this.$message.error(dpAxiosErrorMessage(e, '加载好友列表失败'))
       }
+    },
+    onFriendProfileClick(f) {
+      if (!f) return
+      var vm = this.dpGameView
+      if (!vm || typeof vm.openPlayerSocialProfile !== 'function') return
+      var nickname = f.nickname
+      if (!nickname) return
+      vm.openPlayerSocialProfile({
+        nickname: nickname,
+        userId: f.userId
+      })
     },
     async inviteFriend(f) {
       if (!f || !this.roomId || this.inviteRowDisabled) return
@@ -240,6 +257,26 @@ export default {
   flex-direction: row;
   align-items: center;
   gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+
+.dp-invite-friend-sheet__left:hover,
+.dp-invite-friend-sheet__left:focus-visible {
+  background: var(--dp-input-bg, rgba(255, 255, 255, 0.06));
+  outline: none;
+}
+
+.dp-invite-friend-sheet__left:focus-visible {
+  box-shadow: 0 0 0 2px var(--dp-accent, rgba(64, 158, 255, 0.45));
 }
 
 .dp-invite-friend-sheet__meta {

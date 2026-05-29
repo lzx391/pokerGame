@@ -230,7 +230,7 @@
 }
 
 .spectator-modal__item {
-  padding: 10px 4px;
+  padding: 0;
   border-bottom: 1px solid var(--dp-subpanel-border, rgba(255, 255, 255, 0.08));
   font-size: 14px;
   color: var(--dp-text-primary, #333);
@@ -238,7 +238,41 @@
 
 .spectator-modal__item:last-child {
   border-bottom: none;
-  padding-bottom: 2px;
+}
+
+.spectator-modal__profile-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 10px 4px;
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+
+.spectator-modal__profile-btn:hover,
+.spectator-modal__profile-btn:focus-visible {
+  background: var(--dp-input-bg, rgba(255, 255, 255, 0.06));
+  outline: none;
+}
+
+.spectator-modal__profile-btn:focus-visible {
+  box-shadow: 0 0 0 2px var(--dp-accent, rgba(64, 158, 255, 0.45));
+}
+
+.spectator-modal__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* 等待上桌名单（与观众席弹窗共用列表壳） */

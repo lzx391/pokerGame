@@ -10,6 +10,7 @@
     <game-spectator-modal
         :visible="vm.showSpectatorModal"
         :spectators="vm.spectators"
+        :players="vm.players"
         @close="$store.commit('dpGame/SET_MODAL', { showSpectatorModal: false })"
     />
     <game-wait-next-hand-modal
