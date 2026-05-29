@@ -92,7 +92,7 @@
         <el-table :data="assets" stripe border style="width: 100%">
           <el-table-column prop="id" label="ID" width="72" />
           <el-table-column prop="displayName" label="展示名" min-width="140" />
-          <el-table-column prop="webPath" label="访问路径" min-width="200" show-overflow-tooltip />
+          <!-- <el-table-column prop="webPath" label="访问路径" min-width="200" show-overflow-tooltip /> -->
           <el-table-column prop="sortOrder" label="排序" width="80" />
           <el-table-column label="操作" width="120">
             <template slot-scope="scope">

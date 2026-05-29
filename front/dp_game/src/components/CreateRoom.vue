@@ -193,7 +193,7 @@ import { prefetchGameChunk } from '@/utils/dpPrefetchGameRoute'
 var ROOM_PRESETS = [
   { id: 'casual', label: '休闲桌', smallBlind: 2, startingStackBb: 40, maxSeatCount: 6, roomPassword: '' },
   { id: 'standard', label: '标准桌', smallBlind: 5, startingStackBb: 50, maxSeatCount: 9, roomPassword: '', defaultTag: true },
-  { id: 'deep', label: '深筹桌', smallBlind: 10, startingStackBb: 100, maxSeatCount: 6, roomPassword: '' }
+  { id: 'deep', label: '深鱼干桌', smallBlind: 10, startingStackBb: 100, maxSeatCount: 6, roomPassword: '' }
 ]
 
 export default {
