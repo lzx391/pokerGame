@@ -7,29 +7,17 @@
       'app--auth': isAuthPage
     }"
   >
-    <!-- 登录 / 注册 页面：带有导航和盒子布局 -->
-    <div v-if="isAuthPage" class="app-container">
-      <div class="dp-game-theme-row app-auth-theme-bar">
-        <span class="dp-game-theme-row__label">界面主题</span>
-        <dp-theme-picker
-          :game-ui-theme="gameUiTheme"
-          :theme-options="gameThemeOptions"
-          :custom-theme-base="customThemeBase"
-          :custom-theme-overrides="customThemeOverrides"
+    <!-- 登录 / 注册：电视机柜舞台 -->
+    <template v-if="isAuthPage">
+      <div class="app-container app-container--auth">
+        <dp-auth-stage
+          :app-auth-title="appAuthTitle"
           @input-theme="onAuthThemeChange($event)"
           @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
           @custom-overrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
         />
       </div>
-      <h1 class="app-title">{{ appAuthTitle }}</h1>
-      <div class="nav-bar">
-        <router-link to="/login" class="nav-link">登录</router-link>
-        <router-link to="/register" class="nav-link">注册</router-link>
-      </div>
-      <div class="content-box">
-        <router-view></router-view>
-      </div>
-    </div>
+    </template>
 
     <!-- 其他路由：全屏展示，不显示登录 / 注册按钮 -->
     <div
@@ -54,9 +42,11 @@ import { mapState } from 'vuex'
 import { CAT_COPY } from '@/constants/dpCatThemeCopy'
 import { resolveRouteTransitionName } from '@/utils/dpRouteTransition'
 import { isRouteTransitionEnabled } from '@/utils/dpRouteTransitionFlag'
+import DpAuthStage from '@/components/DpAuthStage.vue'
 
 export default {
   name: 'App',
+  components: { DpAuthStage },
   data() {
     return {
       appAuthTitle: CAT_COPY.appAuthTitle,

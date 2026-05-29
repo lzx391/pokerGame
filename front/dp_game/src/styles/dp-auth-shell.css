@@ -1,10 +1,9 @@
 /**
- * 登录 / 注册：依赖 body[data-dp-game-theme] 与 dp-game-themes.css 的 --dp-*。
+ * 登录 / 注册：影院级电视舞台（DpAuthStage）+ body[data-dp-game-theme] 的 --dp-*。
  * 由 main.js 引入；与 #app.app--auth 配合（见 App.vue）。
  */
 
 #app.app--auth {
-  background: transparent !important;
   min-height: 100dvh;
   min-height: -webkit-fill-available;
   color: var(--dp-text-primary, #333);
@@ -12,76 +11,44 @@
 }
 
 #app.app--auth .app-container {
-  max-width: min(100%, 28rem);
-  padding: clamp(18px, 4.5vw, 28px) clamp(14px, 3.5vw, 20px) clamp(28px, 7vw, 44px);
+  max-width: min(100%, 38rem);
+  padding: clamp(12px, 3vw, 20px) clamp(10px, 2.5vw, 16px) clamp(20px, 5vw, 32px);
   box-sizing: border-box;
 }
 
-#app.app--auth .app-auth-theme-bar {
-  justify-content: flex-end;
-  margin-bottom: 12px;
+#app.app--auth .app-container--auth {
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-#app.app--auth .app-title {
-  color: var(--dp-text-primary);
-  margin-bottom: 20px;
-}
-
-#app.app--auth .nav-bar {
-  margin-bottom: 24px;
-}
-
-#app.app--auth .nav-link {
-  background: var(--dp-btn-primary-bg) !important;
-  color: var(--dp-btn-primary-fg) !important;
-  border: 1px solid var(--dp-panel-border);
-  box-shadow: var(--dp-panel-shadow);
-}
-
-#app.app--auth .nav-link.router-link-active {
-  box-shadow: 0 0 0 2px var(--dp-accent);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  body[data-dp-fluidity='standard'] #app.app--auth .nav-link:not(.router-link-active):hover {
-    filter: brightness(1.05);
-  }
-}
-
-#app.app--auth .content-box {
-  background: var(--dp-panel-bg);
-  border: 1px solid var(--dp-panel-border);
-  box-shadow: var(--dp-panel-shadow);
-  border-radius: clamp(10px, 2.5vw, 14px);
-  padding: clamp(20px, 5vw, 32px) clamp(18px, 4vw, 28px);
-  min-height: 280px;
-}
-
-#app.app--auth .content-box h1,
-#app.app--auth .content-box h2 {
+/* 电视屏幕内表单：沿用主题变量，不再使用旧 content-box 白卡 */
+#app.app--auth .dp-auth-stage__form-panel h1,
+#app.app--auth .dp-auth-stage__form-panel h2 {
   color: var(--dp-text-primary);
 }
 
-#app.app--auth .content-box label {
+#app.app--auth .dp-auth-stage__form-panel label {
   color: var(--dp-text-secondary);
 }
 
-#app.app--auth .content-box input[type='text'],
-#app.app--auth .content-box input[type='password'] {
+#app.app--auth .dp-auth-stage__form-panel input[type='text'],
+#app.app--auth .dp-auth-stage__form-panel input[type='password'] {
   background: var(--dp-input-bg);
   border: 1px solid var(--dp-input-border);
   color: var(--dp-text-primary);
   border-radius: 8px;
 }
 
-#app.app--auth .content-box input[type='text']:focus,
-#app.app--auth .content-box input[type='password']:focus {
+#app.app--auth .dp-auth-stage__form-panel input[type='text']:focus,
+#app.app--auth .dp-auth-stage__form-panel input[type='password']:focus {
   outline: none;
   border-color: var(--dp-accent);
 }
 
-#app.app--auth .content-box .login-btn,
-#app.app--auth .content-box .register-btn {
+#app.app--auth .dp-auth-stage__form-panel .login-btn,
+#app.app--auth .dp-auth-stage__form-panel .register-btn {
   background: var(--dp-btn-primary-bg);
   color: var(--dp-btn-primary-fg);
   border: none;
@@ -91,7 +58,90 @@
   transition: filter 0.15s ease;
 }
 
-#app.app--auth .content-box .login-btn:hover,
-#app.app--auth .content-box .register-btn:hover {
-  filter: brightness(1.05);
+@media (hover: hover) and (pointer: fine) {
+  body[data-dp-fluidity='standard'] #app.app--auth .dp-auth-stage__tab:not(.dp-auth-stage__tab--active):hover {
+    filter: brightness(1.04);
+  }
+
+  body[data-dp-fluidity='standard'] #app.app--auth .dp-auth-stage__form-panel .login-btn:hover,
+  body[data-dp-fluidity='standard'] #app.app--auth .dp-auth-stage__form-panel .register-btn:hover {
+    filter: brightness(1.05);
+  }
+}
+
+#app.app--auth .dp-auth-stage__form-panel .login-box,
+#app.app--auth .dp-auth-stage__form-panel .register-form {
+  width: 100%;
+  max-width: min(100%, 22rem);
+  box-sizing: border-box;
+}
+
+/* 电视内已有主标题 + Tab，隐藏表单内重复标题以节省纵向空间 */
+#app.app--auth .dp-auth-stage__form-panel .login-box__title,
+#app.app--auth .dp-auth-stage__form-panel .register-form__title {
+  display: none;
+}
+
+#app.app--auth .dp-auth-stage__form-panel .login-box__hint,
+#app.app--auth .dp-auth-stage__form-panel .register-form__hint {
+  margin: 0 0 clamp(6px, 1.5vw, 10px);
+  font-size: clamp(11px, 2.8vw, 12px);
+  line-height: 1.35;
+}
+
+#app.app--auth .dp-auth-stage__form-panel .form-item {
+  margin-top: clamp(6px, 1.5vw, 9px);
+  margin-bottom: clamp(6px, 1.5vw, 9px);
+  gap: clamp(6px, 1.5vw, 8px);
+}
+
+#app.app--auth .dp-auth-stage__form-panel .form-item label {
+  flex: 0 0 clamp(40px, 11vw, 44px);
+  font-size: clamp(12px, 3.2vw, 13px);
+}
+
+#app.app--auth .dp-auth-stage__form-panel .form-item input {
+  min-width: 0;
+  height: clamp(34px, 9vw, 38px);
+  padding: 0 clamp(8px, 2vw, 10px);
+  font-size: clamp(13px, 3.5vw, 14px);
+}
+
+#app.app--auth .dp-auth-stage__form-panel .login-btn,
+#app.app--auth .dp-auth-stage__form-panel .register-btn {
+  width: 100%;
+  max-width: 100%;
+  height: clamp(36px, 9.5vw, 40px);
+  margin-top: clamp(6px, 1.5vw, 10px);
+  font-size: clamp(13px, 3.5vw, 14px);
+}
+
+@media (max-width: 380px) {
+  #app.app--auth .dp-auth-stage__form-panel .login-box,
+  #app.app--auth .dp-auth-stage__form-panel .register-form {
+    max-width: 100%;
+  }
+
+  #app.app--auth .dp-auth-stage__form-panel .form-item {
+    flex-wrap: nowrap;
+  }
+
+  #app.app--auth .dp-auth-stage__form-panel .form-item label {
+    flex: 0 0 40px;
+  }
+
+  #app.app--auth .dp-auth-stage__form-panel .form-item input {
+    flex: 1 1 0;
+  }
+}
+
+@media (max-width: 360px) {
+  #app.app--auth .app-container {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  #app.app--auth .dp-auth-stage__title {
+    letter-spacing: 0.06em;
+  }
 }
