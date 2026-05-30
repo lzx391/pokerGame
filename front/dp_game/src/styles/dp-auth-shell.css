@@ -1,19 +1,63 @@
 /**
- * 登录 / 注册：影院级电视舞台（DpAuthStage）+ body[data-dp-game-theme] 的 --dp-*。
+ * 登录 / 注册：长廊透视 + 线条风终端（DpAuthStage）；颜色见 dp-depth-tokens.css auth 段。
  * 由 main.js 引入；与 #app.app--auth 配合（见 App.vue）。
+ * 方案：docs/refactor/auth-corridor-terminal-plan.md
  */
 
 #app.app--auth {
   min-height: 100dvh;
   min-height: -webkit-fill-available;
-  color: var(--dp-text-primary, #333);
-  font-family: var(--dp-font-ui, Avenir, Helvetica, Arial, sans-serif);
+  color: var(--dp-auth-phosphor);
+  font-family: ui-monospace, 'Cascadia Code', 'Consolas', var(--dp-font-ui, monospace);
+  background-color: var(--dp-auth-corridor-bg);
 }
 
 #app.app--auth .app-container {
-  max-width: min(100%, 38rem);
+  max-width: min(100%, 42rem);
   padding: clamp(12px, 3vw, 20px) clamp(10px, 2.5vw, 16px) clamp(20px, 5vw, 32px);
   box-sizing: border-box;
+}
+
+@media (min-width: 1280px) {
+  #app.app--auth .app-container {
+    max-width: min(100%, 58rem);
+    padding-bottom: clamp(24px, 4vw, 40px);
+  }
+
+  #app.app--auth .dp-auth-stage__form-panel .login-box,
+  #app.app--auth .dp-auth-stage__form-panel .register-form {
+    max-width: min(100%, 28rem);
+  }
+
+  #app.app--auth .dp-auth-stage__form-panel .login-box__hint,
+  #app.app--auth .dp-auth-stage__form-panel .register-form__hint {
+    margin-bottom: 12px;
+    font-size: 13px;
+  }
+
+  #app.app--auth .dp-auth-stage__form-panel .form-item {
+    margin-top: 11px;
+    margin-bottom: 11px;
+    gap: 10px;
+  }
+
+  #app.app--auth .dp-auth-stage__form-panel .form-item label {
+    flex: 0 0 52px;
+    font-size: 15px;
+  }
+
+  #app.app--auth .dp-auth-stage__form-panel .form-item input {
+    height: 44px;
+    padding: 0 12px;
+    font-size: 15px;
+  }
+
+  #app.app--auth .dp-auth-stage__form-panel .login-btn,
+  #app.app--auth .dp-auth-stage__form-panel .register-btn {
+    height: 46px;
+    margin-top: 12px;
+    font-size: 15px;
+  }
 }
 
 #app.app--auth .app-container--auth {
@@ -23,60 +67,113 @@
   align-items: center;
 }
 
-/* 电视屏幕内表单：沿用主题变量，不再使用旧 content-box 白卡 */
+#app.app--auth .dp-game-theme-row__label {
+  color: var(--dp-auth-phosphor-dim);
+}
+
+/* 屏内文字抗锯齿，减少多层 glow 叠出的「糊边」 */
+#app.app--auth .dp-auth-stage__content {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 屏内磷光字：标题 / Tab / 表单统一发光（亮度由 token 控制） */
+#app.app--auth .dp-auth-stage__title,
+#app.app--auth .dp-auth-stage__tab,
+#app.app--auth .dp-auth-stage__tab--active,
+#app.app--auth .dp-auth-stage__form-panel h1,
+#app.app--auth .dp-auth-stage__form-panel h2,
+#app.app--auth .dp-auth-stage__form-panel label,
+#app.app--auth .dp-auth-stage__form-panel input[type='text'],
+#app.app--auth .dp-auth-stage__form-panel input[type='password'],
+#app.app--auth .dp-auth-stage__form-panel .login-btn,
+#app.app--auth .dp-auth-stage__form-panel .register-btn {
+  text-shadow: var(--dp-auth-text-shadow);
+}
+
+/*
+ * 非 default：主题色横线只画在屏背景层（z-index 2，低于 content 4），
+ * 不用 mix-blend-mode，避免叠在文字上导致发糊、对比度下降。
+ */
+body[data-dp-game-theme]:not([data-dp-game-theme='default']) #app.app--auth .dp-auth-stage__scanlines {
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 2px,
+    var(--dp-auth-text-scanline) 2px,
+    var(--dp-auth-text-scanline) 3px
+  );
+  background-size: 100% 3px;
+  opacity: calc(0.16 + var(--dp-auth-content-electron, 1) * 0.14);
+}
+
+/* 屏幕内表单：终端色 token，覆盖大厅浅色 --dp-input-* */
 #app.app--auth .dp-auth-stage__form-panel h1,
 #app.app--auth .dp-auth-stage__form-panel h2 {
-  color: var(--dp-text-primary);
+  color: var(--dp-auth-phosphor);
 }
 
 #app.app--auth .dp-auth-stage__form-panel label {
-  color: var(--dp-text-secondary);
+  color: var(--dp-auth-phosphor-dim);
 }
 
 #app.app--auth .dp-auth-stage__form-panel input[type='text'],
 #app.app--auth .dp-auth-stage__form-panel input[type='password'] {
-  background: var(--dp-input-bg);
-  border: 1px solid var(--dp-input-border);
-  color: var(--dp-text-primary);
-  border-radius: 8px;
+  background: color-mix(in srgb, var(--dp-auth-screen-bg) 88%, #000);
+  border: 1px solid color-mix(in srgb, var(--dp-auth-phosphor-dim) 62%, transparent);
+  color: var(--dp-auth-phosphor);
+  border-radius: 4px;
+  font-family: inherit;
+  box-shadow: inset 0 0 12px color-mix(in srgb, var(--dp-auth-screen-glow) 35%, transparent);
+}
+
+#app.app--auth .dp-auth-stage__form-panel input[type='text']::placeholder,
+#app.app--auth .dp-auth-stage__form-panel input[type='password']::placeholder {
+  color: color-mix(in srgb, var(--dp-auth-phosphor-dim) 65%, transparent);
 }
 
 #app.app--auth .dp-auth-stage__form-panel input[type='text']:focus,
 #app.app--auth .dp-auth-stage__form-panel input[type='password']:focus {
   outline: none;
-  border-color: var(--dp-accent);
+  border-color: var(--dp-auth-phosphor);
+  box-shadow: 0 0 0 2px var(--dp-auth-screen-glow);
 }
 
 #app.app--auth .dp-auth-stage__form-panel .login-btn,
 #app.app--auth .dp-auth-stage__form-panel .register-btn {
-  background: var(--dp-btn-primary-bg);
-  color: var(--dp-btn-primary-fg);
-  border: none;
-  border-radius: 8px;
+  background: color-mix(in srgb, var(--dp-auth-phosphor) 22%, var(--dp-auth-screen-bg));
+  color: var(--dp-auth-phosphor);
+  border: 1px solid var(--dp-auth-phosphor);
+  border-radius: 4px;
   font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
-  transition: filter 0.15s ease;
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 @media (hover: hover) and (pointer: fine) {
   body[data-dp-fluidity='standard'] #app.app--auth .dp-auth-stage__tab:not(.dp-auth-stage__tab--active):hover {
-    filter: brightness(1.04);
+    color: var(--dp-auth-phosphor);
+    border-color: color-mix(in srgb, var(--dp-auth-phosphor) 55%, transparent);
+    box-shadow: 0 0 8px var(--dp-auth-screen-glow);
   }
 
   body[data-dp-fluidity='standard'] #app.app--auth .dp-auth-stage__form-panel .login-btn:hover,
   body[data-dp-fluidity='standard'] #app.app--auth .dp-auth-stage__form-panel .register-btn:hover {
-    filter: brightness(1.05);
+    background: color-mix(in srgb, var(--dp-auth-phosphor) 32%, var(--dp-auth-screen-bg));
+    box-shadow: 0 0 14px color-mix(in srgb, var(--dp-auth-phosphor) 28%, transparent);
   }
 }
 
 #app.app--auth .dp-auth-stage__form-panel .login-box,
 #app.app--auth .dp-auth-stage__form-panel .register-form {
   width: 100%;
-  max-width: min(100%, 22rem);
+  max-width: min(100%, 24rem);
   box-sizing: border-box;
 }
 
-/* 电视内已有主标题 + Tab，隐藏表单内重复标题以节省纵向空间 */
 #app.app--auth .dp-auth-stage__form-panel .login-box__title,
 #app.app--auth .dp-auth-stage__form-panel .register-form__title {
   display: none;
@@ -84,36 +181,37 @@
 
 #app.app--auth .dp-auth-stage__form-panel .login-box__hint,
 #app.app--auth .dp-auth-stage__form-panel .register-form__hint {
-  margin: 0 0 clamp(6px, 1.5vw, 10px);
-  font-size: clamp(11px, 2.8vw, 12px);
+  margin: 0 0 clamp(8px, 2vw, 12px);
+  font-size: clamp(12px, 3vw, 13px);
   line-height: 1.35;
+  color: var(--dp-auth-phosphor-dim);
 }
 
 #app.app--auth .dp-auth-stage__form-panel .form-item {
-  margin-top: clamp(6px, 1.5vw, 9px);
-  margin-bottom: clamp(6px, 1.5vw, 9px);
-  gap: clamp(6px, 1.5vw, 8px);
+  margin-top: clamp(8px, 2vw, 11px);
+  margin-bottom: clamp(8px, 2vw, 11px);
+  gap: clamp(7px, 1.8vw, 10px);
 }
 
 #app.app--auth .dp-auth-stage__form-panel .form-item label {
-  flex: 0 0 clamp(40px, 11vw, 44px);
-  font-size: clamp(12px, 3.2vw, 13px);
+  flex: 0 0 clamp(44px, 12vw, 48px);
+  font-size: clamp(13px, 3.5vw, 14px);
 }
 
 #app.app--auth .dp-auth-stage__form-panel .form-item input {
   min-width: 0;
-  height: clamp(34px, 9vw, 38px);
-  padding: 0 clamp(8px, 2vw, 10px);
-  font-size: clamp(13px, 3.5vw, 14px);
+  height: clamp(38px, 10vw, 42px);
+  padding: 0 clamp(10px, 2.4vw, 12px);
+  font-size: clamp(14px, 3.8vw, 15px);
 }
 
 #app.app--auth .dp-auth-stage__form-panel .login-btn,
 #app.app--auth .dp-auth-stage__form-panel .register-btn {
   width: 100%;
   max-width: 100%;
-  height: clamp(36px, 9.5vw, 40px);
-  margin-top: clamp(6px, 1.5vw, 10px);
-  font-size: clamp(13px, 3.5vw, 14px);
+  height: clamp(40px, 10.5vw, 44px);
+  margin-top: clamp(8px, 2vw, 12px);
+  font-size: clamp(14px, 3.8vw, 15px);
 }
 
 @media (max-width: 380px) {
@@ -142,6 +240,6 @@
   }
 
   #app.app--auth .dp-auth-stage__title {
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
   }
 }

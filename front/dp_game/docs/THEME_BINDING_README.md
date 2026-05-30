@@ -4,6 +4,20 @@
 
 ---
 
+## 0. 当前可用主题（2026-05-30）
+
+| id | 中文名 | 说明 |
+|----|--------|------|
+| `default` | 明亮经典 | 默认浅色赌场风 |
+| `gothic` | 哥特暗夜 | 深色烛金与干玫瑰 |
+| `strawberry` | 草莓甜心 | 粉嫩童话系浅色 |
+| `halloween` | 万圣惊魂 | 南瓜橙 / 幽紫节庆深色 |
+| `custom` | 自定义 | 基于上列任一预设 + 调色板覆盖 `--dp-*` |
+
+`readGameTheme()` 若读到 localStorage 中已下架的 id，会 **fallback 到 `default`**（不写回 storage）。自定义主题的 `baseId` 若指向已删预设，同样在 `readCustomTheme()` 中回退为 `default`。
+
+---
+
 ## 1. 核心机制（先读这段）
 
 | 机制 | 说明 |
@@ -111,7 +125,7 @@ shell / modals / cards / community-cards / element-ui 覆盖层
 | 主题列表常量 | `front/dp_game/src/constants/dpGameThemes.js` |
 | localStorage 读写 | `front/dp_game/src/utils/dpGameTheme.js` |
 | `body[data-dp-game-theme]` 统一同步 | `front/dp_game/src/main.js` + `front/dp_game/src/utils/dpBodyGameTheme.js` |
-| 登录/注册页样式 | `front/dp_game/src/styles/dp-auth-shell.css`（`#app.app--auth`） |
+| 登录/注册页样式 | `dp-auth-shell.css`、`dp-depth-tokens.css`（`--dp-auth-*`）、`DpAuthStage.vue` |
 | 顶栏主题下拉 | `front/dp_game/src/components/GameTopBar.vue` |
 | 变量定义 | `front/dp_game/src/styles/dp-game-themes.css` |
 
@@ -123,7 +137,7 @@ shell / modals / cards / community-cards / element-ui 覆盖层
 
 | 页面 / 组件 | 根节点 | body 同步 | 说明 |
 |-------------|--------|-----------|------|
-| 登录 / 注册（`App.vue` `app--auth`） | 无单独 `.dp-game-root`，靠 **`body[data-dp-game-theme]`** 继承变量 | 是（`dpBodyGameTheme` 含 `/login`、`/register`、`/`） | 顶栏主题下拉在 `App.vue`；样式 **`dp-auth-shell.css`**。 |
+| 登录 / 注册（`App.vue` `app--auth`） | 无单独 `.dp-game-root`，靠 **`body[data-dp-game-theme]`** → `#app.app--auth` 上的 **`--dp-auth-*`** | 是（`dpBodyGameTheme` 含 `/login`、`/register`、`/`） | 顶栏 `DpThemePicker`（`DpAuthStage` 内）；样式 **`dp-auth-shell.css`** + **`dp-depth-tokens.css` auth 段** + **`DpAuthStage.vue`**。切换主题后屏内终端色即时变化，花屏时序不变。 |
 | `home.vue` | `.dp-game-root` + `:data-dp-game-theme` | 是（`dpLobbyThemeMixin`） | 顶栏含主题下拉；**快捷入口**一行含快速匹配、建房、历史对局、曲库上传及邮箱（未读角标）、好友；房间列表用 `dp-lobby-shell.css` 面板与按钮类。 |
 | `room.vue` | 同上 | 是 | 创建/加入房间后的等待页；含主题下拉。 |
 | `MusicUpload.vue` | 同上 | 是 | Element 覆盖见全局 `dp-game-element-ui.css`（`main.js` 引入），表单/表格/上传随 `--dp-*`。 |

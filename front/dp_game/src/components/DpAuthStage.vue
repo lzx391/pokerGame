@@ -4,7 +4,9 @@
     :class="{
       'dp-auth-stage--booting': phase !== 'idle',
       'dp-auth-stage--transition': phase === 'transition',
-      'dp-auth-stage--interactive': contentInteractive
+      'dp-auth-stage--interactive': contentInteractive,
+      'dp-auth-stage--rig-descending': rigDescending,
+      'dp-auth-stage--rig-landed': rigDescended
     }"
   >
     <div class="dp-auth-stage__theme-bar dp-game-theme-row">
@@ -20,12 +22,53 @@
       />
     </div>
 
-    <div class="dp-auth-stage__set" aria-hidden="false">
-      <!-- 大电视 -->
-      <div class="dp-auth-stage__tv" aria-hidden="true">
-        <div class="dp-auth-stage__antenna dp-auth-stage__antenna--l" />
-        <div class="dp-auth-stage__antenna dp-auth-stage__antenna--r" />
-        <div class="dp-auth-stage__tv-body">
+    <!-- 长廊透视背板 -->
+    <div class="dp-auth-stage__corridor" aria-hidden="true">
+      <div class="dp-auth-stage__corridor-vp" />
+      <div class="dp-auth-stage__corridor-ceiling" />
+      <div class="dp-auth-stage__corridor-wall dp-auth-stage__corridor-wall--l" />
+      <div class="dp-auth-stage__corridor-wall dp-auth-stage__corridor-wall--r" />
+      <div class="dp-auth-stage__corridor-floor" />
+      <div class="dp-auth-stage__corridor-horizon" />
+    </div>
+
+    <!-- 宽屏曲面 clip-path：左右直棱 + 顶凸底凹（objectBoundingBox） -->
+    <svg class="dp-auth-stage__clip-defs" aria-hidden="true" width="0" height="0">
+      <defs>
+        <clipPath id="dp-auth-clip-frame" clipPathUnits="objectBoundingBox">
+          <path d="M 0,0.04 Q 0.5,0 1,0.04 L 1,0.96 Q 0.5,1 0,0.96 L 0,0.04 Z" />
+        </clipPath>
+        <clipPath id="dp-auth-clip-bezel" clipPathUnits="objectBoundingBox">
+          <path d="M 0,0.043 Q 0.5,0.003 1,0.043 L 1,0.957 Q 0.5,0.997 0,0.957 L 0,0.043 Z" />
+        </clipPath>
+        <clipPath id="dp-auth-clip-screen" clipPathUnits="objectBoundingBox">
+          <path d="M 0,0.046 Q 0.5,0.006 1,0.046 L 1,0.954 Q 0.5,0.994 0,0.954 L 0,0.046 Z" />
+        </clipPath>
+        <clipPath id="dp-auth-clip-frame-lg" clipPathUnits="objectBoundingBox">
+          <path d="M 0,0.05 Q 0.5,0 1,0.05 L 1,0.95 Q 0.5,1 0,0.95 L 0,0.05 Z" />
+        </clipPath>
+        <clipPath id="dp-auth-clip-bezel-lg" clipPathUnits="objectBoundingBox">
+          <path d="M 0,0.053 Q 0.5,0.003 1,0.053 L 1,0.947 Q 0.5,0.997 0,0.947 L 0,0.053 Z" />
+        </clipPath>
+        <clipPath id="dp-auth-clip-screen-lg" clipPathUnits="objectBoundingBox">
+          <path d="M 0,0.056 Q 0.5,0.006 1,0.056 L 1,0.944 Q 0.5,0.994 0,0.944 L 0,0.056 Z" />
+        </clipPath>
+      </defs>
+    </svg>
+
+    <!-- 线条风电脑：首次进入从顶部下降 -->
+    <div
+      class="dp-auth-stage__rig"
+      :class="{
+        'dp-auth-stage__rig--skip-motion': skipRigMotion
+      }"
+      aria-hidden="false"
+    >
+      <div class="dp-auth-stage__monitor" aria-hidden="true">
+        <div class="dp-auth-stage__monitor-neck" />
+        <div class="dp-auth-stage__monitor-curve">
+        <div class="dp-auth-stage__monitor-frame">
+          <div class="dp-auth-stage__monitor-body">
           <div class="dp-auth-stage__bezel">
             <div
               class="dp-auth-stage__screen"
@@ -43,6 +86,7 @@
               </div>
               <div class="dp-auth-stage__scanlines" />
               <div class="dp-auth-stage__vignette" />
+              <div class="dp-auth-stage__curve-shade" aria-hidden="true" />
 
               <!-- 开机 / 转场闪白 -->
               <div
@@ -84,34 +128,16 @@
               </div>
             </div>
           </div>
-          <div class="dp-auth-stage__controls">
-            <span class="dp-auth-stage__knob" />
-            <span class="dp-auth-stage__knob dp-auth-stage__knob--sm" />
+          </div>
+          <div class="dp-auth-stage__monitor-chin">
             <span class="dp-auth-stage__led" :class="{ 'dp-auth-stage__led--on': screenOn }" />
+            <span class="dp-auth-stage__power-glyph" aria-hidden="true">PWR</span>
           </div>
         </div>
-        <div class="dp-auth-stage__tv-base" aria-hidden="true">
-          <div class="dp-auth-stage__tv-feet">
-            <span /><span />
-          </div>
-          <div class="dp-auth-stage__tv-plinth" />
         </div>
-      </div>
-
-      <!-- 复古机柜 -->
-      <div class="dp-auth-stage__cabinet" aria-hidden="true">
-        <div class="dp-auth-stage__cabinet-top" />
-        <div class="dp-auth-stage__cabinet-face">
-          <div class="dp-auth-stage__drawer">
-            <span class="dp-auth-stage__drawer-knob" />
-          </div>
-          <div class="dp-auth-stage__drawer dp-auth-stage__drawer--narrow">
-            <span class="dp-auth-stage__drawer-knob" />
-          </div>
-          <div class="dp-auth-stage__cabinet-slot" />
-        </div>
-        <div class="dp-auth-stage__cabinet-legs">
-          <span /><span /><span />
+        <div class="dp-auth-stage__desk-line" />
+        <div class="dp-auth-stage__keyboard" aria-hidden="true">
+          <span v-for="n in 12" :key="'kb-' + n" class="dp-auth-stage__key" />
         </div>
       </div>
     </div>
@@ -140,6 +166,9 @@ const TIMING_ECO = {
   transitionSettle: 40
 }
 
+/** 电脑从顶部下降（仅首次 mount） */
+const RIG_DESCENT_MS = 1000
+
 export default {
   name: 'DpAuthStage',
   props: {
@@ -153,12 +182,14 @@ export default {
       /** @type {AuthPhase} */
       phase: 'boot',
       authMode: 'login',
-      snowActive: true,
+      snowActive: false,
       flashPulse: false,
       screenOn: false,
       contentVisible: false,
       contentInteractive: false,
       bootDone: false,
+      rigDescending: false,
+      rigDescended: false,
       timers: []
     }
   },
@@ -176,6 +207,12 @@ export default {
     prefersReducedMotion() {
       if (typeof window === 'undefined' || !window.matchMedia) return false
       return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    },
+    skipRigMotion() {
+      return this.ecoMode || this.prefersReducedMotion
+    },
+    rigDescentMs() {
+      return this.skipRigMotion ? 0 : RIG_DESCENT_MS
     }
   },
   watch: {
@@ -195,7 +232,7 @@ export default {
   },
   mounted() {
     this.authMode = this.$route.path === '/register' ? 'register' : 'login'
-    this.runBootSequence()
+    this.startRigDescentThenBoot()
   },
   beforeDestroy() {
     this.clearTimers()
@@ -209,6 +246,22 @@ export default {
       const id = setTimeout(fn, ms)
       this.timers.push(id)
       return id
+    },
+    startRigDescentThenBoot() {
+      const ms = this.rigDescentMs
+      if (ms <= 0) {
+        this.rigDescended = true
+        this.rigDescending = false
+        this.runBootSequence()
+        return
+      }
+      this.rigDescending = true
+      this.rigDescended = false
+      this.schedule(() => {
+        this.rigDescending = false
+        this.rigDescended = true
+        this.runBootSequence()
+      }, ms)
     },
     runBootSequence() {
       this.clearTimers()
@@ -312,163 +365,321 @@ export default {
 
 <style scoped>
 .dp-auth-stage {
-  --dp-auth-tv-shell: color-mix(in srgb, var(--dp-subpanel-bg, #e8ecf0) 68%, var(--dp-panel-border, #c5cdd6));
-  --dp-auth-tv-bezel: color-mix(in srgb, var(--dp-text-secondary, #5a6578) 58%, #1a1f28);
-  --dp-auth-tv-screen-off: color-mix(in srgb, var(--dp-text-muted, #909399) 38%, #14181e);
-  --dp-auth-cabinet-wood: color-mix(in srgb, var(--dp-text-secondary, #6b5a48) 35%, #3d3228);
-  --dp-auth-tv-border: clamp(5px, 1.25vw, 7px);
-  --dp-auth-tv-shell-pad: clamp(12px, 3vw, 17px);
-  --dp-auth-tv-bezel-pad: clamp(10px, 2.6vw, 14px);
-  --dp-auth-tv-bezel-radius: clamp(14px, 3.6vw, 18px);
-  --dp-auth-tv-shell-radius: clamp(18px, 4.5vw, 24px);
+  position: relative;
   width: 100%;
-  max-width: min(100%, 38rem);
+  max-width: min(100%, 42rem);
   margin: 0 auto;
+  min-height: clamp(420px, 72vh, 640px);
+  isolation: isolate;
 }
 
 .dp-auth-stage__theme-bar {
   justify-content: flex-end;
   margin-bottom: clamp(10px, 2.5vw, 16px);
   position: relative;
-  z-index: 2;
+  z-index: 12;
 }
 
-.dp-auth-stage__set {
+/* —— 长廊透视背板 —— */
+.dp-auth-stage__corridor {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background: var(--dp-auth-corridor-bg);
+}
+
+.dp-auth-stage__corridor-vp {
+  position: absolute;
+  left: 50%;
+  top: 28%;
+  width: clamp(80px, 18vw, 140px);
+  height: clamp(80px, 18vw, 140px);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--dp-auth-corridor-vp-glow) 85%, transparent) 0%,
+    transparent 72%
+  );
+  opacity: 0.55;
+}
+
+.dp-auth-stage__corridor-ceiling {
+  position: absolute;
+  inset: 0 0 52% 0;
+  background:
+    linear-gradient(180deg, var(--dp-auth-corridor-ceiling-tint) 0%, transparent 88%),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent 47px,
+      color-mix(in srgb, var(--dp-auth-corridor-line) 55%, transparent) 47px,
+      color-mix(in srgb, var(--dp-auth-corridor-line) 55%, transparent) 48px
+    );
+  opacity: 0.7;
+}
+
+.dp-auth-stage__corridor-wall {
+  position: absolute;
+  top: 18%;
+  bottom: 28%;
+  width: 38%;
+  border: 1px solid color-mix(in srgb, var(--dp-auth-corridor-line) 70%, transparent);
+  background: linear-gradient(
+    105deg,
+    color-mix(in srgb, var(--dp-auth-corridor-bg) 92%, var(--dp-auth-corridor-wall-tint)),
+    transparent 75%
+  );
+}
+
+.dp-auth-stage__corridor-wall--l {
+  left: 0;
+  transform: perspective(520px) rotateY(14deg);
+  transform-origin: left center;
+  border-left: none;
+}
+
+.dp-auth-stage__corridor-wall--r {
+  right: 0;
+  transform: perspective(520px) rotateY(-14deg);
+  transform-origin: right center;
+  border-right: none;
+  background: linear-gradient(
+    -105deg,
+    color-mix(in srgb, var(--dp-auth-corridor-bg) 92%, var(--dp-auth-corridor-wall-tint)),
+    transparent 75%
+  );
+}
+
+.dp-auth-stage__corridor-horizon {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 42%;
+  height: 1px;
+  background: color-mix(in srgb, var(--dp-auth-phosphor) 22%, var(--dp-auth-corridor-line));
+  box-shadow: 0 0 12px var(--dp-auth-screen-glow);
+  opacity: 0.65;
+}
+
+.dp-auth-stage__corridor-floor {
+  position: absolute;
+  left: -15%;
+  right: -15%;
+  bottom: 0;
+  height: 58%;
+  transform-origin: 50% 100%;
+  transform: perspective(340px) rotateX(62deg);
+  background:
+    linear-gradient(
+      180deg,
+      transparent 0%,
+      color-mix(in srgb, var(--dp-auth-corridor-bg) 40%, var(--dp-auth-corridor-floor-tint)) 18%,
+      var(--dp-auth-corridor-bg) 100%
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent 38px,
+      color-mix(in srgb, var(--dp-auth-corridor-line) 80%, transparent) 38px,
+      color-mix(in srgb, var(--dp-auth-corridor-line) 80%, transparent) 39px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0,
+      transparent 22px,
+      color-mix(in srgb, var(--dp-auth-corridor-line) 45%, transparent) 22px,
+      color-mix(in srgb, var(--dp-auth-corridor-line) 45%, transparent) 23px
+    );
+  mask-image: linear-gradient(to top, #000 55%, transparent 100%);
+}
+
+/* —— 电脑 rig + 下降 —— */
+.dp-auth-stage__rig {
+  position: relative;
+  z-index: 4;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding-top: clamp(8px, 2vw, 16px);
+  transform: translateY(calc(-105vh - 12%)) scale(0.52);
+  opacity: 0.35;
+  will-change: transform, opacity;
+}
+
+.dp-auth-stage__rig--skip-motion,
+.dp-auth-stage--rig-landed .dp-auth-stage__rig {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+
+.dp-auth-stage--rig-descending:not(.dp-auth-stage--rig-landed) .dp-auth-stage__rig:not(.dp-auth-stage__rig--skip-motion) {
+  animation: dp-auth-rig-descend 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes dp-auth-rig-descend {
+  0% {
+    transform: translateY(calc(-105vh - 12%)) scale(0.52);
+    opacity: 0.35;
+  }
+  72% {
+    transform: translateY(2%) scale(1.02);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* —— 线条风显示器 —— */
+.dp-auth-stage__monitor {
+  width: 100%;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0;
-}
-
-/* —— 大电视 —— */
-.dp-auth-stage__tv {
-  width: 100%;
-  max-width: 100%;
-  position: relative;
   filter: drop-shadow(
-    0 14px 28px color-mix(in srgb, var(--dp-text-primary, #2c3e50) 22%, transparent)
+    0 18px 36px color-mix(in srgb, #000 42%, transparent)
   );
 }
 
-.dp-auth-stage__antenna {
+.dp-auth-stage__monitor-neck {
+  width: clamp(28px, 7vw, 40px);
+  height: clamp(14px, 3.5vw, 20px);
+  border-left: 2px solid var(--dp-auth-bezel-stroke);
+  border-right: 2px solid var(--dp-auth-bezel-stroke);
+  background: transparent;
+  margin-bottom: -1px;
+}
+
+.dp-auth-stage__clip-defs {
   position: absolute;
-  bottom: calc(100% - 8px);
-  width: 2px;
-  height: clamp(20px, 5.5vw, 30px);
-  opacity: 0.72;
-  background: linear-gradient(
-    to top,
-    var(--dp-auth-tv-bezel),
-    color-mix(in srgb, var(--dp-accent, #409eff) 45%, var(--dp-auth-tv-bezel))
-  );
-  border-radius: 2px;
-  transform-origin: bottom center;
-}
-
-.dp-auth-stage__antenna--l {
-  left: 22%;
-  transform: rotate(-20deg);
-}
-
-.dp-auth-stage__antenna--r {
-  right: 22%;
-  transform: rotate(20deg);
-}
-
-.dp-auth-stage__tv-body {
-  position: relative;
-  background: linear-gradient(
-    168deg,
-    color-mix(in srgb, var(--dp-panel-bg, #fff) 42%, var(--dp-auth-tv-shell)),
-    var(--dp-auth-tv-shell)
-  );
-  border: var(--dp-auth-tv-border) solid
-    color-mix(in srgb, var(--dp-panel-border, #dcdfe6) 62%, var(--dp-auth-tv-bezel));
-  border-radius: var(--dp-auth-tv-shell-radius) var(--dp-auth-tv-shell-radius)
-    clamp(10px, 2.5vw, 12px) clamp(10px, 2.5vw, 12px);
-  padding: var(--dp-auth-tv-shell-pad) clamp(14px, 3.2vw, 18px) clamp(10px, 2.4vw, 12px);
-  box-shadow:
-    inset 0 2px 0 color-mix(in srgb, var(--dp-panel-bg, #fff) 55%, transparent),
-    inset 0 -3px 0 color-mix(in srgb, var(--dp-auth-tv-bezel) 22%, transparent),
-    0 6px 0 color-mix(in srgb, var(--dp-auth-tv-bezel) 32%, transparent),
-    0 10px 24px color-mix(in srgb, var(--dp-text-primary, #2c3e50) 14%, transparent);
-}
-
-/* 侧面散热栅（纯装饰） */
-.dp-auth-stage__tv-body::before,
-.dp-auth-stage__tv-body::after {
-  content: '';
-  position: absolute;
-  top: 28%;
-  width: clamp(5px, 1.2vw, 7px);
-  height: 34%;
-  border-radius: 2px;
-  background: repeating-linear-gradient(
-    to bottom,
-    color-mix(in srgb, var(--dp-auth-tv-bezel) 55%, transparent) 0 2px,
-    transparent 2px 5px
-  );
-  opacity: 0.45;
+  width: 0;
+  height: 0;
+  overflow: hidden;
   pointer-events: none;
 }
 
-.dp-auth-stage__tv-body::before {
-  left: clamp(4px, 1vw, 6px);
+/* 顶凸底凹宽屏曲面：以 clip 为准，极小 rotateX 仅作纵深感 */
+.dp-auth-stage__monitor-curve {
+  width: 100%;
+  perspective: 1400px;
+  perspective-origin: 50% 42%;
+  transform: rotateX(1deg);
+  transform-origin: 50% 52%;
 }
 
-.dp-auth-stage__tv-body::after {
-  right: clamp(4px, 1vw, 6px);
+.dp-auth-stage__monitor-frame {
+  position: relative;
+  width: 100%;
+}
+
+.dp-auth-stage__monitor-body {
+  position: relative;
+  width: 100%;
+  border: 2px solid var(--dp-auth-bezel-stroke);
+  padding: clamp(8px, 2vw, 12px);
+  background: var(--dp-auth-rig-fill);
+  clip-path: url(#dp-auth-clip-frame);
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px var(--dp-auth-screen-glow),
+    inset 0 0 24px color-mix(in srgb, var(--dp-auth-phosphor) 4%, transparent),
+    inset 0 -10px 22px -14px color-mix(in srgb, #fff 8%, transparent),
+    inset 0 28px 44px -18px color-mix(in srgb, #000 58%, transparent);
 }
 
 .dp-auth-stage__bezel {
-  background: linear-gradient(
-    175deg,
-    color-mix(in srgb, var(--dp-auth-tv-bezel) 88%, var(--dp-panel-bg, #fff)),
-    var(--dp-auth-tv-bezel)
-  );
-  border-radius: var(--dp-auth-tv-bezel-radius);
-  padding: var(--dp-auth-tv-bezel-pad);
+  position: relative;
+  border: 2px solid color-mix(in srgb, var(--dp-auth-bezel-stroke) 90%, var(--dp-auth-phosphor));
+  padding: clamp(6px, 1.5vw, 10px);
+  background: var(--dp-auth-bezel-inner);
+  clip-path: url(#dp-auth-clip-bezel);
+  overflow: hidden;
   box-shadow:
-    inset 0 5px 16px color-mix(in srgb, #000 48%, transparent),
-    inset 0 0 0 clamp(2px, 0.55vw, 3px) color-mix(in srgb, var(--dp-auth-tv-bezel) 75%, #000),
-    0 1px 0 color-mix(in srgb, var(--dp-panel-bg, #fff) 18%, transparent);
+    inset 0 0 12px color-mix(in srgb, #000 75%, transparent),
+    inset 0 -6px 18px -10px color-mix(in srgb, #fff 5%, transparent),
+    inset 0 22px 36px -12px color-mix(in srgb, #000 48%, transparent);
+}
+
+.dp-auth-stage__bezel::before {
+  content: '';
+  position: absolute;
+  inset: clamp(4px, 1vw, 8px);
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--dp-auth-phosphor-dim) 18%, transparent);
+  z-index: 1;
+}
+
+.dp-auth-stage__bezel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    transparent 14%,
+    transparent 78%,
+    rgba(0, 0, 0, 0.22) 92%,
+    rgba(0, 0, 0, 0.42) 100%
+  );
 }
 
 .dp-auth-stage__screen {
   position: relative;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   aspect-ratio: 16 / 9;
-  min-height: clamp(248px, 47vw, 308px);
-  border-radius: clamp(4px, 1vw, 6px);
+  min-height: clamp(256px, 48vw, 320px);
   overflow: hidden;
-  background: var(--dp-auth-tv-screen-off);
+  background: var(--dp-auth-screen-off);
+  clip-path: url(#dp-auth-clip-screen);
   box-shadow:
-    inset 0 3px 12px color-mix(in srgb, #000 55%, transparent),
-    inset 0 0 0 1px color-mix(in srgb, var(--dp-auth-tv-bezel) 70%, #000);
-  transition: background-color 0.35s ease;
+    inset 0 0 0 1px color-mix(in srgb, var(--dp-auth-phosphor-dim) 35%, #000),
+    inset 0 -8px 20px -10px color-mix(in srgb, #fff 6%, transparent),
+    inset 0 24px 38px -8px color-mix(in srgb, #000 48%, transparent);
+  transition:
+    background-color 0.35s ease,
+    box-shadow 0.35s ease;
+  z-index: 0;
 }
 
 .dp-auth-stage__screen--on {
-  background: color-mix(in srgb, var(--dp-panel-bg, #f0f2f5) 92%, #1a1f24);
+  background: var(--dp-auth-screen-bg);
+  box-shadow:
+    inset 0 0 32px var(--dp-auth-screen-glow),
+    inset 0 0 56px color-mix(in srgb, var(--dp-auth-screen-glow) 48%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--dp-auth-phosphor-dim) 52%, #000),
+    inset 0 -6px 18px -10px color-mix(in srgb, #fff 5%, transparent),
+    inset 0 22px 42px -8px color-mix(in srgb, #000 38%, transparent);
 }
 
 /* CRT 花屏容器：整体颤抖，子层分别负责噪点 / 横纹 / 亮带 */
 .dp-auth-stage__snow {
   position: absolute;
-  inset: -8%;
+  inset: -6%;
   z-index: 5;
   opacity: 0;
   pointer-events: none;
   overflow: hidden;
   transition: opacity 0.12s ease;
-  background: color-mix(in srgb, #1a1e24 88%, #3a4048);
+  background: color-mix(in srgb, var(--dp-auth-snow-base) 88%, var(--dp-auth-snow-base-alt));
 }
 
 .dp-auth-stage__snow--active {
   opacity: 0.92;
-  animation: dp-auth-crt-jitter 0.07s steps(2) infinite;
+  /* 仅纵向抖动 + 横向不外扩，避免 -6% inset 配合横移产生 CRT 凸泡掐边 */
+  inset: -5% 0;
+  animation: dp-auth-snow-jitter-y 0.07s steps(2) infinite;
 }
 
 .dp-auth-stage__snow-noise,
@@ -562,8 +773,12 @@ export default {
 }
 
 /* 层 3：偶尔扫过的更亮横条 */
+.dp-auth-stage__snow--active .dp-auth-stage__snow-bright {
+  inset: auto 0 -35%;
+}
+
 .dp-auth-stage__snow-bright {
-  inset: auto -4% -35%;
+  inset: auto 0 -35%;
   height: 22%;
   opacity: 0;
   background: linear-gradient(
@@ -613,6 +828,25 @@ export default {
   }
 }
 
+/* 花屏专用：仅垂直微抖，保留 dp-auth-crt-jitter 契约供其它引用 */
+@keyframes dp-auth-snow-jitter-y {
+  0% {
+    transform: translateY(0);
+  }
+  25% {
+    transform: translateY(0.5px);
+  }
+  50% {
+    transform: translateY(-0.5px);
+  }
+  75% {
+    transform: translateY(0.35px);
+  }
+  100% {
+    transform: translateY(-0.35px);
+  }
+}
+
 .dp-auth-stage__scanlines {
   position: absolute;
   inset: 0;
@@ -622,11 +856,11 @@ export default {
     to bottom,
     transparent 0,
     transparent 2px,
-    rgba(0, 0, 0, 0.14) 2px,
-    rgba(0, 0, 0, 0.14) 3px
+    rgba(0, 0, 0, 0.1) 2px,
+    rgba(0, 0, 0, 0.1) 3px
   );
   background-size: 100% 3px;
-  opacity: 0.38;
+  opacity: 0.28;
   animation: dp-auth-scan-roll 2.8s linear infinite;
 }
 
@@ -660,10 +894,99 @@ export default {
   z-index: 3;
   pointer-events: none;
   background: radial-gradient(
-    ellipse 88% 78% at 50% 48%,
-    transparent 32%,
-    rgba(0, 0, 0, 0.42) 100%
+    ellipse 88% 76% at 50% 50%,
+    transparent 36%,
+    rgba(0, 0, 0, var(--dp-auth-vignette-strength, 0.26)) 100%
   );
+}
+
+/* 顶凸底凹纵深感：顶侧略亮迎光、底侧略深；左右不掐边 */
+.dp-auth-stage__curve-shade {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(255, 255, 255, 0.04) 6%,
+      transparent 20%,
+      transparent 72%,
+      rgba(0, 0, 0, 0.1) 88%,
+      rgba(0, 0, 0, 0.32) 96%,
+      rgba(0, 0, 0, 0.52) 100%
+    ),
+    radial-gradient(
+      ellipse 100% 82% at 50% 36%,
+      rgba(255, 255, 255, 0.06) 0%,
+      transparent 40%,
+      rgba(0, 0, 0, 0.12) 100%
+    );
+  opacity: 0.92;
+}
+
+/*
+ * 花屏 / 灭屏：与顶凸底凹一致（顶亮底深），禁止左右 pincushion。
+ * snow--active 覆盖 Tab 转场；:not(--on) 覆盖 boot 灭屏期。
+ */
+.dp-auth-stage__snow--active ~ .dp-auth-stage__curve-shade,
+.dp-auth-stage__screen:not(.dp-auth-stage__screen--on) .dp-auth-stage__curve-shade {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.14) 0%,
+      rgba(255, 255, 255, 0.06) 6%,
+      transparent 20%,
+      transparent 72%,
+      rgba(0, 0, 0, 0.12) 88%,
+      rgba(0, 0, 0, 0.36) 96%,
+      rgba(0, 0, 0, 0.55) 100%
+    ),
+    radial-gradient(
+      ellipse 100% 82% at 50% 38%,
+      rgba(255, 255, 255, 0.05) 0%,
+      transparent 38%,
+      rgba(0, 0, 0, 0.2) 100%
+    );
+  opacity: 0.86;
+}
+
+.dp-auth-stage__snow--active ~ .dp-auth-stage__vignette,
+.dp-auth-stage__screen:not(.dp-auth-stage__screen--on) .dp-auth-stage__vignette {
+  background: radial-gradient(
+    ellipse 92% 78% at 50% 40%,
+    rgba(255, 255, 255, 0.06) 0%,
+    transparent 38%,
+    rgba(0, 0, 0, calc(var(--dp-auth-vignette-strength, 0.26) * 0.65)) 100%
+  );
+}
+
+.dp-auth-stage__snow--active ~ .dp-auth-stage__scanlines,
+.dp-auth-stage__screen:not(.dp-auth-stage__screen--on) .dp-auth-stage__scanlines {
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.94) 0%,
+    rgba(0, 0, 0, 0.72) 10%,
+    rgba(0, 0, 0, 0.42) 50%,
+    rgba(0, 0, 0, 0.72) 90%,
+    rgba(0, 0, 0, 0.94) 100%
+  );
+  mask-image: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.94) 0%,
+    rgba(0, 0, 0, 0.72) 10%,
+    rgba(0, 0, 0, 0.42) 50%,
+    rgba(0, 0, 0, 0.72) 90%,
+    rgba(0, 0, 0, 0.94) 100%
+  );
+}
+
+.dp-auth-stage__screen:not(.dp-auth-stage__screen--on) {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--dp-auth-phosphor-dim) 35%, #000),
+    inset 0 -6px 16px -12px color-mix(in srgb, #fff 5%, transparent),
+    inset 0 18px 26px -14px color-mix(in srgb, #000 34%, transparent);
 }
 
 .dp-auth-stage__flash {
@@ -682,15 +1005,15 @@ export default {
 @keyframes dp-auth-flash-pulse {
   0% {
     opacity: 1;
-    background: #f8fafc;
+    background: var(--dp-auth-flash-tint);
   }
   22% {
     opacity: 1;
-    background: color-mix(in srgb, var(--dp-accent, #409eff) 14%, #fff);
+    background: color-mix(in srgb, var(--dp-auth-phosphor) 28%, var(--dp-auth-flash-tint));
   }
   55% {
     opacity: 0.7;
-    background: color-mix(in srgb, var(--dp-text-muted, #909399) 35%, #e8eaed);
+    background: color-mix(in srgb, var(--dp-auth-phosphor-dim) 35%, var(--dp-auth-screen-off));
   }
   100% {
     opacity: 0;
@@ -703,18 +1026,20 @@ export default {
   z-index: 4;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  flex: 0 1 auto;
   min-height: 0;
   max-height: 100%;
   width: 100%;
-  padding: clamp(8px, 2vw, 12px) clamp(10px, 2.5vw, 14px) clamp(8px, 2vw, 12px);
+  margin: auto 0;
+  padding: clamp(6px, 1.5vw, 10px) clamp(10px, 2.5vw, 14px);
   box-sizing: border-box;
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--dp-accent, #409eff) 35%, transparent) transparent;
+  scrollbar-color: color-mix(in srgb, var(--dp-auth-phosphor) 35%, transparent) transparent;
   opacity: 0;
   transform: scale(0.98);
   transition:
@@ -729,7 +1054,7 @@ export default {
 
 .dp-auth-stage__content::-webkit-scrollbar-thumb {
   border-radius: 4px;
-  background: color-mix(in srgb, var(--dp-accent, #409eff) 40%, var(--dp-text-muted, #909399));
+  background: color-mix(in srgb, var(--dp-auth-phosphor) 40%, var(--dp-auth-phosphor-dim));
 }
 
 .dp-auth-stage--interactive .dp-auth-stage__content {
@@ -740,34 +1065,38 @@ export default {
 
 .dp-auth-stage__title {
   flex-shrink: 0;
-  margin: 0 0 clamp(4px, 1.2vw, 8px);
-  font-size: clamp(1.05rem, 3.8vw, 1.4rem);
+  width: 100%;
+  text-align: center;
+  margin: 0 0 clamp(6px, 1.4vw, 10px);
+  font-size: clamp(1.2rem, 4.4vw, 1.55rem);
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   line-height: 1.2;
-  color: var(--dp-text-primary, #2c3e50);
-  text-shadow: 0 1px 0 color-mix(in srgb, var(--dp-panel-bg, #fff) 40%, transparent);
+  color: var(--dp-auth-phosphor);
+  text-shadow: var(--dp-auth-text-shadow-title, var(--dp-auth-text-shadow));
+  font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace;
 }
 
 .dp-auth-stage__tabs {
   display: flex;
   flex-shrink: 0;
   justify-content: center;
-  gap: clamp(6px, 1.5vw, 10px);
-  margin-bottom: clamp(6px, 1.5vw, 10px);
+  width: 100%;
+  gap: clamp(8px, 2vw, 12px);
+  margin-bottom: clamp(8px, 2vw, 12px);
 }
 
 .dp-auth-stage__tab {
   flex: 1 1 auto;
-  max-width: 8.5rem;
-  padding: clamp(6px, 1.5vw, 8px) clamp(10px, 2.5vw, 14px);
-  font-size: clamp(12px, 3.2vw, 13px);
+  max-width: 9.5rem;
+  padding: clamp(8px, 2vw, 10px) clamp(12px, 3vw, 16px);
+  font-size: clamp(13px, 3.6vw, 15px);
   font-weight: 600;
-  font-family: inherit;
-  border-radius: 8px;
-  border: 1px solid var(--dp-panel-border, #dcdfe6);
-  background: color-mix(in srgb, var(--dp-subpanel-bg, #eef1f4) 80%, var(--dp-panel-bg, #fff));
-  color: var(--dp-text-secondary, #5a6578);
+  font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--dp-auth-phosphor-dim) 72%, transparent);
+  background: color-mix(in srgb, var(--dp-auth-screen-bg) 88%, #000);
+  color: var(--dp-auth-phosphor-dim);
   cursor: pointer;
   transition:
     background 0.15s ease,
@@ -776,10 +1105,13 @@ export default {
 }
 
 .dp-auth-stage__tab--active {
-  background: var(--dp-btn-primary-bg, #409eff);
-  color: var(--dp-btn-primary-fg, #fff);
-  border-color: color-mix(in srgb, var(--dp-accent, #409eff) 60%, var(--dp-panel-border));
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--dp-accent, #409eff) 35%, transparent);
+  background: color-mix(in srgb, var(--dp-auth-phosphor) 24%, var(--dp-auth-screen-bg));
+  color: var(--dp-auth-phosphor);
+  border-color: var(--dp-auth-phosphor);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--dp-auth-phosphor) 42%, transparent),
+    0 0 16px var(--dp-auth-screen-glow),
+    inset 0 0 10px color-mix(in srgb, var(--dp-auth-screen-glow) 55%, transparent);
 }
 
 .dp-auth-stage__tab:disabled {
@@ -788,48 +1120,39 @@ export default {
 }
 
 .dp-auth-stage__form-panel {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   width: 100%;
   min-width: 0;
-  min-height: 0;
   overflow-x: hidden;
 }
 
-.dp-auth-stage__controls {
+.dp-auth-stage__monitor-chin {
   display: flex;
   align-items: center;
-  gap: clamp(8px, 2vw, 10px);
-  margin-top: clamp(10px, 2.5vw, 12px);
-  padding: 0 clamp(6px, 1.5vw, 8px);
+  gap: 8px;
+  margin-top: clamp(8px, 2vw, 10px);
+  padding: 0 4px;
+  width: 100%;
 }
 
-.dp-auth-stage__knob {
-  width: clamp(18px, 4.5vw, 22px);
-  height: clamp(18px, 4.5vw, 22px);
-  border-radius: 50%;
-  background: radial-gradient(
-    circle at 35% 30%,
-    color-mix(in srgb, var(--dp-panel-bg, #fff) 50%, var(--dp-auth-tv-shell)),
-    var(--dp-auth-tv-bezel)
-  );
-  border: 1px solid color-mix(in srgb, var(--dp-auth-tv-bezel) 70%, #000);
-  box-shadow: inset 0 -2px 4px rgba(0, 0, 0, 0.28);
-}
-
-.dp-auth-stage__knob--sm {
-  width: clamp(13px, 3.2vw, 16px);
-  height: clamp(13px, 3.2vw, 16px);
+.dp-auth-stage__power-glyph {
+  margin-left: auto;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: var(--dp-auth-phosphor-dim);
+  font-family: ui-monospace, 'Consolas', monospace;
+  opacity: 0.75;
 }
 
 .dp-auth-stage__led {
-  margin-left: auto;
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--dp-text-muted, #909399) 80%, #444);
+  border: 1px solid color-mix(in srgb, var(--dp-auth-phosphor-dim) 60%, transparent);
+  background: color-mix(in srgb, var(--dp-auth-phosphor-dim) 40%, #111);
   opacity: 0.5;
   transition:
     background 0.25s ease,
@@ -838,9 +1161,9 @@ export default {
 }
 
 .dp-auth-stage__led--on {
-  background: var(--dp-accent, #409eff);
-  opacity: 0.85;
-  box-shadow: 0 0 6px color-mix(in srgb, var(--dp-accent, #409eff) 55%, transparent);
+  background: var(--dp-auth-phosphor);
+  opacity: 0.9;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--dp-auth-phosphor) 65%, transparent);
   animation: dp-auth-led-pulse 2.2s ease-in-out infinite;
 }
 
@@ -854,144 +1177,204 @@ export default {
   }
 }
 
-.dp-auth-stage__tv-base {
-  width: 100%;
-  margin-top: clamp(2px, 0.6vw, 4px);
+.dp-auth-stage__desk-line {
+  width: 72%;
+  height: 0;
+  margin-top: 6px;
+  border-top: 1px solid color-mix(in srgb, var(--dp-auth-bezel-stroke) 70%, transparent);
 }
 
-.dp-auth-stage__tv-feet {
+.dp-auth-stage__keyboard {
   display: flex;
-  justify-content: space-between;
-  padding: 0 clamp(20px, 7vw, 44px);
-}
-
-.dp-auth-stage__tv-feet span {
-  width: clamp(34px, 9.5vw, 48px);
-  height: clamp(8px, 2vw, 10px);
-  border-radius: 0 0 clamp(4px, 1vw, 6px) clamp(4px, 1vw, 6px);
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--dp-auth-tv-bezel) 90%, var(--dp-panel-bg, #fff)),
-    var(--dp-auth-tv-bezel)
-  );
-  box-shadow: 0 2px 4px color-mix(in srgb, var(--dp-text-primary, #2c3e50) 18%, transparent);
-}
-
-.dp-auth-stage__tv-plinth {
-  height: clamp(6px, 1.6vw, 8px);
-  margin: 2px clamp(12px, 4vw, 28px) 0;
-  border-radius: 0 0 clamp(6px, 1.5vw, 8px) clamp(6px, 1.5vw, 8px);
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--dp-auth-tv-bezel) 75%, var(--dp-auth-tv-shell)),
-    color-mix(in srgb, var(--dp-auth-tv-bezel) 95%, #000)
-  );
-  box-shadow: 0 4px 10px color-mix(in srgb, var(--dp-text-primary, #2c3e50) 16%, transparent);
-}
-
-/* —— 机柜 —— */
-.dp-auth-stage__cabinet {
-  width: 100%;
-  max-width: 100%;
-  margin-top: -2px;
-  position: relative;
-  z-index: 0;
-}
-
-.dp-auth-stage__cabinet-top {
-  height: 8px;
-  margin: 0 5%;
-  border-radius: 4px 4px 0 0;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--dp-auth-cabinet-wood) 70%, #5c4a3a),
-    var(--dp-auth-cabinet-wood)
-  );
-  box-shadow: 0 -2px 0 color-mix(in srgb, #000 15%, transparent);
-}
-
-.dp-auth-stage__cabinet-face {
-  display: grid;
-  grid-template-columns: 1fr 0.72fr 0.35fr;
-  gap: clamp(6px, 1.5vw, 10px);
-  padding: clamp(8px, 2vw, 12px) clamp(12px, 3vw, 16px) clamp(10px, 2.5vw, 14px);
-  background: linear-gradient(
-    175deg,
-    color-mix(in srgb, var(--dp-auth-cabinet-wood) 85%, #6d5848),
-    color-mix(in srgb, var(--dp-auth-cabinet-wood) 95%, #2a221c)
-  );
-  border: 2px solid color-mix(in srgb, #000 35%, var(--dp-auth-cabinet-wood));
-  border-radius: 0 0 6px 6px;
-  box-shadow:
-    inset 0 2px 0 color-mix(in srgb, #fff 12%, transparent),
-    0 8px 20px color-mix(in srgb, var(--dp-text-primary, #2c3e50) 18%, transparent);
-}
-
-.dp-auth-stage__drawer {
-  min-height: clamp(36px, 9vw, 48px);
-  border-radius: 4px;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--dp-auth-cabinet-wood) 60%, #8a7260),
-    color-mix(in srgb, var(--dp-auth-cabinet-wood) 90%, #2e2520)
-  );
-  border: 1px solid color-mix(in srgb, #000 40%, transparent);
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, #fff 10%, transparent),
-    inset 0 -3px 6px rgba(0, 0, 0, 0.25);
-  display: flex;
-  align-items: center;
+  flex-wrap: wrap;
   justify-content: center;
+  gap: 3px;
+  width: min(88%, 320px);
+  margin-top: 8px;
+  padding: 6px 8px;
+  border: 1px solid color-mix(in srgb, var(--dp-auth-bezel-stroke) 55%, transparent);
+  border-radius: 4px;
+  background: transparent;
 }
 
-.dp-auth-stage__drawer-knob {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 30% 28%, #c9b89a, #6b5a48);
-  border: 1px solid color-mix(in srgb, #000 45%, transparent);
-  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.35);
+.dp-auth-stage__key {
+  flex: 0 0 calc(8.33% - 3px);
+  min-width: 14px;
+  height: 6px;
+  border: 1px solid color-mix(in srgb, var(--dp-auth-bezel-stroke) 50%, transparent);
+  border-radius: 1px;
+  background: transparent;
 }
 
-.dp-auth-stage__cabinet-slot {
-  min-height: clamp(36px, 9vw, 48px);
-  border-radius: 3px;
-  background: #0a0c10;
-  border: 2px inset color-mix(in srgb, #000 55%, #333);
-  box-shadow: inset 0 4px 12px rgba(0, 0, 0, 0.65);
-}
+/* 桌面大屏：舞台加宽、显示器占比更大、曲面更明显 */
+@media (min-width: 1280px) {
+  .dp-auth-stage {
+    max-width: min(100%, 58rem);
+    min-height: clamp(520px, 80vh, 860px);
+  }
 
-.dp-auth-stage__cabinet-legs {
-  display: flex;
-  justify-content: space-between;
-  padding: 0 12% 0;
-  margin-top: 2px;
-}
+  .dp-auth-stage__monitor {
+    width: min(100%, 85%);
+    max-width: 52rem;
+  }
 
-.dp-auth-stage__cabinet-legs span {
-  width: clamp(10px, 2.5vw, 14px);
-  height: clamp(10px, 2.5vw, 14px);
-  background: linear-gradient(180deg, #4a3d32, #2a221c);
-  border-radius: 0 0 2px 2px;
+  .dp-auth-stage__monitor-neck {
+    width: clamp(36px, 4vw, 48px);
+    height: clamp(18px, 2.2vw, 24px);
+  }
+
+  .dp-auth-stage__monitor-curve {
+    transform: rotateX(1.5deg);
+  }
+
+  .dp-auth-stage__monitor-body {
+    clip-path: url(#dp-auth-clip-frame-lg);
+    padding: clamp(12px, 1.4vw, 18px);
+    box-shadow:
+      0 0 0 1px var(--dp-auth-screen-glow),
+      inset 0 0 32px color-mix(in srgb, var(--dp-auth-phosphor) 5%, transparent),
+      inset 0 -12px 26px -14px color-mix(in srgb, #fff 9%, transparent),
+      inset 0 32px 56px -14px color-mix(in srgb, #000 62%, transparent),
+      0 14px 48px color-mix(in srgb, #000 28%, transparent);
+  }
+
+  .dp-auth-stage__bezel {
+    clip-path: url(#dp-auth-clip-bezel-lg);
+    padding: clamp(10px, 1.1vw, 14px);
+    box-shadow:
+      inset 0 0 16px color-mix(in srgb, #000 78%, transparent),
+      inset 0 -8px 20px -8px color-mix(in srgb, #fff 6%, transparent),
+      inset 0 26px 46px -8px color-mix(in srgb, #000 52%, transparent);
+  }
+
+  .dp-auth-stage__screen {
+    clip-path: url(#dp-auth-clip-screen-lg);
+    min-height: clamp(352px, 37vw, 520px);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--dp-auth-phosphor-dim) 35%, #000),
+      inset 0 -8px 22px -10px color-mix(in srgb, #fff 7%, transparent),
+      inset 0 28px 52px -4px color-mix(in srgb, #000 50%, transparent);
+  }
+
+  .dp-auth-stage__screen--on {
+    box-shadow:
+      inset 0 0 40px var(--dp-auth-screen-glow),
+      inset 0 0 68px color-mix(in srgb, var(--dp-auth-screen-glow) 48%, transparent),
+      inset 0 0 0 1px color-mix(in srgb, var(--dp-auth-phosphor-dim) 52%, #000),
+      inset 0 -8px 20px -10px color-mix(in srgb, #fff 6%, transparent),
+      inset 0 26px 52px -4px color-mix(in srgb, #000 40%, transparent);
+  }
+
+  .dp-auth-stage__snow {
+    inset: -7%;
+  }
+
+  .dp-auth-stage__snow--active {
+    inset: -6% 0;
+  }
+
+  .dp-auth-stage__curve-shade {
+    opacity: 1;
+    background:
+      linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.12) 0%,
+        rgba(255, 255, 255, 0.05) 5%,
+        transparent 18%,
+        transparent 70%,
+        rgba(0, 0, 0, 0.12) 86%,
+        rgba(0, 0, 0, 0.38) 95%,
+        rgba(0, 0, 0, 0.58) 100%
+      ),
+      radial-gradient(
+        ellipse 100% 80% at 50% 34%,
+        rgba(255, 255, 255, 0.08) 0%,
+        transparent 36%,
+        rgba(0, 0, 0, 0.16) 100%
+      );
+  }
+
+  .dp-auth-stage__snow--active ~ .dp-auth-stage__curve-shade,
+  .dp-auth-stage__screen:not(.dp-auth-stage__screen--on) .dp-auth-stage__curve-shade {
+    background:
+      linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.16) 0%,
+        rgba(255, 255, 255, 0.07) 5%,
+        transparent 18%,
+        transparent 70%,
+        rgba(0, 0, 0, 0.14) 86%,
+        rgba(0, 0, 0, 0.42) 95%,
+        rgba(0, 0, 0, 0.6) 100%
+      ),
+      radial-gradient(
+        ellipse 100% 80% at 50% 36%,
+        rgba(255, 255, 255, 0.06) 0%,
+        transparent 34%,
+        rgba(0, 0, 0, 0.22) 100%
+      );
+    opacity: 0.9;
+  }
+
+  .dp-auth-stage__screen:not(.dp-auth-stage__screen--on) {
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--dp-auth-phosphor-dim) 35%, #000),
+      inset 0 -8px 18px -12px color-mix(in srgb, #fff 6%, transparent),
+      inset 0 22px 34px -12px color-mix(in srgb, #000 32%, transparent);
+  }
+
+  .dp-auth-stage__vignette {
+    background: radial-gradient(
+      ellipse 84% 74% at 50% 50%,
+      transparent 32%,
+      rgba(0, 0, 0, var(--dp-auth-vignette-strength, 0.26)) 100%
+    );
+  }
+
+  .dp-auth-stage__desk-line {
+    width: 64%;
+  }
+
+  .dp-auth-stage__keyboard {
+    width: min(72%, 440px);
+    margin-top: 10px;
+    padding: 7px 10px;
+  }
+
+  .dp-auth-stage__key {
+    min-width: 16px;
+    height: 7px;
+  }
+
+  .dp-auth-stage__content {
+    padding: clamp(10px, 1.2vw, 16px) clamp(18px, 2.2vw, 26px);
+  }
+
+  .dp-auth-stage__title {
+    margin-bottom: clamp(8px, 1vw, 12px);
+    font-size: clamp(1.35rem, 1.9vw, 1.75rem);
+  }
+
+  .dp-auth-stage__tabs {
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .dp-auth-stage__tab {
+    max-width: 11rem;
+    padding: 10px 18px;
+    font-size: 15px;
+  }
 }
 
 @media (max-width: 380px) {
   .dp-auth-stage {
-    --dp-auth-tv-border: 5px;
-    --dp-auth-tv-shell-pad: 10px;
-    --dp-auth-tv-bezel-pad: 9px;
-    --dp-auth-tv-bezel-radius: 14px;
-    --dp-auth-tv-shell-radius: 18px;
+    max-width: 100%;
+    min-height: 380px;
   }
 
   .dp-auth-stage__screen {
     min-height: clamp(244px, 61vw, 288px);
-  }
-
-  .dp-auth-stage__tv-body::before,
-  .dp-auth-stage__tv-body::after {
-    opacity: 0.32;
-    height: 30%;
   }
 
   .dp-auth-stage__content {
@@ -1000,7 +1383,7 @@ export default {
 
   .dp-auth-stage__title {
     font-size: 1.05rem;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
   }
 
   .dp-auth-stage__tab {
@@ -1008,19 +1391,8 @@ export default {
     font-size: 12px;
   }
 
-  .dp-auth-stage__cabinet-face {
-    grid-template-columns: 1fr 1fr;
-    padding-left: 10px;
-    padding-right: 10px;
-  }
-
-  .dp-auth-stage__cabinet-slot {
-    grid-column: 1 / -1;
-    min-height: 28px;
-  }
-
-  .dp-auth-stage__drawer {
-    min-height: 32px;
+  .dp-auth-stage__keyboard {
+    width: 94%;
   }
 }
 </style>
@@ -1032,7 +1404,8 @@ body[data-dp-fluidity='eco'] .dp-auth-stage__snow--active,
 body[data-dp-fluidity='eco'] .dp-auth-stage__snow-noise,
 body[data-dp-fluidity='eco'] .dp-auth-stage__snow-bars,
 body[data-dp-fluidity='eco'] .dp-auth-stage__snow-bright,
-body[data-dp-fluidity='eco'] .dp-auth-stage__scanlines {
+body[data-dp-fluidity='eco'] .dp-auth-stage__scanlines,
+body[data-dp-fluidity='eco'] .dp-auth-stage__rig {
   animation: none !important;
 }
 
@@ -1040,7 +1413,7 @@ body[data-dp-fluidity='eco'] .dp-auth-stage__snow--active {
   opacity: 0.4;
   inset: 0;
   transform: none;
-  background: color-mix(in srgb, var(--dp-text-muted, #909399) 55%, #1c1f24);
+  background: color-mix(in srgb, var(--dp-text-muted) 55%, var(--dp-auth-snow-base));
 }
 
 body[data-dp-fluidity='eco'] .dp-auth-stage__snow-noise,
@@ -1057,6 +1430,11 @@ body[data-dp-fluidity='eco'] .dp-auth-stage__led--on {
   animation: none;
 }
 
+body[data-dp-fluidity='eco'] .dp-auth-stage__rig {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .dp-auth-stage__snow,
   .dp-auth-stage__snow--active,
@@ -1065,15 +1443,21 @@ body[data-dp-fluidity='eco'] .dp-auth-stage__led--on {
   .dp-auth-stage__snow-bright,
   .dp-auth-stage__scanlines,
   .dp-auth-stage__led--on,
-  .dp-auth-stage__flash--pulse {
+  .dp-auth-stage__flash--pulse,
+  .dp-auth-stage__rig {
     animation: none !important;
+  }
+
+  .dp-auth-stage__rig {
+    transform: translateY(0) scale(1);
+    opacity: 1;
   }
 
   .dp-auth-stage__snow--active {
     opacity: 0.38;
     inset: 0;
     transform: none;
-    background: color-mix(in srgb, var(--dp-text-muted, #909399) 55%, #1c1f24);
+    background: color-mix(in srgb, var(--dp-text-muted) 55%, var(--dp-auth-snow-base));
   }
 
   .dp-auth-stage__snow-noise,
@@ -1083,7 +1467,7 @@ body[data-dp-fluidity='eco'] .dp-auth-stage__led--on {
   }
 
   .dp-auth-stage__scanlines {
-    opacity: 0.14;
+    opacity: 0.12;
   }
 
   .dp-auth-stage__content {

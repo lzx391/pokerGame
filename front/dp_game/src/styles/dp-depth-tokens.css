@@ -24,3 +24,73 @@ body[data-dp-game-theme] #app.app--lobby,
 body[data-dp-game-theme] #app.app--auth {
   background-color: var(--dp-depth-app-bg);
 }
+
+/*
+ * 登录/注册长廊终端（见 docs/refactor/auth-corridor-terminal-plan.md）
+ * 长廊/外壳偏中性暗灰；屏内字/描边/发光由 --dp-accent + --dp-cyan 推导，随顶栏主题即时切换。
+ */
+body[data-dp-game-theme] #app.app--auth {
+  --dp-auth-corridor-bg: color-mix(in srgb, var(--dp-text-primary) 5%, #08090c);
+  --dp-auth-corridor-line: color-mix(in srgb, var(--dp-text-muted) 38%, var(--dp-auth-corridor-bg));
+  --dp-auth-corridor-vp-glow: color-mix(in srgb, var(--dp-accent) 14%, var(--dp-auth-corridor-bg));
+  --dp-auth-corridor-ceiling-tint: color-mix(in srgb, var(--dp-auth-corridor-bg) 90%, #14181c);
+  --dp-auth-corridor-wall-tint: color-mix(in srgb, var(--dp-auth-corridor-bg) 88%, var(--dp-text-muted) 12%);
+  --dp-auth-corridor-floor-tint: color-mix(in srgb, var(--dp-auth-corridor-bg) 55%, #0c0e10);
+  --dp-auth-bezel-stroke: color-mix(in srgb, var(--dp-text-muted) 48%, var(--dp-auth-corridor-bg));
+  --dp-auth-bezel-inner: color-mix(in srgb, var(--dp-auth-corridor-bg) 94%, #000);
+  --dp-auth-rig-fill: color-mix(in srgb, var(--dp-auth-corridor-bg) 82%, var(--dp-text-muted) 18%);
+
+  /* 屏内主色：accent 提亮 + 电子横线 token（gothic / 草莓 / 万圣 / 自定义） */
+  --dp-auth-terminal-text: color-mix(in srgb, var(--dp-accent) 76%, white 24%);
+  --dp-auth-phosphor: var(--dp-auth-terminal-text);
+  --dp-auth-phosphor-dim: color-mix(in srgb, var(--dp-auth-terminal-text) 58%, white 14%);
+  --dp-auth-screen-glow: color-mix(in srgb, var(--dp-auth-terminal-text) 34%, transparent);
+  --dp-auth-screen-bg: color-mix(in srgb, var(--dp-auth-corridor-bg) 50%, var(--dp-auth-terminal-text) 50%);
+  --dp-auth-screen-off: color-mix(in srgb, var(--dp-auth-corridor-bg) 88%, #000);
+  --dp-auth-flash-tint: color-mix(in srgb, var(--dp-auth-terminal-text) 38%, #f8fafc);
+  --dp-auth-snow-base: color-mix(in srgb, var(--dp-auth-corridor-bg) 52%, #2a3038);
+  --dp-auth-snow-base-alt: color-mix(in srgb, var(--dp-text-muted) 32%, #1c2026);
+  --dp-auth-text-glow: color-mix(in srgb, var(--dp-auth-phosphor) 52%, transparent);
+  --dp-auth-text-shadow:
+    0 0 5px var(--dp-auth-text-glow),
+    0 0 1px color-mix(in srgb, var(--dp-auth-phosphor) 42%, transparent);
+  --dp-auth-text-scanline: color-mix(in srgb, var(--dp-auth-phosphor) 22%, rgba(255, 255, 255, 0.14));
+  --dp-auth-content-electron: 1;
+  --dp-auth-vignette-strength: 0.2;
+
+  background-color: var(--dp-auth-corridor-bg);
+}
+
+/* 明亮经典：走廊中性灰；屏内复古 8bit 荧光绿终端（深绿底 + 亮绿字） */
+body[data-dp-game-theme='default'] #app.app--auth {
+  --dp-auth-corridor-bg: #0a0c0e;
+  --dp-auth-corridor-line: #2a2e34;
+  --dp-auth-corridor-vp-glow: #1a2228;
+  --dp-auth-corridor-ceiling-tint: #121418;
+  --dp-auth-corridor-wall-tint: #15181c;
+  --dp-auth-corridor-floor-tint: #0e1012;
+  --dp-auth-bezel-stroke: #4a5058;
+  --dp-auth-bezel-inner: #080a0c;
+  --dp-auth-rig-fill: #12151a;
+
+  --dp-auth-terminal-text: #4af626;
+  --dp-auth-phosphor: var(--dp-auth-terminal-text);
+  --dp-auth-phosphor-dim: #72f052;
+  --dp-auth-screen-glow: color-mix(in srgb, var(--dp-auth-terminal-text) 44%, transparent);
+  --dp-auth-screen-bg: #0a1a0a;
+  --dp-auth-screen-off: #051005;
+  --dp-auth-flash-tint: #e0ffe8;
+  --dp-auth-snow-base: #0a1808;
+  --dp-auth-snow-base-alt: #1a3018;
+  --dp-auth-text-glow: color-mix(in srgb, var(--dp-auth-terminal-text) 72%, transparent);
+  --dp-auth-text-shadow:
+    0 0 8px var(--dp-auth-text-glow),
+    0 0 2px color-mix(in srgb, var(--dp-auth-phosphor) 35%, transparent);
+  --dp-auth-text-shadow-title:
+    0 0 10px var(--dp-auth-text-glow),
+    0 0 3px color-mix(in srgb, var(--dp-auth-phosphor) 55%, transparent),
+    0 1px 0 rgba(0, 0, 0, 0.28);
+  --dp-auth-text-scanline: transparent;
+  --dp-auth-content-electron: 0;
+  --dp-auth-vignette-strength: 0.2;
+}

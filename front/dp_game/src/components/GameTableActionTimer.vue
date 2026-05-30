@@ -38,7 +38,7 @@ export default {
     /** CSS 变量 --dp-table-timer-pct，如 '0.73' 或 '73%' */
     progressPct: { type: [String, Number], default: '100%' },
     ecoMode: { type: Boolean, default: false },
-    /** 仅圆环 + 秒数（无昵称/「思考中」），用于澳门主题等随座位轨道倒计时 */
+    /** 仅圆环 + 秒数（无昵称/「思考中」），用于随座位轨道倒计时 */
     ringOnly: { type: Boolean, default: false }
   }
 }
