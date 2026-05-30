@@ -33,7 +33,7 @@ public class DpGameRoomPushService {
     private static final String ROOM_CLOSED = "{\"_ws\":\"roomClosed\"}";
 
     /** 房间聊天：内存缓冲，摘房落库；广播帧带 ttlMs 供前端气泡 */
-    private static final long CHAT_TTL_MS = 15_000L;
+    private static final long CHAT_TTL_MS = 5_000L;
     private static final int CHAT_MAX_LEN = 200;
     /** NPC 桌边话术（不落库） */
     private static final int NPC_TABLE_TALK_MAX_LEN = 80;
