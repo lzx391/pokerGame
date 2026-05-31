@@ -38,4 +38,9 @@ public interface DpUserStatsMapper {
     @Update("UPDATE dp_user_stats SET largest_room_net = #{multiplier} "
             + "WHERE user_id = #{userId} AND largest_room_net < #{multiplier}")
     int tryUpdateLargestRoomNet(@Param("userId") int userId, @Param("multiplier") BigDecimal multiplier);
+
+    /** 周榜前三结算：无 stats 行则 insert，有则累加。 */
+    @Insert("INSERT INTO dp_user_stats (user_id, leaderboard_top_count) VALUES (#{userId}, #{inc}) "
+            + "ON DUPLICATE KEY UPDATE leaderboard_top_count = leaderboard_top_count + VALUES(leaderboard_top_count)")
+    int incrementLeaderboardTopCount(@Param("userId") int userId, @Param("inc") int inc);
 }

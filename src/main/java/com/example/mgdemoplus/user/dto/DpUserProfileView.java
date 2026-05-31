@@ -22,6 +22,8 @@ public class DpUserProfileView {
     private BigDecimal largestPotWon;
     private BigDecimal largestRoomNet;
     private Integer totalHandsPlayed;
+    /** 周榜前三累计次数 */
+    private Integer leaderboardTopCount;
 
     public int getId() {
         return id;
@@ -109,5 +111,13 @@ public class DpUserProfileView {
 
     public void setTotalHandsPlayed(Integer totalHandsPlayed) {
         this.totalHandsPlayed = totalHandsPlayed;
+    }
+
+    public Integer getLeaderboardTopCount() {
+        return leaderboardTopCount;
+    }
+
+    public void setLeaderboardTopCount(Integer leaderboardTopCount) {
+        this.leaderboardTopCount = leaderboardTopCount;
     }
 }

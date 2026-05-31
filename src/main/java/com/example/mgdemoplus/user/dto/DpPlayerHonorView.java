@@ -22,6 +22,8 @@ public class DpPlayerHonorView {
     private BigDecimal largestPotWon;
     private BigDecimal largestRoomNet;
     private int totalHandsPlayed;
+    /** 周榜前三累计次数 */
+    private int leaderboardTopCount;
 
     /** 本周手牌倍数周榜（board=hand） */
     private DpWeeklyLeaderboardPlacementView leaderboardWeeklyHand;
@@ -106,6 +108,14 @@ public class DpPlayerHonorView {
 
     public void setTotalHandsPlayed(int totalHandsPlayed) {
         this.totalHandsPlayed = totalHandsPlayed;
+    }
+
+    public int getLeaderboardTopCount() {
+        return leaderboardTopCount;
+    }
+
+    public void setLeaderboardTopCount(int leaderboardTopCount) {
+        this.leaderboardTopCount = leaderboardTopCount;
     }
 
     public DpWeeklyLeaderboardPlacementView getLeaderboardWeeklyHand() {

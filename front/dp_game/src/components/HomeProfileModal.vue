@@ -113,14 +113,14 @@
                   >{{ honorDisplayCount('royalFlushWins') }}<small> 次</small></span>
                 </div>
               </div>
-              <div class="home-prof-medal home-prof-medal--straight">
+              <div class="home-prof-medal home-prof-medal--leaderboard">
                 <div class="home-prof-medal__body">
-                  <span class="home-prof-medal__name">同花顺</span>
+                  <span class="home-prof-medal__name">上榜次数</span>
                   <span
                     class="home-prof-honor-val"
                     :class="honorValClass"
-                    :aria-label="'同花顺 ' + honorDisplayCount('straightFlushWins') + ' 次'"
-                  >{{ honorDisplayCount('straightFlushWins') }}<small> 次</small></span>
+                    :aria-label="'上榜次数 ' + honorDisplayCount('leaderboardTopCount') + ' 次'"
+                  >{{ honorDisplayCount('leaderboardTopCount') }}<small> 次</small></span>
                 </div>
               </div>
               <div class="home-prof-medal home-prof-medal--four">
@@ -303,6 +303,7 @@ export default {
         royalFlushWins: null,
         straightFlushWins: null,
         fourOfAKindWins: null,
+        leaderboardTopCount: null,
         largestPotWon: null,
         largestRoomNet: null,
         totalHandsPlayed: null,
@@ -489,6 +490,7 @@ export default {
         this.form.royalFlushWins = profile.royalFlushWins
         this.form.straightFlushWins = profile.straightFlushWins
         this.form.fourOfAKindWins = profile.fourOfAKindWins
+        this.form.leaderboardTopCount = profile.leaderboardTopCount
         this.form.largestPotWon = profile.largestPotWon
         this.form.largestRoomNet = profile.largestRoomNet
         this.form.totalHandsPlayed = profile.totalHandsPlayed
@@ -946,6 +948,9 @@ export default {
 .home-prof-medal--straight::before {
   display: none;
 }
+.home-prof-medal--leaderboard {
+  justify-content: flex-end;
+}
 .home-prof-medal--royal {
   border-color: color-mix(in srgb, var(--dp-warning) 65%, transparent);
   background: linear-gradient(
@@ -962,17 +967,30 @@ export default {
     var(--dp-surface-raised) 100%
   );
 }
+.home-prof-medal--leaderboard {
+  border-color: color-mix(in srgb, var(--dp-success) 65%, transparent);
+  background-image: url('~@/assets/leaderboard.webp');
+}
 .home-prof-medal--royal .home-prof-medal__name,
 .home-prof-medal--straight .home-prof-medal__name {
   color: var(--dp-text-secondary);
+}
+.home-prof-medal--leaderboard .home-prof-medal__name {
+  color: rgba(255, 255, 255, 0.82);
 }
 .home-prof-medal--royal .home-prof-honor-val,
 .home-prof-medal--straight .home-prof-honor-val {
   color: var(--dp-text-primary);
 }
+.home-prof-medal--leaderboard .home-prof-honor-val {
+  color: #fff;
+}
 .home-prof-medal--royal .home-prof-honor-val small,
 .home-prof-medal--straight .home-prof-honor-val small {
   color: var(--dp-text-muted);
+}
+.home-prof-medal--leaderboard .home-prof-honor-val small {
+  color: rgba(255, 255, 255, 0.72);
 }
 .home-prof-medal--four {
   border-color: color-mix(in srgb, var(--dp-danger) 65%, transparent);

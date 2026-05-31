@@ -117,14 +117,14 @@
                   >{{ honorDisplayCount('royalFlushWins') }}<small> 次</small></span>
                 </div>
               </div>
-              <div class="game-prof-medal game-prof-medal--straight">
+              <div class="game-prof-medal game-prof-medal--leaderboard">
                 <div class="game-prof-medal__body">
-                  <span class="game-prof-medal__name">同花顺</span>
+                  <span class="game-prof-medal__name">上榜次数</span>
                   <span
                     class="game-prof-honor-val"
                     :class="honorValClass"
-                    :aria-label="'同花顺 ' + honorDisplayCount('straightFlushWins') + ' 次'"
-                  >{{ honorDisplayCount('straightFlushWins') }}<small> 次</small></span>
+                    :aria-label="'上榜次数 ' + honorDisplayCount('leaderboardTopCount') + ' 次'"
+                  >{{ honorDisplayCount('leaderboardTopCount') }}<small> 次</small></span>
                 </div>
               </div>
               <div class="game-prof-medal game-prof-medal--four">
@@ -896,6 +896,9 @@ export default {
 .game-prof-medal--straight::before {
   display: none;
 }
+.game-prof-medal--leaderboard {
+  justify-content: flex-end;
+}
 .game-prof-medal--royal {
   border-color: color-mix(in srgb, var(--dp-warning) 65%, transparent);
   background: linear-gradient(
@@ -912,17 +915,30 @@ export default {
     var(--dp-surface-raised) 100%
   );
 }
+.game-prof-medal--leaderboard {
+  border-color: color-mix(in srgb, var(--dp-success) 65%, transparent);
+  background-image: url('~@/assets/leaderboard.webp');
+}
 .game-prof-medal--royal .game-prof-medal__name,
 .game-prof-medal--straight .game-prof-medal__name {
   color: var(--dp-text-secondary);
+}
+.game-prof-medal--leaderboard .game-prof-medal__name {
+  color: rgba(255, 255, 255, 0.82);
 }
 .game-prof-medal--royal .game-prof-honor-val,
 .game-prof-medal--straight .game-prof-honor-val {
   color: var(--dp-text-primary);
 }
+.game-prof-medal--leaderboard .game-prof-honor-val {
+  color: #fff;
+}
 .game-prof-medal--royal .game-prof-honor-val small,
 .game-prof-medal--straight .game-prof-honor-val small {
   color: var(--dp-text-muted);
+}
+.game-prof-medal--leaderboard .game-prof-honor-val small {
+  color: rgba(255, 255, 255, 0.72);
 }
 .game-prof-medal--four {
   border-color: color-mix(in srgb, var(--dp-danger) 65%, transparent);

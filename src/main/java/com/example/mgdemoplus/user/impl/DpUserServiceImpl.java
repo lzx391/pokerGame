@@ -93,12 +93,7 @@ public class DpUserServiceImpl implements DpUserService {
         view.setPasswordSet(user.getPassword() != null && !user.getPassword().isBlank());
         DpUserStats stats = dpUserStatsMapper.selectByUserId(user.getId());
         if (stats != null) {
-            view.setRoyalFlushWins(stats.getRoyalFlushWins());
-            view.setStraightFlushWins(stats.getStraightFlushWins());
-            view.setFourOfAKindWins(stats.getFourOfAKindWins());
-            view.setLargestPotWon(stats.getLargestPotWon());
-            view.setLargestRoomNet(stats.getLargestRoomNet());
-            view.setTotalHandsPlayed(stats.getTotalHandsPlayed());
+            applyStatsToProfileView(view, stats);
         }
         return view;
     }
@@ -116,16 +111,36 @@ public class DpUserServiceImpl implements DpUserService {
         view.setAvatarUpdatedAt(DpDateTimeSupport.toEpochMilli(user.getAvatarUpdatedAt()));
         DpUserStats stats = dpUserStatsMapper.selectByUserId(userId);
         if (stats != null) {
-            view.setRoyalFlushWins(stats.getRoyalFlushWins());
-            view.setStraightFlushWins(stats.getStraightFlushWins());
-            view.setFourOfAKindWins(stats.getFourOfAKindWins());
-            view.setLargestPotWon(stats.getLargestPotWon());
-            view.setLargestRoomNet(stats.getLargestRoomNet());
-            view.setTotalHandsPlayed(stats.getTotalHandsPlayed());
+            applyStatsToHonorView(view, stats);
         }
         view.setLeaderboardWeeklyHand(dpLeaderboardWeeklyReadService.placementForHand(userId));
         view.setLeaderboardWeeklyRoom(dpLeaderboardWeeklyReadService.placementForRoom(userId));
         return view;
+    }
+
+    private static void applyStatsToProfileView(DpUserProfileView view, DpUserStats stats) {
+        view.setRoyalFlushWins(stats.getRoyalFlushWins());
+        view.setStraightFlushWins(stats.getStraightFlushWins());
+        view.setFourOfAKindWins(aggregateFourPlusWins(stats));
+        view.setLargestPotWon(stats.getLargestPotWon());
+        view.setLargestRoomNet(stats.getLargestRoomNet());
+        view.setTotalHandsPlayed(stats.getTotalHandsPlayed());
+        view.setLeaderboardTopCount(stats.getLeaderboardTopCount());
+    }
+
+    private static void applyStatsToHonorView(DpPlayerHonorView view, DpUserStats stats) {
+        view.setRoyalFlushWins(stats.getRoyalFlushWins());
+        view.setStraightFlushWins(stats.getStraightFlushWins());
+        view.setFourOfAKindWins(aggregateFourPlusWins(stats));
+        view.setLargestPotWon(stats.getLargestPotWon());
+        view.setLargestRoomNet(stats.getLargestRoomNet());
+        view.setTotalHandsPlayed(stats.getTotalHandsPlayed());
+        view.setLeaderboardTopCount(stats.getLeaderboardTopCount());
+    }
+
+    /** 四条及以上牌力 = 四条 + 同花顺 + 皇家同花顺 */
+    private static int aggregateFourPlusWins(DpUserStats stats) {
+        return stats.getFourOfAKindWins() + stats.getStraightFlushWins() + stats.getRoyalFlushWins();
     }
 
     public DpUser loginUserOrNull(String nickname, String password) {
