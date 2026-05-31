@@ -6,7 +6,8 @@
       'dp-auth-stage--transition': phase === 'transition',
       'dp-auth-stage--interactive': contentInteractive,
       'dp-auth-stage--rig-descending': rigDescending,
-      'dp-auth-stage--rig-landed': rigDescended
+      'dp-auth-stage--rig-landed': rigDescended,
+      'dp-auth-stage--auth-error-shake': authErrorShaking
     }"
   >
     <div class="dp-auth-stage__theme-bar dp-game-theme-row">
@@ -90,10 +91,48 @@
                 :class="{ 'dp-auth-stage__flash--pulse': flashPulse }"
               />
 
+              <!-- 认证失败：8bit 哭脸 + 文案 + 重试（z-index 5，低于 flash 6） -->
+              <div
+                v-if="showErrorFace && authError"
+                class="dp-auth-stage__error-face"
+                role="alert"
+                aria-live="assertive"
+              >
+                <svg
+                  class="dp-auth-stage__error-pixel-face"
+                  viewBox="0 0 16 16"
+                  width="64"
+                  height="64"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <rect x="3" y="4" width="2" height="2" fill="currentColor" />
+                  <rect x="11" y="4" width="2" height="2" fill="currentColor" />
+                  <rect x="3" y="6" width="2" height="1" fill="currentColor" opacity="0.55" />
+                  <rect x="11" y="6" width="2" height="1" fill="currentColor" opacity="0.55" />
+                  <rect x="4" y="7" width="1" height="2" fill="currentColor" opacity="0.75" />
+                  <rect x="11" y="7" width="1" height="2" fill="currentColor" opacity="0.75" />
+                  <rect x="4" y="9" width="1" height="1" fill="currentColor" opacity="0.5" />
+                  <rect x="11" y="9" width="1" height="1" fill="currentColor" opacity="0.5" />
+                  <rect x="5" y="10" width="6" height="1" fill="currentColor" />
+                  <rect x="6" y="11" width="4" height="1" fill="currentColor" />
+                  <rect x="7" y="12" width="2" height="1" fill="currentColor" />
+                </svg>
+                <p class="dp-auth-stage__error-message">{{ authError.message }}</p>
+                <button
+                  type="button"
+                  class="dp-auth-stage__error-retry"
+                  @click="clearAuthErrorAndRetry"
+                >
+                  重试
+                </button>
+              </div>
+
               <!-- 屏幕内容 -->
               <div
                 class="dp-auth-stage__content"
-                :aria-hidden="!contentInteractive"
+                :class="{ 'dp-auth-stage__content--hidden': showErrorFace }"
+                :aria-hidden="!contentInteractive || showErrorFace"
               >
                 <h1 class="dp-auth-stage__title">{{ appAuthTitle }}</h1>
 
@@ -165,8 +204,26 @@ const TIMING_ECO = {
 /** 电脑从顶部下降（仅首次 mount） */
 const RIG_DESCENT_MS = 1000
 
+/** 认证失败演出时序（ms） */
+const AUTH_ERROR_TIMING = {
+  shake: 420,
+  flash: 280,
+  faceDelay: 400,
+  retryFlash: 120
+}
+
+const AUTH_ERROR_TIMING_ECO = {
+  shake: 80,
+  flash: 0,
+  faceDelay: 60,
+  retryFlash: 0
+}
+
 export default {
   name: 'DpAuthStage',
+  provide() {
+    return { dpAuthStage: this }
+  },
   props: {
     appAuthTitle: {
       type: String,
@@ -186,6 +243,10 @@ export default {
       bootDone: false,
       rigDescending: false,
       rigDescended: false,
+      /** @type {{ message: string } | null} */
+      authError: null,
+      showErrorFace: false,
+      authErrorShaking: false,
       timers: []
     }
   },
@@ -207,6 +268,9 @@ export default {
     },
     rigDescentMs() {
       return this.skipRigMotion ? 0 : RIG_DESCENT_MS
+    },
+    authErrorTiming() {
+      return this.ecoMode || this.prefersReducedMotion ? AUTH_ERROR_TIMING_ECO : AUTH_ERROR_TIMING
     }
   },
   watch: {
@@ -261,6 +325,9 @@ export default {
       this.clearTimers()
       const t = this.timing
       this.phase = 'boot'
+      this.authError = null
+      this.showErrorFace = false
+      this.authErrorShaking = false
       this.snowActive = true
       this.flashPulse = false
       this.screenOn = false
@@ -352,6 +419,50 @@ export default {
           this.contentInteractive = true
         }, 60)
       }, endAt)
+    },
+    /** 登录/注册失败：震颤 → 闪白 → 8bit 哭脸（子组件 inject dpAuthStage 调用） */
+    showAuthError(message) {
+      const text = message != null ? String(message).trim() : '操作失败，请重试'
+      this.clearTimers()
+      this.authError = { message: text || '操作失败，请重试' }
+      this.showErrorFace = false
+      this.authErrorShaking = true
+      this.contentInteractive = false
+
+      const t = this.authErrorTiming
+      const flashAt = t.shake > 0 ? Math.round(t.shake * 0.45) : 0
+
+      if (t.flash > 0) {
+        this.schedule(() => {
+          this.flashPulse = true
+          this.schedule(() => {
+            this.flashPulse = false
+          }, t.flash)
+        }, flashAt)
+      }
+
+      this.schedule(() => {
+        this.authErrorShaking = false
+        this.showErrorFace = true
+      }, t.faceDelay)
+    },
+    /** 点「重试」：短闪 → 花屏开机 → 回到当前 Tab 表单 */
+    clearAuthErrorAndRetry() {
+      this.authError = null
+      this.showErrorFace = false
+      this.authErrorShaking = false
+      this.contentInteractive = false
+
+      const t = this.authErrorTiming
+      if (t.retryFlash > 0) {
+        this.flashPulse = true
+        this.schedule(() => {
+          this.flashPulse = false
+          this.runBootSequence()
+        }, t.retryFlash)
+      } else {
+        this.runBootSequence()
+      }
     }
   }
 }
@@ -1057,6 +1168,109 @@ export default {
   pointer-events: auto;
 }
 
+.dp-auth-stage__content--hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* —— 认证失败：整机震颤 —— */
+.dp-auth-stage--auth-error-shake .dp-auth-stage__monitor {
+  animation: dp-auth-error-shake 0.42s ease-in-out;
+}
+
+@keyframes dp-auth-error-shake {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  12% {
+    transform: translate(-5px, 2px);
+  }
+  24% {
+    transform: translate(5px, -2px);
+  }
+  36% {
+    transform: translate(-4px, -1px);
+  }
+  48% {
+    transform: translate(4px, 1px);
+  }
+  60% {
+    transform: translate(-3px, 2px);
+  }
+  72% {
+    transform: translate(3px, -1px);
+  }
+  84% {
+    transform: translate(-2px, 0);
+  }
+}
+
+/* —— 认证失败：8bit 哭脸层（z-index 5，低于 flash 6） —— */
+.dp-auth-stage__error-face {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(10px, 2.5vw, 14px);
+  padding: clamp(12px, 3vw, 20px) clamp(14px, 3.5vw, 22px);
+  box-sizing: border-box;
+  pointer-events: auto;
+  background: color-mix(in srgb, var(--dp-auth-screen-bg) 92%, #000);
+}
+
+.dp-auth-stage__error-pixel-face {
+  flex-shrink: 0;
+  color: var(--dp-auth-phosphor);
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  filter: drop-shadow(0 0 8px var(--dp-auth-screen-glow));
+}
+
+.dp-auth-stage__error-message {
+  margin: 0;
+  max-width: min(100%, 22rem);
+  text-align: center;
+  font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+  font-size: clamp(13px, 3.6vw, 15px);
+  line-height: 1.45;
+  letter-spacing: 0.04em;
+  color: var(--dp-auth-phosphor);
+  text-shadow: var(--dp-auth-text-shadow);
+  word-break: break-word;
+}
+
+.dp-auth-stage__error-retry {
+  margin-top: clamp(4px, 1vw, 8px);
+  padding: clamp(8px, 2vw, 10px) clamp(20px, 5vw, 28px);
+  font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+  font-size: clamp(13px, 3.6vw, 15px);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--dp-auth-phosphor);
+  background: color-mix(in srgb, var(--dp-auth-phosphor) 22%, var(--dp-auth-screen-bg));
+  border: 1px solid var(--dp-auth-phosphor);
+  border-radius: 4px;
+  cursor: pointer;
+  text-shadow: var(--dp-auth-text-shadow);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--dp-auth-phosphor) 42%, transparent),
+    0 0 12px var(--dp-auth-screen-glow);
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .dp-auth-stage__error-retry:hover {
+    background: color-mix(in srgb, var(--dp-auth-phosphor) 32%, var(--dp-auth-screen-bg));
+    box-shadow: 0 0 16px color-mix(in srgb, var(--dp-auth-phosphor) 28%, transparent);
+  }
+}
+
 .dp-auth-stage__title {
   flex-shrink: 0;
   width: 100%;
@@ -1429,6 +1643,10 @@ body[data-dp-fluidity='eco'] .dp-auth-stage__rig {
   opacity: 1;
 }
 
+body[data-dp-fluidity='eco'] .dp-auth-stage--auth-error-shake .dp-auth-stage__monitor {
+  animation-duration: 0.08s;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .dp-auth-stage__snow,
   .dp-auth-stage__snow--active,
@@ -1466,6 +1684,10 @@ body[data-dp-fluidity='eco'] .dp-auth-stage__rig {
 
   .dp-auth-stage__content {
     transition-duration: 0.05s;
+  }
+
+  .dp-auth-stage--auth-error-shake .dp-auth-stage__monitor {
+    animation-duration: 0.08s;
   }
 }
 </style>

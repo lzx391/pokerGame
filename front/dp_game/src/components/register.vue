@@ -37,6 +37,9 @@ import { flagCatTutorialAfterLogin } from '@/constants/dpCatThemeCopy'
 import { enterLobbyAfterAuth } from '@/utils/dpAuthEnterLobby'
 
 export default {
+  inject: {
+    dpAuthStage: { default: null }
+  },
   data() {
     return {
       form: {
@@ -46,18 +49,25 @@ export default {
     }
   },
   methods: {
+    showAuthError(message) {
+      if (this.dpAuthStage && typeof this.dpAuthStage.showAuthError === 'function') {
+        this.dpAuthStage.showAuthError(message)
+        return
+      }
+      console.warn('[register] auth stage unavailable:', message)
+    },
     handleRegister() {
       var nickname = this.form.nickname.trim()
       if (!nickname) {
-        alert('请输入昵称！')
+        this.showAuthError('请输入昵称！')
         return
       }
       if (/^\d+$/.test(nickname)) {
-        alert('昵称不能为纯数字')
+        this.showAuthError('昵称不能为纯数字')
         return
       }
       if (!this.form.password) {
-        alert('请输入密码！')
+        this.showAuthError('请输入密码！')
         return
       }
 
@@ -84,12 +94,12 @@ export default {
               message: msg + '，正在进入大厅'
             })
           } else {
-            alert(dpResultMessage(d))
+            this.showAuthError(dpResultMessage(d))
           }
         })
         .catch((err) => {
           console.error('注册请求异常：', err)
-          alert('网络异常，请稍后再试！')
+          this.showAuthError('网络异常，请稍后再试！')
         })
     }
   }

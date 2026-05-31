@@ -91,6 +91,18 @@
   text-shadow: var(--dp-auth-text-shadow);
 }
 
+#app.app--auth .dp-auth-stage__error-message,
+#app.app--auth .dp-auth-stage__error-retry {
+  text-shadow: var(--dp-auth-text-shadow);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  body[data-dp-fluidity='standard'] #app.app--auth .dp-auth-stage__error-retry:hover {
+    background: color-mix(in srgb, var(--dp-auth-phosphor) 32%, var(--dp-auth-screen-bg));
+    box-shadow: 0 0 16px color-mix(in srgb, var(--dp-auth-phosphor) 28%, transparent);
+  }
+}
+
 /*
  * 非 default：主题色横线只画在屏背景层（z-index 2，低于 content 4），
  * 不用 mix-blend-mode，避免叠在文字上导致发糊、对比度下降。

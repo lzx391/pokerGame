@@ -38,6 +38,9 @@ import { flagCatTutorialAfterLogin } from '@/constants/dpCatThemeCopy'
 import { enterLobbyAfterAuth } from '@/utils/dpAuthEnterLobby'
 
 export default {
+  inject: {
+    dpAuthStage: { default: null }
+  },
   data() {
     return {
       nickname: '',
@@ -63,9 +66,16 @@ export default {
     }
   },
   methods: {
+    showAuthError(message) {
+      if (this.dpAuthStage && typeof this.dpAuthStage.showAuthError === 'function') {
+        this.dpAuthStage.showAuthError(message)
+        return
+      }
+      console.warn('[login] auth stage unavailable:', message)
+    },
     login() {
       if (!this.nickname || !this.password) {
-        alert('请输入昵称和密码')
+        this.showAuthError('请输入昵称和密码')
         return
       }
       this.$http
@@ -91,12 +101,12 @@ export default {
             localStorage.setItem('userInfo', JSON.stringify(row))
             enterLobbyAfterAuth(this.$router, this, { message: '登录成功' })
           } else {
-            alert('登录失败：' + dpResultMessage(d))
+            this.showAuthError('登录失败：' + dpResultMessage(d))
           }
         })
         .catch((err) => {
           console.error('请求失败', err)
-          alert('登录请求异常，请重试')
+          this.showAuthError('登录请求异常，请重试')
         })
     }
   }
