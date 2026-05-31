@@ -3,7 +3,7 @@ const path = require('path')
 const fs = require('fs')
 
 const srcDir = path.resolve(__dirname, '..', 'src', 'assets')
-const files = ['RF.png', 'SF.png', '4K.png']
+const files = ['leaderboard.png']
 
 async function run() {
   for (const name of files) {

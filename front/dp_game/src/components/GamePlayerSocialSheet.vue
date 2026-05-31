@@ -129,11 +129,11 @@
               </div>
               <div class="game-prof-medal game-prof-medal--four">
                 <div class="game-prof-medal__body">
-                  <span class="game-prof-medal__name">四条</span>
+                  <span class="game-prof-medal__name">四条及以上牌力</span>
                   <span
                     class="game-prof-honor-val"
                     :class="honorValClass"
-                    :aria-label="'四条 ' + honorDisplayCount('fourOfAKindWins') + ' 次'"
+                    :aria-label="'四条及以上牌力 ' + honorDisplayCount('fourOfAKindWins') + ' 次'"
                   >{{ honorDisplayCount('fourOfAKindWins') }}<small> 次</small></span>
                 </div>
               </div>
@@ -888,13 +888,41 @@ export default {
   );
   pointer-events: none;
 }
+.game-prof-medal--royal,
+.game-prof-medal--straight {
+  justify-content: center;
+}
+.game-prof-medal--royal::before,
+.game-prof-medal--straight::before {
+  display: none;
+}
 .game-prof-medal--royal {
   border-color: color-mix(in srgb, var(--dp-warning) 65%, transparent);
-  background-image: url('~@/assets/RF.webp');
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--dp-warning) 28%, var(--dp-surface-raised)) 0%,
+    var(--dp-surface-raised) 100%
+  );
 }
 .game-prof-medal--straight {
   border-color: color-mix(in srgb, var(--dp-accent) 65%, transparent);
-  background-image: url('~@/assets/SF.webp');
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--dp-accent) 28%, var(--dp-surface-raised)) 0%,
+    var(--dp-surface-raised) 100%
+  );
+}
+.game-prof-medal--royal .game-prof-medal__name,
+.game-prof-medal--straight .game-prof-medal__name {
+  color: var(--dp-text-secondary);
+}
+.game-prof-medal--royal .game-prof-honor-val,
+.game-prof-medal--straight .game-prof-honor-val {
+  color: var(--dp-text-primary);
+}
+.game-prof-medal--royal .game-prof-honor-val small,
+.game-prof-medal--straight .game-prof-honor-val small {
+  color: var(--dp-text-muted);
 }
 .game-prof-medal--four {
   border-color: color-mix(in srgb, var(--dp-danger) 65%, transparent);
