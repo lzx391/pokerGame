@@ -705,6 +705,7 @@ body[data-dp-game-theme='gothic'] .el-drawer__title {
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-dialog__title,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-sheet__title,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__title,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__title,
 .dp-game-root[data-dp-game-theme='retro8bit'] .game-owner-tool-embedded__title,
 .dp-game-root[data-dp-game-theme='retro8bit'] .game-prof-title-bar__text,
 .dp-game-root[data-dp-game-theme='retro8bit'] .game-prof-name,
@@ -721,7 +722,8 @@ body[data-dp-game-theme='gothic'] .el-drawer__title {
 body[data-dp-game-theme='retro8bit'] .el-message-box__title,
 body[data-dp-game-theme='retro8bit'] .el-dialog__title,
 body[data-dp-game-theme='retro8bit'] .el-drawer__title,
-body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__title {
+body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__title,
+body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__title {
   font-family: var(--dp-font-pixel);
   letter-spacing: 0.05em;
   line-height: 1.45;

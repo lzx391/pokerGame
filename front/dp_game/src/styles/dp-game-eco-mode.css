@@ -221,6 +221,31 @@
   animation: none !important;
 }
 
+/* —— retro8bit 邀请好友左上显示板 —— */
+@media (prefers-reduced-motion: reduce) {
+  .dp-invite-friend-panel--slide-in .dp-invite-friend-panel__shell,
+  .dp-invite-friend-panel--retract .dp-invite-friend-panel__shell,
+  .dp-invite-friend-panel__snow,
+  .dp-invite-friend-panel__snow--active,
+  .dp-invite-friend-panel__snow-noise,
+  .dp-invite-friend-panel__snow-bars,
+  .dp-invite-friend-panel__snow-bright,
+  .dp-invite-friend-panel__flash {
+    animation: none !important;
+  }
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .dp-invite-friend-panel--slide-in .dp-invite-friend-panel__shell,
+.dp-game-root[data-dp-eco-mode='true'] .dp-invite-friend-panel--retract .dp-invite-friend-panel__shell,
+.dp-game-root[data-dp-eco-mode='true'] .dp-invite-friend-panel__snow,
+.dp-game-root[data-dp-eco-mode='true'] .dp-invite-friend-panel__snow--active,
+.dp-game-root[data-dp-eco-mode='true'] .dp-invite-friend-panel__snow-noise,
+.dp-game-root[data-dp-eco-mode='true'] .dp-invite-friend-panel__snow-bars,
+.dp-game-root[data-dp-eco-mode='true'] .dp-invite-friend-panel__snow-bright,
+.dp-game-root[data-dp-eco-mode='true'] .dp-invite-friend-panel__flash {
+  animation: none !important;
+}
+
 /* —— retro8bit 对手座位入座 —— */
 @media (prefers-reduced-motion: reduce) {
   .dp-game-table__seat--join-reveal::after,

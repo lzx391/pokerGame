@@ -154,8 +154,15 @@
         @close="() => vm.closePlayerSocialSheet()"
         @view-hand-history-with-opponent="(p) => vm.openOpponentHandHistoryFromSocial(p)"
     />
+    <game-invite-friend-panel
+        v-if="vm.useRetroInvitePanelWide"
+        :open="vm.inviteFriendOpen"
+        :room-id="vm.roomId"
+        :my-user-id="inviteFriendMyUserId"
+        @close="vm.closeInviteFriendSheet"
+    />
     <game-invite-friend-sheet
-        v-if="vm.inviteFriendOpen"
+        v-if="vm.inviteFriendOpen && !vm.useRetroInvitePanelWide"
         :visible="true"
         :room-id="vm.roomId"
         :my-user-id="inviteFriendMyUserId"
@@ -174,6 +181,7 @@ import GameOwnerPanel from './GameOwnerPanel.vue'
 import GameOwnerToolModal from './GameOwnerToolModal.vue'
 import GamePlayerSocialSheet from './GamePlayerSocialSheet.vue'
 import GameInviteFriendSheet from './GameInviteFriendSheet.vue'
+import GameInviteFriendPanel from './GameInviteFriendPanel.vue'
 import CustomNpcStyleDialog from './CustomNpcStyleDialog.vue'
 
 export default {
@@ -187,6 +195,7 @@ export default {
     GameOwnerToolModal,
     GamePlayerSocialSheet,
     GameInviteFriendSheet,
+    GameInviteFriendPanel,
     CustomNpcStyleDialog
   },
   inject: ['dpGameView'],

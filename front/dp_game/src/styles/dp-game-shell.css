@@ -1536,6 +1536,272 @@
   .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__scanlines {
     opacity: 0.18;
   }
+
+  /* retro8bit 宽视口：邀请好友左上显示板 */
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 1018;
+    pointer-events: none;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--portal-root,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--portal-root {
+    position: absolute;
+    inset: 0;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__shell {
+    position: absolute;
+    left: max(12px, env(safe-area-inset-left, 0px));
+    width: min(380px, calc(100vw - 24px));
+    height: min(420px, calc(100vh - 80px));
+    min-height: 240px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    pointer-events: auto;
+    border: 2px solid var(--dp-accent, #5fd068);
+    border-radius: 4px;
+    background: var(--dp-panel-bg, rgba(8, 14, 10, 0.94));
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--dp-accent) 35%, transparent),
+      0 12px 32px rgba(0, 0, 0, 0.45),
+      inset 0 0 24px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--slide-in .dp-invite-friend-panel__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--slide-in .dp-invite-friend-panel__shell {
+    animation: dp-invite-friend-panel-slide-in 280ms ease-out forwards;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--retract .dp-invite-friend-panel__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--retract .dp-invite-friend-panel__shell {
+    animation: dp-invite-friend-panel-retract 220ms ease-in forwards;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--instant .dp-invite-friend-panel__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--instant .dp-invite-friend-panel__shell {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--ready .dp-invite-friend-panel__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--ready .dp-invite-friend-panel__shell,
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--snow .dp-invite-friend-panel__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--snow .dp-invite-friend-panel__shell,
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--reveal-flash .dp-invite-friend-panel__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--reveal-flash .dp-invite-friend-panel__shell {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__head,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__head {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid color-mix(in srgb, var(--dp-accent) 40%, transparent);
+    background: color-mix(in srgb, var(--dp-panel-bg) 88%, var(--dp-accent) 12%);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__title,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__title {
+    font-size: 14px;
+    color: var(--dp-accent, #5fd068);
+    text-shadow: 0 0 8px color-mix(in srgb, var(--dp-accent) 45%, transparent);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__close,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__close {
+    width: 36px;
+    height: 36px;
+    margin: 0;
+    padding: 0;
+    border: 1px solid color-mix(in srgb, var(--dp-accent) 35%, transparent);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--dp-accent, #5fd068);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__close:hover,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__close:hover {
+    background: color-mix(in srgb, var(--dp-accent) 12%, transparent);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__body,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__body {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__scanlines,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__scanlines {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    opacity: 0.16;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 2px,
+      rgba(0, 0, 0, 0.18) 2px,
+      rgba(0, 0, 0, 0.18) 3px
+    );
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    opacity: 0;
+    pointer-events: none;
+    overflow: hidden;
+    transition: opacity 0.12s ease;
+    background: color-mix(in srgb, var(--dp-auth-snow-base, #0a1808) 88%, var(--dp-auth-snow-base-alt, #1a3018));
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow--active,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow--active {
+    opacity: 0.92;
+    inset: -5% 0;
+    animation: dp-invite-friend-panel-snow-jitter-y 0.07s steps(2) infinite;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow-noise,
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow-bars,
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow-bright,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow-noise,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow-bars,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow-bright {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow-noise,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow-noise {
+    opacity: 0.88;
+    background-color: transparent;
+    background-image:
+      repeating-radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.62) 0 0.45px, transparent 0.55px),
+      repeating-radial-gradient(circle at 78% 62%, rgba(210, 218, 228, 0.5) 0 0.4px, transparent 0.5px),
+      repeating-radial-gradient(circle at 44% 81%, rgba(240, 245, 252, 0.42) 0 0.35px, transparent 0.45px),
+      repeating-linear-gradient(92deg, rgba(255, 255, 255, 0.06) 0, rgba(255, 255, 255, 0.06) 1px, transparent 1px, transparent 2px);
+    background-size: 3px 3px, 4px 4px, 2px 2px, 5px 100%;
+    animation: dp-invite-friend-panel-noise-flicker 0.05s steps(3) infinite;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow-bars,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow-bars {
+    opacity: 0.75;
+    mix-blend-mode: screen;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.14) 0,
+      rgba(0, 0, 0, 0.14) 1px,
+      rgba(235, 240, 248, 0.16) 1px,
+      rgba(235, 240, 248, 0.16) 2px,
+      rgba(255, 255, 255, 0.08) 2px,
+      rgba(255, 255, 255, 0.08) 3px,
+      transparent 3px,
+      transparent 6px
+    );
+    background-size: 100% 6px;
+    animation: dp-invite-friend-panel-roll-bars 0.28s linear infinite;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow--active .dp-invite-friend-panel__snow-bright,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow--active .dp-invite-friend-panel__snow-bright {
+    inset: auto 0 -35%;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow-bright,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow-bright {
+    inset: auto 0 -35%;
+    height: 22%;
+    opacity: 0;
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(255, 255, 255, 0.22) 28%,
+      rgba(255, 255, 255, 0.48) 50%,
+      rgba(255, 255, 255, 0.22) 72%,
+      transparent 100%
+    );
+    animation: dp-invite-friend-panel-bright-bar 1.05s linear infinite;
+    mix-blend-mode: screen;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__flash,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__flash {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+    background: rgba(255, 255, 255, 0.72);
+    animation: dp-invite-friend-panel-flash 100ms ease-out forwards;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__content,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__content {
+    position: relative;
+    z-index: 3;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 10px 12px 12px;
+    overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__content--ready,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__content--ready {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__content .dp-invite-friend-content,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__content .dp-invite-friend-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__content .dp-invite-friend-content__list,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__content .dp-invite-friend-content__list {
+    max-height: none;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--instant .dp-invite-friend-panel__content,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--instant .dp-invite-friend-panel__content {
+    opacity: 1;
+    visibility: visible;
+  }
 }
 
 @keyframes dp-retro-hand-hologram-project {
@@ -1583,6 +1849,99 @@
   to {
     opacity: 0;
     transform: translateX(-50%) rotateX(82deg) scale(0.88);
+  }
+}
+
+@keyframes dp-invite-friend-panel-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dp-invite-friend-panel-retract {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+}
+
+@keyframes dp-invite-friend-panel-snow-jitter-y {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+  100% {
+    transform: translateY(1px);
+  }
+}
+
+@keyframes dp-invite-friend-panel-noise-flicker {
+  0% {
+    background-position: 0 0, 1px 0, 0 1px, 0 0;
+    opacity: 0.82;
+  }
+  33% {
+    background-position: 2px 1px, -1px 2px, 1px -1px, 3px 0;
+    opacity: 0.95;
+  }
+  66% {
+    background-position: -1px 2px, 2px -1px, -2px 1px, -2px 0;
+    opacity: 0.78;
+  }
+  100% {
+    background-position: 1px -2px, 0 2px, 2px 0, 1px 0;
+    opacity: 0.9;
+  }
+}
+
+@keyframes dp-invite-friend-panel-roll-bars {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 -6px;
+  }
+}
+
+@keyframes dp-invite-friend-panel-bright-bar {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  8% {
+    opacity: 0.55;
+  }
+  45% {
+    transform: translateY(-120%);
+    opacity: 0.35;
+  }
+  100% {
+    transform: translateY(-240%);
+    opacity: 0;
+  }
+}
+
+@keyframes dp-invite-friend-panel-flash {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  40% {
+    opacity: 0.85;
+  }
+  60% {
+    opacity: 0.35;
   }
 }
 

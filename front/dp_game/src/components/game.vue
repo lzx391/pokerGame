@@ -40,7 +40,7 @@
         @open-hand-history="openHandHistory"
         @open-music-box="$store.commit('dpGame/SET_MODAL', { showMusicBoxModal: true })"
         @open-owner-hub="openOwnerHubSheet"
-        @open-invite-friend="openInviteFriendSheet"
+        @open-invite-friend="onInviteFriendClick"
         @exit="exitGame"
         @ready-next-hand="readyNextHand"
         :show-hero-economy="topBarShowHeroEconomy"
@@ -151,6 +151,7 @@ import { mapState, mapGetters } from 'vuex'
 import { encodeRoomApplyFingerprint } from '../utils/dpGameRoomFingerprint'
 import { CAT_COPY, dpPotDisplayLabel } from '../constants/dpCatThemeCopy'
 import { dpHandHologramDevLog } from '../utils/dpHandHologramDevLog'
+import { dpInviteFriendsDevLog } from '../utils/dpInviteFriendsDevLog'
 import { dpSeatEnterDevLog } from '../utils/dpSeatEnterDevLog'
 import { extractPlayerNicknames, diffNewSeatNicknames } from '../utils/dpSeatEnterNickDiff'
 
@@ -241,6 +242,9 @@ export default {
       return Number(this.myBet) || 0
     },
     useRetroHandHologramWide() {
+      return this.gameUiTheme === 'retro8bit' && this.viewportWidth > 600
+    },
+    useRetroInvitePanelWide() {
       return this.gameUiTheme === 'retro8bit' && this.viewportWidth > 600
     },
     useRetroSeatEnterReveal() {
@@ -1198,9 +1202,30 @@ export default {
       this.$store.commit('dpGame/TOGGLE_SELECTED_WINNER', nickname)
     },
 
-    openInviteFriendSheet() {
-      if (!this.canInviteFriend) return
-      this.inviteFriendOpen = true
+    onInviteFriendClick() {
+      if (!this.canInviteFriend) {
+        dpInviteFriendsDevLog('blocked', { canInviteFriend: false })
+        return
+      }
+      dpInviteFriendsDevLog('top bar click', {
+        theme: this.gameUiTheme,
+        viewportWidth: this.viewportWidth,
+        useRetroInvitePanelWide: this.useRetroInvitePanelWide,
+        inviteFriendOpen: this.inviteFriendOpen,
+        canInviteFriend: this.canInviteFriend
+      })
+      if (this.useRetroInvitePanelWide) {
+        if (this.inviteFriendOpen) {
+          dpInviteFriendsDevLog('branch', 'close panel')
+          this.closeInviteFriendSheet()
+        } else {
+          dpInviteFriendsDevLog('branch', 'open panel')
+          this.inviteFriendOpen = true
+        }
+      } else {
+        dpInviteFriendsDevLog('branch', this.inviteFriendOpen ? 'close sheet' : 'open sheet')
+        this.inviteFriendOpen = !this.inviteFriendOpen
+      }
       this.scheduleReparentElementUiLayersIntoFullscreenRoot()
     },
     closeInviteFriendSheet() {
