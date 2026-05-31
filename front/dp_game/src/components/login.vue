@@ -3,31 +3,33 @@
     <h1 class="login-box__title">登录</h1>
     <p class="login-box__hint">使用已注册的昵称与密码进入猫咪牌局大厅</p>
 
-    <div class="form-item">
-      <label for="login-nickname">昵称</label>
-      <input
-        id="login-nickname"
-        v-model="nickname"
-        type="text"
-        placeholder="请输入昵称"
-        autocomplete="username"
-      >
-    </div>
+    <form class="login-form" @submit.prevent="login">
+      <div class="form-item">
+        <label for="login-nickname">昵称</label>
+        <input
+          id="login-nickname"
+          v-model="nickname"
+          type="text"
+          placeholder="请输入昵称"
+          autocomplete="username"
+        >
+      </div>
 
-    <div class="form-item">
-      <label for="login-password">密码</label>
-      <input
-        id="login-password"
-        v-model="password"
-        type="password"
-        placeholder="请输入密码"
-        autocomplete="current-password"
-      >
-    </div>
+      <div class="form-item">
+        <label for="login-password">密码</label>
+        <input
+          id="login-password"
+          v-model="password"
+          type="password"
+          placeholder="请输入密码"
+          autocomplete="current-password"
+        >
+      </div>
 
-    <button type="button" class="login-btn" @click="login">
-      登录
-    </button>
+      <button type="submit" class="login-btn">
+        登录
+      </button>
+    </form>
   </div>
 </template>
 
@@ -74,6 +76,9 @@ export default {
       console.warn('[login] auth stage unavailable:', message)
     },
     login() {
+      if (this.dpAuthStage && (!this.dpAuthStage.contentInteractive || this.dpAuthStage.showErrorFace)) {
+        return
+      }
       if (!this.nickname || !this.password) {
         this.showAuthError('请输入昵称和密码')
         return
@@ -114,6 +119,10 @@ export default {
 </script>
 
 <style scoped>
+.login-form {
+  margin: 0;
+  padding: 0;
+}
 .login-box {
   width: 100%;
   max-width: 340px;

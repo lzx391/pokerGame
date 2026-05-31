@@ -3,31 +3,33 @@
     <h2 class="register-form__title">用户注册</h2>
     <p class="register-form__hint">注册后即可用昵称登录并进入房间。昵称不能为纯数字。</p>
 
-    <div class="form-item">
-      <label for="reg-nickname">昵称</label>
-      <input
-        id="reg-nickname"
-        v-model="form.nickname"
-        type="text"
-        placeholder="请设置登录昵称（不能为纯数字）"
-        autocomplete="off"
-      >
-    </div>
+    <form class="register-form__body" @submit.prevent="handleRegister">
+      <div class="form-item">
+        <label for="reg-nickname">昵称</label>
+        <input
+          id="reg-nickname"
+          v-model="form.nickname"
+          type="text"
+          placeholder="请设置登录昵称（不能为纯数字）"
+          autocomplete="off"
+        >
+      </div>
 
-    <div class="form-item">
-      <label for="reg-password">密码</label>
-      <input
-        id="reg-password"
-        v-model="form.password"
-        type="password"
-        placeholder="请设置登录密码"
-        autocomplete="new-password"
-      >
-    </div>
+      <div class="form-item">
+        <label for="reg-password">密码</label>
+        <input
+          id="reg-password"
+          v-model="form.password"
+          type="password"
+          placeholder="请设置登录密码"
+          autocomplete="new-password"
+        >
+      </div>
 
-    <button type="button" class="register-btn" @click="handleRegister">
-      注册
-    </button>
+      <button type="submit" class="register-btn">
+        注册
+      </button>
+    </form>
   </div>
 </template>
 
@@ -57,6 +59,9 @@ export default {
       console.warn('[register] auth stage unavailable:', message)
     },
     handleRegister() {
+      if (this.dpAuthStage && (!this.dpAuthStage.contentInteractive || this.dpAuthStage.showErrorFace)) {
+        return
+      }
       var nickname = this.form.nickname.trim()
       if (!nickname) {
         this.showAuthError('请输入昵称！')
@@ -107,6 +112,10 @@ export default {
 </script>
 
 <style scoped>
+.register-form__body {
+  margin: 0;
+  padding: 0;
+}
 .register-form {
   width: 100%;
   max-width: 360px;
