@@ -62,7 +62,6 @@
       aria-hidden="false"
     >
       <div class="dp-auth-stage__monitor" aria-hidden="true">
-        <div class="dp-auth-stage__monitor-neck" />
         <div class="dp-auth-stage__monitor-curve">
         <div class="dp-auth-stage__monitor-frame">
           <div class="dp-auth-stage__monitor-body">
@@ -173,15 +172,7 @@
             </div>
           </div>
           </div>
-          <div class="dp-auth-stage__monitor-chin">
-            <span class="dp-auth-stage__led" :class="{ 'dp-auth-stage__led--on': screenOn }" />
-            <span class="dp-auth-stage__power-glyph" aria-hidden="true">PWR</span>
-          </div>
         </div>
-        </div>
-        <div class="dp-auth-stage__desk-line" />
-        <div class="dp-auth-stage__keyboard" aria-hidden="true">
-          <span v-for="n in 12" :key="'kb-' + n" class="dp-auth-stage__key" />
         </div>
       </div>
     </div>
@@ -658,15 +649,6 @@ export default {
   filter: drop-shadow(
     0 18px 36px color-mix(in srgb, #000 42%, transparent)
   );
-}
-
-.dp-auth-stage__monitor-neck {
-  width: clamp(28px, 7vw, 40px);
-  height: clamp(14px, 3.5vw, 20px);
-  border-left: 2px solid var(--dp-auth-bezel-stroke);
-  border-right: 2px solid var(--dp-auth-bezel-stroke);
-  background: transparent;
-  margin-bottom: -1px;
 }
 
 .dp-auth-stage__clip-defs {
@@ -1376,83 +1358,6 @@ export default {
   overflow-x: hidden;
 }
 
-.dp-auth-stage__monitor-chin {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: clamp(8px, 2vw, 10px);
-  padding: 0 4px;
-  width: 100%;
-}
-
-.dp-auth-stage__power-glyph {
-  margin-left: auto;
-  font-size: 9px;
-  letter-spacing: 0.14em;
-  color: var(--dp-auth-phosphor-dim);
-  font-family: ui-monospace, 'Consolas', monospace;
-  opacity: 0.75;
-}
-
-.dp-auth-stage__led {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  border: 1px solid color-mix(in srgb, var(--dp-auth-phosphor-dim) 60%, transparent);
-  background: color-mix(in srgb, var(--dp-auth-phosphor-dim) 40%, #111);
-  opacity: 0.5;
-  transition:
-    background 0.25s ease,
-    box-shadow 0.25s ease,
-    opacity 0.25s ease;
-}
-
-.dp-auth-stage__led--on {
-  background: var(--dp-auth-phosphor);
-  opacity: 0.9;
-  box-shadow: 0 0 8px color-mix(in srgb, var(--dp-auth-phosphor) 65%, transparent);
-  animation: dp-auth-led-pulse 2.2s ease-in-out infinite;
-}
-
-@keyframes dp-auth-led-pulse {
-  0%,
-  100% {
-    opacity: 0.6;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-.dp-auth-stage__desk-line {
-  width: 72%;
-  height: 0;
-  margin-top: 6px;
-  border-top: 1px solid color-mix(in srgb, var(--dp-auth-bezel-stroke) 70%, transparent);
-}
-
-.dp-auth-stage__keyboard {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 3px;
-  width: min(88%, 320px);
-  margin-top: 8px;
-  padding: 6px 8px;
-  border: 1px solid color-mix(in srgb, var(--dp-auth-bezel-stroke) 55%, transparent);
-  border-radius: 4px;
-  background: transparent;
-}
-
-.dp-auth-stage__key {
-  flex: 0 0 calc(8.33% - 3px);
-  min-width: 14px;
-  height: 6px;
-  border: 1px solid color-mix(in srgb, var(--dp-auth-bezel-stroke) 50%, transparent);
-  border-radius: 1px;
-  background: transparent;
-}
-
 /* 桌面大屏：舞台加宽、显示器占比更大、曲面更明显 */
 @media (min-width: 1280px) {
   .dp-auth-stage {
@@ -1463,11 +1368,6 @@ export default {
   .dp-auth-stage__monitor {
     width: min(100%, 85%);
     max-width: 52rem;
-  }
-
-  .dp-auth-stage__monitor-neck {
-    width: clamp(36px, 4vw, 48px);
-    height: clamp(18px, 2.2vw, 24px);
   }
 
   .dp-auth-stage__monitor-curve {
@@ -1578,21 +1478,6 @@ export default {
     );
   }
 
-  .dp-auth-stage__desk-line {
-    width: 64%;
-  }
-
-  .dp-auth-stage__keyboard {
-    width: min(72%, 440px);
-    margin-top: 10px;
-    padding: 7px 10px;
-  }
-
-  .dp-auth-stage__key {
-    min-width: 16px;
-    height: 7px;
-  }
-
   .dp-auth-stage__content {
     padding: clamp(10px, 1.2vw, 16px) clamp(18px, 2.2vw, 26px);
   }
@@ -1637,10 +1522,6 @@ export default {
     padding: 6px 10px;
     font-size: 12px;
   }
-
-  .dp-auth-stage__keyboard {
-    width: 94%;
-  }
 }
 </style>
 
@@ -1673,10 +1554,6 @@ body[data-dp-fluidity='eco'] .dp-auth-stage__scanlines {
   opacity: 0.16;
 }
 
-body[data-dp-fluidity='eco'] .dp-auth-stage__led--on {
-  animation: none;
-}
-
 body[data-dp-fluidity='eco'] .dp-auth-stage__rig {
   transform: translateY(0) scale(1);
   opacity: 1;
@@ -1693,7 +1570,6 @@ body[data-dp-fluidity='eco'] .dp-auth-stage--auth-error-shake .dp-auth-stage__mo
   .dp-auth-stage__snow-bars,
   .dp-auth-stage__snow-bright,
   .dp-auth-stage__scanlines,
-  .dp-auth-stage__led--on,
   .dp-auth-stage__flash--pulse,
   .dp-auth-stage__rig {
     animation: none !important;
