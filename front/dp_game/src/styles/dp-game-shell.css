@@ -1198,6 +1198,133 @@
   z-index: 24;
 }
 
+/* retro8bit 宽视口：聊天历史翻板 + 心电图（仅消息区，输入栏不变） */
+@media (min-width: 601px) {
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__board-scene {
+    position: absolute;
+    left: 0;
+    right: auto;
+    bottom: calc(100% + 6px);
+    width: min(280px, 72vw);
+    margin: 0;
+    z-index: 28;
+    perspective: 640px;
+    transform-style: preserve-3d;
+    pointer-events: none;
+  }
+
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__board {
+    position: relative;
+    transform-origin: 50% 100%;
+    transform: rotateX(90deg);
+    backface-visibility: hidden;
+    border-radius: 8px;
+    border: 1px solid var(--dp-panel-border);
+    background: var(--dp-panel-bg);
+    box-shadow: var(--dp-panel-shadow);
+    pointer-events: auto;
+    overflow: hidden;
+  }
+
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__board .dp-game-room-chat-panel__list-wrap {
+    position: static;
+    width: 100%;
+    margin: 0;
+    z-index: auto;
+  }
+
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__board .dp-game-room-chat-panel__list {
+    opacity: 0;
+    background: transparent;
+    border-radius: 0;
+  }
+
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__board--flipping-up {
+    animation: dp-retro-chat-flip-up 450ms ease-out forwards;
+  }
+
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__board--ecg-sweep,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__board--revealed {
+    transform: rotateX(0deg);
+  }
+
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__board--revealed .dp-game-room-chat-panel__list {
+    opacity: 1;
+    transition: opacity 320ms ease-out;
+  }
+
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__board--collapsing-down {
+    animation: dp-retro-chat-flip-down 320ms ease-in forwards;
+  }
+
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__ecg {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    top: 50%;
+    z-index: 2;
+    height: 24px;
+    margin-top: -12px;
+    color: var(--dp-accent, #4af626);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__board--ecg-sweep .dp-game-room-chat-panel__ecg {
+    opacity: 1;
+    animation: dp-retro-chat-ecg-fade 400ms ease-out forwards;
+  }
+
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__ecg-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__ecg-line {
+    stroke-dasharray: 220;
+    stroke-dashoffset: 220;
+  }
+
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__board--ecg-sweep .dp-game-room-chat-panel__ecg-line {
+    animation: dp-retro-chat-ecg-sweep 400ms ease-out forwards;
+  }
+}
+
+@keyframes dp-retro-chat-flip-up {
+  from {
+    transform: rotateX(90deg);
+  }
+  to {
+    transform: rotateX(0deg);
+  }
+}
+
+@keyframes dp-retro-chat-flip-down {
+  from {
+    transform: rotateX(0deg);
+  }
+  to {
+    transform: rotateX(90deg);
+  }
+}
+
+@keyframes dp-retro-chat-ecg-sweep {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes dp-retro-chat-ecg-fade {
+  0%,
+  72% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 .dp-game-hero-action-row .dp-game-footer-left-bar {
   flex: 0 1 auto;
   max-width: min(520px, 58%);

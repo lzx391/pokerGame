@@ -754,3 +754,100 @@ body[data-dp-game-theme='retro8bit'] .card-base {
   font-family: var(--dp-font-ui);
 }
 
+/* retro8bit 聊天历史：昵称像素字 + 正文可读 UI 栈 */
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__toggle-label,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__count {
+  font-family: var(--dp-font-pixel);
+  letter-spacing: 0.05em;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__count {
+  font-size: 0.65em;
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__nick {
+  font-family: var(--dp-font-pixel);
+  font-size: 10px;
+  line-height: 1.6;
+  letter-spacing: 0.05em;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__text,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__empty {
+  font-family: var(--dp-font-ui);
+}
+
+/* —— retro8bit：牌桌中央公共牌 CRT 扫描线（仅 flop/turn/river；rank 字体不变）—— */
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-table__center .community-cards-row {
+  --dp-card-community-pixel-radius: 2px;
+  /* 与 DpAuthStage 扫描线同节奏：2px 透明 + 1px 黑线，周期 3px */
+  --dp-card-community-scanline-period: 3px;
+  --dp-card-community-scanline-thick: 1px;
+  --dp-card-community-scanline-color: rgba(0, 0, 0, 0.38);
+  --dp-card-community-scanline-opacity: 0.4;
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-table__center .community-cards-row .card-flip-wrapper {
+  filter: drop-shadow(0 3px 10px rgba(74, 246, 38, 0.22));
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-table__center .community-cards-row .card-flip-inner .card-face,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-table__center .community-cards-row .community-card-placeholder {
+  border-radius: var(--dp-card-community-pixel-radius);
+  overflow: hidden;
+}
+
+/* 牌面/牌背/占位：细黑横扫描线（::after，不挡 rank 可读性） */
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-table__center .community-cards-row .card-face.card-base::after,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-table__center .community-cards-row .community-card-placeholder.card-base::after {
+  display: block;
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 2;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--dp-card-community-scanline-period) - var(--dp-card-community-scanline-thick)),
+    var(--dp-card-community-scanline-color) calc(var(--dp-card-community-scanline-period) - var(--dp-card-community-scanline-thick)),
+    var(--dp-card-community-scanline-color) var(--dp-card-community-scanline-period)
+  );
+  background-size: 100% var(--dp-card-community-scanline-period);
+  opacity: var(--dp-card-community-scanline-opacity);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-table__center .community-cards-row .card-flip-inner .card-back,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-table__center .community-cards-row .community-card-placeholder {
+  border: 2px solid #4af626;
+  box-shadow:
+    inset 0 0 0 1px rgba(74, 246, 38, 0.22),
+    0 2px 8px rgba(0, 0, 0, 0.48);
+  filter: none;
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-table__center .community-cards-row .card-flip-inner .card-front {
+  color: #f5f5f5;
+  border: 2px solid rgba(74, 246, 38, 0.34);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.35),
+    0 2px 8px rgba(0, 0, 0, 0.42);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-table__center .community-cards-row .card-flip-inner.flipped .card-front {
+  box-shadow:
+    inset 0 0 0 1px rgba(74, 246, 38, 0.18),
+    0 2px 10px rgba(0, 0, 0, 0.45);
+}
+

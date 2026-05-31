@@ -180,3 +180,24 @@
     animation: none !important;
   }
 }
+
+/* —— retro8bit 聊天翻板 + 心电图 —— */
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-room-chat-panel__board--flipping-up,
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-room-chat-panel__board--collapsing-down,
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-room-chat-panel__board--ecg-sweep .dp-game-room-chat-panel__ecg,
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-room-chat-panel__board--ecg-sweep .dp-game-room-chat-panel__ecg-line,
+@media (prefers-reduced-motion: reduce) {
+  .dp-game-room-chat-panel__board--flipping-up,
+  .dp-game-room-chat-panel__board--collapsing-down,
+  .dp-game-room-chat-panel__board--ecg-sweep .dp-game-room-chat-panel__ecg,
+  .dp-game-room-chat-panel__board--ecg-sweep .dp-game-room-chat-panel__ecg-line {
+    animation: none !important;
+  }
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-room-chat-panel__board--revealed .dp-game-room-chat-panel__list,
+@media (prefers-reduced-motion: reduce) {
+  .dp-game-room-chat-panel__board--revealed .dp-game-room-chat-panel__list {
+    transition: none !important;
+  }
+}
