@@ -369,7 +369,14 @@
             :key="'friend-' + f.userId"
             :class="['dp-social-list__item', friendPresenceRowClass(f)]"
           >
-            <div class="dp-social-list__row">
+            <div
+              class="dp-social-list__row dp-social-list__row--profile"
+              role="button"
+              tabindex="0"
+              title="查看资料"
+              @click="openPlayerSocialProfileFromFriend(f)"
+              @keyup.enter="openPlayerSocialProfileFromFriend(f)"
+            >
               <dp-user-avatar
                 :avatar-url="f.avatarUrl"
                 :nickname="friendPrimaryName(f)"
@@ -395,7 +402,7 @@
                 type="button"
                 class="dp-social-list__idline"
                 title="点击复制用户 ID"
-                @click="copySocialId(f.userId)"
+                @click.stop="copySocialId(f.userId)"
               >
                 ID {{ f.userId }}
               </button>
@@ -482,7 +489,12 @@
         <p v-if="addFriendLookupError" class="home-add-friend__error">{{ addFriendLookupError }}</p>
         <div
           v-if="addFriendLookupUser"
-          class="home-add-friend__card"
+          class="home-add-friend__card home-add-friend__card--profile"
+          role="button"
+          tabindex="0"
+          title="查看资料"
+          @click="openPlayerSocialProfileFromLookup"
+          @keyup.enter="openPlayerSocialProfileFromLookup"
         >
           <dp-user-avatar
             :avatar-url="addFriendLookupUser.avatarUrl"
@@ -496,7 +508,7 @@
               type="button"
               class="dp-social-list__idline"
               title="点击复制用户 ID"
-              @click="copySocialId(addFriendLookupUser.userId)"
+              @click.stop="copySocialId(addFriendLookupUser.userId)"
             >
               ID {{ addFriendLookupUser.userId }}
             </button>
@@ -619,6 +631,23 @@
       :peer-unread-count="friendChatPeerUnread"
       @closed="onFriendChatClosed"
     />
+
+    <game-player-social-sheet
+      v-if="playerSocialOpen && playerSocialTarget"
+      :visible="true"
+      :target="playerSocialTarget"
+      @close="closePlayerSocialSheet"
+      @view-hand-history-with-opponent="openOpponentHandHistoryFromSocial"
+    />
+
+    <game-hand-history-modal
+      :visible="opponentHandHistoryOpen"
+      list-mode="withOpponent"
+      :other-user-id="opponentHandHistoryUserId"
+      :opponent-display-name="opponentHandHistoryDisplayName"
+      :game-ui-theme="gameUiTheme"
+      @close="closeOpponentHandHistoryModal"
+    />
   </div>
 </template>
 
@@ -635,6 +664,8 @@ import { copySocialId as copySocialIdToClipboard } from '@/utils/dpCopySocialId'
 import GamePlayGuideModal from '@/components/GamePlayGuideModal.vue'
 import HomeProfileModal from '@/components/HomeProfileModal.vue'
 import FriendChatDialog from '@/components/FriendChatDialog.vue'
+import GamePlayerSocialSheet from '@/components/GamePlayerSocialSheet.vue'
+import GameHandHistoryModal from '@/components/GameHandHistoryModal.vue'
 import DpUserAvatar from '@/components/DpUserAvatar.vue'
 import DpFluidityToggle from '@/components/DpFluidityToggle.vue'
 import { buildSocialStreamUrl } from '@/utils/dpSocialStream'
@@ -652,7 +683,15 @@ import { prefetchAvatarUrls } from '@/utils/dpAvatarPrefetch'
 import { avatarCacheBustFromUpdatedAt } from '@/utils/dpAvatarUrl'
 
 export default {
-  components: { GamePlayGuideModal, HomeProfileModal, FriendChatDialog, DpUserAvatar, DpFluidityToggle },
+  components: {
+    GamePlayGuideModal,
+    HomeProfileModal,
+    FriendChatDialog,
+    GamePlayerSocialSheet,
+    GameHandHistoryModal,
+    DpUserAvatar,
+    DpFluidityToggle
+  },
   mixins: [dpLobbyThemeMixin],
   data() {
     return {
@@ -705,7 +744,12 @@ export default {
       friendChatPeerAvatar: '',
       friendChatPeerAvatarUpdatedAt: null,
       friendChatPeerUnread: 0,
-      friendFollowBusyUserId: null
+      friendFollowBusyUserId: null,
+      playerSocialOpen: false,
+      playerSocialTarget: null,
+      opponentHandHistoryOpen: false,
+      opponentHandHistoryUserId: null,
+      opponentHandHistoryDisplayName: ''
     }
   },
   computed: {
@@ -867,6 +911,72 @@ export default {
           if (self.$message) self.$message.success('已复制 ID')
         }
       })
+    },
+    openPlayerSocialProfileFromFriend(f) {
+      if (!f) return
+      var nickname = f.nickname
+      if (!nickname) nickname = this.friendPrimaryName(f)
+      this.openPlayerSocialProfile({ nickname: nickname, userId: f.userId })
+    },
+    openPlayerSocialProfileFromLookup() {
+      var u = this.addFriendLookupUser
+      if (!u) return
+      var nickname = u.nickname
+      if (!nickname) nickname = this.addFriendLookupDisplayName
+      this.openPlayerSocialProfile({ nickname: nickname, userId: u.userId })
+    },
+    /**
+     * 大厅好友/搜索：打开与对局一致的玩家资料卡（GamePlayerSocialSheet）。
+     * @param {{ nickname: string, userId?: number|string }} payload
+     */
+    async openPlayerSocialProfile(payload) {
+      var nickname = payload && payload.nickname
+      if (!nickname) return
+
+      if (this.user && nickname === this.user.nickname) {
+        this.profileVisible = true
+        return
+      }
+
+      var uid = payload && payload.userId != null ? Number(payload.userId) : 0
+      if (!uid || uid <= 0 || isNaN(uid)) {
+        try {
+          var res = await dpSocialApi(this.$http).lookupUser(String(nickname))
+          if (dpResultSuccess(res.data)) {
+            var user = (dpResultData(res.data) || {}).user
+            var looked = user && user.userId != null ? Number(user.userId) : 0
+            if (looked > 0 && !isNaN(looked)) uid = looked
+          }
+        } catch (e) {
+          /* 静默 */
+        }
+      }
+
+      if (!uid || uid <= 0 || isNaN(uid)) {
+        this.$message.warning('无法获取该玩家的账号信息')
+        return
+      }
+
+      this.playerSocialTarget = { nickname: nickname, userId: uid }
+      this.playerSocialOpen = true
+    },
+    closePlayerSocialSheet() {
+      this.playerSocialOpen = false
+      this.playerSocialTarget = null
+    },
+    openOpponentHandHistoryFromSocial(payload) {
+      if (!payload || payload.userId == null || payload.userId === '') return
+      var uid = Number(payload.userId)
+      if (!uid || uid <= 0 || isNaN(uid)) return
+      this.closePlayerSocialSheet()
+      this.opponentHandHistoryUserId = uid
+      this.opponentHandHistoryDisplayName = payload.displayName || ''
+      this.opponentHandHistoryOpen = true
+    },
+    closeOpponentHandHistoryModal() {
+      this.opponentHandHistoryOpen = false
+      this.opponentHandHistoryUserId = null
+      this.opponentHandHistoryDisplayName = ''
     },
     inviteRemainingLabel(inv) {
       var base = inv && inv.remainingSeconds != null ? Number(inv.remainingSeconds) : NaN

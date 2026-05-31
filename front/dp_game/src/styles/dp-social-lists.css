@@ -68,6 +68,27 @@
   min-width: 0;
 }
 
+.dp-social-list__row--profile {
+  cursor: pointer;
+  border-radius: 8px;
+  margin: -4px -6px;
+  padding: 4px 6px;
+  transition: background-color 0.15s ease;
+}
+
+.dp-social-list__row--profile:hover,
+.dp-social-list__row--profile:focus-visible {
+  background: color-mix(in srgb, var(--dp-accent, #409eff) 10%, transparent);
+  outline: none;
+}
+
+@supports not (background: color-mix(in srgb, red 10%, blue)) {
+  .dp-social-list__row--profile:hover,
+  .dp-social-list__row--profile:focus-visible {
+    background: rgba(64, 158, 255, 0.08);
+  }
+}
+
 /**
  * 好友空闲 / 游戏中（与 Element 成功色、危险色协调的浅色底；正文仍用 --dp-text-primary）。
  */
@@ -265,6 +286,18 @@ button.dp-social-list__idline:focus-visible {
   border-radius: 8px;
   border: 1px solid var(--dp-panel-border, rgba(0, 0, 0, 0.08));
   background: var(--dp-subpanel-bg, #fafafa);
+}
+
+.home-add-friend__card--profile {
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.home-add-friend__card--profile:hover,
+.home-add-friend__card--profile:focus-visible {
+  border-color: color-mix(in srgb, var(--dp-accent, #409eff) 45%, var(--dp-panel-border, rgba(0, 0, 0, 0.08)));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--dp-accent, #409eff) 18%, transparent);
+  outline: none;
 }
 
 .home-add-friend__card-text {
