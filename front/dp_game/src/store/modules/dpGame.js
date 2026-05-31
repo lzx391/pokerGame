@@ -82,6 +82,7 @@ function initialState() {
     ownerRevealAll: false,
     showMobileHandSheet: false,
     showMobileActionSheet: false,
+    showHeroHandHologram: false,
     heroHoleDealIntroDone: false,
     /** 后端 autoSettle 后写入的「场上积分并列最高」昵称，未结算过为空 */
     chipLeaderNicknames: [],
@@ -564,8 +565,18 @@ export default {
       if (payload.customBotAddedTip !== undefined) state.customBotAddedTip = payload.customBotAddedTip
     },
     SET_MOBILE_SHEETS: function (state, payload) {
-      if (payload.showMobileHandSheet !== undefined) state.showMobileHandSheet = payload.showMobileHandSheet
+      if (payload.showMobileHandSheet !== undefined) {
+        state.showMobileHandSheet = payload.showMobileHandSheet
+        if (payload.showMobileHandSheet) state.showHeroHandHologram = false
+      }
       if (payload.showMobileActionSheet !== undefined) state.showMobileActionSheet = payload.showMobileActionSheet
+    },
+    SET_HERO_HAND_HOLOGRAM: function (state, v) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[dp-hand-hologram] SET_HERO_HAND_HOLOGRAM', { value: !!v })
+      }
+      state.showHeroHandHologram = !!v
+      if (v) state.showMobileHandSheet = false
     },
     SET_HERO_HOLE_DEAL: function (state, v) {
       state.heroHoleDealIntroDone = !!v

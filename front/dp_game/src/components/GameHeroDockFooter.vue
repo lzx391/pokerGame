@@ -43,7 +43,7 @@
               type="button"
               class="dp-game-hero-action-row__owner-btn dp-game-hero-action-row__owner-btn--hand"
               data-dp-hero-deal-target
-              @click="$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileHandSheet: true })"
+              @click.stop="vm.onHeroViewHandClick('desktop-action-row')"
           >
             查看手牌
           </button>
@@ -166,7 +166,7 @@
                   type="button"
                   class="dp-game-mobile-hero-bar__btn dp-game-mobile-hero-bar__btn--toolbar"
                   data-dp-hero-deal-target
-                  @click="$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileHandSheet: true })"
+                  @click.stop="vm.onHeroViewHandClick('mobile-hero-bar')"
               >
                 查看手牌
               </button>

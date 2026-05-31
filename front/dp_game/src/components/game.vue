@@ -115,6 +115,8 @@
 
     <game-dp-game-sheets />
 
+    <game-hero-hand-hologram v-if="gameUiTheme === 'retro8bit'" ref="heroHandHologram" />
+
   </div>
 </template>
 
@@ -133,6 +135,7 @@ import GameRoundTable from './GameRoundTable.vue'
 import GameHeroDockFooter from './GameHeroDockFooter.vue'
 import GameDpFloatingModals from './GameDpFloatingModals.vue'
 import GameDpGameSheets from './GameDpGameSheets.vue'
+import GameHeroHandHologram from './GameHeroHandHologram.vue'
 import dpGameFullscreenMixin from '../mixins/dpGameFullscreenMixin'
 import dpGameTableFitMixin from '../mixins/dpGameTableFitMixin'
 import dpGameActionCountdownMixin from '../mixins/dpGameActionCountdownMixin'
@@ -144,6 +147,7 @@ import { dpRoomApi } from '@/api/api.dpRoom'
 import { mapState, mapGetters } from 'vuex'
 import { encodeRoomApplyFingerprint } from '../utils/dpGameRoomFingerprint'
 import { CAT_COPY, dpPotDisplayLabel } from '../constants/dpCatThemeCopy'
+import { dpHandHologramDevLog } from '../utils/dpHandHologramDevLog'
 
 export default {
   mixins: [dpGameFullscreenMixin, dpGameTableFitMixin, dpGameActionCountdownMixin, dpGameLayoutTierMixin],
@@ -157,7 +161,8 @@ export default {
     GameRoundTable,
     GameHeroDockFooter,
     GameDpFloatingModals,
-    GameDpGameSheets
+    GameDpGameSheets,
+    GameHeroHandHologram
   },
   data() {
     return {
@@ -182,13 +187,17 @@ export default {
       _lastRoomMusicWebPath: '',
       playerSocialOpen: false,
       playerSocialTarget: null,
-      inviteFriendOpen: false
+      inviteFriendOpen: false,
+      viewportWidth: typeof window !== 'undefined' ? window.innerWidth : 1024,
+      prefersReducedMotion: false,
+      _hologramResizeTimer: null,
+      _hologramPrmMedia: null
     }
   },
 
   computed: {
     ...mapState('dpGame', [
-      'gameUiTheme', 'ecoMode', 'gameThemeOptions', 'roomId', 'user', 'currentHandSeed', 'owner', 'players', 'playing', 'stage', 'communityCards', 'pot', 'pots', 'currentBetToCall', 'lastRaiseIncrement', 'actIndex', 'spectators', 'waitNextHand', 'raiseAmount', 'selectedWinners', 'potWinners', 'nextHandReady', 'loading', 'communityCardsFlipState', 'communityCardsFlipComplete', 'seatChatTextByNick', 'roomChatMessages', 'chatInputDraft', 'showPlayGuideModal', 'playGuideTab', 'showSpectatorModal', 'showWaitNextHandModal', 'showHandHistoryModal', 'showOpponentHandHistoryModal', 'opponentHandHistoryOtherUserId', 'opponentHandHistoryDisplayName', 'showMusicBoxModal', 'musicTracks', 'musicTracksLoading', 'musicTracksError', 'roomMusicState', 'showOwnerHubSheet', 'showCustomNpcStyleDialog', 'customNpcPendingCount', 'ownerToolType', 'ownerActionTarget', 'demoBotAdding', 'demoBotAddedTip', 'maniacBotAdding', 'maniacBotAddedTip', 'tagBotAdding', 'tagBotAddedTip', 'lagBotAdding', 'lagBotAddedTip', 'nitBotAdding', 'nitBotAddedTip', 'callBotAdding', 'callBotAddedTip', 'llmBotAdding', 'llmBotAddedTip', 'llmGlobalBotAdding', 'llmGlobalBotAddedTip', 'customBotAdding', 'customBotAddedTip', 'ownerRevealAll', 'showMobileHandSheet', 'showMobileActionSheet', 'heroHoleDealIntroDone', 'chipLeaderNicknames', 'myCarryInChips'
+      'gameUiTheme', 'ecoMode', 'gameThemeOptions', 'roomId', 'user', 'currentHandSeed', 'owner', 'players', 'playing', 'stage', 'communityCards', 'pot', 'pots', 'currentBetToCall', 'lastRaiseIncrement', 'actIndex', 'spectators', 'waitNextHand', 'raiseAmount', 'selectedWinners', 'potWinners', 'nextHandReady', 'loading', 'communityCardsFlipState', 'communityCardsFlipComplete', 'seatChatTextByNick', 'roomChatMessages', 'chatInputDraft', 'showPlayGuideModal', 'playGuideTab', 'showSpectatorModal', 'showWaitNextHandModal', 'showHandHistoryModal', 'showOpponentHandHistoryModal', 'opponentHandHistoryOtherUserId', 'opponentHandHistoryDisplayName', 'showMusicBoxModal', 'musicTracks', 'musicTracksLoading', 'musicTracksError', 'roomMusicState', 'showOwnerHubSheet', 'showCustomNpcStyleDialog', 'customNpcPendingCount', 'ownerToolType', 'ownerActionTarget', 'demoBotAdding', 'demoBotAddedTip', 'maniacBotAdding', 'maniacBotAddedTip', 'tagBotAdding', 'tagBotAddedTip', 'lagBotAdding', 'lagBotAddedTip', 'nitBotAdding', 'nitBotAddedTip', 'callBotAdding', 'callBotAddedTip', 'llmBotAdding', 'llmBotAddedTip', 'llmGlobalBotAdding', 'llmGlobalBotAddedTip', 'customBotAdding', 'customBotAddedTip', 'ownerRevealAll', 'showMobileHandSheet', 'showMobileActionSheet', 'showHeroHandHologram', 'heroHoleDealIntroDone', 'chipLeaderNicknames', 'myCarryInChips'
     ]),
     ...mapGetters('dpGame', [
       'effectiveThemeForCss', 'handRankReference', 'stageCN', 'isOwner', 'canInviteFriend', 'isMyTurn', 'myPlayer', 'showSpectatorPrepareBlock', 'myReady', 'myChips', 'myBet', 'callAmount', 'smallBlind', 'bigBlind', 'lastRaiseIncrementEffective', 'minTotalToRaise', 'minRaise', 'allPotsHaveWinners', 'inSettledStage', 'ownerActionPlayers', 'playersDisplayOrder', 'viewerSeatedAtTable', 'holeDealPlayerCountForAnim', 'heroDockRow', 'dealerDisplayIndex', 'showdownHandLeaderNicknames', 'spectatorSeatChatEntries', 'tableActionActorDisplayName', 'mobileHeroDockActive', 'showHeroViewHandButton', 'showBottomHeroDock'
@@ -223,6 +232,9 @@ export default {
         return Number(this.callAmount) || 0
       }
       return Number(this.myBet) || 0
+    },
+    useRetroHandHologramWide() {
+      return this.gameUiTheme === 'retro8bit' && this.viewportWidth > 600
     }
   },
 
@@ -232,7 +244,10 @@ export default {
       else this.$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileActionSheet: false })
     },
     heroDockRow: function (row) {
-      if (!row) this.$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileHandSheet: false })
+      if (!row) {
+        this.$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileHandSheet: false })
+        this.$store.commit('dpGame/SET_HERO_HAND_HOLOGRAM', false)
+      }
     },
     minRaise: function () {
       if (this.isMyTurn && this.raiseAmount < this.minRaise) {
@@ -341,7 +356,12 @@ export default {
     })()
   },
 
+  mounted() {
+    this.initHologramViewportListeners()
+  },
+
   beforeDestroy() {
+    this.teardownHologramViewportListeners()
     this.$store.commit('dpGame/SET_MODAL', { showCustomNpcStyleDialog: false })
     try {
       var bgm = this.$refs.roomBgm
@@ -368,6 +388,146 @@ export default {
   },
 
   methods: {
+    initHologramViewportListeners() {
+      if (this._hologramViewportReady) return
+      this._hologramViewportReady = true
+      this.prefersReducedMotion = this.readPrefersReducedMotion()
+      if (typeof window !== 'undefined') {
+        this.viewportWidth = window.innerWidth
+        window.addEventListener('resize', this.onHologramResize)
+        if (window.matchMedia) {
+          this._hologramPrmMedia = window.matchMedia('(prefers-reduced-motion: reduce)')
+          if (this._hologramPrmMedia.addEventListener) {
+            this._hologramPrmMedia.addEventListener('change', this.onHologramPrmChange)
+          } else if (this._hologramPrmMedia.addListener) {
+            this._hologramPrmMedia.addListener(this.onHologramPrmChange)
+          }
+        }
+      }
+    },
+    teardownHologramViewportListeners() {
+      if (!this._hologramViewportReady) return
+      this._hologramViewportReady = false
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('resize', this.onHologramResize)
+      }
+      if (this._hologramResizeTimer) {
+        clearTimeout(this._hologramResizeTimer)
+        this._hologramResizeTimer = null
+      }
+      if (this._hologramPrmMedia) {
+        if (this._hologramPrmMedia.removeEventListener) {
+          this._hologramPrmMedia.removeEventListener('change', this.onHologramPrmChange)
+        } else if (this._hologramPrmMedia.removeListener) {
+          this._hologramPrmMedia.removeListener(this.onHologramPrmChange)
+        }
+        this._hologramPrmMedia = null
+      }
+    },
+    readPrefersReducedMotion() {
+      if (typeof window === 'undefined' || !window.matchMedia) return false
+      return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    },
+    onHologramPrmChange() {
+      this.prefersReducedMotion = this.readPrefersReducedMotion()
+    },
+    onHologramResize() {
+      var self = this
+      if (this._hologramResizeTimer) clearTimeout(this._hologramResizeTimer)
+      this._hologramResizeTimer = setTimeout(function () {
+        self.viewportWidth = window.innerWidth
+      }, 150)
+    },
+    onHeroViewHandClick(source) {
+      try {
+        dpHandHologramDevLog('click received', {
+          source: source || 'unknown',
+          theme: this.gameUiTheme,
+          viewportWidth: this.viewportWidth,
+          useRetroHandHologramWide: this.useRetroHandHologramWide,
+          showHeroViewHandButton: this.showHeroViewHandButton,
+          heroDockRowPresent: !!this.heroDockRow,
+          heroHoleDealIntroDone: this.heroHoleDealIntroDone,
+          stage: this.stage,
+          layoutFullscreen: this.layoutFullscreen,
+          isFullscreen: this.isFullscreen,
+          pseudoFullscreen: this.pseudoFullscreen,
+          showHeroHandHologram: this.showHeroHandHologram
+        })
+        if (!this.showHeroViewHandButton) {
+          dpHandHologramDevLog('blocked: showHeroViewHandButton is false', {
+            heroDockRowPresent: !!this.heroDockRow,
+            stage: this.stage,
+            heroHoleDealIntroDone: this.heroHoleDealIntroDone
+          })
+          return
+        }
+        if (!this.heroDockRow) {
+          dpHandHologramDevLog('blocked: heroDockRow is null')
+          return
+        }
+        if (this.useRetroHandHologramWide) {
+          if (this.showHeroHandHologram) {
+            dpHandHologramDevLog('branch: close hologram')
+            this.$store.commit('dpGame/SET_HERO_HAND_HOLOGRAM', false)
+            return
+          }
+          dpHandHologramDevLog('branch: open hologram (wide retro8bit)')
+          this.$store.commit('dpGame/SET_HERO_HAND_HOLOGRAM', true)
+          var self = this
+          this.$nextTick(function () {
+            self.$nextTick(function () {
+              self.verifyHeroHandHologramOpen()
+            })
+          })
+          return
+        }
+        dpHandHologramDevLog('branch: open mobile hand sheet', {
+          reason: this.gameUiTheme !== 'retro8bit'
+            ? 'theme is not retro8bit'
+            : 'viewportWidth <= 600'
+        })
+        this.$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileHandSheet: true })
+      } catch (e) {
+        dpHandHologramDevLog('onHeroViewHandClick threw', { error: String(e && e.message ? e.message : e) })
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('[dp-game] onHeroViewHandClick failed', e)
+        }
+        this.fallbackHeroHandSheet('click handler exception')
+      }
+    },
+    fallbackHeroHandSheet(reason) {
+      dpHandHologramDevLog('fallback sheet', { reason: reason || 'unspecified' })
+      this.$store.commit('dpGame/SET_HERO_HAND_HOLOGRAM', false)
+      this.$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileHandSheet: true })
+    },
+    verifyHeroHandHologramOpen() {
+      if (!this.showHeroHandHologram) {
+        dpHandHologramDevLog('verify skipped: showHeroHandHologram already false')
+        return
+      }
+      var holo = this.$refs.heroHandHologram
+      if (!holo) {
+        dpHandHologramDevLog('fallback sheet: heroHandHologram ref missing after open')
+        this.fallbackHeroHandSheet('ref missing after open')
+        return
+      }
+      if (typeof holo.isShowing !== 'function') {
+        dpHandHologramDevLog('fallback sheet: isShowing() not available on ref')
+        this.fallbackHeroHandSheet('isShowing missing')
+        return
+      }
+      if (!holo.isShowing()) {
+        dpHandHologramDevLog('fallback sheet: isShowing() false after open', {
+          phase: holo.hologramPhase
+        })
+        this.fallbackHeroHandSheet('isShowing false after open')
+        return
+      }
+      dpHandHologramDevLog('open confirmed: hologram is showing', {
+        phase: holo.hologramPhase
+      })
+    },
     /**
      * 离开房间时多处可能同时触发跳转（WS roomClosed + 轮询 getNowRoom 为空、热更新等）；
      * Vue Router 3 对重复 push 同一地址会抛 NavigationDuplicated，需吞掉或跳过。
@@ -970,6 +1130,7 @@ export default {
           showMobileHandSheet: false,
           showMobileActionSheet: false
         })
+        this.$store.commit('dpGame/SET_HERO_HAND_HOLOGRAM', false)
         await this.loadGame()
       } catch (err) {
         this.$message.error('网络错误: ' + err.message)

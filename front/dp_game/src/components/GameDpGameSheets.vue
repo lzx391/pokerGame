@@ -2,7 +2,7 @@
   <div>
     <transition name="dp-sheet">
     <game-bottom-sheet
-        v-if="vm.showMobileHandSheet && vm.heroDockRow"
+        v-if="vm.showMobileHandSheet && vm.heroDockRow && (!vm.useRetroHandHologramWide || !vm.showHeroHandHologram)"
         title="我的手牌"
         aria-label="查看手牌"
         @close="$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileHandSheet: false })"

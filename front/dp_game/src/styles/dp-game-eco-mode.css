@@ -201,3 +201,22 @@
     transition: none !important;
   }
 }
+
+/* —— retro8bit 手牌全息 —— */
+@media (prefers-reduced-motion: reduce) {
+  .dp-game-hero-hand-hologram--projecting .dp-game-hero-hand-hologram__beam,
+  .dp-game-hero-hand-hologram--collapsing .dp-game-hero-hand-hologram__beam,
+  .dp-game-hero-hand-hologram--materializing .dp-game-hero-hand-hologram__panel,
+  .dp-game-hero-hand-hologram--collapsing .dp-game-hero-hand-hologram__panel,
+  .dp-game-hero-hand-hologram--flash .dp-game-hero-hand-hologram__flash {
+    animation: none !important;
+  }
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-hero-hand-hologram--projecting .dp-game-hero-hand-hologram__beam,
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-hero-hand-hologram--collapsing .dp-game-hero-hand-hologram__beam,
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-hero-hand-hologram--materializing .dp-game-hero-hand-hologram__panel,
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-hero-hand-hologram--collapsing .dp-game-hero-hand-hologram__panel,
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-hero-hand-hologram--flash .dp-game-hero-hand-hologram__flash {
+  animation: none !important;
+}
