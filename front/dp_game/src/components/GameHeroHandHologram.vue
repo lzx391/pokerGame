@@ -8,60 +8,64 @@
       :aria-hidden="hologramPhase === 'idle' ? 'true' : 'false'"
     >
       <div
-        class="dp-game-hero-hand-hologram__beam"
-        :style="beamStyle"
-        aria-hidden="true"
-        @animationend="onBeamAnimEnd"
-      />
-      <div
-        class="dp-game-hero-hand-hologram__panel"
-        :style="panelAnchorStyle"
-        @animationend="onPanelAnimEnd"
+        class="dp-game-hero-hand-hologram__scene"
+        :style="sceneAnchorStyle"
       >
-        <div class="dp-game-hero-hand-hologram__header">
-          <span class="dp-game-hero-hand-hologram__title">我的手牌</span>
-          <button
-            type="button"
-            class="dp-game-hero-hand-hologram__close"
-            aria-label="关闭手牌全息"
-            @click="requestClose"
-          >
-            ×
-          </button>
-        </div>
-        <div class="dp-game-hero-hand-hologram__scanlines" aria-hidden="true" />
-        <div class="dp-game-hero-hand-hologram__flash" aria-hidden="true" />
         <div
-          v-show="hologramPhase === 'revealed' && heroDockRowSafe"
-          class="dp-game-hero-hand-hologram__content"
+          class="dp-game-hero-hand-hologram__volume"
+          :style="volumeStyle"
+          @animationend="onVolumeAnimEnd"
         >
-          <div
-            class="dp-game-hero-dock dp-game-hero-dock--in-sheet"
-            :class="{ 'dp-game-hero-dock--hand-reveal': vm.stage === 'showdown' || vm.stage === 'settled' }"
-          >
-            <game-player-card
-                v-if="heroDockRowSafe"
-                :player="heroDockRowSafe.player"
-                :seat-index="heroDockRowSafe.seatIndex"
-                :box-style="vm.getPlayerBoxStyle(heroDockRowSafe.player, heroDockRowSafe.seatIndex)"
-                :act-index="vm.actIndex"
-                :stage="vm.stage"
-                :community-cards="vm.communityCards"
-                :community-cards-flip-complete="vm.communityCardsFlipComplete"
-                :is-owner="vm.isOwner"
-                :owner-reveal-all="vm.ownerRevealAll"
-                :my-nickname="vm.user ? vm.user.nickname : ''"
-                :hand-deal-key="vm.currentHandSeed"
-                :hole-deal-seat-order="vm.holeDealOrderFromDealer(heroDockRowSafe.seatIndex)"
-                :hole-deal-player-count="vm.holeDealPlayerCountForAnim"
-                :rival-mini="false"
-                :hero-hand-dock="true"
-                :showdown-hand-leaders="vm.showdownHandLeaderNicknames"
-                :seat-chat-text="vm.seatChatTextFor(heroDockRowSafe.player.nickname)"
-                :skip-hole-deal-animation="true"
-                :deal-reveal-stagger-sec="0.22"
-                @card-click="vm.onPlayerCardClick"
-            />
+          <div class="dp-game-hero-hand-hologram__beam-core" aria-hidden="true" />
+          <div class="dp-game-hero-hand-hologram__beam-glow" aria-hidden="true" />
+          <div class="dp-game-hero-hand-hologram__beam-dust" aria-hidden="true" />
+
+          <div class="dp-game-hero-hand-hologram__projection">
+            <span class="dp-game-hero-hand-hologram__ghost-title" aria-hidden="true">我的手牌</span>
+            <button
+              type="button"
+              class="dp-game-hero-hand-hologram__close"
+              aria-label="关闭手牌全息"
+              @click="requestClose"
+            >
+              ×
+            </button>
+            <div class="dp-game-hero-hand-hologram__scan-sweep" aria-hidden="true" />
+            <div class="dp-game-hero-hand-hologram__flash" aria-hidden="true" />
+            <div
+              v-show="showContent"
+              class="dp-game-hero-hand-hologram__content"
+              @animationend="onContentAnimEnd"
+            >
+              <div
+                class="dp-game-hero-dock dp-game-hero-dock--in-sheet"
+                :class="{ 'dp-game-hero-dock--hand-reveal': vm.stage === 'showdown' || vm.stage === 'settled' }"
+              >
+                <game-player-card
+                    v-if="heroDockRowSafe"
+                    :player="heroDockRowSafe.player"
+                    :seat-index="heroDockRowSafe.seatIndex"
+                    :box-style="vm.getPlayerBoxStyle(heroDockRowSafe.player, heroDockRowSafe.seatIndex)"
+                    :act-index="vm.actIndex"
+                    :stage="vm.stage"
+                    :community-cards="vm.communityCards"
+                    :community-cards-flip-complete="vm.communityCardsFlipComplete"
+                    :is-owner="vm.isOwner"
+                    :owner-reveal-all="vm.ownerRevealAll"
+                    :my-nickname="vm.user ? vm.user.nickname : ''"
+                    :hand-deal-key="vm.currentHandSeed"
+                    :hole-deal-seat-order="vm.holeDealOrderFromDealer(heroDockRowSafe.seatIndex)"
+                    :hole-deal-player-count="vm.holeDealPlayerCountForAnim"
+                    :rival-mini="false"
+                    :hero-hand-dock="true"
+                    :showdown-hand-leaders="vm.showdownHandLeaderNicknames"
+                    :seat-chat-text="vm.seatChatTextFor(heroDockRowSafe.player.nickname)"
+                    :skip-hole-deal-animation="true"
+                    :deal-reveal-stagger-sec="0.22"
+                    @card-click="vm.onPlayerCardClick"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -109,6 +113,15 @@ export default {
       if (!row || !row.player) return null
       return row
     },
+    showContent() {
+      if (!this.heroDockRowSafe) return false
+      if (!this.useRetroHandHologramAnimated) {
+        return this.sceneVisible
+      }
+      return this.hologramPhase === 'materializing'
+        || this.hologramPhase === 'flash'
+        || this.hologramPhase === 'revealed'
+    },
     portalInGameRoot() {
       var vm = this.vm
       return !!(this.useRetroHandHologramWide && vm && vm.$refs && vm.$refs.gameRoot)
@@ -124,29 +137,24 @@ export default {
         'dp-game-hero-hand-hologram--portal-root': this.portalInGameRoot
       }
     },
-    panelAnchorStyle() {
+    sceneAnchorStyle() {
       var anchor = this.anchorOffset()
       if (!anchor) return {}
-      var style = {
+      return {
         left: anchor.cx + 'px',
-        bottom: (anchor.bottom + 8) + 'px'
+        bottom: anchor.bottom + 'px'
       }
-      if (this.hologramPhase === 'revealed' || this.hologramPhase === 'flash' || !this.useRetroHandHologramAnimated) {
-        style.opacity = '1'
-        style.transform = 'translateX(-50%) rotateX(0deg) scale(1)'
-        style.visibility = 'visible'
-      }
-      return style
     },
-    beamStyle() {
+    volumeStyle() {
       var anchor = this.anchorOffset()
       if (!anchor) return {}
       var r = this.anchorRect
-      var beamWidth = r && r.width ? Math.min(220, Math.max(80, r.width * 2.4)) : 120
+      var beamWidth = r && r.width ? Math.min(340, Math.max(80, r.width * 2.4)) : 120
+      var contentHeight = 128
+      var beamHeight = Math.min(420, Math.max(220, contentHeight + 48))
       return {
-        left: anchor.cx + 'px',
-        bottom: anchor.bottom + 'px',
-        width: beamWidth + 'px'
+        width: beamWidth + 'px',
+        height: beamHeight + 'px'
       }
     }
   },
@@ -191,7 +199,7 @@ export default {
       if (this.sceneVisible) {
         var self = this
         this.$nextTick(function () {
-          self.logPanelStyleApplied(self.hologramPhase)
+          self.logVolumeStyleApplied(self.hologramPhase)
         })
       }
     }
@@ -280,33 +288,39 @@ export default {
         portal: 'viewport'
       }
     },
-    logPanelStyleApplied(phase) {
+    logVolumeStyleApplied(phase) {
       var anchor = this.anchorOffset()
-      var style = this.panelAnchorStyle
-      var panelEl = this.$el && this.$el.querySelector
-        ? this.$el.querySelector('.dp-game-hero-hand-hologram__panel')
+      var style = this.volumeStyle
+      var volumeEl = this.$el && this.$el.querySelector
+        ? this.$el.querySelector('.dp-game-hero-hand-hologram__volume')
+        : null
+      var projectionEl = this.$el && this.$el.querySelector
+        ? this.$el.querySelector('.dp-game-hero-hand-hologram__projection')
         : null
       var computed = null
-      if (panelEl && typeof window !== 'undefined') {
-        var cs = window.getComputedStyle(panelEl)
+      if (volumeEl && typeof window !== 'undefined') {
+        var cs = window.getComputedStyle(volumeEl)
         computed = {
           position: cs.position,
           left: cs.left,
           bottom: cs.bottom,
+          width: cs.width,
+          height: cs.height,
           opacity: cs.opacity,
           transform: cs.transform,
           visibility: cs.visibility,
           zIndex: cs.zIndex
         }
       }
-      dpHandHologramDevLog('panel style applied', {
+      dpHandHologramDevLog('volume style applied', {
         phase: phase || this.hologramPhase,
-        left: style.left,
-        bottom: style.bottom,
+        volumeWidth: style.width,
+        volumeHeight: style.height,
         anchorCx: anchor && anchor.cx,
         anchorBottom: anchor && anchor.bottom,
         portal: anchor && anchor.portal,
         zoom: anchor && anchor.zoom,
+        projectionPresent: !!projectionEl,
         computed: computed
       })
     },
@@ -424,7 +438,7 @@ export default {
       if (next === 'revealed') {
         var self = this
         this.$nextTick(function () {
-          self.logPanelStyleApplied('revealed')
+          self.logVolumeStyleApplied('revealed')
         })
       }
     },
@@ -493,7 +507,7 @@ export default {
         this.schedulePhaseRevealFallback()
         var self = this
         this.$nextTick(function () {
-          self.logPanelStyleApplied('projecting')
+          self.logVolumeStyleApplied('projecting')
         })
       } catch (e) {
         dpHandHologramDevLog('startOpen threw', { error: String(e && e.message ? e.message : e) })
@@ -518,18 +532,23 @@ export default {
       dpHandHologramDevLog('requestClose (close button)')
       this.$store.commit('dpGame/SET_HERO_HAND_HOLOGRAM', false)
     },
-    onBeamAnimEnd(e) {
+    onVolumeAnimEnd(e) {
       if (e.target !== e.currentTarget) return
-      if (this.hologramPhase !== 'projecting') return
       var name = e.animationName || ''
-      if (name.indexOf('dp-retro-hand-hologram-project') === -1) return
-      this.setPhase('materializing', 'beam animation ended')
+      if (this.hologramPhase === 'projecting' && name.indexOf('dp-retro-hand-hologram-beam-expand') !== -1) {
+        this.setPhase('materializing', 'beam expand animation ended')
+        return
+      }
+      if (this.hologramPhase === 'collapsing' && name.indexOf('dp-retro-hand-hologram-beam-collapse') !== -1) {
+        this.clearPhaseTimer()
+        this.setPhase('idle', 'beam collapse animation ended')
+      }
     },
-    onPanelAnimEnd(e) {
+    onContentAnimEnd(e) {
       if (e.target !== e.currentTarget) return
       var name = e.animationName || ''
-      if (this.hologramPhase === 'materializing' && name.indexOf('dp-retro-hand-hologram-materialize') !== -1) {
-        this.setPhase('flash', 'panel materialize animation ended')
+      if (this.hologramPhase === 'materializing' && name.indexOf('dp-retro-hand-hologram-content-scan') !== -1) {
+        this.setPhase('flash', 'content scan animation ended')
         var self = this
         this.flashTimer = setTimeout(function () {
           self.flashTimer = null
@@ -538,11 +557,6 @@ export default {
             self.setPhase('revealed', 'flash timer elapsed')
           }
         }, 100)
-        return
-      }
-      if (this.hologramPhase === 'collapsing' && name.indexOf('dp-retro-hand-hologram-collapse') !== -1) {
-        this.clearPhaseTimer()
-        this.setPhase('idle', 'collapse animation ended')
       }
     }
   }

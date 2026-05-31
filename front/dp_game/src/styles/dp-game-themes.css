@@ -704,8 +704,9 @@ body[data-dp-game-theme='gothic'] .el-drawer__title {
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-top-bar__title,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-dialog__title,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-sheet__title,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__title,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__ghost-title,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__title,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__title,
 .dp-game-root[data-dp-game-theme='retro8bit'] .game-owner-tool-embedded__title,
 .dp-game-root[data-dp-game-theme='retro8bit'] .game-prof-title-bar__text,
 .dp-game-root[data-dp-game-theme='retro8bit'] .game-prof-name,
@@ -722,8 +723,9 @@ body[data-dp-game-theme='gothic'] .el-drawer__title {
 body[data-dp-game-theme='retro8bit'] .el-message-box__title,
 body[data-dp-game-theme='retro8bit'] .el-dialog__title,
 body[data-dp-game-theme='retro8bit'] .el-drawer__title,
-body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__title,
-body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__title {
+body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__ghost-title,
+body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__title,
+body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__title {
   font-family: var(--dp-font-pixel);
   letter-spacing: 0.05em;
   line-height: 1.45;
@@ -855,15 +857,19 @@ body[data-dp-game-theme='retro8bit'] .card-base {
     0 2px 10px rgba(0, 0, 0, 0.45);
 }
 
-/* —— retro8bit：摊牌亮牌 CRT 扫描线（仅 showdown/settled；rank 字体不变）—— */
+/* —— retro8bit：摊牌亮牌 CRT 扫描线（对手仅 showdown/settled；英雄查看手牌任意阶段；rank 字体不变）—— */
 .dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='showdown'] .dp-player-card--rival-mini,
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='settled'] .dp-player-card--rival-mini,
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='showdown'] .dp-game-hero-dock:not(.dp-game-hero-dock--in-sheet) .dp-player-card--hand-dock,
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='settled'] .dp-game-hero-dock:not(.dp-game-hero-dock--in-sheet) .dp-player-card--hand-dock,
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='showdown'] .dp-game-hero-dock--in-sheet .dp-player-card--hand-dock,
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='settled'] .dp-game-hero-dock--in-sheet .dp-player-card--hand-dock,
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='showdown'] .dp-game-hero-hand-hologram,
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='settled'] .dp-game-hero-hand-hologram {
+.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='settled'] .dp-player-card--rival-mini {
+  --dp-card-community-pixel-radius: 2px;
+  --dp-card-community-scanline-period: 3px;
+  --dp-card-community-scanline-thick: 1px;
+  --dp-card-community-scanline-color: rgba(0, 0, 0, 0.38);
+  --dp-card-community-scanline-opacity: 0.4;
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-dock:not(.dp-game-hero-dock--in-sheet) .dp-player-card--hand-dock,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-dock--in-sheet .dp-player-card--hand-dock,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram {
   --dp-card-community-pixel-radius: 2px;
   --dp-card-community-scanline-period: 3px;
   --dp-card-community-scanline-thick: 1px;
@@ -887,34 +893,28 @@ body[data-dp-game-theme='retro8bit'] .card-base {
   overflow: hidden;
 }
 
-/* B/C：英雄 dock / sheet hole + best 5 */
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='showdown'] .dp-player-card--hand-dock .dp-player-card__hole-row--hand-dock .hole-card-fly-wrapper,
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='settled'] .dp-player-card--hand-dock .dp-player-card__hole-row--hand-dock .hole-card-fly-wrapper {
+/* B/C：英雄 dock / sheet hole + best 5（任意阶段） */
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-player-card--hand-dock .dp-player-card__hole-row--hand-dock .hole-card-fly-wrapper {
   filter: drop-shadow(0 3px 10px rgba(74, 246, 38, 0.22));
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
 }
 
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='showdown'] .dp-player-card--hand-dock .dp-player-card__hole-row--hand-dock .hole-card-flip.card-base,
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='settled'] .dp-player-card--hand-dock .dp-player-card__hole-row--hand-dock .hole-card-flip.card-base,
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='showdown'] .dp-player-card--hand-dock .dp-player-card__best-hand .dp-player-card__best-card.card-base,
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='settled'] .dp-player-card--hand-dock .dp-player-card__best-hand .dp-player-card__best-card.card-base {
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-player-card--hand-dock .dp-player-card__hole-row--hand-dock .hole-card-flip.card-base,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-player-card--hand-dock .dp-player-card__best-hand .dp-player-card__best-card.card-base {
   border-radius: var(--dp-card-community-pixel-radius);
   overflow: hidden;
 }
 
-/* D：全息手牌（stage 门控；摊牌前打开无扫描线） */
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='showdown'] .dp-game-hero-hand-hologram .dp-player-card__hole-row .hole-card-fly-wrapper,
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='settled'] .dp-game-hero-hand-hologram .dp-player-card__hole-row .hole-card-fly-wrapper {
+/* D：全息手牌（任意阶段；查看手牌与 dock 一致） */
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram .dp-player-card__hole-row .hole-card-fly-wrapper {
   filter: drop-shadow(0 3px 10px rgba(74, 246, 38, 0.22));
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
 }
 
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='showdown'] .dp-game-hero-hand-hologram .dp-player-card__hole-row .card-base,
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='settled'] .dp-game-hero-hand-hologram .dp-player-card__hole-row .card-base,
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='showdown'] .dp-game-hero-hand-hologram .dp-player-card__best-hand .dp-player-card__best-card.card-base,
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='settled'] .dp-game-hero-hand-hologram .dp-player-card__best-hand .dp-player-card__best-card.card-base {
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram .dp-player-card__hole-row .card-base,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram .dp-player-card__best-hand .dp-player-card__best-card.card-base {
   border-radius: var(--dp-card-community-pixel-radius);
   overflow: hidden;
 }
@@ -924,14 +924,10 @@ body[data-dp-game-theme='retro8bit'] .card-base {
 .dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='settled'] .dp-player-card--rival-mini .dp-player-card__hole-row--rival .hole-card-flip.card-base::after,
 .dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='showdown'] .dp-player-card--rival-mini .dp-player-card__best-hand--rival-leader .dp-player-card__best-card.card-base::after,
 .dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='settled'] .dp-player-card--rival-mini .dp-player-card__best-hand--rival-leader .dp-player-card__best-card.card-base::after,
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='showdown'] .dp-player-card--hand-dock .dp-player-card__hole-row--hand-dock .hole-card-flip.card-base::after,
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='settled'] .dp-player-card--hand-dock .dp-player-card__hole-row--hand-dock .hole-card-flip.card-base::after,
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='showdown'] .dp-player-card--hand-dock .dp-player-card__best-hand .dp-player-card__best-card.card-base::after,
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='settled'] .dp-player-card--hand-dock .dp-player-card__best-hand .dp-player-card__best-card.card-base::after,
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='showdown'] .dp-game-hero-hand-hologram .dp-player-card__hole-row .card-base::after,
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='settled'] .dp-game-hero-hand-hologram .dp-player-card__hole-row .card-base::after,
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='showdown'] .dp-game-hero-hand-hologram .dp-player-card__best-hand .dp-player-card__best-card.card-base::after,
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-stage='settled'] .dp-game-hero-hand-hologram .dp-player-card__best-hand .dp-player-card__best-card.card-base::after {
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-player-card--hand-dock .dp-player-card__hole-row--hand-dock .hole-card-flip.card-base::after,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-player-card--hand-dock .dp-player-card__best-hand .dp-player-card__best-card.card-base::after,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram .dp-player-card__hole-row .card-base::after,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram .dp-player-card__best-hand .dp-player-card__best-card.card-base::after {
   display: block;
   content: '';
   position: absolute;

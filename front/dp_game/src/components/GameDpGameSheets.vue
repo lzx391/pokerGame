@@ -81,7 +81,7 @@
 
     <transition name="dp-sheet">
     <game-bottom-sheet
-        v-if="vm.showOwnerHubSheet && vm.isOwner"
+        v-if="vm.showOwnerHubSheet && vm.isOwner && !vm.useRetroOwnerPanelWide"
         title="房主操作"
         aria-label="房主操作"
         :wide="true"
@@ -147,6 +147,81 @@
       />
     </game-bottom-sheet>
     </transition>
+
+    <transition name="dp-sheet">
+    <game-bottom-sheet
+        v-if="vm.isOwner && vm.stage === 'showdown' && vm.useRetroOwnerPanelWide && vm.showOwnerPotJudgeSheet"
+        title="结算阶段"
+        aria-label="结算阶段"
+        :wide="true"
+        body-modifier="owner-hub"
+        @close="vm.closeOwnerPotJudgeSheet"
+    >
+      <template slot="overlay">
+        <custom-npc-style-dialog
+            v-if="vm.showCustomNpcStyleDialog"
+            :visible="true"
+            :pending-count="vm.customNpcPendingCount"
+            :submitting="vm.customBotAdding"
+            @cancel="vm.closeCustomNpcStyleDialog"
+            @confirm="(profile) => vm.submitCustomNpcBatch(profile)"
+        />
+      </template>
+      <game-owner-panel
+          hide-title
+          hide-tool-entry
+          in-sheet
+          :stage="vm.stage"
+          :pots="vm.pots"
+          :pot="vm.pot"
+          :pot-winners="vm.potWinners"
+          :selected-winners="vm.selectedWinners"
+          :all-pots-have-winners="vm.allPotsHaveWinners"
+          @toggle-pot-winner="vm.onTogglePotWinnerPayload"
+          @confirm-pot-judge="vm.confirmPotJudge"
+          @confirm-judge-win="vm.confirmJudgeWin"
+      />
+    </game-bottom-sheet>
+    </transition>
+
+    <custom-npc-style-dialog
+        v-if="vm.showCustomNpcStyleDialog && vm.useRetroOwnerPanelWide && vm.ownerTerminalOpen"
+        :visible="true"
+        :pending-count="vm.customNpcPendingCount"
+        :submitting="vm.customBotAdding"
+        @cancel="vm.closeCustomNpcStyleDialog"
+        @confirm="(profile) => vm.submitCustomNpcBatch(profile)"
+    />
+
+    <game-owner-hub-panel
+        v-if="vm.useRetroOwnerPanelWide"
+        :open="vm.ownerTerminalOpen"
+        :owner-reveal-all="vm.ownerRevealAll"
+        :demo-bot-adding="vm.demoBotAdding"
+        :demo-bot-added-tip="vm.demoBotAddedTip"
+        :maniac-bot-adding="vm.maniacBotAdding"
+        :maniac-bot-added-tip="vm.maniacBotAddedTip"
+        :tag-bot-adding="vm.tagBotAdding"
+        :tag-bot-added-tip="vm.tagBotAddedTip"
+        :lag-bot-adding="vm.lagBotAdding"
+        :lag-bot-added-tip="vm.lagBotAddedTip"
+        :nit-bot-adding="vm.nitBotAdding"
+        :nit-bot-added-tip="vm.nitBotAddedTip"
+        :call-bot-adding="vm.callBotAdding"
+        :call-bot-added-tip="vm.callBotAddedTip"
+        :llm-bot-adding="vm.llmBotAdding"
+        :llm-bot-added-tip="vm.llmBotAddedTip"
+        :llm-global-bot-adding="vm.llmGlobalBotAdding"
+        :llm-global-bot-added-tip="vm.llmGlobalBotAddedTip"
+        :custom-bot-adding="vm.customBotAdding"
+        :custom-bot-added-tip="vm.customBotAddedTip"
+        @close="vm.closeOwnerTerminal"
+        @confirm-add-npcs="(p) => vm.confirmAddOwnerNpcs(p)"
+        @transfer-owner="() => vm.doTransferOwner()"
+        @kick-players="(nicks) => vm.doKickPlayers(nicks)"
+        @toggle-reveal="vm.onOwnerTerminalToggleReveal"
+    />
+
     <game-player-social-sheet
         v-if="vm.playerSocialOpen && vm.playerSocialTarget"
         :visible="true"
@@ -182,6 +257,7 @@ import GameOwnerToolModal from './GameOwnerToolModal.vue'
 import GamePlayerSocialSheet from './GamePlayerSocialSheet.vue'
 import GameInviteFriendSheet from './GameInviteFriendSheet.vue'
 import GameInviteFriendPanel from './GameInviteFriendPanel.vue'
+import GameOwnerHubPanel from './GameOwnerHubPanel.vue'
 import CustomNpcStyleDialog from './CustomNpcStyleDialog.vue'
 
 export default {
@@ -196,6 +272,7 @@ export default {
     GamePlayerSocialSheet,
     GameInviteFriendSheet,
     GameInviteFriendPanel,
+    GameOwnerHubPanel,
     CustomNpcStyleDialog
   },
   inject: ['dpGameView'],

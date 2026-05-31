@@ -1326,7 +1326,7 @@
   }
 }
 
-/* retro8bit 宽视口：手牌全息投影（>600px；挂载 body 或 gameRoot 全屏层） */
+/* retro8bit 宽视口：手牌全息投影 v2 — 光束展开 + 虚像浮现（>600px；挂载 body 或 gameRoot 全屏层） */
 @media (min-width: 601px) {
   body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram,
   .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram {
@@ -1344,92 +1344,150 @@
     pointer-events: none;
   }
 
-  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__beam,
-  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__beam {
+  /* 投影场景：perspective + 锚点定位 */
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__scene,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__scene {
     position: fixed;
     transform: translateX(-50%);
-    height: 260px;
-    margin-bottom: 0;
+    perspective: 900px;
+    pointer-events: none;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--portal-root .dp-game-hero-hand-hologram__scene,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--portal-root .dp-game-hero-hand-hologram__scene {
+    position: absolute;
+  }
+
+  /* 光锥体积：主视觉容器 */
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__volume,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__volume {
+    position: relative;
     transform-origin: 50% 100%;
+    transform: rotateX(-10deg);
     opacity: 0;
+    pointer-events: none;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--projecting .dp-game-hero-hand-hologram__volume,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--projecting .dp-game-hero-hand-hologram__volume {
+    animation: dp-retro-hand-hologram-beam-expand 280ms ease-out forwards;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--materializing .dp-game-hero-hand-hologram__volume,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--materializing .dp-game-hero-hand-hologram__volume,
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--flash .dp-game-hero-hand-hologram__volume,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--flash .dp-game-hero-hand-hologram__volume,
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--revealed .dp-game-hero-hand-hologram__volume,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--revealed .dp-game-hero-hand-hologram__volume {
+    opacity: 1;
+    transform: rotateX(-10deg) scaleY(1) scaleX(1);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--collapsing .dp-game-hero-hand-hologram__volume,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--collapsing .dp-game-hero-hand-hologram__volume {
+    animation: dp-retro-hand-hologram-beam-collapse 240ms ease-in forwards;
+  }
+
+  /* 光束层：核心锥形 */
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__beam-core,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__beam-core {
+    position: absolute;
+    inset: 0;
     pointer-events: none;
     background:
       linear-gradient(
         to top,
         color-mix(in srgb, var(--dp-accent, #4af626) 72%, transparent) 0%,
-        color-mix(in srgb, var(--dp-accent, #4af626) 28%, transparent) 42%,
+        color-mix(in srgb, var(--dp-accent, #4af626) 28%, transparent) 48%,
         transparent 100%
       );
-    clip-path: polygon(18% 100%, 82% 100%, 58% 0%, 42% 0%);
-    filter: drop-shadow(0 0 14px color-mix(in srgb, var(--dp-accent, #4af626) 55%, transparent));
+    /* 倒三角：底窄（按钮原点）→ 顶宽（向上投射） */
+    clip-path: polygon(44% 100%, 56% 100%, 84% 0%, 16% 0%);
+    filter: drop-shadow(0 0 10px color-mix(in srgb, var(--dp-accent, #4af626) 50%, transparent));
   }
 
-  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--portal-root .dp-game-hero-hand-hologram__beam,
-  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--portal-root .dp-game-hero-hand-hologram__beam,
-  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--portal-root .dp-game-hero-hand-hologram__panel,
-  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--portal-root .dp-game-hero-hand-hologram__panel {
+  /* 光束层：外晕 */
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__beam-glow,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__beam-glow {
     position: absolute;
+    inset: -8% -18% 0;
+    pointer-events: none;
+    background:
+      linear-gradient(
+        to top,
+        color-mix(in srgb, var(--dp-accent, #4af626) 35%, transparent) 0%,
+        color-mix(in srgb, var(--dp-accent, #4af626) 12%, transparent) 38%,
+        transparent 100%
+      );
+    clip-path: polygon(38% 100%, 62% 100%, 92% 0%, 8% 0%);
+    filter: blur(6px);
+    opacity: 0.85;
   }
 
-  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--projecting .dp-game-hero-hand-hologram__beam,
-  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--projecting .dp-game-hero-hand-hologram__beam {
-    animation: dp-retro-hand-hologram-project 280ms ease-out forwards;
+  /* 光束层：细颗粒 shimmer */
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__beam-dust,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__beam-dust {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.35;
+    background:
+      repeating-linear-gradient(
+        90deg,
+        transparent 0,
+        transparent 3px,
+        color-mix(in srgb, var(--dp-accent, #4af626) 18%, transparent) 3px,
+        color-mix(in srgb, var(--dp-accent, #4af626) 18%, transparent) 4px
+      );
+    clip-path: polygon(44% 100%, 56% 100%, 84% 0%, 16% 0%);
+    mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.65) 0%, rgba(0, 0, 0, 0.2) 55%, transparent 100%);
   }
 
-  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--collapsing .dp-game-hero-hand-hologram__beam,
-  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--collapsing .dp-game-hero-hand-hologram__beam {
-    animation: dp-retro-hand-hologram-project 220ms ease-in reverse forwards;
-  }
-
-  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__panel,
-  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__panel {
-    position: fixed;
+  /* 虚像区：透明，无边框（光锥上半部宽区） */
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__projection,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__projection {
+    position: absolute;
+    left: 50%;
+    bottom: 42%;
     transform: translateX(-50%);
-    width: min(340px, 92vw);
+    width: min(340px, 88vw);
     min-height: 128px;
     box-sizing: border-box;
-    transform-origin: 50% 100%;
-    backface-visibility: hidden;
-    border-radius: 10px;
-    border: 1px solid color-mix(in srgb, var(--dp-accent, #4af626) 42%, transparent);
-    background: color-mix(in srgb, var(--dp-panel-bg, #12151a) 94%, #000);
-    box-shadow:
-      0 0 24px color-mix(in srgb, var(--dp-accent, #4af626) 22%, transparent),
-      0 12px 36px rgba(0, 0, 0, 0.55),
-      inset 0 1px 0 color-mix(in srgb, var(--dp-accent, #4af626) 12%, transparent);
+    background: color-mix(in srgb, var(--dp-accent, #4af626) 4%, transparent);
     pointer-events: auto;
-    overflow: hidden;
-    perspective: 720px;
   }
 
-  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__header,
-  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    padding: 10px 12px 6px;
-    border-bottom: 1px solid color-mix(in srgb, var(--dp-accent, #4af626) 18%, transparent);
-  }
-
-  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__title,
-  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__title {
-    font-size: 11px;
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__ghost-title,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__ghost-title {
+    position: absolute;
+    top: -18px;
+    left: 0;
+    font-size: 10px;
     font-weight: 700;
     color: var(--dp-text-primary, #4af626);
+    opacity: 0.45;
     letter-spacing: 0.04em;
+    pointer-events: none;
+    transition: opacity 2s ease 0.5s;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--revealed .dp-game-hero-hand-hologram__ghost-title,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--revealed .dp-game-hero-hand-hologram__ghost-title {
+    opacity: 0;
   }
 
   body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__close,
   .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__close {
-    flex: 0 0 auto;
+    position: absolute;
+    top: -12px;
+    right: -6px;
+    z-index: 4;
     width: 44px;
     height: 44px;
-    margin: -8px -10px -8px 0;
     padding: 0;
     border: none;
     border-radius: 8px;
-    background: transparent;
+    background: color-mix(in srgb, var(--dp-accent, #4af626) 6%, transparent);
     color: var(--dp-text-secondary, #72f052);
     font-size: 22px;
     line-height: 1;
@@ -1439,23 +1497,31 @@
   body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__close:hover,
   .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__close:hover {
     color: var(--dp-accent, #4af626);
-    background: color-mix(in srgb, var(--dp-accent, #4af626) 10%, transparent);
+    background: color-mix(in srgb, var(--dp-accent, #4af626) 14%, transparent);
   }
 
-  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__scanlines,
-  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__scanlines {
+  /* 扫描线 sweep：仅覆盖 content 区域 */
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__scan-sweep,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__scan-sweep {
     position: absolute;
     inset: 0;
     z-index: 1;
     pointer-events: none;
-    opacity: 0.28;
+    opacity: 0;
+    transform-origin: top;
+    transform: scaleY(0);
     background: repeating-linear-gradient(
       to bottom,
       transparent 0,
       transparent 2px,
-      rgba(0, 0, 0, 0.34) 2px,
-      rgba(0, 0, 0, 0.34) 4px
+      rgba(0, 0, 0, 0.28) 2px,
+      rgba(0, 0, 0, 0.28) 4px
     );
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--materializing .dp-game-hero-hand-hologram__scan-sweep,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--materializing .dp-game-hero-hand-hologram__scan-sweep {
+    animation: dp-retro-hand-hologram-scan-sweep 400ms ease-out forwards;
   }
 
   body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__flash,
@@ -1470,14 +1536,42 @@
 
   body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--flash .dp-game-hero-hand-hologram__flash,
   .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--flash .dp-game-hero-hand-hologram__flash {
-    animation: dp-retro-hand-hologram-flash 100ms steps(2, end) forwards;
+    animation: dp-retro-hand-hologram-content-flicker 100ms steps(2, end) forwards;
   }
 
   body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__content,
   .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__content {
     position: relative;
     z-index: 2;
-    padding: 8px 10px 12px;
+    min-height: 128px;
+    padding: 4px 6px 8px;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--materializing .dp-game-hero-hand-hologram__content,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--materializing .dp-game-hero-hand-hologram__content {
+    animation: dp-retro-hand-hologram-content-scan 400ms ease-out forwards;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--projecting .dp-game-hero-hand-hologram__content,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--projecting .dp-game-hero-hand-hologram__content {
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--revealed .dp-game-hero-hand-hologram__content,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--revealed .dp-game-hero-hand-hologram__content,
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--flash .dp-game-hero-hand-hologram__content,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--flash .dp-game-hero-hand-hologram__content {
+    opacity: 1;
+    transform: translateY(0);
+    filter: none;
+    visibility: visible;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--collapsing .dp-game-hero-hand-hologram__content,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--collapsing .dp-game-hero-hand-hologram__content {
+    opacity: 0;
+    transition: opacity 120ms ease-in;
   }
 
   body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__content .dp-game-hero-dock--in-sheet,
@@ -1489,52 +1583,33 @@
     box-shadow: none;
   }
 
-  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram:not(.dp-game-hero-hand-hologram--revealed):not(.dp-game-hero-hand-hologram--instant) .dp-game-hero-hand-hologram__content,
-  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram:not(.dp-game-hero-hand-hologram--revealed):not(.dp-game-hero-hand-hologram--instant) .dp-game-hero-hand-hologram__content {
-    opacity: 0;
-    visibility: hidden;
-  }
-
-  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--materializing .dp-game-hero-hand-hologram__panel,
-  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--materializing .dp-game-hero-hand-hologram__panel {
-    animation: dp-retro-hand-hologram-materialize 420ms ease-out forwards;
-  }
-
-  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--projecting .dp-game-hero-hand-hologram__panel,
-  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--projecting .dp-game-hero-hand-hologram__panel {
-    opacity: 0;
-    transform: translateX(-50%) rotateX(88deg) scale(0.92);
-  }
-
-  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--revealed .dp-game-hero-hand-hologram__panel,
-  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--revealed .dp-game-hero-hand-hologram__panel,
-  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--flash .dp-game-hero-hand-hologram__panel,
-  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--flash .dp-game-hero-hand-hologram__panel {
-    animation: none;
-    opacity: 1;
-    transform: translateX(-50%) rotateX(0deg) scale(1);
-    visibility: visible;
-  }
-
-  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--collapsing .dp-game-hero-hand-hologram__panel,
-  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--collapsing .dp-game-hero-hand-hologram__panel {
-    animation: dp-retro-hand-hologram-collapse 360ms ease-in forwards;
-  }
-
-  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__beam,
-  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__beam {
+  /* eco / PRM instant 路径 */
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__beam-core,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__beam-core,
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__beam-glow,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__beam-glow,
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__beam-dust,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__beam-dust,
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__scan-sweep,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__scan-sweep {
     display: none;
   }
 
-  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__panel,
-  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__panel {
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__volume,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__volume {
     opacity: 1;
-    transform: translateX(-50%) rotateX(0deg) scale(1);
+    transform: rotateX(-10deg) scaleY(1) scaleX(1);
   }
 
-  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__scanlines,
-  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__scanlines {
-    opacity: 0.18;
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__projection,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__projection {
+    background: transparent;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__content,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__content {
+    opacity: 1;
+    visibility: visible;
   }
 
   /* retro8bit 宽视口：邀请好友左上显示板 */
@@ -1826,31 +1901,494 @@
     opacity: 1;
     visibility: visible;
   }
+
+  /* retro8bit 宽视口：房主终端右上显示板 */
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal {
+    position: fixed;
+    inset: 0;
+    z-index: 1020;
+    pointer-events: none;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal--portal-root,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal--portal-root {
+    position: absolute;
+    inset: 0;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__shell {
+    position: absolute;
+    right: max(12px, env(safe-area-inset-right, 0px));
+    width: min(400px, calc(100vw - 24px));
+    height: min(480px, calc(100vh - 80px));
+    min-height: 240px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    pointer-events: auto;
+    border: 2px solid var(--dp-accent, #5fd068);
+    border-radius: 4px;
+    background: var(--dp-panel-bg, rgba(8, 14, 10, 0.94));
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--dp-accent) 35%, transparent),
+      0 12px 32px rgba(0, 0, 0, 0.45),
+      inset 0 0 24px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal--slide-in .dp-owner-terminal__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal--slide-in .dp-owner-terminal__shell {
+    animation: dp-owner-terminal-slide-in 280ms ease-out forwards;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal--retract .dp-owner-terminal__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal--retract .dp-owner-terminal__shell {
+    animation: dp-owner-terminal-retract 220ms ease-in forwards;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal--instant .dp-owner-terminal__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal--instant .dp-owner-terminal__shell {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal--ready .dp-owner-terminal__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal--ready .dp-owner-terminal__shell,
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal--snow .dp-owner-terminal__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal--snow .dp-owner-terminal__shell,
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal--reveal-flash .dp-owner-terminal__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal--reveal-flash .dp-owner-terminal__shell {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__head,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__head {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid color-mix(in srgb, var(--dp-accent) 40%, transparent);
+    background: color-mix(in srgb, var(--dp-panel-bg) 88%, var(--dp-accent) 12%);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__title,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__title {
+    font-size: 14px;
+    color: var(--dp-accent, #5fd068);
+    text-shadow: 0 0 8px color-mix(in srgb, var(--dp-accent) 45%, transparent);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__close,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__close {
+    width: 36px;
+    height: 36px;
+    margin: 0;
+    padding: 0;
+    border: 1px solid color-mix(in srgb, var(--dp-accent) 35%, transparent);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--dp-accent, #5fd068);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__close:hover,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__close:hover {
+    background: color-mix(in srgb, var(--dp-accent) 12%, transparent);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__body,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__body {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    outline: none;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__body--focused,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__body--focused {
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--dp-accent) 55%, transparent);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__scanlines,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__scanlines {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    opacity: 0.16;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 2px,
+      rgba(0, 0, 0, 0.18) 2px,
+      rgba(0, 0, 0, 0.18) 3px
+    );
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    opacity: 0;
+    pointer-events: none;
+    overflow: hidden;
+    transition: opacity 0.12s ease;
+    background: color-mix(
+      in srgb,
+      var(--dp-auth-snow-base, #0a1808) 78%,
+      color-mix(in srgb, var(--dp-accent, #4af626) 22%, var(--dp-auth-snow-base-alt, #1a3018))
+    );
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow--active,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow--active {
+    opacity: 0.96;
+    inset: -5% 0;
+    animation: dp-owner-terminal-snow-jitter-y 0.07s steps(2) infinite;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow-noise,
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow-bars,
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow-bright,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow-noise,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow-bars,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow-bright {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow-noise,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow-noise {
+    opacity: 0.92;
+    background-color: transparent;
+    background-image:
+      repeating-radial-gradient(
+        circle at 12% 18%,
+        color-mix(in srgb, var(--dp-accent, #4af626) 78%, transparent) 0 0.45px,
+        transparent 0.55px
+      ),
+      repeating-radial-gradient(
+        circle at 78% 62%,
+        color-mix(in srgb, var(--dp-accent, #4af626) 52%, #1a3018) 0 0.4px,
+        transparent 0.5px
+      ),
+      repeating-linear-gradient(
+        92deg,
+        color-mix(in srgb, var(--dp-accent, #4af626) 18%, transparent) 0,
+        color-mix(in srgb, var(--dp-accent, #4af626) 18%, transparent) 1px,
+        transparent 1px,
+        transparent 2px
+      );
+    background-size: 3px 3px, 4px 4px, 5px 100%;
+    animation: dp-owner-terminal-noise-flicker 0.05s steps(3) infinite;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow-bars,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow-bars {
+    opacity: 0.82;
+    mix-blend-mode: plus-lighter;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.22) 0,
+      rgba(0, 0, 0, 0.22) 1px,
+      color-mix(in srgb, var(--dp-accent, #4af626) 28%, transparent) 1px,
+      color-mix(in srgb, var(--dp-accent, #4af626) 28%, transparent) 2px,
+      color-mix(in srgb, var(--dp-accent, #4af626) 48%, transparent) 2px,
+      color-mix(in srgb, var(--dp-accent, #4af626) 48%, transparent) 3px,
+      transparent 3px,
+      transparent 6px
+    );
+    background-size: 100% 6px;
+    animation: dp-owner-terminal-roll-bars 0.28s linear infinite;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow--active .dp-owner-terminal__snow-bright,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow--active .dp-owner-terminal__snow-bright {
+    inset: auto 0 -35%;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow-bright,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow-bright {
+    inset: auto 0 -35%;
+    height: 22%;
+    opacity: 0;
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      color-mix(in srgb, var(--dp-accent, #4af626) 32%, transparent) 28%,
+      color-mix(in srgb, var(--dp-accent, #4af626) 62%, transparent) 50%,
+      color-mix(in srgb, var(--dp-accent, #4af626) 32%, transparent) 72%,
+      transparent 100%
+    );
+    animation: dp-owner-terminal-bright-bar 1.05s linear infinite;
+    mix-blend-mode: plus-lighter;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__flash,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__flash {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+    background: color-mix(in srgb, var(--dp-accent, #4af626) 72%, transparent);
+    box-shadow: inset 0 0 48px color-mix(in srgb, var(--dp-accent, #4af626) 38%, transparent);
+    animation: dp-owner-terminal-flash 100ms ease-out forwards;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__content,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__content {
+    position: relative;
+    z-index: 3;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 10px 12px 12px;
+    overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__content--ready,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__content--ready {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal--instant .dp-owner-terminal__content,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal--instant .dp-owner-terminal__content {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__screen,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__screen {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__row,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 8px 10px;
+    margin: 0;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--dp-text-primary, #e8f5e9);
+    font-family: var(--dp-font-ui, inherit);
+    font-size: 14px;
+    line-height: 1.4;
+    text-align: left;
+    cursor: pointer;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__row:hover,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__row:hover {
+    background: color-mix(in srgb, var(--dp-accent) 8%, transparent);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__row--active,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__row--active {
+    box-shadow: inset 0 0 0 2px var(--dp-accent, #5fd068);
+    background: color-mix(in srgb, var(--dp-accent) 12%, transparent);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__row--checked,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__row--checked {
+    background: color-mix(in srgb, var(--dp-accent) 6%, transparent);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__row-cursor,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__row-cursor {
+    flex-shrink: 0;
+    width: 1em;
+    color: var(--dp-accent, #5fd068);
+    font-family: var(--dp-font-pixel, monospace);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__row-label,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__row-label {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__hint,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__hint {
+    margin: 0 0 8px;
+    font-size: 12px;
+    color: var(--dp-text-muted, #8c8c8c);
+    line-height: 1.45;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__empty,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__empty {
+    margin: 8px 0;
+    font-size: 13px;
+    color: var(--dp-text-muted, #8c8c8c);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__count,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__count {
+    flex-shrink: 0;
+    font-family: var(--dp-font-pixel, monospace);
+    color: var(--dp-accent, #5fd068);
+    font-size: 13px;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__status,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__status {
+    flex-shrink: 0;
+    font-size: 12px;
+    color: var(--dp-text-muted, #8c8c8c);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__check,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__check {
+    flex-shrink: 0;
+    font-family: var(--dp-font-pixel, monospace);
+    color: var(--dp-accent, #5fd068);
+    font-size: 12px;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__kick-summary,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__kick-summary {
+    margin: 8px 0 0;
+    font-size: 12px;
+    color: var(--dp-text-secondary, #b8c9ba);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__screen--confirm,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__screen--confirm {
+    justify-content: center;
+    padding: 12px 4px;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__confirm-title,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__confirm-title {
+    margin: 0 0 12px;
+    font-family: var(--dp-font-pixel, monospace);
+    font-size: 15px;
+    color: var(--dp-accent, #5fd068);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__confirm-title--danger,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__confirm-title--danger {
+    color: var(--dp-danger, #ff4d4f);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__confirm-body,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__confirm-body {
+    margin: 0 0 8px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--dp-text-primary, #e8f5e9);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__confirm-detail,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__confirm-detail {
+    margin: 0 0 12px;
+    font-size: 13px;
+    color: var(--dp-text-secondary, #b8c9ba);
+    word-break: break-word;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__screen[role='menu'] .dp-owner-terminal__row-label,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__screen[role='menu'] .dp-owner-terminal__row-label {
+    font-family: var(--dp-font-pixel, monospace);
+    letter-spacing: 0.04em;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content--inactive,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content--inactive {
+    pointer-events: none;
+  }
 }
 
-@keyframes dp-retro-hand-hologram-project {
+@keyframes dp-retro-hand-hologram-beam-expand {
   from {
     opacity: 0;
-    transform: translateX(-50%) scaleY(0.2);
+    transform: rotateX(-10deg) scaleY(0.15) scaleX(0.6);
   }
   to {
     opacity: 1;
-    transform: translateX(-50%) scaleY(1);
+    transform: rotateX(-10deg) scaleY(1) scaleX(1);
   }
 }
 
-@keyframes dp-retro-hand-hologram-materialize {
+@keyframes dp-retro-hand-hologram-beam-collapse {
   from {
-    opacity: 0.35;
-    transform: translateX(-50%) rotateX(88deg) scale(0.9);
+    opacity: 1;
+    transform: rotateX(-10deg) scaleY(1) scaleX(1);
   }
   to {
-    opacity: 1;
-    transform: translateX(-50%) rotateX(0deg) scale(1);
+    opacity: 0;
+    transform: rotateX(-10deg) scaleY(0.12) scaleX(0.55);
   }
 }
 
-@keyframes dp-retro-hand-hologram-flash {
+@keyframes dp-retro-hand-hologram-content-scan {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: brightness(1.8) blur(2px);
+  }
+  60% {
+    opacity: 0.85;
+    filter: brightness(1.2) blur(0.5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: none;
+  }
+}
+
+@keyframes dp-retro-hand-hologram-scan-sweep {
+  from {
+    opacity: 0.5;
+    transform: scaleY(0);
+  }
+  to {
+    opacity: 0.22;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes dp-retro-hand-hologram-content-flicker {
   0%,
   100% {
     opacity: 0;
@@ -1862,17 +2400,6 @@
   60% {
     opacity: 0.4;
     transform: translateX(1px);
-  }
-}
-
-@keyframes dp-retro-hand-hologram-collapse {
-  from {
-    opacity: 1;
-    transform: translateX(-50%) rotateX(0deg) scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: translateX(-50%) rotateX(82deg) scale(0.88);
   }
 }
 
@@ -1967,6 +2494,100 @@
   }
   60% {
     opacity: 0.42;
+  }
+}
+
+@keyframes dp-owner-terminal-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes dp-owner-terminal-retract {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+@keyframes dp-owner-terminal-snow-jitter-y {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+  100% {
+    transform: translateY(1px);
+  }
+}
+
+@keyframes dp-owner-terminal-noise-flicker {
+  0% {
+    background-position: 0 0, 1px 0, 0 0;
+    opacity: 0.85;
+  }
+  33% {
+    background-position: 2px 1px, -1px 2px, 3px 0;
+    opacity: 0.98;
+  }
+  66% {
+    background-position: -1px 2px, 2px -1px, -2px 0;
+    opacity: 0.8;
+  }
+  100% {
+    background-position: 1px -2px, 0 2px, 1px 0;
+    opacity: 0.92;
+  }
+}
+
+@keyframes dp-owner-terminal-roll-bars {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 -6px;
+  }
+}
+
+@keyframes dp-owner-terminal-bright-bar {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  8% {
+    opacity: 0.6;
+  }
+  45% {
+    transform: translateY(-120%);
+    opacity: 0.38;
+  }
+  100% {
+    transform: translateY(-240%);
+    opacity: 0;
+  }
+}
+
+@keyframes dp-owner-terminal-flash {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  40% {
+    opacity: 0.94;
+    filter: brightness(1.18);
+  }
+  60% {
+    opacity: 0.45;
   }
 }
 

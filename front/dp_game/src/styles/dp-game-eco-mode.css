@@ -202,21 +202,21 @@
   }
 }
 
-/* —— retro8bit 手牌全息 —— */
+/* —— retro8bit 手牌全息 v2 —— */
 @media (prefers-reduced-motion: reduce) {
-  .dp-game-hero-hand-hologram--projecting .dp-game-hero-hand-hologram__beam,
-  .dp-game-hero-hand-hologram--collapsing .dp-game-hero-hand-hologram__beam,
-  .dp-game-hero-hand-hologram--materializing .dp-game-hero-hand-hologram__panel,
-  .dp-game-hero-hand-hologram--collapsing .dp-game-hero-hand-hologram__panel,
+  .dp-game-hero-hand-hologram--projecting .dp-game-hero-hand-hologram__volume,
+  .dp-game-hero-hand-hologram--collapsing .dp-game-hero-hand-hologram__volume,
+  .dp-game-hero-hand-hologram--materializing .dp-game-hero-hand-hologram__content,
+  .dp-game-hero-hand-hologram--materializing .dp-game-hero-hand-hologram__scan-sweep,
   .dp-game-hero-hand-hologram--flash .dp-game-hero-hand-hologram__flash {
     animation: none !important;
   }
 }
 
-.dp-game-root[data-dp-eco-mode='true'] .dp-game-hero-hand-hologram--projecting .dp-game-hero-hand-hologram__beam,
-.dp-game-root[data-dp-eco-mode='true'] .dp-game-hero-hand-hologram--collapsing .dp-game-hero-hand-hologram__beam,
-.dp-game-root[data-dp-eco-mode='true'] .dp-game-hero-hand-hologram--materializing .dp-game-hero-hand-hologram__panel,
-.dp-game-root[data-dp-eco-mode='true'] .dp-game-hero-hand-hologram--collapsing .dp-game-hero-hand-hologram__panel,
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-hero-hand-hologram--projecting .dp-game-hero-hand-hologram__volume,
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-hero-hand-hologram--collapsing .dp-game-hero-hand-hologram__volume,
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-hero-hand-hologram--materializing .dp-game-hero-hand-hologram__content,
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-hero-hand-hologram--materializing .dp-game-hero-hand-hologram__scan-sweep,
 .dp-game-root[data-dp-eco-mode='true'] .dp-game-hero-hand-hologram--flash .dp-game-hero-hand-hologram__flash {
   animation: none !important;
 }
@@ -243,6 +243,31 @@
 .dp-game-root[data-dp-eco-mode='true'] .dp-invite-friend-panel__snow-bars,
 .dp-game-root[data-dp-eco-mode='true'] .dp-invite-friend-panel__snow-bright,
 .dp-game-root[data-dp-eco-mode='true'] .dp-invite-friend-panel__flash {
+  animation: none !important;
+}
+
+/* —— retro8bit 房主终端右上显示板 —— */
+@media (prefers-reduced-motion: reduce) {
+  .dp-owner-terminal--slide-in .dp-owner-terminal__shell,
+  .dp-owner-terminal--retract .dp-owner-terminal__shell,
+  .dp-owner-terminal__snow,
+  .dp-owner-terminal__snow--active,
+  .dp-owner-terminal__snow-noise,
+  .dp-owner-terminal__snow-bars,
+  .dp-owner-terminal__snow-bright,
+  .dp-owner-terminal__flash {
+    animation: none !important;
+  }
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .dp-owner-terminal--slide-in .dp-owner-terminal__shell,
+.dp-game-root[data-dp-eco-mode='true'] .dp-owner-terminal--retract .dp-owner-terminal__shell,
+.dp-game-root[data-dp-eco-mode='true'] .dp-owner-terminal__snow,
+.dp-game-root[data-dp-eco-mode='true'] .dp-owner-terminal__snow--active,
+.dp-game-root[data-dp-eco-mode='true'] .dp-owner-terminal__snow-noise,
+.dp-game-root[data-dp-eco-mode='true'] .dp-owner-terminal__snow-bars,
+.dp-game-root[data-dp-eco-mode='true'] .dp-owner-terminal__snow-bright,
+.dp-game-root[data-dp-eco-mode='true'] .dp-owner-terminal__flash {
   animation: none !important;
 }
 

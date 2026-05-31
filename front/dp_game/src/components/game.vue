@@ -39,7 +39,7 @@
         @toggle-fullscreen="toggleDpFullscreen"
         @open-hand-history="openHandHistory"
         @open-music-box="$store.commit('dpGame/SET_MODAL', { showMusicBoxModal: true })"
-        @open-owner-hub="openOwnerHubSheet"
+        @open-owner-hub="onOwnerHubClick"
         @open-invite-friend="onInviteFriendClick"
         @exit="exitGame"
         @ready-next-hand="readyNextHand"
@@ -152,6 +152,7 @@ import { encodeRoomApplyFingerprint } from '../utils/dpGameRoomFingerprint'
 import { CAT_COPY, dpPotDisplayLabel } from '../constants/dpCatThemeCopy'
 import { dpHandHologramDevLog } from '../utils/dpHandHologramDevLog'
 import { dpInviteFriendsDevLog } from '../utils/dpInviteFriendsDevLog'
+import { dpOwnerTerminalDevLog } from '../utils/dpOwnerTerminalDevLog'
 import { dpSeatEnterDevLog } from '../utils/dpSeatEnterDevLog'
 import { extractPlayerNicknames, diffNewSeatNicknames } from '../utils/dpSeatEnterNickDiff'
 
@@ -194,6 +195,8 @@ export default {
       playerSocialOpen: false,
       playerSocialTarget: null,
       inviteFriendOpen: false,
+      ownerTerminalOpen: false,
+      showOwnerPotJudgeSheet: false,
       viewportWidth: typeof window !== 'undefined' ? window.innerWidth : 1024,
       prefersReducedMotion: false,
       _hologramResizeTimer: null,
@@ -247,6 +250,9 @@ export default {
     useRetroInvitePanelWide() {
       return this.gameUiTheme === 'retro8bit' && this.viewportWidth > 600
     },
+    useRetroOwnerPanelWide() {
+      return this.gameUiTheme === 'retro8bit' && this.viewportWidth > 600
+    },
     useRetroSeatEnterReveal() {
       return this.gameUiTheme === 'retro8bit'
         && this.viewportWidth > 600
@@ -292,13 +298,24 @@ export default {
         this.stopReadyCountdown()
         this.$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileActionSheet: false })
       }
+      if (newVal === 'showdown' && this.isOwner && this.useRetroOwnerPanelWide) {
+        this.showOwnerPotJudgeSheet = true
+        dpOwnerTerminalDevLog('pot judge sheet', { action: 'auto-open', stage: newVal })
+      }
+      if (newVal !== 'showdown') {
+        this.showOwnerPotJudgeSheet = false
+      }
       var self = this
       this.$nextTick(function () {
         self.syncRoomBgmAudio()
       })
     },
     isOwner(v) {
-      if (!v) this.$store.commit('dpGame/CLOSE_OWNER_HUB')
+      if (!v) {
+        this.$store.commit('dpGame/CLOSE_OWNER_HUB')
+        this.closeOwnerTerminal()
+        this.showOwnerPotJudgeSheet = false
+      }
     }
   },
 
@@ -1405,13 +1422,56 @@ export default {
       }
     },
 
-    // ---- 房主神器：底栏入口与底部抽屉 ----
-    openOwnerHubSheet() {
-      this.$store.commit('dpGame/OPEN_OWNER_HUB')
+    // ---- 房主神器：顶栏入口（宽 retro 终端 / 窄 legacy sheet） ----
+    onOwnerHubClick() {
+      if (!this.isOwner) {
+        dpOwnerTerminalDevLog('blocked', { isOwner: false })
+        return
+      }
+      dpOwnerTerminalDevLog('top bar click', {
+        theme: this.gameUiTheme,
+        viewportWidth: this.viewportWidth,
+        useRetroOwnerPanelWide: this.useRetroOwnerPanelWide,
+        ownerTerminalOpen: this.ownerTerminalOpen,
+        isOwner: this.isOwner,
+        stage: this.stage
+      })
+      if (this.useRetroOwnerPanelWide) {
+        if (this.ownerTerminalOpen) {
+          dpOwnerTerminalDevLog('branch', 'close terminal')
+          this.closeOwnerTerminal()
+        } else {
+          dpOwnerTerminalDevLog('branch', 'open terminal')
+          this.ownerTerminalOpen = true
+        }
+      } else if (this.showOwnerHubSheet) {
+        dpOwnerTerminalDevLog('branch', 'close legacy sheet')
+        this.closeOwnerHubPanel()
+      } else {
+        dpOwnerTerminalDevLog('branch', 'open legacy sheet')
+        this.$store.commit('dpGame/OPEN_OWNER_HUB')
+      }
+      this.scheduleReparentElementUiLayersIntoFullscreenRoot()
+    },
+
+    closeOwnerTerminal() {
+      this.ownerTerminalOpen = false
+    },
+
+    closeOwnerPotJudgeSheet() {
+      this.showOwnerPotJudgeSheet = false
+      dpOwnerTerminalDevLog('pot judge sheet', { action: 'close', stage: this.stage })
+    },
+
+    onOwnerTerminalToggleReveal() {
+      var next = !this.ownerRevealAll
+      this.$store.commit('dpGame/SET_OWNER_REVEAL_ALL', next)
+      this.$message.success(next ? '已开启看穿底牌' : '已关闭看穿底牌')
     },
 
     closeOwnerHubPanel() {
       this.$store.commit('dpGame/CLOSE_OWNER_HUB')
+      this.closeOwnerTerminal()
     },
 
     // ---- 房主：移交房主（通过弹窗选择玩家） ----
