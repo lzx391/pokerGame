@@ -1676,12 +1676,17 @@
     pointer-events: none;
     overflow: hidden;
     transition: opacity 0.12s ease;
-    background: color-mix(in srgb, var(--dp-auth-snow-base, #0a1808) 88%, var(--dp-auth-snow-base-alt, #1a3018));
+    /* Phosphor-green CRT base (retro8bit auth snow, game accent) */
+    background: color-mix(
+      in srgb,
+      var(--dp-auth-snow-base, #0a1808) 82%,
+      color-mix(in srgb, var(--dp-accent, #4af626) 18%, var(--dp-auth-snow-base-alt, #1a3018))
+    );
   }
 
   body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow--active,
   .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow--active {
-    opacity: 0.92;
+    opacity: 0.94;
     inset: -5% 0;
     animation: dp-invite-friend-panel-snow-jitter-y 0.07s steps(2) infinite;
   }
@@ -1699,29 +1704,47 @@
 
   body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow-noise,
   .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow-noise {
-    opacity: 0.88;
+    opacity: 0.9;
     background-color: transparent;
     background-image:
-      repeating-radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.62) 0 0.45px, transparent 0.55px),
-      repeating-radial-gradient(circle at 78% 62%, rgba(210, 218, 228, 0.5) 0 0.4px, transparent 0.5px),
-      repeating-radial-gradient(circle at 44% 81%, rgba(240, 245, 252, 0.42) 0 0.35px, transparent 0.45px),
-      repeating-linear-gradient(92deg, rgba(255, 255, 255, 0.06) 0, rgba(255, 255, 255, 0.06) 1px, transparent 1px, transparent 2px);
+      repeating-radial-gradient(
+        circle at 12% 18%,
+        color-mix(in srgb, var(--dp-accent, #4af626) 72%, transparent) 0 0.45px,
+        transparent 0.55px
+      ),
+      repeating-radial-gradient(
+        circle at 78% 62%,
+        color-mix(in srgb, var(--dp-accent, #4af626) 48%, #1a3018) 0 0.4px,
+        transparent 0.5px
+      ),
+      repeating-radial-gradient(
+        circle at 44% 81%,
+        color-mix(in srgb, var(--dp-accent, #4af626) 38%, transparent) 0 0.35px,
+        transparent 0.45px
+      ),
+      repeating-linear-gradient(
+        92deg,
+        color-mix(in srgb, var(--dp-accent, #4af626) 14%, transparent) 0,
+        color-mix(in srgb, var(--dp-accent, #4af626) 14%, transparent) 1px,
+        transparent 1px,
+        transparent 2px
+      );
     background-size: 3px 3px, 4px 4px, 2px 2px, 5px 100%;
     animation: dp-invite-friend-panel-noise-flicker 0.05s steps(3) infinite;
   }
 
   body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow-bars,
   .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow-bars {
-    opacity: 0.75;
-    mix-blend-mode: screen;
+    opacity: 0.78;
+    mix-blend-mode: plus-lighter;
     background: repeating-linear-gradient(
       to bottom,
-      rgba(0, 0, 0, 0.14) 0,
-      rgba(0, 0, 0, 0.14) 1px,
-      rgba(235, 240, 248, 0.16) 1px,
-      rgba(235, 240, 248, 0.16) 2px,
-      rgba(255, 255, 255, 0.08) 2px,
-      rgba(255, 255, 255, 0.08) 3px,
+      rgba(0, 0, 0, 0.22) 0,
+      rgba(0, 0, 0, 0.22) 1px,
+      color-mix(in srgb, var(--dp-accent, #4af626) 22%, transparent) 1px,
+      color-mix(in srgb, var(--dp-accent, #4af626) 22%, transparent) 2px,
+      color-mix(in srgb, var(--dp-accent, #4af626) 42%, transparent) 2px,
+      color-mix(in srgb, var(--dp-accent, #4af626) 42%, transparent) 3px,
       transparent 3px,
       transparent 6px
     );
@@ -1742,13 +1765,13 @@
     background: linear-gradient(
       to bottom,
       transparent 0%,
-      rgba(255, 255, 255, 0.22) 28%,
-      rgba(255, 255, 255, 0.48) 50%,
-      rgba(255, 255, 255, 0.22) 72%,
+      color-mix(in srgb, var(--dp-accent, #4af626) 28%, transparent) 28%,
+      color-mix(in srgb, var(--dp-accent, #4af626) 58%, transparent) 50%,
+      color-mix(in srgb, var(--dp-accent, #4af626) 28%, transparent) 72%,
       transparent 100%
     );
     animation: dp-invite-friend-panel-bright-bar 1.05s linear infinite;
-    mix-blend-mode: screen;
+    mix-blend-mode: plus-lighter;
   }
 
   body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__flash,
@@ -1757,7 +1780,8 @@
     inset: 0;
     z-index: 5;
     pointer-events: none;
-    background: rgba(255, 255, 255, 0.72);
+    background: color-mix(in srgb, var(--dp-accent, #4af626) 68%, transparent);
+    box-shadow: inset 0 0 48px color-mix(in srgb, var(--dp-accent, #4af626) 35%, transparent);
     animation: dp-invite-friend-panel-flash 100ms ease-out forwards;
   }
 
@@ -1938,10 +1962,11 @@
     opacity: 0;
   }
   40% {
-    opacity: 0.85;
+    opacity: 0.92;
+    filter: brightness(1.15);
   }
   60% {
-    opacity: 0.35;
+    opacity: 0.42;
   }
 }
 

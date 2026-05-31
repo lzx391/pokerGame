@@ -63,6 +63,7 @@ import GameInviteFriendContent from './GameInviteFriendContent.vue'
 import { dpInviteFriendsDevLog } from '../utils/dpInviteFriendsDevLog'
 
 var CONTENT_READY_FALLBACK_MS = 2000
+var SNOW_MIN_HOLD_MS = 1000
 var FLASH_MS = 100
 
 export default {
@@ -80,10 +81,13 @@ export default {
       openedAt: null,
       nowTick: Date.now(),
       panelTop: 56,
+      snowStartedAt: null,
       contentReadyTickTimer: null,
       flashTimer: null,
       phaseTimer: null,
-      fallbackLogged: false
+      snowMinHoldTimer: null,
+      fallbackLogged: false,
+      minHoldLogged: false
     }
   },
   computed: {
@@ -112,12 +116,11 @@ export default {
     },
     snowActive() {
       return this.useRetroInvitePanelAnimated
-        && (this.panelPhase === 'snow' || (this.panelPhase === 'slide-in' && !this.contentReady))
-        && !this.contentReady
+        && this.panelPhase === 'snow'
     },
     showSnowLayer() {
-      return this.useRetroInvitePanelAnimated && !this.contentReady
-        && (this.panelPhase === 'slide-in' || this.panelPhase === 'snow')
+      return this.useRetroInvitePanelAnimated
+        && this.panelPhase === 'snow'
     },
     showFlashLayer() {
       return this.useRetroInvitePanelAnimated && this.panelPhase === 'reveal-flash'
@@ -167,8 +170,13 @@ export default {
         })
         this.fallbackLogged = true
       }
-      if (this.panelPhase === 'snow' || this.panelPhase === 'slide-in') {
-        this.advanceFromLoading()
+      if (this.panelPhase === 'snow') {
+        this.tryAdvanceFromSnow()
+      }
+    },
+    nowTick() {
+      if (this.panelPhase === 'snow') {
+        this.tryAdvanceFromSnow()
       }
     },
     'vm.layoutFullscreen'() {
@@ -199,6 +207,7 @@ export default {
     this.clearContentReadyTickTimer()
     this.clearFlashTimer()
     this.clearPhaseTimer()
+    this.clearSnowMinHoldTimer()
     if (typeof document !== 'undefined' && this.$el && this.$el.parentNode) {
       this.$el.parentNode.removeChild(this.$el)
     }
@@ -207,6 +216,13 @@ export default {
     setPhase(next) {
       var from = this.panelPhase
       if (from === next) return
+      if (next === 'snow') {
+        this.snowStartedAt = Date.now()
+        this.minHoldLogged = false
+        this.scheduleSnowMinHoldTimer()
+      } else if (from === 'snow') {
+        this.clearSnowMinHoldTimer()
+      }
       this.panelPhase = next
       dpInviteFriendsDevLog('phase', {
         from: from,
@@ -253,6 +269,29 @@ export default {
     requestClose() {
       this.$emit('close')
     },
+    tryAdvanceFromSnow() {
+      if (this.panelPhase !== 'snow' || !this.snowStartedAt) return
+      var now = Date.now()
+      var snowElapsedMs = now - this.snowStartedAt
+      if (snowElapsedMs < SNOW_MIN_HOLD_MS) return
+      if (!this.minHoldLogged) {
+        this.minHoldLogged = true
+        dpInviteFriendsDevLog('snow min-hold elapsed', {
+          snowElapsedMs: snowElapsedMs,
+          friendsLoading: this.friendsLoading,
+          contentReady: this.contentReady
+        })
+      }
+      if (!this.contentReady) return
+      var reason = this.friendsLoading ? 'min-hold-and-2s-cap' : 'min-hold-and-loading-done'
+      dpInviteFriendsDevLog('snow end reason', {
+        reason: reason,
+        snowElapsedMs: snowElapsedMs,
+        friendsLoading: this.friendsLoading,
+        elapsedMs: this.openedAt ? (now - this.openedAt) : null
+      })
+      this.advanceFromLoading()
+    },
     advanceFromLoading() {
       if (!this.useRetroInvitePanelAnimated) {
         this.setPhase('ready')
@@ -269,11 +308,18 @@ export default {
       if (!event || !event.animationName) return
       var name = event.animationName
       if (this.panelPhase === 'slide-in' && name.indexOf('dp-invite-friend-panel-slide-in') !== -1) {
-        if (this.contentReady) {
-          this.advanceFromLoading()
-        } else {
-          this.setPhase('snow')
-        }
+        dpInviteFriendsDevLog('slide complete', {
+          contentReady: this.contentReady,
+          friendsLoading: this.friendsLoading,
+          elapsedMs: this.openedAt ? (Date.now() - this.openedAt) : null
+        })
+        dpInviteFriendsDevLog('snow start', {
+          friendsLoading: this.friendsLoading,
+          contentReady: this.contentReady,
+          minHoldMs: SNOW_MIN_HOLD_MS,
+          elapsedMs: this.openedAt ? (Date.now() - this.openedAt) : null
+        })
+        this.setPhase('snow')
         return
       }
       if (this.panelPhase === 'retract' && name.indexOf('dp-invite-friend-panel-retract') !== -1) {
@@ -284,8 +330,24 @@ export default {
       this.clearContentReadyTickTimer()
       this.clearFlashTimer()
       this.clearPhaseTimer()
+      this.clearSnowMinHoldTimer()
+      this.snowStartedAt = null
+      this.minHoldLogged = false
       this.openedAt = null
       this.setPhase('idle')
+    },
+    scheduleSnowMinHoldTimer() {
+      this.clearSnowMinHoldTimer()
+      var self = this
+      this.snowMinHoldTimer = setTimeout(function () {
+        self.tryAdvanceFromSnow()
+      }, SNOW_MIN_HOLD_MS)
+    },
+    clearSnowMinHoldTimer() {
+      if (this.snowMinHoldTimer) {
+        clearTimeout(this.snowMinHoldTimer)
+        this.snowMinHoldTimer = null
+      }
     },
     startContentReadyTickTimer() {
       this.clearContentReadyTickTimer()
