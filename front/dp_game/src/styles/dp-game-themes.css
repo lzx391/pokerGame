@@ -132,6 +132,8 @@ body[data-dp-game-theme='default'] {
 .dp-game-root[data-dp-game-theme='gothic'],
 body[data-dp-game-theme='gothic'] {
   --dp-font-ui: Georgia, 'Times New Roman', Times, serif;
+  /* 与 dp-poker-cards.css .card-base 同栈；仅标题/展示字，正文仍用 --dp-font-ui */
+  --dp-font-display: 'Garamond', 'Georgia', 'Times New Roman', 'Songti SC', 'STSong', serif;
   --dp-game-bg: #0f080c;
   --dp-game-bg-image:
     radial-gradient(ellipse 100% 72% at 50% -18%, rgba(60, 28, 48, 0.55) 0%, transparent 52%),
@@ -526,5 +528,36 @@ body[data-dp-game-theme='halloween'] {
   --dp-table-felt-drop-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.52);
   --dp-table-felt-vignette: rgba(12, 4, 18, 0.52);
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='45' height='45' viewBox='0 0 32 32'%3E%3Cellipse cx='16' cy='17' rx='12' ry='10' fill='%23ef6c00' stroke='%23fff' stroke-width='.7'/%3E%3Cpath d='M14 4L16 1L18 4' fill='%234caf50'/%3E%3Crect x='10' y='13' width='3' height='4' rx='1' fill='%23ffeb3b'/%3E%3Crect x='19' y='13' width='3' height='4' rx='1' fill='%23ffeb3b'/%3E%3Crect x='8' y='16' width='3' height='3' rx='1' fill='%23ffeb3b'/%3E%3Crect x='21' y='16' width='3' height='3' rx='1' fill='%23ffeb3b'/%3E%3Cpath d='M10 23L14 21L18 23L22 21' fill='none' stroke='%23ffeb3b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") 16 14, auto;
+}
+
+/* 哥特：仅标题用 --dp-font-display；不碰 #app.app--auth（登录仍为 monospace） */
+.dp-game-root[data-dp-game-theme='gothic'] h1,
+.dp-game-root[data-dp-game-theme='gothic'] h2,
+.dp-game-root[data-dp-game-theme='gothic'] h3,
+.dp-game-root[data-dp-game-theme='gothic'] .home-hero__title,
+.dp-game-root[data-dp-game-theme='gothic'] .home-section-title,
+.dp-game-root[data-dp-game-theme='gothic'] .home-mailbox__subtitle,
+.dp-game-root[data-dp-game-theme='gothic'] .dp-lobby-panel__title,
+.dp-game-root[data-dp-game-theme='gothic'] .dp-top-bar__title,
+.dp-game-root[data-dp-game-theme='gothic'] .dp-game-dialog__title,
+.dp-game-root[data-dp-game-theme='gothic'] .dp-game-sheet__title,
+.dp-game-root[data-dp-game-theme='gothic'] .game-owner-tool-embedded__title,
+.dp-game-root[data-dp-game-theme='gothic'] .game-prof-title-bar__text,
+.dp-game-root[data-dp-game-theme='gothic'] .game-prof-name,
+.dp-game-root[data-dp-game-theme='gothic'] .game-prof-weekly__title,
+.dp-game-root[data-dp-game-theme='gothic'] .game-prof-honor__title,
+.dp-game-root[data-dp-game-theme='gothic'] .dp-owner-panel__title,
+.dp-game-root[data-dp-game-theme='gothic'] .dp-pot-block__title,
+.dp-game-root[data-dp-game-theme='gothic'] .lb-page__title,
+.dp-game-root[data-dp-game-theme='gothic'] .cr-page__title,
+.dp-game-root[data-dp-game-theme='gothic'] .cr-field-group__title,
+.dp-game-root[data-dp-game-theme='gothic'] .download-center__title,
+.dp-game-root[data-dp-game-theme='gothic'] .download-center__list-title,
+.dp-game-root[data-dp-game-theme='gothic'] .dp-custom-npc-panel__title,
+body[data-dp-game-theme='gothic'] .el-message-box__title,
+body[data-dp-game-theme='gothic'] .el-dialog__title,
+body[data-dp-game-theme='gothic'] .el-drawer__title {
+  font-family: var(--dp-font-display);
+  letter-spacing: 0.04em;
 }
 
