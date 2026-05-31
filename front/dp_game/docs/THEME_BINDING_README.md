@@ -12,9 +12,8 @@
 | `gothic` | 哥特暗夜 | 深色烛金与干玫瑰 |
 | `strawberry` | 草莓甜心 | 粉嫩童话系浅色 |
 | `halloween` | 万圣惊魂 | 南瓜橙 / 幽紫节庆深色 |
-| `custom` | 自定义 | 基于上列任一预设 + 调色板覆盖 `--dp-*` |
 
-`readGameTheme()` 若读到 localStorage 中已下架的 id，会 **fallback 到 `default`**（不写回 storage）。自定义主题的 `baseId` 若指向已删预设，同样在 `readCustomTheme()` 中回退为 `default`。
+`readGameTheme()` 若读到 localStorage 中已下架的 id（含历史 `custom`），会 **fallback 到 `default`** 并清除 `dp_game_custom_theme` 残留。
 
 ---
 

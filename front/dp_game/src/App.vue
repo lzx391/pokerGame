@@ -13,8 +13,6 @@
         <dp-auth-stage
           :app-auth-title="appAuthTitle"
           @input-theme="onAuthThemeChange($event)"
-          @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
-          @custom-overrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
         />
       </div>
     </template>
@@ -61,8 +59,6 @@ export default {
     ...mapState('dpGame', [
       'gameUiTheme',
       'gameThemeOptions',
-      'customThemeBase',
-      'customThemeOverrides',
       'ecoMode'
     ]),
     isAuthPage() {

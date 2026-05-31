@@ -146,13 +146,6 @@ body[data-dp-game-theme] {
   }
 }
 
-/* 桌面/平板：选了「自定义」后色板与正文同宽（否则仅随下拉宽度，色板过窄） */
-.dp-game-theme-row .dp-theme-picker:has(.dp-theme-picker__custom) {
-  flex: 1 1 100%;
-  width: 100%;
-  min-width: 0;
-}
-
 .dp-game-theme-row__label {
   font-size: 12px;
   color: var(--dp-text-secondary);

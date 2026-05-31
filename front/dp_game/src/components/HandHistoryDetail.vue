@@ -3,7 +3,6 @@
     class="hand-detail-page-root"
     :class="{ 'dp-game-root': !embedded }"
     :data-dp-game-theme="!embedded ? effectiveThemeForCss : undefined"
-    :style="!embedded ? customThemeInlineStyle : {}"
   >
   <div class="hand-detail-page hand-detail-page--embedded">
     <div class="hand-detail-page__shell">
@@ -18,11 +17,7 @@
             <dp-theme-picker
               :game-ui-theme="gameUiTheme"
               :theme-options="gameThemeOptions"
-              :custom-theme-base="customThemeBase"
-              :custom-theme-overrides="customThemeOverrides"
               @input-theme="onLobbyThemeChange($event)"
-              @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
-              @custom-overrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
             />
           </div>
         </div>

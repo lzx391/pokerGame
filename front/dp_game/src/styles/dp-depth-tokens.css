@@ -1,6 +1,6 @@
 /**
  * 全站色彩层次 token（质感，非特效）。
- * 挂载于 body[data-dp-game-theme]；与 dpGameThemeColorTokens.js 中 --dp-* 同名映射。
+ * 挂载于 body[data-dp-game-theme]；与 dp-game-themes.css 中 --dp-* 同名映射。
  * 消费方：lobby/auth shell、Element 弹层、后续 Leaderboard / 对局 pill（见 frontend-fluidity-plan.md §6.1）。
  */
 

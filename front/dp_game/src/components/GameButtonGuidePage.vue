@@ -10,7 +10,6 @@
     :data-dp-layout-tier="layoutTier"
     :data-dp-orientation="layoutOrientation"
     :data-dp-game-theme="effectiveThemeForCss"
-    :style="customThemeInlineStyle"
     :data-dp-eco-mode="ecoMode ? 'true' : 'false'"
     :data-dp-stage="stage"
   >
@@ -30,8 +29,6 @@
           :show-spectator-prepare="false"
           :next-hand-ready="mock.nextHandReady"
           :game-ui-theme="gameUiTheme"
-          :custom-theme-base="customThemeBase"
-          :custom-theme-overrides="customThemeOverrides"
           :eco-mode="ecoMode"
           :theme-options="gameThemeOptions"
           exit-label="退出教程"
@@ -41,8 +38,6 @@
           :hero-economy-secondary-value="topBarHeroEconomySecondaryValue"
           :hero-carry-in-chips="mock.myCarryInChips"
           @update:gameUiTheme="$store.commit('dpGame/SET_GAME_UI_THEME', $event)"
-          @update:customThemeBase="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
-          @update:customThemeOverrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
           @update:ecoMode="$store.commit('dpGame/SET_ECO_MODE', $event)"
           @show-play-guide="onGuidePlayGuide"
           @show-spectators="noopGuideTip('观众席列表')"
@@ -185,15 +180,13 @@ export default {
   computed: {
     ...mapState('dpGame', [
       'gameUiTheme',
-      'customThemeBase',
-      'customThemeOverrides',
       'ecoMode',
       'gameThemeOptions',
       'chatInputDraft',
       'raiseAmount',
       'showMobileActionSheet'
     ]),
-    ...mapGetters('dpGame', ['effectiveThemeForCss', 'customThemeInlineStyle']),
+    ...mapGetters('dpGame', ['effectiveThemeForCss']),
     heroNickname: function () {
       return this.mock.heroNickname || GUIDE_HERO_NICKNAME
     },

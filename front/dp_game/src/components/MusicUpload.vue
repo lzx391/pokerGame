@@ -2,7 +2,6 @@
   <div
     class="dp-game-root"
     :data-dp-game-theme="effectiveThemeForCss"
-    :style="customThemeInlineStyle"
   >
     <div class="dp-lobby-inner dp-lobby-inner--wide music-upload">
       <div class="music-upload__toolbar">
@@ -11,11 +10,7 @@
             <dp-theme-picker
               :game-ui-theme="gameUiTheme"
               :theme-options="gameThemeOptions"
-              :custom-theme-base="customThemeBase"
-              :custom-theme-overrides="customThemeOverrides"
               @input-theme="onLobbyThemeChange($event)"
-              @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
-              @custom-overrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
             />
         </div>
       </div>

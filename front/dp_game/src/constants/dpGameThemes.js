@@ -3,9 +3,7 @@ export const GAME_UI_THEMES = [
   { id: 'default', label: '明亮经典' },
   { id: 'gothic', label: '哥特暗夜' },
   { id: 'strawberry', label: '草莓甜心' },
-  { id: 'halloween', label: '万圣惊魂' },
-  /** 基于某一预设 + 自定义强调色，见 dpGameCustomTheme.js */
-  { id: 'custom', label: '自定义' }
+  { id: 'halloween', label: '万圣惊魂' }
 ]
 
 export const GAME_UI_THEME_IDS = GAME_UI_THEMES.map(function (t) {

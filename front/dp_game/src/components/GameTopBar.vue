@@ -52,12 +52,8 @@
           <dp-theme-picker
               :game-ui-theme="gameUiTheme"
               :theme-options="themeOptions"
-              :custom-theme-base="customThemeBase"
-              :custom-theme-overrides="customThemeOverrides"
               aria-label="选择对局界面主题"
               @input-theme="onThemeChange($event)"
-              @custom-base="$emit('update:customThemeBase', $event)"
-              @custom-overrides="$emit('update:customThemeOverrides', $event)"
           />
           <label class="dp-game-eco-label">
             <input
@@ -175,13 +171,6 @@ export default {
     nextHandReady: { type: Boolean, default: false },
     /** 与 game.vue 的 data-dp-game-theme 同步 */
     gameUiTheme: { type: String, required: true },
-    customThemeBase: { type: String, default: 'default' },
-    customThemeOverrides: {
-      type: Object,
-      default: function () {
-        return {}
-      }
-    },
     ecoMode: { type: Boolean, required: true },
     /** 是否在顶栏显示「房主操作」入口 */
     isOwner: { type: Boolean, default: false },

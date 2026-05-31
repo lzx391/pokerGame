@@ -14,11 +14,7 @@
       <dp-theme-picker
         :game-ui-theme="gameUiTheme"
         :theme-options="gameThemeOptions"
-        :custom-theme-base="customThemeBase"
-        :custom-theme-overrides="customThemeOverrides"
         @input-theme="$emit('input-theme', $event)"
-        @custom-base="$emit('custom-base', $event)"
-        @custom-overrides="$emit('custom-overrides', $event)"
       />
     </div>
 
@@ -197,8 +193,6 @@ export default {
     ...mapState('dpGame', [
       'gameUiTheme',
       'gameThemeOptions',
-      'customThemeBase',
-      'customThemeOverrides',
       'ecoMode'
     ]),
     timing() {

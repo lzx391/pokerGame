@@ -2,7 +2,6 @@
   <div
     class="dp-game-root"
     :data-dp-game-theme="effectiveThemeForCss"
-    :style="customThemeInlineStyle"
   >
     <div class="dp-lobby-inner cr-page" :class="{ 'cr-page--stagger-ready': staggerReady }">
       <header
@@ -20,11 +19,7 @@
             <dp-theme-picker
               :game-ui-theme="gameUiTheme"
               :theme-options="gameThemeOptions"
-              :custom-theme-base="customThemeBase"
-              :custom-theme-overrides="customThemeOverrides"
               @input-theme="onLobbyThemeChange($event)"
-              @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
-              @custom-overrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
             />
             <dp-fluidity-toggle />
           </div>

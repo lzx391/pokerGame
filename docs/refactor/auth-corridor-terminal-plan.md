@@ -1,4 +1,4 @@
-# 登录/注册：长廊透视 + 线条风终端
+﻿# 登录/注册：长廊透视 + 线条风终端
 
 > 状态：已实现（`DpAuthStage.vue` + `dp-auth-shell.css` + `dp-depth-tokens.css` auth 段）  
 > 非目标：不改后端 API；不扩展忘记密码；一般不动 `dpAuthEnterLobby` / `DpCrtFullscreenOverlay`。
@@ -132,7 +132,7 @@ sequenceDiagram
 
 ## 7. 屏内亮度与电子字
 
-| 维度 | `default` 明亮经典 | 其它主题（gothic / strawberry / halloween / custom） |
+| 维度 | `default` 明亮经典 | 其它主题（gothic / strawberry / halloween） |
 |---|---|---|
 | 屏底 | 深绿 `#0A1A0A`，关机 `#051005` | `color-mix(corridor-bg, accent)` 略提亮 |
 | 主字色 | 荧光绿 `#4AF626`，次要 `#72F052` | `color-mix(accent 76%, white 24%)` 更亮 |
@@ -175,14 +175,25 @@ sequenceDiagram
 
 ### 曾错做法 vs 现顶凸底凹（实现对比）
 
-| 维度 | 曾错做法（四边 clip 沙漏） | 现做法（横向凹面） |
+| 维度 | 曾错做法 | 现做法（顶凸底凹） |
 |---|---|---|
-| 轮廓几何 | SVG `clipPath` 四边 **同时内弯**：顶/底中心 y 内收 + 左右中段 x 内收 → **沙漏/对折** 形 | 外壳 `__monitor-frame` / `__bezel` 为 **规整圆角矩形**，上下边直、无左右掐腰 |
-| 凹面感来源 | 误以为四边 clip = 曲面 | **仅横向**：`__curve-shade` 左右线性暗角 + 中心径向微亮；`inset` 阴影只收 **左右** |
-| 3D 透视 | 整框 clip 变形 | `__monitor-curve` 设 `perspective`；**仅** `__screen` 极小 `rotateX(2.8°~3.2°)`（顶边远、底边近），frame/bezel **不** rotate，避免梯形 |
-| 内容布局 | 表单偏上 | `__content` `justify-content: center`；`__form-panel` 不再 `flex:1` 顶对齐 |
+| 轮廓几何 | 左右 `Q 0.968/0.032` 中段 x 内收 → **掐腰**；顶底 `L` 笔直 | `clipPath` **顶** `Q 0.5,0` 角 y=0.04 **拱出**；**底** `Q 0.5,1` 角 y=0.96 **内收**；**左右** `L` 竖直 |
+| 纵深感 | `__curve-shade` 90° 左右暗角 + 圆柱 inset 阴影 | `180deg` **顶亮底深**；左右 **不** 掐边 |
+| 3D 透视 | `rotateX(2°~3.2°)` 易与横向凹面混淆 | `__monitor-curve` 仅 `rotateX(1°)`（≥1280px `1.5°`），**以 clip 轮廓为准** |
+| 内容布局 | — | `__content` `justify-content: center`；表单垂直居中 |
 
-**沙漏 clip 根因**（已删除 `#dp-auth-concave-*`）：顶边 `Q 0.5,0.078` 使中心 y **大于** 角点（顶边下凹）；底边对称上凹；右边 `Q … 0.962,0.5` 使 x **小于** 1（左右中段内收）——四边合力呈 **沙漏**，并非消费级显示器「仅左右方向凹弧」。
+**已删除**：左右内弯 path（`L 1,0 Q 0.968,0.5` 等、`0.032/0.968` 系列）及 `__monitor-body::before/::after` 左右高光条。
+
+### SVG clip-path 坐标（`objectBoundingBox`）
+
+三层同心嵌套（缩进约 0.003 / 大屏弧度 +0.01）：
+
+| 层 | 通用 path 要点 | 大屏 lg |
+|---|---|---|
+| `__monitor-body` | `M0,0.04 Q0.5,0 1,0.04` → `L1,0.96` → `Q0.5,1 0,0.96` → `L0,0.04 Z` | 角 `0.05` / `0.95`，控制点 y `0` / `1` |
+| `__bezel` | 相对 frame 内缩 0.003（角 `0.043`/`0.957`） | 角 `0.053`/`0.947` |
+| `__screen` | 再内缩 0.003（角 `0.046`/`0.954`） | 角 `0.056`/`0.944` |
+
 
 ### 曲面实现手法
 

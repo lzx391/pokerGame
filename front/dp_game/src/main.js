@@ -140,10 +140,7 @@ router.onReady(function () {
   syncDpSiteHeartbeat(axios, router)
 })
 store.subscribe(function (mutation) {
-  if (
-    mutation.type === 'dpGame/SET_GAME_UI_THEME' ||
-    mutation.type === 'dpGame/SET_CUSTOM_THEME'
-  ) {
+  if (mutation.type === 'dpGame/SET_GAME_UI_THEME') {
     syncDpBodyGameTheme(store, router)
   }
   if (mutation.type === 'dpGame/SET_ECO_MODE') {
