@@ -256,3 +256,32 @@ body[data-dp-game-theme]:not([data-dp-game-theme='default']):not([data-dp-game-t
     letter-spacing: 0.08em;
   }
 }
+
+/* retro8bit：表单/按钮/错误用可读栈；仅主标题像素 */
+body[data-dp-game-theme='retro8bit'] #app.app--auth {
+  font-family: ui-monospace, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', monospace;
+}
+
+body[data-dp-game-theme='retro8bit'] #app.app--auth .dp-auth-stage__title {
+  font-family: var(--dp-font-pixel);
+  letter-spacing: 0.1em;
+  line-height: 1.45;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+}
+
+body[data-dp-game-theme='retro8bit'] #app.app--auth .dp-auth-stage__form-panel .login-box__hint,
+body[data-dp-game-theme='retro8bit'] #app.app--auth .dp-auth-stage__form-panel .register-form__hint,
+body[data-dp-game-theme='retro8bit'] #app.app--auth .dp-auth-stage__form-panel .form-item label,
+body[data-dp-game-theme='retro8bit'] #app.app--auth .dp-auth-stage__form-panel .form-item input,
+body[data-dp-game-theme='retro8bit'] #app.app--auth .dp-auth-stage__form-panel .login-btn,
+body[data-dp-game-theme='retro8bit'] #app.app--auth .dp-auth-stage__form-panel .register-btn,
+body[data-dp-game-theme='retro8bit'] #app.app--auth .dp-auth-stage__tab,
+body[data-dp-game-theme='retro8bit'] #app.app--auth .dp-auth-stage__error-pixel-label,
+body[data-dp-game-theme='retro8bit'] #app.app--auth .dp-auth-stage__error-message,
+body[data-dp-game-theme='retro8bit'] #app.app--auth .dp-auth-stage__error-retry {
+  font-family: inherit;
+  font-size: clamp(13px, 3.6vw, 16px);
+  line-height: 1.55;
+}

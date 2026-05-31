@@ -1238,7 +1238,7 @@ export default {
 }
 
 .dp-auth-stage__error-pixel-label {
-  font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+  font-family: inherit;
   font-size: clamp(11px, 2.8vw, 14px);
   font-weight: 700;
   letter-spacing: 0.38em;
@@ -1255,7 +1255,7 @@ export default {
   margin: 0;
   max-width: min(100%, 22rem);
   text-align: center;
-  font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+  font-family: inherit;
   font-size: clamp(13px, 3.6vw, 15px);
   line-height: 1.45;
   letter-spacing: 0.04em;
@@ -1267,7 +1267,7 @@ export default {
 .dp-auth-stage__error-retry {
   margin-top: clamp(4px, 1vw, 8px);
   padding: clamp(8px, 2vw, 10px) clamp(20px, 5vw, 28px);
-  font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+  font-family: inherit;
   font-size: clamp(13px, 3.6vw, 15px);
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -1303,7 +1303,7 @@ export default {
   line-height: 1.2;
   color: var(--dp-auth-phosphor);
   text-shadow: var(--dp-auth-text-shadow-title, var(--dp-auth-text-shadow));
-  font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+  font-family: inherit;
 }
 
 .dp-auth-stage__tabs {
@@ -1321,7 +1321,7 @@ export default {
   padding: clamp(8px, 2vw, 10px) clamp(12px, 3vw, 16px);
   font-size: clamp(13px, 3.6vw, 15px);
   font-weight: 600;
-  font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+  font-family: inherit;
   border-radius: 4px;
   border: 1px solid color-mix(in srgb, var(--dp-auth-phosphor-dim) 72%, transparent);
   background: color-mix(in srgb, var(--dp-auth-screen-bg) 88%, #000);

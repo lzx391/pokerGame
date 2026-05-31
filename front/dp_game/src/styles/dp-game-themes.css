@@ -131,7 +131,10 @@ body[data-dp-game-theme='default'] {
 /* 8bit 终端：深色磷光绿 CRT 风（登录屏内绿字由 dp-depth-tokens auth 段提供） */
 .dp-game-root[data-dp-game-theme='retro8bit'],
 body[data-dp-game-theme='retro8bit'] {
-  --dp-font-ui: ui-monospace, 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+  /* 英文 Press Start 2P；CJK 回退站酷庆科黄油体 — 仅大标题/展示标题显式引用 */
+  --dp-font-pixel: 'Press Start 2P', 'ZCOOL QingKe HuangYou', monospace, sans-serif;
+  --dp-font-ui: ui-monospace, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', monospace;
+  --dp-font-display: var(--dp-font-ui);
   --dp-game-bg: #0a0c0e;
   --dp-game-bg-image:
     radial-gradient(ellipse 100% 72% at 50% -18%, rgba(74, 246, 38, 0.08) 0%, transparent 52%),
@@ -688,5 +691,66 @@ body[data-dp-game-theme='gothic'] .el-dialog__title,
 body[data-dp-game-theme='gothic'] .el-drawer__title {
   font-family: var(--dp-font-display);
   letter-spacing: 0.04em;
+}
+
+/* retro8bit：仅大标题/展示标题用 --dp-font-pixel；正文与小字仍 --dp-font-ui */
+.dp-game-root[data-dp-game-theme='retro8bit'] h1,
+.dp-game-root[data-dp-game-theme='retro8bit'] h2,
+.dp-game-root[data-dp-game-theme='retro8bit'] h3,
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-hero__title,
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-section-title,
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-mailbox__subtitle,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-lobby-panel__title,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-top-bar__title,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-dialog__title,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-sheet__title,
+.dp-game-root[data-dp-game-theme='retro8bit'] .game-owner-tool-embedded__title,
+.dp-game-root[data-dp-game-theme='retro8bit'] .game-prof-title-bar__text,
+.dp-game-root[data-dp-game-theme='retro8bit'] .game-prof-name,
+.dp-game-root[data-dp-game-theme='retro8bit'] .game-prof-weekly__title,
+.dp-game-root[data-dp-game-theme='retro8bit'] .game-prof-honor__title,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-panel__title,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-pot-block__title,
+.dp-game-root[data-dp-game-theme='retro8bit'] .lb-page__title,
+.dp-game-root[data-dp-game-theme='retro8bit'] .cr-page__title,
+.dp-game-root[data-dp-game-theme='retro8bit'] .cr-field-group__title,
+.dp-game-root[data-dp-game-theme='retro8bit'] .download-center__title,
+.dp-game-root[data-dp-game-theme='retro8bit'] .download-center__list-title,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__title,
+body[data-dp-game-theme='retro8bit'] .el-message-box__title,
+body[data-dp-game-theme='retro8bit'] .el-dialog__title,
+body[data-dp-game-theme='retro8bit'] .el-drawer__title {
+  font-family: var(--dp-font-pixel);
+  letter-spacing: 0.05em;
+  line-height: 1.45;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+}
+
+/* Element UI / 组件内写死栈 → 强制可读 UI 栈（不含 dialog title，见上） */
+body[data-dp-game-theme='retro8bit'] .el-button,
+body[data-dp-game-theme='retro8bit'] .el-input__inner,
+body[data-dp-game-theme='retro8bit'] .el-textarea__inner,
+body[data-dp-game-theme='retro8bit'] .el-select-dropdown__item,
+body[data-dp-game-theme='retro8bit'] .el-form-item__label,
+body[data-dp-game-theme='retro8bit'] .el-table,
+body[data-dp-game-theme='retro8bit'] .el-message,
+body[data-dp-game-theme='retro8bit'] .el-message-box,
+body[data-dp-game-theme='retro8bit'] .el-message-box__message,
+body[data-dp-game-theme='retro8bit'] .el-dialog,
+body[data-dp-game-theme='retro8bit'] .el-dialog__body,
+body[data-dp-game-theme='retro8bit'] .el-drawer,
+body[data-dp-game-theme='retro8bit'] .dp-game-table-action-timer__sec,
+body[data-dp-game-theme='retro8bit'] .dp-player-card__chips-val,
+body[data-dp-game-theme='retro8bit'] .dp-player-card__bet-val,
+body[data-dp-game-theme='retro8bit'] .dp-timer-ring__text,
+body[data-dp-game-theme='retro8bit'] .room-card__room-id,
+body[data-dp-game-theme='retro8bit'] .home-prof-id,
+body[data-dp-game-theme='retro8bit'] .game-prof-id,
+body[data-dp-game-theme='retro8bit'] .download-center__card-path,
+body[data-dp-game-theme='retro8bit'] .music-upload__card-path,
+body[data-dp-game-theme='retro8bit'] .card-base {
+  font-family: var(--dp-font-ui);
 }
 
