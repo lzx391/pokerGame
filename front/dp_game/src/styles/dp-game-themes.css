@@ -255,7 +255,7 @@ body[data-dp-game-theme='gothic'] {
   --dp-table-felt-rim-outer: rgba(212, 184, 120, 0.22);
   --dp-table-felt-drop-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.5);
   --dp-table-felt-vignette: rgba(20, 6, 12, 0.5);
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath d='M16 2L13 6 6 8Q2 7 3 12L7 13 9 18 12 19 14 15 16 26 18 15 20 19 23 18 25 13 29 12Q30 7 26 8L19 6Z' fill='%23111' stroke='%23ddd' stroke-width='.7' stroke-linejoin='round'/%3E%3Cellipse cx='13' cy='5' rx='2' ry='2.5' fill='%23111' stroke='%23ddd' stroke-width='.6'/%3E%3Cellipse cx='19' cy='5' rx='2' ry='2.5' fill='%23111' stroke='%23ddd' stroke-width='.6'/%3E%3C/svg%3E") 16 14, auto;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 32 32'%3E%3Cpath d='M16 2L13 6 6 8Q2 7 3 12L7 13 9 18 12 19 14 15 16 26 18 15 20 19 23 18 25 13 29 12Q30 7 26 8L19 6Z' fill='%23111' stroke='%23ddd' stroke-width='.7' stroke-linejoin='round'/%3E%3Cellipse cx='13' cy='5' rx='2' ry='2.5' fill='%23111' stroke='%23ddd' stroke-width='.6'/%3E%3Cellipse cx='19' cy='5' rx='2' ry='2.5' fill='%23111' stroke='%23ddd' stroke-width='.6'/%3E%3C/svg%3E") 16 14, auto;
 }
 
 /* 草莓软糖：糖霜渐变 + 玫粉层次（panel 须纯色以配合 color-mix） */
@@ -391,7 +391,8 @@ body[data-dp-game-theme='strawberry'] {
   --dp-table-felt-rim-outer: rgba(236, 72, 153, 0.2);
   --dp-table-felt-drop-shadow-lg: 0 18px 44px rgba(219, 39, 119, 0.11);
   --dp-table-felt-vignette: rgba(190, 24, 93, 0.08);
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath d='M16 5 Q10 10 9 18 Q8 26 16 28 Q24 26 23 18 Q22 10 16 5Z' fill='%23e53935' stroke='%23fff' stroke-width='.7'/%3E%3Cellipse cx='14' cy='3' rx='3' ry='2' fill='%234caf50'/%3E%3Cellipse cx='18' cy='3' rx='3' ry='2' fill='%234caf50'/%3E%3Ccircle cx='13' cy='13' r='1.2' fill='%23ffeb3b'/%3E%3Ccircle cx='18' cy='16' r='1.2' fill='%23ffeb3b'/%3E%3Ccircle cx='14' cy='20' r='1.2' fill='%23ffeb3b'/%3E%3Ccircle cx='19' cy='11' r='1.2' fill='%23ffeb3b'/%3E%3C/svg%3E") 16 14, auto;
+  /* 30px 扁平心形指针（--dp-accent 玫粉），热点在顶部凹口；源文件 assets/cursors/strawberry-heart.svg */
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='M10 16.6C10 16.6 4.4 12.5 4.4 8.2C4.4 5.9 6.1 4.3 8.1 4.3C9.2 4.3 10 5 10 5C10 5 10.8 4.3 11.9 4.3C13.9 4.3 15.6 5.9 15.6 8.2C15.6 12.5 10 16.6 10 16.6Z' fill='%23EC4899' stroke='%23FFFFFF' stroke-width='0.9' stroke-linejoin='round'/%3E%3Cpath d='M10 16.6C10 16.6 4.4 12.5 4.4 8.2C4.4 5.9 6.1 4.3 8.1 4.3C9.2 4.3 10 5 10 5C10 5 10.8 4.3 11.9 4.3C13.9 4.3 15.6 5.9 15.6 8.2C15.6 12.5 10 16.6 10 16.6Z' fill='%23F9A8D4' fill-opacity='0.35'/%3E%3C/svg%3E") 19 19, auto;
 }
 
 /* 万圣惊魂：南瓜橙 / 幽紫 / 鬼火绿（与全局深色主题同一套光影逻辑） */
@@ -524,6 +525,6 @@ body[data-dp-game-theme='halloween'] {
   --dp-table-felt-rim-outer: rgba(249, 115, 22, 0.26);
   --dp-table-felt-drop-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.52);
   --dp-table-felt-vignette: rgba(12, 4, 18, 0.52);
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cellipse cx='16' cy='17' rx='12' ry='10' fill='%23ef6c00' stroke='%23fff' stroke-width='.7'/%3E%3Cpath d='M14 4L16 1L18 4' fill='%234caf50'/%3E%3Crect x='10' y='13' width='3' height='4' rx='1' fill='%23ffeb3b'/%3E%3Crect x='19' y='13' width='3' height='4' rx='1' fill='%23ffeb3b'/%3E%3Crect x='8' y='16' width='3' height='3' rx='1' fill='%23ffeb3b'/%3E%3Crect x='21' y='16' width='3' height='3' rx='1' fill='%23ffeb3b'/%3E%3Cpath d='M10 23L14 21L18 23L22 21' fill='none' stroke='%23ffeb3b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") 16 14, auto;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='45' height='45' viewBox='0 0 32 32'%3E%3Cellipse cx='16' cy='17' rx='12' ry='10' fill='%23ef6c00' stroke='%23fff' stroke-width='.7'/%3E%3Cpath d='M14 4L16 1L18 4' fill='%234caf50'/%3E%3Crect x='10' y='13' width='3' height='4' rx='1' fill='%23ffeb3b'/%3E%3Crect x='19' y='13' width='3' height='4' rx='1' fill='%23ffeb3b'/%3E%3Crect x='8' y='16' width='3' height='3' rx='1' fill='%23ffeb3b'/%3E%3Crect x='21' y='16' width='3' height='3' rx='1' fill='%23ffeb3b'/%3E%3Cpath d='M10 23L14 21L18 23L22 21' fill='none' stroke='%23ffeb3b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") 16 14, auto;
 }
 
