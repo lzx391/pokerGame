@@ -187,14 +187,6 @@ export default {
         this.refreshAnchor()
       }
     },
-    hologramPhase(phase) {
-      if (phase === 'revealed' || phase === 'projecting') {
-        var self = this
-        this.$nextTick(function () {
-          self.logPanelStyleApplied(phase)
-        })
-      }
-    },
     anchorRect() {
       if (this.sceneVisible) {
         var self = this

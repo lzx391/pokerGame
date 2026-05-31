@@ -91,7 +91,13 @@
           v-for="(row, displayIdx) in playersDisplayOrder"
           :key="(row.player.leftThisHand ? 'offline-' + row.seatIndex : row.player.nickname)"
           class="dp-game-table__seat"
+          :class="{
+            'dp-game-table__seat--join-reveal': seatEnterRevealEnabled
+              && joinRevealNicks[row.player.nickname]
+              && !row.player.leftThisHand
+          }"
           :style="seatRoundStyle(displayIdx)"
+          @animationend="onSeatEnterRevealAnimationEnd($event, row.player.nickname)"
       >
         <game-player-card
             :player="row.player"
@@ -168,7 +174,9 @@ export default {
     chipLeaderNicknames: { type: Array, default: function () { return [] } },
     getPlayerBoxStyle: { type: Function, required: true },
     holeDealOrderFromDealer: { type: Function, required: true },
-    seatChatTextFor: { type: Function, required: true }
+    seatChatTextFor: { type: Function, required: true },
+    joinRevealNicks: { type: Object, default: function () { return {} } },
+    seatEnterRevealEnabled: { type: Boolean, default: false }
   },
   data() {
     return {
@@ -273,6 +281,11 @@ export default {
         this.playersDisplayOrder.length,
         this.viewerSeatedAtTable
       )
+    },
+    onSeatEnterRevealAnimationEnd: function (event, nickname) {
+      if (!event || !event.animationName) return
+      if (event.animationName !== 'dp-retro-seat-enter-materialize') return
+      this.$emit('seat-enter-reveal-done', nickname)
     }
   }
 }

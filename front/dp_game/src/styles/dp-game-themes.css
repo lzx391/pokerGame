@@ -898,3 +898,61 @@ body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram .dp-player-card
   opacity: var(--dp-card-community-scanline-opacity);
 }
 
+/* —— retro8bit：对手座位 CRT 入座扫描线（宽屏 >600px；rival-mini 卡片）—— */
+@media (min-width: 601px) {
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-table__seat--join-reveal {
+    --dp-seat-enter-scanline-period: var(--dp-card-community-scanline-period, 3px);
+    --dp-seat-enter-scanline-thick: var(--dp-card-community-scanline-thick, 1px);
+    --dp-seat-enter-scanline-color: var(--dp-card-community-scanline-color, rgba(0, 0, 0, 0.38));
+    --dp-seat-enter-accent: var(--dp-accent, #4af626);
+  }
+
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-table__seat--join-reveal::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    pointer-events: none;
+    z-index: 1;
+    border-radius: 4px;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent calc(var(--dp-seat-enter-scanline-period) - var(--dp-seat-enter-scanline-thick)),
+      var(--dp-seat-enter-scanline-color) calc(var(--dp-seat-enter-scanline-period) - var(--dp-seat-enter-scanline-thick)),
+      var(--dp-seat-enter-scanline-color) var(--dp-seat-enter-scanline-period)
+    );
+    background-size: 100% var(--dp-seat-enter-scanline-period);
+    animation: dp-retro-seat-enter-scan-sweep 560ms ease-out forwards;
+  }
+
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-table__seat--join-reveal .dp-player-card--rival-mini {
+    animation: dp-retro-seat-enter-materialize 560ms ease-out forwards;
+  }
+}
+
+@keyframes dp-retro-seat-enter-scan-sweep {
+  0% {
+    clip-path: inset(100% 0 0 0);
+    opacity: 0.7;
+  }
+  65% {
+    clip-path: inset(0 0 0 0);
+    opacity: 0.5;
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+    opacity: 0;
+  }
+}
+
+@keyframes dp-retro-seat-enter-materialize {
+  from {
+    filter: blur(6px);
+    opacity: 0.45;
+  }
+  to {
+    filter: blur(0);
+    opacity: 1;
+  }
+}
+

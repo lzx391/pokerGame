@@ -91,7 +91,10 @@
               :get-player-box-style="getPlayerBoxStyle"
               :hole-deal-order-from-dealer="holeDealOrderFromDealer"
               :seat-chat-text-for="seatChatTextFor"
+              :join-reveal-nicks="joinRevealNicks"
+              :seat-enter-reveal-enabled="useRetroSeatEnterReveal"
               @hole-deal-intro-complete="$store.commit('dpGame/SET_HERO_HOLE_DEAL', true)"
+              @seat-enter-reveal-done="onSeatEnterRevealDone"
               @card-click="onPlayerCardClick"
           />
         </div>
@@ -148,6 +151,8 @@ import { mapState, mapGetters } from 'vuex'
 import { encodeRoomApplyFingerprint } from '../utils/dpGameRoomFingerprint'
 import { CAT_COPY, dpPotDisplayLabel } from '../constants/dpCatThemeCopy'
 import { dpHandHologramDevLog } from '../utils/dpHandHologramDevLog'
+import { dpSeatEnterDevLog } from '../utils/dpSeatEnterDevLog'
+import { extractPlayerNicknames, diffNewSeatNicknames } from '../utils/dpSeatEnterNickDiff'
 
 export default {
   mixins: [dpGameFullscreenMixin, dpGameTableFitMixin, dpGameActionCountdownMixin, dpGameLayoutTierMixin],
@@ -191,7 +196,9 @@ export default {
       viewportWidth: typeof window !== 'undefined' ? window.innerWidth : 1024,
       prefersReducedMotion: false,
       _hologramResizeTimer: null,
-      _hologramPrmMedia: null
+      _hologramPrmMedia: null,
+      _seatEnterNickSeeded: false,
+      joinRevealNicks: {}
     }
   },
 
@@ -235,6 +242,12 @@ export default {
     },
     useRetroHandHologramWide() {
       return this.gameUiTheme === 'retro8bit' && this.viewportWidth > 600
+    },
+    useRetroSeatEnterReveal() {
+      return this.gameUiTheme === 'retro8bit'
+        && this.viewportWidth > 600
+        && !this.ecoMode
+        && !this.prefersReducedMotion
     }
   },
 
@@ -288,6 +301,7 @@ export default {
   beforeRouteUpdate(to, from, next) {
     if (to.params.roomId !== from.params.roomId) {
       this.resetRoomChatUiForEnter()
+      this.resetSeatEnterStateForRoom()
       this.$store.commit('dpGame/SET_SESSION', { roomId: to.params.roomId })
       var self = this
       this.loadGame().then(function () {
@@ -301,7 +315,9 @@ export default {
 
   created() {
     this._seatChatTimers = Object.create(null)
+    this._seatEnterNickSnapshot = new Set()
     this.resetRoomChatUiForEnter()
+    this.resetSeatEnterStateForRoom()
     this.$store.commit('dpGame/SET_SESSION', { roomId: this.$route.params.roomId })
 
     var self = this
@@ -385,6 +401,7 @@ export default {
       })
       this._seatChatTimers = Object.create(null)
     }
+    this.resetSeatEnterStateForRoom()
   },
 
   methods: {
@@ -885,6 +902,40 @@ export default {
       }
     },
 
+    resetSeatEnterStateForRoom() {
+      this._seatEnterNickSeeded = false
+      this._seatEnterNickSnapshot = new Set()
+      this.joinRevealNicks = {}
+      dpSeatEnterDevLog('reset')
+    },
+
+    syncSeatEnterRevealFromRoom(room) {
+      var nextNicks = extractPlayerNicknames(room && room.players)
+      if (!this._seatEnterNickSeeded) {
+        this._seatEnterNickSnapshot = new Set(nextNicks)
+        this._seatEnterNickSeeded = true
+        dpSeatEnterDevLog('seed', { count: nextNicks.length, nicks: nextNicks })
+        return
+      }
+      var added = diffNewSeatNicknames(this._seatEnterNickSnapshot, nextNicks)
+      if (added.length && !this.useRetroSeatEnterReveal) {
+        dpSeatEnterDevLog('gate-off', { added: added })
+      }
+      if (added.length && this.useRetroSeatEnterReveal) {
+        var self = this
+        added.forEach(function (nick) {
+          self.$set(self.joinRevealNicks, nick, true)
+        })
+      }
+      this._seatEnterNickSnapshot = new Set(nextNicks)
+      dpSeatEnterDevLog('diff', { added: added, skipped: !this.useRetroSeatEnterReveal })
+    },
+
+    onSeatEnterRevealDone(nick) {
+      this.$delete(this.joinRevealNicks, nick)
+      dpSeatEnterDevLog('done', { nick: nick })
+    },
+
     pushRoomChatFromServer(data) {
       var nick = (data.nickname || '').trim()
       var text = (data.text != null ? String(data.text) : '').trim()
@@ -962,6 +1013,7 @@ export default {
     },
 
     applyRoomFromServer(room) {
+      this.syncSeatEnterRevealFromRoom(room)
       var fp = encodeRoomApplyFingerprint(room)
       if (fp && fp === this._lastRoomApplyFingerprint) {
         this.$nextTick(function () {

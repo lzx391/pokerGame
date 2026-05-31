@@ -220,3 +220,20 @@
 .dp-game-root[data-dp-eco-mode='true'] .dp-game-hero-hand-hologram--flash .dp-game-hero-hand-hologram__flash {
   animation: none !important;
 }
+
+/* —— retro8bit 对手座位入座 —— */
+@media (prefers-reduced-motion: reduce) {
+  .dp-game-table__seat--join-reveal::after,
+  .dp-game-table__seat--join-reveal .dp-player-card--rival-mini {
+    animation: none !important;
+    filter: none !important;
+    opacity: 1 !important;
+  }
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-table__seat--join-reveal::after,
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-table__seat--join-reveal .dp-player-card--rival-mini {
+  animation: none !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
