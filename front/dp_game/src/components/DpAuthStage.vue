@@ -99,31 +99,27 @@
                 aria-live="assertive"
               >
                 <div class="dp-auth-stage__error-face-art" aria-hidden="true">
-                  <!-- 16×16 像素矩阵：下弯粗眉 + 方块眼 + 竖条泪 + 倒 U 嘴（放大后每格 ≥8px） -->
+                  <!-- 16×16 像素矩阵：八形斜眼（无泪、无眉）+ 厚倒 U 嘴（放大后每格 ≥8px） -->
                   <svg
                     class="dp-auth-stage__error-pixel-face"
                     viewBox="0 0 16 16"
                     aria-hidden="true"
                     focusable="false"
                   >
-                    <!-- 左眉：下弯粗弧 -->
-                    <rect x="1" y="0" width="4" height="1" />
-                    <rect x="0" y="1" width="6" height="1" />
-                    <rect x="1" y="2" width="3" height="1" />
-                    <!-- 右眉 -->
-                    <rect x="11" y="0" width="4" height="1" />
-                    <rect x="10" y="1" width="6" height="1" />
-                    <rect x="12" y="2" width="3" height="1" />
-                    <!-- 方块眼 -->
-                    <rect x="3" y="4" width="2" height="2" />
-                    <rect x="11" y="4" width="2" height="2" />
-                    <!-- 竖条泪（粗矩形） -->
-                    <rect x="3" y="7" width="2" height="3" />
-                    <rect x="11" y="7" width="2" height="3" />
-                    <rect x="3" y="10" width="1" height="1" opacity="0.82" />
-                    <rect x="12" y="10" width="1" height="1" opacity="0.82" />
-                    <!-- 倒 U 嘴：顶拱横边 + 左右竖边，开口朝下（非 V 尖） -->
-                    <rect x="4" y="11" width="8" height="1" />
+                    <!-- 八形眼：脸上方偏中，自鼻侧向外下斜 \ /（各 3 阶 2 格粗线，禁止平横条） -->
+                    <rect x="0" y="3" width="5" height="1" />
+                    <!-- <rect x="3" y="4" width="2" height="1" /> -->
+                    <!-- <rect x="2" y="5" width="3" height="1" /> -->
+                    <rect x="2" y="5" width="1" height="1" />
+                    <rect x="1" y="7" width="3" height="1" />
+                    <rect x="11" y="3" width="16" height="1" />
+                    <!-- <rect x="11" y="4" width="2" height="1" />
+                    <rect x="12" y="5" width="3" height="1" /> -->
+                    <rect x="13" y="5" width="1" height="1" />
+                    <rect x="12" y="7" width="3" height="1" />
+                    <!-- 厚倒 U 嘴：顶拱 + 左右竖边，开口朝下 -->
+                    <rect x="4" y="10" width="8" height="1" />
+                    <rect x="3" y="11" width="10" height="1" />
                     <rect x="2" y="12" width="2" height="1" />
                     <rect x="12" y="12" width="2" height="1" />
                     <rect x="2" y="13" width="2" height="1" />
