@@ -6,45 +6,45 @@
 .dp-game-root[data-dp-game-theme='default'],
 body[data-dp-game-theme='default'] {
   --dp-font-ui: Avenir, Helvetica, Arial, sans-serif;
-  --dp-game-bg: #f0f2f5;
+  --dp-game-bg: #fafafa;
   --dp-game-bg-image: none;
 
   --dp-panel-bg: #ffffff;
-  --dp-panel-border: rgba(0, 0, 0, 0.06);
-  --dp-panel-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --dp-panel-border: rgba(107, 93, 82, 0.16);
+  --dp-panel-shadow: 0 2px 8px rgba(107, 93, 82, 0.08);
 
-  --dp-text-primary: #333333;
-  --dp-text-secondary: #666666;
-  --dp-text-muted: #999999;
-  --dp-accent: #1890ff;
-  --dp-pot: #f5222d;
-  --dp-warning: #faad14;
-  --dp-success: #52c41a;
-  --dp-danger: #ff4d4f;
-  --dp-cyan: #13c2c2;
+  --dp-text-primary: #3a332c;
+  --dp-text-secondary: #6b5d52;
+  --dp-text-muted: #8a7a6a;
+  --dp-accent: #6b5d52;
+  --dp-pot: #c0392b;
+  --dp-warning: #b8860b;
+  --dp-success: #5a7a52;
+  --dp-danger: #c0392b;
+  --dp-cyan: #7a8a82;
 
-  --dp-btn-primary-bg: #1890ff;
+  --dp-btn-primary-bg: #6b5d52;
   --dp-btn-primary-fg: #ffffff;
-  --dp-btn-raise-bg: #f57f17;
+  --dp-btn-raise-bg: #8a7355;
   --dp-btn-raise-fg: #ffffff;
-  --dp-btn-allin-bg: #c62828;
+  --dp-btn-allin-bg: #8b4513;
   --dp-btn-allin-fg: #ffffff;
   --dp-btn-ghost-bg: #ffffff;
-  --dp-btn-ghost-border: #f57f17;
-  --dp-btn-ghost-fg: #f57f17;
+  --dp-btn-ghost-border: #8a7a6a;
+  --dp-btn-ghost-fg: #6b5d52;
 
   --dp-input-bg: #ffffff;
-  --dp-input-border: #d9d9d9;
-  --dp-timer-ring: #000000;
-  --dp-timer-text: #ff4d4f;
+  --dp-input-border: #c4b8ac;
+  --dp-timer-ring: #6b5d52;
+  --dp-timer-text: #c0392b;
 
-  --dp-owner-purple-bg: #722ed1;
+  --dp-owner-purple-bg: #6b5d52;
   --dp-owner-purple-fg: #ffffff;
-  --dp-owner-orange-bg: #fa8c16;
+  --dp-owner-orange-bg: #8a7355;
   --dp-owner-orange-fg: #ffffff;
 
-  --dp-subpanel-bg: #fafafa;
-  --dp-subpanel-border: #e8e8e8;
+  --dp-subpanel-bg: #f5f3f0;
+  --dp-subpanel-border: #ddd6ce;
 
   /* 排行榜 Top3 领奖台（P0 default） */
   --dp-lb-podium-gold: #c9a227;
@@ -55,56 +55,56 @@ body[data-dp-game-theme='default'] {
   --dp-lb-podium-row-bg-bronze: color-mix(in srgb, var(--dp-lb-podium-bronze) 12%, var(--dp-subpanel-bg));
 
   --dp-player-card-bg: #ffffff;
-  --dp-player-card-offline-bg: #f5f5f5;
-  --dp-player-card-offline-border: #d9d9d9;
-  --dp-player-card-turn-bg: #fffbe6;
-  --dp-player-card-turn-border: #faad14;
-  --dp-player-border-me: #1890ff;
-  --dp-player-card-winner-bg: #f6ffed;
-  --dp-player-card-winner-border: #52c41a;
-  --dp-player-showdown-border: #d9d9d9;
+  --dp-player-card-offline-bg: #f5f3f0;
+  --dp-player-card-offline-border: #c4b8ac;
+  --dp-player-card-turn-bg: #f8f4ec;
+  --dp-player-card-turn-border: #b8860b;
+  --dp-player-border-me: #6b5d52;
+  --dp-player-card-winner-bg: #f0f4ee;
+  --dp-player-card-winner-border: #5a7a52;
+  --dp-player-showdown-border: #c4b8ac;
 
-  /* 牌背 / 台呢：明亮赌场 + 淡青绿台呢 */
+  /* 牌背 / 台呢：灰褐线条 + 淡绿台呢 */
   --dp-card-back-highlight: radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.72) 0%, transparent 46%);
   --dp-card-back-pattern-1: repeating-linear-gradient(
     45deg,
-    rgba(24, 144, 255, 0.12) 0px,
-    rgba(24, 144, 255, 0.12) 2px,
+    rgba(107, 93, 82, 0.12) 0px,
+    rgba(107, 93, 82, 0.12) 2px,
     transparent 2px,
     transparent 7px
   );
   --dp-card-back-pattern-2: repeating-linear-gradient(
     -45deg,
-    rgba(0, 0, 0, 0.07) 0px,
-    rgba(0, 0, 0, 0.07) 1px,
+    rgba(0, 0, 0, 0.06) 0px,
+    rgba(0, 0, 0, 0.06) 1px,
     transparent 1px,
     transparent 8px
   );
-  --dp-card-back-base: linear-gradient(152deg, #fafcff 0%, #e3f2fd 38%, #90caf9 92%);
-  --dp-card-back-fg: #1565c0;
-  --dp-card-back-border: rgba(24, 144, 255, 0.48);
+  --dp-card-back-base: linear-gradient(152deg, #fafafa 0%, #f0ebe4 38%, #c4b8ac 92%);
+  --dp-card-back-fg: #6b5d52;
+  --dp-card-back-border: rgba(107, 93, 82, 0.42);
   --dp-card-back-border-inner: rgba(255, 255, 255, 0.65);
   --dp-card-back-text-shadow: 0 1px 2px rgba(255, 255, 255, 0.85);
   --dp-card-back-shadow-idle:
     inset 0 0 0 1px rgba(255, 255, 255, 0.55),
-    inset 0 -5px 12px rgba(25, 118, 210, 0.08),
-    0 2px 8px rgba(0, 0, 0, 0.08);
+    inset 0 -5px 12px rgba(107, 93, 82, 0.08),
+    0 2px 8px rgba(107, 93, 82, 0.08);
   --dp-card-back-shadow-mid:
     inset 0 0 0 1px rgba(255, 255, 255, 0.65),
-    inset 0 -6px 14px rgba(25, 118, 210, 0.1),
-    0 2px 12px rgba(24, 144, 255, 0.15),
-    0 0 12px rgba(100, 181, 246, 0.2);
-  --dp-card-drop-shadow: drop-shadow(0 4px 10px rgba(25, 118, 210, 0.16));
+    inset 0 -6px 14px rgba(107, 93, 82, 0.1),
+    0 2px 12px rgba(107, 93, 82, 0.12),
+    0 0 12px rgba(138, 122, 106, 0.14);
+  --dp-card-drop-shadow: drop-shadow(0 4px 10px rgba(107, 93, 82, 0.14));
   --dp-card-back-hole-top: radial-gradient(ellipse 100% 68% at 38% 12%, rgba(255, 255, 255, 0.65) 0%, transparent 44%);
   --dp-card-back-hole-stripe: repeating-linear-gradient(
     -32deg,
     transparent,
     transparent 3px,
-    rgba(245, 124, 0, 0.06) 3px,
-    rgba(245, 124, 0, 0.06) 5px
+    rgba(107, 93, 82, 0.06) 3px,
+    rgba(107, 93, 82, 0.06) 5px
   );
-  --dp-card-frame-gold: rgba(245, 124, 0, 0.28);
-  --dp-card-frame-outer: rgba(24, 144, 255, 0.14);
+  --dp-card-frame-gold: rgba(138, 115, 85, 0.28);
+  --dp-card-frame-outer: rgba(107, 93, 82, 0.12);
   --dp-table-felt-texture:
     radial-gradient(ellipse 46% 36% at 48% 38%, rgba(255, 255, 255, 0.38) 0%, transparent 54%),
     radial-gradient(ellipse 32% 28% at 72% 68%, rgba(200, 230, 201, 0.55) 0%, transparent 50%),
@@ -126,6 +126,135 @@ body[data-dp-game-theme='default'] {
   --dp-table-felt-rim-outer: rgba(46, 125, 50, 0.18);
   --dp-table-felt-drop-shadow-lg: 0 16px 40px rgba(27, 94, 32, 0.1);
   --dp-table-felt-vignette: rgba(27, 94, 32, 0.06);
+}
+
+/* 8bit 终端：深色磷光绿 CRT 风（登录屏内绿字由 dp-depth-tokens auth 段提供） */
+.dp-game-root[data-dp-game-theme='retro8bit'],
+body[data-dp-game-theme='retro8bit'] {
+  --dp-font-ui: ui-monospace, 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+  --dp-game-bg: #0a0c0e;
+  --dp-game-bg-image:
+    radial-gradient(ellipse 100% 72% at 50% -18%, rgba(74, 246, 38, 0.08) 0%, transparent 52%),
+    linear-gradient(180deg, #0c0e10 0%, #0a0c0e 50%, #080a0c 100%);
+
+  --dp-panel-bg: #12151a;
+  --dp-panel-border: rgba(74, 246, 38, 0.22);
+  --dp-panel-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.48),
+    inset 0 1px 0 rgba(74, 246, 38, 0.06);
+
+  --dp-text-primary: #4af626;
+  --dp-text-secondary: #72f052;
+  --dp-text-muted: #3a8a2a;
+  --dp-accent: #4af626;
+  --dp-pot: #ff4444;
+  --dp-warning: #ffe066;
+  --dp-success: #4af626;
+  --dp-danger: #ff4444;
+  --dp-cyan: #72f052;
+
+  --dp-btn-primary-bg: #0a1a0a;
+  --dp-btn-primary-fg: #4af626;
+  --dp-btn-raise-bg: #1a3018;
+  --dp-btn-raise-fg: #72f052;
+  --dp-btn-allin-bg: #2a0a0a;
+  --dp-btn-allin-fg: #ff6666;
+  --dp-btn-ghost-bg: #0a0c0e;
+  --dp-btn-ghost-border: rgba(74, 246, 38, 0.48);
+  --dp-btn-ghost-fg: #4af626;
+
+  --dp-input-bg: #0a1a0a;
+  --dp-input-border: rgba(74, 246, 38, 0.32);
+  --dp-timer-ring: #4af626;
+  --dp-timer-text: #ff4444;
+
+  --dp-owner-purple-bg: #0a1a0a;
+  --dp-owner-purple-fg: #4af626;
+  --dp-owner-orange-bg: #1a3018;
+  --dp-owner-orange-fg: #72f052;
+
+  --dp-subpanel-bg: #0e1012;
+  --dp-subpanel-border: rgba(74, 246, 38, 0.18);
+
+  --dp-lb-podium-gold: #ffe066;
+  --dp-lb-podium-silver: #72f052;
+  --dp-lb-podium-bronze: #3a8a2a;
+  --dp-lb-podium-row-bg-gold: color-mix(in srgb, var(--dp-lb-podium-gold) 14%, var(--dp-subpanel-bg));
+  --dp-lb-podium-row-bg-silver: color-mix(in srgb, var(--dp-lb-podium-silver) 12%, var(--dp-subpanel-bg));
+  --dp-lb-podium-row-bg-bronze: color-mix(in srgb, var(--dp-lb-podium-bronze) 12%, var(--dp-subpanel-bg));
+
+  --dp-player-card-bg: #12151a;
+  --dp-player-card-offline-bg: #0a0c0e;
+  --dp-player-card-offline-border: rgba(74, 246, 38, 0.18);
+  --dp-player-card-turn-bg: #0a1a0a;
+  --dp-player-card-turn-border: #4af626;
+  --dp-player-border-me: #72f052;
+  --dp-player-card-winner-bg: #0a1808;
+  --dp-player-card-winner-border: #4af626;
+  --dp-player-showdown-border: rgba(74, 246, 38, 0.28);
+
+  --dp-card-back-highlight: radial-gradient(circle at 50% 40%, rgba(74, 246, 38, 0.22) 0%, transparent 48%);
+  --dp-card-back-pattern-1: repeating-linear-gradient(
+    45deg,
+    rgba(74, 246, 38, 0.12) 0px,
+    rgba(74, 246, 38, 0.12) 2px,
+    transparent 2px,
+    transparent 6px
+  );
+  --dp-card-back-pattern-2: repeating-linear-gradient(
+    -45deg,
+    rgba(114, 240, 82, 0.1) 0px,
+    rgba(114, 240, 82, 0.1) 1px,
+    transparent 1px,
+    transparent 7px
+  );
+  --dp-card-back-base: linear-gradient(150deg, #051005 0%, #0a1a0a 40%, #1a3018 92%);
+  --dp-card-back-fg: #4af626;
+  --dp-card-back-border: rgba(74, 246, 38, 0.48);
+  --dp-card-back-border-inner: rgba(74, 246, 38, 0.08);
+  --dp-card-back-text-shadow: 0 0 6px rgba(74, 246, 38, 0.55);
+  --dp-card-back-shadow-idle:
+    inset 0 0 0 1px rgba(74, 246, 38, 0.18),
+    inset 0 -6px 14px rgba(5, 16, 5, 0.55),
+    0 2px 10px rgba(0, 0, 0, 0.48);
+  --dp-card-back-shadow-mid:
+    inset 0 0 0 1px rgba(114, 240, 82, 0.28),
+    inset 0 -6px 16px rgba(10, 26, 10, 0.5),
+    0 2px 14px rgba(74, 246, 38, 0.18),
+    0 0 16px rgba(74, 246, 38, 0.12);
+  --dp-card-drop-shadow: drop-shadow(0 4px 12px rgba(74, 246, 38, 0.22));
+  --dp-card-back-hole-top: radial-gradient(ellipse 100% 68% at 45% 12%, rgba(74, 246, 38, 0.15) 0%, transparent 44%);
+  --dp-card-back-hole-stripe: repeating-linear-gradient(
+    -38deg,
+    transparent,
+    transparent 3px,
+    rgba(58, 138, 42, 0.15) 3px,
+    rgba(58, 138, 42, 0.15) 5px
+  );
+  --dp-card-frame-gold: rgba(74, 246, 38, 0.34);
+  --dp-card-frame-outer: rgba(5, 16, 5, 0.55);
+  --dp-table-felt-texture:
+    radial-gradient(ellipse 44% 34% at 48% 36%, rgba(74, 246, 38, 0.08) 0%, transparent 54%),
+    radial-gradient(ellipse 32% 28% at 74% 68%, rgba(26, 48, 24, 0.35) 0%, transparent 52%),
+    radial-gradient(ellipse 28% 22% at 18% 58%, rgba(10, 26, 10, 0.35) 0%, transparent 48%),
+    repeating-linear-gradient(118deg, transparent 0 5px, rgba(58, 138, 42, 0.09) 5px 6px),
+    repeating-linear-gradient(62deg, transparent 0 7px, rgba(74, 246, 38, 0.055) 7px 8px),
+    radial-gradient(ellipse 28% 26% at 50% 50%, rgba(74, 246, 38, 0.1) 0%, transparent 72%);
+  --dp-table-felt-texture-opacity: 0.5;
+  --dp-muck-tint: #0a1808;
+  --dp-muck-tint-deep: #1a3018;
+  --dp-muck-mini-card: linear-gradient(145deg, #051005 0%, #0a1a0a 42%, #1a3018 100%);
+  --dp-table-felt-spot: #0a1a0a;
+  --dp-table-felt-depth: #051005;
+  --dp-table-felt-inset-bottom: inset 0 -12px 36px rgba(74, 246, 38, 0.12);
+  --dp-table-felt-drop-shadow: 0 12px 36px rgba(0, 0, 0, 0.52);
+  --dp-table-felt-ring-dark: rgba(10, 26, 10, 0.35);
+  --dp-table-felt-inset-deep: inset 0 -22px 50px rgba(5, 16, 5, 0.55);
+  --dp-table-felt-rim-mix: rgba(26, 48, 24, 0.42);
+  --dp-table-felt-rim-outer: rgba(74, 246, 38, 0.22);
+  --dp-table-felt-drop-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.5);
+  --dp-table-felt-vignette: rgba(5, 16, 5, 0.5);
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 16 16'%3E%3Crect x='7' y='1' width='2' height='14' fill='%234af626'/%3E%3Crect x='1' y='7' width='14' height='2' fill='%234af626'/%3E%3C/svg%3E") 8 8, auto;
 }
 
 /* 暗黑哥特：羊皮纸字色 + 烛金与干玫瑰描边 */

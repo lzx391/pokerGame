@@ -8,7 +8,8 @@
 
 | id | 中文名 | 说明 |
 |----|--------|------|
-| `default` | 明亮经典 | 默认浅色赌场风 |
+| `default` | 明亮经典 | 白底灰褐线条；登录屏内灰系终端 |
+| `retro8bit` | 8bit 终端 | 深色磷光绿 CRT；登录屏内荧光绿 8bit |
 | `gothic` | 哥特暗夜 | 深色烛金与干玫瑰；标题用 `--dp-font-display`（与牌面 `.card-base` 同 Garamond 栈），正文/按钮仍 `--dp-font-ui` |
 | `strawberry` | 草莓甜心 | 粉嫩童话系浅色 |
 | `halloween` | 万圣惊魂 | 南瓜橙 / 幽紫节庆深色 |
