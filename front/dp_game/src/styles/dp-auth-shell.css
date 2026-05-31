@@ -91,6 +91,7 @@
   text-shadow: var(--dp-auth-text-shadow);
 }
 
+#app.app--auth .dp-auth-stage__error-pixel-label,
 #app.app--auth .dp-auth-stage__error-message,
 #app.app--auth .dp-auth-stage__error-retry {
   text-shadow: var(--dp-auth-text-shadow);

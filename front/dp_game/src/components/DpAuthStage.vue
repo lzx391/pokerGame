@@ -98,26 +98,39 @@
                 role="alert"
                 aria-live="assertive"
               >
-                <svg
-                  class="dp-auth-stage__error-pixel-face"
-                  viewBox="0 0 16 16"
-                  width="64"
-                  height="64"
-                  aria-hidden="true"
-                  focusable="false"
-                >
-                  <rect x="3" y="4" width="2" height="2" fill="currentColor" />
-                  <rect x="11" y="4" width="2" height="2" fill="currentColor" />
-                  <rect x="3" y="6" width="2" height="1" fill="currentColor" opacity="0.55" />
-                  <rect x="11" y="6" width="2" height="1" fill="currentColor" opacity="0.55" />
-                  <rect x="4" y="7" width="1" height="2" fill="currentColor" opacity="0.75" />
-                  <rect x="11" y="7" width="1" height="2" fill="currentColor" opacity="0.75" />
-                  <rect x="4" y="9" width="1" height="1" fill="currentColor" opacity="0.5" />
-                  <rect x="11" y="9" width="1" height="1" fill="currentColor" opacity="0.5" />
-                  <rect x="5" y="10" width="6" height="1" fill="currentColor" />
-                  <rect x="6" y="11" width="4" height="1" fill="currentColor" />
-                  <rect x="7" y="12" width="2" height="1" fill="currentColor" />
-                </svg>
+                <div class="dp-auth-stage__error-face-art" aria-hidden="true">
+                  <!-- 16×16 像素矩阵：下弯粗眉 + 方块眼 + 竖条泪 + 倒 U 嘴（放大后每格 ≥8px） -->
+                  <svg
+                    class="dp-auth-stage__error-pixel-face"
+                    viewBox="0 0 16 16"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <!-- 左眉：下弯粗弧 -->
+                    <rect x="1" y="0" width="4" height="1" />
+                    <rect x="0" y="1" width="6" height="1" />
+                    <rect x="1" y="2" width="3" height="1" />
+                    <!-- 右眉 -->
+                    <rect x="11" y="0" width="4" height="1" />
+                    <rect x="10" y="1" width="6" height="1" />
+                    <rect x="12" y="2" width="3" height="1" />
+                    <!-- 方块眼 -->
+                    <rect x="3" y="4" width="2" height="2" />
+                    <rect x="11" y="4" width="2" height="2" />
+                    <!-- 竖条泪（粗矩形） -->
+                    <rect x="3" y="7" width="2" height="3" />
+                    <rect x="11" y="7" width="2" height="3" />
+                    <rect x="3" y="10" width="1" height="1" opacity="0.82" />
+                    <rect x="12" y="10" width="1" height="1" opacity="0.82" />
+                    <!-- 倒 U 嘴：顶拱横边 + 左右竖边，开口朝下（非 V 尖） -->
+                    <rect x="4" y="11" width="8" height="1" />
+                    <rect x="2" y="12" width="2" height="1" />
+                    <rect x="12" y="12" width="2" height="1" />
+                    <rect x="2" y="13" width="2" height="1" />
+                    <rect x="12" y="13" width="2" height="1" />
+                  </svg>
+                  <span class="dp-auth-stage__error-pixel-label">ERROR</span>
+                </div>
                 <p class="dp-auth-stage__error-message">{{ authError.message }}</p>
                 <button
                   type="button"
@@ -1222,12 +1235,42 @@ export default {
   background: color-mix(in srgb, var(--dp-auth-screen-bg) 92%, #000);
 }
 
+.dp-auth-stage__error-face-art {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(6px, 1.6vw, 10px);
+  flex-shrink: 0;
+}
+
 .dp-auth-stage__error-pixel-face {
+  display: block;
+  width: clamp(128px, 32%, 224px);
+  height: auto;
+  aspect-ratio: 1;
   flex-shrink: 0;
   color: var(--dp-auth-phosphor);
+  fill: currentColor;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
-  filter: drop-shadow(0 0 8px var(--dp-auth-screen-glow));
+  filter:
+    drop-shadow(0 0 2px var(--dp-auth-phosphor))
+    drop-shadow(0 0 10px var(--dp-auth-screen-glow))
+    drop-shadow(0 0 22px color-mix(in srgb, var(--dp-auth-phosphor) 52%, transparent));
+}
+
+.dp-auth-stage__error-pixel-label {
+  font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+  font-size: clamp(11px, 2.8vw, 14px);
+  font-weight: 700;
+  letter-spacing: 0.38em;
+  text-indent: 0.38em;
+  line-height: 1;
+  color: var(--dp-auth-phosphor);
+  text-shadow:
+    0 0 6px var(--dp-auth-screen-glow),
+    0 0 14px color-mix(in srgb, var(--dp-auth-phosphor) 45%, transparent);
+  opacity: 0.92;
 }
 
 .dp-auth-stage__error-message {

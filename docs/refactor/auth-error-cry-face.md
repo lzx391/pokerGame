@@ -49,7 +49,7 @@ stateDiagram-v2
 1. **子组件失败**（前端校验 / 接口 `ok:false` / 网络 catch）调用 `this.dpAuthStage.showAuthError(message)`（`provide/inject`）。
 2. **震颤**：根节点 `dp-auth-stage--auth-error-shake`，动画作用于 `__monitor`。
 3. **闪白**：复用 `__flash--pulse`（z-index 6）。
-4. **哭脸层**：`showErrorFace=true`，z-index 5（高于 content 4，低于 flash 6）；16×16 SVG 像素哭脸放大 + 居中 monospace 文案 + `--dp-auth-phosphor` 重试按钮。
+4. **哭脸层**：`showErrorFace=true`，z-index 5（高于 content 4，低于 flash 6）；16×16 SVG 像素哭脸（眉+泪+U 嘴）放大至屏宽 25–35% + 可选 `ERROR` 辅标 + 居中 monospace 文案 + `--dp-auth-phosphor` 重试按钮。
 5. **重试**：`clearAuthErrorAndRetry()` → 清空 error → 短闪 → **`runBootSequence()`**（不走 `runTransition`）→ 当前 `authMode` / 路由 Tab 不变。
 
 ## 对外 API
@@ -71,9 +71,44 @@ this.dpAuthStage.showAuthError('登录失败：…')
 - 外壳 clip-path（顶凸底凹）未改动。
 - 全项目 auth 页无 `alert()`。
 
+## 哭脸规格
+
+融合两版参考：**下弯粗眉 + 方块眼 + 竖条泪 + 倒 U 嘴（顶拱+左右竖边，开口朝下）**；占屏宽约 **25–35%**，单格放大后 **≥8px**。
+
+| 项 | 规格 |
+|----|------|
+| 画布 | 内联 SVG `viewBox="0 0 16 16"`，`image-rendering: pixelated` |
+| 屏内尺寸 | `width: clamp(128px, 32%, 224px)`（相对 `__screen`，约 25–35% 屏宽） |
+| 单格像素 | 16 格均分宽度 → 最小 8px（128÷16），典型 10–14px |
+| 眉 | 左/右各 3 行厚块，外高内低，下弯弧 |
+| 眼 | 2×2 方块（`x=3/11, y=4`） |
+| 泪 | 2×3 竖条 + 底部 1×1 滴落（opacity 0.82） |
+| 嘴 | 倒 U（∩）：y=11 顶拱 8 格，y=12–13 左右各 2 格竖边，中间空、不收尖 |
+| 辅标 | 脸下 `ERROR` 像素字（`letter-spacing: 0.38em`），主文案仍为中文 `authError.message` |
+| 颜色 | `fill: currentColor` → `color: var(--dp-auth-phosphor)`；default 主题即 `#4AF626` 磷光 |
+| 发光 | 三层 `drop-shadow`：`--dp-auth-phosphor` + `--dp-auth-screen-glow` + 45% 混色外晕 |
+| DOM | `__error-face-art` 包裹 SVG + `__error-pixel-label`；z-index 5，低于 flash 6 |
+
+### 结构示意（16×16，`.` 空 `X` 实心）
+
+```
+行  0123456789ABCDEF
+ 0  ..XXXX........XXXX..
+ 1  .XXXXXX......XXXXXX.
+ 2  ..XXX..........XXX..
+ 4  ..XX............XX..   ← 眼
+ 7  ..XX............XX..   ← 泪
+ 8  ..XX............XX..
+ 9  ..XX............XX..
+10  .X................X.   ← 滴
+11  ....########....     ← 嘴顶拱
+12  ..##........##..     ← 左右竖边
+13  ..##........##..
+```
+
 ## 验收清单
 
-- [ ] 登录错密码：震 + 闪 + 8bit 哭脸 + 后端 message + 重试 → 花屏 → 登录表单
+- [ ] 登录错密码：震 + 闪 + **大号** 8bit 哭脸（眉/泪/嘴可辨）+ 后端 message + 重试 → 花屏 → 登录表单
 - [ ] 注册空昵称 / 纯数字昵称 / 接口失败 / 网络异常：同上演出
 - [ ] 重试后 Tab 仍在 `/login` 或 `/register`（与失败前一致）
 - [ ] eco 模式或 `prefers-reduced-motion: reduce`：震颤缩短，哭脸与文案仍显示
