@@ -119,6 +119,9 @@
     <game-dp-game-sheets />
 
     <game-hero-hand-hologram v-if="gameUiTheme === 'retro8bit'" ref="heroHandHologram" />
+    <dp-crt-boot-sequence ref="crtBootSequence" />
+    <dp-terminal-cli v-if="gameUiTheme === 'retro8bit'" ref="terminalCli" />
+    <dp-crt-event-popup v-if="gameUiTheme === 'retro8bit'" ref="crtEventPopup" />
 
   </div>
 </template>
@@ -139,6 +142,9 @@ import GameHeroDockFooter from './GameHeroDockFooter.vue'
 import GameDpFloatingModals from './GameDpFloatingModals.vue'
 import GameDpGameSheets from './GameDpGameSheets.vue'
 import GameHeroHandHologram from './GameHeroHandHologram.vue'
+import DpCrtBootSequence from './DpCrtBootSequence.vue'
+import DpTerminalCli from './DpTerminalCli.vue'
+import DpCrtEventPopup from './DpCrtEventPopup.vue'
 import dpGameFullscreenMixin from '../mixins/dpGameFullscreenMixin'
 import dpGameTableFitMixin from '../mixins/dpGameTableFitMixin'
 import dpGameActionCountdownMixin from '../mixins/dpGameActionCountdownMixin'
@@ -169,7 +175,10 @@ export default {
     GameHeroDockFooter,
     GameDpFloatingModals,
     GameDpGameSheets,
-    GameHeroHandHologram
+    GameHeroHandHologram,
+    DpCrtBootSequence,
+    DpTerminalCli,
+    DpCrtEventPopup
   },
   data() {
     return {
@@ -288,7 +297,7 @@ export default {
       this.$store.commit('dpGame/SET_HERO_HOLE_DEAL', false)
       this.syncActionCountdown()
     },
-    stage(newVal) {
+    stage(newVal, oldVal) {
       this.syncActionCountdown()
       if (newVal !== 'preflop') {
         this.$store.commit('dpGame/SET_HERO_HOLE_DEAL', true)
@@ -305,6 +314,14 @@ export default {
       }
       if (newVal !== 'showdown') {
         this.showOwnerPotJudgeSheet = false
+      }
+      // CRT 事件弹窗
+      if (newVal === 'showdown' && oldVal !== 'showdown') {
+        this.fireCrtPopup('danger', 'ALL-IN SHOWDOWN', '决胜时刻', '双方亮牌，胜负在天')
+      }
+      if (newVal === 'preflop' && oldVal === 'settled') {
+        var handSeed = this.currentHandSeed || ''
+        this.fireCrtPopup('info', 'NEW HAND', '第 ' + handSeed + ' 局', '发牌中...')
       }
       var self = this
       this.$nextTick(function () {
@@ -396,10 +413,16 @@ export default {
 
   mounted() {
     this.initHologramViewportListeners()
+    this._onGameKeydown = this.onGameKeydown.bind(this)
+    window.addEventListener('keydown', this._onGameKeydown)
   },
 
   beforeDestroy() {
     this.teardownHologramViewportListeners()
+    if (this._onGameKeydown) {
+      window.removeEventListener('keydown', this._onGameKeydown)
+      this._onGameKeydown = null
+    }
     this.$store.commit('dpGame/SET_MODAL', { showCustomNpcStyleDialog: false })
     try {
       var bgm = this.$refs.roomBgm
@@ -428,6 +451,29 @@ export default {
   },
 
   methods: {
+    onGameKeydown: function (e) {
+      // retro8bit 终端热键：`~` 呼出命令行
+      if (this.gameUiTheme !== 'retro8bit') return
+      // 不在输入框内时响应
+      var tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : ''
+      var isInput = tag === 'input' || tag === 'textarea' || tag === 'select' || (e.target && e.target.isContentEditable)
+      if (e.key === '`' || e.key === '~') {
+        if (!isInput) {
+          e.preventDefault()
+          var cli = this.$refs.terminalCli
+          if (cli && typeof cli.toggle === 'function') {
+            cli.toggle()
+          }
+        }
+      }
+    },
+    fireCrtPopup: function (type, title, subtitle, detail) {
+      if (this.gameUiTheme !== 'retro8bit') return
+      var popup = this.$refs.crtEventPopup
+      if (popup && typeof popup.trigger === 'function') {
+        popup.trigger(type, title, subtitle, detail)
+      }
+    },
     onGameUiThemeChange(nextTheme) {
       var next = nextTheme || 'default'
       if (next === this.gameUiTheme) return
@@ -443,6 +489,7 @@ export default {
     applyGameUiThemeChange(next) {
       var self = this
       var leavingRetro = this.gameUiTheme === 'retro8bit' && next !== 'retro8bit'
+      var enteringRetro = this.gameUiTheme !== 'retro8bit' && next === 'retro8bit'
       if (leavingRetro) {
         this.teardownRetro8bitUi()
       }
@@ -470,6 +517,16 @@ export default {
           })
         })
         return
+      }
+      // 切换到 retro8bit：播放终端启动动画
+      if (enteringRetro) {
+        var boot = self.$refs.crtBootSequence
+        if (boot && typeof boot.play === 'function') {
+          boot.play(function () {
+            commitTheme()
+          })
+          return
+        }
       }
       commitTheme()
     },

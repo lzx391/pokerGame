@@ -6,7 +6,7 @@
       'app--dp-game': isGameRoute,
       'app--auth': isAuthPage,
       'app--auth-retro8bit': isAuthPage && isRetro8bitAuth,
-      'app--auth-classic': isAuthPage && !isRetro8bitAuth
+      'app--auth-classic': isAuthPage && isClassicAuth
     }"
   >
     <!-- 登录 / 注册 -->
@@ -23,7 +23,7 @@
         />
       </div>
 
-      <!-- 其余主题：普通卡片表单 -->
+      <!-- 其余主题（含 halloween）：普通卡片表单 -->
       <div
         v-else
         :key="'auth-' + gameUiTheme"
@@ -98,6 +98,9 @@ export default {
     },
     isRetro8bitAuth() {
       return this.gameUiTheme === 'retro8bit'
+    },
+    isClassicAuth() {
+      return !this.isRetro8bitAuth
     },
     /** 大厅与主题子页：#app 不铺灰底，由 .dp-game-root / body[data-dp-game-theme] 铺色 */
     /** 与 dpBodyGameTheme.isLobbyRoute 真源一致（含 /create-room，验收 A12） */

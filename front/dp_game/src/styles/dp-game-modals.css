@@ -440,3 +440,168 @@
   cursor: pointer;
   white-space: nowrap;
 }
+
+/* ====== retro8bit 终端风格：模态框 → DOS/Amiga 系统对话框 ====== */
+
+/* 遮罩：降低不透明度，加网格暗示 */
+body[data-dp-game-theme='retro8bit'] .hand-rank-modal-mask {
+  background: rgba(0, 0, 0, 0.65);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-game-sheet-mask--bottom {
+  background: rgba(0, 0, 0, 0.65);
+}
+
+/* 模态对话框：直角 + 双层阴影（DOS 风格） */
+body[data-dp-game-theme='retro8bit'] .hand-rank-modal {
+  border-radius: 0;
+  border: 2px solid var(--dp-terminal-border-active, rgba(74, 246, 38, 0.34));
+  background: var(--dp-terminal-bg, #0e1012);
+  box-shadow: 0 0 0 1px #000, 4px 4px 0 rgba(0, 0, 0, 0.5);
+  font-family: var(--dp-font-ui, monospace);
+}
+
+/* 对话框头部 */
+body[data-dp-game-theme='retro8bit'] .dp-game-dialog__head {
+  background: #06080a;
+  border-bottom: 1px solid rgba(74, 246, 38, 0.22);
+  padding: 10px 14px;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-game-dialog__title {
+  font-family: var(--dp-font-pixel, monospace);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--dp-accent, #4af626);
+  text-shadow: 0 0 6px rgba(74, 246, 38, 0.55);
+}
+
+/* 关闭按钮：[X] DOS 风格 */
+body[data-dp-game-theme='retro8bit'] .dp-game-dialog__close {
+  border-radius: 0;
+  background: var(--dp-terminal-bg, #0a0c0e);
+  border: 1px solid rgba(74, 246, 38, 0.28);
+  color: var(--dp-accent, #4af626);
+  font-family: var(--dp-font-ui, monospace);
+  font-size: 14px;
+  font-weight: bold;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-game-dialog__close:hover {
+  background: var(--dp-accent, #4af626);
+  color: #080a0c;
+  filter: none;
+}
+
+/* 对话框主体 */
+body[data-dp-game-theme='retro8bit'] .dp-game-dialog__body {
+  font-family: var(--dp-font-ui, monospace);
+}
+
+/* 牌型参考列表 */
+body[data-dp-game-theme='retro8bit'] .hand-rank-item {
+  border-radius: 0;
+  border: 1px solid rgba(74, 246, 38, 0.12);
+  background: #0a0c0e;
+  font-family: var(--dp-font-ui, monospace);
+  font-size: 13px;
+}
+
+body[data-dp-game-theme='retro8bit'] .hand-rank-num {
+  border-radius: 0;
+  background: var(--dp-terminal-bg, #0a1a0a);
+  color: var(--dp-accent, #4af626);
+  border: 1px solid rgba(74, 246, 38, 0.28);
+  font-family: var(--dp-font-ui, monospace);
+}
+
+body[data-dp-game-theme='retro8bit'] .hand-rank-name {
+  font-family: var(--dp-font-ui, monospace);
+  color: var(--dp-text-primary, #4af626);
+}
+
+/* 底部抽屉：同样 DOS 风格 */
+body[data-dp-game-theme='retro8bit'] .dp-game-sheet {
+  border-radius: 0;
+  border: 2px solid var(--dp-terminal-border-active, rgba(74, 246, 38, 0.34));
+  border-bottom: none;
+  background: var(--dp-terminal-bg, #0e1012);
+  box-shadow: 0 -4px 0 rgba(0, 0, 0, 0.5);
+  font-family: var(--dp-font-ui, monospace);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-game-sheet__head {
+  background: #06080a;
+  border-bottom: 1px solid rgba(74, 246, 38, 0.22);
+  padding: 10px 14px;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-game-sheet__title {
+  font-family: var(--dp-font-pixel, monospace);
+  font-size: 13px;
+  color: var(--dp-accent, #4af626);
+  text-shadow: 0 0 6px rgba(74, 246, 38, 0.55);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-game-sheet__close {
+  border-radius: 0;
+  background: var(--dp-terminal-bg, #0a0c0e);
+  border: 1px solid rgba(74, 246, 38, 0.28);
+  color: var(--dp-accent, #4af626);
+  font-family: var(--dp-font-ui, monospace);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-game-sheet__close:hover {
+  background: var(--dp-accent, #4af626);
+  color: #080a0c;
+  filter: none;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-game-sheet__body {
+  font-family: var(--dp-font-ui, monospace);
+}
+
+/* 观众席列表 */
+body[data-dp-game-theme='retro8bit'] .spectator-modal__empty {
+  font-family: var(--dp-font-ui, monospace);
+  color: var(--dp-text-muted, #3a8a2a);
+}
+
+/* 等待名单 */
+body[data-dp-game-theme='retro8bit'] .dp-wait-next-hand-modal__list {
+  font-family: var(--dp-font-ui, monospace);
+}
+
+/* 对局历史弹窗 */
+body[data-dp-game-theme='retro8bit'] .hand-rank-modal--hand-history {
+  border-radius: 0;
+  border: 2px solid var(--dp-terminal-border-active, rgba(74, 246, 38, 0.34));
+}
+
+/* 玩法说明弹窗 */
+body[data-dp-game-theme='retro8bit'] .hand-rank-modal--play-guide {
+  border-radius: 0;
+  border: 2px solid var(--dp-terminal-border-active, rgba(74, 246, 38, 0.34));
+}
+
+/* 音乐盒弹窗 */
+body[data-dp-game-theme='retro8bit'] .hand-rank-modal--music-box {
+  border-radius: 0;
+  border: 2px solid var(--dp-terminal-border-active, rgba(74, 246, 38, 0.34));
+}
+
+/* 房主工具弹窗内按钮 */
+body[data-dp-game-theme='retro8bit'] .game-owner-tool__mgmt-row .game-owner-tool__reveal-btn {
+  border-radius: 0;
+  font-family: var(--dp-font-ui, monospace);
+  border: 1px solid rgba(74, 246, 38, 0.28);
+  background: #0a1a0a;
+  color: var(--dp-accent, #4af626);
+}
+
+/* 手牌历史详情中的按钮 */
+body[data-dp-game-theme='retro8bit'] .hand-history-detail__action-btn {
+  border-radius: 0;
+  font-family: var(--dp-font-ui, monospace);
+}

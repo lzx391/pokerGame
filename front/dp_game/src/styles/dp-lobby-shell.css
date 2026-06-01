@@ -243,3 +243,287 @@ body[data-dp-game-theme] {
   cursor: pointer;
   flex-shrink: 0;
 }
+
+/* ====== retro8bit 终端风格：大厅 → 程序启动器菜单 ====== */
+
+/* 大厅面板直角化 */
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-lobby-panel {
+  border-radius: 0;
+  border: 1px solid var(--dp-terminal-border, rgba(74, 246, 38, 0.2));
+  background: var(--dp-terminal-bg, #0a0c0e);
+  box-shadow: none;
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-lobby-panel__title {
+  font-family: var(--dp-font-pixel, monospace);
+  font-size: 13px;
+  text-shadow: var(--dp-terminal-glow-text, 0 0 6px rgba(74, 246, 38, 0.55));
+  letter-spacing: 0.04em;
+  text-align: left;
+  border-bottom: 1px dashed rgba(74, 246, 38, 0.18);
+  padding-bottom: 8px;
+}
+
+/* 大标题 */
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-hero__title {
+  text-shadow: var(--dp-terminal-glow-slot, 0 0 10px rgba(74, 246, 38, 0.65));
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-hero__subtitle {
+  font-family: var(--dp-font-ui, monospace);
+  color: var(--dp-text-secondary, #72f052);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-section-title {
+  font-family: var(--dp-font-pixel, monospace);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-shadow: var(--dp-terminal-glow-text, 0 0 6px rgba(74, 246, 38, 0.55));
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-section-title::before {
+  content: '> ';
+  color: var(--dp-accent, #4af626);
+}
+
+/* Toolbar 按钮 */
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-tool-btn {
+  border-radius: 0;
+  font-family: var(--dp-font-ui, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 11px;
+  border: 1px solid rgba(74, 246, 38, 0.28);
+  background: var(--dp-terminal-bg, #0a0c0e);
+  color: var(--dp-text-secondary, #72f052);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-tool-btn:hover {
+  background: var(--dp-accent, #4af626) !important;
+  color: #080a0c !important;
+  border-color: var(--dp-accent, #4af626) !important;
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-tool-btn--danger {
+  border-color: rgba(255, 68, 68, 0.4);
+  color: var(--dp-danger, #ff4444);
+}
+
+/* 快捷入口卡片 → 程序启动器菜单项 */
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card {
+  border-radius: 0;
+  border: 1px solid rgba(74, 246, 38, 0.18);
+  background: var(--dp-terminal-bg, #0e1012);
+  box-shadow: none;
+  font-family: var(--dp-font-ui, monospace);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card:hover {
+  border-color: var(--dp-accent, #4af626);
+  background: #0a1a0a;
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--primary {
+  border-color: rgba(74, 246, 38, 0.35);
+  background: #0a1a0a;
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--accent {
+  border-color: rgba(74, 246, 38, 0.28);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card__label {
+  font-family: var(--dp-font-ui, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 13px;
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card__label::before {
+  content: '> ';
+  color: var(--dp-accent, #4af626);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card__desc {
+  font-family: var(--dp-font-ui, monospace);
+  font-size: 11px;
+  color: var(--dp-text-muted, #3a8a2a);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card__icon-wrap {
+  background: var(--dp-terminal-bg, #0a0c0e);
+  border: 1px solid rgba(74, 246, 38, 0.22);
+  border-radius: 0;
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card__icon-wrap i {
+  color: var(--dp-accent, #4af626) !important;
+}
+
+/* 用户头像区 */
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-hero__username {
+  font-family: var(--dp-font-ui, monospace);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-hero__user-label {
+  font-family: var(--dp-font-ui, monospace);
+  color: var(--dp-accent, #4af626);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-hero__user-label::before {
+  content: '[ONLINE] ';
+  color: var(--dp-text-muted, #3a8a2a);
+  font-size: 9px;
+}
+
+/* 主题选择下拉 */
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-theme-select {
+  border-radius: 0;
+  font-family: var(--dp-font-ui, monospace);
+  border: 1px solid rgba(74, 246, 38, 0.28);
+  background: var(--dp-terminal-bg, #0a0c0e);
+  color: var(--dp-text-secondary, #72f052);
+}
+
+/* 通用按钮直角 + 等宽 */
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-btn {
+  border-radius: 0;
+  font-family: var(--dp-font-ui, monospace);
+}
+
+/* 房间卡片 */
+.dp-game-root[data-dp-game-theme='retro8bit'] .room-card {
+  border-radius: 0;
+  border: 1px solid rgba(74, 246, 38, 0.18);
+  background: var(--dp-terminal-bg, #0e1012);
+  box-shadow: none;
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .room-card:hover {
+  border-color: var(--dp-accent, #4af626);
+  background: #0a1a0a;
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .room-card__room-id {
+  font-family: var(--dp-font-ui, monospace);
+  color: var(--dp-accent, #4af626);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .room-card__join {
+  border-radius: 0;
+  font-family: var(--dp-font-ui, monospace);
+  border: 1px solid rgba(74, 246, 38, 0.28);
+  background: var(--dp-terminal-bg, #0a0c0e);
+  color: var(--dp-accent, #4af626);
+}
+
+/* 筛选面板 */
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-filters__body {
+  border-radius: 0;
+  border: 1px solid rgba(74, 246, 38, 0.18);
+  background: var(--dp-terminal-bg, #0a0c0e);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-filters__toggle {
+  font-family: var(--dp-font-ui, monospace);
+}
+
+/* 节能标签 */
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-eco-label {
+  font-family: var(--dp-font-ui, monospace);
+  color: var(--dp-text-muted, #3a8a2a);
+}
+
+/* ====== retro8bit 终端风格：创建房间 → 终端配置表单 ====== */
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .cr-page__header {
+  font-family: var(--dp-font-ui, monospace);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .cr-page__title {
+  text-shadow: var(--dp-terminal-glow-slot, 0 0 10px rgba(74, 246, 38, 0.65));
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .cr-field-group {
+  border-radius: 0;
+  border: 1px solid rgba(74, 246, 38, 0.18);
+  background: var(--dp-terminal-bg, #0e1012);
+  box-shadow: none;
+  padding: 12px;
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .cr-field-group__title {
+  font-family: var(--dp-font-pixel, monospace);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-shadow: var(--dp-terminal-glow-text, 0 0 6px rgba(74, 246, 38, 0.55));
+  border-bottom: 1px dashed rgba(74, 246, 38, 0.18);
+  padding-bottom: 6px;
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .cr-presets button {
+  border-radius: 0;
+  font-family: var(--dp-font-ui, monospace);
+  border: 1px solid rgba(74, 246, 38, 0.28);
+  background: var(--dp-terminal-bg, #0a0c0e);
+  color: var(--dp-text-secondary, #72f052);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .cr-presets button:hover,
+.dp-game-root[data-dp-game-theme='retro8bit'] .cr-presets button.cr-preset--active {
+  background: var(--dp-accent, #4af626);
+  color: #080a0c;
+  border-color: var(--dp-accent, #4af626);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .cr-field input,
+.dp-game-root[data-dp-game-theme='retro8bit'] .cr-field .el-input-number {
+  border-radius: 0;
+  font-family: var(--dp-font-ui, monospace);
+}
+
+/* 下载中心 */
+.dp-game-root[data-dp-game-theme='retro8bit'] .download-center__card {
+  border-radius: 0;
+  border: 1px solid rgba(74, 246, 38, 0.18);
+  background: var(--dp-terminal-bg, #0e1012);
+  box-shadow: none;
+  font-family: var(--dp-font-ui, monospace);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .download-center__card-path {
+  font-family: var(--dp-font-ui, monospace);
+  color: var(--dp-accent, #4af626);
+  text-shadow: var(--dp-terminal-glow-text, 0 0 6px rgba(74, 246, 38, 0.55));
+}
+
+/* 排行榜页面 */
+.dp-game-root[data-dp-game-theme='retro8bit'] .lb-table {
+  font-family: var(--dp-font-ui, monospace);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .lb-table th {
+  font-family: var(--dp-font-pixel, monospace);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  border-bottom: 2px solid rgba(74, 246, 38, 0.22);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .lb-table td {
+  border-bottom: 1px solid rgba(74, 246, 38, 0.08);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .lb-page__tabs button {
+  border-radius: 0;
+  font-family: var(--dp-font-ui, monospace);
+  border: 1px solid rgba(74, 246, 38, 0.28);
+  background: var(--dp-terminal-bg, #0a0c0e);
+  color: var(--dp-text-secondary, #72f052);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .lb-page__tabs button:hover,
+.dp-game-root[data-dp-game-theme='retro8bit'] .lb-page__tabs button.lb-page__tab--active {
+  background: var(--dp-accent, #4af626);
+  color: #080a0c;
+  border-color: var(--dp-accent, #4af626);
+}

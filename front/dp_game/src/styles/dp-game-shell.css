@@ -1621,6 +1621,57 @@
     visibility: visible;
   }
 
+  /* 全息光束粒子尘埃（上浮光点） */
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__beam-glow::after,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__beam-glow::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.6;
+    background-image:
+      radial-gradient(circle 1px at 30% 80%, rgba(74,246,38,0.9) 0%, transparent 100%),
+      radial-gradient(circle 1.5px at 55% 60%, rgba(114,240,82,0.8) 0%, transparent 100%),
+      radial-gradient(circle 1px at 45% 40%, rgba(74,246,38,0.7) 0%, transparent 100%),
+      radial-gradient(circle 1px at 65% 25%, rgba(74,246,38,0.9) 0%, transparent 100%),
+      radial-gradient(circle 1.5px at 35% 15%, rgba(114,240,82,0.7) 0%, transparent 100%),
+      radial-gradient(circle 1px at 50% 5%, rgba(74,246,38,0.8) 0%, transparent 100%);
+    background-size: 100% 120%;
+    animation: dp-retro-holo-particles-float 2.4s linear infinite;
+  }
+
+  @keyframes dp-retro-holo-particles-float {
+    from { background-position: 0 100%, 0 100%, 0 100%, 0 100%, 0 100%, 0 100%; }
+    to { background-position: 0 0, 0 0, 0 0, 0 0, 0 0, 0 0; }
+  }
+
+  /* 投影区扫描线旋转边框 */
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--revealed .dp-game-hero-hand-hologram__content::before,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--revealed .dp-game-hero-hand-hologram__content::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    z-index: -1;
+    border: 1px solid rgba(74,246,38,0.12);
+    animation: dp-retro-holo-border-scan 3s linear infinite;
+    pointer-events: none;
+  }
+
+  @keyframes dp-retro-holo-border-scan {
+    0%   { clip-path: inset(0 98% 0 0); }
+    25%  { clip-path: inset(0 0 98% 0); }
+    50%  { clip-path: inset(0 0 0 98%); }
+    75%  { clip-path: inset(98% 0 0 0); }
+    100% { clip-path: inset(0 98% 0 0); }
+  }
+
+  /* 关闭时粒子散开 */
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--collapsing .dp-game-hero-hand-hologram__beam-glow::after,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--collapsing .dp-game-hero-hand-hologram__beam-glow::after {
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+
   /* retro8bit 宽视口：邀请好友左上显示板 */
   .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel {
     position: absolute;
@@ -2347,6 +2398,241 @@
     pointer-events: none;
   }
 }
+
+/* ====== retro8bit 端末风格 Round 2：牌桌 + 玩家座牌 + 公共牌区 ====== */
+
+/* --- 牌桌毛毡：终端显示器风格 --- */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__felt {
+  border: 2px solid var(--dp-terminal-border);
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 3px,
+      rgba(74, 246, 38, 0.025) 3px,
+      rgba(74, 246, 38, 0.025) 4px
+    ),
+    radial-gradient(
+      ellipse 52% 48% at 50% 48%,
+      rgba(74, 246, 38, 0.06) 0%,
+      #0a0c0e 100%
+    );
+  box-shadow: none;
+}
+
+/* 牌桌桌面 grid 网格纹理 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__felt::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.35;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      transparent 8px,
+      rgba(74, 246, 38, 0.04) 8px,
+      rgba(74, 246, 38, 0.04) 9px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 8px,
+      rgba(74, 246, 38, 0.04) 8px,
+      rgba(74, 246, 38, 0.04) 9px
+    );
+}
+
+/* --- 座位射线 --- */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-rays line {
+  stroke: rgba(74, 246, 38, 0.15);
+}
+
+/* --- 玩家座牌：系统进程信息块 --- */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card--rival-mini {
+  background: var(--dp-terminal-bg);
+  border: 1px solid var(--dp-terminal-border);
+  border-radius: 0;
+  padding: 4px 6px;
+  box-shadow: none;
+  font-family: var(--dp-font-ui);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card--rival-mini .dp-player-card__rival-name {
+  font-family: var(--dp-font-ui);
+  font-size: 11px;
+  color: #e0e8e0;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card--rival-mini .dp-player-card__rival-name::before {
+  content: "PROC: ";
+  color: var(--dp-text-muted);
+  font-size: 10px;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card--rival-mini .dp-player-card__rival-stats {
+  font-family: var(--dp-font-ui);
+  font-size: 10px;
+  color: var(--dp-text-secondary);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card--rival-mini .dp-player-card__rival-stats::before {
+  content: "STK: ";
+  color: var(--dp-text-muted);
+}
+
+/* 重写分隔符 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card__rival-stats .dp-player-card__bet-val {
+  font-family: var(--dp-font-ui);
+  color: var(--dp-pot);
+}
+
+/* 行动指示点 → ">>" 闪烁 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card__rival-turn-dot {
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  font-family: var(--dp-font-ui);
+  color: var(--dp-warning);
+  font-size: 9px;
+  line-height: 1;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card__rival-turn-dot::after {
+  content: ">>";
+  animation: dp-retro-cursor-blink 1s step-end infinite;
+}
+
+/* 盖牌标识 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card--rival-mini .dp-player-card__rival-fold {
+  font-family: var(--dp-font-ui);
+  font-size: 9px;
+  color: var(--dp-danger);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card--rival-mini .dp-player-card__rival-fold::before {
+  content: "[FOLD] ";
+}
+
+/* 离线标识 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card__rival-offline {
+  font-family: var(--dp-font-ui);
+  font-size: 10px;
+  color: var(--dp-text-muted);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card__rival-offline::before {
+  content: "[OFFLINE] ";
+}
+
+/* 座旁聊天气泡 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card__seat-chat {
+  border: 1px solid var(--dp-terminal-border-active);
+  border-radius: 0;
+  background: var(--dp-terminal-bg);
+  font-family: var(--dp-font-ui);
+  font-size: 10px;
+  box-shadow: 0 0 0 1px #000;
+}
+
+/* 徽章 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card__badge {
+  border-radius: 0;
+  font-family: var(--dp-font-ui);
+  font-size: 9px;
+  padding: 1px 4px;
+  background: #0a0c0e;
+  border: 1px solid var(--dp-terminal-border);
+  color: var(--dp-text-secondary);
+}
+
+/* 牌型标签 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card__rank-pill {
+  border-radius: 0;
+  font-family: var(--dp-font-ui);
+  border: 1px solid var(--dp-terminal-border);
+  background: #0a1a0a;
+  color: var(--dp-accent);
+  text-shadow: var(--dp-terminal-glow-text);
+}
+
+/* 公共牌区域标题 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__center::before {
+  content: "=== BOARD ===";
+  display: block;
+  text-align: center;
+  font-family: var(--dp-font-pixel);
+  font-size: 9px;
+  color: var(--dp-text-muted);
+  letter-spacing: 0.1em;
+  margin-bottom: 4px;
+  text-shadow: var(--dp-terminal-glow-text);
+}
+
+/* 弃牌堆 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-muck-pile--orbit {
+  font-family: var(--dp-font-ui);
+  color: var(--dp-text-muted);
+}
+
+/* --- 对局主面板 → 终端框体 --- */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-layout__main.dp-game-layout__main--fit-table {
+  border-radius: 0;
+  background: var(--dp-terminal-bg);
+  border: 1px solid var(--dp-terminal-border);
+  box-shadow: none;
+}
+
+/* --- 行动倒计时（桌面中央） --- */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table-action-timer {
+  font-family: var(--dp-font-ui);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table-action-timer__sec {
+  font-family: var(--dp-font-ui);
+  text-shadow: var(--dp-terminal-glow-slot);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table-action-timer--danger .dp-game-table-action-timer__sec {
+  color: var(--dp-terminal-led-red);
+  text-shadow: 0 0 12px rgba(255, 68, 68, 0.8);
+}
+
+/* --- 英雄底栏停靠区 --- */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-hero-dock .dp-player-card {
+  border: 1px solid var(--dp-terminal-border);
+  border-radius: 0;
+  background: var(--dp-terminal-bg);
+  font-family: var(--dp-font-ui);
+}
+
+/* --- 手机端底栏 --- */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-mobile-hero-bar {
+  background: var(--dp-terminal-bg);
+  border-top: 1px solid var(--dp-terminal-border);
+}
+
+/* --- 底池公牌区 扫描线保持（已在 themes.css 定义） --- */
+
+/* --- 庄家/SB/BB 标记 --- */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__felt-markers {
+  font-family: var(--dp-font-ui);
+  color: var(--dp-accent);
+  text-shadow: var(--dp-terminal-glow-text);
+}
+
+/* --- 房间主按钮（准备/下一局等）直角 --- */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-btn--success {
+  border-radius: 0;
+  font-family: var(--dp-font-ui);
+}
+
+
 
 @keyframes dp-retro-hand-hologram-beam-expand {
   from {
@@ -3967,6 +4253,125 @@
   }
 }
 
+/* ====== retro8bit 端末风格：顶栏 系统状态线 ====== */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar {
+  background: var(--dp-terminal-bg);
+  border: 1px solid var(--dp-terminal-border);
+  border-radius: 0;
+  box-shadow: none;
+  gap: 6px;
+  padding: 8px 10px;
+  font-family: var(--dp-font-ui);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar::before {
+  content: "";
+  display: block;
+  height: 4px;
+  margin-bottom: 4px;
+  background:
+    radial-gradient(circle 2px at 4px 2px, var(--dp-terminal-led-green) 0% 100%, transparent 0%),
+    radial-gradient(circle 2px at 16px 2px, var(--dp-terminal-led-green) 0% 100%, transparent 0%),
+    radial-gradient(circle 2px at 28px 2px, var(--dp-terminal-led-amber) 0% 100%, transparent 0%),
+    radial-gradient(circle 2px at 40px 2px, var(--dp-text-muted) 0% 100%, transparent 0%),
+    radial-gradient(circle 2px at 52px 2px, var(--dp-text-muted) 0% 100%, transparent 0%);
+  background-size: 60px 4px;
+  background-repeat: repeat-x;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"][data-dp-stage="showdown"] .dp-top-bar::before {
+  background:
+    radial-gradient(circle 2px at 4px 2px, var(--dp-terminal-led-green) 0% 100%, transparent 0%),
+    radial-gradient(circle 2px at 16px 2px, var(--dp-terminal-led-amber) 0% 100%, transparent 0%),
+    radial-gradient(circle 2px at 28px 2px, var(--dp-terminal-led-amber) 0% 100%, transparent 0%),
+    radial-gradient(circle 2px at 40px 2px, var(--dp-terminal-led-green) 0% 100%, transparent 0%),
+    radial-gradient(circle 2px at 52px 2px, var(--dp-text-muted) 0% 100%, transparent 0%);
+  background-size: 60px 4px;
+  background-repeat: repeat-x;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"][data-dp-stage="settled"] .dp-top-bar::before {
+  background:
+    radial-gradient(circle 2px at 4px 2px, var(--dp-terminal-led-green) 0% 100%, transparent 0%),
+    radial-gradient(circle 2px at 16px 2px, var(--dp-terminal-led-green) 0% 100%, transparent 0%),
+    radial-gradient(circle 2px at 28px 2px, var(--dp-terminal-led-green) 0% 100%, transparent 0%),
+    radial-gradient(circle 2px at 40px 2px, var(--dp-terminal-led-red) 0% 100%, transparent 0%),
+    radial-gradient(circle 2px at 52px 2px, var(--dp-terminal-led-red) 0% 100%, transparent 0%);
+  background-size: 60px 4px;
+  background-repeat: repeat-x;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__title::before {
+  content: "$ ";
+  color: var(--dp-accent);
+  font-family: var(--dp-font-ui);
+  font-weight: 400;
+  text-shadow: var(--dp-terminal-glow-text);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__meta-sep {
+  color: var(--dp-text-muted);
+  font-family: var(--dp-font-ui);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__meta-sep--thin {
+  color: var(--dp-text-muted);
+  opacity: 0.5;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__btn {
+  border-radius: 0;
+  font-family: var(--dp-font-ui);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 11px;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__btn:hover {
+  background: var(--dp-accent) !important;
+  color: #080a0c !important;
+  border-color: var(--dp-accent) !important;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__btn--ghost {
+  border: 1px dashed var(--dp-terminal-border-active);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__settings-panel {
+  background: var(--dp-terminal-bg);
+  border: 2px solid var(--dp-terminal-border-active);
+  border-radius: 0;
+  box-shadow: 0 0 0 1px #000, 4px 4px 0 rgba(0, 0, 0, 0.5);
+  font-family: var(--dp-font-ui);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__accent {
+  text-shadow: var(--dp-terminal-glow-text);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__pot {
+  text-shadow: 0 0 6px rgba(255, 68, 68, 0.5);
+}
+
+@media (max-width: 600px) {
+  .dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar::before {
+    display: none;
+  }
+  .dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__btn {
+    border-radius: 0;
+    padding: 3px 6px;
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 1024px) and (max-height: 560px) {
+  .dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar::before {
+    display: none;
+  }
+}
+
+
 .dp-btn {
   border: none;
   border-radius: 5px;
@@ -4284,6 +4689,194 @@
   border-radius: 5px;
   cursor: pointer;
   font-weight: bold;
+}
+
+/* ====== retro8bit 端末风格：行动面板 命令行提示符 ====== */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-action-panel {
+  background: var(--dp-terminal-bg);
+  border: 1px solid var(--dp-terminal-border);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 10px;
+  font-family: var(--dp-font-ui);
+}
+
+/* "$ " 行动提示 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-action-panel__turn {
+  color: var(--dp-accent);
+  font-family: var(--dp-font-ui);
+  letter-spacing: 0.03em;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-action-panel__turn::before {
+  content: "$ ";
+  color: var(--dp-accent);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-action-panel__turn::after {
+  content: '■';
+  animation: dp-retro-cursor-blink 0.9s step-end infinite;
+  color: var(--dp-accent);
+  margin-left: 2px;
+  text-shadow: var(--dp-terminal-glow-slot);
+}
+
+@keyframes dp-retro-cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-action-panel__raise-hint {
+  font-family: var(--dp-font-ui);
+  color: var(--dp-text-secondary);
+  font-size: 11px;
+}
+
+/* 底池预设 → 终端功能键风格 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-btn--pot-preset {
+  border-radius: 0;
+  border: 1px solid var(--dp-terminal-border);
+  background: var(--dp-terminal-bg);
+  color: var(--dp-text-secondary);
+  font-family: var(--dp-font-ui);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-btn--pot-preset:hover {
+  background: var(--dp-accent);
+  color: #080a0c;
+  border-color: var(--dp-accent);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-btn--pot-preset:active {
+  opacity: 0.85;
+}
+
+/* 加注滑动条 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-raise-slider {
+  accent-color: var(--dp-accent);
+  height: 8px;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-raise-slider-value {
+  font-family: var(--dp-font-ui);
+  color: var(--dp-accent);
+  text-shadow: var(--dp-terminal-glow-text);
+  font-size: 14px;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-raise-slider-label {
+  font-family: var(--dp-font-ui);
+  color: var(--dp-text-muted);
+  font-size: 10px;
+}
+
+/* 核心操作按钮：全部直角 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-btn--call {
+  border-radius: 0;
+  font-family: var(--dp-font-ui);
+  letter-spacing: 0.03em;
+  border: 1px solid var(--dp-terminal-border-active);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-btn--raise-go {
+  border-radius: 0;
+  font-family: var(--dp-font-ui);
+  letter-spacing: 0.03em;
+  border: 1px solid var(--dp-terminal-border-active);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-btn--allin {
+  border-radius: 0;
+  font-family: var(--dp-font-ui);
+  letter-spacing: 0.03em;
+  border: 1px solid rgba(255, 68, 68, 0.4);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-btn--fold {
+  border-radius: 0;
+  font-family: var(--dp-font-ui);
+  letter-spacing: 0.03em;
+  border: 1px solid rgba(255, 68, 68, 0.4);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-btn--ghost-sm {
+  border-radius: 0;
+  font-family: var(--dp-font-ui);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-input--raise {
+  border-radius: 0;
+  font-family: var(--dp-font-ui);
+  color: var(--dp-accent);
+  text-shadow: var(--dp-terminal-glow-text);
+  border: 1px solid var(--dp-terminal-border-active);
+}
+
+/* 计时器：直角方形 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-timer-ring {
+  border-radius: 0;
+  border-color: var(--dp-timer-ring);
+  background: var(--dp-terminal-bg);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-timer-ring__text {
+  font-family: var(--dp-font-ui);
+  font-weight: 900;
+  text-shadow: 0 0 10px rgba(255, 68, 68, 0.7);
+}
+
+/* 控制区 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-action-panel__controls {
+  gap: 8px;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-action-panel__row--main {
+  gap: 5px;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-action-panel__row--commit {
+  gap: 6px;
+}
+
+/* 结算准备栏 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-settled-prepare-bar__hint {
+  font-family: var(--dp-font-ui);
+  color: var(--dp-accent);
+  text-shadow: var(--dp-terminal-glow-text);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-settled-prepare-bar__hint::before {
+  content: '> ';
+  color: var(--dp-text-muted);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-settled-prepare-bar__btn {
+  border-radius: 0;
+  font-family: var(--dp-font-ui);
+}
+
+/* 通用按钮直角覆盖 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-btn {
+  border-radius: 0;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-btn--primary {
+  border-radius: 0;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-btn--danger {
+  border-radius: 0;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-btn--cyan {
+  border-radius: 0;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-btn--success {
+  border-radius: 0;
 }
 
 /* ---- Owner panel ---- */
@@ -4674,4 +5267,421 @@
     padding-top: clamp(85px, 24vmin, 300px);
     scroll-padding-top: clamp(88px, 15vmin, 180px);
   }
+}
+
+/* ====== retro8bit 端末风格 Round 5：装饰与磷光效果 ====== */
+
+/* --- 发牌磷光拖尾 --- */
+.dp-game-root[data-dp-game-theme='retro8bit'] .hole-card-fly-wrapper.hole-deal-fly-in::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(74, 246, 38, 0.15);
+  filter: blur(3px);
+  animation: dp-retro-phosphor-trail 0.35s ease-out forwards;
+  pointer-events: none;
+  z-index: -1;
+}
+
+@keyframes dp-retro-phosphor-trail {
+  0% {
+    opacity: 0.8;
+    transform: translate(-3px, -3px) scale(1.05);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(5px, 5px) scale(0.92);
+  }
+}
+
+/* --- 公共牌翻牌时磷光残影 --- */
+.dp-game-root[data-dp-game-theme='retro8bit'] .card-flip-wrapper.deal-fly-in::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 2px;
+  background: rgba(74, 246, 38, 0.12);
+  filter: blur(2px);
+  animation: dp-retro-card-phosphor 0.4s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes dp-retro-card-phosphor {
+  0% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+/* --- 牌桌 CRT 极低噪声（显示屏运行感） --- */
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-table__felt::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0.06;
+  background-image:
+    repeating-radial-gradient(
+      circle at 18% 22%,
+      rgba(255, 255, 255, 0.3) 0 0.35px,
+      transparent 0.45px
+    ),
+    repeating-radial-gradient(
+      circle at 82% 68%,
+      rgba(255, 255, 255, 0.25) 0 0.3px,
+      transparent 0.4px
+    );
+  background-size: 4px 4px, 3px 3px;
+}
+
+/* --- 阶段切换 Glitch（只在翻牌/转牌/河牌时闪现一次） --- */
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-table__center.glitch-flash {
+  animation: dp-retro-glitch 0.1s ease-out;
+}
+
+@keyframes dp-retro-glitch {
+  0% {
+    clip-path: inset(0 0 80% 0);
+    transform: translate(-3px, 0);
+    filter: hue-rotate(25deg) brightness(1.3);
+  }
+  30% {
+    clip-path: inset(20% 0 30% 0);
+    transform: translate(2px, 0);
+    filter: hue-rotate(-15deg) brightness(0.8);
+  }
+  60% {
+    clip-path: inset(50% 0 5% 0);
+    transform: translate(0, 2px);
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+    transform: none;
+    filter: none;
+  }
+}
+
+/* --- 玩家行动时座牌的微闪烁 --- */
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-player-card--rival-mini.player-card--act-turn {
+  animation: dp-retro-act-flash 0.6s ease-in-out infinite;
+}
+
+@keyframes dp-retro-act-flash {
+  0%, 100% {
+    border-color: rgba(74, 246, 38, 0.2);
+    box-shadow: none;
+  }
+  50% {
+    border-color: rgba(74, 246, 38, 0.7);
+    box-shadow: var(--dp-terminal-glow-md);
+  }
+}
+
+/* --- 全压/警告时刻的座牌红色闪烁 --- */
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-player-card--rival-mini.player-card--danger-flash {
+  animation: dp-retro-danger-flash 0.5s step-end infinite;
+}
+
+@keyframes dp-retro-danger-flash {
+  0%, 100% {
+    border-color: rgba(74, 246, 38, 0.2);
+  }
+  50% {
+    border-color: rgba(255, 68, 68, 0.8);
+    box-shadow: 0 0 10px rgba(255, 68, 68, 0.4);
+  }
+}
+
+/* --- glitch flash for public board --- */
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-table__center.glitch-flash .community-cards-row {
+  animation: dp-retro-cards-glitch 0.12s ease-out;
+}
+
+@keyframes dp-retro-cards-glitch {
+  0% {
+    transform: translateX(-2px);
+    filter: brightness(1.4);
+  }
+  50% {
+    transform: translateX(2px);
+    filter: brightness(0.7);
+  }
+  100% {
+    transform: none;
+    filter: none;
+  }
+}
+
+/* ====== retro8bit：发牌动画 — CRT 电子束逐行扫描绘制 ====== */
+
+/* 底牌发牌：覆盖默认 fly-in，改用 scanline sweep */
+.dp-game-root[data-dp-game-theme='retro8bit'] .hole-card-fly-wrapper.hole-deal-fly-in {
+  animation: dp-retro-hole-scan-deal 0.42s steps(8) both;
+  pointer-events: none;
+}
+
+@keyframes dp-retro-hole-scan-deal {
+  0% {
+    clip-path: inset(100% 0 0 0);
+    opacity: 0;
+    filter: brightness(3) blur(2px);
+    transform: none;
+  }
+  15% {
+    opacity: 0.6;
+    filter: brightness(2.2) blur(1.5px);
+  }
+  35% {
+    clip-path: inset(60% 0 0 0);
+    filter: brightness(1.6) blur(1px);
+  }
+  55% {
+    clip-path: inset(30% 0 0 0);
+    filter: brightness(1.3) blur(0.5px);
+  }
+  75% {
+    clip-path: inset(5% 0 0 0);
+    filter: brightness(1.1) blur(0);
+    opacity: 1;
+  }
+  88% {
+    clip-path: inset(0 0 0 0);
+    filter: brightness(1.4) blur(0);
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+    filter: none;
+    opacity: 1;
+  }
+}
+
+/* 发牌时附加磷光扫描线效果 */
+.dp-game-root[data-dp-game-theme='retro8bit'] .hole-card-fly-wrapper.hole-deal-fly-in::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(74, 246, 38, 0.5) 48%,
+    rgba(74, 246, 38, 0.8) 50%,
+    rgba(74, 246, 38, 0.5) 52%,
+    transparent 100%
+  );
+  animation: dp-retro-deal-beam 0.42s ease-out forwards;
+}
+
+@keyframes dp-retro-deal-beam {
+  0%   { transform: translateY(-100%); opacity: 1; }
+  70%  { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+
+/* 公共牌发牌：同样的 scanline sweep */
+.dp-game-root[data-dp-game-theme='retro8bit'] .card-flip-wrapper.deal-fly-in {
+  animation: dp-retro-community-scan-deal 0.45s steps(8) both;
+  pointer-events: none;
+}
+
+@keyframes dp-retro-community-scan-deal {
+  0% {
+    clip-path: inset(100% 0 0 0);
+    opacity: 0;
+    filter: brightness(3) blur(3px);
+    transform: none;
+  }
+  12% {
+    opacity: 0.5;
+    filter: brightness(2.5) blur(2px);
+  }
+  30% {
+    clip-path: inset(65% 0 0 0);
+    filter: brightness(1.8) blur(1.2px);
+  }
+  50% {
+    clip-path: inset(35% 0 0 0);
+    filter: brightness(1.4) blur(0.6px);
+    opacity: 0.85;
+  }
+  70% {
+    clip-path: inset(8% 0 0 0);
+    filter: brightness(1.1) blur(0);
+    opacity: 1;
+  }
+  85% {
+    clip-path: inset(0 0 0 0);
+    filter: brightness(1.5) blur(0);
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+    filter: none;
+    opacity: 1;
+  }
+}
+
+/* 公共牌发牌扫描光束 */
+.dp-game-root[data-dp-game-theme='retro8bit'] .card-flip-wrapper.deal-fly-in::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(74, 246, 38, 0.4) 45%,
+    rgba(74, 246, 38, 0.7) 50%,
+    rgba(74, 246, 38, 0.4) 55%,
+    transparent 100%
+  );
+  animation: dp-retro-deal-beam 0.45s ease-out forwards;
+}
+
+/* 发牌完成后闪一下（磷光余辉） */
+.dp-game-root[data-dp-game-theme='retro8bit'] .hole-card-fly-wrapper.hole-deal-fly-in::after,
+.dp-game-root[data-dp-game-theme='retro8bit'] .card-flip-wrapper.deal-fly-in::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  z-index: 4;
+  pointer-events: none;
+  background: transparent;
+  animation: dp-retro-deal-afterglow 0.5s ease-out forwards;
+}
+
+@keyframes dp-retro-deal-afterglow {
+  0%   { box-shadow: 0 0 0 transparent; }
+  60%  { box-shadow: 0 0 0 transparent; }
+  70%  { box-shadow: 0 0 12px rgba(74, 246, 38, 0.5), inset 0 0 8px rgba(74, 246, 38, 0.3); }
+  100% { box-shadow: 0 0 0 transparent, inset 0 0 0 transparent; }
+}
+
+/* ====== retro8bit：弃牌动画 — 数据损坏 / 像素错位分解 ====== */
+
+/* 弃牌：覆盖默认 fly-to-muck，改用 glitch dissolve */
+.dp-game-root[data-dp-game-theme='retro8bit'] .hole-card-fly-wrapper.hole-fold-to-muck {
+  animation: dp-retro-fold-glitch 0.55s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes dp-retro-fold-glitch {
+  0% {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    clip-path: inset(0 0 0 0);
+  }
+  /* freeze moment */
+  10% {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    clip-path: inset(0 0 0 0);
+  }
+  /* glitch slice 1 */
+  18% {
+    clip-path: inset(8% -3% 75% -3%);
+    transform: translateX(-5px);
+    filter: brightness(1.4) saturate(1.5) hue-rotate(15deg);
+    opacity: 0.9;
+  }
+  /* glitch slice 2 */
+  28% {
+    clip-path: inset(45% -3% 28% -3%);
+    transform: translateX(4px);
+    filter: brightness(0.7) saturate(2) hue-rotate(-10deg);
+    opacity: 0.85;
+  }
+  /* glitch slice 3 */
+  38% {
+    clip-path: inset(70% -3% 5% -3%);
+    transform: translateX(-3px);
+    filter: brightness(1.8) saturate(1.2);
+    opacity: 0.8;
+  }
+  /* glitch slice 4 */
+  48% {
+    clip-path: inset(15% -3% 45% -3%);
+    transform: translateX(6px);
+    filter: brightness(0.5) hue-rotate(-20deg);
+    opacity: 0.7;
+  }
+  /* glitch intensifies - multiple slices */
+  55% {
+    clip-path: inset(25% 0 50% 0);
+    transform: translateX(-2px) scaleY(1.05);
+    filter: brightness(1.6) blur(0.5px);
+    opacity: 0.6;
+  }
+  /* noise takeover */
+  65% {
+    clip-path: inset(5% -5% 5% -5%);
+    transform: scale(0.92);
+    filter: brightness(2) blur(1.5px) saturate(3);
+    opacity: 0.45;
+  }
+  /* collapse */
+  80% {
+    clip-path: inset(0 0 0 0);
+    transform: scale(0.75);
+    filter: brightness(3) blur(3px);
+    opacity: 0.2;
+  }
+  /* dissolve */
+  100% {
+    clip-path: inset(0 0 0 0);
+    transform: scale(0.5);
+    filter: brightness(4) blur(6px);
+    opacity: 0;
+  }
+}
+
+/* 弃牌时卡面上覆盖绿色噪声 */
+.dp-game-root[data-dp-game-theme='retro8bit'] .hole-card-fly-wrapper.hole-fold-to-muck .card-base::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0;
+  background-image:
+    repeating-linear-gradient(0deg, transparent 0 1px, rgba(74,246,38,0.4) 1px 2px),
+    repeating-linear-gradient(90deg, transparent 0 2px, rgba(74,246,38,0.3) 2px 3px);
+  background-size: 4px 4px;
+  animation: dp-retro-fold-noise 0.55s ease-out forwards;
+}
+
+@keyframes dp-retro-fold-noise {
+  0%, 35% { opacity: 0; }
+  45% { opacity: 0.3; }
+  60% { opacity: 0.7; }
+  80% { opacity: 0.9; }
+  100% { opacity: 0; }
+}
+
+/* 弃牌后短暂磷光残影 */
+.dp-game-root[data-dp-game-theme='retro8bit'] .hole-card-fly-wrapper.hole-fold-to-muck::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 3px;
+  background: transparent;
+  animation: dp-retro-fold-burnin 0.7s ease-out forwards;
+}
+
+@keyframes dp-retro-fold-burnin {
+  0%   { box-shadow: 0 0 0 transparent; }
+  30%  { box-shadow: 0 0 8px rgba(74, 246, 38, 0.3); }
+  55%  { box-shadow: 0 0 16px rgba(74, 246, 38, 0.5), 0 0 30px rgba(74, 246, 38, 0.2); }
+  100% { box-shadow: 0 0 0 transparent, 0 0 0 transparent; }
 }

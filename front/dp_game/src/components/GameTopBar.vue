@@ -83,7 +83,7 @@
           玩法说明
         </button>
         <button
-            v-if="isOwner"
+            v-if="isOwner && gameUiTheme !== 'retro8bit'"
             ref="guideTopOwnerHub"
             type="button"
             class="dp-btn dp-top-bar__btn dp-top-bar__btn--owner"

@@ -1,6 +1,6 @@
 /**
  * 登录 / 注册 shell（App.vue app--auth）
- * - app--auth-classic：主题纯色底 + 居中卡片（--dp-*）
+ * - app--auth-classic：主题纯色底 + 居中卡片（--dp-*）；halloween 叠加 wsj.webp 全屏背景
  * - app--auth-retro8bit：CRT 长廊终端（DpAuthStage；--dp-auth-*，见 dp-depth-tokens.css）
  */
 
@@ -100,6 +100,69 @@
   filter: brightness(1.05);
 }
 
+/* ========== Halloween classic（wsj.webp 全屏背景 + 卡片表单） ========== */
+
+body[data-dp-game-theme='halloween'] #app.app--auth.app--auth-classic {
+  position: relative;
+  isolation: isolate;
+  background: transparent !important;
+}
+
+body[data-dp-game-theme='halloween'] #app.app--auth.app--auth-classic::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: #0a0510;
+  background-image: url('~@/assets/wsj.webp');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+body[data-dp-game-theme='halloween'] #app.app--auth.app--auth-classic::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: rgba(12, 4, 20, 0.44);
+}
+
+body[data-dp-game-theme='halloween'] #app.app--auth.app--auth-classic .app-container {
+  position: relative;
+  z-index: 2;
+}
+
+body[data-dp-game-theme='halloween'] #app.app--auth.app--auth-classic .content-box input[type='text']::placeholder,
+body[data-dp-game-theme='halloween'] #app.app--auth.app--auth-classic .content-box input[type='password']::placeholder {
+  color: color-mix(in srgb, var(--dp-text-muted) 75%, transparent);
+}
+
+body[data-dp-game-theme='halloween'] #app.app--auth.app--auth-classic .content-box input[type='text']:focus,
+body[data-dp-game-theme='halloween'] #app.app--auth.app--auth-classic .content-box input[type='password']:focus {
+  box-shadow: 0 0 0 2px rgba(251, 146, 60, 0.28);
+}
+
+body[data-dp-game-theme='halloween'] #app.app--auth.app--auth-classic .content-box .login-btn,
+body[data-dp-game-theme='halloween'] #app.app--auth.app--auth-classic .content-box .register-btn {
+  border: 1px solid rgba(192, 132, 252, 0.42);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  body[data-dp-fluidity='standard'][data-dp-game-theme='halloween']
+    #app.app--auth.app--auth-classic
+    .content-box
+    .login-btn:hover,
+  body[data-dp-fluidity='standard'][data-dp-game-theme='halloween']
+    #app.app--auth.app--auth-classic
+    .content-box
+    .register-btn:hover {
+    filter: brightness(1.08);
+  }
+}
+
 /* ========== Retro8bit CRT（DpAuthStage） ========== */
 
 #app.app--auth.app--auth-retro8bit {
@@ -108,6 +171,36 @@
   color: var(--dp-auth-phosphor);
   font-family: ui-monospace, 'Cascadia Code', 'Consolas', var(--dp-font-ui, monospace);
   background-color: var(--dp-auth-corridor-bg);
+  background-image: url('~@/assets/8bitbg.webp');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* 8bit 全屏背板：图片 + 暗色遮罩，弱化原透视长廊装饰 */
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__corridor {
+  background-color: var(--dp-auth-corridor-bg);
+  background-image: url('~@/assets/8bitbg.webp');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__corridor::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: rgba(6, 10, 8, 0.42);
+}
+
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__corridor-vp,
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__corridor-ceiling,
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__corridor-wall,
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__corridor-floor,
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__corridor-horizon {
+  opacity: 0.12;
 }
 
 #app.app--auth.app--auth-retro8bit .app-container {

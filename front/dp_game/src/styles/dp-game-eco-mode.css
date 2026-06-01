@@ -57,6 +57,25 @@
   }
 }
 
+/* retro8bit 发牌扫描光束 / 弃牌噪声 / 磷光残影关断 */
+.dp-game-root[data-dp-eco-mode='true'] .hole-card-fly-wrapper.hole-deal-fly-in::before,
+.dp-game-root[data-dp-eco-mode='true'] .hole-card-fly-wrapper.hole-deal-fly-in::after,
+.dp-game-root[data-dp-eco-mode='true'] .hole-card-fly-wrapper.hole-fold-to-muck .card-base::after,
+.dp-game-root[data-dp-eco-mode='true'] .hole-card-fly-wrapper.hole-fold-to-muck::after,
+.dp-game-root[data-dp-eco-mode='true'] .card-flip-wrapper.deal-fly-in::before,
+.dp-game-root[data-dp-eco-mode='true'] .card-flip-wrapper.deal-fly-in::after,
+@media (prefers-reduced-motion: reduce) {
+  .hole-card-fly-wrapper.hole-deal-fly-in::before,
+  .hole-card-fly-wrapper.hole-deal-fly-in::after,
+  .hole-card-fly-wrapper.hole-fold-to-muck .card-base::after,
+  .hole-card-fly-wrapper.hole-fold-to-muck::after,
+  .card-flip-wrapper.deal-fly-in::before,
+  .card-flip-wrapper.deal-fly-in::after {
+    animation: none !important;
+    display: none !important;
+  }
+}
+
 .dp-game-root[data-dp-eco-mode='true'] .hole-card-flip,
 @media (prefers-reduced-motion: reduce) {
   .hole-card-flip {
@@ -286,4 +305,19 @@
   animation: none !important;
   filter: none !important;
   opacity: 1 !important;
+}
+
+/* —— retro8bit 终端光标闪烁 + phosphor 动画关断 —— */
+.dp-game-root[data-dp-eco-mode='true'] .dp-action-panel__turn::after,
+@media (prefers-reduced-motion: reduce) {
+  .dp-action-panel__turn::after {
+    animation: none !important;
+  }
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .dp-player-card__rival-turn-dot::after,
+@media (prefers-reduced-motion: reduce) {
+  .dp-player-card__rival-turn-dot::after {
+    animation: none !important;
+  }
 }

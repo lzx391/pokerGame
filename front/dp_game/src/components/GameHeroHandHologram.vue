@@ -21,7 +21,7 @@
           <div class="dp-game-hero-hand-hologram__beam-dust" aria-hidden="true" />
 
           <div class="dp-game-hero-hand-hologram__projection">
-            <span class="dp-game-hero-hand-hologram__ghost-title" aria-hidden="true">我的手牌</span>
+            <span class="dp-game-hero-hand-hologram__ghost-title" aria-hidden="true">&gt; SCAN: HERO_HAND</span>
             <button
               type="button"
               class="dp-game-hero-hand-hologram__close"

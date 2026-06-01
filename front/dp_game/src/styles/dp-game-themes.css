@@ -257,6 +257,18 @@ body[data-dp-game-theme='retro8bit'] {
   --dp-table-felt-rim-outer: rgba(74, 246, 38, 0.22);
   --dp-table-felt-drop-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.5);
   --dp-table-felt-vignette: rgba(5, 16, 5, 0.5);
+
+  /* 终端 chrome：边框、LED、磷光 */
+  --dp-terminal-bg: #080a0c;
+  --dp-terminal-border: rgba(74, 246, 38, 0.2);
+  --dp-terminal-border-active: rgba(74, 246, 38, 0.4);
+  --dp-terminal-led-green: #4af626;
+  --dp-terminal-led-amber: #ffe066;
+  --dp-terminal-led-red: #ff4444;
+  --dp-terminal-glow-sm: 0 0 4px rgba(74, 246, 38, 0.32);
+  --dp-terminal-glow-md: 0 0 8px rgba(74, 246, 38, 0.42);
+  --dp-terminal-glow-text: 0 0 6px rgba(74, 246, 38, 0.55);
+  --dp-terminal-glow-slot: 0 0 10px rgba(74, 246, 38, 0.65);
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 16 16'%3E%3Crect x='7' y='1' width='2' height='14' fill='%234af626'/%3E%3Crect x='1' y='7' width='14' height='2' fill='%234af626'/%3E%3C/svg%3E") 8 8, auto;
 }
 
