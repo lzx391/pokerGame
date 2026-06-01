@@ -1386,6 +1386,11 @@ ownerFieldChanged：房主字段是否发生变化。
         DpRoomBO r = roomMap.get(roomId);
         if (r == null)
             return false;
+        for (DpPlayer p : r.getPlayers()) {
+            if (p != null && !p.isLeftThisHand() && nickname.equals(p.getNickname())) {
+                return true;
+            }
+        }
         boolean ok;
         synchronized (r) {
             ok = applyReadyNextHandWhileLocked(r, nickname, userId);

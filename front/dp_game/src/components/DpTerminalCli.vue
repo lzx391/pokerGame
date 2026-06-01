@@ -42,6 +42,8 @@
           <span>Ctrl+D 关闭</span>
           <span>↑↓ 历史</span>
           <span>Tab 补全</span>
+          <span>music 音乐</span>
+          <span>hands 历史</span>
           <span>help 帮助</span>
           <span v-if="vm && vm.isOwner" style="color:rgba(255,224,102,0.5)">npc/kick/transfer/reveal</span>
         </div>
@@ -70,6 +72,8 @@ var CMDS = {
   kick:   { u: 'kick <昵称> [...]',  d: '踢出玩家(支持多个)',    act: 'kickPlayers', needs: 'args', owner: true },
   transfer:{u: 'transfer <昵称>',    d: '移交房主',              act: 'transferOwner', needs: 'nick', owner: true },
   reveal: { u: 'reveal',             d: '切换看穿底牌 开/关',   act: 'toggleReveal', owner: true },
+  music:  { u: 'music [play|pause|stop]', d: '打开音乐播放器',  act: 'musicCmd', needs: 'args' },
+  hands:  { u: 'hands',              d: '打开对局历史查看器',    act: 'fetchHands' },
   clear:  { u: 'clear',              d: '清屏',                  act: 'clear' },
   exit:   { u: 'exit',               d: '关闭终端',              act: 'exit' },
   help:   { u: 'help',               d: '显示命令列表',          act: 'help' }
@@ -189,6 +193,10 @@ export default {
       if (lower === 'transfer' || lower.indexOf('transfer ') === 0) {
         this.autocompletePlayerArg(input, 'transfer', this.getTransferablePlayerNicks()); return
       }
+      // —— music 命令：music / music l / music play ——
+      if (lower === 'music' || lower.indexOf('music ') === 0) {
+        this.autocompleteMusic(input); return
+      }
       // —— 通用命令名补全 ——
       var matches = this.cmdList.filter(function (c) { return c.indexOf(lower) === 0 })
       if (matches.length === 1) { this.inputBuffer = matches[0] + ' ' }
@@ -231,6 +239,18 @@ export default {
         if (seg1Lower === 'list') return
         // seg1 是 NPC 类型前缀，seg2 是数量 → 无需补全
         return
+      }
+    },
+
+    // 补全 music 子命令
+    autocompleteMusic: function (input) {
+      var parts = input.split(/\s+/)
+      if (parts.length === 2) {
+        var partial = parts[1].toLowerCase()
+        var subs = ['list', 'play', 'pause', 'stop']
+        var matches = subs.filter(function (s) { return s.indexOf(partial) === 0 })
+        if (matches.length === 1) { this.inputBuffer = 'music ' + matches[0] + ' ' }
+        else if (matches.length > 1) { this.addEntry('info', input, matches.join('  ')) }
       }
     },
 
@@ -278,6 +298,8 @@ export default {
       else if (act === 'kickPlayers') { this.execKick(raw, args) }
       else if (act === 'transferOwner') { this.execTransfer(raw, args) }
       else if (act === 'toggleReveal') { this.addEntry('ok', raw, undefined); this.execToggleReveal() }
+      else if (act === 'musicCmd') { this.execMusic(raw, args) }
+      else if (act === 'fetchHands') { this.addEntry('ok', raw, undefined); this.execFetchHands() }
       else if (def.needs === 'amt') { this.execWithAmount(def, raw, args) }
       else { this.addEntry('ok', raw, undefined); this.invokeAction(act) }
       this.inputBuffer = ''
@@ -411,6 +433,67 @@ export default {
       this.appendOut('[OK] 看穿底牌已' + (next ? '开启' : '关闭'))
     },
 
+    // ---- 音乐盒：打开音乐播放面板 ----
+    execMusic: function (raw, args) {
+      var sub = (args[0] || '').toLowerCase()
+      var vm = this.vm
+      // music play/pause/stop 快捷指令（不打开面板）
+      if (sub === 'play') {
+        var tid = parseInt(args[1], 10)
+        if (isNaN(tid)) { this.addEntry('err', raw, '[ERR] 用法: music play <id>'); return }
+        var track = (vm.musicTracks || []).find(function (t) { return t.id === tid })
+        if (!track) { this.addEntry('err', raw, '[ERR] 未找到曲目 id=' + tid); return }
+        this.addEntry('ok', raw, undefined)
+        vm.sendRoomMusicSync({ action: 'play', trackId: track.id, webPath: track.webPath, displayName: track.displayName || '' })
+        this.appendOut('[OK] 正在播放: ' + (track.displayName || '#' + track.id))
+        return
+      }
+      if (sub === 'pause') {
+        var ms = vm.roomMusicState
+        if (!ms || !ms.webPath) { this.addEntry('err', raw, '[ERR] 无正在播放的曲目'); return }
+        this.addEntry('ok', raw, undefined)
+        vm.sendRoomMusicSync({ action: 'pause', trackId: ms.trackId, webPath: ms.webPath, displayName: ms.displayName || '' })
+        this.appendOut('[OK] 已暂停'); return
+      }
+      if (sub === 'stop') {
+        var ms2 = vm.roomMusicState
+        if (!ms2 || !ms2.webPath) { this.addEntry('err', raw, '[ERR] 无正在播放的曲目'); return }
+        this.addEntry('ok', raw, undefined)
+        vm.sendRoomMusicSync({ action: 'stop', trackId: ms2.trackId, webPath: ms2.webPath, displayName: ms2.displayName || '' })
+        this.appendOut('[OK] 已停止'); return
+      }
+      // 无参或未知子命令 → 打开面板
+      this.addEntry('ok', raw, '[OK] 打开音乐播放器')
+      vm.showMusicPlayer = true
+    },
+
+    // ---- 对局历史：打开历史查看面板 ----
+    execFetchHands: function () {
+      var vm = this.vm
+      if (!vm || !vm.user) { this.appendOut('[ERR] 无用户数据'); return }
+      this.addEntry('ok', 'hands', '[OK] 打开对局历史')
+      vm.showHandHistoryPanel = true
+    },
+
+    // ---- 外部调用：打开终端并自动执行命令 ----
+    autoRun: function (cmd) {
+      var self = this
+      if (!this.open) {
+        this.openTerminal()
+        // 等 CRT 动画完再执行
+        var check = setInterval(function () {
+          if (self.phase === 'ready' || self.phase === 'reveal-flash' || !self.showCrtLayers) {
+            clearInterval(check)
+            self.inputBuffer = cmd
+            self.executeLine()
+          }
+        }, 80)
+      } else {
+        this.inputBuffer = cmd
+        this.executeLine()
+      }
+    },
+
     // ---- 入座/准备：根据状态选正确 API ----
     execSit: function () {
       var vm = this.vm
@@ -479,7 +562,7 @@ export default {
     printHelp: function (raw) {
       var lines = []; var self = this
       lines.push('  —— 玩家指令 ——')
-      var playerCmds = ['raise','fold','call','check','allin','cards','players','pot','stats','sit','leave']
+      var playerCmds = ['raise','fold','call','check','allin','cards','players','pot','stats','music','hands','sit','leave']
       playerCmds.forEach(function (n) { var d = CMDS[n]; lines.push('  ' + d.u + '  — ' + d.d) })
       if (this.vm && this.vm.isOwner) {
         lines.push('  —— 房主指令 ——')

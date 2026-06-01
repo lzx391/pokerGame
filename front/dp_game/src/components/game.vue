@@ -38,7 +38,7 @@
         @show-wait-next-hand="$store.commit('dpGame/SET_MODAL', { showWaitNextHandModal: true })"
         @toggle-fullscreen="toggleDpFullscreen"
         @open-hand-history="openHandHistory"
-        @open-music-box="$store.commit('dpGame/SET_MODAL', { showMusicBoxModal: true })"
+        @open-music-box="onOpenMusicBox"
         @open-owner-hub="onOwnerHubClick"
         @open-invite-friend="onInviteFriendClick"
         @exit="exitGame"
@@ -122,6 +122,8 @@
     <dp-crt-boot-sequence ref="crtBootSequence" />
     <dp-terminal-cli v-if="gameUiTheme === 'retro8bit'" ref="terminalCli" />
     <dp-crt-event-popup v-if="gameUiTheme === 'retro8bit'" ref="crtEventPopup" />
+    <dp-music-player v-if="gameUiTheme === 'retro8bit'" :open.sync="showMusicPlayer" />
+    <dp-hand-history-viewer v-if="gameUiTheme === 'retro8bit'" :open.sync="showHandHistoryPanel" />
 
   </div>
 </template>
@@ -145,6 +147,8 @@ import GameHeroHandHologram from './GameHeroHandHologram.vue'
 import DpCrtBootSequence from './DpCrtBootSequence.vue'
 import DpTerminalCli from './DpTerminalCli.vue'
 import DpCrtEventPopup from './DpCrtEventPopup.vue'
+import DpMusicPlayer from './DpMusicPlayer.vue'
+import DpHandHistoryViewer from './DpHandHistoryViewer.vue'
 import dpGameFullscreenMixin from '../mixins/dpGameFullscreenMixin'
 import dpGameTableFitMixin from '../mixins/dpGameTableFitMixin'
 import dpGameActionCountdownMixin from '../mixins/dpGameActionCountdownMixin'
@@ -178,7 +182,9 @@ export default {
     GameHeroHandHologram,
     DpCrtBootSequence,
     DpTerminalCli,
-    DpCrtEventPopup
+    DpCrtEventPopup,
+    DpMusicPlayer,
+    DpHandHistoryViewer
   },
   data() {
     return {
@@ -206,6 +212,8 @@ export default {
       inviteFriendOpen: false,
       ownerTerminalOpen: false,
       showOwnerPotJudgeSheet: false,
+      showMusicPlayer: false,
+      showHandHistoryPanel: false,
       viewportWidth: typeof window !== 'undefined' ? window.innerWidth : 1024,
       prefersReducedMotion: false,
       _hologramResizeTimer: null,
@@ -1892,7 +1900,13 @@ export default {
       }
     },
 
+    onOpenMusicBox() {
+      if (this.gameUiTheme === 'retro8bit') { this.showMusicPlayer = true; return }
+      this.$store.commit('dpGame/SET_MODAL', { showMusicBoxModal: true })
+    },
+
     openHandHistory() {
+      if (this.gameUiTheme === 'retro8bit') { this.showHandHistoryPanel = true; return }
       this.$store.commit('dpGame/SET_MODAL', { showHandHistoryModal: true })
     },
 
