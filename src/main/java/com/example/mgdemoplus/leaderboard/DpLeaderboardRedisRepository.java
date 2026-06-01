@@ -3,6 +3,7 @@ package com.example.mgdemoplus.leaderboard;
 import com.example.mgdemoplus.leaderboard.entity.DpLeaderboardWeekly;
 import com.example.mgdemoplus.leaderboard.mapper.DpLeaderboardWeeklyMapper;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
 import org.slf4j.Logger;
@@ -38,6 +39,7 @@ public class DpLeaderboardRedisRepository {
         String handKey = DpLeaderboardWeekUtil.handRedisKey(weekMonday);
         String roomKey = DpLeaderboardWeekUtil.roomRedisKey(weekMonday);
         try {
+            //删掉key
             stringRedisTemplate.delete(handKey);
             stringRedisTemplate.delete(roomKey);
             for (DpLeaderboardWeekly row : rows) {
@@ -54,8 +56,8 @@ public class DpLeaderboardRedisRepository {
                     stringRedisTemplate.opsForZSet().add(roomKey, member, toRedisScore(room));
                 }
             }
-            stringRedisTemplate.expire(handKey, java.time.Duration.ofSeconds(redisTtlSeconds));
-            stringRedisTemplate.expire(roomKey, java.time.Duration.ofSeconds(redisTtlSeconds));
+            stringRedisTemplate.expire(handKey, Duration.ofSeconds(redisTtlSeconds));
+            stringRedisTemplate.expire(roomKey, Duration.ofSeconds(redisTtlSeconds));
         } catch (Exception e) {
             log.warn("leaderboard redis sync failed: {}", e.toString());
         }

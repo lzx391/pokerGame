@@ -134,10 +134,14 @@ public class DpLeaderboardWeeklyReadService {
                 items, WeeklyLeaderboardItemVO::getMultiplier, WeeklyLeaderboardItemVO::setRank);
         enrichNicknames(items);
         data.put("items", items);
+
         attachMyStats(data, board, viewerUserId);
         return data;
     }
-
+/**
+ * 丰富资料卡的nickname、avatarUrl、avatarUpdatedAt
+ * @param items
+ */
     private void enrichNicknames(List<WeeklyLeaderboardItemVO> items) {
         Set<Integer> ids = new LinkedHashSet<>();
         for (WeeklyLeaderboardItemVO item : items) {
@@ -159,7 +163,12 @@ public class DpLeaderboardWeeklyReadService {
             }
         }
     }
-
+/**
+ * 我的数据
+ * @param data
+ * @param board
+ * @param viewerUserId
+ */
     private void attachMyStats(Map<String, Object> data, String board, Integer viewerUserId) {
         if (viewerUserId == null || viewerUserId <= 0) {
             return;
