@@ -4,16 +4,47 @@
     :class="{
       'app--lobby': isLobbyRoute,
       'app--dp-game': isGameRoute,
-      'app--auth': isAuthPage
+      'app--auth': isAuthPage,
+      'app--auth-retro8bit': isAuthPage && isRetro8bitAuth,
+      'app--auth-classic': isAuthPage && !isRetro8bitAuth
     }"
   >
-    <!-- 登录 / 注册：电视机柜舞台 -->
+    <!-- 登录 / 注册 -->
     <template v-if="isAuthPage">
-      <div class="app-container app-container--auth">
+      <!-- retro8bit：电视机柜 CRT 舞台 -->
+      <div
+        v-if="isRetro8bitAuth"
+        :key="'auth-' + gameUiTheme"
+        class="app-container app-container--auth"
+      >
         <dp-auth-stage
           :app-auth-title="appAuthTitle"
           @input-theme="onAuthThemeChange($event)"
         />
+      </div>
+
+      <!-- 其余主题：普通卡片表单 -->
+      <div
+        v-else
+        :key="'auth-' + gameUiTheme"
+        class="app-container"
+      >
+        <div class="dp-game-theme-row app-auth-theme-bar">
+          <span class="dp-game-theme-row__label">界面主题</span>
+          <dp-theme-picker
+            :game-ui-theme="gameUiTheme"
+            :theme-options="gameThemeOptions"
+            @input-theme="onAuthThemeChange($event)"
+          />
+        </div>
+        <h1 class="app-title">{{ appAuthTitle }}</h1>
+        <div class="nav-bar">
+          <router-link to="/login" class="nav-link">登录</router-link>
+          <router-link to="/register" class="nav-link">注册</router-link>
+        </div>
+        <div class="content-box">
+          <router-view></router-view>
+        </div>
       </div>
     </template>
 
@@ -64,6 +95,9 @@ export default {
     isAuthPage() {
       const path = this.$route.path
       return path === '/login' || path === '/register' || path === '/'
+    },
+    isRetro8bitAuth() {
+      return this.gameUiTheme === 'retro8bit'
     },
     /** 大厅与主题子页：#app 不铺灰底，由 .dp-game-root / body[data-dp-game-theme] 铺色 */
     /** 与 dpBodyGameTheme.isLobbyRoute 真源一致（含 /create-room，验收 A12） */

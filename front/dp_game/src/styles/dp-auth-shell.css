@@ -1,10 +1,108 @@
 /**
- * 登录 / 注册：长廊透视 + 线条风终端（DpAuthStage）；颜色见 dp-depth-tokens.css auth 段。
- * 由 main.js 引入；与 #app.app--auth 配合（见 App.vue）。
- * 方案：docs/refactor/auth-corridor-terminal-plan.md
+ * 登录 / 注册 shell（App.vue app--auth）
+ * - app--auth-classic：主题纯色底 + 居中卡片（--dp-*）
+ * - app--auth-retro8bit：CRT 长廊终端（DpAuthStage；--dp-auth-*，见 dp-depth-tokens.css）
  */
 
-#app.app--auth {
+/* ========== Classic（default / gothic / strawberry / halloween） ========== */
+
+#app.app--auth.app--auth-classic {
+  background: transparent !important;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  color: var(--dp-text-primary, #333);
+  font-family: var(--dp-font-ui, Avenir, Helvetica, Arial, sans-serif);
+}
+
+#app.app--auth.app--auth-classic .app-container {
+  max-width: 440px;
+  padding: 24px 18px 40px;
+}
+
+#app.app--auth.app--auth-classic .app-auth-theme-bar {
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+#app.app--auth.app--auth-classic .dp-game-theme-row__label {
+  color: var(--dp-text-secondary);
+}
+
+#app.app--auth.app--auth-classic .app-title {
+  color: var(--dp-text-primary);
+  margin-bottom: 20px;
+}
+
+#app.app--auth.app--auth-classic .nav-bar {
+  margin-bottom: 24px;
+}
+
+#app.app--auth.app--auth-classic .nav-link {
+  background: var(--dp-btn-primary-bg) !important;
+  color: var(--dp-btn-primary-fg) !important;
+  border: 1px solid var(--dp-panel-border);
+  box-shadow: var(--dp-panel-shadow);
+}
+
+#app.app--auth.app--auth-classic .nav-link:hover {
+  filter: brightness(1.06);
+}
+
+#app.app--auth.app--auth-classic .nav-link.router-link-active {
+  box-shadow: 0 0 0 2px var(--dp-accent);
+}
+
+#app.app--auth.app--auth-classic .content-box {
+  background: var(--dp-panel-bg);
+  border: 1px solid var(--dp-panel-border);
+  box-shadow: var(--dp-panel-shadow);
+  border-radius: 12px;
+  padding: 28px 24px;
+  min-height: 280px;
+}
+
+#app.app--auth.app--auth-classic .content-box h1,
+#app.app--auth.app--auth-classic .content-box h2 {
+  color: var(--dp-text-primary);
+}
+
+#app.app--auth.app--auth-classic .content-box label {
+  color: var(--dp-text-secondary);
+}
+
+#app.app--auth.app--auth-classic .content-box input[type='text'],
+#app.app--auth.app--auth-classic .content-box input[type='password'] {
+  background: var(--dp-input-bg);
+  border: 1px solid var(--dp-input-border);
+  color: var(--dp-text-primary);
+  border-radius: 8px;
+}
+
+#app.app--auth.app--auth-classic .content-box input[type='text']:focus,
+#app.app--auth.app--auth-classic .content-box input[type='password']:focus {
+  outline: none;
+  border-color: var(--dp-accent);
+}
+
+#app.app--auth.app--auth-classic .content-box .login-btn,
+#app.app--auth.app--auth-classic .content-box .register-btn {
+  background: var(--dp-btn-primary-bg);
+  color: var(--dp-btn-primary-fg);
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+#app.app--auth.app--auth-classic .content-box .login-btn:hover,
+#app.app--auth.app--auth-classic .content-box .register-btn:hover {
+  filter: brightness(1.05);
+}
+
+/* ========== Retro8bit CRT（DpAuthStage） ========== */
+
+#app.app--auth.app--auth-retro8bit {
   min-height: 100dvh;
   min-height: -webkit-fill-available;
   color: var(--dp-auth-phosphor);
@@ -12,126 +110,107 @@
   background-color: var(--dp-auth-corridor-bg);
 }
 
-#app.app--auth .app-container {
+#app.app--auth.app--auth-retro8bit .app-container {
   max-width: min(100%, 42rem);
   padding: clamp(12px, 3vw, 20px) clamp(10px, 2.5vw, 16px) clamp(20px, 5vw, 32px);
   box-sizing: border-box;
 }
 
 @media (min-width: 1280px) {
-  #app.app--auth .app-container {
+  #app.app--auth.app--auth-retro8bit .app-container {
     max-width: min(100%, 58rem);
     padding-bottom: clamp(24px, 4vw, 40px);
   }
 
-  #app.app--auth .dp-auth-stage__form-panel .login-box,
-  #app.app--auth .dp-auth-stage__form-panel .register-form {
+  #app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .login-box,
+  #app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .register-form {
     max-width: min(100%, 28rem);
   }
 
-  #app.app--auth .dp-auth-stage__form-panel .login-box__hint,
-  #app.app--auth .dp-auth-stage__form-panel .register-form__hint {
+  #app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .login-box__hint,
+  #app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .register-form__hint {
     margin-bottom: 12px;
     font-size: 13px;
   }
 
-  #app.app--auth .dp-auth-stage__form-panel .form-item {
+  #app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .form-item {
     margin-top: 11px;
     margin-bottom: 11px;
     gap: 10px;
   }
 
-  #app.app--auth .dp-auth-stage__form-panel .form-item label {
+  #app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .form-item label {
     flex: 0 0 52px;
     font-size: 15px;
   }
 
-  #app.app--auth .dp-auth-stage__form-panel .form-item input {
+  #app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .form-item input {
     height: 44px;
     padding: 0 12px;
     font-size: 15px;
   }
 
-  #app.app--auth .dp-auth-stage__form-panel .login-btn,
-  #app.app--auth .dp-auth-stage__form-panel .register-btn {
+  #app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .login-btn,
+  #app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .register-btn {
     height: 46px;
     margin-top: 12px;
     font-size: 15px;
   }
 }
 
-#app.app--auth .app-container--auth {
+#app.app--auth.app--auth-retro8bit .app-container--auth {
   overflow: visible;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
-#app.app--auth .dp-game-theme-row__label {
+#app.app--auth.app--auth-retro8bit .dp-game-theme-row__label {
   color: var(--dp-auth-phosphor-dim);
 }
 
-/* 屏内文字抗锯齿，减少多层 glow 叠出的「糊边」 */
-#app.app--auth .dp-auth-stage__content {
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__content {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* 屏内磷光字：标题 / Tab / 表单统一发光（亮度由 token 控制） */
-#app.app--auth .dp-auth-stage__title,
-#app.app--auth .dp-auth-stage__tab,
-#app.app--auth .dp-auth-stage__tab--active,
-#app.app--auth .dp-auth-stage__form-panel h1,
-#app.app--auth .dp-auth-stage__form-panel h2,
-#app.app--auth .dp-auth-stage__form-panel label,
-#app.app--auth .dp-auth-stage__form-panel input[type='text'],
-#app.app--auth .dp-auth-stage__form-panel input[type='password'],
-#app.app--auth .dp-auth-stage__form-panel .login-btn,
-#app.app--auth .dp-auth-stage__form-panel .register-btn {
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__title,
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__tab,
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__tab--active,
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel h1,
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel h2,
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel label,
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel input[type='text'],
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel input[type='password'],
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .login-btn,
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .register-btn {
   text-shadow: var(--dp-auth-text-shadow);
 }
 
-#app.app--auth .dp-auth-stage__error-pixel-label,
-#app.app--auth .dp-auth-stage__error-message,
-#app.app--auth .dp-auth-stage__error-retry {
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__error-pixel-label,
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__error-message,
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__error-retry {
   text-shadow: var(--dp-auth-text-shadow);
 }
 
 @media (hover: hover) and (pointer: fine) {
-  body[data-dp-fluidity='standard'] #app.app--auth .dp-auth-stage__error-retry:hover {
+  body[data-dp-fluidity='standard'] #app.app--auth.app--auth-retro8bit .dp-auth-stage__error-retry:hover {
     background: color-mix(in srgb, var(--dp-auth-phosphor) 32%, var(--dp-auth-screen-bg));
     box-shadow: 0 0 16px color-mix(in srgb, var(--dp-auth-phosphor) 28%, transparent);
   }
 }
 
-/*
- * 非 default / retro8bit：主题色横线只画在屏背景层（z-index 2，低于 content 4），
- * 不用 mix-blend-mode，避免叠在文字上导致发糊、对比度下降。
- */
-body[data-dp-game-theme]:not([data-dp-game-theme='default']):not([data-dp-game-theme='retro8bit']) #app.app--auth .dp-auth-stage__scanlines {
-  background: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent 2px,
-    var(--dp-auth-text-scanline) 2px,
-    var(--dp-auth-text-scanline) 3px
-  );
-  background-size: 100% 3px;
-  opacity: calc(0.16 + var(--dp-auth-content-electron, 1) * 0.14);
-}
-
-/* 屏幕内表单：终端色 token，覆盖大厅浅色 --dp-input-* */
-#app.app--auth .dp-auth-stage__form-panel h1,
-#app.app--auth .dp-auth-stage__form-panel h2 {
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel h1,
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel h2 {
   color: var(--dp-auth-phosphor);
 }
 
-#app.app--auth .dp-auth-stage__form-panel label {
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel label {
   color: var(--dp-auth-phosphor-dim);
 }
 
-#app.app--auth .dp-auth-stage__form-panel input[type='text'],
-#app.app--auth .dp-auth-stage__form-panel input[type='password'] {
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel input[type='text'],
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel input[type='password'] {
   background: color-mix(in srgb, var(--dp-auth-screen-bg) 88%, #000);
   border: 1px solid color-mix(in srgb, var(--dp-auth-phosphor-dim) 62%, transparent);
   color: var(--dp-auth-phosphor);
@@ -140,20 +219,20 @@ body[data-dp-game-theme]:not([data-dp-game-theme='default']):not([data-dp-game-t
   box-shadow: inset 0 0 12px color-mix(in srgb, var(--dp-auth-screen-glow) 35%, transparent);
 }
 
-#app.app--auth .dp-auth-stage__form-panel input[type='text']::placeholder,
-#app.app--auth .dp-auth-stage__form-panel input[type='password']::placeholder {
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel input[type='text']::placeholder,
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel input[type='password']::placeholder {
   color: color-mix(in srgb, var(--dp-auth-phosphor-dim) 65%, transparent);
 }
 
-#app.app--auth .dp-auth-stage__form-panel input[type='text']:focus,
-#app.app--auth .dp-auth-stage__form-panel input[type='password']:focus {
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel input[type='text']:focus,
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel input[type='password']:focus {
   outline: none;
   border-color: var(--dp-auth-phosphor);
   box-shadow: 0 0 0 2px var(--dp-auth-screen-glow);
 }
 
-#app.app--auth .dp-auth-stage__form-panel .login-btn,
-#app.app--auth .dp-auth-stage__form-panel .register-btn {
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .login-btn,
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .register-btn {
   background: color-mix(in srgb, var(--dp-auth-phosphor) 22%, var(--dp-auth-screen-bg));
   color: var(--dp-auth-phosphor);
   border: 1px solid var(--dp-auth-phosphor);
@@ -167,59 +246,59 @@ body[data-dp-game-theme]:not([data-dp-game-theme='default']):not([data-dp-game-t
 }
 
 @media (hover: hover) and (pointer: fine) {
-  body[data-dp-fluidity='standard'] #app.app--auth .dp-auth-stage__tab:not(.dp-auth-stage__tab--active):hover {
+  body[data-dp-fluidity='standard'] #app.app--auth.app--auth-retro8bit .dp-auth-stage__tab:not(.dp-auth-stage__tab--active):hover {
     color: var(--dp-auth-phosphor);
     border-color: color-mix(in srgb, var(--dp-auth-phosphor) 55%, transparent);
     box-shadow: 0 0 8px var(--dp-auth-screen-glow);
   }
 
-  body[data-dp-fluidity='standard'] #app.app--auth .dp-auth-stage__form-panel .login-btn:hover,
-  body[data-dp-fluidity='standard'] #app.app--auth .dp-auth-stage__form-panel .register-btn:hover {
+  body[data-dp-fluidity='standard'] #app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .login-btn:hover,
+  body[data-dp-fluidity='standard'] #app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .register-btn:hover {
     background: color-mix(in srgb, var(--dp-auth-phosphor) 32%, var(--dp-auth-screen-bg));
     box-shadow: 0 0 14px color-mix(in srgb, var(--dp-auth-phosphor) 28%, transparent);
   }
 }
 
-#app.app--auth .dp-auth-stage__form-panel .login-box,
-#app.app--auth .dp-auth-stage__form-panel .register-form {
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .login-box,
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .register-form {
   width: 100%;
   max-width: min(100%, 24rem);
   box-sizing: border-box;
 }
 
-#app.app--auth .dp-auth-stage__form-panel .login-box__title,
-#app.app--auth .dp-auth-stage__form-panel .register-form__title {
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .login-box__title,
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .register-form__title {
   display: none;
 }
 
-#app.app--auth .dp-auth-stage__form-panel .login-box__hint,
-#app.app--auth .dp-auth-stage__form-panel .register-form__hint {
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .login-box__hint,
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .register-form__hint {
   margin: 0 0 clamp(8px, 2vw, 12px);
   font-size: clamp(12px, 3vw, 13px);
   line-height: 1.35;
   color: var(--dp-auth-phosphor-dim);
 }
 
-#app.app--auth .dp-auth-stage__form-panel .form-item {
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .form-item {
   margin-top: clamp(8px, 2vw, 11px);
   margin-bottom: clamp(8px, 2vw, 11px);
   gap: clamp(7px, 1.8vw, 10px);
 }
 
-#app.app--auth .dp-auth-stage__form-panel .form-item label {
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .form-item label {
   flex: 0 0 clamp(44px, 12vw, 48px);
   font-size: clamp(13px, 3.5vw, 14px);
 }
 
-#app.app--auth .dp-auth-stage__form-panel .form-item input {
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .form-item input {
   min-width: 0;
   height: clamp(38px, 10vw, 42px);
   padding: 0 clamp(10px, 2.4vw, 12px);
   font-size: clamp(14px, 3.8vw, 15px);
 }
 
-#app.app--auth .dp-auth-stage__form-panel .login-btn,
-#app.app--auth .dp-auth-stage__form-panel .register-btn {
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .login-btn,
+#app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .register-btn {
   width: 100%;
   max-width: 100%;
   height: clamp(40px, 10.5vw, 44px);
@@ -228,41 +307,40 @@ body[data-dp-game-theme]:not([data-dp-game-theme='default']):not([data-dp-game-t
 }
 
 @media (max-width: 380px) {
-  #app.app--auth .dp-auth-stage__form-panel .login-box,
-  #app.app--auth .dp-auth-stage__form-panel .register-form {
+  #app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .login-box,
+  #app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .register-form {
     max-width: 100%;
   }
 
-  #app.app--auth .dp-auth-stage__form-panel .form-item {
+  #app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .form-item {
     flex-wrap: nowrap;
   }
 
-  #app.app--auth .dp-auth-stage__form-panel .form-item label {
+  #app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .form-item label {
     flex: 0 0 40px;
   }
 
-  #app.app--auth .dp-auth-stage__form-panel .form-item input {
+  #app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .form-item input {
     flex: 1 1 0;
   }
 }
 
 @media (max-width: 360px) {
-  #app.app--auth .app-container {
+  #app.app--auth.app--auth-retro8bit .app-container {
     padding-left: 10px;
     padding-right: 10px;
   }
 
-  #app.app--auth .dp-auth-stage__title {
+  #app.app--auth.app--auth-retro8bit .dp-auth-stage__title {
     letter-spacing: 0.08em;
   }
 }
 
-/* retro8bit：表单/按钮/错误用可读栈；仅主标题像素 */
-body[data-dp-game-theme='retro8bit'] #app.app--auth {
+body[data-dp-game-theme='retro8bit'] #app.app--auth.app--auth-retro8bit {
   font-family: ui-monospace, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', monospace;
 }
 
-body[data-dp-game-theme='retro8bit'] #app.app--auth .dp-auth-stage__title {
+body[data-dp-game-theme='retro8bit'] #app.app--auth.app--auth-retro8bit .dp-auth-stage__title {
   font-family: var(--dp-font-pixel);
   letter-spacing: 0.1em;
   line-height: 1.45;
@@ -271,16 +349,16 @@ body[data-dp-game-theme='retro8bit'] #app.app--auth .dp-auth-stage__title {
   -moz-osx-font-smoothing: unset;
 }
 
-body[data-dp-game-theme='retro8bit'] #app.app--auth .dp-auth-stage__form-panel .login-box__hint,
-body[data-dp-game-theme='retro8bit'] #app.app--auth .dp-auth-stage__form-panel .register-form__hint,
-body[data-dp-game-theme='retro8bit'] #app.app--auth .dp-auth-stage__form-panel .form-item label,
-body[data-dp-game-theme='retro8bit'] #app.app--auth .dp-auth-stage__form-panel .form-item input,
-body[data-dp-game-theme='retro8bit'] #app.app--auth .dp-auth-stage__form-panel .login-btn,
-body[data-dp-game-theme='retro8bit'] #app.app--auth .dp-auth-stage__form-panel .register-btn,
-body[data-dp-game-theme='retro8bit'] #app.app--auth .dp-auth-stage__tab,
-body[data-dp-game-theme='retro8bit'] #app.app--auth .dp-auth-stage__error-pixel-label,
-body[data-dp-game-theme='retro8bit'] #app.app--auth .dp-auth-stage__error-message,
-body[data-dp-game-theme='retro8bit'] #app.app--auth .dp-auth-stage__error-retry {
+body[data-dp-game-theme='retro8bit'] #app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .login-box__hint,
+body[data-dp-game-theme='retro8bit'] #app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .register-form__hint,
+body[data-dp-game-theme='retro8bit'] #app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .form-item label,
+body[data-dp-game-theme='retro8bit'] #app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .form-item input,
+body[data-dp-game-theme='retro8bit'] #app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .login-btn,
+body[data-dp-game-theme='retro8bit'] #app.app--auth.app--auth-retro8bit .dp-auth-stage__form-panel .register-btn,
+body[data-dp-game-theme='retro8bit'] #app.app--auth.app--auth-retro8bit .dp-auth-stage__tab,
+body[data-dp-game-theme='retro8bit'] #app.app--auth.app--auth-retro8bit .dp-auth-stage__error-pixel-label,
+body[data-dp-game-theme='retro8bit'] #app.app--auth.app--auth-retro8bit .dp-auth-stage__error-message,
+body[data-dp-game-theme='retro8bit'] #app.app--auth.app--auth-retro8bit .dp-auth-stage__error-retry {
   font-family: inherit;
   font-size: clamp(13px, 3.6vw, 16px);
   line-height: 1.55;

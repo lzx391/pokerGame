@@ -24,7 +24,16 @@ export default {
   },
   watch: {
     layoutFullscreen: function () {
+      var self = this
       this.scheduleTableFitUpdate()
+      this.$nextTick(function () {
+        self.scheduleTableFitUpdate()
+        if (typeof requestAnimationFrame === "function") {
+          requestAnimationFrame(function () {
+            self.scheduleTableFitUpdate()
+          })
+        }
+      })
     },
     stage: function () {
       var self = this

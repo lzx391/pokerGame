@@ -14,6 +14,11 @@ export function bindAuthCrtOverlay(controller) {
   overlayController = controller
 }
 
+function isRetro8bitAuthTheme() {
+  if (typeof document === 'undefined') return false
+  return document.body.getAttribute('data-dp-game-theme') === 'retro8bit'
+}
+
 function isLiteTransition() {
   if (typeof window === 'undefined') return false
   if (document.body && document.body.getAttribute('data-dp-fluidity') === 'eco') {
@@ -70,10 +75,14 @@ export function enterLobbyAfterAuth(router, vm, opts) {
       router.replace('/home').catch(function () {}).finally(resolve)
     }
 
-    if (overlayController && typeof overlayController.play === 'function') {
+    if (
+      isRetro8bitAuthTheme() &&
+      overlayController &&
+      typeof overlayController.play === 'function'
+    ) {
       overlayController.play(timing, navigate)
       return
     }
-    setTimeout(navigate, timing.navigateAt)
+    setTimeout(navigate, isRetro8bitAuthTheme() ? timing.navigateAt : 180)
   })
 }

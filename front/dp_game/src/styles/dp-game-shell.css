@@ -180,6 +180,12 @@
 /*
  * data-dp-layout-tier：主面板内边距（与 JS layoutTier 同名；若产品收敛为「桌面/移动」两档，可删 tablet 规则并把 phone/tablet 变量合并）
  */
+.dp-game-root[data-dp-layout-tier='desktop'] {
+  --dp-game-table-fit-margin-top: 12px;
+  --dp-game-main-fit-pad-top-extra: 12px;
+  --dp-game-table-fit-pad-top: clamp(28px, 5vmin, 72px);
+}
+
 .dp-game-root[data-dp-layout-tier='tablet'] {
   --dp-game-main-fit-pad-x: 10px;
 }
@@ -1024,7 +1030,8 @@
 
 .dp-game-root--layout-fs .dp-game-hero-action-row--hide-narrow,
 .dp-game-root:fullscreen .dp-game-hero-action-row--hide-narrow,
-.dp-game-root:-webkit-full-screen .dp-game-hero-action-row--hide-narrow {
+.dp-game-root:-webkit-full-screen .dp-game-hero-action-row--hide-narrow,
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='desktop'] .dp-game-hero-action-row--hide-narrow {
   display: none !important;
 }
 
@@ -1063,7 +1070,8 @@
 
 .dp-game-root--layout-fs .dp-game-mobile-hero-bar,
 .dp-game-root:fullscreen .dp-game-mobile-hero-bar,
-.dp-game-root:-webkit-full-screen .dp-game-mobile-hero-bar {
+.dp-game-root:-webkit-full-screen .dp-game-mobile-hero-bar,
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='desktop'] .dp-game-mobile-hero-bar {
   display: flex;
   flex-direction: column;
   flex-wrap: nowrap;
@@ -2754,9 +2762,9 @@
 
 /* urgent 脉冲已关（Q8）；eco/PRM 见 dp-game-eco-mode.css */
 
-/* 宽屏且非全屏：仍用内联手牌行，隐藏底栏 */
+/* 宽屏且非全屏（tablet 等）：仍用内联手牌行，隐藏底栏；desktop 档见上方 data-dp-layout-tier 规则 */
 @media (min-width: 601px) {
-  .dp-game-root:not(.dp-game-root--layout-fs):not(:fullscreen):not(:-webkit-full-screen) .dp-game-mobile-hero-bar {
+  .dp-game-root:not(.dp-game-root--layout-fs):not(:fullscreen):not(:-webkit-full-screen):not([data-dp-layout-tier='desktop']) .dp-game-mobile-hero-bar {
     display: none !important;
   }
 }

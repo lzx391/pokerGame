@@ -56,7 +56,9 @@ export default {
         this.dpAuthStage.showAuthError(message)
         return
       }
-      console.warn('[register] auth stage unavailable:', message)
+      if (this.$message) {
+        this.$message.error({ message: message, duration: 3000 })
+      }
     },
     handleRegister() {
       if (this.dpAuthStage && (!this.dpAuthStage.contentInteractive || this.dpAuthStage.showErrorFace)) {

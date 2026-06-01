@@ -8,8 +8,8 @@
 
 | id | 中文名 | 说明 |
 |----|--------|------|
-| `default` | 明亮经典 | 白底灰褐线条；登录屏内灰系终端 |
-| `retro8bit` | 8bit 终端 | 深色磷光绿 CRT；登录屏内荧光绿 8bit |
+| `default` | 明亮经典 | 白底灰褐线条；登录/注册为普通卡片表单 |
+| `retro8bit` | 8bit 终端 | 深色磷光绿 CRT；**仅本主题**保留登录屏 CRT 长廊终端 |
 | `gothic` | 哥特暗夜 | 深色烛金与干玫瑰；标题用 `--dp-font-display`（与牌面 `.card-base` 同 Garamond 栈），正文/按钮仍 `--dp-font-ui` |
 | `strawberry` | 草莓甜心 | 粉嫩童话系浅色 |
 | `halloween` | 万圣惊魂 | 南瓜橙 / 幽紫节庆深色 |
@@ -137,7 +137,7 @@ shell / modals / cards / community-cards / element-ui 覆盖层
 
 | 页面 / 组件 | 根节点 | body 同步 | 说明 |
 |-------------|--------|-----------|------|
-| 登录 / 注册（`App.vue` `app--auth`） | 无单独 `.dp-game-root`，靠 **`body[data-dp-game-theme]`** → `#app.app--auth` 上的 **`--dp-auth-*`** | 是（`dpBodyGameTheme` 含 `/login`、`/register`、`/`） | 顶栏 `DpThemePicker`（`DpAuthStage` 内）；样式 **`dp-auth-shell.css`** + **`dp-depth-tokens.css` auth 段** + **`DpAuthStage.vue`**。切换主题后屏内终端色即时变化，花屏时序不变。 |
+| 登录 / 注册（`App.vue` `app--auth`） | 无单独 `.dp-game-root`，靠 **`body[data-dp-game-theme]`** → `#app.app--auth` 上的 **`--dp-*`（classic）或 `--dp-auth-*`（retro8bit）** | 是（`dpBodyGameTheme` 含 `/login`、`/register`、`/`） | **`retro8bit`**：`DpAuthStage` CRT 舞台（`app--auth-retro8bit`）。**其余四主题**：普通居中卡片 + 顶栏 `DpThemePicker` + 登录/注册 nav（`app--auth-classic`）；样式 **`dp-auth-shell.css`** 分 classic / retro8bit 两套。切换主题 `:key="gameUiTheme"` remount，避免 CRT DOM 残留。 |
 | `home.vue` | `.dp-game-root` + `:data-dp-game-theme` | 是（`dpLobbyThemeMixin`） | 顶栏含主题下拉；**快捷入口**一行含快速匹配、建房、历史对局、曲库上传及邮箱（未读角标）、好友；房间列表用 `dp-lobby-shell.css` 面板与按钮类。 |
 | `room.vue` | 同上 | 是 | 创建/加入房间后的等待页；含主题下拉。 |
 | `MusicUpload.vue` | 同上 | 是 | Element 覆盖见全局 `dp-game-element-ui.css`（`main.js` 引入），表单/表格/上传随 `--dp-*`。 |

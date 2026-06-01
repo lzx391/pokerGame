@@ -55,6 +55,17 @@ export default {
       if (this.isFullscreen) {
         this.scheduleReparentElementUiLayersIntoFullscreenRoot()
       }
+      var self = this
+      this.$nextTick(function () {
+        if (typeof self.scheduleTableFitUpdate === 'function') {
+          self.scheduleTableFitUpdate()
+          if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(function () {
+              self.scheduleTableFitUpdate()
+            })
+          }
+        }
+      })
     },
     exitDpFullscreenIfActive: function () {
       var root = this.$refs.gameRoot
