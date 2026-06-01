@@ -122,10 +122,6 @@ export default {
         || this.hologramPhase === 'flash'
         || this.hologramPhase === 'revealed'
     },
-    portalInGameRoot() {
-      var vm = this.vm
-      return !!(this.useRetroHandHologramWide && vm && vm.$refs && vm.$refs.gameRoot)
-    },
     phaseClass() {
       return {
         'dp-game-hero-hand-hologram--projecting': this.hologramPhase === 'projecting',
@@ -133,8 +129,7 @@ export default {
         'dp-game-hero-hand-hologram--flash': this.hologramPhase === 'flash',
         'dp-game-hero-hand-hologram--revealed': this.hologramPhase === 'revealed',
         'dp-game-hero-hand-hologram--collapsing': this.hologramPhase === 'collapsing',
-        'dp-game-hero-hand-hologram--instant': !this.useRetroHandHologramAnimated,
-        'dp-game-hero-hand-hologram--portal-root': this.portalInGameRoot
+        'dp-game-hero-hand-hologram--instant': !this.useRetroHandHologramAnimated
       }
     },
     sceneAnchorStyle() {
@@ -173,7 +168,6 @@ export default {
         isFullscreen: !!(this.vm && this.vm.isFullscreen),
         pseudoFullscreen: !!(this.vm && this.vm.pseudoFullscreen)
       })
-      this.syncPortalMount()
       if (this.sceneVisible) this.refreshAnchor()
     },
     useRetroHandHologramWide(now, was) {
@@ -182,12 +176,7 @@ export default {
         this.$store.commit('dpGame/SET_HERO_HAND_HOLOGRAM', false)
       }
       if (!now) {
-        this.hologramPhase = 'idle'
-        this.clearFlashTimer()
-        this.clearPhaseTimer()
-      }
-      if (now) {
-        this.syncPortalMount()
+        this.forceTeardown()
       }
     },
     'vm.viewportWidth'() {
@@ -204,64 +193,14 @@ export default {
       }
     }
   },
-  mounted() {
-    this.syncPortalMount()
-  },
   beforeDestroy() {
-    this.clearFlashTimer()
-    this.clearPhaseTimer()
-    if (typeof document !== 'undefined' && this.$el && this.$el.parentNode) {
-      this.$el.parentNode.removeChild(this.$el)
-    }
+    this.forceTeardown()
   },
   methods: {
-    /**
-     * retro8bit 宽视口：始终挂载 gameRoot，避免 native/pseudo 全屏 stacking 与 body overflow 裁剪。
-     */
-    getPortalTarget() {
-      if (!this.useRetroHandHologramWide) return null
-      var vm = this.vm
-      if (vm && vm.$refs && vm.$refs.gameRoot) {
-        return vm.$refs.gameRoot
-      }
-      return null
-    },
-    portalTargetLabel() {
-      var target = this.getPortalTarget()
-      if (!target) return 'none'
-      var vm = this.vm
-      if (vm && vm.$refs && vm.$refs.gameRoot && target === vm.$refs.gameRoot) return 'gameRoot'
-      return 'body'
-    },
-    syncPortalMount() {
-      if (!this.$el) {
-        dpHandHologramDevLog('syncPortalMount skipped: $el missing')
-        return
-      }
-      var target = this.getPortalTarget()
-      if (!target) {
-        dpHandHologramDevLog('syncPortalMount failed: portal target null', {
-          useRetroHandHologramWide: this.useRetroHandHologramWide,
-          gameRootPresent: !!(this.vm && this.vm.$refs && this.vm.$refs.gameRoot)
-        })
-        return
-      }
-      if (this.$el.parentNode !== target || target.lastElementChild !== this.$el) {
-        try {
-          target.appendChild(this.$el)
-          dpHandHologramDevLog('portal mounted', {
-            target: this.portalTargetLabel(),
-            layoutFullscreen: !!(this.vm && this.vm.layoutFullscreen),
-            isFullscreen: !!(this.vm && this.vm.isFullscreen),
-            pseudoFullscreen: !!(this.vm && this.vm.pseudoFullscreen)
-          })
-        } catch (e) {
-          dpHandHologramDevLog('portal mount failed', { error: String(e && e.message ? e.message : e) })
-          if (process.env.NODE_ENV !== 'production') {
-            console.warn('[dp-game] hologram portal mount failed', e)
-          }
-        }
-      }
+    forceTeardown() {
+      this.clearFlashTimer()
+      this.clearPhaseTimer()
+      this.hologramPhase = 'idle'
     },
     gameRootZoomFactor(root) {
       if (!root || typeof window === 'undefined') return 1
@@ -273,14 +212,18 @@ export default {
     anchorOffset() {
       var r = this.anchorRect
       if (!r) return null
-      var root = this.portalInGameRoot && this.vm.$refs.gameRoot
-      if (root) {
+      var root = this.vm && this.vm.$refs && this.vm.$refs.gameRoot
+      if (root && typeof window !== 'undefined') {
         var rootRect = root.getBoundingClientRect()
         var zoom = this.gameRootZoomFactor(root)
-        var cx = (r.left - rootRect.left + r.width / 2) / zoom
-        var bottom = (rootRect.bottom - r.top) / zoom
-        return { cx: cx, bottom: bottom, zoom: zoom, portal: 'gameRoot' }
+        return {
+          cx: (r.left - rootRect.left + r.width / 2) / zoom,
+          bottom: (rootRect.bottom - r.top) / zoom,
+          zoom: zoom,
+          portal: 'gameRoot'
+        }
       }
+      if (typeof window === 'undefined') return null
       return {
         cx: r.left + r.width / 2,
         bottom: window.innerHeight - r.top,
@@ -470,7 +413,6 @@ export default {
           heroDockRowPresent: !!this.heroDockRowSafe,
           phase: this.hologramPhase,
           animated: this.useRetroHandHologramAnimated,
-          portalTarget: this.portalTargetLabel(),
           layoutFullscreen: !!(this.vm && this.vm.layoutFullscreen),
           isFullscreen: !!(this.vm && this.vm.isFullscreen)
         })
@@ -487,7 +429,6 @@ export default {
           this.clearFlashTimer()
           this.clearPhaseTimer()
         }
-        this.syncPortalMount()
         this.refreshAnchor()
         if (!this.anchorRect) {
           this.fallbackToHandSheet('anchorRect null after refresh')

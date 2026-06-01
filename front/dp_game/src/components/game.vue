@@ -29,7 +29,7 @@
         :show-spectator-prepare="showSpectatorPrepareBlock"
         :next-hand-ready="nextHandReady"
         :game-ui-theme="gameUiTheme"
-        @update:gameUiTheme="$store.commit('dpGame/SET_GAME_UI_THEME', $event)"
+        @update:gameUiTheme="onGameUiThemeChange"
         :eco-mode="ecoMode"
         @update:ecoMode="$store.commit('dpGame/SET_ECO_MODE', $event)"
         :theme-options="gameThemeOptions"
@@ -103,7 +103,7 @@
     </main>
 
     <footer class="dp-game-layout__footer">
-      <game-hero-dock-footer />
+      <game-hero-dock-footer ref="heroDockFooter" />
     </footer>
     </div>
 
@@ -202,7 +202,8 @@ export default {
       _hologramResizeTimer: null,
       _hologramPrmMedia: null,
       _seatEnterNickSeeded: false,
-      joinRevealNicks: {}
+      joinRevealNicks: {},
+      _gameUiThemeChangeTimer: null
     }
   },
 
@@ -414,6 +415,7 @@ export default {
     if (this.actionTimer) clearInterval(this.actionTimer)
     if (this.readyTimer) clearInterval(this.readyTimer)
     if (this.communityCardsFlipCompleteTimer) clearTimeout(this.communityCardsFlipCompleteTimer)
+    if (this._gameUiThemeChangeTimer) clearTimeout(this._gameUiThemeChangeTimer)
     this._lastRoomApplyFingerprint = ''
     if (this._seatChatTimers) {
       var self = this
@@ -426,6 +428,80 @@ export default {
   },
 
   methods: {
+    onGameUiThemeChange(nextTheme) {
+      var next = nextTheme || 'default'
+      if (next === this.gameUiTheme) return
+      if (this._gameUiThemeChangeTimer) {
+        clearTimeout(this._gameUiThemeChangeTimer)
+      }
+      var self = this
+      this._gameUiThemeChangeTimer = setTimeout(function () {
+        self._gameUiThemeChangeTimer = null
+        self.applyGameUiThemeChange(next)
+      }, 80)
+    },
+    applyGameUiThemeChange(next) {
+      var self = this
+      var leavingRetro = this.gameUiTheme === 'retro8bit' && next !== 'retro8bit'
+      if (leavingRetro) {
+        this.teardownRetro8bitUi()
+      }
+      var commitTheme = function () {
+        self.$store.commit('dpGame/SET_GAME_UI_THEME', next)
+        self.$nextTick(function () {
+          if (typeof self.scheduleTableFitUpdate === 'function') {
+            self.scheduleTableFitUpdate()
+            if (typeof requestAnimationFrame === 'function') {
+              requestAnimationFrame(function () {
+                self.scheduleTableFitUpdate()
+              })
+            }
+          }
+        })
+      }
+      if (leavingRetro) {
+        this.$nextTick(function () {
+          self.$nextTick(function () {
+            if (typeof requestAnimationFrame === 'function') {
+              requestAnimationFrame(commitTheme)
+            } else {
+              commitTheme()
+            }
+          })
+        })
+        return
+      }
+      commitTheme()
+    },
+    /** 离开 retro8bit 前统一关闭特效/面板，再 nextTick×2 + rAF 切主题，避免 v-if 与 overlay 竞态 */
+    teardownRetro8bitUi() {
+      this.$store.commit('dpGame/SET_HERO_HAND_HOLOGRAM', false)
+      this.$store.commit('dpGame/CLOSE_OWNER_HUB')
+      this.$store.commit('dpGame/SET_MOBILE_SHEETS', {
+        showMobileHandSheet: false,
+        showMobileActionSheet: false
+      })
+      this.ownerTerminalOpen = false
+      this.inviteFriendOpen = false
+      this.showOwnerPotJudgeSheet = false
+      this.joinRevealNicks = {}
+      this.resetRetroChatReveal()
+      var holo = this.$refs.heroHandHologram
+      if (holo && typeof holo.forceTeardown === 'function') {
+        holo.forceTeardown()
+      }
+    },
+    resetRetroChatReveal() {
+      var footer = this.$refs.heroDockFooter
+      if (!footer || !footer.$refs) return
+      var refs = ['guideRoomChatPanel', 'guideMobileRoomChatPanel']
+      for (var i = 0; i < refs.length; i++) {
+        var panel = footer.$refs[refs[i]]
+        if (panel && typeof panel.closeForGuide === 'function') {
+          panel.closeForGuide()
+        }
+      }
+    },
     initHologramViewportListeners() {
       if (this._hologramViewportReady) return
       this._hologramViewportReady = true

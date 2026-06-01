@@ -133,9 +133,6 @@ export default {
     contentFetchActive() {
       return this.sceneVisible && this.panelPhase !== 'retract'
     },
-    portalInGameRoot() {
-      return !!(this.useRetroInvitePanelWide && this.vm && this.vm.$refs && this.vm.$refs.gameRoot)
-    },
     phaseClass() {
       return {
         'dp-invite-friend-panel--slide-in': this.panelPhase === 'slide-in',
@@ -143,8 +140,7 @@ export default {
         'dp-invite-friend-panel--reveal-flash': this.panelPhase === 'reveal-flash',
         'dp-invite-friend-panel--ready': this.panelPhase === 'ready',
         'dp-invite-friend-panel--retract': this.panelPhase === 'retract',
-        'dp-invite-friend-panel--instant': !this.useRetroInvitePanelAnimated,
-        'dp-invite-friend-panel--portal-root': this.portalInGameRoot
+        'dp-invite-friend-panel--instant': !this.useRetroInvitePanelAnimated
       }
     },
     shellStyle() {
@@ -180,7 +176,6 @@ export default {
       }
     },
     'vm.layoutFullscreen'() {
-      this.syncPortalMount()
       if (this.sceneVisible) this.refreshPanelAnchor()
     },
     'vm.viewportWidth'() {
@@ -192,27 +187,20 @@ export default {
         this.$emit('close')
       }
       if (!now) {
-        this.resetToIdle()
-      }
-      if (now) {
-        this.syncPortalMount()
+        this.forceTeardown()
       }
     }
   },
   mounted() {
-    this.syncPortalMount()
     if (this.open) this.startOpen()
   },
   beforeDestroy() {
-    this.clearContentReadyTickTimer()
-    this.clearFlashTimer()
-    this.clearPhaseTimer()
-    this.clearSnowMinHoldTimer()
-    if (typeof document !== 'undefined' && this.$el && this.$el.parentNode) {
-      this.$el.parentNode.removeChild(this.$el)
-    }
+    this.forceTeardown()
   },
   methods: {
+    forceTeardown() {
+      this.resetToIdle()
+    },
     setPhase(next) {
       var from = this.panelPhase
       if (from === next) return
@@ -239,7 +227,6 @@ export default {
       this.nowTick = Date.now()
       this.startContentReadyTickTimer()
       this.refreshPanelAnchor()
-      this.syncPortalMount()
       if (this.vm && typeof this.vm.scheduleReparentElementUiLayersIntoFullscreenRoot === 'function') {
         this.vm.scheduleReparentElementUiLayersIntoFullscreenRoot()
       }
@@ -334,7 +321,7 @@ export default {
       this.snowStartedAt = null
       this.minHoldLogged = false
       this.openedAt = null
-      this.setPhase('idle')
+      this.panelPhase = 'idle'
     },
     scheduleSnowMinHoldTimer() {
       this.clearSnowMinHoldTimer()
@@ -372,38 +359,6 @@ export default {
       if (this.phaseTimer) {
         clearTimeout(this.phaseTimer)
         this.phaseTimer = null
-      }
-    },
-    getPortalTarget() {
-      if (!this.useRetroInvitePanelWide) return null
-      var vm = this.vm
-      if (vm && vm.$refs && vm.$refs.gameRoot) {
-        return vm.$refs.gameRoot
-      }
-      return null
-    },
-    portalTargetLabel() {
-      var target = this.getPortalTarget()
-      if (!target) return 'none'
-      var vm = this.vm
-      if (vm && vm.$refs && vm.$refs.gameRoot && target === vm.$refs.gameRoot) return 'gameRoot'
-      return 'body'
-    },
-    syncPortalMount() {
-      if (!this.$el) return
-      var target = this.getPortalTarget()
-      if (!target) return
-      if (this.$el.parentNode !== target || target.lastElementChild !== this.$el) {
-        try {
-          target.appendChild(this.$el)
-          dpInviteFriendsDevLog('Teleport', {
-            portalTarget: this.portalTargetLabel()
-          })
-        } catch (e) {
-          if (process.env.NODE_ENV !== 'production') {
-            console.warn('[dp-game] invite panel portal mount failed', e)
-          }
-        }
       }
     },
     gameRootZoomFactor(root) {

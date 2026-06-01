@@ -11,6 +11,7 @@
  */
 
 .dp-game-root {
+  position: relative;
   box-sizing: border-box;
   font-family: var(--dp-font-ui);
   padding: 10px;
@@ -1336,34 +1337,34 @@
 
 /* retro8bit 宽视口：手牌全息投影 v2 — 光束展开 + 虚像浮现（>600px；挂载 body 或 gameRoot 全屏层） */
 @media (min-width: 601px) {
-  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram,
+  /* 手牌全息：留在 Vue 树内，相对 .dp-game-root 铺满（勿 appendChild 到 gameRoot，避免切主题 patch 卡死） */
   .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram {
-    position: fixed;
-    inset: 0;
-    z-index: 1020;
-    pointer-events: none;
-  }
-
-  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--portal-root,
-  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--portal-root {
     position: absolute;
     inset: 0;
     z-index: 2100;
     pointer-events: none;
   }
 
-  /* 投影场景：perspective + 锚点定位 */
-  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__scene,
-  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__scene {
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram {
     position: fixed;
+    inset: 0;
+    z-index: 1020;
+    pointer-events: none;
+  }
+
+  /* 投影场景：perspective + 锚点定位 */
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__scene {
+    position: absolute;
     transform: translateX(-50%);
     perspective: 900px;
     pointer-events: none;
   }
 
-  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--portal-root .dp-game-hero-hand-hologram__scene,
-  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--portal-root .dp-game-hero-hand-hologram__scene {
-    position: absolute;
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__scene {
+    position: fixed;
+    transform: translateX(-50%);
+    perspective: 900px;
+    pointer-events: none;
   }
 
   /* 光锥体积：主视觉容器 */
@@ -1621,18 +1622,18 @@
   }
 
   /* retro8bit 宽视口：邀请好友左上显示板 */
-  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel,
   .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel {
-    position: fixed;
+    position: absolute;
     inset: 0;
     z-index: 1018;
     pointer-events: none;
   }
 
-  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--portal-root,
-  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--portal-root {
-    position: absolute;
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel {
+    position: fixed;
     inset: 0;
+    z-index: 1018;
+    pointer-events: none;
   }
 
   body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__shell,
@@ -1911,18 +1912,18 @@
   }
 
   /* retro8bit 宽视口：房主终端右上显示板 */
-  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal,
   .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal {
-    position: fixed;
+    position: absolute;
     inset: 0;
     z-index: 1020;
     pointer-events: none;
   }
 
-  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal--portal-root,
-  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal--portal-root {
-    position: absolute;
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal {
+    position: fixed;
     inset: 0;
+    z-index: 1020;
+    pointer-events: none;
   }
 
   body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__shell,

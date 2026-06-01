@@ -49,6 +49,9 @@ export default {
     loading: function (v) {
       if (!v) this.scheduleTableFitUpdate()
     },
+    gameUiTheme: function () {
+      this.scheduleTableFitUpdate()
+    },
   },
   mounted: function () {
     var self = this

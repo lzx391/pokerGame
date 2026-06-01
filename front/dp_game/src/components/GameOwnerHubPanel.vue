@@ -170,9 +170,6 @@ export default {
     contentActive() {
       return this.sceneVisible && this.panelPhase !== 'retract' && this.showContentReady
     },
-    portalInGameRoot() {
-      return !!(this.useRetroOwnerPanelWide && this.vm && this.vm.$refs && this.vm.$refs.gameRoot)
-    },
     phaseClass() {
       return {
         'dp-owner-terminal--slide-in': this.panelPhase === 'slide-in',
@@ -180,8 +177,7 @@ export default {
         'dp-owner-terminal--reveal-flash': this.panelPhase === 'reveal-flash',
         'dp-owner-terminal--ready': this.panelPhase === 'ready',
         'dp-owner-terminal--retract': this.panelPhase === 'retract',
-        'dp-owner-terminal--instant': !this.useRetroOwnerPanelAnimated,
-        'dp-owner-terminal--portal-root': this.portalInGameRoot
+        'dp-owner-terminal--instant': !this.useRetroOwnerPanelAnimated
       }
     },
     shellStyle() {
@@ -199,7 +195,6 @@ export default {
       }
     },
     'vm.layoutFullscreen'() {
-      this.syncPortalMount()
       if (this.sceneVisible) this.refreshPanelAnchor()
     },
     'vm.viewportWidth'() {
@@ -211,26 +206,20 @@ export default {
         this.$emit('close')
       }
       if (!now) {
-        this.resetToIdle()
-      }
-      if (now) {
-        this.syncPortalMount()
+        this.forceTeardown()
       }
     }
   },
   mounted() {
-    this.syncPortalMount()
     if (this.open) this.startOpen()
   },
   beforeDestroy() {
-    this.clearFlashTimer()
-    this.clearSnowMinHoldTimer()
-    this.clearSnowTickTimer()
-    if (typeof document !== 'undefined' && this.$el && this.$el.parentNode) {
-      this.$el.parentNode.removeChild(this.$el)
-    }
+    this.forceTeardown()
   },
   methods: {
+    forceTeardown() {
+      this.resetToIdle()
+    },
     setPhase(next) {
       var from = this.panelPhase
       if (from === next) return
@@ -255,7 +244,6 @@ export default {
       this.openedAt = Date.now()
       this.terminalFocused = false
       this.refreshPanelAnchor()
-      this.syncPortalMount()
       if (this.vm && typeof this.vm.scheduleReparentElementUiLayersIntoFullscreenRoot === 'function') {
         this.vm.scheduleReparentElementUiLayersIntoFullscreenRoot()
       }
@@ -400,36 +388,6 @@ export default {
       if (this.flashTimer) {
         clearTimeout(this.flashTimer)
         this.flashTimer = null
-      }
-    },
-    getPortalTarget() {
-      if (!this.useRetroOwnerPanelWide) return null
-      var vm = this.vm
-      if (vm && vm.$refs && vm.$refs.gameRoot) {
-        return vm.$refs.gameRoot
-      }
-      return null
-    },
-    portalTargetLabel() {
-      var target = this.getPortalTarget()
-      if (!target) return 'none'
-      var vm = this.vm
-      if (vm && vm.$refs && vm.$refs.gameRoot && target === vm.$refs.gameRoot) return 'gameRoot'
-      return 'body'
-    },
-    syncPortalMount() {
-      if (!this.$el) return
-      var target = this.getPortalTarget()
-      if (!target) return
-      if (this.$el.parentNode !== target || target.lastElementChild !== this.$el) {
-        try {
-          target.appendChild(this.$el)
-          dpOwnerTerminalDevLog('portal', { portalTarget: this.portalTargetLabel() })
-        } catch (e) {
-          if (process.env.NODE_ENV !== 'production') {
-            console.warn('[dp-owner-terminal] portal mount failed', e)
-          }
-        }
       }
     },
     gameRootZoomFactor(root) {
