@@ -1328,7 +1328,7 @@ export default {
 
     // ---- 准备/取消准备（与 readyNextHand 一致：ok 才 commit 本地态、提示、loadGame）----
     async toggleReady() {
-      if (!this.user) return
+      if (!this.user) return { ok: false, message: '未登录' }
       var wasReady = this.myReady
       try {
         var res = await this.$http.post('/dpRoom/toggleReady', null, {
@@ -1342,11 +1342,13 @@ export default {
             this.$message.success('已准备下一局')
           }
           await this.loadGame()
-        } else {
-          this.$message.error('操作失败：' + res.data)
+          return { ok: true, wasReady: wasReady }
         }
+        this.$message.error('操作失败：' + res.data)
+        return { ok: false, message: String(res.data) }
       } catch (err) {
         this.$message.error('网络错误: ' + err.message)
+        return { ok: false, message: err.message || '网络错误' }
       }
     },
     // 结算后积分归零时补满
@@ -1357,12 +1359,14 @@ export default {
         })
         if (res.data !== 'ok') {
           this.$message.error('补满失败：' + res.data)
-        } else {
-          this.$message.success('补满成功，可在结算阶段准备下一局')
+          return { ok: false, message: String(res.data) }
         }
+        this.$message.success('补满成功，可在结算阶段准备下一局')
         await this.loadGame()
+        return { ok: true }
       } catch (err) {
         this.$message.error('网络错误: ' + err.message)
+        return { ok: false, message: err.message || '网络错误' }
       }
     },
 
@@ -2100,7 +2104,7 @@ export default {
 
     // ---- 观众：报名 / 取消下一局加入（再点一次从候补列表移除）----
     async readyNextHand() {
-      if (!this.user) return
+      if (!this.user) return { ok: false, message: '未登录' }
       try {
         var rp = { roomId: this.roomId, nickname: this.user.nickname }
         if (this.user.userId != null && this.user.userId !== '') {
@@ -2114,10 +2118,10 @@ export default {
             this.$store.commit('dpGame/SET_NEXT_HAND_READY', false)
             this.$message.success('已取消下一局报名')
             await this.loadGame()
-          } else {
-            this.$message.error('取消失败：' + cancelRes.data)
+            return { ok: true, cancelled: true }
           }
-          return
+          this.$message.error('取消失败：' + cancelRes.data)
+          return { ok: false, message: String(cancelRes.data) }
         }
         var res = await this.$http.post('/dpRoom/readyNextHand', null, {
           params: rp
@@ -2126,11 +2130,13 @@ export default {
           this.$store.commit('dpGame/SET_NEXT_HAND_READY', true)
           this.$message.success('已报名下一局，将在下一局开局时自动加入对局')
           await this.loadGame()
-        } else {
-          this.$message.error('报名失败：' + res.data)
+          return { ok: true }
         }
+        this.$message.error('报名失败：' + res.data)
+        return { ok: false, message: String(res.data) }
       } catch (err) {
         this.$message.error('网络错误: ' + err.message)
+        return { ok: false, message: err.message || '网络错误' }
       }
     },
 

@@ -58,6 +58,8 @@ export function seatChatBubbleSide(displayIdx, total, viewerSeatedAtTable, gameU
 export var RETRO_TABLE_POLY_CX = 50
 export var RETRO_TABLE_POLY_CY = 50
 export var RETRO_TABLE_POLY_R = 48
+/** 顶点 0 极角：π/2 → 屏幕下方尖角（与入座 display 0 对齐）；原 −π/2 为顶部尖角、底部是平边 */
+export var RETRO_TABLE_POLY_THETA0 = Math.PI / 2
 
 /** @param {number} playerCount 在座人数 */
 export function retroTablePolygonSides(playerCount) {
@@ -114,11 +116,24 @@ export function buildRetroTableLayout(playerCount, options) {
     seatPositions: seatPositions
   }
   if (options.logReason && process.env.NODE_ENV === 'development') {
+    var bottomSeat = null
+    if (viewerSeatedAtTable && seated > 0) {
+      var bottomVtxIdx = retroDisplayIndexToVertexIndex(0, n, true)
+      var bottomVtx = vertices[bottomVtxIdx]
+      bottomSeat = {
+        displayIndex: 0,
+        vertexIndex: bottomVtxIdx,
+        vertex: bottomVtx,
+        seat: seatPositions[0]
+      }
+    }
     dpTableLayoutDevLog(options.logReason, {
       seated: seated,
       sides: n,
+      theta0: RETRO_TABLE_POLY_THETA0,
       center: center,
       vertices: vertices,
+      bottomSeat: bottomSeat,
       seatMap: seatPositions.map(function (s, i) {
         return { displayIndex: i, vertexIndex: s.vertexIndex, left: s.left, top: s.top }
       })
@@ -127,19 +142,21 @@ export function buildRetroTableLayout(playerCount, options) {
   return layout
 }
 
-/** display 环下标 → 多边形顶点下标（入座视角旋转半圈，仅此处定义） */
+/**
+ * display 环下标 → 多边形顶点下标。
+ * 入座：display 0 = 顶点 0（θ₀=π/2 的底尖角）；旁观：display 0 = 对顶顶点（桌顶）。
+ */
 export function retroDisplayIndexToVertexIndex(displayIdx, sides, viewerSeatedAtTable) {
-  var vertexIdx = displayIdx
   if (viewerSeatedAtTable) {
-    vertexIdx = (displayIdx + Math.floor(sides / 2)) % sides
+    return displayIdx % sides
   }
-  return vertexIdx
+  return (displayIdx + Math.floor(sides / 2)) % sides
 }
 
 /** @returns {{ x: number, y: number }} viewBox 百分比 */
 export function retroTablePolygonVertex(vertexIdx, sides) {
   var n = sides
-  var a = (2 * Math.PI * vertexIdx / n) - (Math.PI / 2)
+  var a = (2 * Math.PI * vertexIdx / n) + RETRO_TABLE_POLY_THETA0
   return {
     x: RETRO_TABLE_POLY_CX + RETRO_TABLE_POLY_R * Math.cos(a),
     y: RETRO_TABLE_POLY_CY + RETRO_TABLE_POLY_R * Math.sin(a)
@@ -156,9 +173,9 @@ export function retroTablePolygonEdgeDist(theta, sides) {
   var n = sides
   var alpha = Math.PI / n
   var sectorAngle = (2 * Math.PI) / n
-  var thetaFromTop = ((theta + Math.PI / 2) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI)
-  var sectorIndex = Math.floor(thetaFromTop / sectorAngle)
-  var edgeMidAngle = -Math.PI / 2 + (sectorIndex + 0.5) * sectorAngle
+  var thetaFromVertex0 = ((theta - RETRO_TABLE_POLY_THETA0) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI)
+  var sectorIndex = Math.floor(thetaFromVertex0 / sectorAngle)
+  var edgeMidAngle = RETRO_TABLE_POLY_THETA0 + (sectorIndex + 0.5) * sectorAngle
   var delta = theta - edgeMidAngle
   while (delta > Math.PI) delta -= 2 * Math.PI
   while (delta < -Math.PI) delta += 2 * Math.PI

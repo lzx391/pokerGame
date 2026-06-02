@@ -65,7 +65,7 @@ var CMDS = {
   players:{ u: 'players',            d: '列出玩家与筹码',        act: 'listPlayers' },
   pot:    { u: 'pot',                d: '显示底池与阶段',        act: 'showPot' },
   stats:  { u: 'stats',              d: '显示对局状态',          act: 'showStats' },
-  sit:    { u: 'sit',                d: '入座/准备(自动选API)',  act: 'doSit' },
+  sit:    { u: 'sit',                d: '入座/准备(不足自动补码)', act: 'doSit' },
   leave:  { u: 'leave',              d: '离座进入观众席',        act: 'doLeave' },
   // 房主操作
   npc:    { u: 'npc add <type> [n]', d: '添加NPC(npc list看类型)', act: 'npcAdd',  needs: 'args', owner: true },
@@ -322,6 +322,7 @@ export default {
       else if (act === 'toggleChatPanel') { this.addEntry('ok', raw, undefined); this.execToggleChatPanel() }
       else if (act === 'toggleHandCards') { this.addEntry('ok', raw, undefined); this.execToggleHandCards() }
       else if (act === 'sendChat') { this.execSendChat(raw, args) }
+      else if (act === 'doSit') { this.execSit(raw) }
       else if (def.needs === 'amt') { this.execWithAmount(def, raw, args) }
       else { this.addEntry('ok', raw, undefined); this.invokeAction(act) }
       this.inputBuffer = ''
@@ -355,9 +356,6 @@ export default {
           case 'showPot': this.appendOut('底池: ' + (vm.pot || 0) + ' | 阶段: ' + (vm.stageCN || 'N/A')); break
           case 'showStats':
             this.appendOut('阶段:' + (vm.stageCN || vm.stage) + ' | 底池:' + (vm.pot || 0) + ' | 筹码:' + (vm.myChips || 0) + ' | 房间:' + (vm.roomId || 'N/A'))
-            break
-          case 'doSit':
-            this.execSit()
             break
           case 'doLeave':
             if (typeof vm.doLeaveSeat === 'function') { vm.doLeaveSeat() }
@@ -584,36 +582,76 @@ export default {
       }
     },
 
-    // ---- 入座/准备：根据状态选正确 API ----
-    execSit: function () {
+    // ---- 入座/准备：根据状态选正确 API（await 完成后再反馈）----
+    execSit: async function (raw) {
       var vm = this.vm
-      if (!vm) { this.appendOut('[ERR] 无游戏实例'); return }
-      // 观众/已离座 → readyNextHand（报名下一局）
+      if (!vm) { this.addEntry('err', raw, '[ERR] 无游戏实例'); return }
+
+      // 观众/已离座 → readyNextHand（报名下一局，无需补码）
       if (vm.showSpectatorPrepareBlock) {
-        if (typeof vm.readyNextHand === 'function') {
-          vm.readyNextHand()
-          this.appendOut('[OK] 已报名下一局加入')
+        if (typeof vm.readyNextHand !== 'function') {
+          this.addEntry('err', raw, '[ERR] readyNextHand 不可用'); return
+        }
+        var specResult = await vm.readyNextHand()
+        if (specResult && specResult.ok) {
+          var specMsg = specResult.cancelled ? '已取消下一局报名' : '已报名下一局加入'
+          this.addEntry('ok', raw, '[OK] ' + specMsg)
         } else {
-          this.appendOut('[ERR] readyNextHand 不可用')
+          this.addEntry('err', raw, '[ERR] ' + ((specResult && specResult.message) || '操作失败'))
         }
         return
       }
-      // 已入座且结算阶段 → toggleReady（准备/取消准备）
-      if (vm.stage === 'settled') {
-        if (typeof vm.toggleReady === 'function') {
-          vm.toggleReady()
-          this.appendOut('[OK] 已' + (vm.myReady ? '取消准备' : '发送准备'))
+
+      // 已入座且结算阶段 → 不足大盲先补码，再准备/取消准备
+      if (vm.inSettledStage) {
+        if (typeof vm.toggleReady !== 'function') {
+          this.addEntry('err', raw, '[ERR] toggleReady 不可用'); return
+        }
+        if (vm.myReady) {
+          var cancelResult = await vm.toggleReady()
+          if (cancelResult && cancelResult.ok) {
+            this.addEntry('ok', raw, '[OK] 已取消准备')
+          } else {
+            this.addEntry('err', raw, '[ERR] ' + ((cancelResult && cancelResult.message) || '取消准备失败'))
+          }
+          return
+        }
+        if (Number(vm.myChips) < Number(vm.bigBlind)) {
+          if (typeof vm.rebuy !== 'function') {
+            this.addEntry('err', raw, '[ERR] rebuy 不可用'); return
+          }
+          var rebuyResult = await vm.rebuy()
+          if (!rebuyResult || !rebuyResult.ok) {
+            this.addEntry('err', raw, '[ERR] ' + ((rebuyResult && rebuyResult.message) || '补码失败'))
+            return
+          }
+          var readyAfterRebuy = await vm.toggleReady()
+          if (readyAfterRebuy && readyAfterRebuy.ok) {
+            this.addEntry('ok', raw, '[OK] 已补码并准备')
+          } else {
+            this.addEntry('err', raw, '[ERR] ' + ((readyAfterRebuy && readyAfterRebuy.message) || '准备失败'))
+          }
+          return
+        }
+        var prepResult = await vm.toggleReady()
+        if (prepResult && prepResult.ok) {
+          this.addEntry('ok', raw, '[OK] 已准备')
         } else {
-          this.appendOut('[ERR] toggleReady 不可用')
+          this.addEntry('err', raw, '[ERR] ' + ((prepResult && prepResult.message) || '准备失败'))
         }
         return
       }
+
       // 其他情况：尝试 readyNextHand
-      if (typeof vm.readyNextHand === 'function') {
-        vm.readyNextHand()
-        this.appendOut('[OK] 已发送加入请求')
+      if (typeof vm.readyNextHand !== 'function') {
+        this.addEntry('err', raw, '[ERR] 无法操作'); return
+      }
+      var joinResult = await vm.readyNextHand()
+      if (joinResult && joinResult.ok) {
+        var joinMsg = joinResult.cancelled ? '已取消下一局报名' : '已发送加入请求'
+        this.addEntry('ok', raw, '[OK] ' + joinMsg)
       } else {
-        this.appendOut('[ERR] 无法操作')
+        this.addEntry('err', raw, '[ERR] ' + ((joinResult && joinResult.message) || '操作失败'))
       }
     },
 
