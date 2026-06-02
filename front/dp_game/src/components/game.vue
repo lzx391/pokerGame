@@ -138,7 +138,7 @@ import '../styles/dp-game-shell.css'
 import '../styles/dp-game-modals.css'
 import '../styles/dp-game-eco-mode.css'
 import GameTopBar from './GameTopBar.vue'
-import { holeDealOrderFromDealer as holeDealOrderFromDealerUtil, retroTablePolygonClipPath } from '../utils/dpGameRoundTableLayout'
+import { buildRetroTableLayout, holeDealOrderFromDealer as holeDealOrderFromDealerUtil } from '../utils/dpGameRoundTableLayout'
 import { dpDisplayNickname, isDpBotNickname } from '../utils/dpDisplayNickname'
 import { resolveRoomPersonMeta } from '../utils/dpRoomPlayerLookup'
 import { dpSocialApi } from '../api/api.dpSocial'
@@ -287,7 +287,11 @@ export default {
     retroPolygonRootStyle() {
       if (this.gameUiTheme !== 'retro8bit') return {}
       var n = (this.playersDisplayOrder && this.playersDisplayOrder.length) || 0
-      return { '--dp-table-polygon': retroTablePolygonClipPath(n) }
+      var layout = buildRetroTableLayout(n, {
+        viewerSeatedAtTable: this.viewerSeatedAtTable,
+        logReason: 'game-root-polygon'
+      })
+      return { '--dp-table-polygon': layout.clipPath }
     }
   },
 

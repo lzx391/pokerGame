@@ -2505,8 +2505,14 @@
 
 /* ====== retro8bit 端末风格 Round 2：牌桌 + 玩家座牌 + 公共牌区 ====== */
 
-/* --- 牌桌毛毡：终端显示器风格 --- */
+/* --- 牌桌毛毡：终端显示器风格（铺满 layout，clip-path % 与 SVG/座位同源）--- */
 .dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__felt {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  transform: none;
   border: none;
   border-radius: 0;
   clip-path: var(--dp-table-polygon);
@@ -2763,6 +2769,10 @@
 }
 
 /* 公共牌区域标题 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__center {
+  top: 50%;
+}
+
 .dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__center::before {
   content: "=== BOARD ===";
   display: block;

@@ -2,6 +2,8 @@
  * 圆桌椭圆座位与盖牌区、台呢标的几何（原 game.vue 内联逻辑，便于单测与复用）。
  */
 
+import { dpTableLayoutDevLog } from './dpTableLayoutDevLog'
+
 /**
  * 开局发牌动画：从发牌位顺时针下一位起为 0，依次 1、2…（仅用于错开飞入时间）
  * @param {number} seatIndex players 数组下标
@@ -30,16 +32,162 @@ export function roundTableSeatTheta(displayIdx, total, viewerSeatedAtTable) {
   return -Math.PI / 2 + (2 * Math.PI * displayIdx) / total
 }
 
-export function seatChatBubbleSide(displayIdx, total, viewerSeatedAtTable) {
+export function seatChatBubbleSide(displayIdx, total, viewerSeatedAtTable, gameUiTheme) {
   if (!total) return 'top'
+  if (gameUiTheme === 'retro8bit') {
+    var layout = buildRetroTableLayout(total, { viewerSeatedAtTable: viewerSeatedAtTable })
+    var seat = layout.seatPositions[displayIdx]
+    if (!seat) return 'top'
+    var x = parseFloat(seat.left)
+    if (!isFinite(x)) return 'top'
+    if (x < 38) return 'left'
+    if (x > 62) return 'right'
+    return 'top'
+  }
   if (!viewerSeatedAtTable) return 'top'
   var theta = roundTableSeatTheta(displayIdx, total, viewerSeatedAtTable)
   var rx = 46
   var cx = 50
-  var x = cx + Math.sin(theta) * rx
-  if (x < 38) return 'left'
-  if (x > 62) return 'right'
+  var xEll = cx + Math.sin(theta) * rx
+  if (xEll < 38) return 'left'
+  if (xEll > 62) return 'right'
   return 'top'
+}
+
+/** retro8bit 正多边形：桌心、外接圆半径（viewBox %） */
+export var RETRO_TABLE_POLY_CX = 50
+export var RETRO_TABLE_POLY_CY = 50
+export var RETRO_TABLE_POLY_R = 48
+
+/** @param {number} playerCount 在座人数 */
+export function retroTablePolygonSides(playerCount) {
+  var n = playerCount || 0
+  return Math.max(3, n)
+}
+
+/**
+ * 单一正多边形几何源：桌面 clip、射线端点、座位锚点均由此派生。
+ * @param {number} playerCount 在座 display 环人数
+ * @param {{ viewerSeatedAtTable?: boolean, seatOutward?: number, logReason?: string }} [options]
+ * @returns {{
+ *   sides: number,
+ *   center: { x: number, y: number },
+ *   vertices: Array<{ x: number, y: number }>,
+ *   clipPath: string,
+ *   seatPositions: Array<{ left: string, top: string, vertexIndex: number }>
+ * }}
+ */
+export function buildRetroTableLayout(playerCount, options) {
+  options = options || {}
+  var seated = playerCount || 0
+  var n = retroTablePolygonSides(seated)
+  var viewerSeatedAtTable = !!options.viewerSeatedAtTable
+  var seatOutward = options.seatOutward != null ? options.seatOutward : 1
+  var cx = RETRO_TABLE_POLY_CX
+  var cy = RETRO_TABLE_POLY_CY
+  var center = { x: cx, y: cy }
+  var vertices = []
+  var clipPts = []
+  for (var vi = 0; vi < n; vi++) {
+    var v = retroTablePolygonVertex(vi, n)
+    vertices.push(v)
+    clipPts.push(v.x.toFixed(1) + '% ' + v.y.toFixed(1) + '%')
+  }
+  var clipPath = 'polygon(' + clipPts.join(', ') + ')'
+  var seatPositions = []
+  for (var di = 0; di < seated; di++) {
+    var vertexIdx = retroDisplayIndexToVertexIndex(di, n, viewerSeatedAtTable)
+    var vtx = vertices[vertexIdx]
+    var sx = cx + (vtx.x - cx) * seatOutward
+    var sy = cy + (vtx.y - cy) * seatOutward
+    seatPositions.push({
+      left: sx.toFixed(2) + '%',
+      top: sy.toFixed(2) + '%',
+      vertexIndex: vertexIdx
+    })
+  }
+  var layout = {
+    sides: n,
+    center: center,
+    vertices: vertices,
+    clipPath: clipPath,
+    seatPositions: seatPositions
+  }
+  if (options.logReason && process.env.NODE_ENV === 'development') {
+    dpTableLayoutDevLog(options.logReason, {
+      seated: seated,
+      sides: n,
+      center: center,
+      vertices: vertices,
+      seatMap: seatPositions.map(function (s, i) {
+        return { displayIndex: i, vertexIndex: s.vertexIndex, left: s.left, top: s.top }
+      })
+    })
+  }
+  return layout
+}
+
+/** display 环下标 → 多边形顶点下标（入座视角旋转半圈，仅此处定义） */
+export function retroDisplayIndexToVertexIndex(displayIdx, sides, viewerSeatedAtTable) {
+  var vertexIdx = displayIdx
+  if (viewerSeatedAtTable) {
+    vertexIdx = (displayIdx + Math.floor(sides / 2)) % sides
+  }
+  return vertexIdx
+}
+
+/** @returns {{ x: number, y: number }} viewBox 百分比 */
+export function retroTablePolygonVertex(vertexIdx, sides) {
+  var n = sides
+  var a = (2 * Math.PI * vertexIdx / n) - (Math.PI / 2)
+  return {
+    x: RETRO_TABLE_POLY_CX + RETRO_TABLE_POLY_R * Math.cos(a),
+    y: RETRO_TABLE_POLY_CY + RETRO_TABLE_POLY_R * Math.sin(a)
+  }
+}
+
+/** @returns {string} CSS clip-path polygon(...) */
+export function retroTablePolygonClipPath(playerCount) {
+  return buildRetroTableLayout(playerCount || 0, {}).clipPath
+}
+
+/** 从多边形中心沿极角 θ 到边的距离（viewBox 百分比单位） */
+export function retroTablePolygonEdgeDist(theta, sides) {
+  var n = sides
+  var alpha = Math.PI / n
+  var sectorAngle = (2 * Math.PI) / n
+  var thetaFromTop = ((theta + Math.PI / 2) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI)
+  var sectorIndex = Math.floor(thetaFromTop / sectorAngle)
+  var edgeMidAngle = -Math.PI / 2 + (sectorIndex + 0.5) * sectorAngle
+  var delta = theta - edgeMidAngle
+  while (delta > Math.PI) delta -= 2 * Math.PI
+  while (delta < -Math.PI) delta += 2 * Math.PI
+  return RETRO_TABLE_POLY_R * Math.cos(alpha) / Math.cos(delta)
+}
+
+/**
+ * retro8bit 座位：锚在角顶点（与 clip-path / 射线同源，不做椭圆环 y 偏移）。
+ */
+export function retroPlayerRoundTableStyle(displayIdx, total, viewerSeatedAtTable) {
+  if (!total) return {}
+  var layout = buildRetroTableLayout(total, { viewerSeatedAtTable: viewerSeatedAtTable })
+  var seat = layout.seatPositions[displayIdx]
+  if (!seat) return {}
+  return {
+    left: seat.left,
+    top: seat.top,
+    transform: 'translate(-50%, -50%)'
+  }
+}
+
+/**
+ * 圆桌座位 left/top；retro8bit 走正多边形顶点，其它主题走椭圆环。
+ */
+export function roundTableSeatPosition(displayIdx, total, viewerSeatedAtTable, stage, gameUiTheme) {
+  if (gameUiTheme === 'retro8bit') {
+    return retroPlayerRoundTableStyle(displayIdx, total, viewerSeatedAtTable)
+  }
+  return playerRoundTableStyle(displayIdx, total, viewerSeatedAtTable, stage)
 }
 
 export function playerRoundTableStyle(displayIdx, total, viewerSeatedAtTable, stage) {
@@ -82,7 +230,10 @@ export function playerRoundTableStyle(displayIdx, total, viewerSeatedAtTable, st
   }
 }
 
-export function nudgeSeatTowardTableCenter(displayIdx, total, inward, viewerSeatedAtTable, stage) {
+export function nudgeSeatTowardTableCenter(displayIdx, total, inward, viewerSeatedAtTable, stage, gameUiTheme) {
+  if (gameUiTheme === 'retro8bit') {
+    return retroNudgeSeatTowardTableCenter(displayIdx, total, inward, viewerSeatedAtTable)
+  }
   var base = playerRoundTableStyle(displayIdx, total, viewerSeatedAtTable, stage)
   var x = parseFloat(base.left)
   var y = parseFloat(base.top)
@@ -96,97 +247,90 @@ export function nudgeSeatTowardTableCenter(displayIdx, total, inward, viewerSeat
   }
 }
 
-export function seatFeltMarkerRoundTableStyle(displayIdx, total, viewerSeatedAtTable, stage) {
+function retroNudgeSeatTowardTableCenter(displayIdx, total, inward, viewerSeatedAtTable) {
+  var base = retroPlayerRoundTableStyle(displayIdx, total, viewerSeatedAtTable)
+  var x = parseFloat(base.left)
+  var y = parseFloat(base.top)
+  if (!isFinite(x) || !isFinite(y)) return {}
+  var layout = buildRetroTableLayout(total, { viewerSeatedAtTable: viewerSeatedAtTable })
+  var cx = layout.center.x
+  var cy = layout.center.y
+  var nx = x + (cx - x) * inward
+  var ny = y + (cy - y) * inward
+  return {
+    left: nx + '%',
+    top: ny + '%',
+    transform: 'translate(-50%, -50%)'
+  }
+}
+
+export function seatFeltMarkerRoundTableStyle(displayIdx, total, viewerSeatedAtTable, stage, gameUiTheme) {
   var inward = 0.34
   if (typeof window !== 'undefined') {
     var w = window.innerWidth
     if (w <= 600) inward = 0.16
     else if (w <= 900) inward = 0.24
   }
-  return nudgeSeatTowardTableCenter(displayIdx, total, inward, viewerSeatedAtTable, stage)
+  return nudgeSeatTowardTableCenter(displayIdx, total, inward, viewerSeatedAtTable, stage, gameUiTheme)
 }
 
 /**
  * 桌面行动倒计时圆环：沿「桌心 ↔ 座位」射线，比台呢标（D/SB/BB）更靠桌心，避免压住标与玩家卡。
  * inward 须大于 seatFeltMarkerRoundTableStyle，使顺序为：桌心 → 计时器 → 标 → 玩家卡。
  */
-export function actionTimerOrbitRoundTableStyle(displayIdx, total, viewerSeatedAtTable, stage) {
+export function actionTimerOrbitRoundTableStyle(displayIdx, total, viewerSeatedAtTable, stage, gameUiTheme) {
   var inward = 0.56
   if (typeof window !== 'undefined') {
     var w = window.innerWidth
     if (w <= 600) inward = 0.32
     else if (w <= 900) inward = 0.44
   }
-  return nudgeSeatTowardTableCenter(displayIdx, total, inward, viewerSeatedAtTable, stage)
-}
-
-/** retro8bit 正多边形台呢几何（与 game.vue --dp-table-polygon 一致） */
-export var RETRO_TABLE_POLY_CX = 50
-export var RETRO_TABLE_POLY_CY = 50
-export var RETRO_TABLE_POLY_R = 48
-
-export function retroTablePolygonSides(playerCount) {
-  var n = playerCount || 0
-  if (n < 3) n = 6
-  return n
-}
-
-/** @returns {{ x: number, y: number }} viewBox 百分比，与 clip-path 顶点同源 */
-export function retroTablePolygonVertex(vertexIdx, sides) {
-  var n = sides
-  var a = (2 * Math.PI * vertexIdx / n) - (Math.PI / 2)
-  return {
-    x: RETRO_TABLE_POLY_CX + RETRO_TABLE_POLY_R * Math.cos(a),
-    y: RETRO_TABLE_POLY_CY + RETRO_TABLE_POLY_R * Math.sin(a)
-  }
-}
-
-/** @returns {string} CSS clip-path polygon(...) */
-export function retroTablePolygonClipPath(playerCount) {
-  var n = retroTablePolygonSides(playerCount)
-  var pts = []
-  for (var i = 0; i < n; i++) {
-    var v = retroTablePolygonVertex(i, n)
-    pts.push(v.x.toFixed(1) + '% ' + v.y.toFixed(1) + '%')
-  }
-  return 'polygon(' + pts.join(', ') + ')'
-}
-
-/** 从多边形中心沿极角 θ 到边的距离（viewBox 百分比单位） */
-export function retroTablePolygonEdgeDist(theta, sides) {
-  var n = sides
-  var alpha = Math.PI / n
-  var sectorAngle = (2 * Math.PI) / n
-  var thetaFromTop = ((theta + Math.PI / 2) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI)
-  var sectorIndex = Math.floor(thetaFromTop / sectorAngle)
-  var edgeMidAngle = -Math.PI / 2 + (sectorIndex + 0.5) * sectorAngle
-  var delta = theta - edgeMidAngle
-  while (delta > Math.PI) delta -= 2 * Math.PI
-  while (delta < -Math.PI) delta += 2 * Math.PI
-  return RETRO_TABLE_POLY_R * Math.cos(alpha) / Math.cos(delta)
+  return nudgeSeatTowardTableCenter(displayIdx, total, inward, viewerSeatedAtTable, stage, gameUiTheme)
 }
 
 /**
- * retro8bit：桌心 → 正多边形角顶点（与 retroTablePolygonClipPath 同源，非椭圆 rx/ry）。
- * 入座时座位环相对台呢旋转 π，顶点下标同步偏移半圈以对准角。
+ * retro8bit：桌心 → 正多边形角顶点（与 buildRetroTableLayout 同源）。
  * @returns {{ x1: number, y1: number, x2: number, y2: number }}
  */
-export function retroSeatRayLineEndpoints(displayIdx, total, viewerSeatedAtTable) {
+export function retroSeatRayLineEndpoints(displayIdx, total, viewerSeatedAtTable, layout) {
   if (!total) {
     return { x1: RETRO_TABLE_POLY_CX, y1: RETRO_TABLE_POLY_CY, x2: RETRO_TABLE_POLY_CX, y2: RETRO_TABLE_POLY_CY }
   }
-  var sides = retroTablePolygonSides(total)
-  var vertexIdx = displayIdx
-  if (viewerSeatedAtTable) {
-    vertexIdx = (displayIdx + Math.floor(sides / 2)) % sides
-  }
-  var v = retroTablePolygonVertex(vertexIdx, sides)
+  var L = layout || buildRetroTableLayout(total, { viewerSeatedAtTable: viewerSeatedAtTable })
+  var vertexIdx = retroDisplayIndexToVertexIndex(displayIdx, L.sides, viewerSeatedAtTable)
+  var v = L.vertices[vertexIdx]
   return {
-    x1: RETRO_TABLE_POLY_CX,
-    y1: RETRO_TABLE_POLY_CY,
+    x1: L.center.x,
+    y1: L.center.y,
     x2: v.x,
-    y2: v.y
+    y2: v.y,
+    vertexIndex: vertexIdx
   }
+}
+
+/** Dev：每条射线终点 vs 顶点 vs 座位 CSS（证明 x2,y2 来自 vertices 而非 seat） */
+export function retroSeatRayLayoutDiagnostics(total, viewerSeatedAtTable, layout, seatStyleForDisplay) {
+  if (!total) return []
+  var L = layout || buildRetroTableLayout(total, { viewerSeatedAtTable: viewerSeatedAtTable })
+  var rows = []
+  for (var di = 0; di < total; di++) {
+    var ep = retroSeatRayLineEndpoints(di, total, viewerSeatedAtTable, L)
+    var vtxIdx = ep.vertexIndex
+    var vtx = L.vertices[vtxIdx]
+    var seatCss = typeof seatStyleForDisplay === 'function' ? seatStyleForDisplay(di) : null
+    var seatLeft = seatCss && seatCss.left != null ? parseFloat(seatCss.left) : null
+    var seatTop = seatCss && seatCss.top != null ? parseFloat(seatCss.top) : null
+    rows.push({
+      displayIndex: di,
+      vertexIndex: vtxIdx,
+      vertex: { x: vtx.x, y: vtx.y },
+      rayEnd: { x2: ep.x2, y2: ep.y2 },
+      rayMatchesVertex: ep.x2 === vtx.x && ep.y2 === vtx.y,
+      seatCss: seatCss ? { left: seatCss.left, top: seatCss.top } : null,
+      seatMatchesVertex: seatLeft === vtx.x && seatTop === vtx.y
+    })
+  }
+  return rows
 }
 
 export function muckPileRoundTableStyle(stage, playersDisplayOrderLength, dealerDisplayIndex, viewerSeatedAtTable) {

@@ -138,13 +138,16 @@ import GamePlayerCard from './GamePlayerCard.vue'
 import GameTableActionTimer from './GameTableActionTimer.vue'
 import {
   actionTimerOrbitRoundTableStyle,
+  buildRetroTableLayout,
   muckPileRoundTableStyle,
-  playerRoundTableStyle,
+  retroSeatRayLayoutDiagnostics,
   retroSeatRayLineEndpoints,
+  roundTableSeatPosition,
   roundTableSeatTheta,
   seatChatBubbleSide,
   seatFeltMarkerRoundTableStyle
 } from '../utils/dpGameRoundTableLayout'
+import { dpTableLayoutDevLog } from '../utils/dpTableLayoutDevLog'
 import { dpSeatRayDevLog } from '../utils/dpSeatRayDevLog'
 import DpTablePotDisplay from './DpTablePotDisplay.vue'
 import { CAT_COPY, DEALER_BADGE_CHAR } from '../constants/dpCatThemeCopy'
@@ -205,10 +208,17 @@ export default {
     },
     gameUiTheme: function () {
       this.logSeatRayState('gameUiTheme')
+    },
+    'playersDisplayOrder.length': function () {
+      this.logRetroSeatRayLayoutCompare('players-count')
+    },
+    viewerSeatedAtTable: function () {
+      this.logRetroSeatRayLayoutCompare('viewer-seated')
     }
   },
   mounted: function () {
     this.logSeatRayState('mounted')
+    this.logRetroSeatRayLayoutCompare('mounted')
   },
   computed: {
     muckStyle: function () {
@@ -246,9 +256,17 @@ export default {
         idx,
         this.playersDisplayOrder.length,
         this.viewerSeatedAtTable,
-        this.stage
+        this.stage,
+        this.gameUiTheme
       )
       return Object.assign({}, base, { zIndex: 5 })
+    },
+    retroTableLayout: function () {
+      if (this.gameUiTheme !== 'retro8bit') return null
+      return buildRetroTableLayout(this.playersDisplayOrder.length, {
+        viewerSeatedAtTable: this.viewerSeatedAtTable,
+        logReason: 'layout-computed'
+      })
     }
   },
   methods: {
@@ -279,20 +297,37 @@ export default {
           : null
       })
     },
+    logRetroSeatRayLayoutCompare: function (reason) {
+      if (this.gameUiTheme !== 'retro8bit') return
+      var n = this.playersDisplayOrder.length
+      if (n < 2) return
+      var self = this
+      var rays = retroSeatRayLayoutDiagnostics(
+        n,
+        this.viewerSeatedAtTable,
+        this.retroTableLayout,
+        function (displayIdx) {
+          return self.seatRoundStyle(displayIdx)
+        }
+      )
+      dpTableLayoutDevLog('seat-rays-' + reason, { playerCount: n, rays: rays })
+    },
     feltMarkerStyle: function (displayIdx) {
       return seatFeltMarkerRoundTableStyle(
         displayIdx,
         this.playersDisplayOrder.length,
         this.viewerSeatedAtTable,
-        this.stage
+        this.stage,
+        this.gameUiTheme
       )
     },
     seatRoundStyle: function (displayIdx) {
-      return playerRoundTableStyle(
+      return roundTableSeatPosition(
         displayIdx,
         this.playersDisplayOrder.length,
         this.viewerSeatedAtTable,
-        this.stage
+        this.stage,
+        this.gameUiTheme
       )
     },
     /** retro8bit：桌心→多边形顶点；其它主题：椭圆比例环内沿→外沿 */
@@ -315,7 +350,12 @@ export default {
     seatRayEndpoints: function (displayIdx) {
       var n = this.playersDisplayOrder.length
       if (this.gameUiTheme === 'retro8bit') {
-        return retroSeatRayLineEndpoints(displayIdx, n, this.viewerSeatedAtTable)
+        return retroSeatRayLineEndpoints(
+          displayIdx,
+          n,
+          this.viewerSeatedAtTable,
+          this.retroTableLayout
+        )
       }
       if (!n) return { x1: 50, y1: 44, x2: 50, y2: 44 }
       var theta = roundTableSeatTheta(displayIdx, n, this.viewerSeatedAtTable)
@@ -332,7 +372,8 @@ export default {
       return seatChatBubbleSide(
         displayIdx,
         this.playersDisplayOrder.length,
-        this.viewerSeatedAtTable
+        this.viewerSeatedAtTable,
+        this.gameUiTheme
       )
     },
     onSeatEnterRevealAnimationEnd: function (event, nickname) {
