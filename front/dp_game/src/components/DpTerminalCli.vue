@@ -465,6 +465,7 @@ export default {
       // 无参或未知子命令 → 打开面板
       this.addEntry('ok', raw, '[OK] 打开音乐播放器')
       vm.showMusicPlayer = true
+      this.$nextTick(function () { var inp = this.$refs.hiddenInput; if (inp) inp.blur() }.bind(this))
     },
 
     // ---- 对局历史：打开历史查看面板 ----
@@ -473,6 +474,7 @@ export default {
       if (!vm || !vm.user) { this.appendOut('[ERR] 无用户数据'); return }
       this.addEntry('ok', 'hands', '[OK] 打开对局历史')
       vm.showHandHistoryPanel = true
+      this.$nextTick(function () { var inp = this.$refs.hiddenInput; if (inp) inp.blur() }.bind(this))
     },
 
     // ---- 外部调用：打开终端并自动执行命令 ----

@@ -122,8 +122,8 @@
     <dp-crt-boot-sequence ref="crtBootSequence" />
     <dp-terminal-cli v-if="gameUiTheme === 'retro8bit'" ref="terminalCli" />
     <dp-crt-event-popup v-if="gameUiTheme === 'retro8bit'" ref="crtEventPopup" />
-    <dp-music-player v-if="gameUiTheme === 'retro8bit'" :open.sync="showMusicPlayer" />
-    <dp-hand-history-viewer v-if="gameUiTheme === 'retro8bit'" :open.sync="showHandHistoryPanel" />
+    <dp-music-player ref="musicPlayer" v-if="gameUiTheme === 'retro8bit'" :open.sync="showMusicPlayer" />
+    <dp-hand-history-viewer ref="handHistoryViewer" v-if="gameUiTheme === 'retro8bit'" :open.sync="showHandHistoryPanel" />
 
   </div>
 </template>
@@ -342,6 +342,12 @@ export default {
         this.closeOwnerTerminal()
         this.showOwnerPotJudgeSheet = false
       }
+    },
+    showMusicPlayer(v) {
+      if (!v) { this.refocusTerminalIfOpen() }
+    },
+    showHandHistoryPanel(v) {
+      if (!v) { this.refocusTerminalIfOpen() }
     }
   },
 
@@ -460,19 +466,73 @@ export default {
 
   methods: {
     onGameKeydown: function (e) {
-      // retro8bit 终端热键：`~` 呼出命令行
       if (this.gameUiTheme !== 'retro8bit') return
-      // 不在输入框内时响应
       var tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : ''
       var isInput = tag === 'input' || tag === 'textarea' || tag === 'select' || (e.target && e.target.isContentEditable)
-      if (e.key === '`' || e.key === '~') {
+
+      // Ctrl+D 优先级：音乐盒 → 对局历史 → 终端（仅非输入框时路由到面板）
+      if (e.ctrlKey && e.key === 'd') {
         if (!isInput) {
-          e.preventDefault()
-          var cli = this.$refs.terminalCli
-          if (cli && typeof cli.toggle === 'function') {
-            cli.toggle()
+          if (this.showMusicPlayer) {
+            e.preventDefault()
+            var mp = this.$refs.musicPlayer
+            if (mp && typeof mp.onKey === 'function') { mp.onKey(e); return }
+            this.showMusicPlayer = false; return
+          }
+          if (this.showHandHistoryPanel) {
+            e.preventDefault()
+            var hh = this.$refs.handHistoryViewer
+            if (hh && typeof hh.onKey === 'function') { hh.onKey(e); return }
+            this.showHandHistoryPanel = false; return
           }
         }
+        return
+      }
+
+      // `~` 热键：toggle 终端（不在输入框内时）
+      if (e.key === '`' || e.key === '~') {
+        if (isInput) return
+        // 如果音乐盒开着，先关音乐盒
+        if (this.showMusicPlayer) {
+          e.preventDefault()
+          var mp2 = this.$refs.musicPlayer
+          if (mp2 && typeof mp2.close === 'function') { mp2.close() }
+          else { this.showMusicPlayer = false }
+          return
+        }
+        // 如果历史对局开着，先关历史对局
+        if (this.showHandHistoryPanel) {
+          e.preventDefault()
+          var hh2 = this.$refs.handHistoryViewer
+          if (hh2 && typeof hh2.close === 'function') { hh2.close() }
+          else { this.showHandHistoryPanel = false }
+          return
+        }
+        e.preventDefault()
+        var cli = this.$refs.terminalCli
+        if (cli && typeof cli.toggle === 'function') {
+          cli.toggle()
+        }
+        return
+      }
+
+      // 路由按键到打开的面板（不在输入框内时）
+      if (!isInput) {
+        if (this.showMusicPlayer) {
+          var mp3 = this.$refs.musicPlayer
+          if (mp3 && typeof mp3.onKey === 'function' && mp3.onKey(e)) return
+        }
+        if (this.showHandHistoryPanel) {
+          var hh3 = this.$refs.handHistoryViewer
+          if (hh3 && typeof hh3.onKey === 'function' && hh3.onKey(e)) return
+        }
+      }
+    },
+    refocusTerminalIfOpen: function () {
+      var cli = this.$refs.terminalCli
+      if (cli && cli.open && typeof cli.focusInput === 'function') {
+        var self = this
+        this.$nextTick(function () { cli.focusInput() })
       }
     },
     fireCrtPopup: function (type, title, subtitle, detail) {

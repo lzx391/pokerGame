@@ -33,7 +33,7 @@
             v-for="(t, i) in tracks"
             :key="t.id"
             class="dp-mp__row"
-            :class="{ 'dp-mp__row--cursor': i === cursor, 'dp-mp__row--active': isTrackActive(t) }"
+            :class="{ 'dp-mp__row--cursor': focusMode === 'tracks' && i === cursor, 'dp-mp__row--active': isTrackActive(t) }"
             @click="playTrack(t)"
           >
             <span class="dp-mp__row-num">{{ i + 1 }}</span>
@@ -45,16 +45,17 @@
 
         <!-- 控制栏 -->
         <div class="dp-mp__controls">
-          <button class="dp-mp__btn" :disabled="!tracks.length" @click="playSelected">&gt; PLAY</button>
-          <button class="dp-mp__btn" :disabled="!nowPlaying" @click="doPause">&gt; {{ isPaused ? 'RESUME' : 'PAUSE' }}</button>
-          <button class="dp-mp__btn" :disabled="!nowPlaying" @click="doStop">&gt; STOP</button>
+          <button class="dp-mp__btn" :class="{ 'dp-mp__btn--focus': focusMode === 'controls' && controlIndex === 0 }" :disabled="!tracks.length" @click="playSelected">&gt; PLAY</button>
+          <button class="dp-mp__btn" :class="{ 'dp-mp__btn--focus': focusMode === 'controls' && controlIndex === 1 }" :disabled="!nowPlaying" @click="doPause">&gt; {{ isPaused ? 'RESUME' : 'PAUSE' }}</button>
+          <button class="dp-mp__btn" :class="{ 'dp-mp__btn--focus': focusMode === 'controls' && controlIndex === 2 }" :disabled="!nowPlaying" @click="doStop">&gt; STOP</button>
         </div>
 
         <!-- 提示栏 -->
         <div class="dp-mp__hint-bar">
-          <span>&uarr;&darr; nav</span>
-          <span>Enter play</span>
-          <span>Esc close</span>
+          <span>W/S nav</span>
+          <span>A/D ctrl</span>
+          <span>Enter sel</span>
+          <span>Ctrl+D close</span>
         </div>
       </div>
     </div>
@@ -75,6 +76,8 @@ export default {
       visible: false,
       phase: 'ready',
       cursor: 0,
+      focusMode: 'tracks',
+      controlIndex: 0,
       snowTimer: null,
       flashTimer: null,
       progressTick: 0
@@ -153,7 +156,7 @@ export default {
       setInterval(function () { self.progressTick++ }, 1000)
     },
     startOpen: function () {
-      this.visible = true; this.cursor = 0
+      this.visible = true; this.cursor = 0; this.focusMode = 'tracks'; this.controlIndex = 0
       if (this.showCrt) {
         this.phase = 'sliding'
       } else {
@@ -205,10 +208,50 @@ export default {
     },
     // ---- 键盘 ----
     onKey: function (e) {
-      if (e.key === 'Escape') { e.preventDefault(); this.close(); return }
-      if (e.key === 'ArrowUp') { e.preventDefault(); this.cursor = Math.max(0, this.cursor - 1); return }
-      if (e.key === 'ArrowDown') { e.preventDefault(); this.cursor = Math.min(this.tracks.length - 1, this.cursor + 1); return }
-      if (e.key === 'Enter') { e.preventDefault(); this.playSelected(); return }
+      // Ctrl+D 关闭
+      if (e.ctrlKey && e.key === 'd') { e.preventDefault(); this.close(); return true }
+      if (e.key === 'Escape') { e.preventDefault(); this.close(); return true }
+      // W/↑ → 切回曲目模式，向上
+      if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') {
+        e.preventDefault()
+        this.focusMode = 'tracks'
+        this.cursor = Math.max(0, this.cursor - 1)
+        return true
+      }
+      // S/↓ → 切回曲目模式，向下
+      if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') {
+        e.preventDefault()
+        this.focusMode = 'tracks'
+        this.cursor = Math.min(this.tracks.length - 1, this.cursor + 1)
+        return true
+      }
+      // A/← → 控制栏模式，左移
+      if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') {
+        e.preventDefault()
+        this.focusMode = 'controls'
+        this.controlIndex = Math.max(0, this.controlIndex - 1)
+        return true
+      }
+      // D/→ → 控制栏模式，右移
+      if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') {
+        e.preventDefault()
+        this.focusMode = 'controls'
+        this.controlIndex = Math.min(2, this.controlIndex + 1)
+        return true
+      }
+      // Enter → 执行当前焦点操作
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        if (this.focusMode === 'tracks') {
+          this.playSelected()
+        } else {
+          if (this.controlIndex === 0) this.playSelected()
+          else if (this.controlIndex === 1) this.doPause()
+          else if (this.controlIndex === 2) this.doStop()
+        }
+        return true
+      }
+      return false
     }
   }
 }
@@ -264,9 +307,10 @@ export default {
 .dp-mp__empty{text-align:center;color:rgba(74,246,38,0.35);padding:20px;font-size:12px}
 
 .dp-mp__controls{display:flex;gap:6px;padding:8px 14px;border-top:1px solid rgba(74,246,38,0.16);position:relative;z-index:1}
-.dp-mp__btn{flex:1;padding:8px 0;border:1px solid rgba(74,246,38,0.28);border-radius:0;background:rgba(10,26,10,0.6);color:#4af626;font-family:'Courier New',ui-monospace,monospace;font-size:11px;cursor:pointer;letter-spacing:0.05em;text-shadow:0 0 3px rgba(74,246,38,0.3);transition:background 0.08s,color 0.08s}
+.dp-mp__btn{flex:1;padding:8px 0;border:1px solid rgba(74,246,38,0.28);border-radius:0;background:rgba(10,26,10,0.6);color:#4af626;font-family:'Courier New',ui-monospace,monospace;font-size:11px;cursor:pointer;letter-spacing:0.05em;text-shadow:0 0 3px rgba(74,246,38,0.3);transition:background 0.08s,color 0.08s,border-color 0.08s,box-shadow 0.08s}
 .dp-mp__btn:hover:not(:disabled){background:#4af626;color:#080a0c}
 .dp-mp__btn:disabled{opacity:0.3;cursor:default}
+.dp-mp__btn--focus{border-color:#4af626;box-shadow:0 0 8px rgba(74,246,38,0.5),inset 0 0 6px rgba(74,246,38,0.15);background:rgba(20,46,20,0.8);color:#72f052;text-shadow:0 0 6px rgba(114,240,82,0.5)}
 
 .dp-mp__hint-bar{display:flex;gap:12px;padding:4px 14px 8px;font-size:9px;color:rgba(74,246,38,0.28);border-top:1px solid rgba(74,246,38,0.06);position:relative;z-index:1;user-select:none}
 

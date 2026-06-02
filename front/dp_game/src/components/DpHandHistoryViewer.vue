@@ -40,8 +40,7 @@
         <div class="dp-hh__hint-bar">
           <span>&uarr;&darr; nav</span>
           <span>Enter detail</span>
-          <span>hands for more</span>
-          <span>Esc close</span>
+          <span>Ctrl+D close</span>
         </div>
       </div>
     </div>
@@ -152,10 +151,12 @@ export default {
     },
     // ---- 键盘 ----
     onKey: function (e) {
-      if (e.key === 'Escape') { e.preventDefault(); this.close(); return }
-      if (e.key === 'ArrowUp') { e.preventDefault(); this.cursor = Math.max(0, this.cursor - 1); return }
-      if (e.key === 'ArrowDown') { e.preventDefault(); this.cursor = Math.min(this.rows.length - 1, this.cursor + 1); return }
-      if (e.key === 'Enter') { e.preventDefault(); var r = this.rows[this.cursor]; if (r) this.openDetail(r); return }
+      if (e.ctrlKey && e.key === 'd') { e.preventDefault(); this.close(); return true }
+      if (e.key === 'Escape') { e.preventDefault(); this.close(); return true }
+      if (e.key === 'ArrowUp') { e.preventDefault(); this.cursor = Math.max(0, this.cursor - 1); return true }
+      if (e.key === 'ArrowDown') { e.preventDefault(); this.cursor = Math.min(this.rows.length - 1, this.cursor + 1); return true }
+      if (e.key === 'Enter') { e.preventDefault(); var r = this.rows[this.cursor]; if (r) this.openDetail(r); return true }
+      return false
     }
   }
 }
