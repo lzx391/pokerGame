@@ -13,6 +13,37 @@
   overflow: visible;
 }
 
+/* Static CRT frame — always on when retro table FX mounts (tablet+ retro8bit) */
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-table-fx__border-outer {
+  fill: none;
+  stroke: #4af626;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: miter;
+  stroke-miterlimit: 4;
+  shape-rendering: crispEdges;
+  opacity: 0.92;
+  filter: drop-shadow(0 0 4px rgba(74, 246, 38, 0.55));
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-table-fx__border-inner {
+  fill: none;
+  stroke: #1a3d12;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: miter;
+  stroke-miterlimit: 4;
+  shape-rendering: crispEdges;
+  opacity: 1;
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-table-fx__corner {
+  fill: #4af626;
+  shape-rendering: crispEdges;
+  opacity: 0.88;
+  filter: drop-shadow(0 0 2px rgba(74, 246, 38, 0.4));
+}
+
 .dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-table-fx__edge {
   fill: none;
   stroke: #4af626;

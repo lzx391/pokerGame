@@ -6,7 +6,26 @@
       aria-hidden="true"
   >
     <path
-        v-if="edgePathD"
+        v-if="borderInnerD"
+        :d="borderInnerD"
+        class="dp-retro-table-fx__border-inner"
+    />
+    <path
+        v-if="borderOuterD"
+        :d="borderOuterD"
+        class="dp-retro-table-fx__border-outer"
+    />
+    <rect
+        v-for="(corner, idx) in cornerPixels"
+        :key="'corner-' + idx"
+        :x="corner.x"
+        :y="corner.y"
+        :width="corner.size"
+        :height="corner.size"
+        class="dp-retro-table-fx__corner"
+    />
+    <path
+        v-if="edgePathD && animated"
         :d="edgePathD"
         class="dp-retro-table-fx__edge"
         :class="{ 'dp-retro-table-fx__edge--animate': animated }"
@@ -16,7 +35,12 @@
 </template>
 
 <script>
-import { retroTableEdgePathD } from '../utils/dpRetroTableFxGeometry'
+import {
+  retroTableBorderPaths,
+  retroTableEdgePathD
+} from '../utils/dpRetroTableFxGeometry'
+
+var CORNER_PIXEL_SIZE = 0.75
 
 export default {
   name: 'DpRetroTableFx',
@@ -25,9 +49,29 @@ export default {
     animated: { type: Boolean, default: false }
   },
   computed: {
+    borderPaths: function () {
+      return retroTableBorderPaths(this.layout)
+    },
+    borderOuterD: function () {
+      return this.borderPaths.outer
+    },
+    borderInnerD: function () {
+      return this.borderPaths.inner
+    },
     edgePathD: function () {
       if (!this.layout || !this.layout.vertices) return ''
       return retroTableEdgePathD(this.layout.vertices)
+    },
+    cornerPixels: function () {
+      if (!this.layout || !this.layout.vertices) return []
+      var half = CORNER_PIXEL_SIZE / 2
+      return this.layout.vertices.map(function (v) {
+        return {
+          x: (v.x - half).toFixed(2),
+          y: (v.y - half).toFixed(2),
+          size: CORNER_PIXEL_SIZE
+        }
+      })
     }
   }
 }

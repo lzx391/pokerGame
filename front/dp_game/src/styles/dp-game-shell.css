@@ -2530,10 +2530,8 @@
       #0a0c0e 100%
     );
   box-shadow: none;
-  filter:
-    drop-shadow(0 0 0 2px rgba(74, 246, 38, 0.22))
-    drop-shadow(0 0 0 1px rgba(0, 0, 0, 0.85))
-    drop-shadow(0 6px 28px rgba(0, 0, 0, 0.6));
+  /* Polygon edge frame: DpRetroTableFx SVG border (tablet+); felt keeps depth shadow only */
+  filter: drop-shadow(0 6px 28px rgba(0, 0, 0, 0.6));
 }
 
 /* 牌桌桌面 grid 网格纹理 */
