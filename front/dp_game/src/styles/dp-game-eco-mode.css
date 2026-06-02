@@ -337,9 +337,50 @@
   }
 }
 
+/* —— retro8bit 桌面鱼干池数据包粒子 + 光标闪烁 —— */
+.dp-game-root[data-dp-eco-mode='true'] .dp-tpot__blink,
+.dp-game-root[data-dp-eco-mode='true'] .dp-tpot__pkt,
+@media (prefers-reduced-motion: reduce) {
+  .dp-tpot__blink,
+  .dp-tpot__pkt {
+    animation: none !important;
+  }
+}
+
+/* —— retro8bit 行动射线 + 座牌闪烁 —— */
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-table__seat-ray--active,
+.dp-game-root[data-dp-eco-mode='true'] .dp-player-card--acting,
+@media (prefers-reduced-motion: reduce) {
+  .dp-game-table__seat-ray--active,
+  .dp-player-card--acting {
+    animation: none !important;
+  }
+  .dp-game-table__seat-ray--active {
+    stroke: #4af626;
+    stroke-width: 2;
+    opacity: 0.8;
+  }
+}
+
 .dp-game-root[data-dp-eco-mode='true'] .dp-player-card__rival-turn-dot::after,
 @media (prefers-reduced-motion: reduce) {
   .dp-player-card__rival-turn-dot::after {
     animation: none !important;
+  }
+}
+
+/* —— retro8bit 桌面鱼干池显示 + 数据包粒子 + 光标闪烁 —— */
+.dp-game-root[data-dp-eco-mode='true'] .dp-tpot__blink,
+.dp-game-root[data-dp-eco-mode='true'] .dp-tpot__pkt,
+@media (prefers-reduced-motion: reduce) {
+  .dp-tpot__blink,
+  .dp-tpot__pkt {
+    animation: none !important;
+  }
+}
+.dp-game-root[data-dp-eco-mode='true'] .dp-tpot__pkt,
+@media (prefers-reduced-motion: reduce) {
+  .dp-tpot__pkt {
+    display: none;
   }
 }

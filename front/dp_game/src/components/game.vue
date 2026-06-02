@@ -12,6 +12,7 @@
       :data-dp-eco-mode="ecoMode ? 'true' : 'false'"
       :data-dp-stage="stage"
       :data-dp-orientation="layoutOrientation"
+      :style="retroPolygonRootStyle"
   >
     <!-- 顶栏 | 主区(牌桌) | 底栏 —— 三块同级 flex，无额外嵌套 -->
     <div class="dp-game-layout">
@@ -93,6 +94,8 @@
               :seat-chat-text-for="seatChatTextFor"
               :join-reveal-nicks="joinRevealNicks"
               :seat-enter-reveal-enabled="useRetroSeatEnterReveal"
+              :game-ui-theme="gameUiTheme"
+              :pot="pot"
               @hole-deal-intro-complete="$store.commit('dpGame/SET_HERO_HOLE_DEAL', true)"
               @seat-enter-reveal-done="onSeatEnterRevealDone"
               @card-click="onPlayerCardClick"
@@ -280,6 +283,19 @@ export default {
         && this.viewportWidth > 600
         && !this.ecoMode
         && !this.prefersReducedMotion
+    },
+    retroPolygonRootStyle() {
+      if (this.gameUiTheme !== 'retro8bit') return {}
+      var n = (this.playersDisplayOrder && this.playersDisplayOrder.length) || 0
+      if (n < 3) n = 6
+      var pts = []
+      for (var i = 0; i < n; i++) {
+        var a = (2 * Math.PI * i / n) - (Math.PI / 2)
+        var x = 50 + 48 * Math.cos(a)
+        var y = 50 + 48 * Math.sin(a)
+        pts.push(x.toFixed(1) + '% ' + y.toFixed(1) + '%')
+      }
+      return { '--dp-table-polygon': 'polygon(' + pts.join(', ') + ')' }
     }
   },
 
@@ -1992,6 +2008,20 @@ export default {
     },
     openHandHistoryDetail(handHistoryId) {
       this.handHistoryDetailId = handHistoryId
+    },
+    expandChat() {
+      var footer = this.$refs.heroDockFooter
+      console.log('[game] expandChat footer:', !!footer, 'footer.$refs:', footer ? Object.keys(footer.$refs || {}) : 'N/A')
+      if (!footer) return
+      var panel = footer.$refs.guideRoomChatPanel
+      if (!panel) {
+        panel = footer.$refs.guideMobileRoomChatPanel
+      }
+      console.log('[game] expandChat panel:', !!panel, 'openForGuide:', typeof (panel && panel.openForGuide))
+      if (panel && typeof panel.openForGuide === 'function') {
+        panel.openForGuide()
+        console.log('[game] expandChat done')
+      }
     },
 
     // ---- 退出 ----

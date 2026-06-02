@@ -1305,7 +1305,7 @@
     padding: 8px 10px;
     font-family: 'Courier New', ui-monospace, 'PingFang SC', monospace;
     font-size: 11px;
-    line-height: 1.6;
+    line-height: 1.5;
     color: #4af626;
     background: rgba(0, 0, 0, 0.5);
   }
@@ -1313,35 +1313,18 @@
     display: flex;
     align-items: baseline;
     gap: 4px;
-    margin-bottom: 3px;
-    padding: 2px 4px;
-    border-bottom: 1px solid rgba(74, 246, 38, 0.05);
-    animation: dp-retro-chat-msg-in 0.25s ease-out;
-  }
-  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__row--new {
-    text-shadow: 0 0 6px rgba(74, 246, 38, 0.3);
-  }
-  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__time {
-    flex-shrink: 0;
-    color: rgba(74, 246, 38, 0.35);
-    font-size: 9px;
-    width: 36px;
+    margin-bottom: 2px;
+    padding: 1px 4px;
   }
   .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__nick {
     flex-shrink: 0;
     color: #72f052;
     font-weight: bold;
     font-size: 10px;
-    text-shadow: 0 0 4px rgba(114, 240, 82, 0.3);
   }
   .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__text {
     color: #b8e8a8;
     word-break: break-word;
-  }
-  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__empty {
-    color: rgba(74, 246, 38, 0.3);
-    font-family: 'Courier New', ui-monospace, monospace;
-    font-size: 10px;
   }
 
   /* 聊天输入栏终端风格 */
@@ -1414,29 +1397,6 @@
     100% { box-shadow: 0 0 0 rgba(74,246,38,0); }
   }
 
-  /* 信号强度指示条 */
-  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__board .dp-game-room-chat-panel__list-wrap {
-    border-top: 2px solid rgba(74, 246, 38, 0.12);
-  }
-  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__board .dp-game-room-chat-panel__row::before {
-    content: '';
-    display: inline-block;
-    width: 18px;
-    height: 10px;
-    margin-right: 4px;
-    flex-shrink: 0;
-    vertical-align: middle;
-    background:
-      linear-gradient(to top, #4af626 2px, transparent 2px) no-repeat 0 8px / 3px 2px,
-      linear-gradient(to top, #4af626 5px, transparent 5px) no-repeat 6px 5px / 3px 5px,
-      linear-gradient(to top, #4af626 8px, transparent 8px) no-repeat 12px 2px / 3px 8px;
-    animation: dp-retro-signal-bars 0.5s ease-out;
-  }
-  @keyframes dp-retro-signal-bars {
-    0% { opacity: 0; transform: scaleX(0); }
-    60% { opacity: 1; transform: scaleX(1.1); }
-    100% { opacity: 1; transform: scaleX(1); }
-  }
 }
 
 @keyframes dp-retro-chat-msg-in {
@@ -2546,7 +2506,9 @@
 
 /* --- 牌桌毛毡：终端显示器风格 --- */
 .dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__felt {
-  border: 2px solid var(--dp-terminal-border);
+  border: none;
+  border-radius: 0;
+  clip-path: var(--dp-table-polygon);
   background:
     repeating-linear-gradient(
       0deg,
@@ -2561,6 +2523,10 @@
       #0a0c0e 100%
     );
   box-shadow: none;
+  filter:
+    drop-shadow(0 0 0 2px rgba(74, 246, 38, 0.22))
+    drop-shadow(0 0 0 1px rgba(0, 0, 0, 0.85))
+    drop-shadow(0 6px 28px rgba(0, 0, 0, 0.6));
 }
 
 /* 牌桌桌面 grid 网格纹理 */
@@ -2568,7 +2534,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 50%;
+  border-radius: 0;
   pointer-events: none;
   z-index: 1;
   opacity: 0.35;
@@ -2591,7 +2557,37 @@
 
 /* --- 座位射线 --- */
 .dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-rays line {
-  stroke: rgba(74, 246, 38, 0.15);
+  stroke: rgba(74, 246, 38, 0.12);
+  transition: stroke 0.15s, stroke-width 0.15s;
+}
+/* 行动玩家射线 — 高亮绿替代计时器 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-ray--active {
+  stroke: #39ff14;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 6px #39ff14) drop-shadow(0 0 16px rgba(57, 255, 20, 0.7)) drop-shadow(0 0 32px rgba(57, 255, 20, 0.4));
+}
+/* urgency=warning (< 10s) — 高亮绿 亮/灭 硬闪 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-ray--active[data-urgency="warning"] {
+  animation: dp-retro-ray-blink-green 0.45s steps(2, start) infinite;
+}
+@keyframes dp-retro-ray-blink-green {
+  0%   { opacity: 1; visibility: visible; }
+  100% { opacity: 0; visibility: hidden; }
+}
+/* urgency=danger (< 5s) — 红色 亮/灭 急速硬闪 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-ray--active[data-urgency="danger"] {
+  stroke: #ff1a1a;
+  filter: drop-shadow(0 0 6px #ff1a1a) drop-shadow(0 0 16px rgba(255, 26, 26, 0.7)) drop-shadow(0 0 32px rgba(255, 26, 26, 0.4));
+  animation: dp-retro-ray-blink-red 0.25s steps(2, start) infinite;
+}
+@keyframes dp-retro-ray-blink-red {
+  0%   { opacity: 1; visibility: visible; }
+  100% { opacity: 0; visibility: hidden; }
+}
+
+/* 行动玩家座牌 — 静态高亮绿边框 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card--acting {
+  box-shadow: 0 0 10px #39ff14, 0 0 0 2px rgba(57, 255, 20, 0.7);
 }
 
 /* --- 玩家座牌：系统进程信息块 --- */
@@ -5520,7 +5516,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 50%;
+  border-radius: 0;
   pointer-events: none;
   z-index: 2;
   opacity: 0.06;

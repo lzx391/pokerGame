@@ -16,12 +16,14 @@
             :y1="String(seatRayInnerY(displayIdx))"
             :x2="String(seatRayEndX(displayIdx))"
             :y2="String(seatRayEndY(displayIdx))"
+            :class="{ 'dp-game-table__seat-ray--active': displayIdx === actingDisplayIndex && gameUiTheme === 'retro8bit' }"
+            :data-urgency="displayIdx === actingDisplayIndex && gameUiTheme === 'retro8bit' ? timerUrgency : undefined"
         />
       </svg>
       <div class="dp-game-table__center">
         <div class="dp-game-table__center-stack">
           <game-table-action-timer
-              v-if="showCenterActionTimer"
+              v-if="showCenterActionTimer && gameUiTheme !== 'retro8bit'"
               :time-left="timeLeft"
               :actor-name="timerActorName"
               :urgency="timerUrgency"
@@ -33,10 +35,14 @@
               :community-cards="communityCards"
               :flip-state="communityCardsFlipState"
           />
+          <dp-table-pot-display
+              v-if="gameUiTheme === 'retro8bit'"
+              :pot="pot"
+          />
         </div>
       </div>
       <game-table-action-timer
-          v-if="showOrbitActionTimer"
+          v-if="showOrbitActionTimer && gameUiTheme !== 'retro8bit'"
           class="dp-game-table-action-timer--orbit"
           :style="actionTimerOrbitStyle"
           :time-left="timeLeft"
@@ -138,6 +144,7 @@ import {
   seatChatBubbleSide,
   seatFeltMarkerRoundTableStyle
 } from '../utils/dpGameRoundTableLayout'
+import DpTablePotDisplay from './DpTablePotDisplay.vue'
 import { CAT_COPY, DEALER_BADGE_CHAR } from '../constants/dpCatThemeCopy'
 
 export default {
@@ -145,7 +152,8 @@ export default {
   components: {
     GameCommunityCards,
     GamePlayerCard,
-    GameTableActionTimer
+    GameTableActionTimer,
+    DpTablePotDisplay
   },
   props: {
     playersDisplayOrder: { type: Array, required: true },
@@ -176,7 +184,9 @@ export default {
     holeDealOrderFromDealer: { type: Function, required: true },
     seatChatTextFor: { type: Function, required: true },
     joinRevealNicks: { type: Object, default: function () { return {} } },
-    seatEnterRevealEnabled: { type: Boolean, default: false }
+    seatEnterRevealEnabled: { type: Boolean, default: false },
+    gameUiTheme: { type: String, default: 'default' },
+    pot: { type: Number, default: 0 }
   },
   data() {
     return {

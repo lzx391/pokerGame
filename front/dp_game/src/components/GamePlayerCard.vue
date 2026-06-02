@@ -9,7 +9,9 @@
       'dp-player-card--hand-dock': heroHandDock,
       /* 仅摊牌圈用毛玻璃；结算阶段与节能模式一致，仅用半透明底无 backdrop-filter */
       'dp-player-card--hand-reveal-glass':
-        stage === 'showdown' && !player.leftThisHand
+        stage === 'showdown' && !player.leftThisHand,
+      'dp-player-card--acting':
+        rivalMini && !player.fold && !player.leftThisHand && actIndex === seatIndex
     }"
     :style="cardBoxStyle"
     @click="onClick"

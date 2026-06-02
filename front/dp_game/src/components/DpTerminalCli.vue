@@ -74,6 +74,8 @@ var CMDS = {
   reveal: { u: 'reveal',             d: '切换看穿底牌 开/关',   act: 'toggleReveal', owner: true },
   music:  { u: 'music [play|pause|stop]', d: '打开音乐播放器',  act: 'musicCmd', needs: 'args' },
   hands:  { u: 'hands',              d: '打开对局历史查看器',    act: 'fetchHands' },
+  comments:{ u: 'comments',           d: '打开房间聊天面板',      act: 'openChatPanel' },
+  chat:   { u: 'chat <消息>',        d: '发送房间聊天',          act: 'sendChat', needs: 'text' },
   clear:  { u: 'clear',              d: '清屏',                  act: 'clear' },
   exit:   { u: 'exit',               d: '关闭终端',              act: 'exit' },
   help:   { u: 'help',               d: '显示命令列表',          act: 'help' }
@@ -300,6 +302,8 @@ export default {
       else if (act === 'toggleReveal') { this.addEntry('ok', raw, undefined); this.execToggleReveal() }
       else if (act === 'musicCmd') { this.execMusic(raw, args) }
       else if (act === 'fetchHands') { this.addEntry('ok', raw, undefined); this.execFetchHands() }
+      else if (act === 'openChatPanel') { this.addEntry('ok', raw, undefined); this.execOpenChatPanel() }
+      else if (act === 'sendChat') { this.execSendChat(raw, args) }
       else if (def.needs === 'amt') { this.execWithAmount(def, raw, args) }
       else { this.addEntry('ok', raw, undefined); this.invokeAction(act) }
       this.inputBuffer = ''
@@ -468,6 +472,34 @@ export default {
       this.$nextTick(function () { var inp = this.$refs.hiddenInput; if (inp) inp.blur() }.bind(this))
     },
 
+    // ---- 聊天 ----
+    execOpenChatPanel: function () {
+      var vm = this.vm
+      console.log('[terminal] execOpenChatPanel vm:', !!vm, 'expandChat:', typeof (vm && vm.expandChat))
+      if (!vm) { this.appendOut('[ERR] 无游戏实例'); return }
+      if (typeof vm.expandChat === 'function') {
+        vm.expandChat()
+        this.appendOut('[OK] 聊天面板已打开')
+      } else {
+        this.appendOut('[ERR] expandChat 方法不存在，vm 类型: ' + typeof vm)
+      }
+    },
+    execSendChat: function (raw, args) {
+      var vm = this.vm
+      var text = args.join(' ').trim()
+      if (!text) { this.addEntry('err', raw, '[ERR] 用法: chat <消息>'); return }
+      if (!vm || !vm.user) { this.addEntry('err', raw, '[ERR] 无用户'); return }
+      if (!vm.gameWs || vm.gameWs.readyState !== 1) { this.addEntry('err', raw, '[ERR] 未连接房间推送'); return }
+      if (text.length > 200) { this.addEntry('err', raw, '[ERR] 单条最多 200 字'); return }
+      try {
+        vm.gameWs.send(JSON.stringify({ _ws: 'chatSend', nickname: vm.user.nickname, text: text }))
+        this.addEntry('ok', raw, undefined)
+        this.appendOut('[OK] 已发送: ' + text)
+      } catch (e) {
+        this.addEntry('err', raw, '[ERR] 发送失败')
+      }
+    },
+
     // ---- 对局历史：打开历史查看面板 ----
     execFetchHands: function () {
       var vm = this.vm
@@ -572,7 +604,7 @@ export default {
         ownerCmds.forEach(function (n) { var d = CMDS[n]; lines.push('  ' + d.u + '  — ' + d.d) })
       }
       lines.push('  —— 通用 ——')
-      var utilCmds = ['clear','exit','help']
+      var utilCmds = ['music','hands','comments','chat','clear','exit','help']
       utilCmds.forEach(function (n) { var d = CMDS[n]; lines.push('  ' + d.u + '  — ' + d.d) })
       this.addEntry('info', raw, lines.join('\n'))
     },

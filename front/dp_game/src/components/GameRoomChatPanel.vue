@@ -12,7 +12,6 @@
       ref="guideChatToggle"
       type="button"
       class="dp-game-room-chat-panel__toggle"
-      :class="{ 'dp-game-room-chat-panel__toggle--new-msg': toggleNewMsgFlash }"
       :aria-expanded="ariaExpanded"
       @click="onToggleClick"
     >
@@ -64,14 +63,12 @@
             role="log"
             aria-live="polite"
           >
-            <p v-if="!messageCount" class="dp-game-room-chat-panel__empty">> NO MESSAGES — 在下方输入发送</p>
+            <p v-if="!messageCount" class="dp-game-room-chat-panel__empty">暂无聊天，在下方输入发送</p>
             <div
-              v-for="(m, mi) in messages"
+              v-for="m in messages"
               :key="'rc-' + m.id"
               class="dp-game-room-chat-panel__row"
-              :class="{ 'dp-game-room-chat-panel__row--new': mi === messages.length - 1 }"
             >
-              <span class="dp-game-room-chat-panel__time">{{ formatMsgTime(m) }}</span>
               <span class="dp-game-room-chat-panel__nick">{{ formatNick(m.nickname) }}:</span>
               <span class="dp-game-room-chat-panel__text">{{ m.text }}</span>
             </div>
@@ -120,8 +117,6 @@ export default {
   data() {
     return {
       expanded: false,
-      toggleNewMsgFlash: false,
-      toggleNewMsgTimer: null,
       /** @type {RevealPhase} */
       revealPhase: 'idle',
       viewportWidth: typeof window !== 'undefined' ? window.innerWidth : 1024,
@@ -188,10 +183,7 @@ export default {
   watch: {
     messages: {
       handler() {
-        if (!this.isVisuallyOpen) {
-          // 面板收起时闪烁 toggle 提示有新消息
-          this.flashToggleNewMsg()
-        }
+        if (!this.isVisuallyOpen) return
         var self = this
         this.$nextTick(function () {
           self.scrollToBottom()
@@ -239,7 +231,6 @@ export default {
   beforeDestroy() {
     window.removeEventListener('resize', this.onResize)
     if (this.resizeTimer) { clearTimeout(this.resizeTimer); this.resizeTimer = null }
-    if (this.toggleNewMsgTimer) { clearTimeout(this.toggleNewMsgTimer); this.toggleNewMsgTimer = null }
     if (this.prmMedia) {
       if (this.prmMedia.removeEventListener) {
         this.prmMedia.removeEventListener('change', this.onPrmChange)
@@ -249,23 +240,8 @@ export default {
     }
   },
   methods: {
-    flashToggleNewMsg() {
-      this.toggleNewMsgFlash = true
-      var self = this
-      if (this.toggleNewMsgTimer) clearTimeout(this.toggleNewMsgTimer)
-      this.toggleNewMsgTimer = setTimeout(function () { self.toggleNewMsgFlash = false }, 500)
-    },
     formatNick(name) {
       return dpDisplayNickname(name)
-    },
-    formatMsgTime(m) {
-      var t = (m && m.serverTime) ? m.serverTime : (m && m.ts) ? m.ts : null
-      if (!t) return '--:--'
-      var d = new Date(t)
-      if (isNaN(d.getTime())) return '--:--'
-      var h = String(d.getHours()).padStart(2, '0')
-      var min = String(d.getMinutes()).padStart(2, '0')
-      return h + ':' + min
     },
     scrollToBottom() {
       var el = this.$refs.list
@@ -334,12 +310,14 @@ export default {
       this.revealPhase = 'revealed'
     },
     openForGuide() {
+      console.log('[chatPanel] openForGuide called, useRetroChatReveal:', this.useRetroChatReveal, 'expanded:', this.expanded)
       this.expanded = true
       if (this.useRetroChatReveal) {
         this.revealPhase = 'revealed'
       } else {
         this.revealPhase = 'idle'
       }
+      console.log('[chatPanel] after open — expanded:', this.expanded, 'revealPhase:', this.revealPhase)
     },
     closeForGuide() {
       this.expanded = false
