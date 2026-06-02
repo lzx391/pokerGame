@@ -6,7 +6,8 @@
       :class="{
         'dp-game-root--pseudo-fs': pseudoFullscreen,
         'dp-game-root--layout-fs': layoutFullscreen,
-        'dp-game-root--mobile-hero-dock': mobileHeroDockActive
+        'dp-game-root--mobile-hero-dock': mobileHeroDockActive,
+        'dp-game-root--retro-desktop-fx': showRetroDesktopFx
       }"
       :data-dp-game-theme="effectiveThemeForCss"
       :data-dp-eco-mode="ecoMode ? 'true' : 'false'"
@@ -97,6 +98,9 @@
               :seat-enter-reveal-enabled="useRetroSeatEnterReveal"
               :game-ui-theme="gameUiTheme"
               :pot="pot"
+              :show-retro-desktop-fx="showRetroDesktopFx"
+              :retro-desktop-animated="useRetroDesktopAmbience"
+              :retro-glitch-seq="retroGlitchSeq"
               @hole-deal-intro-complete="$store.commit('dpGame/SET_HERO_HOLE_DEAL', true)"
               @seat-enter-reveal-done="onSeatEnterRevealDone"
               @card-click="onPlayerCardClick"
@@ -130,6 +134,12 @@
     <dp-hand-history-viewer ref="handHistoryViewer" v-if="gameUiTheme === 'retro8bit'" :open.sync="showHandHistoryPanel" />
     <dp-hand-history-detail ref="handHistoryDetail" v-if="gameUiTheme === 'retro8bit'" :hand-history-id="handHistoryDetailId" @closed="handHistoryDetailId = null" />
 
+    <dp-retro-ambient-overlay
+        v-if="showRetroDesktopFx"
+        :animated="useRetroDesktopAmbience"
+        @glitch-burst="onRetroGlitchBurst"
+    />
+
   </div>
 </template>
 
@@ -138,6 +148,7 @@ import '../styles/dp-game-themes.css'
 import '../styles/dp-game-shell.css'
 import '../styles/dp-game-modals.css'
 import '../styles/dp-game-eco-mode.css'
+import '../styles/dp-retro-desktop-fx.css'
 import GameTopBar from './GameTopBar.vue'
 import { buildRetroTableLayout, holeDealOrderFromDealer as holeDealOrderFromDealerUtil } from '../utils/dpGameRoundTableLayout'
 import { dpDisplayNickname, isDpBotNickname } from '../utils/dpDisplayNickname'
@@ -155,6 +166,7 @@ import DpCrtEventPopup from './DpCrtEventPopup.vue'
 import DpMusicPlayer from './DpMusicPlayer.vue'
 import DpHandHistoryViewer from './DpHandHistoryViewer.vue'
 import DpHandHistoryDetail from './DpHandHistoryDetail.vue'
+import DpRetroAmbientOverlay from './DpRetroAmbientOverlay.vue'
 import dpGameFullscreenMixin from '../mixins/dpGameFullscreenMixin'
 import dpGameTableFitMixin from '../mixins/dpGameTableFitMixin'
 import dpGameActionCountdownMixin from '../mixins/dpGameActionCountdownMixin'
@@ -195,7 +207,8 @@ export default {
     DpCrtEventPopup,
     DpMusicPlayer,
     DpHandHistoryViewer,
-    DpHandHistoryDetail
+    DpHandHistoryDetail,
+    DpRetroAmbientOverlay
   },
   data() {
     return {
@@ -232,7 +245,8 @@ export default {
       _hologramPrmMedia: null,
       _seatEnterNickSeeded: false,
       joinRevealNicks: {},
-      _gameUiThemeChangeTimer: null
+      _gameUiThemeChangeTimer: null,
+      retroGlitchSeq: 0
     }
   },
 
@@ -288,6 +302,16 @@ export default {
         && this.viewportWidth > 600
         && !this.ecoMode
         && !this.prefersReducedMotion
+    },
+    /** Desktop retro FX: tier >1024, with viewport fallback if tier lags resize. */
+    isRetroDesktopLayout() {
+      return this.layoutTier === 'desktop' || this.viewportWidth > 1024
+    },
+    showRetroDesktopFx() {
+      return this.gameUiTheme === 'retro8bit' && this.isRetroDesktopLayout
+    },
+    useRetroDesktopAmbience() {
+      return this.showRetroDesktopFx && !this.ecoMode && !this.prefersReducedMotion
     },
     retroPolygonRootStyle() {
       if (this.gameUiTheme !== 'retro8bit') return {}
@@ -489,6 +513,12 @@ export default {
   },
 
   methods: {
+    onRetroGlitchBurst: function () {
+      this.retroGlitchSeq++
+      if (typeof window !== 'undefined' && localStorage.getItem('retroGlitchDebug') === '1') {
+        console.log('[dp-retro-desktop-fx] glitch-burst', { seq: this.retroGlitchSeq })
+      }
+    },
     onGameKeydown: function (e) {
       if (this.gameUiTheme !== 'retro8bit') return
       var tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : ''

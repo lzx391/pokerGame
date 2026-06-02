@@ -107,7 +107,7 @@ export default {
 .dp-crt-fs {
   position: fixed;
   inset: 0;
-  z-index: 10050;
+  z-index: 10090;
   pointer-events: none;
   overflow: hidden;
   background: #0a0c10;

@@ -3,7 +3,13 @@
     class="dp-game-root"
     :data-dp-game-theme="effectiveThemeForCss"
   >
-    <div class="dp-lobby-inner cr-page" :class="{ 'cr-page--stagger-ready': staggerReady }">
+    <dp-create-room-console
+      v-if="gameUiTheme === 'retro8bit'"
+      :user="user"
+      @back="goHome"
+    />
+
+    <div v-else class="dp-lobby-inner cr-page" :class="{ 'cr-page--stagger-ready': staggerReady }">
       <header
         class="cr-page__header"
         :class="{ 'cr-stagger-in': staggerReady }"
@@ -181,9 +187,10 @@ import '@/styles/dp-game-themes.css'
 import '@/styles/dp-lobby-shell.css'
 import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import DpFluidityToggle from '@/components/DpFluidityToggle.vue'
+import DpCreateRoomConsole from '@/components/DpCreateRoomConsole.vue'
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
-import { exitLobbyQuickMatchSilently } from '@/utils/dpLobbyQuickMatchExit'
 import { prefetchGameChunk } from '@/utils/dpPrefetchGameRoute'
+import { dpCreateRoomAndStart } from '@/utils/dpCreateRoomSubmit'
 
 var ROOM_PRESETS = [
   { id: 'casual', label: '休闲桌', smallBlind: 2, startingStackBb: 40, maxSeatCount: 6, roomPassword: '' },
@@ -193,7 +200,7 @@ var ROOM_PRESETS = [
 
 export default {
   name: 'CreateRoom',
-  components: { DpFluidityToggle },
+  components: { DpFluidityToggle, DpCreateRoomConsole },
   mixins: [dpLobbyThemeMixin],
   data() {
     return {
@@ -274,46 +281,22 @@ export default {
     async submit() {
       if (this.creating) return
       this.creating = true
-      try {
-        await exitLobbyQuickMatchSilently(this.$http, this.user, {})
-        var sc = Math.max(1, Number(this.smallBlind) || 5)
-        var cap = Math.round(Number(this.maxSeatCount) || 9)
-        cap = Math.min(9, Math.max(2, cap))
-        const params = {
-          nickname: this.user.nickname,
-          smallBlindChips: sc,
-          bigBlindChips: sc * 2,
-          startingStackBb: Math.max(5, Number(this.startingStackBb) || 50),
-          maxSeatCount: cap
+      var self = this
+      var result = await dpCreateRoomAndStart({
+        http: this.$http,
+        router: this.$router,
+        user: this.user,
+        config: {
+          smallBlind: this.smallBlind,
+          startingStackBb: this.startingStackBb,
+          maxSeatCount: this.maxSeatCount,
+          roomPassword: this.roomPassword
+        },
+        onError: function (msg) {
+          self.$message.error(msg)
         }
-        if (this.roomPassword) {
-          params.roomPassword = this.roomPassword
-        }
-        if (this.user.userId != null && this.user.userId !== '') {
-          params.userId = this.user.userId
-        }
-        const res = await this.$http.post('/dpRoom/createRoom', null, { params })
-        const roomId = res.data && res.data.roomId
-        if (!roomId) {
-          this.$message.error('创建失败：未返回房间号')
-          this.creating = false
-          return
-        }
-        const startRes = await this.$http.post('/dpRoom/startGame', null, {
-          params: {
-            roomId: roomId,
-            ownerNickname: this.user.nickname
-          }
-        })
-        if (startRes.data !== 'ok') {
-          this.$message.warning('房间已创建但开局未成功，请从大厅进入该房间重试')
-          this.$router.replace({ name: 'game', params: { roomId: roomId } })
-          return
-        }
-        this.$router.replace({ name: 'game', params: { roomId: roomId } })
-      } catch (e) {
-        console.error('createRoom', e)
-        this.$message.error('创建失败，请检查网络或后端是否已启动')
+      })
+      if (!result.ok) {
         this.creating = false
       }
     }

@@ -74,6 +74,7 @@ import { CAT_COPY } from '@/constants/dpCatThemeCopy'
 import { resolveRouteTransitionName } from '@/utils/dpRouteTransition'
 import { isRouteTransitionEnabled } from '@/utils/dpRouteTransitionFlag'
 import { bindAuthCrtOverlay } from '@/utils/dpAuthEnterLobby'
+import { bindCreateRoomCrtOverlay } from '@/utils/dpCreateRoomEnterGame'
 import DpAuthStage from '@/components/DpAuthStage.vue'
 import DpCrtFullscreenOverlay from '@/components/DpCrtFullscreenOverlay.vue'
 
@@ -134,15 +135,16 @@ export default {
   mounted() {
     var overlay = this.$refs.authCrtOverlay
     if (overlay) {
-      bindAuthCrtOverlay({
-        play: function (timing, onNavigate) {
-          overlay.play(timing, onNavigate)
-        }
-      })
+      var playOverlay = function (timing, onNavigate) {
+        overlay.play(timing, onNavigate)
+      }
+      bindAuthCrtOverlay({ play: playOverlay })
+      bindCreateRoomCrtOverlay({ play: playOverlay })
     }
   },
   beforeDestroy() {
     bindAuthCrtOverlay(null)
+    bindCreateRoomCrtOverlay(null)
   },
   watch: {
     $route: function (to, from) {

@@ -788,6 +788,7 @@ body[data-dp-game-theme='gothic'] .el-drawer__title {
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-pot-block__title,
 .dp-game-root[data-dp-game-theme='retro8bit'] .lb-page__title,
 .dp-game-root[data-dp-game-theme='retro8bit'] .cr-page__title,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-crt-page__title,
 .dp-game-root[data-dp-game-theme='retro8bit'] .cr-field-group__title,
 .dp-game-root[data-dp-game-theme='retro8bit'] .download-center__title,
 .dp-game-root[data-dp-game-theme='retro8bit'] .download-center__list-title,

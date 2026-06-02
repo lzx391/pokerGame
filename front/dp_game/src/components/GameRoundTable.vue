@@ -1,7 +1,13 @@
 <template>
   <div class="dp-game-table">
-    <div class="dp-game-table__layout">
+    <div class="dp-game-table__layout" :style="retroTableLayoutStyle">
       <div class="dp-game-table__felt" aria-hidden="true" />
+      <dp-retro-glitch-monster
+          v-if="showRetroDesktopFx && retroTableLayout"
+          :layout="retroTableLayout"
+          :animated="retroDesktopAnimated"
+          :glitch-seq="retroGlitchSeq"
+      />
       <svg
           v-if="playersDisplayOrder.length >= 2"
           class="dp-game-table__seat-rays"
@@ -20,8 +26,21 @@
             :data-urgency="seatRayUrgency(displayIdx)"
         />
       </svg>
+      <dp-retro-table-fx
+          v-if="showRetroDesktopFx && retroTableLayout"
+          :layout="retroTableLayout"
+          :animated="retroDesktopAnimated"
+      />
       <div class="dp-game-table__center">
         <div class="dp-game-table__center-stack">
+          <dp-retro-stack-leader-ticker
+              v-if="showRetroDesktopFx"
+              :animated="retroDesktopAnimated"
+          />
+          <dp-retro-nick-flash
+              v-if="showRetroDesktopFx"
+              :animated="retroDesktopAnimated"
+          />
           <game-table-action-timer
               v-if="showCenterActionTimer && gameUiTheme !== 'retro8bit'"
               :time-left="timeLeft"
@@ -150,6 +169,10 @@ import {
 import { dpTableLayoutDevLog } from '../utils/dpTableLayoutDevLog'
 import { dpSeatRayDevLog } from '../utils/dpSeatRayDevLog'
 import DpTablePotDisplay from './DpTablePotDisplay.vue'
+import DpRetroTableFx from './DpRetroTableFx.vue'
+import DpRetroStackLeaderTicker from './DpRetroStackLeaderTicker.vue'
+import DpRetroNickFlash from './DpRetroNickFlash.vue'
+import DpRetroGlitchMonster from './DpRetroGlitchMonster.vue'
 import { CAT_COPY, DEALER_BADGE_CHAR } from '../constants/dpCatThemeCopy'
 
 export default {
@@ -158,7 +181,11 @@ export default {
     GameCommunityCards,
     GamePlayerCard,
     GameTableActionTimer,
-    DpTablePotDisplay
+    DpTablePotDisplay,
+    DpRetroTableFx,
+    DpRetroStackLeaderTicker,
+    DpRetroNickFlash,
+    DpRetroGlitchMonster
   },
   props: {
     playersDisplayOrder: { type: Array, required: true },
@@ -191,7 +218,10 @@ export default {
     joinRevealNicks: { type: Object, default: function () { return {} } },
     seatEnterRevealEnabled: { type: Boolean, default: false },
     gameUiTheme: { type: String, default: 'default' },
-    pot: { type: Number, default: 0 }
+    pot: { type: Number, default: 0 },
+    showRetroDesktopFx: { type: Boolean, default: false },
+    retroDesktopAnimated: { type: Boolean, default: false },
+    retroGlitchSeq: { type: Number, default: 0 }
   },
   data() {
     return {
@@ -267,6 +297,10 @@ export default {
         viewerSeatedAtTable: this.viewerSeatedAtTable,
         logReason: 'layout-computed'
       })
+    },
+    retroTableLayoutStyle: function () {
+      if (!this.retroTableLayout || !this.retroTableLayout.clipPath) return {}
+      return { '--dp-table-polygon': this.retroTableLayout.clipPath }
     }
   },
   methods: {
