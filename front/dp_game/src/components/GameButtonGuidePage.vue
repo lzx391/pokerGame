@@ -18,6 +18,7 @@
         <game-top-bar
           ref="topBar"
           :room-id="mock.roomId"
+          :stage="stage"
           :stage-label="stageLabel"
           :pot="pot"
           :current-bet-to-call="currentBetToCall"

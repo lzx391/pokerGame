@@ -2577,6 +2577,21 @@
   stroke-width: 3;
   filter: drop-shadow(0 0 6px #39ff14) drop-shadow(0 0 16px rgba(57, 255, 20, 0.7)) drop-shadow(0 0 32px rgba(57, 255, 20, 0.4));
 }
+/* 充裕阶段（剩余 > 20s）— 呼吸发光，非常亮 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-rays line.dp-game-table__seat-ray--active.dp-game-table__seat-ray--active-breathe,
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-rays polyline.dp-game-table__seat-ray--active.dp-game-table__seat-ray--active-breathe {
+  animation: dp-retro-ray-breathe 1.75s ease-in-out infinite;
+}
+@keyframes dp-retro-ray-breathe {
+  0%, 100% {
+    opacity: 0.42;
+    filter: drop-shadow(0 0 3px #39ff14) drop-shadow(0 0 8px rgba(57, 255, 20, 0.35));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 6px #39ff14) drop-shadow(0 0 16px rgba(57, 255, 20, 0.7)) drop-shadow(0 0 32px rgba(57, 255, 20, 0.4));
+  }
+}
 /* urgency=warning (< 10s) — 高亮绿 亮/灭 硬闪 */
 .dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-rays line.dp-game-table__seat-ray--active[data-urgency="warning"],
 .dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-rays polyline.dp-game-table__seat-ray--active[data-urgency="warning"] {
@@ -4563,6 +4578,16 @@
 
 .dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__pot {
   text-shadow: 0 0 6px rgba(255, 68, 68, 0.5);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__sub,
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__hero-eco {
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  line-height: 1.55;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
 }
 
 @media (max-width: 600px) {

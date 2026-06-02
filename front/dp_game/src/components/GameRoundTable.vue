@@ -271,8 +271,11 @@ export default {
   },
   methods: {
     seatRayClass: function (displayIdx) {
+      var isActive = displayIdx === this.actingDisplayIndex
+      var t = Number(this.timeLeft)
       return {
-        'dp-game-table__seat-ray--active': displayIdx === this.actingDisplayIndex
+        'dp-game-table__seat-ray--active': isActive,
+        'dp-game-table__seat-ray--active-breathe': isActive && !isNaN(t) && t > 20
       }
     },
     seatRayUrgency: function (displayIdx) {

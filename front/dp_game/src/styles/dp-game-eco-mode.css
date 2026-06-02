@@ -349,9 +349,11 @@
 
 /* —— retro8bit 行动射线 + 座牌闪烁 —— */
 .dp-game-root[data-dp-eco-mode='true'] .dp-game-table__seat-ray--active,
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-table__seat-ray--active-breathe,
 .dp-game-root[data-dp-eco-mode='true'] .dp-player-card--acting,
 @media (prefers-reduced-motion: reduce) {
   .dp-game-table__seat-ray--active,
+  .dp-game-table__seat-ray--active-breathe,
   .dp-player-card--acting {
     animation: none !important;
   }

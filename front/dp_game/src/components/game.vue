@@ -19,6 +19,7 @@
     <header class="dp-game-layout__header">
     <game-top-bar
         :room-id="roomId"
+        :stage="stage"
         :stage-label="stageCN"
         :pot="pot"
         :current-bet-to-call="currentBetToCall"

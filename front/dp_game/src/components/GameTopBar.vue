@@ -4,13 +4,13 @@
     <div class="dp-top-bar__row dp-top-bar__row--primary">
       <div class="dp-top-bar__primary-text">
         <span class="dp-top-bar__title">
-          房间: {{ roomId }} | 阶段: <span ref="guideTopStage" class="dp-top-bar__accent">{{ stageLabel }}</span>
+          {{ lbl.room }}: {{ roomId }} | {{ lbl.phase }}: <span ref="guideTopStage" class="dp-top-bar__accent">{{ displayStageLabel }}</span>
         </span>
         <span class="dp-top-bar__meta-sep" aria-hidden="true">·</span>
         <span class="dp-top-bar__sub">
-          小鱼干池 <span ref="guideTopPot" class="dp-top-bar__pot">{{ pot }}</span>
+          {{ lbl.pot }} <span ref="guideTopPot" class="dp-top-bar__pot">{{ pot }}</span>
           <span class="dp-top-bar__meta-sep dp-top-bar__meta-sep--thin" aria-hidden="true">|</span>
-          需对齐 <span ref="guideTopAlign" class="dp-top-bar__bet">{{ currentBetToCall }}</span>
+          {{ lbl.toCall }} <span ref="guideTopAlign" class="dp-top-bar__bet">{{ currentBetToCall }}</span>
           <template v-if="showHeroEconomy">
             <span class="dp-top-bar__meta-sep dp-top-bar__meta-sep--thin" aria-hidden="true">|</span>
             <span
@@ -19,11 +19,11 @@
                 role="region"
                 :aria-label="heroEconomyAriaLabel"
             >
-              <span class="dp-top-bar__hero-eco-stash">持有 <strong class="dp-top-bar__hero-eco-strong">{{ heroMyChips }}</strong></span>
+              <span class="dp-top-bar__hero-eco-stash">{{ lbl.stack }} <strong class="dp-top-bar__hero-eco-strong">{{ heroMyChips }}</strong></span>
               <span class="dp-top-bar__meta-sep dp-top-bar__meta-sep--thin" aria-hidden="true">|</span>
-              <span class="dp-top-bar__hero-eco-secondary">{{ heroEconomySecondaryLabel }} <strong class="dp-top-bar__hero-eco-strong">{{ heroEconomySecondaryValue }}</strong></span>
+              <span class="dp-top-bar__hero-eco-secondary">{{ displayHeroSecondaryLabel }} <strong class="dp-top-bar__hero-eco-strong">{{ heroEconomySecondaryValue }}</strong></span>
               <span class="dp-top-bar__meta-sep dp-top-bar__meta-sep--thin" aria-hidden="true">|</span>
-              <span class="dp-top-bar__hero-eco-secondary">已消耗 <strong class="dp-top-bar__hero-eco-strong">{{ heroCarryInChips }}</strong></span>
+              <span class="dp-top-bar__hero-eco-secondary">{{ lbl.invested }} <strong class="dp-top-bar__hero-eco-strong">{{ heroCarryInChips }}</strong></span>
             </span>
           </template>
         </span>
@@ -155,10 +155,19 @@
 </template>
 
 <script>
+import {
+  formatTopBarLabel,
+  dpTopBarStageLabel,
+  dpTopBarHeroSecondaryLabel,
+  dpTopBarHeroEconomyAria
+} from '../utils/dpTopBarLabels'
+
 export default {
   name: 'GameTopBar',
   props: {
     roomId: { type: String, required: true },
+    /** 后端 stage 键（preflop/flop/…），retro8bit 映射英文阶段名 */
+    stage: { type: String, default: '' },
     stageLabel: { type: String, required: true },
     pot: { type: Number, required: true },
     currentBetToCall: { type: Number, required: true },
@@ -192,16 +201,30 @@ export default {
     exitLabel: { type: String, default: '退出对局' }
   },
   computed: {
+    lbl: function () {
+      var t = this.gameUiTheme
+      return {
+        room: formatTopBarLabel(t, 'room'),
+        phase: formatTopBarLabel(t, 'phase'),
+        pot: formatTopBarLabel(t, 'pot'),
+        toCall: formatTopBarLabel(t, 'toCall'),
+        stack: formatTopBarLabel(t, 'stack'),
+        invested: formatTopBarLabel(t, 'invested')
+      }
+    },
+    displayStageLabel: function () {
+      return dpTopBarStageLabel(this.gameUiTheme, this.stage, this.stageLabel)
+    },
+    displayHeroSecondaryLabel: function () {
+      return dpTopBarHeroSecondaryLabel(this.gameUiTheme, this.heroEconomySecondaryLabel)
+    },
     heroEconomyAriaLabel: function () {
       if (!this.showHeroEconomy) return ''
-      return (
-          '剩余小鱼干 ' +
-          this.heroMyChips +
-          '，' +
-          this.heroEconomySecondaryLabel +
-          ' ' +
-          this.heroEconomySecondaryValue +
-          '，已消耗 ' +
+      return dpTopBarHeroEconomyAria(
+          this.gameUiTheme,
+          this.heroMyChips,
+          this.heroEconomySecondaryLabel,
+          this.heroEconomySecondaryValue,
           this.heroCarryInChips
       )
     }

@@ -343,7 +343,7 @@
 <script>
 import { getCardClass, getCardDisplay } from '../utils/dpGameCardVisual'
 import { dpDisplayNickname } from '../utils/dpDisplayNickname'
-import { DP_DEAL_STAGGER_MS } from '../constants/dpGameDealTiming'
+import { dealStaggerMsForTheme } from '../constants/dpGameDealTiming'
 import { getDealerAnchorViewportPoint } from '../utils/dpGameDealerAnchor'
 import { CAT_COPY } from '../constants/dpCatThemeCopy'
 import { displayHandRankName, displayHandRankDetail } from '../utils/dpHandRankDisplay'
@@ -633,6 +633,12 @@ export default {
     holeFlipUseInstant() {
       if (!this.skipHoleDealAnimation) return false
       return !(this.dealRevealStaggerSec > 0)
+    },
+    gameUiTheme() {
+      return (this.dpGameView && this.dpGameView.gameUiTheme) || 'default'
+    },
+    holeDealStaggerMs() {
+      return dealStaggerMsForTheme(this.gameUiTheme)
     }
   },
   methods: {
@@ -733,15 +739,17 @@ export default {
     },
     /** 最后一手牌飞入起点时间 + 飞入/翻面余量（与人数、张数相关） */
     computeHoleDealSequenceTailMs() {
-      var stagger = DP_DEAL_STAGGER_MS
+      var stagger = this.holeDealStaggerMs
       var pc = Math.max(1, this.holeDealPlayerCount || 1)
       var nh = this.player.holeCards ? this.player.holeCards.length : 0
       if (nh <= 0) return 5000
+      if (stagger === 0) return 900
       var lastStart = (nh - 1) * pc * stagger + (pc - 1) * stagger
       return lastStart + 2200
     },
     holeDealDelayMsForCard(cardIdx) {
-      var stagger = DP_DEAL_STAGGER_MS
+      var stagger = this.holeDealStaggerMs
+      if (stagger === 0) return 0
       var pc = Math.max(1, this.holeDealPlayerCount || 1)
       var seat = this.holeDealSeatOrder || 0
       return cardIdx * pc * stagger + seat * stagger
