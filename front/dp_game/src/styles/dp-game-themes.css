@@ -272,6 +272,64 @@ body[data-dp-game-theme='retro8bit'] {
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 16 16'%3E%3Crect x='7' y='1' width='2' height='14' fill='%234af626'/%3E%3Crect x='1' y='7' width='14' height='2' fill='%234af626'/%3E%3C/svg%3E") 8 8, auto;
 }
 
+/* retro8bit：终端历史 / 聊天消息区 — 像素风滑条（仅本主题，不污染 default 等） */
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-cli__history,
+body[data-dp-game-theme='retro8bit'] .dp-cli__history,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list,
+body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list {
+  scrollbar-width: auto;
+  scrollbar-color: var(--dp-accent) var(--dp-terminal-bg);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar,
+body[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar,
+body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-track,
+body[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-track,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-track,
+body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-track {
+  background: var(--dp-terminal-bg);
+  border-left: 2px solid rgba(74, 246, 38, 0.12);
+  box-shadow: inset 2px 0 0 rgba(0, 0, 0, 0.55);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-thumb,
+body[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-thumb,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-thumb,
+body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-thumb {
+  border: 2px solid #000;
+  border-radius: 0;
+  background: var(--dp-accent);
+  box-shadow:
+    inset 0 0 0 1px rgba(114, 240, 82, 0.45),
+    0 0 6px rgba(74, 246, 38, 0.35);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-thumb:hover,
+body[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-thumb:hover,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-thumb:hover,
+body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-thumb:hover {
+  background: var(--dp-text-secondary);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-corner,
+body[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-corner,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-corner,
+body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-corner {
+  background: var(--dp-terminal-bg);
+}
+
+/* 节能：同色块滑条，去掉磷光外晕 */
+.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] .dp-cli__history::-webkit-scrollbar-thumb,
+.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] .dp-game-room-chat-panel__list::-webkit-scrollbar-thumb {
+  box-shadow: inset 0 0 0 1px rgba(58, 138, 42, 0.5);
+}
+
 /* 暗黑哥特：羊皮纸字色 + 烛金与干玫瑰描边 */
 .dp-game-root[data-dp-game-theme='gothic'],
 body[data-dp-game-theme='gothic'] {
