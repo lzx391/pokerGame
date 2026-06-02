@@ -2011,16 +2011,17 @@ export default {
     },
     expandChat() {
       var footer = this.$refs.heroDockFooter
-      console.log('[game] expandChat footer:', !!footer, 'footer.$refs:', footer ? Object.keys(footer.$refs || {}) : 'N/A')
       if (!footer) return
       var panel = footer.$refs.guideRoomChatPanel
-      if (!panel) {
-        panel = footer.$refs.guideMobileRoomChatPanel
-      }
-      console.log('[game] expandChat panel:', !!panel, 'openForGuide:', typeof (panel && panel.openForGuide))
+      if (!panel) { panel = footer.$refs.guideMobileRoomChatPanel }
       if (panel && typeof panel.openForGuide === 'function') {
         panel.openForGuide()
-        console.log('[game] expandChat done')
+        this.$nextTick(function () {
+          var el = panel.$el || panel.$refs.list || (panel.$refs.guideChatListWrap)
+          if (el && typeof el.scrollIntoView === 'function') {
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+          }
+        })
       }
     },
 

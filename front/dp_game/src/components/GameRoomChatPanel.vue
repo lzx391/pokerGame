@@ -310,14 +310,12 @@ export default {
       this.revealPhase = 'revealed'
     },
     openForGuide() {
-      console.log('[chatPanel] openForGuide called, useRetroChatReveal:', this.useRetroChatReveal, 'expanded:', this.expanded)
       this.expanded = true
       if (this.useRetroChatReveal) {
         this.revealPhase = 'revealed'
       } else {
         this.revealPhase = 'idle'
       }
-      console.log('[chatPanel] after open — expanded:', this.expanded, 'revealPhase:', this.revealPhase)
     },
     closeForGuide() {
       this.expanded = false

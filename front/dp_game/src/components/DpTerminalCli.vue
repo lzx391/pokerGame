@@ -475,13 +475,12 @@ export default {
     // ---- 聊天 ----
     execOpenChatPanel: function () {
       var vm = this.vm
-      console.log('[terminal] execOpenChatPanel vm:', !!vm, 'expandChat:', typeof (vm && vm.expandChat))
       if (!vm) { this.appendOut('[ERR] 无游戏实例'); return }
       if (typeof vm.expandChat === 'function') {
         vm.expandChat()
         this.appendOut('[OK] 聊天面板已打开')
       } else {
-        this.appendOut('[ERR] expandChat 方法不存在，vm 类型: ' + typeof vm)
+        this.appendOut('[ERR] 无法打开聊天面板')
       }
     },
     execSendChat: function (raw, args) {
