@@ -104,16 +104,15 @@ export default {
         self.scheduleNextGlitch()
       }, delay)
     },
+    /**
+     * Skip only accessibility / performance gates. In-game overlays (CLI, hologram, CRT popup) do not block.
+     * Tab hidden is handled separately in scheduleNextGlitch (document-hidden).
+     */
     glitchBlockReason: function () {
       var vm = this.dpGameView
       if (!vm) return 'no-dpGameView'
       if (vm.ecoMode) return 'eco-mode'
       if (vm.prefersReducedMotion) return 'prefers-reduced-motion'
-      if (vm.showHeroHandHologram) return 'hero-hologram'
-      var cli = vm.$refs && vm.$refs.terminalCli
-      if (cli && cli.open) return 'terminal-cli'
-      var popup = vm.$refs && vm.$refs.crtEventPopup
-      if (popup && popup.active) return 'crt-event-popup'
       return null
     },
     fireGlitchBurst: function () {
