@@ -171,6 +171,10 @@ import { dpInviteFriendsDevLog } from '../utils/dpInviteFriendsDevLog'
 import { dpOwnerTerminalDevLog } from '../utils/dpOwnerTerminalDevLog'
 import { dpSeatEnterDevLog } from '../utils/dpSeatEnterDevLog'
 import { extractPlayerNicknames, diffNewSeatNicknames } from '../utils/dpSeatEnterNickDiff'
+import {
+  communityFlipCompleteMsForTheme,
+  communityFlipDelayMsForTheme
+} from '../constants/dpGameDealTiming'
 
 export default {
   mixins: [dpGameFullscreenMixin, dpGameTableFitMixin, dpGameActionCountdownMixin, dpGameLayoutTierMixin],
@@ -2175,6 +2179,7 @@ export default {
           selfInstant.communityCardsFlipCompleteTimer = null
         }, 180)
       } else if (numNew > 0) {
+        var theme = this.gameUiTheme
         for (var j = prevLen; j < newCards.length; j++) {
           var self = this
           ;(function (capturedIdx, capturedDelay) {
@@ -2183,15 +2188,13 @@ export default {
                 self.$store.commit('dpGame/SET_FLIP_AT', { index: capturedIdx, value: true })
               }
             }, capturedDelay)
-          })(j, 520 + 350 * (j - prevLen))
+          })(j, communityFlipDelayMsForTheme(theme, j - prevLen))
         }
-        var flipDuration = 480
-        var lastFlipStart = 520 + 350 * (numNew - 1)
         var selfDone = this
         this.communityCardsFlipCompleteTimer = setTimeout(function () {
           selfDone.$store.commit('dpGame/SET_COMMUNITY_FLIP_COMPLETE', true)
           selfDone.communityCardsFlipCompleteTimer = null
-        }, lastFlipStart + flipDuration)
+        }, communityFlipCompleteMsForTheme(theme, numNew))
       } else if (newCards.length > 0 && this.communityCardsFlipState.every(function (x) {
         return x
       })) {
