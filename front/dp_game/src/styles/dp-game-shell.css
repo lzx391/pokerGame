@@ -635,7 +635,8 @@
   display: block;
 }
 
-.dp-game-table__seat-rays line {
+.dp-game-table__seat-rays line,
+.dp-game-table__seat-rays polyline {
   stroke: color-mix(in srgb, var(--dp-accent) 38%, transparent);
   stroke-width: 1px;
   vector-effect: non-scaling-stroke;
@@ -2555,19 +2556,24 @@
     );
 }
 
-/* --- 座位射线 --- */
-.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-rays line {
+/* --- 座位射线（retro8bit 为直角折线 polyline）--- */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-rays line,
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-rays polyline {
   stroke: rgba(74, 246, 38, 0.12);
+  stroke-linecap: butt;
+  stroke-linejoin: miter;
   transition: stroke 0.15s, stroke-width 0.15s;
 }
-/* 行动玩家射线 — 高亮绿替代计时器 */
-.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-ray--active {
+/* 行动玩家射线 — 高亮绿替代计时器（含 line 元素选择器，压过默认 seat-rays line 规则） */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-rays line.dp-game-table__seat-ray--active,
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-rays polyline.dp-game-table__seat-ray--active {
   stroke: #39ff14;
   stroke-width: 3;
   filter: drop-shadow(0 0 6px #39ff14) drop-shadow(0 0 16px rgba(57, 255, 20, 0.7)) drop-shadow(0 0 32px rgba(57, 255, 20, 0.4));
 }
 /* urgency=warning (< 10s) — 高亮绿 亮/灭 硬闪 */
-.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-ray--active[data-urgency="warning"] {
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-rays line.dp-game-table__seat-ray--active[data-urgency="warning"],
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-rays polyline.dp-game-table__seat-ray--active[data-urgency="warning"] {
   animation: dp-retro-ray-blink-green 0.45s steps(2, start) infinite;
 }
 @keyframes dp-retro-ray-blink-green {
@@ -2575,7 +2581,8 @@
   100% { opacity: 0; visibility: hidden; }
 }
 /* urgency=danger (< 5s) — 红色 亮/灭 急速硬闪 */
-.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-ray--active[data-urgency="danger"] {
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-rays line.dp-game-table__seat-ray--active[data-urgency="danger"],
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-rays polyline.dp-game-table__seat-ray--active[data-urgency="danger"] {
   stroke: #ff1a1a;
   filter: drop-shadow(0 0 6px #ff1a1a) drop-shadow(0 0 16px rgba(255, 26, 26, 0.7)) drop-shadow(0 0 32px rgba(255, 26, 26, 0.4));
   animation: dp-retro-ray-blink-red 0.25s steps(2, start) infinite;

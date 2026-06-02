@@ -120,6 +120,41 @@ export function actionTimerOrbitRoundTableStyle(displayIdx, total, viewerSeatedA
   return nudgeSeatTowardTableCenter(displayIdx, total, inward, viewerSeatedAtTable, stage)
 }
 
+/**
+ * retro8bit：座位分区线为直角折线（内沿 → 拐点 → 外沿），非椭圆辐射直线。
+ * @returns {string} SVG polyline points，如 "50.0,44.0 62.0,44.0 62.0,12.0"
+ */
+export function retroSeatRayPolylinePoints(displayIdx, total, viewerSeatedAtTable) {
+  if (!total) return '50,44'
+  var theta = roundTableSeatTheta(displayIdx, total, viewerSeatedAtTable)
+  var rx = 46
+  var ry = 41
+  var cx = 50
+  var cy = 44
+  var innerFactor = 0.36
+  var scale = 1.05
+  var ix = cx + Math.sin(theta) * rx * innerFactor
+  var iy = cy - Math.cos(theta) * ry * innerFactor
+  var ex = cx + Math.sin(theta) * rx * scale
+  var ey = cy - Math.cos(theta) * ry * scale
+  var mx
+  var my
+  if (Math.abs(ex - ix) >= Math.abs(ey - iy)) {
+    mx = ex
+    my = iy
+  } else {
+    mx = ix
+    my = ey
+  }
+  function snap(v) {
+    return (Math.round(v * 2) / 2).toFixed(1)
+  }
+  function pt(x, y) {
+    return snap(x) + ',' + snap(y)
+  }
+  return pt(ix, iy) + ' ' + pt(mx, my) + ' ' + pt(ex, ey)
+}
+
 export function muckPileRoundTableStyle(stage, playersDisplayOrderLength, dealerDisplayIndex, viewerSeatedAtTable) {
   if (stage === 'showdown' || stage === 'settled') {
     return {

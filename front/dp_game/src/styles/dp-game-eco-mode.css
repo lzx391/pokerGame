@@ -355,7 +355,8 @@
   .dp-player-card--acting {
     animation: none !important;
   }
-  .dp-game-table__seat-ray--active {
+  .dp-game-table__seat-rays line.dp-game-table__seat-ray--active,
+  .dp-game-table__seat-rays polyline.dp-game-table__seat-ray--active {
     stroke: #4af626;
     stroke-width: 2;
     opacity: 0.8;

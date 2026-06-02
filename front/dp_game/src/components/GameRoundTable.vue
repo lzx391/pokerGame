@@ -9,15 +9,23 @@
           preserveAspectRatio="none"
           aria-hidden="true"
       >
+        <polyline
+            v-if="gameUiTheme === 'retro8bit'"
+            v-for="(row, displayIdx) in playersDisplayOrder"
+            :key="'seat-ray-' + displayIdx + '-' + (row.player.nickname || row.seatIndex)"
+            :points="retroSeatRayPoints(displayIdx)"
+            fill="none"
+            :class="seatRayClass(displayIdx)"
+            :data-urgency="seatRayUrgency(displayIdx)"
+        />
         <line
+            v-else
             v-for="(row, displayIdx) in playersDisplayOrder"
             :key="'seat-ray-' + displayIdx + '-' + (row.player.nickname || row.seatIndex)"
             :x1="String(seatRayInnerX(displayIdx))"
             :y1="String(seatRayInnerY(displayIdx))"
             :x2="String(seatRayEndX(displayIdx))"
             :y2="String(seatRayEndY(displayIdx))"
-            :class="{ 'dp-game-table__seat-ray--active': displayIdx === actingDisplayIndex && gameUiTheme === 'retro8bit' }"
-            :data-urgency="displayIdx === actingDisplayIndex && gameUiTheme === 'retro8bit' ? timerUrgency : undefined"
         />
       </svg>
       <div class="dp-game-table__center">
@@ -140,10 +148,12 @@ import {
   actionTimerOrbitRoundTableStyle,
   muckPileRoundTableStyle,
   playerRoundTableStyle,
+  retroSeatRayPolylinePoints,
   roundTableSeatTheta,
   seatChatBubbleSide,
   seatFeltMarkerRoundTableStyle
 } from '../utils/dpGameRoundTableLayout'
+import { dpSeatRayDevLog } from '../utils/dpSeatRayDevLog'
 import DpTablePotDisplay from './DpTablePotDisplay.vue'
 import { CAT_COPY, DEALER_BADGE_CHAR } from '../constants/dpCatThemeCopy'
 
@@ -194,6 +204,20 @@ export default {
       dealerBadgeChar: DEALER_BADGE_CHAR
     }
   },
+  watch: {
+    actingDisplayIndex: function () {
+      this.logSeatRayState('actingDisplayIndex')
+    },
+    actIndex: function () {
+      this.logSeatRayState('actIndex')
+    },
+    gameUiTheme: function () {
+      this.logSeatRayState('gameUiTheme')
+    }
+  },
+  mounted: function () {
+    this.logSeatRayState('mounted')
+  },
   computed: {
     muckStyle: function () {
       return muckPileRoundTableStyle(
@@ -236,6 +260,37 @@ export default {
     }
   },
   methods: {
+    seatRayClass: function (displayIdx) {
+      return {
+        'dp-game-table__seat-ray--active': displayIdx === this.actingDisplayIndex
+      }
+    },
+    seatRayUrgency: function (displayIdx) {
+      if (displayIdx !== this.actingDisplayIndex) return undefined
+      return this.timerUrgency
+    },
+    retroSeatRayPoints: function (displayIdx) {
+      return retroSeatRayPolylinePoints(
+        displayIdx,
+        this.playersDisplayOrder.length,
+        this.viewerSeatedAtTable
+      )
+    },
+    logSeatRayState: function (reason) {
+      if (this.gameUiTheme !== 'retro8bit') return
+      var idx = this.actingDisplayIndex
+      var row = idx >= 0 ? this.playersDisplayOrder[idx] : null
+      dpSeatRayDevLog(reason, {
+        pathType: 'polyline',
+        actIndex: this.actIndex,
+        actingDisplayIndex: idx,
+        actingNickname: row && row.player ? row.player.nickname : null,
+        actingSeatIndex: row ? row.seatIndex : null,
+        timerUrgency: this.timerUrgency,
+        activeRayClass: idx >= 0 ? 'dp-game-table__seat-ray--active' : null,
+        activePoints: idx >= 0 ? this.retroSeatRayPoints(idx) : null
+      })
+    },
     feltMarkerStyle: function (displayIdx) {
       return seatFeltMarkerRoundTableStyle(
         displayIdx,

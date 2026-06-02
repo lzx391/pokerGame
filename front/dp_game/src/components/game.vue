@@ -247,7 +247,7 @@ export default {
       var t = Number(this.timeLeft)
       if (isNaN(t)) return 'ok'
       if (t > 10) return 'ok'
-      if (t > 5) return 'warn'
+      if (t > 5) return 'warning'
       return 'danger'
     },
     showTableActionTimer() {
