@@ -93,7 +93,8 @@
 .dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster {
   position: absolute;
   inset: 0;
-  z-index: 4;
+  /* Above seat cards (z-index 20) so center felt monster is not buried */
+  z-index: 22;
   pointer-events: none;
   overflow: visible;
 }
@@ -178,10 +179,12 @@
 
 .dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster__flash {
   position: absolute;
-  z-index: 1;
+  /* Above seat cards (z-index 20) so monster is unmistakable on felt */
+  z-index: 25;
   transform: translate(-50%, -50%);
   opacity: 0;
-  transition: opacity 0.1s ease-out;
+  transition: opacity 0.12s ease-out;
+  will-change: opacity, transform;
 }
 
 .dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster__flash--in {
@@ -213,11 +216,22 @@
     drop-shadow(0 2px 0 rgba(10, 12, 14, 0.95));
 }
 
+/* retroGlitchDebug=1: oversized sprite for manual QA */
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster--debug .dp-retro-glitch-monster__sprite {
+  width: clamp(120px, 14vw, 168px);
+  height: clamp(120px, 14vw, 168px);
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster--debug .dp-retro-glitch-monster__flash--in {
+  opacity: 1 !important;
+}
+
 .dp-retro-ambient-scheduler {
   display: none;
 }
 
-@media (min-width: 1025px) {
+/* Hide stray retro FX when JS gate off — same vw band as hologram / seat rays (>600) */
+@media (min-width: 601px) {
   .dp-game-root[data-dp-game-theme='retro8bit']:not(.dp-game-root--retro-desktop-fx) .dp-retro-table-fx,
   .dp-game-root[data-dp-game-theme='retro8bit']:not(.dp-game-root--retro-desktop-fx) .dp-retro-glitch-monster,
   .dp-game-root[data-dp-game-theme='retro8bit']:not(.dp-game-root--retro-desktop-fx) .dp-retro-nick-flash,

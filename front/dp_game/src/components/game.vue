@@ -182,6 +182,11 @@ import { dpHandHologramDevLog } from '../utils/dpHandHologramDevLog'
 import { dpInviteFriendsDevLog } from '../utils/dpInviteFriendsDevLog'
 import { dpOwnerTerminalDevLog } from '../utils/dpOwnerTerminalDevLog'
 import { dpSeatEnterDevLog } from '../utils/dpSeatEnterDevLog'
+import {
+  dpRetroMonsterGateLog,
+  dpRetroMonsterLog,
+  dpRetroMonsterLogStartupHint
+} from '../utils/dpRetroDesktopFxDevLog'
 import { extractPlayerNicknames, diffNewSeatNicknames } from '../utils/dpSeatEnterNickDiff'
 import {
   communityFlipCompleteMsForTheme,
@@ -303,9 +308,13 @@ export default {
         && !this.ecoMode
         && !this.prefersReducedMotion
     },
-    /** Desktop retro FX: tier >1024, with viewport fallback if tier lags resize. */
+    /**
+     * Wide retro table FX layout: same gate as hologram / seat rays / pot particles (vw > 600).
+     * Phone tier excluded; tablet (e.g. 778px) included — not desktop-only ≥900/1024.
+     */
     isRetroDesktopLayout() {
-      return this.layoutTier === 'desktop' || this.viewportWidth > 1024
+      if (this.layoutTier === 'phone') return false
+      return this.viewportWidth > 600
     },
     showRetroDesktopFx() {
       return this.gameUiTheme === 'retro8bit' && this.isRetroDesktopLayout
@@ -325,6 +334,32 @@ export default {
   },
 
   watch: {
+    showRetroDesktopFx: function (on) {
+      if (this.gameUiTheme === 'retro8bit') this.logRetroFxGate('showRetroDesktopFx')
+      if (on) this.logRetroMonsterMountState('showRetroDesktopFx')
+    },
+    useRetroDesktopAmbience: function () {
+      if (this.gameUiTheme === 'retro8bit') this.logRetroFxGate('useRetroDesktopAmbience')
+    },
+    layoutTier: function () {
+      if (this.gameUiTheme === 'retro8bit') this.logRetroFxGate('layoutTier')
+    },
+    viewportWidth: function () {
+      if (this.gameUiTheme === 'retro8bit') this.logRetroFxGate('viewportWidth')
+    },
+    ecoMode: function () {
+      if (this.gameUiTheme === 'retro8bit') this.logRetroFxGate('ecoMode')
+    },
+    prefersReducedMotion: function () {
+      if (this.gameUiTheme === 'retro8bit') this.logRetroFxGate('prefersReducedMotion')
+    },
+    gameUiTheme: function (theme) {
+      if (theme === 'retro8bit') {
+        this.$nextTick(function () {
+          this.logRetroFxGate('gameUiTheme')
+        }.bind(this))
+      }
+    },
     isMyTurn: function (v) {
       if (v) this.$store.commit('dpGame/SET_RAISE_AMOUNT', this.minRaise)
       else this.$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileActionSheet: false })
@@ -477,6 +512,12 @@ export default {
     this.initHologramViewportListeners()
     this._onGameKeydown = this.onGameKeydown.bind(this)
     window.addEventListener('keydown', this._onGameKeydown)
+    if (this.gameUiTheme === 'retro8bit') {
+      this.logRetroFxGate('mounted')
+      if (this.showRetroDesktopFx) {
+        this.logRetroMonsterMountState('mounted')
+      }
+    }
   },
 
   beforeDestroy() {
@@ -513,11 +554,61 @@ export default {
   },
 
   methods: {
+    retroDesktopFxBlockReason: function () {
+      if (this.gameUiTheme !== 'retro8bit') return 'wrong-theme'
+      if (this.layoutTier === 'phone') return 'phone-layout'
+      if (this.viewportWidth <= 600) return 'viewport-too-narrow'
+      return null
+    },
+    logRetroFxGate: function (reason) {
+      var fxOn = this.showRetroDesktopFx
+      var animOn = this.useRetroDesktopAmbience
+      var mountBlock = this.retroDesktopFxBlockReason()
+      var blockers = []
+      if (mountBlock) blockers.push(mountBlock)
+      if (this.ecoMode) blockers.push('eco-mode-ON (turn off in top bar to enable glitch monster)')
+      if (this.prefersReducedMotion) blockers.push('prefers-reduced-motion')
+      dpRetroMonsterGateLog({
+        reason: reason || 'gate',
+        theme: this.gameUiTheme,
+        layoutTier: this.layoutTier,
+        vw: this.viewportWidth,
+        showRetroDesktopFx: fxOn,
+        blockReason: fxOn ? null : (mountBlock || 'unknown'),
+        useRetroDesktopAmbience: animOn,
+        animBlockReason: fxOn && !animOn
+          ? (this.ecoMode ? 'eco-mode' : (this.prefersReducedMotion ? 'prefers-reduced-motion' : null))
+          : null,
+        eco: this.ecoMode,
+        prm: this.prefersReducedMotion,
+        retroGlitchSeq: this.retroGlitchSeq,
+        pipelineMounted: fxOn,
+        schedulerWouldRun: animOn,
+        blockers: blockers.length ? blockers : null
+      })
+      if (!animOn && fxOn && this.ecoMode) {
+        dpRetroMonsterGateLog({
+          hint: 'eco mode blocks glitch scheduler + monster animation — disable eco in top bar'
+        })
+      }
+    },
+    logRetroMonsterMountState: function (reason) {
+      dpRetroMonsterLogStartupHint()
+      dpRetroMonsterLog('mount', {
+        reason: reason,
+        showRetroDesktopFx: this.showRetroDesktopFx,
+        useRetroDesktopAmbience: this.useRetroDesktopAmbience,
+        isRetroDesktopLayout: this.isRetroDesktopLayout,
+        layoutTier: this.layoutTier,
+        viewportWidth: this.viewportWidth,
+        ecoMode: this.ecoMode,
+        prefersReducedMotion: this.prefersReducedMotion,
+        retroGlitchSeq: this.retroGlitchSeq
+      })
+    },
     onRetroGlitchBurst: function () {
       this.retroGlitchSeq++
-      if (typeof window !== 'undefined' && localStorage.getItem('retroGlitchDebug') === '1') {
-        console.log('[dp-retro-desktop-fx] glitch-burst', { seq: this.retroGlitchSeq })
-      }
+      dpRetroMonsterLog('seq-increment', { retroGlitchSeq: this.retroGlitchSeq })
     },
     onGameKeydown: function (e) {
       if (this.gameUiTheme !== 'retro8bit') return

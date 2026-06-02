@@ -4,17 +4,16 @@
 </template>
 
 <script>
-import { dpRetroDesktopFxDevLog } from '../utils/dpRetroDesktopFxDevLog'
+import {
+  dpRetroMonsterGateLog,
+  dpRetroMonsterLog,
+  retroGlitchDebugEnabled
+} from '../utils/dpRetroDesktopFxDevLog'
 
 /** Fixed gap between cycle starts (PM: 10s rhythm). */
 var CYCLE_INTERVAL_MS = 10000
 /** retroGlitchDebug=1: faster manual QA without changing phase timings. */
 var DEBUG_CYCLE_INTERVAL_MS = 3000
-
-function retroGlitchDebugEnabled() {
-  if (typeof localStorage === 'undefined') return false
-  return localStorage.getItem('retroGlitchDebug') === '1'
-}
 
 export default {
   name: 'DpRetroAmbientOverlay',
@@ -24,12 +23,14 @@ export default {
   },
   data: function () {
     return {
-      _glitchTimer: null,
-      _hiddenListener: null
+      glitchTimer: null,
+      hiddenListener: null,
+      tickCount: 0
     }
   },
   watch: {
     animated: function (on) {
+      dpRetroMonsterLog('scheduler-animated', { on: on })
       if (on) this.scheduleNextGlitch()
       else this.clearGlitchSchedule()
     }
@@ -37,29 +38,41 @@ export default {
   mounted: function () {
     var self = this
     if (typeof document !== 'undefined') {
-      this._hiddenListener = function () {
-        if (document.hidden) self.clearGlitchSchedule()
-        else if (self.animated) self.scheduleNextGlitch()
+      this.hiddenListener = function () {
+        if (document.hidden) {
+          dpRetroMonsterLog('scheduler-pause', { reason: 'document-hidden' })
+          self.clearGlitchSchedule()
+        } else if (self.animated) {
+          dpRetroMonsterLog('scheduler-resume', { reason: 'document-visible' })
+          self.scheduleNextGlitch()
+        }
       }
-      document.addEventListener('visibilitychange', this._hiddenListener)
+      document.addEventListener('visibilitychange', this.hiddenListener)
     }
-    dpRetroDesktopFxDevLog('scheduler-mounted', {
+    dpRetroMonsterGateLog({
+      event: 'scheduler-mounted',
       animated: this.animated,
-      hasGameView: !!this.dpGameView
+      hasGameView: !!this.dpGameView,
+      intervalMs: this.nextGlitchDelayMs()
+    })
+    dpRetroMonsterLog('scheduler-mounted', {
+      animated: this.animated,
+      hasGameView: !!this.dpGameView,
+      intervalMs: this.nextGlitchDelayMs()
     })
     if (this.animated) this.scheduleNextGlitch()
   },
   beforeDestroy: function () {
     this.clearGlitchSchedule()
-    if (this._hiddenListener && typeof document !== 'undefined') {
-      document.removeEventListener('visibilitychange', this._hiddenListener)
+    if (this.hiddenListener && typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.hiddenListener)
     }
   },
   methods: {
     clearGlitchSchedule: function () {
-      if (this._glitchTimer) {
-        clearTimeout(this._glitchTimer)
-        this._glitchTimer = null
+      if (this.glitchTimer) {
+        clearTimeout(this.glitchTimer)
+        this.glitchTimer = null
       }
     },
     nextGlitchDelayMs: function () {
@@ -68,29 +81,34 @@ export default {
     scheduleNextGlitch: function () {
       var self = this
       this.clearGlitchSchedule()
-      if (!this.animated || (typeof document !== 'undefined' && document.hidden)) return
-      var delay = this.nextGlitchDelayMs()
-      if (retroGlitchDebugEnabled()) {
-        dpRetroDesktopFxDevLog('glitch-debug-interval', { delayMs: delay })
+      if (!this.animated) {
+        dpRetroMonsterLog('scheduler-tick-skip', { reason: 'not-animated' })
+        return
       }
-      this._glitchTimer = setTimeout(function () {
+      if (typeof document !== 'undefined' && document.hidden) {
+        dpRetroMonsterLog('scheduler-tick-skip', { reason: 'document-hidden' })
+        return
+      }
+      var delay = this.nextGlitchDelayMs()
+      if (typeof this.tickCount !== 'number' || isNaN(this.tickCount)) {
+        this.tickCount = 0
+      }
+      this.tickCount++
+      dpRetroMonsterLog('scheduler-tick', {
+        tick: this.tickCount,
+        delayMs: delay,
+        debugInterval: retroGlitchDebugEnabled()
+      })
+      this.glitchTimer = setTimeout(function () {
         self.fireGlitchBurst()
         self.scheduleNextGlitch()
       }, delay)
     },
-    isGlitchBlocked: function () {
-      var vm = this.dpGameView
-      if (!vm) return true
-      if (vm.showHeroHandHologram) return true
-      var cli = vm.$refs && vm.$refs.terminalCli
-      if (cli && cli.open) return true
-      var popup = vm.$refs && vm.$refs.crtEventPopup
-      if (popup && popup.active) return true
-      return false
-    },
     glitchBlockReason: function () {
       var vm = this.dpGameView
       if (!vm) return 'no-dpGameView'
+      if (vm.ecoMode) return 'eco-mode'
+      if (vm.prefersReducedMotion) return 'prefers-reduced-motion'
       if (vm.showHeroHandHologram) return 'hero-hologram'
       var cli = vm.$refs && vm.$refs.terminalCli
       if (cli && cli.open) return 'terminal-cli'
@@ -100,15 +118,19 @@ export default {
     },
     fireGlitchBurst: function () {
       if (!this.animated) {
-        dpRetroDesktopFxDevLog('glitch-skipped', { reason: 'not-animated' })
+        dpRetroMonsterLog('glitch-skipped', { reason: 'not-animated' })
         return
       }
       var blockReason = this.glitchBlockReason()
       if (blockReason) {
-        dpRetroDesktopFxDevLog('glitch-skipped', { reason: blockReason })
+        dpRetroMonsterLog('glitch-skipped', { reason: blockReason })
+        if (blockReason === 'eco-mode') {
+          dpRetroMonsterGateLog({ event: 'glitch-skipped', reason: blockReason, hint: 'disable eco mode in top bar' })
+        }
         return
       }
-      dpRetroDesktopFxDevLog('glitch-cycle-start', { nextInMs: this.nextGlitchDelayMs() })
+      dpRetroMonsterLog('glitch-cycle-start', { nextInMs: this.nextGlitchDelayMs() })
+      dpRetroMonsterLog('glitch-burst-emit', { nextInMs: this.nextGlitchDelayMs() })
       this.$emit('glitch-burst')
     }
   }
