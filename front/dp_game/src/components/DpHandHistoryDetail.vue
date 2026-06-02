@@ -26,6 +26,7 @@
                   <!-- 元信息 -->
                   <div class="dp-hd__meta">
                     <span class="dp-hd__meta-item">ROOM:{{ detail.roomId || '-' }}</span>
+                    <button class="dp-hd__meta-close" @click="close" title="关闭">[X]</button>
                     <span class="dp-hd__meta-sep">|</span>
                     <span class="dp-hd__meta-item">BLINDS:{{ detail.smallBlindChips }}/{{ detail.bigBlindChips }}</span>
                     <span class="dp-hd__meta-sep">|</span>
@@ -487,6 +488,14 @@ export default {
 }
 .dp-hd__meta-item { white-space:nowrap }
 .dp-hd__meta-sep { color:rgba(74,246,38,0.15) }
+.dp-hd__meta-close {
+  margin-left:auto;flex-shrink:0;width:26px;height:20px;padding:0;
+  border:1px solid rgba(74,246,38,0.3);border-radius:2px;
+  background:rgba(8,12,8,0.8);color:#4af626;
+  font-family:'Courier New',monospace;font-size:11px;cursor:pointer;
+  line-height:1;transition:all 0.08s;
+}
+.dp-hd__meta-close:hover { background:#4af626;color:#080a0c;border-color:#4af626 }
 
 /* Tabs */
 .dp-hd__tabs { display:flex;gap:3px;padding:6px 0;flex-shrink:0; }
