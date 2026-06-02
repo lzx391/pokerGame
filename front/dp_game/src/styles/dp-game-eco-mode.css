@@ -200,6 +200,28 @@
   }
 }
 
+/* —— retro8bit 聊天消息入场 + 座旁气泡 + toggle 闪烁 + 信号条 —— */
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-room-chat-panel__row,
+.dp-game-root[data-dp-eco-mode='true'] .dp-player-card__seat-chat,
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-room-chat-panel__toggle--new-msg,
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-room-chat-panel__row::before,
+@media (prefers-reduced-motion: reduce) {
+  .dp-game-room-chat-panel__row,
+  .dp-player-card__seat-chat,
+  .dp-game-room-chat-panel__toggle--new-msg,
+  .dp-game-room-chat-panel__row::before {
+    animation: none !important;
+  }
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .dp-player-card__seat-chat::before,
+@media (prefers-reduced-motion: reduce) {
+  .dp-player-card__seat-chat::before {
+    animation: none !important;
+    opacity: 1;
+  }
+}
+
 /* —— retro8bit 聊天翻板 + 心电图 —— */
 .dp-game-root[data-dp-eco-mode='true'] .dp-game-room-chat-panel__board--flipping-up,
 .dp-game-root[data-dp-eco-mode='true'] .dp-game-room-chat-panel__board--collapsing-down,

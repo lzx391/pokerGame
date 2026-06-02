@@ -23,7 +23,7 @@
               <span class="dp-top-bar__meta-sep dp-top-bar__meta-sep--thin" aria-hidden="true">|</span>
               <span class="dp-top-bar__hero-eco-secondary">{{ heroEconomySecondaryLabel }} <strong class="dp-top-bar__hero-eco-strong">{{ heroEconomySecondaryValue }}</strong></span>
               <span class="dp-top-bar__meta-sep dp-top-bar__meta-sep--thin" aria-hidden="true">|</span>
-              <span class="dp-top-bar__hero-eco-secondary">已买入 <strong class="dp-top-bar__hero-eco-strong">{{ heroCarryInChips }}</strong></span>
+              <span class="dp-top-bar__hero-eco-secondary">已消耗 <strong class="dp-top-bar__hero-eco-strong">{{ heroCarryInChips }}</strong></span>
             </span>
           </template>
         </span>
@@ -201,7 +201,7 @@ export default {
           this.heroEconomySecondaryLabel +
           ' ' +
           this.heroEconomySecondaryValue +
-          '，已买入 ' +
+          '，已消耗 ' +
           this.heroCarryInChips
       )
     }
