@@ -120,39 +120,73 @@ export function actionTimerOrbitRoundTableStyle(displayIdx, total, viewerSeatedA
   return nudgeSeatTowardTableCenter(displayIdx, total, inward, viewerSeatedAtTable, stage)
 }
 
+/** retro8bit 正多边形台呢几何（与 game.vue --dp-table-polygon 一致） */
+export var RETRO_TABLE_POLY_CX = 50
+export var RETRO_TABLE_POLY_CY = 50
+export var RETRO_TABLE_POLY_R = 48
+
+export function retroTablePolygonSides(playerCount) {
+  var n = playerCount || 0
+  if (n < 3) n = 6
+  return n
+}
+
+/** @returns {{ x: number, y: number }} viewBox 百分比，与 clip-path 顶点同源 */
+export function retroTablePolygonVertex(vertexIdx, sides) {
+  var n = sides
+  var a = (2 * Math.PI * vertexIdx / n) - (Math.PI / 2)
+  return {
+    x: RETRO_TABLE_POLY_CX + RETRO_TABLE_POLY_R * Math.cos(a),
+    y: RETRO_TABLE_POLY_CY + RETRO_TABLE_POLY_R * Math.sin(a)
+  }
+}
+
+/** @returns {string} CSS clip-path polygon(...) */
+export function retroTablePolygonClipPath(playerCount) {
+  var n = retroTablePolygonSides(playerCount)
+  var pts = []
+  for (var i = 0; i < n; i++) {
+    var v = retroTablePolygonVertex(i, n)
+    pts.push(v.x.toFixed(1) + '% ' + v.y.toFixed(1) + '%')
+  }
+  return 'polygon(' + pts.join(', ') + ')'
+}
+
+/** 从多边形中心沿极角 θ 到边的距离（viewBox 百分比单位） */
+export function retroTablePolygonEdgeDist(theta, sides) {
+  var n = sides
+  var alpha = Math.PI / n
+  var sectorAngle = (2 * Math.PI) / n
+  var thetaFromTop = ((theta + Math.PI / 2) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI)
+  var sectorIndex = Math.floor(thetaFromTop / sectorAngle)
+  var edgeMidAngle = -Math.PI / 2 + (sectorIndex + 0.5) * sectorAngle
+  var delta = theta - edgeMidAngle
+  while (delta > Math.PI) delta -= 2 * Math.PI
+  while (delta < -Math.PI) delta += 2 * Math.PI
+  return RETRO_TABLE_POLY_R * Math.cos(alpha) / Math.cos(delta)
+}
+
 /**
- * retro8bit：座位分区线为直角折线（内沿 → 拐点 → 外沿），非椭圆辐射直线。
- * @returns {string} SVG polyline points，如 "50.0,44.0 62.0,44.0 62.0,12.0"
+ * retro8bit：桌心 → 正多边形角顶点（与 retroTablePolygonClipPath 同源，非椭圆 rx/ry）。
+ * 入座时座位环相对台呢旋转 π，顶点下标同步偏移半圈以对准角。
+ * @returns {{ x1: number, y1: number, x2: number, y2: number }}
  */
-export function retroSeatRayPolylinePoints(displayIdx, total, viewerSeatedAtTable) {
-  if (!total) return '50,44'
-  var theta = roundTableSeatTheta(displayIdx, total, viewerSeatedAtTable)
-  var rx = 46
-  var ry = 41
-  var cx = 50
-  var cy = 44
-  var innerFactor = 0.36
-  var scale = 1.05
-  var ix = cx + Math.sin(theta) * rx * innerFactor
-  var iy = cy - Math.cos(theta) * ry * innerFactor
-  var ex = cx + Math.sin(theta) * rx * scale
-  var ey = cy - Math.cos(theta) * ry * scale
-  var mx
-  var my
-  if (Math.abs(ex - ix) >= Math.abs(ey - iy)) {
-    mx = ex
-    my = iy
-  } else {
-    mx = ix
-    my = ey
+export function retroSeatRayLineEndpoints(displayIdx, total, viewerSeatedAtTable) {
+  if (!total) {
+    return { x1: RETRO_TABLE_POLY_CX, y1: RETRO_TABLE_POLY_CY, x2: RETRO_TABLE_POLY_CX, y2: RETRO_TABLE_POLY_CY }
   }
-  function snap(v) {
-    return (Math.round(v * 2) / 2).toFixed(1)
+  var sides = retroTablePolygonSides(total)
+  var vertexIdx = displayIdx
+  if (viewerSeatedAtTable) {
+    vertexIdx = (displayIdx + Math.floor(sides / 2)) % sides
   }
-  function pt(x, y) {
-    return snap(x) + ',' + snap(y)
+  var v = retroTablePolygonVertex(vertexIdx, sides)
+  return {
+    x1: RETRO_TABLE_POLY_CX,
+    y1: RETRO_TABLE_POLY_CY,
+    x2: v.x,
+    y2: v.y
   }
-  return pt(ix, iy) + ' ' + pt(mx, my) + ' ' + pt(ex, ey)
 }
 
 export function muckPileRoundTableStyle(stage, playersDisplayOrderLength, dealerDisplayIndex, viewerSeatedAtTable) {

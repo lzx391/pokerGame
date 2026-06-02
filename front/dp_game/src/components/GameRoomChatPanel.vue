@@ -275,23 +275,10 @@ export default {
       }
     },
     onToggleClick() {
-      if (!this.useRetroChatReveal) {
-        this.expanded = !this.expanded
-        if (!this.expanded) {
-          this.revealPhase = 'idle'
-        }
+      if (this.useRetroChatReveal && this.revealPhase === 'collapsing-down') {
         return
       }
-      if (this.revealPhase === 'idle') {
-        this.expanded = true
-        this.revealPhase = 'flipping-up'
-        return
-      }
-      if (this.revealPhase === 'collapsing-down') {
-        return
-      }
-      this.expanded = false
-      this.revealPhase = 'collapsing-down'
+      this.toggleWithReveal()
     },
     onBoardAnimEnd(e) {
       if (e.target !== e.currentTarget) return
@@ -316,6 +303,43 @@ export default {
       } else {
         this.revealPhase = 'idle'
       }
+    },
+    /** 终端 / 外部触发：retro 宽屏走翻板动画，其余与点击 toggle 一致 */
+    openWithReveal() {
+      if (this.isVisuallyOpen) {
+        this.scrollToBottom()
+        return
+      }
+      if (this.useRetroChatReveal) {
+        if (this.revealPhase === 'idle') {
+          this.expanded = true
+          this.revealPhase = 'flipping-up'
+        }
+        return
+      }
+      this.expanded = true
+      this.revealPhase = 'idle'
+    },
+    closeWithReveal() {
+      if (!this.useRetroChatReveal) {
+        this.expanded = false
+        this.revealPhase = 'idle'
+        return
+      }
+      if (this.revealPhase === 'collapsing-down' || this.revealPhase === 'idle') {
+        return
+      }
+      this.expanded = false
+      this.revealPhase = 'collapsing-down'
+    },
+    /** @returns {'opened'|'closed'} */
+    toggleWithReveal() {
+      if (this.isVisuallyOpen) {
+        this.closeWithReveal()
+        return 'closed'
+      }
+      this.openWithReveal()
+      return 'opened'
     },
     closeForGuide() {
       this.expanded = false

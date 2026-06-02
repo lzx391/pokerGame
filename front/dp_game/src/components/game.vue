@@ -138,7 +138,7 @@ import '../styles/dp-game-shell.css'
 import '../styles/dp-game-modals.css'
 import '../styles/dp-game-eco-mode.css'
 import GameTopBar from './GameTopBar.vue'
-import { holeDealOrderFromDealer as holeDealOrderFromDealerUtil } from '../utils/dpGameRoundTableLayout'
+import { holeDealOrderFromDealer as holeDealOrderFromDealerUtil, retroTablePolygonClipPath } from '../utils/dpGameRoundTableLayout'
 import { dpDisplayNickname, isDpBotNickname } from '../utils/dpDisplayNickname'
 import { resolveRoomPersonMeta } from '../utils/dpRoomPlayerLookup'
 import { dpSocialApi } from '../api/api.dpSocial'
@@ -287,15 +287,7 @@ export default {
     retroPolygonRootStyle() {
       if (this.gameUiTheme !== 'retro8bit') return {}
       var n = (this.playersDisplayOrder && this.playersDisplayOrder.length) || 0
-      if (n < 3) n = 6
-      var pts = []
-      for (var i = 0; i < n; i++) {
-        var a = (2 * Math.PI * i / n) - (Math.PI / 2)
-        var x = 50 + 48 * Math.cos(a)
-        var y = 50 + 48 * Math.sin(a)
-        pts.push(x.toFixed(1) + '% ' + y.toFixed(1) + '%')
-      }
-      return { '--dp-table-polygon': 'polygon(' + pts.join(', ') + ')' }
+      return { '--dp-table-polygon': retroTablePolygonClipPath(n) }
     }
   },
 
@@ -2009,13 +2001,26 @@ export default {
     openHandHistoryDetail(handHistoryId) {
       this.handHistoryDetailId = handHistoryId
     },
+    chatPanelUsesMobileDock() {
+      return this.viewportWidth <= 600
+        || this.layoutTier === 'desktop'
+        || !!this.layoutFullscreen
+    },
+    resolveActiveChatPanel(footer) {
+      if (!footer || !footer.$refs) return null
+      var refs = footer.$refs
+      if (this.chatPanelUsesMobileDock() && refs.guideMobileRoomChatPanel) {
+        return refs.guideMobileRoomChatPanel
+      }
+      if (refs.guideRoomChatPanel) return refs.guideRoomChatPanel
+      return refs.guideMobileRoomChatPanel || null
+    },
     expandChat() {
       var footer = this.$refs.heroDockFooter
       if (!footer) return
-      var panel = footer.$refs.guideRoomChatPanel
-      if (!panel) { panel = footer.$refs.guideMobileRoomChatPanel }
-      if (panel && typeof panel.openForGuide === 'function') {
-        panel.openForGuide()
+      var panel = this.resolveActiveChatPanel(footer)
+      if (panel && typeof panel.openWithReveal === 'function') {
+        panel.openWithReveal()
         this.$nextTick(function () {
           var el = panel.$el || panel.$refs.list || (panel.$refs.guideChatListWrap)
           if (el && typeof el.scrollIntoView === 'function') {
@@ -2023,6 +2028,43 @@ export default {
           }
         })
       }
+    },
+    /** 终端 CLI：切换聊天面板开/关；返回 'opened' | 'closed' | null */
+    toggleChat() {
+      var footer = this.$refs.heroDockFooter
+      if (!footer) return null
+      var panel = this.resolveActiveChatPanel(footer)
+      if (!panel) return null
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[dp-terminal] toggleChat', {
+          usesMobileDock: this.chatPanelUsesMobileDock(),
+          isVisuallyOpen: panel.isVisuallyOpen
+        })
+      }
+      var result = null
+      if (typeof panel.toggleWithReveal === 'function') {
+        result = panel.toggleWithReveal()
+      } else if (panel.isVisuallyOpen) {
+        if (typeof panel.closeWithReveal === 'function') {
+          panel.closeWithReveal()
+        } else if (typeof panel.closeForGuide === 'function') {
+          panel.closeForGuide()
+        }
+        result = 'closed'
+      } else if (typeof panel.openWithReveal === 'function') {
+        panel.openWithReveal()
+        result = 'opened'
+      }
+      if (result === 'opened') {
+        var self = this
+        this.$nextTick(function () {
+          var el = panel.$el || panel.$refs.list || panel.$refs.guideChatListWrap
+          if (el && typeof el.scrollIntoView === 'function') {
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+          }
+        })
+      }
+      return result
     },
 
     // ---- 退出 ----

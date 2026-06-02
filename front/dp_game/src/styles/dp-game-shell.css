@@ -2519,7 +2519,7 @@
       rgba(74, 246, 38, 0.025) 4px
     ),
     radial-gradient(
-      ellipse 52% 48% at 50% 48%,
+      circle at 50% 50%,
       rgba(74, 246, 38, 0.06) 0%,
       #0a0c0e 100%
     );
@@ -2556,7 +2556,7 @@
     );
 }
 
-/* --- 座位射线（retro8bit 为直角折线 polyline）--- */
+/* --- 座位射线（retro8bit 为直线，端点按正多边形几何）--- */
 .dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-rays line,
 .dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-rays polyline {
   stroke: rgba(74, 246, 38, 0.12);

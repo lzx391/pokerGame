@@ -9,23 +9,15 @@
           preserveAspectRatio="none"
           aria-hidden="true"
       >
-        <polyline
-            v-if="gameUiTheme === 'retro8bit'"
-            v-for="(row, displayIdx) in playersDisplayOrder"
-            :key="'seat-ray-' + displayIdx + '-' + (row.player.nickname || row.seatIndex)"
-            :points="retroSeatRayPoints(displayIdx)"
-            fill="none"
-            :class="seatRayClass(displayIdx)"
-            :data-urgency="seatRayUrgency(displayIdx)"
-        />
         <line
-            v-else
             v-for="(row, displayIdx) in playersDisplayOrder"
             :key="'seat-ray-' + displayIdx + '-' + (row.player.nickname || row.seatIndex)"
             :x1="String(seatRayInnerX(displayIdx))"
             :y1="String(seatRayInnerY(displayIdx))"
             :x2="String(seatRayEndX(displayIdx))"
             :y2="String(seatRayEndY(displayIdx))"
+            :class="seatRayClass(displayIdx)"
+            :data-urgency="seatRayUrgency(displayIdx)"
         />
       </svg>
       <div class="dp-game-table__center">
@@ -148,7 +140,7 @@ import {
   actionTimerOrbitRoundTableStyle,
   muckPileRoundTableStyle,
   playerRoundTableStyle,
-  retroSeatRayPolylinePoints,
+  retroSeatRayLineEndpoints,
   roundTableSeatTheta,
   seatChatBubbleSide,
   seatFeltMarkerRoundTableStyle
@@ -269,26 +261,22 @@ export default {
       if (displayIdx !== this.actingDisplayIndex) return undefined
       return this.timerUrgency
     },
-    retroSeatRayPoints: function (displayIdx) {
-      return retroSeatRayPolylinePoints(
-        displayIdx,
-        this.playersDisplayOrder.length,
-        this.viewerSeatedAtTable
-      )
-    },
     logSeatRayState: function (reason) {
       if (this.gameUiTheme !== 'retro8bit') return
       var idx = this.actingDisplayIndex
       var row = idx >= 0 ? this.playersDisplayOrder[idx] : null
+      var ep = idx >= 0 ? this.seatRayEndpoints(idx) : null
       dpSeatRayDevLog(reason, {
-        pathType: 'polyline',
+        pathType: 'line',
         actIndex: this.actIndex,
         actingDisplayIndex: idx,
         actingNickname: row && row.player ? row.player.nickname : null,
         actingSeatIndex: row ? row.seatIndex : null,
         timerUrgency: this.timerUrgency,
         activeRayClass: idx >= 0 ? 'dp-game-table__seat-ray--active' : null,
-        activePoints: idx >= 0 ? this.retroSeatRayPoints(idx) : null
+        centerToVertex: ep
+          ? { center: { x: ep.x1, y: ep.y1 }, vertex: { x: ep.x2, y: ep.y2 } }
+          : null
       })
     },
     feltMarkerStyle: function (displayIdx) {
@@ -307,38 +295,38 @@ export default {
         this.stage
       )
     },
-    /**
-     * 分区线：内端落在「公共牌区」外沿（与中心椭圆同心的比例环），外端至台呢外沿，
-     * 中央不留线，避免穿过公共牌。
-     */
+    /** retro8bit：桌心→多边形顶点；其它主题：椭圆比例环内沿→外沿 */
     seatRayInnerX: function (displayIdx) {
-      var n = this.playersDisplayOrder.length
-      if (!n) return 50
-      var theta = roundTableSeatTheta(displayIdx, n, this.viewerSeatedAtTable)
-      var innerFactor = 0.36
-      return 50 + Math.sin(theta) * 46 * innerFactor
+      var ep = this.seatRayEndpoints(displayIdx)
+      return ep.x1
     },
     seatRayInnerY: function (displayIdx) {
-      var n = this.playersDisplayOrder.length
-      if (!n) return 44
-      var theta = roundTableSeatTheta(displayIdx, n, this.viewerSeatedAtTable)
-      var innerFactor = 0.36
-      return 44 - Math.cos(theta) * 41 * innerFactor
+      var ep = this.seatRayEndpoints(displayIdx)
+      return ep.y1
     },
-    /** 与座位椭圆布局相同的极角，射线延伸至台呢外沿（约 1.05× 座位半径） */
     seatRayEndX: function (displayIdx) {
-      var n = this.playersDisplayOrder.length
-      if (!n) return 50
-      var theta = roundTableSeatTheta(displayIdx, n, this.viewerSeatedAtTable)
-      var scale = 1.05
-      return 50 + Math.sin(theta) * 46 * scale
+      var ep = this.seatRayEndpoints(displayIdx)
+      return ep.x2
     },
     seatRayEndY: function (displayIdx) {
+      var ep = this.seatRayEndpoints(displayIdx)
+      return ep.y2
+    },
+    seatRayEndpoints: function (displayIdx) {
       var n = this.playersDisplayOrder.length
-      if (!n) return 44
+      if (this.gameUiTheme === 'retro8bit') {
+        return retroSeatRayLineEndpoints(displayIdx, n, this.viewerSeatedAtTable)
+      }
+      if (!n) return { x1: 50, y1: 44, x2: 50, y2: 44 }
       var theta = roundTableSeatTheta(displayIdx, n, this.viewerSeatedAtTable)
+      var innerFactor = 0.36
       var scale = 1.05
-      return 44 - Math.cos(theta) * 41 * scale
+      return {
+        x1: 50 + Math.sin(theta) * 46 * innerFactor,
+        y1: 44 - Math.cos(theta) * 41 * innerFactor,
+        x2: 50 + Math.sin(theta) * 46 * scale,
+        y2: 44 - Math.cos(theta) * 41 * scale
+      }
     },
     seatChatSide: function (displayIdx) {
       return seatChatBubbleSide(

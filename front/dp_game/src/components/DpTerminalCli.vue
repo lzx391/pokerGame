@@ -61,7 +61,7 @@ var CMDS = {
   call:   { u: 'call',               d: '跟注',                  act: 'doCall' },
   check:  { u: 'check',              d: '过牌',                  act: 'doCall' },
   allin:  { u: 'allin',              d: '全压',                  act: 'doAllIn' },
-  cards:  { u: 'cards',              d: '查看手牌(全息投影)',    act: 'openHandCards' },
+  cards:  { u: 'cards',              d: '切换手牌面板 开/关',    act: 'toggleHandCards' },
   players:{ u: 'players',            d: '列出玩家与筹码',        act: 'listPlayers' },
   pot:    { u: 'pot',                d: '显示底池与阶段',        act: 'showPot' },
   stats:  { u: 'stats',              d: '显示对局状态',          act: 'showStats' },
@@ -74,7 +74,7 @@ var CMDS = {
   reveal: { u: 'reveal',             d: '切换看穿底牌 开/关',   act: 'toggleReveal', owner: true },
   music:  { u: 'music [play|pause|stop]', d: '打开音乐播放器',  act: 'musicCmd', needs: 'args' },
   hands:  { u: 'hands',              d: '打开对局历史查看器',    act: 'fetchHands' },
-  comments:{ u: 'comments',           d: '打开房间聊天面板',      act: 'openChatPanel' },
+  comment: { u: 'comment',            d: '切换房间聊天面板 开/关', act: 'toggleChatPanel' },
   chat:   { u: 'chat <消息>',        d: '发送房间聊天',          act: 'sendChat', needs: 'text' },
   clear:  { u: 'clear',              d: '清屏',                  act: 'clear' },
   exit:   { u: 'exit',               d: '关闭终端',              act: 'exit' },
@@ -270,9 +270,26 @@ export default {
     },
     navHistory: function (dir) {
       if (!this.cmdHistory.length) return
-      var next = this.historyIdx + dir
-      if (next < -1) next = -1
-      if (next >= this.cmdHistory.length) next = this.cmdHistory.length - 1
+      var len = this.cmdHistory.length
+      var next = this.historyIdx
+      if (dir < 0) {
+        if (next === -1) {
+          next = len - 1
+        } else if (next > 0) {
+          next = next - 1
+        } else {
+          return
+        }
+      } else if (next === -1) {
+        return
+      } else if (next < len - 1) {
+        next = next + 1
+      } else {
+        next = -1
+      }
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[dp-terminal] navHistory', { dir: dir, historyIdx: next, historyLen: len })
+      }
       this.historyIdx = next
       this.inputBuffer = next === -1 ? '' : this.cmdHistory[next]
       var self = this; this.$nextTick(function () { self.focusInput() })
@@ -302,7 +319,8 @@ export default {
       else if (act === 'toggleReveal') { this.addEntry('ok', raw, undefined); this.execToggleReveal() }
       else if (act === 'musicCmd') { this.execMusic(raw, args) }
       else if (act === 'fetchHands') { this.addEntry('ok', raw, undefined); this.execFetchHands() }
-      else if (act === 'openChatPanel') { this.addEntry('ok', raw, undefined); this.execOpenChatPanel() }
+      else if (act === 'toggleChatPanel') { this.addEntry('ok', raw, undefined); this.execToggleChatPanel() }
+      else if (act === 'toggleHandCards') { this.addEntry('ok', raw, undefined); this.execToggleHandCards() }
       else if (act === 'sendChat') { this.execSendChat(raw, args) }
       else if (def.needs === 'amt') { this.execWithAmount(def, raw, args) }
       else { this.addEntry('ok', raw, undefined); this.invokeAction(act) }
@@ -332,10 +350,6 @@ export default {
           case 'doAllIn':
             if (!vm.isMyTurn) { this.appendOut('[ERR] 非你回合'); return }
             vm.doAllIn(); this.appendOut('[OK] 全压 ' + vm.myChips)
-            break
-          case 'openHandCards':
-            vm.$store.commit('dpGame/SET_HERO_HAND_HOLOGRAM', true)
-            this.appendOut('[OK] 全息投影开启')
             break
           case 'listPlayers': this.printPlayerList(); break
           case 'showPot': this.appendOut('底池: ' + (vm.pot || 0) + ' | 阶段: ' + (vm.stageCN || 'N/A')); break
@@ -473,15 +487,58 @@ export default {
     },
 
     // ---- 聊天 ----
-    execOpenChatPanel: function () {
+    execToggleChatPanel: function () {
       var vm = this.vm
       if (!vm) { this.appendOut('[ERR] 无游戏实例'); return }
-      if (typeof vm.expandChat === 'function') {
-        vm.expandChat()
-        this.appendOut('[OK] 聊天面板已打开')
-      } else {
-        this.appendOut('[ERR] 无法打开聊天面板')
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[dp-terminal] toggleChatPanel', {
+          hasToggleChat: typeof vm.toggleChat === 'function',
+          usesMobileDock: typeof vm.chatPanelUsesMobileDock === 'function' ? vm.chatPanelUsesMobileDock() : null
+        })
       }
+      if (typeof vm.toggleChat !== 'function') {
+        this.appendOut('[ERR] 无法切换聊天面板')
+        return
+      }
+      var result = vm.toggleChat()
+      if (result === 'opened') {
+        this.appendOut('[OK] 聊天面板已打开')
+      } else if (result === 'closed') {
+        this.appendOut('[OK] 聊天面板已收起')
+      } else {
+        this.appendOut('[ERR] 无法切换聊天面板')
+      }
+    },
+    // ---- 手牌 ----
+    execToggleHandCards: function () {
+      var vm = this.vm
+      if (!vm) { this.appendOut('[ERR] 无游戏实例'); return }
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[dp-terminal] toggleHandCards', {
+          showHeroHandHologram: vm.showHeroHandHologram,
+          showMobileHandSheet: vm.showMobileHandSheet
+        })
+      }
+      if (vm.showHeroHandHologram) {
+        vm.$store.commit('dpGame/SET_HERO_HAND_HOLOGRAM', false)
+        this.appendOut('[OK] 手牌面板已收起')
+        return
+      }
+      if (vm.showMobileHandSheet) {
+        vm.$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileHandSheet: false })
+        this.appendOut('[OK] 手牌面板已收起')
+        return
+      }
+      if (typeof vm.onHeroViewHandClick === 'function') {
+        vm.onHeroViewHandClick('terminal-cli')
+        if (vm.showHeroHandHologram || vm.showMobileHandSheet) {
+          this.appendOut('[OK] 全息投影开启')
+        } else {
+          this.appendOut('[ERR] 当前无法查看手牌')
+        }
+        return
+      }
+      this.appendOut('[ERR] 无法查看手牌')
     },
     execSendChat: function (raw, args) {
       var vm = this.vm
@@ -603,7 +660,7 @@ export default {
         ownerCmds.forEach(function (n) { var d = CMDS[n]; lines.push('  ' + d.u + '  — ' + d.d) })
       }
       lines.push('  —— 通用 ——')
-      var utilCmds = ['music','hands','comments','chat','clear','exit','help']
+      var utilCmds = ['music','hands','comment','chat','clear','exit','help']
       utilCmds.forEach(function (n) { var d = CMDS[n]; lines.push('  ' + d.u + '  — ' + d.d) })
       this.addEntry('info', raw, lines.join('\n'))
     },
