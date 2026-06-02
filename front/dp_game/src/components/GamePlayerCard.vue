@@ -344,6 +344,7 @@ import { dpDisplayNickname } from '../utils/dpDisplayNickname'
 import { DP_DEAL_STAGGER_MS } from '../constants/dpGameDealTiming'
 import { getDealerAnchorViewportPoint } from '../utils/dpGameDealerAnchor'
 import { CAT_COPY } from '../constants/dpCatThemeCopy'
+import { displayHandRankName, displayHandRankDetail } from '../utils/dpHandRankDisplay'
 
 export default {
   name: 'GamePlayerCard',
@@ -587,17 +588,15 @@ export default {
       return this.isMe
         || (this.isOwner && this.ownerRevealAll && this.player.holeCards && this.player.holeCards.length > 0)
     },
-    /** 牌型名称：仅展示服务端在下发快照中填入的 `handRankName`（与 `DpRoomServiceImpl#getAllRooms` 一致），不再在前端推导 */
+    /** 牌型名称：服务端 `handRankName` 经前端展示映射（旧名兼容） */
     displayHandRankName() {
       if (this.player.leftThisHand) return ''
-      var n = this.player.handRankName
-      return n != null && String(n).trim() !== '' ? String(n).trim() : ''
+      return displayHandRankName(this.player.handRankName)
     },
-    /** 成牌说明：仅服务端 `handRankDetail` */
+    /** 成牌说明：服务端 `handRankDetail` 经前端展示映射 */
     displayHandRankDetail() {
       if (this.player.leftThisHand) return ''
-      var d = this.player.handRankDetail
-      return d != null && String(d).trim() !== '' ? String(d).trim() : ''
+      return displayHandRankDetail(this.player.handRankDetail)
     },
     /** 摊牌或准备下一局：牌力最高者（含平局并列）展示精确五张（与本人 bestHand 同款） */
     showShowdownLeaderDetail() {

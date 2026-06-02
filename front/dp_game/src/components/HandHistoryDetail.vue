@@ -254,6 +254,7 @@ import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import '@/styles/dp-poker-cards.css'
 import { getCardClass, getCardDisplay } from '@/utils/dpGameCardVisual'
 import { getHandRank } from '@/utils/dpGameHandRank'
+import { displayHandRankName } from '@/utils/dpHandRankDisplay'
 import {
   STREET_TABS,
   seatNicknamesOrdered,
@@ -533,11 +534,11 @@ export default {
       if (!community || community.length < 3) return ''
       const map = handRankNameByStreet(this.boardsByStreet, this.activeTab)
       let text = map[nick]
-      if (text && String(text).trim()) return String(text).trim()
+      if (text && String(text).trim()) return displayHandRankName(String(text).trim())
       if (!isSelf) return ''
       const holeList = Array.isArray(holesCell) ? holesCell : []
       if (holeList.length < 2) return ''
-      return getHandRank(holeList, community) || ''
+      return displayHandRankName(getHandRank(holeList, community) || '')
     },
     handRankTextForSettlement(nick, folded, isSelf) {
       if (!nick) return ''
@@ -546,13 +547,13 @@ export default {
       if (!community || community.length < 3) return ''
       const map = finalHandRankNameByPlayer(this.boardsByStreet)
       let text = map[nick]
-      if (text && String(text).trim()) return String(text).trim()
+      if (text && String(text).trim()) return displayHandRankName(String(text).trim())
       if (!isSelf) return ''
       const holes = this.payload.holeCardsAtEnd
       const holeMap = holes && typeof holes === 'object' ? holes : {}
       const holeList = Array.isArray(holeMap[nick]) ? holeMap[nick] : []
       if (holeList.length < 2) return ''
-      return getHandRank(holeList, community) || ''
+      return displayHandRankName(getHandRank(holeList, community) || '')
     },
     cellText(nick, colIdx) {
       const g = this.roundGrid

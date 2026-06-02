@@ -124,6 +124,7 @@
     <dp-crt-event-popup v-if="gameUiTheme === 'retro8bit'" ref="crtEventPopup" />
     <dp-music-player ref="musicPlayer" v-if="gameUiTheme === 'retro8bit'" :open.sync="showMusicPlayer" />
     <dp-hand-history-viewer ref="handHistoryViewer" v-if="gameUiTheme === 'retro8bit'" :open.sync="showHandHistoryPanel" />
+    <dp-hand-history-detail ref="handHistoryDetail" v-if="gameUiTheme === 'retro8bit'" :hand-history-id="handHistoryDetailId" @closed="handHistoryDetailId = null" />
 
   </div>
 </template>
@@ -149,6 +150,7 @@ import DpTerminalCli from './DpTerminalCli.vue'
 import DpCrtEventPopup from './DpCrtEventPopup.vue'
 import DpMusicPlayer from './DpMusicPlayer.vue'
 import DpHandHistoryViewer from './DpHandHistoryViewer.vue'
+import DpHandHistoryDetail from './DpHandHistoryDetail.vue'
 import dpGameFullscreenMixin from '../mixins/dpGameFullscreenMixin'
 import dpGameTableFitMixin from '../mixins/dpGameTableFitMixin'
 import dpGameActionCountdownMixin from '../mixins/dpGameActionCountdownMixin'
@@ -184,7 +186,8 @@ export default {
     DpTerminalCli,
     DpCrtEventPopup,
     DpMusicPlayer,
-    DpHandHistoryViewer
+    DpHandHistoryViewer,
+    DpHandHistoryDetail
   },
   data() {
     return {
@@ -214,6 +217,7 @@ export default {
       showOwnerPotJudgeSheet: false,
       showMusicPlayer: false,
       showHandHistoryPanel: false,
+      handHistoryDetailId: null,
       viewportWidth: typeof window !== 'undefined' ? window.innerWidth : 1024,
       prefersReducedMotion: false,
       _hologramResizeTimer: null,
@@ -348,6 +352,9 @@ export default {
     },
     showHandHistoryPanel(v) {
       if (!v) { this.refocusTerminalIfOpen() }
+    },
+    handHistoryDetailId(v) {
+      if (v == null && !this.showHandHistoryPanel) { this.refocusTerminalIfOpen() }
     }
   },
 
@@ -470,9 +477,13 @@ export default {
       var tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : ''
       var isInput = tag === 'input' || tag === 'textarea' || tag === 'select' || (e.target && e.target.isContentEditable)
 
-      // Ctrl+D 优先级：音乐盒 → 对局历史 → 终端（仅非输入框时路由到面板）
+      // Ctrl+D 优先级：对局详情 → 音乐盒 → 对局历史 → 终端（仅非输入框时路由到面板）
       if (e.ctrlKey && e.key === 'd') {
         if (!isInput) {
+          if (this.handHistoryDetailId != null) {
+            e.preventDefault()
+            this.handHistoryDetailId = null; return
+          }
           if (this.showMusicPlayer) {
             e.preventDefault()
             var mp = this.$refs.musicPlayer
@@ -492,6 +503,12 @@ export default {
       // `~` 热键：toggle 终端（不在输入框内时）
       if (e.key === '`' || e.key === '~') {
         if (isInput) return
+        // 如果对局详情开着，先关掉
+        if (this.handHistoryDetailId != null) {
+          e.preventDefault()
+          this.handHistoryDetailId = null
+          return
+        }
         // 如果音乐盒开着，先关音乐盒
         if (this.showMusicPlayer) {
           e.preventDefault()
@@ -518,6 +535,10 @@ export default {
 
       // 路由按键到打开的面板（不在输入框内时）
       if (!isInput) {
+        if (this.handHistoryDetailId != null) {
+          var hd3 = this.$refs.handHistoryDetail
+          if (hd3 && typeof hd3.onKey === 'function' && hd3.onKey(e)) return
+        }
         if (this.showMusicPlayer) {
           var mp3 = this.$refs.musicPlayer
           if (mp3 && typeof mp3.onKey === 'function' && mp3.onKey(e)) return
@@ -1968,6 +1989,9 @@ export default {
     openHandHistory() {
       if (this.gameUiTheme === 'retro8bit') { this.showHandHistoryPanel = true; return }
       this.$store.commit('dpGame/SET_MODAL', { showHandHistoryModal: true })
+    },
+    openHandHistoryDetail(handHistoryId) {
+      this.handHistoryDetailId = handHistoryId
     },
 
     // ---- 退出 ----

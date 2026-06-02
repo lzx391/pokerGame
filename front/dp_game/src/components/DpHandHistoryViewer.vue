@@ -36,11 +36,19 @@
           </div>
         </div>
 
-        <!-- 提示 -->
-        <div class="dp-hh__hint-bar">
-          <span>&uarr;&darr; nav</span>
-          <span>Enter detail</span>
-          <span>Ctrl+D close</span>
+        <!-- 分页 + 提示 -->
+        <div class="dp-hh__footer">
+          <div class="dp-hh__pager">
+            <button class="dp-hh__pager-btn" :class="{ 'dp-hh__pager-btn--dim': currentPage <= 1 }" :disabled="currentPage <= 1" @click="prevPage">&lt;&lt;</button>
+            <span class="dp-hh__pager-info">P{{ currentPage }}/{{ totalPages || 1 }}</span>
+            <button class="dp-hh__pager-btn" :class="{ 'dp-hh__pager-btn--dim': currentPage >= totalPages }" :disabled="currentPage >= totalPages" @click="nextPage">&gt;&gt;</button>
+          </div>
+          <div class="dp-hh__hint-bar">
+            <span>W/S nav</span>
+            <span>&larr;&rarr; page</span>
+            <span>Enter detail</span>
+            <span>Ctrl+D close</span>
+          </div>
         </div>
       </div>
     </div>
@@ -60,6 +68,9 @@ export default {
       phase: 'ready',
       cursor: 0,
       rows: [],
+      currentPage: 1,
+      totalPages: 1,
+      pageSize: 10,
       loading: false,
       loadError: '',
       snowTimer: null,
@@ -97,7 +108,7 @@ export default {
       if (this.flashTimer) { clearTimeout(this.flashTimer); this.flashTimer = null }
     },
     startOpen: function () {
-      this.visible = true; this.cursor = 0; this.loadError = ''
+      this.visible = true; this.cursor = 0; this.currentPage = 1; this.loadError = ''
       if (this.showCrt) { this.phase = 'sliding' }
       else { this.phase = 'ready'; this.fetchList() }
     },
@@ -122,20 +133,33 @@ export default {
       this.loading = true; this.loadError = ''
       var self = this
       vm.$http.get('/dpHandHistory/list', {
-        params: { userId: Number(vm.user.userId), page: 1, pageSize: 10 }
+        params: { userId: Number(vm.user.userId), page: this.currentPage, pageSize: this.pageSize }
       }).then(function (res) {
-        var data = res.data || {}
+        var body = res.data || {}
+        // 兼容两种响应格式：{records,total} 或 {code,data:{records,total}}
+        var data = (body.data && typeof body.data === 'object' && !Array.isArray(body.data)) ? body.data : body
+        console.log('[handHistory] raw res.data keys:', Object.keys(body), 'data keys:', Object.keys(data), 'total:', data.total, 'records:', (data.records || []).length)
         self.rows = Array.isArray(data.records) ? data.records : []
+        self.currentPage = typeof data.page === 'number' ? data.page : self.currentPage
+        self.totalPages = Math.ceil((typeof data.total === 'number' ? data.total : 0) / self.pageSize) || 1
         self.cursor = 0
       }).catch(function (e) {
+        console.error('[handHistory] fetch error:', e)
         self.loadError = e && e.message ? e.message : '加载失败'
         self.rows = []
       }).finally(function () { self.loading = false })
     },
+    prevPage: function () {
+      if (this.currentPage <= 1) return
+      this.currentPage--; this.fetchList()
+    },
+    nextPage: function () {
+      if (this.currentPage >= this.totalPages) return
+      this.currentPage++; this.fetchList()
+    },
     // ---- 交互 ----
     openDetail: function (r) {
       if (!r || !r.handHistoryId) return
-      // 复用现有 HandHistoryDetail 组件 —— 通过 game.vue
       if (this.vm && typeof this.vm.openHandHistoryDetail === 'function') {
         this.vm.openHandHistoryDetail(r.handHistoryId)
       }
@@ -153,9 +177,26 @@ export default {
     onKey: function (e) {
       if (e.ctrlKey && e.key === 'd') { e.preventDefault(); this.close(); return true }
       if (e.key === 'Escape') { e.preventDefault(); this.close(); return true }
-      if (e.key === 'ArrowUp') { e.preventDefault(); this.cursor = Math.max(0, this.cursor - 1); return true }
-      if (e.key === 'ArrowDown') { e.preventDefault(); this.cursor = Math.min(this.rows.length - 1, this.cursor + 1); return true }
-      if (e.key === 'Enter') { e.preventDefault(); var r = this.rows[this.cursor]; if (r) this.openDetail(r); return true }
+      // W/↑ 上移
+      if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') {
+        e.preventDefault(); this.cursor = Math.max(0, this.cursor - 1); return true
+      }
+      // S/↓ 下移
+      if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') {
+        e.preventDefault(); this.cursor = Math.min(this.rows.length - 1, this.cursor + 1); return true
+      }
+      // ← 上一页
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault(); this.prevPage(); return true
+      }
+      // → 下一页
+      if (e.key === 'ArrowRight') {
+        e.preventDefault(); this.nextPage(); return true
+      }
+      // Enter 打开详情
+      if (e.key === 'Enter') {
+        e.preventDefault(); var r = this.rows[this.cursor]; if (r) this.openDetail(r); return true
+      }
       return false
     }
   }
@@ -170,7 +211,7 @@ export default {
 
 .dp-hh__shell {
   position:absolute;right:max(12px,env(safe-area-inset-right));top:max(12px,env(safe-area-inset-top));
-  width:min(400px,calc(100vw - 24px));height:min(500px,calc(100vh - 40px));min-height:280px;
+  width:min(400px,calc(100vw - 24px));height:min(520px,calc(100vh - 40px));min-height:300px;
   background:rgba(8,10,12,0.97);border:2px solid rgba(74,246,38,0.34);border-radius:4px;
   display:flex;flex-direction:column;pointer-events:auto;
   font-family:'Courier New',ui-monospace,'PingFang SC',monospace;
@@ -210,7 +251,14 @@ export default {
 .dp-hh__col-room{color:rgba(74,246,38,0.4);font-size:10px}
 .dp-hh__empty{text-align:center;color:rgba(74,246,38,0.35);padding:30px;font-size:12px}
 
-.dp-hh__hint-bar{display:flex;gap:12px;padding:4px 14px 8px;font-size:9px;color:rgba(74,246,38,0.28);border-top:1px solid rgba(74,246,38,0.06);position:relative;z-index:1;user-select:none}
+.dp-hh__footer{flex-shrink:0;border-top:1px solid rgba(74,246,38,0.06);position:relative;z-index:1}
+.dp-hh__pager{display:flex;align-items:center;justify-content:center;gap:10px;padding:6px 14px 2px}
+.dp-hh__pager-btn{background:none;border:1px solid rgba(74,246,38,0.2);color:rgba(74,246,38,0.45);font-size:10px;cursor:pointer;padding:2px 8px;font-family:'Courier New',monospace;border-radius:2px;transition:all 0.08s}
+.dp-hh__pager-btn:hover:not(:disabled){border-color:rgba(74,246,38,0.5);color:#4af626;background:rgba(74,246,38,0.06)}
+.dp-hh__pager-btn--dim{color:rgba(74,246,38,0.12);border-color:rgba(74,246,38,0.06)}
+.dp-hh__pager-btn:disabled{cursor:default}
+.dp-hh__pager-info{color:rgba(74,246,38,0.55);font-size:10px;font-weight:bold}
+.dp-hh__hint-bar{display:flex;gap:12px;padding:2px 14px 6px;font-size:9px;color:rgba(74,246,38,0.28);user-select:none}
 
 @media(prefers-reduced-motion:reduce){.dp-hh__shell--slide-in{animation:none!important}}
 </style>

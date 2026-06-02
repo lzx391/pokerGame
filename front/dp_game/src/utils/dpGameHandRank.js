@@ -140,18 +140,18 @@ function evaluateFive(cards) {
   if (royal) {
     return {
       score: 10,
-      name: '皇家同花顺',
+      name: '超级火箭',
       compareKey: [10, 14, 0, 0, 0, 0],
-      detailText: '皇家同花顺（10-J-Q-K-A 同花）'
+      detailText: '超级火箭（顶顺同花）'
     }
   }
 
   if (isFlush && isStraight) {
     return {
       score: 9,
-      name: '同花顺',
+      name: '火箭',
       compareKey: [9, stHigh, 0, 0, 0, 0],
-      detailText: '同花顺：' + rankLabel(stHigh) + ' 领顺'
+      detailText: '火箭：' + rankLabel(stHigh) + ' 领顺'
     }
   }
 
@@ -377,7 +377,7 @@ export function getBestFiveCardIds(holeCards, communityCards) {
 /**
  * @param holeCards - 玩家手牌，如 ["hearts_A", "spades_K"]
  * @param communityCards - 公共牌
- * @returns 牌型名称，如 "皇家同花顺"、"同花顺" 等
+ * @returns 牌型名称，如 "超级火箭"、"火箭" 等
  */
 export function getHandRank(holeCards, communityCards) {
   var ev = getBestHandEvaluation(holeCards, communityCards)
