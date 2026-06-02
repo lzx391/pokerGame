@@ -39,6 +39,13 @@ public interface DpUserStatsMapper {
             + "WHERE user_id = #{userId} AND largest_room_net < #{multiplier}")
     int tryUpdateLargestRoomNet(@Param("userId") int userId, @Param("multiplier") BigDecimal multiplier);
 
+    /**
+     * 离座/退房时 flush 本段房间连胜：取 GREATEST 写入生涯最高（不要求本段净赢 &gt; 0）。
+     */
+    @Update("UPDATE dp_user_stats SET max_win_streak = GREATEST(max_win_streak, #{streak}) "
+            + "WHERE user_id = #{userId}")
+    int tryUpdateMaxWinStreak(@Param("userId") int userId, @Param("streak") int streak);
+
     /** 周榜前三结算：无 stats 行则 insert，有则累加。 */
     @Insert("INSERT INTO dp_user_stats (user_id, leaderboard_top_count) VALUES (#{userId}, #{inc}) "
             + "ON DUPLICATE KEY UPDATE leaderboard_top_count = leaderboard_top_count + VALUES(leaderboard_top_count)")

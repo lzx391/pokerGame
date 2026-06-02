@@ -65,6 +65,8 @@ public interface DpRoomServiceCallbacks {
 
     void npcAction(DpRoomBO room, DpPlayer p, DpNpcEngine.BotAction action);
 
+    void settleHumanOnLeaveSeat(DpRoomBO room, DpPlayer player);
+
     DpRoomBO getAllRooms(String roomId);
 
     boolean isNicknameInRoom(DpRoomBO room, String nickname);

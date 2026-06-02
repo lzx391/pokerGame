@@ -24,6 +24,8 @@ public class DpPlayerHonorView {
     private int totalHandsPlayed;
     /** 周榜前三累计次数 */
     private int leaderboardTopCount;
+    /** 生涯最高连胜手数 */
+    private int maxWinStreak;
 
     /** 本周手牌倍数周榜（board=hand） */
     private DpWeeklyLeaderboardPlacementView leaderboardWeeklyHand;
@@ -116,6 +118,14 @@ public class DpPlayerHonorView {
 
     public void setLeaderboardTopCount(int leaderboardTopCount) {
         this.leaderboardTopCount = leaderboardTopCount;
+    }
+
+    public int getMaxWinStreak() {
+        return maxWinStreak;
+    }
+
+    public void setMaxWinStreak(int maxWinStreak) {
+        this.maxWinStreak = maxWinStreak;
     }
 
     public DpWeeklyLeaderboardPlacementView getLeaderboardWeeklyHand() {

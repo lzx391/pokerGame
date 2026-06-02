@@ -55,7 +55,8 @@ public class DpPlayer {
 
     /**
      * 当前房间内连续赢下完整一手牌的次数（至少赢下本手任意底池的一份即计为赢）。
-     * 非赢家在本手结算后归零；用于前端展示「连胜」标记。
+     * 权威状态在 {@link com.example.mgdemoplus.common.bo.DpRoomBO#getWinStreakByNickname()}；
+     * 本字段仅在 {@code getAllRooms} 推送前由 Map 填充，供 JSON 展示。
      */
     private int winStreak = 0;
 

@@ -1066,6 +1066,13 @@ ownerFieldChanged：房主字段是否发生变化。
                 p.setHandRankDetail("");
             }
         }
+        for (DpPlayer p : r.getPlayers()) {
+            if (p == null) {
+                continue;
+            }
+            Integer ws = r.getWinStreakByNickname().get(p.getNickname());
+            p.setWinStreak(ws != null ? ws : 0);
+        }
         return r;
     }
 
@@ -1790,6 +1797,9 @@ ownerFieldChanged：房主字段是否发生变化。
             if (p.isReady()) {
                 remain.add(p);
             } else {
+                if (!DpNpcEngine.isBotPlayer(p)) {
+                    settleAndClearCarryInOnLeaveSeatLocked(r, p.getNickname(), p);
+                }
                 kicked.add(p.getNickname());
             }
         }
@@ -1966,27 +1976,31 @@ ownerFieldChanged：房主字段是否发生变化。
     }
 
     /**
-     * 真人离座/退房时按 (当前筹码 − 累计买入) / 初始积分 结算本段净赢倍数，并清除 {@link DpRoomBO#getCarryInChips()} 条目。
-     * 调用方须持有 r 的监视器。
+     * 真人离座/退房时：按 (当前筹码 − 累计买入) / 初始积分 结算本段净赢倍数并清除 {@link DpRoomBO#getCarryInChips()}；
+     * 同时将 {@link DpRoomBO#getWinStreakByNickname()} 本段连胜 flush 至 dp_user_stats.max_win_streak 后清除。
+     * 调用方须持有 r 的监视器（心跳踢人等外部入口经 {@link #settleHumanOnLeaveSeat} 加锁）。
      */
     private void settleAndClearCarryInOnLeaveSeatLocked(DpRoomBO r, String nickname, DpPlayer p) {
         if (r == null || nickname == null || p == null || DpNpcEngine.isBotPlayer(p)) {
             return;
         }
         Integer totalCarryIn = r.getCarryInChips().get(nickname);
-        if (totalCarryIn == null) {
-            return;
+        if (totalCarryIn != null) {
+            int initialChips = r.getStartingChips();
+            if (initialChips > 0) {
+                BigDecimal multiplier = computeRoomNetWinMultiplier(p.getChips(), totalCarryIn, initialChips);
+                if (multiplier.compareTo(BigDecimal.ZERO) > 0 && p.getDpUserId() != null) {
+                    dpUserStatsMapper.tryUpdateLargestRoomNet(p.getDpUserId(), multiplier);
+                    dpLeaderboardWeeklyWriteService.recordRoomBest(p.getDpUserId(), multiplier);
+                }
+            }
+            r.getCarryInChips().remove(nickname);
         }
-        int initialChips = r.getStartingChips();
-        if (initialChips <= 0) {
-            return;
+        Integer streak = r.getWinStreakByNickname().get(nickname);
+        if (streak != null && streak > 0 && p.getDpUserId() != null) {
+            dpUserStatsMapper.tryUpdateMaxWinStreak(p.getDpUserId(), streak);
         }
-        BigDecimal multiplier = computeRoomNetWinMultiplier(p.getChips(), totalCarryIn, initialChips);
-        if (multiplier.compareTo(BigDecimal.ZERO) > 0 && p.getDpUserId() != null) {
-            dpUserStatsMapper.tryUpdateLargestRoomNet(p.getDpUserId(), multiplier);
-            dpLeaderboardWeeklyWriteService.recordRoomBest(p.getDpUserId(), multiplier);
-        }
-        r.getCarryInChips().remove(nickname);
+        r.getWinStreakByNickname().remove(nickname);
     }
 
     /** 单房间净赢倍数 = (离场筹码 − 累计买入) / 初始积分，保留两位小数。 */
@@ -2025,9 +2039,8 @@ ownerFieldChanged：房主字段是否发生变化。
             }
         }
         r.getCarryInChips().remove(nickname);
+        r.getWinStreakByNickname().remove(nickname);
     }
-
-    // ========== 游戏开始与流程 ==========
 
     public boolean startGame(String roomId, String ownerNickname) {
         DpRoomBO r = roomMap.get(roomId);
@@ -2119,6 +2132,7 @@ ownerFieldChanged：房主字段是否发生变化。
         for (DpPlayer p : ps) {
             if (!DpNpcEngine.isBotPlayer(p)) {
                 r.getCarryInChips().putIfAbsent(p.getNickname(), r.getStartingChips());
+                r.getWinStreakByNickname().putIfAbsent(p.getNickname(), 0);
             }
         }
         int did = 0;// 庄家索引
@@ -2641,10 +2655,14 @@ ownerFieldChanged：房主字段是否发生变化。
         for (DpPlayer p : r.getPlayers()) {
             if (p == null || p.isLeftThisHand())
                 continue;
-            if (winnerNicknames.contains(p.getNickname())) {
-                p.setWinStreak(p.getWinStreak() + 1);
+            if (DpNpcEngine.isBotPlayer(p)) {
+                continue;
+            }
+            String nick = p.getNickname();
+            if (winnerNicknames.contains(nick)) {
+                r.getWinStreakByNickname().compute(nick, (k, v) -> (v == null ? 0 : v) + 1);
             } else {
-                p.setWinStreak(0);
+                r.getWinStreakByNickname().put(nick, 0);
             }
         }
     }
@@ -3162,6 +3180,16 @@ ownerFieldChanged：房主字段是否发生变化。
      * {@link #checkAndStartNextHandAfterSettleReturning}
      * （外层在释放临界区后在 {@link #handleReadyTimeout} 中 upsert）。
      */
+    @Override
+    public void settleHumanOnLeaveSeat(DpRoomBO room, DpPlayer player) {
+        if (room == null || player == null || DpNpcEngine.isBotPlayer(player)) {
+            return;
+        }
+        synchronized (room) {
+            settleAndClearCarryInOnLeaveSeatLocked(room, player.getNickname(), player);
+        }
+    }
+
     @Override
     public void handleReadyTimeout(DpRoomBO r) {
         System.out.println("结算准备倒计时到期");

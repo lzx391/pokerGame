@@ -107,14 +107,14 @@
               <span class="game-prof-section-deco" aria-hidden="true">♦</span>
             </div>
             <div class="game-prof-honor__medals">
-              <div class="game-prof-medal game-prof-medal--royal">
+              <div class="game-prof-medal game-prof-medal--streak">
                 <div class="game-prof-medal__body">
-                  <span class="game-prof-medal__name">皇家同花顺</span>
+                  <span class="game-prof-medal__name">最高连胜</span>
                   <span
                     class="game-prof-honor-val"
                     :class="honorValClass"
-                    :aria-label="'皇家同花顺 ' + honorDisplayCount('royalFlushWins') + ' 次'"
-                  >{{ honorDisplayCount('royalFlushWins') }}<small> 次</small></span>
+                    :aria-label="'最高连胜 ' + honorDisplayCount('maxWinStreak') + ' 手'"
+                  >{{ honorDisplayCount('maxWinStreak') }}<small> 手</small></span>
                 </div>
               </div>
               <div class="game-prof-medal game-prof-medal--leaderboard">
@@ -888,24 +888,19 @@ export default {
   );
   pointer-events: none;
 }
-.game-prof-medal--royal,
+.game-prof-medal--streak,
 .game-prof-medal--straight {
   justify-content: center;
 }
-.game-prof-medal--royal::before,
 .game-prof-medal--straight::before {
   display: none;
 }
 .game-prof-medal--leaderboard {
   justify-content: flex-end;
 }
-.game-prof-medal--royal {
+.game-prof-medal--streak {
   border-color: color-mix(in srgb, var(--dp-warning) 65%, transparent);
-  background: linear-gradient(
-    145deg,
-    color-mix(in srgb, var(--dp-warning) 28%, var(--dp-surface-raised)) 0%,
-    var(--dp-surface-raised) 100%
-  );
+  background-image: url('~@/assets/streak.webp');
 }
 .game-prof-medal--straight {
   border-color: color-mix(in srgb, var(--dp-accent) 65%, transparent);
@@ -919,21 +914,27 @@ export default {
   border-color: color-mix(in srgb, var(--dp-success) 65%, transparent);
   background-image: url('~@/assets/leaderboard.webp');
 }
-.game-prof-medal--royal .game-prof-medal__name,
+.game-prof-medal--streak .game-prof-medal__name {
+  color: rgba(255, 255, 255, 0.82);
+}
 .game-prof-medal--straight .game-prof-medal__name {
   color: var(--dp-text-secondary);
 }
 .game-prof-medal--leaderboard .game-prof-medal__name {
   color: rgba(255, 255, 255, 0.82);
 }
-.game-prof-medal--royal .game-prof-honor-val,
+.game-prof-medal--streak .game-prof-honor-val {
+  color: #fff;
+}
 .game-prof-medal--straight .game-prof-honor-val {
   color: var(--dp-text-primary);
 }
 .game-prof-medal--leaderboard .game-prof-honor-val {
   color: #fff;
 }
-.game-prof-medal--royal .game-prof-honor-val small,
+.game-prof-medal--streak .game-prof-honor-val small {
+  color: rgba(255, 255, 255, 0.72);
+}
 .game-prof-medal--straight .game-prof-honor-val small {
   color: var(--dp-text-muted);
 }

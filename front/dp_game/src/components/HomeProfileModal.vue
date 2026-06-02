@@ -103,14 +103,14 @@
               <span class="home-prof-section-deco" aria-hidden="true">♦</span>
             </div>
             <div class="home-prof-honor__medals">
-              <div class="home-prof-medal home-prof-medal--royal">
+              <div class="home-prof-medal home-prof-medal--streak">
                 <div class="home-prof-medal__body">
-                  <span class="home-prof-medal__name">皇家同花顺</span>
+                  <span class="home-prof-medal__name">最高连胜</span>
                   <span
                     class="home-prof-honor-val"
                     :class="honorValClass"
-                    :aria-label="'皇家同花顺 ' + honorDisplayCount('royalFlushWins') + ' 次'"
-                  >{{ honorDisplayCount('royalFlushWins') }}<small> 次</small></span>
+                    :aria-label="'最高连胜 ' + honorDisplayCount('maxWinStreak') + ' 手'"
+                  >{{ honorDisplayCount('maxWinStreak') }}<small> 手</small></span>
                 </div>
               </div>
               <div class="home-prof-medal home-prof-medal--leaderboard">
@@ -300,7 +300,7 @@ export default {
         avatarUrl: '',
         avatarUpdatedAt: null,
         passwordSet: true,
-        royalFlushWins: null,
+        maxWinStreak: null,
         straightFlushWins: null,
         fourOfAKindWins: null,
         leaderboardTopCount: null,
@@ -487,7 +487,7 @@ export default {
         this.form.avatarUpdatedAt = profile.avatarUpdatedAt != null ? profile.avatarUpdatedAt : null
         this.avatarCacheBust = ''
         this.form.passwordSet = profile.passwordSet !== false
-        this.form.royalFlushWins = profile.royalFlushWins
+        this.form.maxWinStreak = profile.maxWinStreak
         this.form.straightFlushWins = profile.straightFlushWins
         this.form.fourOfAKindWins = profile.fourOfAKindWins
         this.form.leaderboardTopCount = profile.leaderboardTopCount
@@ -940,24 +940,19 @@ export default {
   );
   pointer-events: none;
 }
-.home-prof-medal--royal,
+.home-prof-medal--streak,
 .home-prof-medal--straight {
   justify-content: center;
 }
-.home-prof-medal--royal::before,
 .home-prof-medal--straight::before {
   display: none;
 }
 .home-prof-medal--leaderboard {
   justify-content: flex-end;
 }
-.home-prof-medal--royal {
+.home-prof-medal--streak {
   border-color: color-mix(in srgb, var(--dp-warning) 65%, transparent);
-  background: linear-gradient(
-    145deg,
-    color-mix(in srgb, var(--dp-warning) 28%, var(--dp-surface-raised)) 0%,
-    var(--dp-surface-raised) 100%
-  );
+  background-image: url('~@/assets/streak.webp');
 }
 .home-prof-medal--straight {
   border-color: color-mix(in srgb, var(--dp-accent) 65%, transparent);
@@ -971,21 +966,27 @@ export default {
   border-color: color-mix(in srgb, var(--dp-success) 65%, transparent);
   background-image: url('~@/assets/leaderboard.webp');
 }
-.home-prof-medal--royal .home-prof-medal__name,
+.home-prof-medal--streak .home-prof-medal__name {
+  color: rgba(255, 255, 255, 0.82);
+}
 .home-prof-medal--straight .home-prof-medal__name {
   color: var(--dp-text-secondary);
 }
 .home-prof-medal--leaderboard .home-prof-medal__name {
   color: rgba(255, 255, 255, 0.82);
 }
-.home-prof-medal--royal .home-prof-honor-val,
+.home-prof-medal--streak .home-prof-honor-val {
+  color: #fff;
+}
 .home-prof-medal--straight .home-prof-honor-val {
   color: var(--dp-text-primary);
 }
 .home-prof-medal--leaderboard .home-prof-honor-val {
   color: #fff;
 }
-.home-prof-medal--royal .home-prof-honor-val small,
+.home-prof-medal--streak .home-prof-honor-val small {
+  color: rgba(255, 255, 255, 0.72);
+}
 .home-prof-medal--straight .home-prof-honor-val small {
   color: var(--dp-text-muted);
 }

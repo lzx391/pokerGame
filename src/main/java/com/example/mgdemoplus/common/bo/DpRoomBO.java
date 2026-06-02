@@ -36,6 +36,13 @@ public class DpRoomBO {
     @JsonIgnore
     private final Map<String, Integer> carryInChips = new HashMap<>();
 
+    /**
+     * 房间内每位真人玩家当前连胜手数（至少赢下本手任意底池的一份即计为赢）。
+     * 离座/退房时 flush 至 dp_user_stats.max_win_streak 后清除；key=昵称，不下发 JSON。
+     */
+    @JsonIgnore
+    private final Map<String, Integer> winStreakByNickname = new HashMap<>();
+
     // 德扑核心
     private String currentStage = "preflop";
     private List<String> communityCards = new ArrayList<>();
@@ -366,6 +373,10 @@ public class DpRoomBO {
 
     public Map<String, Integer> getCarryInChips() {
         return carryInChips;
+    }
+
+    public Map<String, Integer> getWinStreakByNickname() {
+        return winStreakByNickname;
     }
 
     public int getMyCarryInChips() {

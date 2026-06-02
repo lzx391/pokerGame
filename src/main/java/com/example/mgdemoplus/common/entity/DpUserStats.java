@@ -17,6 +17,8 @@ public class DpUserStats {
     private int totalHandsPlayed;
     /** 周榜前三累计次数（hand / room 各榜独立 +1） */
     private int leaderboardTopCount;
+    /** 生涯最高连胜手数（单房间连续赢下完整一手，离座时 flush） */
+    private int maxWinStreak;
 
     public int getUserId() {
         return userId;
@@ -80,5 +82,13 @@ public class DpUserStats {
 
     public void setLeaderboardTopCount(int leaderboardTopCount) {
         this.leaderboardTopCount = leaderboardTopCount;
+    }
+
+    public int getMaxWinStreak() {
+        return maxWinStreak;
+    }
+
+    public void setMaxWinStreak(int maxWinStreak) {
+        this.maxWinStreak = maxWinStreak;
     }
 }

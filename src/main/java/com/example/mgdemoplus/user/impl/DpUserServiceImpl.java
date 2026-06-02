@@ -126,6 +126,7 @@ public class DpUserServiceImpl implements DpUserService {
         view.setLargestRoomNet(stats.getLargestRoomNet());
         view.setTotalHandsPlayed(stats.getTotalHandsPlayed());
         view.setLeaderboardTopCount(stats.getLeaderboardTopCount());
+        view.setMaxWinStreak(stats.getMaxWinStreak());
     }
 
     private static void applyStatsToHonorView(DpPlayerHonorView view, DpUserStats stats) {
@@ -136,6 +137,7 @@ public class DpUserServiceImpl implements DpUserService {
         view.setLargestRoomNet(stats.getLargestRoomNet());
         view.setTotalHandsPlayed(stats.getTotalHandsPlayed());
         view.setLeaderboardTopCount(stats.getLeaderboardTopCount());
+        view.setMaxWinStreak(stats.getMaxWinStreak());
     }
 
     /** 四条及以上牌力 = 四条 + 同花顺 + 皇家同花顺 */

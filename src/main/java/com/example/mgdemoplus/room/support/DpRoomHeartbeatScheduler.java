@@ -101,6 +101,9 @@ public final class DpRoomHeartbeatScheduler {
                     callbacks.giveOwner(room.getRoomId(), p.getNickname());
                 }
                 System.out.println("未收到" + p.getNickname() + "的心跳,已移出房间");
+                if (!DpNpcEngine.isBotPlayer(p)) {
+                    callbacks.settleHumanOnLeaveSeat(room, p);
+                }
                 String hbNick = p.getNickname();
                 Integer hbUid = p.getDpUserId();
                 it.remove();
