@@ -1,0 +1,356 @@
+/**
+ * Profile regions: lavish gray CRT burst + scan reveal (retro8bit only).
+ * Avatar + three medal cards (each separately) — overlay-only; title & stats row excluded.
+ * eco / PRM skip via mixin + dp-game-eco-mode.css.
+ */
+
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch {
+  position: relative;
+}
+
+/* Shared overlay layer base */
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch__noise,
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch__bars,
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch__chromatic,
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch__scan-beam,
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch__vignette,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch__noise,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch__bars,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch__chromatic,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch__scan-beam,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch__vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch__noise,
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch__bars,
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch__chromatic,
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch__vignette,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch__noise,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch__bars,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch__chromatic,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch__vignette {
+  z-index: 6;
+  opacity: 0;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch__scan-beam,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch__scan-beam {
+  z-index: 7;
+  height: 24%;
+  top: -28%;
+  left: 0;
+  right: 0;
+  bottom: auto;
+  opacity: 0;
+}
+
+/* Layer 1 — fine static noise (#666–#ccc on #0a0c0e) */
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch__noise,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch__noise {
+  background-color: #0a0c0e;
+  background-image:
+    repeating-radial-gradient(circle at 11% 19%, rgba(204, 204, 204, 0.62) 0 0.35px, transparent 0.45px),
+    repeating-radial-gradient(circle at 78% 71%, rgba(170, 170, 170, 0.55) 0 0.3px, transparent 0.4px),
+    repeating-radial-gradient(circle at 44% 52%, rgba(102, 102, 102, 0.48) 0 0.25px, transparent 0.35px),
+    repeating-linear-gradient(
+      88deg,
+      rgba(136, 136, 136, 0.22) 0 1px,
+      transparent 1px 2px,
+      rgba(204, 204, 204, 0.12) 2px 3px,
+      transparent 3px 5px
+    );
+  background-size: 2px 2px, 3px 3px, 4px 4px, 100% 4px;
+}
+
+/* Layer 2 — scrolling horizontal scan bars */
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch__bars,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch__bars {
+  mix-blend-mode: overlay;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.55) 0 1px,
+    rgba(204, 204, 204, 0.28) 1px 2px,
+    rgba(102, 102, 102, 0.14) 2px 3px,
+    rgba(170, 170, 170, 0.1) 3px 5px,
+    transparent 5px 7px
+  );
+  background-size: 100% 7px;
+}
+
+/* Layer 3 — subtle gray-green phosphor RGB split */
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch__chromatic,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch__chromatic {
+  mix-blend-mode: screen;
+  background:
+    linear-gradient(90deg, rgba(120, 168, 132, 0.32) 0%, transparent 38%),
+    linear-gradient(270deg, rgba(180, 180, 180, 0.26) 0%, transparent 36%);
+  background-size: 140% 100%, 140% 100%;
+  background-position: -4px 0, 4px 0;
+}
+
+/* Layer 4 scan beam + vignette handled via keyframes below */
+
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch__vignette,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch__vignette {
+  box-shadow:
+    inset 0 0 18px rgba(0, 0, 0, 0.72),
+    inset 0 0 0 1px rgba(170, 170, 170, 0.18);
+}
+
+/* Waiting: gray CRT blanket over region */
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch:not(.dp-prof-glitch--revealed) .dp-prof-glitch__noise,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch:not(.dp-prof-glitch--revealed) .dp-prof-glitch__noise {
+  opacity: 0.94;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch:not(.dp-prof-glitch--revealed) .dp-prof-glitch__bars,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch:not(.dp-prof-glitch--revealed) .dp-prof-glitch__bars {
+  opacity: 0.72;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch:not(.dp-prof-glitch--revealed) .dp-prof-glitch__chromatic,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch:not(.dp-prof-glitch--revealed) .dp-prof-glitch__chromatic {
+  opacity: 0.38;
+}
+
+/* Burst phase — multi-layer CRT burst + container jitter + flicker */
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch--burst,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch--burst {
+  animation: dp-prof-glitch-jitter var(--dp-prof-burst-ms, 300ms) steps(3) 1;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch--burst .dp-prof-glitch__noise,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch--burst .dp-prof-glitch__noise {
+  animation:
+    dp-prof-glitch-flicker var(--dp-prof-burst-ms, 300ms) steps(3) 1,
+    dp-prof-glitch-noise var(--dp-prof-burst-ms, 300ms) steps(4) 1;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch--burst .dp-prof-glitch__bars,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch--burst .dp-prof-glitch__bars {
+  animation: dp-prof-glitch-bars var(--dp-prof-burst-ms, 300ms) linear 1;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch--burst .dp-prof-glitch__chromatic,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch--burst .dp-prof-glitch__chromatic {
+  opacity: 0.55;
+  animation: dp-prof-glitch-chromatic var(--dp-prof-burst-ms, 300ms) steps(3) 1;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch--burst .dp-prof-glitch__vignette,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch--burst .dp-prof-glitch__vignette {
+  animation: dp-prof-vignette-flash var(--dp-prof-burst-ms, 300ms) ease-out 1;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch--burst .dp-prof-glitch__scan-beam,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch--burst .dp-prof-glitch__scan-beam {
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(170, 170, 170, 0.08) 28%,
+    rgba(204, 204, 204, 0.38) 50%,
+    rgba(120, 168, 132, 0.12) 72%,
+    transparent 100%
+  );
+  box-shadow: 0 0 10px rgba(204, 204, 204, 0.22);
+  animation: dp-prof-burst-beam-sweep var(--dp-prof-burst-ms, 300ms) ease-in-out 1;
+}
+
+/* Reveal phase — clip-path wipe + scan line + content scale pop */
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch--revealed:not(.dp-prof-glitch--burst),
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch--revealed:not(.dp-prof-glitch--burst) {
+  animation: dp-prof-content-pop var(--dp-prof-reveal-ms, 520ms) cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch--revealed:not(.dp-prof-glitch--burst) .dp-prof-glitch__noise,
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch--revealed:not(.dp-prof-glitch--burst) .dp-prof-glitch__bars,
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch--revealed:not(.dp-prof-glitch--burst) .dp-prof-glitch__chromatic,
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch--revealed:not(.dp-prof-glitch--burst) .dp-prof-glitch__vignette,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch--revealed:not(.dp-prof-glitch--burst) .dp-prof-glitch__noise,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch--revealed:not(.dp-prof-glitch--burst) .dp-prof-glitch__bars,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch--revealed:not(.dp-prof-glitch--burst) .dp-prof-glitch__chromatic,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch--revealed:not(.dp-prof-glitch--burst) .dp-prof-glitch__vignette {
+  animation: dp-prof-overlay-wipe var(--dp-prof-reveal-ms, 520ms) steps(8) forwards;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-prof-glitch--revealed:not(.dp-prof-glitch--burst) .dp-prof-glitch__scan-beam,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch--revealed:not(.dp-prof-glitch--burst) .dp-prof-glitch__scan-beam {
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(204, 204, 204, 0.1) 30%,
+    rgba(238, 238, 238, 0.72) 50%,
+    rgba(120, 168, 132, 0.28) 70%,
+    transparent 100%
+  );
+  box-shadow:
+    0 0 16px rgba(204, 204, 204, 0.55),
+    0 0 4px rgba(238, 238, 238, 0.85);
+  animation: dp-prof-reveal-beam-sweep var(--dp-prof-reveal-ms, 520ms) ease-out forwards;
+}
+
+/* Keyframes */
+@keyframes dp-prof-glitch-jitter {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  33% {
+    transform: translate(2px, -1px);
+  }
+  66% {
+    transform: translate(-2px, 1px);
+  }
+}
+
+@keyframes dp-prof-glitch-flicker {
+  0%,
+  100% {
+    opacity: 0.94;
+  }
+  33% {
+    opacity: 0.62;
+  }
+  66% {
+    opacity: 0.98;
+  }
+}
+
+@keyframes dp-prof-glitch-noise {
+  25% {
+    background-position: 2px 1px, -1px 0, 1px -1px, 0 2px;
+  }
+  50% {
+    background-position: -1px 2px, 2px -1px, -2px 1px, 1px -1px;
+  }
+  75% {
+    background-position: 1px -2px, -2px 2px, 0 1px, -1px 0;
+  }
+}
+
+@keyframes dp-prof-glitch-bars {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 28px;
+  }
+}
+
+@keyframes dp-prof-glitch-chromatic {
+  0%,
+  100% {
+    background-position: -4px 0, 4px 0;
+    opacity: 0.42;
+  }
+  50% {
+    background-position: 3px 0, -3px 0;
+    opacity: 0.68;
+  }
+}
+
+@keyframes dp-prof-vignette-flash {
+  0% {
+    opacity: 0;
+    box-shadow:
+      inset 0 0 8px rgba(0, 0, 0, 0.4),
+      inset 0 0 0 1px rgba(170, 170, 170, 0.08);
+  }
+  35% {
+    opacity: 1;
+    box-shadow:
+      inset 0 0 22px rgba(0, 0, 0, 0.85),
+      inset 0 0 0 2px rgba(204, 204, 204, 0.45);
+  }
+  100% {
+    opacity: 0;
+    box-shadow:
+      inset 0 0 12px rgba(0, 0, 0, 0.5),
+      inset 0 0 0 1px rgba(170, 170, 170, 0.12);
+  }
+}
+
+@keyframes dp-prof-burst-beam-sweep {
+  0% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  100% {
+    transform: translateY(420%);
+    opacity: 0.12;
+  }
+}
+
+@keyframes dp-prof-overlay-wipe {
+  0% {
+    clip-path: inset(0 0 0 0);
+    opacity: 0.94;
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    clip-path: inset(100% 0 0 0);
+    opacity: 0;
+  }
+}
+
+@keyframes dp-prof-reveal-beam-sweep {
+  0% {
+    transform: translateY(0);
+    opacity: 0.65;
+  }
+  100% {
+    transform: translateY(440%);
+    opacity: 0;
+  }
+}
+
+@keyframes dp-prof-content-pop {
+  0% {
+    transform: scale(0.96);
+    filter: brightness(0.88);
+  }
+  55% {
+    transform: scale(1.012);
+    filter: brightness(1.06);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+/* eco / PRM — instant skip */
+body[data-dp-fluidity='eco'] .dp-prof-glitch__noise,
+body[data-dp-fluidity='eco'] .dp-prof-glitch__bars,
+body[data-dp-fluidity='eco'] .dp-prof-glitch__chromatic,
+body[data-dp-fluidity='eco'] .dp-prof-glitch__scan-beam,
+body[data-dp-fluidity='eco'] .dp-prof-glitch__vignette,
+.dp-game-root[data-dp-eco-mode='true'] .dp-prof-glitch__noise,
+.dp-game-root[data-dp-eco-mode='true'] .dp-prof-glitch__bars,
+.dp-game-root[data-dp-eco-mode='true'] .dp-prof-glitch__chromatic,
+.dp-game-root[data-dp-eco-mode='true'] .dp-prof-glitch__scan-beam,
+.dp-game-root[data-dp-eco-mode='true'] .dp-prof-glitch__vignette {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-dp-game-theme='retro8bit'] .dp-prof-glitch__noise,
+  body[data-dp-game-theme='retro8bit'] .dp-prof-glitch__bars,
+  body[data-dp-game-theme='retro8bit'] .dp-prof-glitch__chromatic,
+  body[data-dp-game-theme='retro8bit'] .dp-prof-glitch__scan-beam,
+  body[data-dp-game-theme='retro8bit'] .dp-prof-glitch__vignette,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch__noise,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch__bars,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch__chromatic,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch__scan-beam,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-prof-glitch__vignette {
+    display: none !important;
+  }
+}

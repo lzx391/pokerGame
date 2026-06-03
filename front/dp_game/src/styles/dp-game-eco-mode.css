@@ -426,3 +426,28 @@
     display: none !important;
   }
 }
+
+/* —— retro8bit 排行榜 scan / glitch —— */
+.dp-game-root[data-dp-eco-mode='true'] .lb-scan-skeleton__beam,
+.dp-game-root[data-dp-eco-mode='true'] .lb-table-wrap--scan-active .lb-table-wrap__scan-beam,
+.dp-game-root[data-dp-eco-mode='true'] .lb-table-wrap--scan-active .lb-table tbody tr,
+.dp-game-root[data-dp-eco-mode='true'] .lb-table-wrap--glitch-burst,
+.dp-game-root[data-dp-eco-mode='true'] .lb-table-wrap--glitch-burst .lb-table-wrap__glitch-noise,
+.dp-game-root[data-dp-eco-mode='true'] .lb-table-wrap--glitch-burst .lb-table-wrap__glitch-bars {
+  animation: none !important;
+  opacity: 1 !important;
+  clip-path: none !important;
+  transform: none !important;
+}
+
+body[data-dp-fluidity='eco'] .lb-scan-skeleton__beam,
+body[data-dp-fluidity='eco'] .lb-table-wrap--scan-active .lb-table-wrap__scan-beam,
+body[data-dp-fluidity='eco'] .lb-table-wrap--scan-active .lb-table tbody tr,
+body[data-dp-fluidity='eco'] .lb-table-wrap--glitch-burst,
+body[data-dp-fluidity='eco'] .lb-table-wrap--glitch-burst .lb-table-wrap__glitch-noise,
+body[data-dp-fluidity='eco'] .lb-table-wrap--glitch-burst .lb-table-wrap__glitch-bars {
+  animation: none !important;
+  opacity: 1 !important;
+  clip-path: none !important;
+  transform: none !important;
+}

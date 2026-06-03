@@ -42,7 +42,16 @@
 
         <div class="game-prof-card__inner">
           <div class="game-prof-identity">
-            <div class="game-prof-avatar-frame">
+            <div
+              class="game-prof-avatar-frame"
+              :class="profGlitchRegionClass('avatar')"
+              :style="retroProfFx ? profGlitchCssVars : null"
+            >
+              <span v-if="retroProfFx" class="dp-prof-glitch__noise" aria-hidden="true"></span>
+              <span v-if="retroProfFx" class="dp-prof-glitch__bars" aria-hidden="true"></span>
+              <span v-if="retroProfFx" class="dp-prof-glitch__chromatic" aria-hidden="true"></span>
+              <span v-if="retroProfFx" class="dp-prof-glitch__scan-beam" aria-hidden="true"></span>
+              <span v-if="retroProfFx" class="dp-prof-glitch__vignette" aria-hidden="true"></span>
               <div class="game-prof-avatar-frame__bezel">
                 <dp-user-avatar
                   size="lg"
@@ -107,7 +116,16 @@
               <span class="game-prof-section-deco" aria-hidden="true">♦</span>
             </div>
             <div class="game-prof-honor__medals">
-              <div class="game-prof-medal game-prof-medal--streak">
+              <div
+                class="game-prof-medal game-prof-medal--streak"
+                :class="profGlitchRegionClass('medal-1')"
+                :style="retroProfFx ? profGlitchCssVars : null"
+              >
+                <span v-if="retroProfFx" class="dp-prof-glitch__noise" aria-hidden="true"></span>
+                <span v-if="retroProfFx" class="dp-prof-glitch__bars" aria-hidden="true"></span>
+                <span v-if="retroProfFx" class="dp-prof-glitch__chromatic" aria-hidden="true"></span>
+                <span v-if="retroProfFx" class="dp-prof-glitch__scan-beam" aria-hidden="true"></span>
+                <span v-if="retroProfFx" class="dp-prof-glitch__vignette" aria-hidden="true"></span>
                 <div class="game-prof-medal__body">
                   <span class="game-prof-medal__name">最高连胜</span>
                   <span
@@ -117,7 +135,16 @@
                   >{{ honorDisplayCount('maxWinStreak') }}<small> 手</small></span>
                 </div>
               </div>
-              <div class="game-prof-medal game-prof-medal--leaderboard">
+              <div
+                class="game-prof-medal game-prof-medal--leaderboard"
+                :class="profGlitchRegionClass('medal-2')"
+                :style="retroProfFx ? profGlitchCssVars : null"
+              >
+                <span v-if="retroProfFx" class="dp-prof-glitch__noise" aria-hidden="true"></span>
+                <span v-if="retroProfFx" class="dp-prof-glitch__bars" aria-hidden="true"></span>
+                <span v-if="retroProfFx" class="dp-prof-glitch__chromatic" aria-hidden="true"></span>
+                <span v-if="retroProfFx" class="dp-prof-glitch__scan-beam" aria-hidden="true"></span>
+                <span v-if="retroProfFx" class="dp-prof-glitch__vignette" aria-hidden="true"></span>
                 <div class="game-prof-medal__body">
                   <span class="game-prof-medal__name">上榜次数</span>
                   <span
@@ -127,7 +154,16 @@
                   >{{ honorDisplayCount('leaderboardTopCount') }}<small> 次</small></span>
                 </div>
               </div>
-              <div class="game-prof-medal game-prof-medal--four">
+              <div
+                class="game-prof-medal game-prof-medal--four"
+                :class="profGlitchRegionClass('medal-3')"
+                :style="retroProfFx ? profGlitchCssVars : null"
+              >
+                <span v-if="retroProfFx" class="dp-prof-glitch__noise" aria-hidden="true"></span>
+                <span v-if="retroProfFx" class="dp-prof-glitch__bars" aria-hidden="true"></span>
+                <span v-if="retroProfFx" class="dp-prof-glitch__chromatic" aria-hidden="true"></span>
+                <span v-if="retroProfFx" class="dp-prof-glitch__scan-beam" aria-hidden="true"></span>
+                <span v-if="retroProfFx" class="dp-prof-glitch__vignette" aria-hidden="true"></span>
                 <div class="game-prof-medal__body">
                   <span class="game-prof-medal__name">四条及以上牌力</span>
                   <span
@@ -204,6 +240,11 @@
 
 <script>
 import DpUserAvatar from '@/components/DpUserAvatar.vue'
+import dpProfileGrayGlitchMixin, {
+  DP_PROF_GLITCH_BURST_MS,
+  DP_PROF_GLITCH_REVEAL_MS,
+  DP_PROF_GLITCH_REGION_STAGGER_MS
+} from '@/mixins/dpProfileGrayGlitchMixin'
 import { mapState } from 'vuex'
 import { dpDisplayNickname } from '../utils/dpDisplayNickname'
 import { dpResultSuccess, dpResultData, dpResultMessage, dpAxiosErrorMessage } from '../utils/dpApiResult'
@@ -219,6 +260,7 @@ var HONOR_SCRAMBLE_TICK_MS = 48
 export default {
   name: 'GamePlayerSocialSheet',
   components: { DpUserAvatar },
+  mixins: [dpProfileGrayGlitchMixin],
   props: {
     visible: { type: Boolean, default: false },
     target: {
@@ -304,6 +346,12 @@ export default {
     rankRoomDisplay() {
       var r = this.honor && this.honor.leaderboardWeeklyRoom && this.honor.leaderboardWeeklyRoom.rank
       return r != null ? r : '—'
+    },
+    profGlitchCssVars() {
+      return {
+        '--dp-prof-burst-ms': DP_PROF_GLITCH_BURST_MS + 'ms',
+        '--dp-prof-reveal-ms': DP_PROF_GLITCH_REVEAL_MS + 'ms'
+      }
     }
   },
   watch: {
@@ -314,6 +362,7 @@ export default {
           this.refresh()
         } else {
           this.stopHonorGlitch()
+          this.resetProfGrayGlitch()
         }
       }
     },
@@ -439,8 +488,13 @@ export default {
       this.honor = null
       this.honorGlitchPhase = 'idle'
       this.stopHonorGlitch()
+      this.resetProfGrayGlitch()
       this.loadFriendAddStatus()
       this.loadHonor()
+      var self = this
+      this.$nextTick(function () {
+        self.scheduleProfGrayGlitch(['avatar'])
+      })
     },
     async loadHonor() {
       if (!this.target) return
@@ -456,7 +510,25 @@ export default {
       } finally {
         var self = this
         this.$nextTick(function () {
-          self.startHonorGlitch()
+          var regions = []
+          if (self.honor && self.honor.totalHandsPlayed != null) {
+            regions.push('medal-1', 'medal-2', 'medal-3')
+          }
+          if (regions.length) {
+            self.scheduleProfGrayGlitch(regions, { reset: false })
+          }
+          var honorDelay = self.retroProfFx && regions.length
+            ? (regions.length - 1) * DP_PROF_GLITCH_REGION_STAGGER_MS +
+              DP_PROF_GLITCH_BURST_MS +
+              DP_PROF_GLITCH_REVEAL_MS
+            : 0
+          if (honorDelay > 0) {
+            setTimeout(function () {
+              self.startHonorGlitch()
+            }, honorDelay)
+          } else {
+            self.startHonorGlitch()
+          }
         })
       }
     },

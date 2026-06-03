@@ -597,6 +597,16 @@
   padding-top: var(--dp-table-layout-pad-top);
   padding-bottom: 8px;
 }
+
+/* Table felt + retro glitch/monster + CRT border — one layer below cards/pot/seats */
+.dp-game-table__surface {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: visible;
+}
+
 .dp-game-table__felt {
   position: absolute;
   z-index: 0;

@@ -74,7 +74,7 @@ import { CAT_COPY } from '@/constants/dpCatThemeCopy'
 import { resolveRouteTransitionName } from '@/utils/dpRouteTransition'
 import { isRouteTransitionEnabled } from '@/utils/dpRouteTransitionFlag'
 import { bindAuthCrtOverlay } from '@/utils/dpAuthEnterLobby'
-import { bindCreateRoomCrtOverlay } from '@/utils/dpCreateRoomEnterGame'
+import { bindRetroEnterGameCrtOverlay } from '@/utils/dpRetroEnterGameHandoff'
 import DpAuthStage from '@/components/DpAuthStage.vue'
 import DpCrtFullscreenOverlay from '@/components/DpCrtFullscreenOverlay.vue'
 
@@ -139,12 +139,12 @@ export default {
         overlay.play(timing, onNavigate)
       }
       bindAuthCrtOverlay({ play: playOverlay })
-      bindCreateRoomCrtOverlay({ play: playOverlay })
+      bindRetroEnterGameCrtOverlay({ play: playOverlay })
     }
   },
   beforeDestroy() {
     bindAuthCrtOverlay(null)
-    bindCreateRoomCrtOverlay(null)
+    bindRetroEnterGameCrtOverlay(null)
   },
   watch: {
     $route: function (to, from) {

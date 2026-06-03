@@ -21,8 +21,16 @@ body[data-dp-game-theme] {
 }
 
 body[data-dp-game-theme] #app.app--lobby,
-body[data-dp-game-theme] #app.app--auth {
+body[data-dp-game-theme] #app.app--auth,
+body[data-dp-game-theme] #app.app--dp-game {
   background-color: var(--dp-depth-app-bg);
+  background-image: var(--dp-game-bg-image, none);
+}
+
+/* 对局 flex 链外层：与 .dp-game-root 同底，避免 tablet 伪全屏 zoom 留白露 #f5f7fa */
+body[data-dp-game-theme] .full-page--dp-game {
+  background-color: var(--dp-depth-app-bg);
+  background-image: var(--dp-game-bg-image, none);
 }
 
 /*

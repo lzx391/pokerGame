@@ -21,7 +21,9 @@
 </template>
 
 <script>
-var BOOT_LINES = [
+import { shouldSkipRetroEnterEffects } from '@/utils/dpRetroEnterGameHandoff'
+
+var DEFAULT_BOOT_LINES = [
   { text: 'POKER-SYS v2.4.1 BIOS', ok: false },
   { text: '[  OK  ]  Initializing deck subsystem...', ok: true },
   { text: '[  OK  ]  Establishing player seat map...', ok: true },
@@ -55,9 +57,27 @@ export default {
       this.timers.push(id)
       return id
     },
-    play: function (onDone) {
+    /**
+     * @param {(() => void) | { lines?: Array<{text:string,ok:boolean}>, onDone?: () => void }} [opts]
+     * @param {() => void} [onDoneLegacy]
+     */
+    play: function (opts, onDoneLegacy) {
       var self = this
+      var onDone = onDoneLegacy
+      var lines = DEFAULT_BOOT_LINES
+      if (typeof opts === 'function') {
+        onDone = opts
+      } else if (opts && typeof opts === 'object') {
+        if (opts.lines && opts.lines.length) lines = opts.lines
+        if (typeof opts.onDone === 'function') onDone = opts.onDone
+      }
+
       this.clearTimers()
+      if (shouldSkipRetroEnterEffects()) {
+        if (typeof onDone === 'function') onDone()
+        return
+      }
+
       this.visible = true
       this.phase = 'snow'
       this.visibleLines = []
@@ -66,12 +86,10 @@ export default {
       this.schedule(function () {
         self.phase = 'typing'
 
-        // 逐行打字
-        BOOT_LINES.forEach(function (line, idx) {
+        lines.forEach(function (line, idx) {
           self.schedule(function () {
             self.visibleLines.push(line)
-            // 最后一行打印完后等 350ms 再淡出
-            if (idx === BOOT_LINES.length - 1) {
+            if (idx === lines.length - 1) {
               self.schedule(function () {
                 self.phase = 'fade-out'
                 self.schedule(function () {

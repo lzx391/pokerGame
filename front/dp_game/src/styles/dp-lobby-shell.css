@@ -513,6 +513,12 @@ body[data-dp-game-theme] {
   border-bottom: 1px solid rgba(74, 246, 38, 0.08);
 }
 
+.dp-game-root[data-dp-game-theme='retro8bit'] .lb-table__rank-num.lb-table__pixel-en,
+.dp-game-root[data-dp-game-theme='retro8bit'] .lb-table__nick-text.lb-table__pixel-en,
+.dp-game-root[data-dp-game-theme='retro8bit'] .lb-table__nick .lb-table__pixel-en {
+  color: var(--dp-phosphor, #72f052);
+}
+
 .dp-game-root[data-dp-game-theme='retro8bit'] .lb-page__tabs button {
   border-radius: 0;
   font-family: var(--dp-font-ui, monospace);

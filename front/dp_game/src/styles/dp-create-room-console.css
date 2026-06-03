@@ -96,6 +96,8 @@
   inset: 0;
   z-index: 2;
   pointer-events: none;
+  /* Scanlines scoped to left label column (~52%) — right value column stays clean */
+  clip-path: inset(0 48% 0 0);
   background: repeating-linear-gradient(
     to bottom,
     transparent 0 2px,
@@ -134,11 +136,10 @@
 
 .dp-console-menu__row {
   display: grid;
-  grid-template-columns: 1.4em 1fr auto;
-  align-items: center;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 6px;
   min-height: 44px;
-  padding: 8px 12px;
   margin: 2px 0;
   font-size: clamp(11px, 2.8vw, 13px);
   letter-spacing: 0.03em;
@@ -149,6 +150,31 @@
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
+  padding: 0;
+}
+
+.dp-console-menu__left {
+  display: grid;
+  grid-template-columns: 1.4em 1fr;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 2px solid transparent;
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+}
+
+.dp-console-menu__right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 44px;
+  padding: 8px 8px 8px 0;
+  box-sizing: border-box;
+  /* Value column stays stable — no blink / glitch inheritance */
+  color: rgba(224, 240, 216, 0.92);
 }
 
 .dp-console-menu__cursor {
@@ -159,22 +185,39 @@
 }
 
 .dp-console-menu__row--selected .dp-console-menu__cursor {
-  color: var(--dp-terminal-led-green, #4af626);
-  text-shadow: var(--dp-terminal-glow-text);
+  color: inherit;
+  text-shadow: none;
 }
 
-.dp-console-menu__row--selected {
+.dp-console-menu__row--selected .dp-console-menu__left {
   color: #080a0c;
   background: var(--dp-terminal-led-green, #4af626);
   border-color: #72f052;
   box-shadow: inset 0 0 0 1px #080a0c;
 }
 
-.dp-console-menu__row--selected.dp-console-menu__row--blink {
-  animation: dp-console-row-blink 0.55s step-end infinite;
+.dp-console-menu__row--selected.dp-console-menu__row--blink .dp-console-menu__left {
+  animation: dp-console-left-blink 0.55s step-end infinite;
 }
 
-@keyframes dp-console-row-blink {
+.dp-console-menu__row--selected.dp-console-menu__row--blink .dp-console-menu__left::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0 2px,
+    rgba(0, 0, 0, 0.14) 2px 3px
+  );
+  background-size: 100% 3px;
+  opacity: 0.22;
+  mix-blend-mode: multiply;
+  animation: dp-console-left-scan 0.55s step-end infinite;
+}
+
+@keyframes dp-console-left-blink {
   0%,
   100% {
     background: var(--dp-terminal-led-green, #4af626);
@@ -186,9 +229,21 @@
   }
 }
 
+@keyframes dp-console-left-scan {
+  0%,
+  100% {
+    opacity: 0.18;
+  }
+  50% {
+    opacity: 0.32;
+  }
+}
+
 .dp-console-menu__label {
   font-weight: 600;
   text-transform: uppercase;
+  position: relative;
+  z-index: 2;
 }
 
 .dp-console-menu__value {
@@ -208,19 +263,24 @@
 
 .dp-console-menu__chev,
 .dp-console-menu__value-btn {
-  min-width: 32px;
-  min-height: 32px;
+  min-width: 36px;
+  min-height: 36px;
   padding: 2px 6px;
   border: 1px solid rgba(74, 246, 38, 0.28);
   border-radius: 0;
   background: rgba(0, 0, 0, 0.22);
   color: inherit;
   font-family: var(--dp-font-pixel, 'Press Start 2P', monospace);
-  font-size: 8px;
+  font-size: 10px;
   line-height: 1;
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+}
+
+.dp-console-menu__chev {
+  font-size: 11px;
+  letter-spacing: 0;
 }
 
 .dp-console-menu__value-btn {
@@ -236,18 +296,25 @@
   text-overflow: ellipsis;
 }
 
+/* Selected row: right column keeps stable readable colors (no blink) */
+.dp-console-menu__row--selected .dp-console-menu__right,
+.dp-console-menu__row--selected .dp-console-menu__value,
 .dp-console-menu__row--selected .dp-console-menu__chev,
 .dp-console-menu__row--selected .dp-console-menu__value-btn {
-  border-color: #080a0c;
-  background: rgba(8, 10, 12, 0.18);
-  color: #080a0c;
+  color: var(--dp-terminal-led-green, #4af626);
+}
+
+.dp-console-menu__row--selected .dp-console-menu__chev,
+.dp-console-menu__row--selected .dp-console-menu__value-btn {
+  border-color: rgba(74, 246, 38, 0.45);
+  background: rgba(0, 0, 0, 0.35);
 }
 
 .dp-console-menu__chev:active,
 .dp-console-menu__value-btn:active,
 .dp-console-menu__chev:focus-visible,
 .dp-console-menu__value-btn:focus-visible {
-  background: rgba(8, 10, 12, 0.35);
+  background: rgba(74, 246, 38, 0.22);
   outline: 1px solid currentColor;
   outline-offset: 1px;
 }
@@ -326,15 +393,15 @@
 
 .dp-console-pass__chev,
 .dp-console-pass__char-btn {
-  min-width: 40px;
-  min-height: 40px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 4px 8px;
   border: 2px solid var(--dp-terminal-border-active, rgba(74, 246, 38, 0.34));
   border-radius: 0;
   background: rgba(0, 0, 0, 0.35);
   color: var(--dp-terminal-led-green, #4af626);
   font-family: var(--dp-font-pixel, 'Press Start 2P', monospace);
-  font-size: 10px;
+  font-size: 11px;
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
@@ -643,12 +710,23 @@
   }
 }
 
+@media (hover: none) and (pointer: coarse) {
+  .dp-console-menu__chev {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .dp-console-menu__row--selected.dp-console-menu__row--blink {
+  .dp-console-menu__row--selected.dp-console-menu__row--blink .dp-console-menu__left {
     animation: none !important;
   }
 
-  .dp-console-menu__row--selected {
+  .dp-console-menu__row--selected.dp-console-menu__row--blink .dp-console-menu__left::after {
+    animation: none !important;
+  }
+
+  .dp-console-menu__row--selected .dp-console-menu__left {
     background: var(--dp-terminal-led-green, #4af626);
     color: #080a0c;
   }
@@ -660,7 +738,8 @@
   }
 }
 
-body[data-dp-fluidity='eco'] .dp-console-menu__row--selected.dp-console-menu__row--blink,
+body[data-dp-fluidity='eco'] .dp-console-menu__row--selected.dp-console-menu__row--blink .dp-console-menu__left,
+body[data-dp-fluidity='eco'] .dp-console-menu__row--selected.dp-console-menu__row--blink .dp-console-menu__left::after,
 body[data-dp-fluidity='eco'] .dp-console-boot__snow-noise,
 body[data-dp-fluidity='eco'] .dp-console-boot__snow-bars {
   animation: none !important;

@@ -73,6 +73,8 @@
 }
 
 #app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='tablet'] {
+  height: 100dvh;
+  height: 100svh;
   --dp-game-main-pad-top: clamp(8px, 1.6vmin, 40px);
   --dp-game-top-title-fs: 16px;
   --dp-game-top-sub-fs: 13px;
@@ -127,8 +129,18 @@ body.dp-game-no-scroll {
 #app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='tablet']:-webkit-full-screen,
 #app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='tablet']:-moz-full-screen,
 #app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='tablet'].dp-game-root--layout-fs {
-  zoom: 0.92;
+  --dp-zoom-game: 0.92;
+  zoom: var(--dp-zoom-game);
   --dp-game-fs-extra-pad-top: 10px;
+  /*
+   * zoom 会缩小布局占位（约 92% 视口高），未补偿时 #app 默认浅灰底从底部露出。
+   * 反算高度使缩放后仍铺满一屏。
+   */
+  height: calc(100dvh / var(--dp-zoom-game));
+  height: calc(100svh / var(--dp-zoom-game));
+  max-height: calc(100dvh / var(--dp-zoom-game));
+  max-height: calc(100svh / var(--dp-zoom-game));
+  min-height: calc(100dvh / var(--dp-zoom-game));
 }
 
 /* 圆桌占位高度：按档收紧 */

@@ -640,6 +640,8 @@
       @view-hand-history-with-opponent="openOpponentHandHistoryFromSocial"
     />
 
+    <dp-crt-boot-sequence v-if="gameUiTheme === 'retro8bit'" ref="lobbyEnterBoot" />
+
     <game-hand-history-modal
       :visible="opponentHandHistoryOpen"
       list-mode="withOpponent"
@@ -678,7 +680,9 @@ import {
 } from '@/constants/dpCatThemeCopy'
 import { exitLobbyQuickMatchSilently } from '@/utils/dpLobbyQuickMatchExit'
 import { postQuickMatchCancel2 } from '@/utils/dpQuickMatchExit'
-import { prefetchGameChunk, navigateToGame } from '@/utils/dpPrefetchGameRoute'
+import { prefetchGameChunk } from '@/utils/dpPrefetchGameRoute'
+import { enterGameFromLobby as enterGameFromLobbyWithBoot } from '@/utils/dpLobbyEnterGame'
+import DpCrtBootSequence from '@/components/DpCrtBootSequence.vue'
 import { prefetchAvatarUrls } from '@/utils/dpAvatarPrefetch'
 import { avatarCacheBustFromUpdatedAt } from '@/utils/dpAvatarUrl'
 
@@ -690,7 +694,8 @@ export default {
     GamePlayerSocialSheet,
     GameHandHistoryModal,
     DpUserAvatar,
-    DpFluidityToggle
+    DpFluidityToggle,
+    DpCrtBootSequence
   },
   mixins: [dpLobbyThemeMixin],
   data() {
@@ -1249,7 +1254,7 @@ export default {
         var rid = res.roomId != null && res.roomId !== '' ? String(res.roomId).trim() : ''
         if (!rid) { alert('未返回房间号'); return }
         this.friendsDrawerVisible = false
-        await navigateToGame(this.$router, rid)
+        await this.enterGameFromLobby(rid, 'join')
       } finally { this.friendFollowBusyUserId = null }
     },
     async onRemoveFriend(f) {
@@ -1272,7 +1277,7 @@ export default {
       var rid = res.roomId || (row && row.roomId) || ''
       if (!rid) { alert('未返回房间号'); return }
       this.mailboxVisible = false
-      await navigateToGame(this.$router, rid)
+      await this.enterGameFromLobby(rid, 'join')
     },
     async onRejectRoomInvite(id) { await this.rejectRoomInvite({ http: this.$http, id }) },
     openPlayGuide(firstRun) { this.playGuideFirstRun = !!firstRun; this.playGuideTab = 'flow'; this.playGuideVisible = true },
@@ -1436,7 +1441,7 @@ export default {
         if (data._ws !== 'quickMatch') return
         if (data.state === 'MATCHED' && data.roomId) {
           this.quickMatchPolling = false; this.quickMatchLoading = false; this.disconnectQuickMatchWs()
-          navigateToGame(this.$router, data.roomId); return
+          this.enterGameFromLobby(data.roomId, 'quickmatch'); return
         }
         if (data.state === 'IDLE') {
           this.quickMatchPolling = false; this.quickMatchLoading = false; this.disconnectQuickMatchWs()
@@ -1456,7 +1461,11 @@ export default {
         const body = res.data
         if (!dpResultSuccess(body)) { this.disconnectQuickMatchWs(); alert(dpResultMessage(body)); return }
         const data = dpResultData(body) || {}
-        if (data.roomId) { this.disconnectQuickMatchWs(); await navigateToGame(this.$router, data.roomId); return }
+        if (data.roomId) {
+          this.disconnectQuickMatchWs()
+          await this.enterGameFromLobby(data.roomId, 'quickmatch')
+          return
+        }
         if (data.queued && data.state === 'WAITING') { this.quickMatchPolling = true; prefetchGameChunk(); return }
         this.disconnectQuickMatchWs(); alert('匹配响应异常，请稍后重试')
       } catch (e) { console.error('quickMatch', e); this.disconnectQuickMatchWs(); alert('网络错误，请稍后重试') }
@@ -1522,7 +1531,21 @@ export default {
       const res = await this.$http.post('/dpRoom/joinRoom2', null, { params })
       const body = res.data
       if (!dpResultSuccess(body)) { alert(dpResultMessage(body)); return }
-      await navigateToGame(this.$router, roomId)
+      await this.enterGameFromLobby(roomId, 'join')
+    },
+    /**
+     * @param {string} roomId
+     * @param {'join'|'quickmatch'|string} [entryPath]
+     */
+    enterGameFromLobby: function (roomId, entryPath) {
+      var boot =
+        this.gameUiTheme === 'retro8bit' && this.$refs.lobbyEnterBoot
+          ? this.$refs.lobbyEnterBoot
+          : null
+      return enterGameFromLobbyWithBoot(this.$router, roomId, {
+        entryPath: entryPath,
+        bootRef: boot
+      })
     }
   }
 }

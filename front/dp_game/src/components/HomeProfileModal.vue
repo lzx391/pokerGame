@@ -58,7 +58,16 @@
       <template v-if="mode === 'view'">
         <div class="home-prof-card__inner home-prof-card__inner--view">
           <div class="home-prof-identity">
-            <div class="home-prof-avatar-frame">
+            <div
+              class="home-prof-avatar-frame"
+              :class="profGlitchRegionClass('avatar')"
+              :style="retroProfFx ? profGlitchCssVars : null"
+            >
+              <span v-if="retroProfFx" class="dp-prof-glitch__noise" aria-hidden="true"></span>
+              <span v-if="retroProfFx" class="dp-prof-glitch__bars" aria-hidden="true"></span>
+              <span v-if="retroProfFx" class="dp-prof-glitch__chromatic" aria-hidden="true"></span>
+              <span v-if="retroProfFx" class="dp-prof-glitch__scan-beam" aria-hidden="true"></span>
+              <span v-if="retroProfFx" class="dp-prof-glitch__vignette" aria-hidden="true"></span>
               <div class="home-prof-avatar-frame__bezel">
                 <dp-user-avatar
                   :avatar-url="form.avatarUrl"
@@ -103,7 +112,16 @@
               <span class="home-prof-section-deco" aria-hidden="true">♦</span>
             </div>
             <div class="home-prof-honor__medals">
-              <div class="home-prof-medal home-prof-medal--streak">
+              <div
+                class="home-prof-medal home-prof-medal--streak"
+                :class="profGlitchRegionClass('medal-1')"
+                :style="retroProfFx ? profGlitchCssVars : null"
+              >
+                <span v-if="retroProfFx" class="dp-prof-glitch__noise" aria-hidden="true"></span>
+                <span v-if="retroProfFx" class="dp-prof-glitch__bars" aria-hidden="true"></span>
+                <span v-if="retroProfFx" class="dp-prof-glitch__chromatic" aria-hidden="true"></span>
+                <span v-if="retroProfFx" class="dp-prof-glitch__scan-beam" aria-hidden="true"></span>
+                <span v-if="retroProfFx" class="dp-prof-glitch__vignette" aria-hidden="true"></span>
                 <div class="home-prof-medal__body">
                   <span class="home-prof-medal__name">最高连胜</span>
                   <span
@@ -113,7 +131,16 @@
                   >{{ honorDisplayCount('maxWinStreak') }}<small> 手</small></span>
                 </div>
               </div>
-              <div class="home-prof-medal home-prof-medal--leaderboard">
+              <div
+                class="home-prof-medal home-prof-medal--leaderboard"
+                :class="profGlitchRegionClass('medal-2')"
+                :style="retroProfFx ? profGlitchCssVars : null"
+              >
+                <span v-if="retroProfFx" class="dp-prof-glitch__noise" aria-hidden="true"></span>
+                <span v-if="retroProfFx" class="dp-prof-glitch__bars" aria-hidden="true"></span>
+                <span v-if="retroProfFx" class="dp-prof-glitch__chromatic" aria-hidden="true"></span>
+                <span v-if="retroProfFx" class="dp-prof-glitch__scan-beam" aria-hidden="true"></span>
+                <span v-if="retroProfFx" class="dp-prof-glitch__vignette" aria-hidden="true"></span>
                 <div class="home-prof-medal__body">
                   <span class="home-prof-medal__name">上榜次数</span>
                   <span
@@ -123,7 +150,16 @@
                   >{{ honorDisplayCount('leaderboardTopCount') }}<small> 次</small></span>
                 </div>
               </div>
-              <div class="home-prof-medal home-prof-medal--four">
+              <div
+                class="home-prof-medal home-prof-medal--four"
+                :class="profGlitchRegionClass('medal-3')"
+                :style="retroProfFx ? profGlitchCssVars : null"
+              >
+                <span v-if="retroProfFx" class="dp-prof-glitch__noise" aria-hidden="true"></span>
+                <span v-if="retroProfFx" class="dp-prof-glitch__bars" aria-hidden="true"></span>
+                <span v-if="retroProfFx" class="dp-prof-glitch__chromatic" aria-hidden="true"></span>
+                <span v-if="retroProfFx" class="dp-prof-glitch__scan-beam" aria-hidden="true"></span>
+                <span v-if="retroProfFx" class="dp-prof-glitch__vignette" aria-hidden="true"></span>
                 <div class="home-prof-medal__body">
                   <span class="home-prof-medal__name">四条及以上牌力</span>
                   <span
@@ -265,6 +301,11 @@
 
 <script>
 import DpUserAvatar from '@/components/DpUserAvatar.vue'
+import dpProfileGrayGlitchMixin, {
+  DP_PROF_GLITCH_BURST_MS,
+  DP_PROF_GLITCH_REVEAL_MS,
+  DP_PROF_GLITCH_REGION_STAGGER_MS
+} from '@/mixins/dpProfileGrayGlitchMixin'
 import { dpResultSuccess, dpResultData, dpResultMessage } from '@/utils/dpApiResult'
 import { formatNetWinMultiplier, formatRoomNetMultiplier } from '@/utils/dpRoomNetMultiplier'
 import { avatarCacheBustFromUpdatedAt, avatarFileSrc } from '@/utils/dpAvatarUrl'
@@ -276,6 +317,7 @@ var HONOR_SCRAMBLE_TICK_MS = 48
 export default {
   name: 'HomeProfileModal',
   components: { DpUserAvatar },
+  mixins: [dpProfileGrayGlitchMixin],
   props: {
     visible: {
       type: Boolean,
@@ -335,6 +377,12 @@ export default {
       return {
         'home-prof-honor-val--reveal': this.honorGlitchPhase === 'revealed' && !this.shouldSkipEffects()
       }
+    },
+    profGlitchCssVars() {
+      return {
+        '--dp-prof-burst-ms': DP_PROF_GLITCH_BURST_MS + 'ms',
+        '--dp-prof-reveal-ms': DP_PROF_GLITCH_REVEAL_MS + 'ms'
+      }
     }
   },
   watch: {
@@ -344,6 +392,7 @@ export default {
         this.loadProfile()
       } else {
         this.stopHonorGlitch()
+        this.resetProfGrayGlitch()
       }
     }
   },
@@ -389,6 +438,7 @@ export default {
       this.form.newPassword = ''
       this.form.confirmPassword = ''
       this.stopHonorGlitch()
+      this.resetProfGrayGlitch()
     },
     stopHonorGlitch() {
       if (this.honorGlitchTimer != null) {
@@ -471,6 +521,7 @@ export default {
       this.loading = true
       this.honorGlitchPhase = 'idle'
       this.stopHonorGlitch()
+      this.resetProfGrayGlitch()
       try {
         const res = await this.$http.get('/dpUser/profile')
         const body = res.data
@@ -499,9 +550,26 @@ export default {
         this.dialogVisible = false
       } finally {
         this.loading = false
+        var self = this
         this.$nextTick(function () {
-          this.startHonorGlitch()
-        }.bind(this))
+          var regions = ['avatar']
+          if (self.form.totalHandsPlayed != null) {
+            regions.push('medal-1', 'medal-2', 'medal-3')
+          }
+          self.scheduleProfGrayGlitch(regions)
+          var honorDelay = self.retroProfFx
+            ? (regions.length - 1) * DP_PROF_GLITCH_REGION_STAGGER_MS +
+              DP_PROF_GLITCH_BURST_MS +
+              DP_PROF_GLITCH_REVEAL_MS
+            : 0
+          if (honorDelay > 0) {
+            setTimeout(function () {
+              self.startHonorGlitch()
+            }, honorDelay)
+          } else {
+            self.startHonorGlitch()
+          }
+        })
       }
     },
     async onAvatarUploadRequest(options) {

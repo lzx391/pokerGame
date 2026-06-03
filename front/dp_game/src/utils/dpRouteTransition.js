@@ -2,7 +2,7 @@
  * 路由 path / meta → transition name（仅标准档 + flag on 时由 App.vue 挂载 <transition>）
  */
 import { isRouteTransitionEnabled } from './dpRouteTransitionFlag'
-import { isCreateRoomCrtHandoffActive } from './dpCreateRoomEnterGame'
+import { isRetroEnterGameHandoffActive } from './dpRetroEnterGameHandoff'
 
 function pathPattern(path) {
   if (!path) return ''
@@ -62,8 +62,12 @@ export function resolveRouteTransitionName(to, from, opts) {
     return 'dp-route-slide-from-right'
   }
 
-  /* retro 创建页 CRT 全屏交接：与 auth→home 一样瞬时切路由，避免 out-in 空窗 + 黑底 */
-  if (fromP === '/create-room' && toP === GAME && isCreateRoomCrtHandoffActive()) {
+  /* retro 进房 CRT 全屏交接：与 auth→home 一样瞬时切路由，避免 out-in 空窗 + 黑底 */
+  if (
+    toP === GAME &&
+    (fromP === '/create-room' || fromP === '/home') &&
+    isRetroEnterGameHandoffActive()
+  ) {
     return 'dp-route-none'
   }
 

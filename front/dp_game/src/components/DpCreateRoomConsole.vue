@@ -33,7 +33,7 @@
               :disabled="committing || booting"
               @click="cyclePasswordChar(-1)"
             >
-              ◀
+              &lt;
             </button>
             <button
               type="button"
@@ -51,7 +51,7 @@
               :disabled="committing || booting"
               @click="cyclePasswordChar(1)"
             >
-              ▶
+              &gt;
             </button>
           </div>
           <div class="dp-console-pass__actions">
@@ -106,7 +106,7 @@
             <span class="dp-console-pass__hint-kb"
               >←→ pick · A/SPACE add · ENTER done · ESC cancel · UP delete</span
             >
-            <span class="dp-console-pass__hint-touch">tap char · ◀▶ · ADD/DEL/OK</span>
+            <span class="dp-console-pass__hint-touch">tap char · &lt;&gt; · ADD/DEL/OK</span>
           </p>
         </section>
 
@@ -120,38 +120,42 @@
             :class="rowRowClass(i, row)"
             @click="onMenuRowTap(i)"
           >
-            <span class="dp-console-menu__cursor" aria-hidden="true">▶</span>
-            <span class="dp-console-menu__label">{{ row.label }}</span>
-            <span v-if="rowHasTouchAdjust(row)" class="dp-console-menu__adj">
-              <button
-                type="button"
-                class="dp-console-menu__chev"
-                :aria-label="row.label + ' 减少'"
-                :disabled="committing || booting"
-                @click.stop="onRowAdjust(i, -1)"
-              >
-                ◀
-              </button>
-              <button
-                type="button"
-                class="dp-console-menu__value-btn"
-                :aria-label="row.label + ' 当前值'"
-                :disabled="committing || booting"
-                @click.stop="onRowValueTap(i)"
-              >
-                {{ rowValueText(row) }}
-              </button>
-              <button
-                type="button"
-                class="dp-console-menu__chev"
-                :aria-label="row.label + ' 增加'"
-                :disabled="committing || booting"
-                @click.stop="onRowAdjust(i, 1)"
-              >
-                ▶
-              </button>
-            </span>
-            <span v-else class="dp-console-menu__value">{{ rowValueText(row) }}</span>
+            <div class="dp-console-menu__left">
+              <span class="dp-console-menu__cursor" aria-hidden="true">&gt;</span>
+              <span class="dp-console-menu__label">{{ row.label }}</span>
+            </div>
+            <div class="dp-console-menu__right">
+              <span v-if="rowHasTouchAdjust(row)" class="dp-console-menu__adj">
+                <button
+                  type="button"
+                  class="dp-console-menu__chev"
+                  :aria-label="row.label + ' 减少'"
+                  :disabled="committing || booting"
+                  @click.stop="onRowAdjust(i, -1)"
+                >
+                  &lt;
+                </button>
+                <button
+                  type="button"
+                  class="dp-console-menu__value-btn"
+                  :aria-label="row.label + ' 当前值'"
+                  :disabled="committing || booting"
+                  @click.stop="onRowValueTap(i)"
+                >
+                  {{ rowValueText(row) }}
+                </button>
+                <button
+                  type="button"
+                  class="dp-console-menu__chev"
+                  :aria-label="row.label + ' 增加'"
+                  :disabled="committing || booting"
+                  @click.stop="onRowAdjust(i, 1)"
+                >
+                  &gt;
+                </button>
+              </span>
+              <span v-else class="dp-console-menu__value">{{ rowValueText(row) }}</span>
+            </div>
           </li>
         </ul>
 
@@ -160,7 +164,7 @@
             >↑↓ move · ←→ change · ENTER select · ESC back</span
           >
           <span class="dp-console-footer__touch"
-            >tap row · tap ◀▶ · double-tap CREATE</span
+            >tap row · tap &lt;&gt; · double-tap CREATE</span
           >
         </p>
       </div>
@@ -219,6 +223,7 @@ import '@/styles/dp-create-room-console.css'
 import { mapState } from 'vuex'
 import DpFluidityToggle from '@/components/DpFluidityToggle.vue'
 import { dpCreateRoomAndStart } from '@/utils/dpCreateRoomSubmit'
+import { RETRO_BOOT_LINES_CREATE as BOOT_LINES } from '@/utils/dpRetroBootLines'
 
 var ROOM_PRESETS = {
   casual: { smallBlind: 2, startingStackBb: 40, maxSeatCount: 6, roomPassword: '' },
@@ -260,14 +265,6 @@ var MENU_ROWS = [
   { id: 'password', label: 'PASSWORD', type: 'password' },
   { id: 'create', label: 'CREATE', type: 'action-create' },
   { id: 'back', label: 'BACK', type: 'action-back' }
-]
-
-var BOOT_LINES = [
-  { text: 'ROOM-CRT v1.0 BOOT', ok: false },
-  { text: '[  OK  ]  Validating table parameters...', ok: true },
-  { text: '[  OK  ]  Allocating seat map...', ok: true },
-  { text: '[  OK  ]  Opening room channel...', ok: true },
-  { text: '[  OK  ]  Starting first hand...', ok: true }
 ]
 
 export default {
@@ -395,7 +392,7 @@ export default {
         if (!p) return 'PUBLIC'
         return '*'.repeat(Math.min(p.length, 8))
       }
-      if (row.id === 'create') return '▶▶'
+      if (row.id === 'create') return '>>'
       if (row.id === 'back') return 'ESC'
       return ''
     },

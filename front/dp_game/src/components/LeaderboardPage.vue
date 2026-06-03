@@ -52,26 +52,82 @@
       </div>
 
       <div class="lb-page__body">
-        <p v-if="loading" class="lb-page__status">加载中…</p>
+        <p
+          v-if="loading && !retroLbFx"
+          class="lb-page__status"
+        >加载中…</p>
+        <div
+          v-else-if="loading && retroLbFx"
+          class="lb-scan-skeleton"
+          aria-busy="true"
+          aria-label="Scanning leaderboard"
+        >
+          <div class="lb-scan-skeleton__beam" aria-hidden="true" />
+          <table class="lb-table">
+            <thead>
+              <tr>
+                <th class="lb-table__col-rank">RANK</th>
+                <th class="lb-table__col-nick">PLAYER</th>
+                <th class="lb-table__col-mult">MULT</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(sk, skIdx) in scanSkeletonRows"
+                :key="'sk-' + skIdx"
+              >
+                <td class="lb-table__rank">
+                  <span class="lb-table__rank-num lb-table__pixel-en">{{ sk.rank }}</span>
+                </td>
+                <td class="lb-table__nick">
+                  <span class="lb-table__pixel-en">{{ sk.nick }}</span>
+                </td>
+                <td class="lb-table__mult">
+                  <span class="lb-table__pixel-en">{{ sk.mult }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
         <p v-else-if="loadError" class="lb-page__error">{{ loadError }}</p>
         <template v-else>
           <p v-if="!items.length" class="lb-page__empty">
             {{ emptyMessage }}
           </p>
-          <div v-else class="lb-table-wrap">
+          <div
+            v-else
+            class="lb-table-wrap"
+            :class="tableWrapClasses"
+          >
+            <div
+              v-if="retroLbFx"
+              class="lb-table-wrap__glitch-noise"
+              aria-hidden="true"
+            />
+            <div
+              v-if="retroLbFx"
+              class="lb-table-wrap__glitch-bars"
+              aria-hidden="true"
+            />
+            <div
+              v-if="retroLbFx"
+              class="lb-table-wrap__scan-beam"
+              aria-hidden="true"
+            />
             <table class="lb-table">
               <thead>
                 <tr>
-                  <th class="lb-table__col-rank">名次</th>
-                  <th class="lb-table__col-nick">昵称</th>
-                  <th class="lb-table__col-mult">倍数</th>
+                  <th class="lb-table__col-rank">{{ retroLbFx ? 'RANK' : '名次' }}</th>
+                  <th class="lb-table__col-nick">{{ retroLbFx ? 'PLAYER' : '昵称' }}</th>
+                  <th class="lb-table__col-mult">{{ retroLbFx ? 'MULT' : '倍数' }}</th>
                 </tr>
               </thead>
               <tbody>
                 <tr
                   v-for="(row, idx) in items"
-                  :key="row.userId + '-' + idx"
+                  :key="row.userId + '-' + idx + '-' + scanRevealKey"
                   :class="podiumRowClass(row.rank)"
+                  :style="scanRowStyle(idx)"
                 >
                   <td class="lb-table__rank">
                     <span class="lb-table__rank-cell">
@@ -88,7 +144,10 @@
                       >
                         <path d="M2 12h14v2H2v-2zm1.5-2L5.5 2 8 6.2 10 1l2 5.2L13.5 2 16.5 10H3.5z" />
                       </svg>
-                      <span class="lb-table__rank-num">{{ row.rank }}</span>
+                      <span
+                        class="lb-table__rank-num"
+                        :class="{ 'lb-table__pixel-en': retroLbFx }"
+                      >{{ formatRankLabel(row.rank) }}</span>
                     </span>
                   </td>
                   <td class="lb-table__nick">
@@ -100,9 +159,15 @@
                         size="sm"
                         img-loading="lazy"
                       />
-                      <span class="lb-table__nick-text">{{ row.nickname || '—' }}</span>
+                      <span
+                        class="lb-table__nick-text"
+                        :class="{ 'lb-table__pixel-en': retroLbFx }"
+                      >{{ displayNickname(row.nickname) }}</span>
                     </div>
-                    <template v-else>{{ row.nickname || '—' }}</template>
+                    <span
+                      v-else
+                      :class="{ 'lb-table__pixel-en': retroLbFx }"
+                    >{{ displayNickname(row.nickname) }}</span>
                   </td>
                   <td class="lb-table__mult">{{ formatMultiplier(row.multiplier) }}</td>
                 </tr>
@@ -131,14 +196,23 @@
 <script>
 import '@/styles/dp-game-themes.css'
 import '@/styles/dp-lobby-shell.css'
+import '@/styles/dp-leaderboard-scan.css'
+import { mapState } from 'vuex'
 import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import DpFluidityToggle from '@/components/DpFluidityToggle.vue'
 import DpUserAvatar from '@/components/DpUserAvatar.vue'
 import { getWeeklyHandLeaderboard, getWeeklyRoomLeaderboard } from '@/api/api.dpLeaderboard'
 import { dpResultSuccess, dpResultData, dpResultMessage, dpAxiosErrorMessage } from '@/utils/dpApiResult'
 import { avatarCacheBustFromUpdatedAt } from '@/utils/dpAvatarUrl'
+import { dpDisplayNickname } from '@/utils/dpDisplayNickname'
 
 var TAB_CACHE_MS = 30000
+var SCAN_ROW_STAGGER_MS = 65
+var SCAN_BASE_MS = 580
+var GLITCH_BURST_MS = 130
+var SKELETON_ROW_COUNT = 8
+var SCAN_SKELETON_RANKS = ['#--', '#--', '#--', '#--', '#--', '#--', '#--', '#--']
+var SCAN_SKELETON_NICKS = ['SCAN...', 'LOAD...', 'WAIT...', 'SYNC...', 'SCAN...', 'LOAD...', 'WAIT...', 'SYNC...']
 
 export default {
   name: 'LeaderboardPage',
@@ -156,13 +230,66 @@ export default {
       loading: false,
       loadError: '',
       isLoggedIn: false,
+      prefersReducedMotion: false,
+      scanRevealKey: 0,
+      scanActive: false,
+      panelGlitchBurst: false,
+      _scanDoneTimer: null,
+      _glitchTimer: null,
       /** @type {Record<string, { at: number, payload: object }>} */
       tabCache: {}
+    }
+  },
+  computed: {
+    ...mapState('dpGame', ['ecoMode']),
+    retroLbFx() {
+      return (
+        this.gameUiTheme === 'retro8bit' &&
+        !this.ecoMode &&
+        !this.prefersReducedMotion
+      )
+    },
+    scanSkeletonRows() {
+      var rows = []
+      for (var i = 0; i < SKELETON_ROW_COUNT; i++) {
+        rows.push({
+          rank: SCAN_SKELETON_RANKS[i] || '#--',
+          nick: SCAN_SKELETON_NICKS[i] || 'SCAN...',
+          mult: '×--.--'
+        })
+      }
+      return rows
+    },
+    tableWrapClasses() {
+      return {
+        'lb-table-wrap--fx': this.retroLbFx,
+        'lb-table-wrap--scan-active': this.retroLbFx && this.scanActive,
+        'lb-table-wrap--glitch-burst': this.retroLbFx && this.panelGlitchBurst
+      }
     }
   },
   created() {
     this.readLoginState()
     this.fetchBoard(this.activeTab, false)
+  },
+  mounted() {
+    this.syncReducedMotion()
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      var mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+      var self = this
+      var onChange = function () {
+        self.syncReducedMotion()
+      }
+      if (mq.addEventListener) mq.addEventListener('change', onChange)
+      else if (mq.addListener) mq.addListener(onChange)
+    }
+  },
+  beforeDestroy() {
+    this.clearScanTimer()
+    if (this._glitchTimer) {
+      clearTimeout(this._glitchTimer)
+      this._glitchTimer = null
+    }
   },
   methods: {
     readLoginState() {
@@ -181,10 +308,80 @@ export default {
     goBack() {
       this.$router.push('/home')
     },
+    syncReducedMotion() {
+      if (typeof window === 'undefined' || !window.matchMedia) {
+        this.prefersReducedMotion = false
+        return
+      }
+      this.prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    },
+    displayNickname(nickname) {
+      var text = dpDisplayNickname(nickname)
+      return text || (this.retroLbFx ? 'UNKNOWN' : '—')
+    },
+    formatRankLabel(rank) {
+      if (!this.retroLbFx) return rank
+      if (rank == null || rank === '') return '#--'
+      var n = Number(rank)
+      if (!Number.isFinite(n)) return '#--'
+      return '#' + String(n).padStart(2, '0')
+    },
+    scanRowStyle(idx) {
+      if (!this.retroLbFx || !this.scanActive) return null
+      return { '--lb-scan-delay': idx * SCAN_ROW_STAGGER_MS + 'ms' }
+    },
+    clearScanTimer() {
+      if (this._scanDoneTimer) {
+        clearTimeout(this._scanDoneTimer)
+        this._scanDoneTimer = null
+      }
+    },
+    scheduleScanReveal() {
+      this.clearScanTimer()
+      if (!this.retroLbFx || !this.items.length) {
+        this.scanActive = false
+        return
+      }
+      this.scanActive = false
+      var self = this
+      this.$nextTick(function () {
+        self.scanRevealKey++
+        self.scanActive = true
+        var duration = SCAN_BASE_MS + self.items.length * SCAN_ROW_STAGGER_MS + 80
+        self._scanDoneTimer = setTimeout(function () {
+          self.scanActive = false
+          self._scanDoneTimer = null
+        }, duration)
+      })
+    },
+    runPanelGlitchThen(fn) {
+      if (this._glitchTimer) {
+        clearTimeout(this._glitchTimer)
+        this._glitchTimer = null
+      }
+      if (!this.retroLbFx) {
+        if (typeof fn === 'function') fn()
+        return
+      }
+      this.panelGlitchBurst = true
+      var self = this
+      this._glitchTimer = setTimeout(function () {
+        self.panelGlitchBurst = false
+        self._glitchTimer = null
+        if (typeof fn === 'function') fn()
+      }, GLITCH_BURST_MS)
+    },
     switchTab(tab) {
       if (tab === this.activeTab) return
       this.activeTab = tab
-      this.fetchBoard(tab, true)
+      var self = this
+      if (tab === 'room' && this.retroLbFx) {
+        this.runPanelGlitchThen(function () {
+          self.fetchBoard(tab, true)
+        })
+      } else {
+        this.fetchBoard(tab, true)
+      }
     },
     formatMultiplier(value) {
       if (value == null || value === '') return '—'
@@ -235,12 +432,14 @@ export default {
       if (useCache) {
         var cached = this.getCached(tab)
         if (cached) {
-          this.applyPayload(cached)
-          this.loadError = ''
           this.loading = false
+          this.loadError = ''
+          this.applyPayload(cached)
+          this.scheduleScanReveal()
           return
         }
       }
+      this.scanActive = false
       this.loading = true
       this.loadError = ''
       try {
@@ -263,6 +462,9 @@ export default {
         this.items = []
       } finally {
         this.loading = false
+        if (!this.loadError) {
+          this.scheduleScanReveal()
+        }
       }
     }
   }

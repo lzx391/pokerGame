@@ -1,13 +1,20 @@
 <template>
   <div class="dp-game-table">
     <div class="dp-game-table__layout" :style="retroTableLayoutStyle">
-      <div class="dp-game-table__felt" aria-hidden="true" />
-      <dp-retro-glitch-monster
-          v-if="showRetroDesktopFx && retroTableLayout"
-          :layout="retroTableLayout"
-          :animated="retroDesktopAnimated"
-          :glitch-seq="retroGlitchSeq"
-      />
+      <div class="dp-game-table__surface" aria-hidden="true">
+        <div class="dp-game-table__felt" />
+        <dp-retro-glitch-monster
+            v-if="showRetroDesktopFx && retroTableLayout"
+            :layout="retroTableLayout"
+            :animated="retroDesktopAnimated"
+            :glitch-seq="retroGlitchSeq"
+        />
+        <dp-retro-table-fx
+            v-if="showRetroDesktopFx && retroTableLayout"
+            :layout="retroTableLayout"
+            :animated="retroDesktopAnimated"
+        />
+      </div>
       <svg
           v-if="playersDisplayOrder.length >= 2"
           class="dp-game-table__seat-rays"
@@ -26,11 +33,6 @@
             :data-urgency="seatRayUrgency(displayIdx)"
         />
       </svg>
-      <dp-retro-table-fx
-          v-if="showRetroDesktopFx && retroTableLayout"
-          :layout="retroTableLayout"
-          :animated="retroDesktopAnimated"
-      />
       <div class="dp-game-table__center">
         <div class="dp-game-table__center-stack">
           <dp-retro-stack-leader-ticker
