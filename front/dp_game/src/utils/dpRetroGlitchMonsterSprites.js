@@ -339,10 +339,73 @@ export function pickGlitchMonsterSpriteIds(count) {
   return ids
 }
 
+var MONSTER_IDLE_ANIMS = ['peek', 'walk-x', 'bob-y', 'spin']
+
+function pickMonsterIdleAnim() {
+  return MONSTER_IDLE_ANIMS[Math.floor(Math.random() * MONSTER_IDLE_ANIMS.length)]
+}
+
+function parseAnchorPct(anchor) {
+  return {
+    x: parseFloat(anchor && anchor.left) || 50,
+    y: parseFloat(anchor && anchor.top) || 91
+  }
+}
+
+function anchorDistSq(a, b) {
+  var pa = parseAnchorPct(a)
+  var pb = parseAnchorPct(b)
+  var dx = pa.x - pb.x
+  var dy = pa.y - pb.y
+  return dx * dx + dy * dy
+}
+
+/**
+ * Assign per-monster idle animation; closest pair fights when count >= 2.
+ * @param {Array<{ id: string, anchor: { left: string, top: string } }>} monsters
+ */
+export function assignMonsterAnimations(monsters) {
+  if (!monsters || !monsters.length) return monsters
+
+  var used = {}
+  if (monsters.length >= 2) {
+    var bestI = 0
+    var bestJ = 1
+    var bestDist = anchorDistSq(monsters[0].anchor, monsters[1].anchor)
+    for (var i = 0; i < monsters.length; i++) {
+      for (var j = i + 1; j < monsters.length; j++) {
+        var d = anchorDistSq(monsters[i].anchor, monsters[j].anchor)
+        if (d < bestDist) {
+          bestDist = d
+          bestI = i
+          bestJ = j
+        }
+      }
+    }
+    var leftX = parseAnchorPct(monsters[bestI].anchor).x
+    var rightX = parseAnchorPct(monsters[bestJ].anchor).x
+    var leftIdx = leftX <= rightX ? bestI : bestJ
+    var rightIdx = leftX <= rightX ? bestJ : bestI
+    monsters[leftIdx].anim = 'fight'
+    monsters[leftIdx].fightDir = 1
+    monsters[rightIdx].anim = 'fight'
+    monsters[rightIdx].fightDir = -1
+    used[leftIdx] = true
+    used[rightIdx] = true
+  }
+
+  for (var k = 0; k < monsters.length; k++) {
+    if (!used[k]) monsters[k].anim = pickMonsterIdleAnim()
+    monsters[k].animDur = (0.65 + Math.random() * 0.55).toFixed(2)
+    monsters[k].animDelay = (0.22 + Math.random() * 0.18).toFixed(2)
+  }
+  return monsters
+}
+
 /**
  * Full burst plan: count + unique sprites + spread anchors on lower felt.
  * @param {object} layout
- * @returns {{ count: number, monsters: Array<{ id: string, anchor: { left: string, top: string } }> }}
+ * @returns {{ count: number, monsters: Array<{ id: string, anchor: { left: string, top: string }, anim: string }> }}
  */
 export function planGlitchMonsterBurst(layout) {
   var count = pickGlitchMonsterCount()
@@ -352,5 +415,6 @@ export function planGlitchMonsterBurst(layout) {
   for (var i = 0; i < ids.length; i++) {
     monsters.push({ id: ids[i], anchor: anchors[i] })
   }
+  assignMonsterAnimations(monsters)
   return { count: ids.length, monsters: monsters }
 }

@@ -238,6 +238,88 @@
   }
 }
 
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster__anim {
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster__flash--in .dp-retro-glitch-monster__anim--peek {
+  animation: dp-retro-monster-peek var(--anim-dur, 1.1s) steps(2) var(--anim-delay, 0.25s) infinite;
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster__flash--in .dp-retro-glitch-monster__anim--walk-x {
+  animation: dp-retro-monster-walk-x var(--anim-dur, 0.85s) steps(4) var(--anim-delay, 0.25s) infinite;
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster__flash--in .dp-retro-glitch-monster__anim--bob-y {
+  animation: dp-retro-monster-bob-y var(--anim-dur, 0.75s) steps(3) var(--anim-delay, 0.25s) infinite;
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster__flash--in .dp-retro-glitch-monster__anim--spin {
+  animation: dp-retro-monster-spin var(--anim-dur, 1.4s) steps(8) var(--anim-delay, 0.25s) infinite;
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster__flash--in .dp-retro-glitch-monster__anim--fight {
+  animation: dp-retro-monster-fight var(--anim-dur, 0.55s) steps(4) var(--anim-delay, 0.25s) infinite;
+}
+
+@keyframes dp-retro-monster-peek {
+  0%,
+  40%,
+  60%,
+  100% {
+    transform: scaleX(1);
+  }
+  50% {
+    transform: scaleX(-1);
+  }
+}
+
+@keyframes dp-retro-monster-walk-x {
+  0%,
+  100% {
+    transform: translateX(-12px);
+  }
+  50% {
+    transform: translateX(12px);
+  }
+}
+
+@keyframes dp-retro-monster-bob-y {
+  0%,
+  100% {
+    transform: translateY(5px);
+  }
+  50% {
+    transform: translateY(-11px);
+  }
+}
+
+@keyframes dp-retro-monster-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dp-retro-monster-fight {
+  0%,
+  100% {
+    transform: translateX(calc(var(--fight-dir, 1) * -3px)) rotate(calc(var(--fight-dir, 1) * -6deg));
+  }
+  25% {
+    transform: translateX(calc(var(--fight-dir, 1) * 10px)) rotate(calc(var(--fight-dir, 1) * 10deg)) scale(1.06);
+  }
+  50% {
+    transform: translateX(calc(var(--fight-dir, 1) * 14px)) rotate(calc(var(--fight-dir, 1) * -8deg));
+  }
+  75% {
+    transform: translateX(calc(var(--fight-dir, 1) * 6px)) rotate(calc(var(--fight-dir, 1) * 5deg));
+  }
+}
+
 .dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster__sprite {
   display: block;
   width: clamp(64px, 8vw, 96px);

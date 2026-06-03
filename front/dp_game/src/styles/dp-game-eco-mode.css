@@ -391,6 +391,7 @@
 /* —— retro8bit 桌面氛围（流光 / glitch / 彩蛋 / 怪物闪）—— */
 .dp-game-root[data-dp-eco-mode='true'] .dp-retro-table-fx__edge--animate,
 .dp-game-root[data-dp-eco-mode='true'] .dp-retro-glitch-monster__flash--in,
+.dp-game-root[data-dp-eco-mode='true'] .dp-retro-glitch-monster__anim,
 .dp-game-root[data-dp-eco-mode='true'] .dp-retro-stack-leader--fade,
 .dp-game-root[data-dp-eco-mode='true'] .dp-retro-ambient--burst,
 .dp-game-root[data-dp-eco-mode='true'] .dp-retro-ambient--burst .dp-retro-ambient__noise {
@@ -400,6 +401,7 @@
 @media (prefers-reduced-motion: reduce) {
   .dp-retro-table-fx__edge--animate,
   .dp-retro-glitch-monster__flash--in,
+  .dp-retro-glitch-monster__anim,
   .dp-retro-stack-leader--fade,
   .dp-retro-ambient--burst,
   .dp-retro-ambient--burst .dp-retro-ambient__noise {

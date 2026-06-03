@@ -20,21 +20,27 @@
         :class="{ 'dp-retro-glitch-monster__flash--in': fadingIn }"
         :style="monsterFlashStyle(monster, idx)"
     >
-      <svg
-          class="dp-retro-glitch-monster__sprite"
-          viewBox="0 0 16 16"
-          shape-rendering="crispEdges"
+      <div
+          class="dp-retro-glitch-monster__anim"
+          :class="monsterAnimClass(monster)"
+          :style="monsterAnimStyle(monster, idx)"
       >
-        <rect
-            v-for="(px, pi) in spritePixels(monster.id)"
-            :key="monster.id + '-px-' + pi"
-            :x="px.x"
-            :y="px.y"
-            width="1"
-            height="1"
-            :fill="px.fill"
-        />
-      </svg>
+        <svg
+            class="dp-retro-glitch-monster__sprite"
+            viewBox="0 0 16 16"
+            shape-rendering="crispEdges"
+        >
+          <rect
+              v-for="(px, pi) in spritePixels(monster.id)"
+              :key="monster.id + '-px-' + pi"
+              :x="px.x"
+              :y="px.y"
+              width="1"
+              height="1"
+              :fill="px.fill"
+          />
+        </svg>
+      </div>
     </div>
   </div>
 </template>
@@ -128,6 +134,21 @@ export default {
         top: anchor.top,
         '--monster-i': String(idx)
       }
+    },
+    monsterAnimClass: function (monster) {
+      var anim = monster.anim || 'bob-y'
+      return 'dp-retro-glitch-monster__anim--' + anim
+    },
+    monsterAnimStyle: function (monster, idx) {
+      var style = {
+        '--anim-dur': (monster.animDur || '0.9') + 's',
+        '--anim-delay': (monster.animDelay || '0.25') + 's'
+      }
+      if (monster.anim === 'fight' && monster.fightDir) {
+        style['--fight-dir'] = String(monster.fightDir)
+      }
+      style['--monster-i'] = String(idx)
+      return style
     },
     clearSequenceTimers: function () {
       var timers = this.sequenceTimers
