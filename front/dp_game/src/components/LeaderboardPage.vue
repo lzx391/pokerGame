@@ -209,9 +209,9 @@ import { avatarCacheBustFromUpdatedAt } from '@/utils/dpAvatarUrl'
 import { dpDisplayNickname } from '@/utils/dpDisplayNickname'
 
 var TAB_CACHE_MS = 30000
-var SCAN_ROW_STAGGER_MS = 65
-var SCAN_BASE_MS = 580
-var GLITCH_BURST_MS = 130
+var SCAN_ROW_STAGGER_MS = 48
+var SCAN_BASE_MS = 440
+var GLITCH_BURST_MS = 100
 var SKELETON_ROW_COUNT = 8
 var SCAN_SKELETON_RANKS = ['#--', '#--', '#--', '#--', '#--', '#--', '#--', '#--']
 var SCAN_SKELETON_NICKS = ['SCAN...', 'LOAD...', 'WAIT...', 'SYNC...', 'SCAN...', 'LOAD...', 'WAIT...', 'SYNC...']
@@ -349,7 +349,7 @@ export default {
       this.$nextTick(function () {
         self.scanRevealKey++
         self.scanActive = true
-        var duration = SCAN_BASE_MS + self.items.length * SCAN_ROW_STAGGER_MS + 80
+        var duration = SCAN_BASE_MS + self.items.length * SCAN_ROW_STAGGER_MS + 60
         self._scanDoneTimer = setTimeout(function () {
           self.scanActive = false
           self._scanDoneTimer = null

@@ -27,7 +27,7 @@ export default {
     return {
       profGlitchBurst: defaultBurstState(),
       profGlitchRevealed: defaultRevealedState(true),
-      _profGlitchTimers: []
+      _profGlitchTimers: {}
     }
   },
   computed: {
@@ -39,12 +39,17 @@ export default {
     this.clearProfGrayGlitchTimers()
   },
   methods: {
-    clearProfGrayGlitchTimers() {
-      if (!this._profGlitchTimers || !this._profGlitchTimers.length) return
-      this._profGlitchTimers.forEach(function (id) {
-        clearTimeout(id)
+    clearProfGrayGlitchTimers(regions) {
+      if (!this._profGlitchTimers) this._profGlitchTimers = {}
+      var toClear = regions && regions.length ? regions : REGIONS.slice()
+      var self = this
+      toClear.forEach(function (region) {
+        var ids = self._profGlitchTimers[region] || []
+        ids.forEach(function (id) {
+          clearTimeout(id)
+        })
+        self._profGlitchTimers[region] = []
       })
-      this._profGlitchTimers = []
     },
     resetProfGrayGlitch() {
       this.clearProfGrayGlitchTimers()
@@ -60,9 +65,10 @@ export default {
         'dp-prof-glitch--revealed': !!this.profGlitchRevealed[region]
       }
     },
-    _pushProfGlitchTimer(id) {
-      if (!this._profGlitchTimers) this._profGlitchTimers = []
-      this._profGlitchTimers.push(id)
+    _pushProfGlitchTimer(region, id) {
+      if (!this._profGlitchTimers) this._profGlitchTimers = {}
+      if (!this._profGlitchTimers[region]) this._profGlitchTimers[region] = []
+      this._profGlitchTimers[region].push(id)
     },
     /**
      * @param {string[]} regions subset of avatar|medal-1|medal-2|medal-3
@@ -70,13 +76,14 @@ export default {
      */
     scheduleProfGrayGlitch(regions, opts) {
       var reset = !opts || opts.reset !== false
+      var list = (regions && regions.length) ? regions : REGIONS.slice()
       if (reset) {
         this.resetProfGrayGlitch()
       } else {
-        this.clearProfGrayGlitchTimers()
-        if (this.retroProfFx && regions && regions.length) {
+        this.clearProfGrayGlitchTimers(list)
+        if (this.retroProfFx && list.length) {
           var selfReset = this
-          regions.forEach(function (region) {
+          list.forEach(function (region) {
             if (REGIONS.indexOf(region) === -1) return
             selfReset.$set(selfReset.profGlitchRevealed, region, false)
             selfReset.$set(selfReset.profGlitchBurst, region, false)
@@ -84,15 +91,14 @@ export default {
         }
       }
       if (!this.retroProfFx) return
-      var list = (regions && regions.length) ? regions : REGIONS.slice()
       var self = this
       list.forEach(function (region, idx) {
         if (REGIONS.indexOf(region) === -1) return
         var startDelay = idx * DP_PROF_GLITCH_REGION_STAGGER_MS
-        self._pushProfGlitchTimer(setTimeout(function () {
+        self._pushProfGlitchTimer(region, setTimeout(function () {
           self.$set(self.profGlitchRevealed, region, false)
           self.$set(self.profGlitchBurst, region, true)
-          self._pushProfGlitchTimer(setTimeout(function () {
+          self._pushProfGlitchTimer(region, setTimeout(function () {
             self.$set(self.profGlitchBurst, region, false)
             self.$set(self.profGlitchRevealed, region, true)
           }, DP_PROF_GLITCH_BURST_MS))

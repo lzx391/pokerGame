@@ -112,16 +112,7 @@
               <span class="home-prof-section-deco" aria-hidden="true">♦</span>
             </div>
             <div class="home-prof-honor__medals">
-              <div
-                class="home-prof-medal home-prof-medal--streak"
-                :class="profGlitchRegionClass('medal-1')"
-                :style="retroProfFx ? profGlitchCssVars : null"
-              >
-                <span v-if="retroProfFx" class="dp-prof-glitch__noise" aria-hidden="true"></span>
-                <span v-if="retroProfFx" class="dp-prof-glitch__bars" aria-hidden="true"></span>
-                <span v-if="retroProfFx" class="dp-prof-glitch__chromatic" aria-hidden="true"></span>
-                <span v-if="retroProfFx" class="dp-prof-glitch__scan-beam" aria-hidden="true"></span>
-                <span v-if="retroProfFx" class="dp-prof-glitch__vignette" aria-hidden="true"></span>
+              <div class="home-prof-medal home-prof-medal--streak">
                 <div class="home-prof-medal__body">
                   <span class="home-prof-medal__name">最高连胜</span>
                   <span
@@ -131,16 +122,7 @@
                   >{{ honorDisplayCount('maxWinStreak') }}<small> 手</small></span>
                 </div>
               </div>
-              <div
-                class="home-prof-medal home-prof-medal--leaderboard"
-                :class="profGlitchRegionClass('medal-2')"
-                :style="retroProfFx ? profGlitchCssVars : null"
-              >
-                <span v-if="retroProfFx" class="dp-prof-glitch__noise" aria-hidden="true"></span>
-                <span v-if="retroProfFx" class="dp-prof-glitch__bars" aria-hidden="true"></span>
-                <span v-if="retroProfFx" class="dp-prof-glitch__chromatic" aria-hidden="true"></span>
-                <span v-if="retroProfFx" class="dp-prof-glitch__scan-beam" aria-hidden="true"></span>
-                <span v-if="retroProfFx" class="dp-prof-glitch__vignette" aria-hidden="true"></span>
+              <div class="home-prof-medal home-prof-medal--leaderboard">
                 <div class="home-prof-medal__body">
                   <span class="home-prof-medal__name">上榜次数</span>
                   <span
@@ -150,16 +132,7 @@
                   >{{ honorDisplayCount('leaderboardTopCount') }}<small> 次</small></span>
                 </div>
               </div>
-              <div
-                class="home-prof-medal home-prof-medal--four"
-                :class="profGlitchRegionClass('medal-3')"
-                :style="retroProfFx ? profGlitchCssVars : null"
-              >
-                <span v-if="retroProfFx" class="dp-prof-glitch__noise" aria-hidden="true"></span>
-                <span v-if="retroProfFx" class="dp-prof-glitch__bars" aria-hidden="true"></span>
-                <span v-if="retroProfFx" class="dp-prof-glitch__chromatic" aria-hidden="true"></span>
-                <span v-if="retroProfFx" class="dp-prof-glitch__scan-beam" aria-hidden="true"></span>
-                <span v-if="retroProfFx" class="dp-prof-glitch__vignette" aria-hidden="true"></span>
+              <div class="home-prof-medal home-prof-medal--four">
                 <div class="home-prof-medal__body">
                   <span class="home-prof-medal__name">四条及以上牌力</span>
                   <span
@@ -303,8 +276,7 @@
 import DpUserAvatar from '@/components/DpUserAvatar.vue'
 import dpProfileGrayGlitchMixin, {
   DP_PROF_GLITCH_BURST_MS,
-  DP_PROF_GLITCH_REVEAL_MS,
-  DP_PROF_GLITCH_REGION_STAGGER_MS
+  DP_PROF_GLITCH_REVEAL_MS
 } from '@/mixins/dpProfileGrayGlitchMixin'
 import { dpResultSuccess, dpResultData, dpResultMessage } from '@/utils/dpApiResult'
 import { formatNetWinMultiplier, formatRoomNetMultiplier } from '@/utils/dpRoomNetMultiplier'
@@ -552,23 +524,8 @@ export default {
         this.loading = false
         var self = this
         this.$nextTick(function () {
-          var regions = ['avatar']
-          if (self.form.totalHandsPlayed != null) {
-            regions.push('medal-1', 'medal-2', 'medal-3')
-          }
-          self.scheduleProfGrayGlitch(regions)
-          var honorDelay = self.retroProfFx
-            ? (regions.length - 1) * DP_PROF_GLITCH_REGION_STAGGER_MS +
-              DP_PROF_GLITCH_BURST_MS +
-              DP_PROF_GLITCH_REVEAL_MS
-            : 0
-          if (honorDelay > 0) {
-            setTimeout(function () {
-              self.startHonorGlitch()
-            }, honorDelay)
-          } else {
-            self.startHonorGlitch()
-          }
+          self.scheduleProfGrayGlitch(['avatar'])
+          self.startHonorGlitch()
         })
       }
     },
