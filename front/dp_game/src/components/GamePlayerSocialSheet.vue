@@ -59,6 +59,18 @@
                   :avatar-url="honorAvatarUrl"
                   :cache-bust="honorAvatarCacheBust"
                 />
+                <img
+                  v-if="profileAvatarPreloadSrc"
+                  ref="avatarPreloadImg"
+                  :key="profileAvatarPreloadSrc"
+                  :src="profileAvatarPreloadSrc"
+                  class="game-prof-avatar-preload"
+                  alt=""
+                  aria-hidden="true"
+                  decoding="async"
+                  @load="onProfileAvatarImgLoad"
+                  @error="onProfileAvatarImgError"
+                >
               </div>
               <span class="game-prof-avatar-frame__corner game-prof-avatar-frame__corner--tl" aria-hidden="true"></span>
               <span class="game-prof-avatar-frame__corner game-prof-avatar-frame__corner--tr" aria-hidden="true"></span>
@@ -250,7 +262,8 @@ export default {
       honorGlitchPhase: 'idle',
       honorGlitchTick: 0,
       honorGlitchTimer: null,
-      honorRevealTimer: null
+      honorRevealTimer: null,
+      honorFetchSettled: false
     }
   },
   computed: {
@@ -264,6 +277,10 @@ export default {
     },
     honorAvatarCacheBust() {
       return avatarCacheBustFromUpdatedAt(this.honor && this.honor.avatarUpdatedAt)
+    },
+    profileAvatarPreloadSrc() {
+      if (!this.honorAvatarUrl) return ''
+      return avatarFileSrc(this.honorAvatarUrl, this.honorAvatarCacheBust, { variant: 'full' })
     },
     showBackdrop() {
       if (this.shouldSkipEffects()) return false
@@ -458,11 +475,40 @@ export default {
       this.sentOk = false
       this.lookupAddStatus = ''
       this.honor = null
+      this.honorFetchSettled = false
       this.honorGlitchPhase = 'idle'
       this.stopHonorGlitch()
       this.resetProfGrayGlitch()
+      var self = this
+      this.$nextTick(function () {
+        self.startProfAvatarGlitch()
+      })
       this.loadFriendAddStatus()
       this.loadHonor()
+    },
+    syncProfAvatarReveal() {
+      if (this.profGlitchRevealed.avatar && !this._profAvatarGlitchActive) return
+      if (this.profileAvatarPreloadSrc) {
+        var self = this
+        this.$nextTick(function () {
+          var img = self.$refs.avatarPreloadImg
+          if (img && img.complete && img.naturalWidth > 0) {
+            self.onProfileAvatarImgLoad()
+          }
+        })
+        return
+      }
+      if (this.honorFetchSettled) {
+        this.revealProfAvatarAfterBurst()
+      }
+    },
+    onProfileAvatarImgLoad() {
+      if (this.profGlitchRevealed.avatar) return
+      this.revealProfAvatar()
+    },
+    onProfileAvatarImgError() {
+      if (this.profGlitchRevealed.avatar) return
+      this.revealProfAvatarAfterBurst()
     },
     async loadHonor() {
       if (!this.target) return
@@ -476,10 +522,11 @@ export default {
       } catch (e) {
         // 静默
       } finally {
+        this.honorFetchSettled = true
         var self = this
         this.$nextTick(function () {
-          self.scheduleProfGrayGlitch(['avatar'])
           self.startHonorGlitch()
+          self.syncProfAvatarReveal()
         })
       }
     },
@@ -729,6 +776,14 @@ export default {
   box-shadow:
     inset 0 2px 6px rgba(0, 0, 0, 0.15),
     0 0 0 2px rgba(0, 0, 0, 0.08);
+}
+.game-prof-avatar-preload {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
 }
 .game-prof-avatar-frame__corner {
   position: absolute;

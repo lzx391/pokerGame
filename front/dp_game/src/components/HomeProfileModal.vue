@@ -75,6 +75,18 @@
                   :cache-bust="avatarCacheBust || avatarCacheBustFromUpdatedAt(form.avatarUpdatedAt)"
                   size="lg"
                 />
+                <img
+                  v-if="profileAvatarPreloadSrc"
+                  ref="avatarPreloadImg"
+                  :key="profileAvatarPreloadSrc"
+                  :src="profileAvatarPreloadSrc"
+                  class="home-prof-avatar-preload"
+                  alt=""
+                  aria-hidden="true"
+                  decoding="async"
+                  @load="onProfileAvatarImgLoad"
+                  @error="onProfileAvatarImgError"
+                >
               </div>
               <span class="home-prof-avatar-frame__corner home-prof-avatar-frame__corner--tl" aria-hidden="true"></span>
               <span class="home-prof-avatar-frame__corner home-prof-avatar-frame__corner--tr" aria-hidden="true"></span>
@@ -345,6 +357,11 @@ export default {
       var bust = this.avatarCacheBust || avatarCacheBustFromUpdatedAt(this.form.avatarUpdatedAt)
       return avatarFileSrc(this.form.avatarUrl, bust, { variant: 'full' })
     },
+    profileAvatarPreloadSrc() {
+      if (!this.form.avatarUrl) return ''
+      var bust = this.avatarCacheBust || avatarCacheBustFromUpdatedAt(this.form.avatarUpdatedAt)
+      return avatarFileSrc(this.form.avatarUrl, bust, { variant: 'full' })
+    },
     honorValClass() {
       return {
         'home-prof-honor-val--reveal': this.honorGlitchPhase === 'revealed' && !this.shouldSkipEffects()
@@ -494,6 +511,10 @@ export default {
       this.honorGlitchPhase = 'idle'
       this.stopHonorGlitch()
       this.resetProfGrayGlitch()
+      var self = this
+      this.$nextTick(function () {
+        self.startProfAvatarGlitch()
+      })
       try {
         const res = await this.$http.get('/dpUser/profile')
         const body = res.data
@@ -524,10 +545,32 @@ export default {
         this.loading = false
         var self = this
         this.$nextTick(function () {
-          self.scheduleProfGrayGlitch(['avatar'])
           self.startHonorGlitch()
+          self.syncProfAvatarReveal()
         })
       }
+    },
+    syncProfAvatarReveal() {
+      if (this.profGlitchRevealed.avatar && !this._profAvatarGlitchActive) return
+      if (this.profileAvatarPreloadSrc) {
+        var self = this
+        this.$nextTick(function () {
+          var img = self.$refs.avatarPreloadImg
+          if (img && img.complete && img.naturalWidth > 0) {
+            self.onProfileAvatarImgLoad()
+          }
+        })
+        return
+      }
+      this.revealProfAvatarAfterBurst()
+    },
+    onProfileAvatarImgLoad() {
+      if (this.profGlitchRevealed.avatar) return
+      this.revealProfAvatar()
+    },
+    onProfileAvatarImgError() {
+      if (this.profGlitchRevealed.avatar) return
+      this.revealProfAvatarAfterBurst()
     },
     async onAvatarUploadRequest(options) {
       var file = options && options.file
@@ -792,6 +835,14 @@ export default {
   box-shadow:
     inset 0 2px 6px rgba(0, 0, 0, 0.15),
     0 0 0 2px rgba(0, 0, 0, 0.08);
+}
+.home-prof-avatar-preload {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
 }
 .home-prof-avatar-frame__corner {
   position: absolute;

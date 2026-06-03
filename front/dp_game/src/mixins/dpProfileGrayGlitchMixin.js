@@ -1,12 +1,14 @@
 /**
  * retro8bit profile: gray static burst per region, then content reveal.
- * Regions: avatar | medal-1 | medal-2 | medal-3 (each honor medal card separately).
+ * Avatar: loading transition — glitch starts immediately on open, reveals when image loads.
+ * Medals: optional timed burst (avatar-only flow uses startProfAvatarGlitch / revealProfAvatar).
  */
 import { isRetro8bitTheme, shouldSkipRetroEnterEffects } from '@/utils/dpRetroEnterGameHandoff'
 
 export var DP_PROF_GLITCH_BURST_MS = 300
 export var DP_PROF_GLITCH_REVEAL_MS = 520
 export var DP_PROF_GLITCH_REGION_STAGGER_MS = 90
+export var DP_PROF_AVATAR_BURST_LOOP_GAP_MS = 140
 
 var REGIONS = ['avatar', 'medal-1', 'medal-2', 'medal-3']
 
@@ -27,7 +29,8 @@ export default {
     return {
       profGlitchBurst: defaultBurstState(),
       profGlitchRevealed: defaultRevealedState(true),
-      _profGlitchTimers: {}
+      _profGlitchTimers: {},
+      _profAvatarGlitchActive: false
     }
   },
   computed: {
@@ -44,6 +47,9 @@ export default {
       var toClear = regions && regions.length ? regions : REGIONS.slice()
       var self = this
       toClear.forEach(function (region) {
+        if (region === 'avatar') {
+          self._profAvatarGlitchActive = false
+        }
         var ids = self._profGlitchTimers[region] || []
         ids.forEach(function (id) {
           clearTimeout(id)
@@ -52,6 +58,7 @@ export default {
       })
     },
     resetProfGrayGlitch() {
+      this._profAvatarGlitchActive = false
       this.clearProfGrayGlitchTimers()
       var revealed = !this.retroProfFx
       this.profGlitchBurst = defaultBurstState()
@@ -70,6 +77,68 @@ export default {
       if (!this._profGlitchTimers[region]) this._profGlitchTimers[region] = []
       this._profGlitchTimers[region].push(id)
     },
+    /** Immediate avatar gray glitch; loops until revealProfAvatar / revealProfAvatarAfterBurst. */
+    startProfAvatarGlitch() {
+      if (!this.retroProfFx) {
+        this.$set(this.profGlitchRevealed, 'avatar', true)
+        this.$set(this.profGlitchBurst, 'avatar', false)
+        return
+      }
+      this._profAvatarGlitchActive = true
+      this.clearProfGrayGlitchTimers(['avatar'])
+      this.$set(this.profGlitchRevealed, 'avatar', false)
+      this.$set(this.profGlitchBurst, 'avatar', true)
+      var self = this
+      this._pushProfGlitchTimer('avatar', setTimeout(function () {
+        if (!self._profAvatarGlitchActive) return
+        self.$set(self.profGlitchBurst, 'avatar', false)
+        self._scheduleProfAvatarBurstLoop()
+      }, DP_PROF_GLITCH_BURST_MS))
+    },
+    _scheduleProfAvatarBurstLoop() {
+      var self = this
+      if (!this._profAvatarGlitchActive || !this.retroProfFx || this.profGlitchRevealed.avatar) {
+        return
+      }
+      this.$set(this.profGlitchBurst, 'avatar', true)
+      this._pushProfGlitchTimer('avatar', setTimeout(function () {
+        if (!self._profAvatarGlitchActive) return
+        self.$set(self.profGlitchBurst, 'avatar', false)
+        if (!self.profGlitchRevealed.avatar) {
+          self._pushProfGlitchTimer('avatar', setTimeout(function () {
+            self._scheduleProfAvatarBurstLoop()
+          }, DP_PROF_AVATAR_BURST_LOOP_GAP_MS))
+        }
+      }, DP_PROF_GLITCH_BURST_MS))
+    },
+    /** Reveal avatar immediately (image ready). */
+    revealProfAvatar() {
+      this._profAvatarGlitchActive = false
+      this.clearProfGrayGlitchTimers(['avatar'])
+      if (!this.retroProfFx) {
+        this.$set(this.profGlitchRevealed, 'avatar', true)
+        this.$set(this.profGlitchBurst, 'avatar', false)
+        return
+      }
+      this.$set(this.profGlitchBurst, 'avatar', false)
+      this.$set(this.profGlitchRevealed, 'avatar', true)
+    },
+    /** Letter avatar / no URL: one burst then reveal (~300ms). */
+    revealProfAvatarAfterBurst() {
+      if (!this.retroProfFx || this.profGlitchRevealed.avatar) {
+        this.revealProfAvatar()
+        return
+      }
+      this._profAvatarGlitchActive = false
+      this.clearProfGrayGlitchTimers(['avatar'])
+      this.$set(this.profGlitchRevealed, 'avatar', false)
+      this.$set(this.profGlitchBurst, 'avatar', true)
+      var self = this
+      this._pushProfGlitchTimer('avatar', setTimeout(function () {
+        self.$set(self.profGlitchBurst, 'avatar', false)
+        self.$set(self.profGlitchRevealed, 'avatar', true)
+      }, DP_PROF_GLITCH_BURST_MS))
+    },
     /**
      * @param {string[]} regions subset of avatar|medal-1|medal-2|medal-3
      * @param {{ reset?: boolean }} [opts] reset=false keeps revealed state for regions not listed
@@ -85,6 +154,7 @@ export default {
           var selfReset = this
           list.forEach(function (region) {
             if (REGIONS.indexOf(region) === -1) return
+            if (region === 'avatar' && selfReset._profAvatarGlitchActive) return
             selfReset.$set(selfReset.profGlitchRevealed, region, false)
             selfReset.$set(selfReset.profGlitchBurst, region, false)
           })
@@ -94,6 +164,7 @@ export default {
       var self = this
       list.forEach(function (region, idx) {
         if (REGIONS.indexOf(region) === -1) return
+        if (region === 'avatar' && self._profAvatarGlitchActive) return
         var startDelay = idx * DP_PROF_GLITCH_REGION_STAGGER_MS
         self._pushProfGlitchTimer(region, setTimeout(function () {
           self.$set(self.profGlitchRevealed, region, false)
