@@ -13,56 +13,43 @@
       <span class="dp-retro-glitch-monster__bars" />
     </div>
     <div
+        v-for="(monster, idx) in monsters"
         v-show="visible"
-        ref="flash"
+        :key="'glitch-monster-' + idx + '-' + monster.id"
         class="dp-retro-glitch-monster__flash"
         :class="{ 'dp-retro-glitch-monster__flash--in': fadingIn }"
-        :style="{ left: anchor.left, top: anchor.top }"
+        :style="monsterFlashStyle(monster, idx)"
     >
       <svg
-          ref="sprite"
           class="dp-retro-glitch-monster__sprite"
           viewBox="0 0 16 16"
           shape-rendering="crispEdges"
       >
-        <g v-if="variant === 'slime'">
-          <rect fill="#ff4dd8" x="4" y="10" width="8" height="4" />
-          <rect fill="#f0f4ff" x="3" y="7" width="10" height="4" />
-          <rect fill="#0a0c0e" x="5" y="8" width="2" height="2" />
-          <rect fill="#0a0c0e" x="9" y="8" width="2" height="2" />
-        </g>
-        <g v-else-if="variant === 'eye'">
-          <rect fill="#00e5ff" x="2" y="4" width="12" height="10" />
-          <rect fill="#0a0c0e" x="4" y="6" width="4" height="4" />
-          <rect fill="#f0f4ff" x="5" y="7" width="2" height="2" />
-          <rect fill="#0a0c0e" x="10" y="7" width="2" height="3" />
-        </g>
-        <g v-else-if="variant === 'block'">
-          <rect fill="#ff4dd8" x="3" y="5" width="10" height="9" />
-          <rect fill="#f0f4ff" x="5" y="7" width="2" height="2" />
-          <rect fill="#f0f4ff" x="9" y="7" width="2" height="2" />
-          <rect fill="#0a0c0e" x="6" y="11" width="4" height="1" />
-        </g>
-        <g v-else>
-          <rect fill="#f0f4ff" x="7" y="2" width="2" height="4" />
-          <rect fill="#00e5ff" x="4" y="6" width="8" height="7" />
-          <rect fill="#0a0c0e" x="5" y="8" width="2" height="2" />
-          <rect fill="#0a0c0e" x="9" y="8" width="2" height="2" />
-        </g>
+        <rect
+            v-for="(px, pi) in spritePixels(monster.id)"
+            :key="monster.id + '-px-' + pi"
+            :x="px.x"
+            :y="px.y"
+            width="1"
+            height="1"
+            :fill="px.fill"
+        />
       </svg>
     </div>
   </div>
 </template>
 
 <script>
-import { retroGlitchMonsterFeltAnchor } from '../utils/dpRetroTableFxGeometry'
+import {
+  getRetroGlitchSprite,
+  planGlitchMonsterBurst
+} from '../utils/dpRetroGlitchMonsterSprites'
 import {
   dpRetroMonsterGateLog,
   dpRetroMonsterLog,
   retroGlitchDebugEnabled
 } from '../utils/dpRetroDesktopFxDevLog'
 
-var VARIANTS = ['slime', 'eye', 'block', 'spike']
 /** Phase A: table felt glitch burst. */
 var PHASE_A_MS = 0
 /** Phase B: monster cuts in after flash begins. */
@@ -84,8 +71,8 @@ export default {
       tableGlitching: false,
       visible: false,
       fadingIn: false,
-      variant: 'slime',
-      anchor: { left: '50%', top: '62%' },
+      monsters: [],
+      burstCount: 0,
       sequenceTimers: [],
       debugRafId: null,
       cycleStartMs: 0
@@ -126,6 +113,18 @@ export default {
     this.stopDebugVisibilityTrace()
   },
   methods: {
+    spritePixels: function (id) {
+      var sprite = getRetroGlitchSprite(id)
+      return sprite && sprite.pixels ? sprite.pixels : []
+    },
+    monsterFlashStyle: function (monster, idx) {
+      var anchor = monster.anchor || { left: '50%', top: '62%' }
+      return {
+        left: anchor.left,
+        top: anchor.top,
+        '--monster-i': String(idx)
+      }
+    },
     clearSequenceTimers: function () {
       var timers = this.sequenceTimers
       if (!timers || !timers.length) {
@@ -151,19 +150,16 @@ export default {
     logRenderState: function (phase, extra) {
       var root = this.$el
       var glitchEl = root && root.querySelector('.dp-retro-glitch-monster__table-glitch')
-      var flashEl = this.$refs.flash
-      var spriteEl = this.$refs.sprite
+      var flashEls = root ? root.querySelectorAll('.dp-retro-glitch-monster__flash') : []
       var payload = {
         phase: phase,
         tableGlitching: this.tableGlitching,
         visible: this.visible,
         fadingIn: this.fadingIn,
-        variant: this.variant,
-        anchor: this.anchor,
+        burstCount: this.burstCount,
+        monsters: this.monsters,
         glitchLayer: glitchEl ? this.measureEl(glitchEl) : null,
-        flashLayer: flashEl ? this.measureEl(flashEl) : null,
-        spriteMounted: !!(spriteEl && spriteEl.isConnected),
-        spriteChildCount: spriteEl ? spriteEl.childNodes.length : 0
+        flashCount: flashEls ? flashEls.length : 0
       }
       if (extra) {
         for (var k in extra) payload[k] = extra[k]
@@ -227,6 +223,8 @@ export default {
       this.tableGlitching = true
       this.visible = false
       this.fadingIn = false
+      this.monsters = []
+      this.burstCount = 0
       dpRetroMonsterLog('phase-a', {
         glitchSeq: this.glitchSeq,
         atMs: PHASE_A_MS,
@@ -236,8 +234,9 @@ export default {
         self.logRenderState('phase-a-dom')
       })
       this.schedule(function () {
-        self.variant = VARIANTS[Math.floor(Math.random() * VARIANTS.length)]
-        self.anchor = retroGlitchMonsterFeltAnchor(self.layout)
+        var burst = planGlitchMonsterBurst(self.layout)
+        self.burstCount = burst.count
+        self.monsters = burst.monsters
         self.visible = true
         self.fadingIn = false
         self.$nextTick(function () {
@@ -245,8 +244,8 @@ export default {
           dpRetroMonsterLog('phase-b', {
             glitchSeq: self.glitchSeq,
             atMs: MONSTER_APPEAR_MS,
-            variant: self.variant,
-            anchor: self.anchor,
+            burstCount: self.burstCount,
+            monsters: self.monsters,
             visible: self.visible,
             fadingIn: self.fadingIn
           })
@@ -270,6 +269,8 @@ export default {
         self.tableGlitching = false
         self.visible = false
         self.fadingIn = false
+        self.monsters = []
+        self.burstCount = 0
         dpRetroMonsterLog('phase-d', {
           glitchSeq: self.glitchSeq,
           atMs: CYCLE_RECOVERY_MS

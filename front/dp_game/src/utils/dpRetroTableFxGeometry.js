@@ -50,12 +50,42 @@ function offsetVertexFromCenter(v, center, delta) {
  * @param {{ center: { x: number, y: number } }} layout
  */
 export function retroGlitchMonsterFeltAnchor(layout) {
+  return retroGlitchMonsterBurstAnchors(layout, 1)[0]
+}
+
+/** Horizontal spread slots (% offset from table center) for multi-monster bursts. */
+var GLITCH_MONSTER_BURST_SLOTS = {
+  1: [{ x: 0, y: 0 }],
+  2: [{ x: -12, y: 2 }, { x: 12, y: -1 }],
+  3: [{ x: -15, y: 1 }, { x: 0, y: 4 }, { x: 15, y: 0 }],
+  4: [{ x: -17, y: 3 }, { x: -6, y: 6 }, { x: 7, y: 2 }, { x: 17, y: 5 }]
+}
+
+/**
+ * Spread anchors across lower felt — avoids center stack overlap when count > 1.
+ * @param {{ center: { x: number, y: number } }} layout
+ * @param {number} count
+ * @returns {Array<{ left: string, top: string }>}
+ */
+export function retroGlitchMonsterBurstAnchors(layout, count) {
+  var n = Math.max(1, Math.min(4, count || 1))
   var center = layout && layout.center
-  if (!center) return { left: '50%', top: '62%' }
-  var jitterX = (Math.random() - 0.5) * 14
-  var distY = 10 + Math.random() * 12
-  return {
-    left: (center.x + jitterX).toFixed(2) + '%',
-    top: (center.y + distY).toFixed(2) + '%'
+  if (!center) {
+    var fallback = []
+    for (var f = 0; f < n; f++) fallback.push({ left: '50%', top: '62%' })
+    return fallback
   }
+  var slots = GLITCH_MONSTER_BURST_SLOTS[n] || GLITCH_MONSTER_BURST_SLOTS[1]
+  var baseY = 10 + Math.random() * 10
+  var anchors = []
+  for (var i = 0; i < n; i++) {
+    var slot = slots[i] || slots[0]
+    var jitterX = (Math.random() - 0.5) * (n === 1 ? 14 : 6)
+    var jitterY = (Math.random() - 0.5) * (n === 1 ? 8 : 5)
+    anchors.push({
+      left: (center.x + slot.x + jitterX).toFixed(2) + '%',
+      top: (center.y + baseY + slot.y + jitterY).toFixed(2) + '%'
+    })
+  }
+  return anchors
 }

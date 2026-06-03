@@ -222,6 +222,7 @@
 .dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster__flash--in {
   opacity: 1;
   animation: dp-retro-monster-pop 0.18s ease-out 1;
+  animation-delay: calc(var(--monster-i, 0) * 0.045s);
 }
 
 @keyframes dp-retro-monster-pop {
