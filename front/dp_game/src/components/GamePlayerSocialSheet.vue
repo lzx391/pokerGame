@@ -514,20 +514,31 @@ export default {
           if (self.honor && self.honor.totalHandsPlayed != null) {
             regions.push('medal-1', 'medal-2', 'medal-3')
           }
-          if (regions.length) {
-            self.scheduleProfGrayGlitch(regions, { reset: false })
-          }
-          var honorDelay = self.retroProfFx && regions.length
-            ? (regions.length - 1) * DP_PROF_GLITCH_REGION_STAGGER_MS +
-              DP_PROF_GLITCH_BURST_MS +
-              DP_PROF_GLITCH_REVEAL_MS
+          // Wait for avatar burst+reveal before medal schedule: reset:false clears ALL timers.
+          var avatarSeqMs = self.retroProfFx
+            ? DP_PROF_GLITCH_BURST_MS + DP_PROF_GLITCH_REVEAL_MS
             : 0
-          if (honorDelay > 0) {
-            setTimeout(function () {
+          var runAfterAvatar = function () {
+            if (regions.length) {
+              self.scheduleProfGrayGlitch(regions, { reset: false })
+            }
+            var honorDelay = self.retroProfFx && regions.length
+              ? (regions.length - 1) * DP_PROF_GLITCH_REGION_STAGGER_MS +
+                DP_PROF_GLITCH_BURST_MS +
+                DP_PROF_GLITCH_REVEAL_MS
+              : 0
+            if (honorDelay > 0) {
+              setTimeout(function () {
+                self.startHonorGlitch()
+              }, honorDelay)
+            } else {
               self.startHonorGlitch()
-            }, honorDelay)
+            }
+          }
+          if (avatarSeqMs > 0) {
+            setTimeout(runAfterAvatar, avatarSeqMs)
           } else {
-            self.startHonorGlitch()
+            runAfterAvatar()
           }
         })
       }

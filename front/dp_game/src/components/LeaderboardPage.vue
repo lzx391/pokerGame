@@ -169,7 +169,9 @@
                       :class="{ 'lb-table__pixel-en': retroLbFx }"
                     >{{ displayNickname(row.nickname) }}</span>
                   </td>
-                  <td class="lb-table__mult">{{ formatMultiplier(row.multiplier) }}</td>
+                  <td class="lb-table__mult">
+                    <span :class="{ 'lb-table__pixel-en': retroLbFx }">{{ formatMultiplier(row.multiplier) }}</span>
+                  </td>
                 </tr>
               </tbody>
             </table>
