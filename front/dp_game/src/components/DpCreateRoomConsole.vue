@@ -262,6 +262,15 @@ var MENU_ROWS = [
     max: 9,
     step: 1
   },
+  {
+    id: 'think',
+    label: 'THINK TIME',
+    type: 'number',
+    field: 'thinkTimeSeconds',
+    min: 15,
+    max: 180,
+    step: 5
+  },
   { id: 'password', label: 'PASSWORD', type: 'password' },
   { id: 'create', label: 'CREATE', type: 'action-create' },
   { id: 'back', label: 'BACK', type: 'action-back' }
@@ -284,6 +293,7 @@ export default {
         smallBlind: 5,
         startingStackBb: 50,
         maxSeatCount: 9,
+        thinkTimeSeconds: 30,
         roomPassword: ''
       },
       profileId: 'standard',
@@ -387,6 +397,7 @@ export default {
       }
       if (row.id === 'stack') return String(this.config.startingStackBb)
       if (row.id === 'seats') return String(this.config.maxSeatCount)
+      if (row.id === 'think') return String(this.config.thinkTimeSeconds) + 's'
       if (row.id === 'password') {
         var p = this.config.roomPassword || ''
         if (!p) return 'PUBLIC'
@@ -680,6 +691,10 @@ export default {
       }
       var seats = Number(this.config.maxSeatCount)
       if (!Number.isFinite(seats) || seats < 2 || seats > 9) return 'Seats must be 2–9'
+      var think = Number(this.config.thinkTimeSeconds)
+      if (!Number.isFinite(think) || think < 15 || think > 180) {
+        return 'Think time must be 15–180 seconds'
+      }
       return null
     },
     doCommit: function () {

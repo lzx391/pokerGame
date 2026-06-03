@@ -11,6 +11,8 @@ public class DpRoom {
     private boolean passwordProtected;
     /** 一桌最多玩家数（建房时指定，与大厅表 max_seat_count 一致） */
     private int maxSeatCount = 9;
+    /** 真人每步行动思考上限（秒），与 dp_room_lobby.think_time_seconds 一致 */
+    private int thinkTimeSeconds = 30;
 
     @Override
     public String toString() {
@@ -84,6 +86,14 @@ public class DpRoom {
 
     public void setMaxSeatCount(int maxSeatCount) {
         this.maxSeatCount = maxSeatCount;
+    }
+
+    public int getThinkTimeSeconds() {
+        return thinkTimeSeconds;
+    }
+
+    public void setThinkTimeSeconds(int thinkTimeSeconds) {
+        this.thinkTimeSeconds = thinkTimeSeconds;
     }
 }
 

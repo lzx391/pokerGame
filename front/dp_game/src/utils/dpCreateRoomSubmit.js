@@ -1,13 +1,27 @@
 import { exitLobbyQuickMatchSilently } from '@/utils/dpLobbyQuickMatchExit'
 import { enterGameAfterCreateRoom } from '@/utils/dpCreateRoomEnterGame'
 
+var THINK_TIME_MIN = 15
+var THINK_TIME_MAX = 180
+var THINK_TIME_DEFAULT = 30
+
+/**
+ * @param {*} raw
+ * @returns {number} 15–180，非法则 30
+ */
+export function clampThinkTimeSeconds(raw) {
+  var n = Math.round(Number(raw))
+  if (!Number.isFinite(n)) return THINK_TIME_DEFAULT
+  return Math.min(THINK_TIME_MAX, Math.max(THINK_TIME_MIN, n))
+}
+
 /**
  * 创建房间并开局（与经典 CreateRoom.submit 同契约）。
  * @param {object} opts
  * @param {import('vue').default['prototype']['$http']} opts.http
  * @param {import('vue-router').default} opts.router
  * @param {object} opts.user — localStorage userInfo
- * @param {object} opts.config — { smallBlind, startingStackBb, maxSeatCount, roomPassword? }
+ * @param {object} opts.config — { smallBlind, startingStackBb, maxSeatCount, thinkTimeSeconds?, roomPassword? }
  * @param {function(string): void} [opts.onError] — 用户可见错误
  * @param {boolean} [opts.crtHandoff] — retro 创建页：全屏 CRT 盖住切到 /game
  * @param {() => void} [opts.onCrtHandoffVisible] — CRT 盖住时回调（可收起本页 boot）
@@ -39,7 +53,8 @@ export async function dpCreateRoomAndStart({
       smallBlindChips: sc,
       bigBlindChips: sc * 2,
       startingStackBb: Math.max(5, Number(config.startingStackBb) || 50),
-      maxSeatCount: cap
+      maxSeatCount: cap,
+      thinkTimeSeconds: clampThinkTimeSeconds(config.thinkTimeSeconds)
     }
     if (config.roomPassword) {
       params.roomPassword = config.roomPassword

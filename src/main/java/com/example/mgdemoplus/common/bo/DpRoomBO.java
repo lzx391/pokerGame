@@ -72,6 +72,14 @@ public class DpRoomBO {
     public static final int MAX_SEAT_COUNT = 9;
     public static final int DEFAULT_MAX_SEAT_COUNT = MAX_SEAT_COUNT;
 
+    /** 默认真人行动思考时间（秒）；合法区间 15～180，建房时可配置。 */
+    public static final int DEFAULT_THINK_TIME_SECONDS = 30;
+    public static final int MIN_THINK_TIME_SECONDS = 15;
+    public static final int MAX_THINK_TIME_SECONDS = 180;
+
+    /** 结算后准备阶段倒计时（毫秒）；与 {@link #thinkTimeSeconds} 无关。 */
+    public static final long READY_TIMEOUT_MS = 30_000L;
+
     /** 本桌小盲/大盲；逻辑与下注校验均使用实例值，不再使用静态全局盲注。 */
     private int smallBlindChips = DEFAULT_SMALL_BLIND_CHIPS;
     private int bigBlindChips = DEFAULT_BIG_BLIND_CHIPS;
@@ -93,11 +101,13 @@ public class DpRoomBO {
      */
     private int maxSeatCount = DEFAULT_MAX_SEAT_COUNT;
 
+    /** 真人每步行动思考上限（秒）；仅约束真人超时，Bot 路径不读此字段。 */
+    private int thinkTimeSeconds = DEFAULT_THINK_TIME_SECONDS;
+
     // 行动顺序
     private int lastDealerIndex =0;
     private int currentActorIndex = -1;
     private long lastActionTime = 0;
-    private static final int ACTION_TIMEOUT = 30000; // 30秒
     private static final int HEART_TIMEOUT = 20000; // 20秒
     private List<DpPot> pots = new ArrayList<>();
     // 等待在下一局加入的玩家昵称列表（当前局仅旁观）
@@ -237,7 +247,20 @@ public class DpRoomBO {
     public void setCurrentActorIndex(int currentActorIndex) { this.currentActorIndex = currentActorIndex; }
     public long getLastActionTime() { return lastActionTime; }
     public void setLastActionTime(long lastActionTime) { this.lastActionTime = lastActionTime; }
-    public static int getActionTimeout() { return ACTION_TIMEOUT; }
+
+    public int getThinkTimeSeconds() {
+        return thinkTimeSeconds;
+    }
+
+    public void setThinkTimeSeconds(int thinkTimeSeconds) {
+        this.thinkTimeSeconds = thinkTimeSeconds;
+    }
+
+    /** 真人行动超时判定用毫秒数（{@code thinkTimeSeconds × 1000}）。 */
+    public long getActionTimeoutMs() {
+        return (long) thinkTimeSeconds * 1000L;
+    }
+
     public List<DpPot> getPots() { return pots; }
     public void setPots(List<DpPot> pots) { this.pots = pots; }
     public List<String> getWaitNextHand() { return waitNextHand; }
@@ -304,6 +327,10 @@ public class DpRoomBO {
 
     public void setMaxSeatCount(int maxSeatCount) {
         this.maxSeatCount = maxSeatCount;
+    }
+
+    public static boolean isThinkTimeSecondsInRange(int thinkTimeSeconds) {
+        return thinkTimeSeconds >= MIN_THINK_TIME_SECONDS && thinkTimeSeconds <= MAX_THINK_TIME_SECONDS;
     }
 
     /** 加入房间时校验；未设密码时恒为 true。 */

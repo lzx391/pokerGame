@@ -166,7 +166,7 @@ public final class DpRoomHeartbeatScheduler {
                 if (p.isLeftThisHand()) {
                     callbacks.moveToNextValidActor(room);
                     callbacks.autoAdvanceIfRoundFinished(room);
-                } else if (System.currentTimeMillis() - room.getLastActionTime() > DpRoomBO.getActionTimeout()) {
+                } else if (System.currentTimeMillis() - room.getLastActionTime() > room.getActionTimeoutMs()) {
                     p.setFold(true);
                     callbacks.moveToNextValidActor(room);
                     callbacks.autoAdvanceIfRoundFinished(room);

@@ -148,7 +148,8 @@ public final class DpRoomLobbySync {
                 + '|' + room.getBigBlindChips()
                 + '|' + room.getStartingStackBb()
                 + '|' + room.isPasswordProtected()
-                + '|' + room.getMaxSeatCount();
+                + '|' + room.getMaxSeatCount()
+                + '|' + room.getThinkTimeSeconds();
     }
 
     private static String nullToEmpty(String s) {

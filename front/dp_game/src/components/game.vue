@@ -262,10 +262,15 @@ export default {
     ...mapGetters('dpGame', [
       'effectiveThemeForCss', 'handRankReference', 'stageCN', 'isOwner', 'canInviteFriend', 'isMyTurn', 'myPlayer', 'showSpectatorPrepareBlock', 'myReady', 'myChips', 'myBet', 'callAmount', 'smallBlind', 'bigBlind', 'lastRaiseIncrementEffective', 'minTotalToRaise', 'minRaise', 'allPotsHaveWinners', 'inSettledStage', 'ownerActionPlayers', 'playersDisplayOrder', 'viewerSeatedAtTable', 'holeDealPlayerCountForAnim', 'heroDockRow', 'dealerDisplayIndex', 'showdownHandLeaderNicknames', 'spectatorSeatChatEntries', 'tableActionActorDisplayName', 'mobileHeroDockActive', 'showHeroViewHandButton', 'showBottomHeroDock'
     ]),
+    actionTimerThinkTotalSec() {
+      var v = Number(this.$store.state.dpGame.thinkTimeSeconds)
+      return isFinite(v) && v >= 1 ? Math.floor(v) : 30
+    },
     actionTimerProgressPct() {
       var t = Number(this.timeLeft)
-      if (isNaN(t) || t < 0) return 0
-      return Math.min(1, t / 30)
+      var total = this.actionTimerThinkTotalSec
+      if (isNaN(t) || t < 0 || total < 1) return 0
+      return Math.min(1, t / total)
     },
     tableActionTimerUrgency() {
       var t = Number(this.timeLeft)
@@ -1395,6 +1400,9 @@ export default {
 
     applyRoomFromServer(room) {
       this.syncSeatEnterRevealFromRoom(room)
+      if (room) {
+        this.$store.commit('dpGame/SYNC_ACTION_COUNTDOWN_FIELDS', room)
+      }
       var fp = encodeRoomApplyFingerprint(room)
       if (fp && fp === this._lastRoomApplyFingerprint) {
         this.$nextTick(function () {

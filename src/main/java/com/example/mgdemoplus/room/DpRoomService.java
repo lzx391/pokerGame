@@ -14,7 +14,7 @@ public interface DpRoomService {
 
     DpRoomBO createRoom(String ownerNickname, Integer ownerUserId,
                         int smallBlindChips, int bigBlindChips, int startingStackBb,
-                        String roomPassword, int maxSeatCount);
+                        String roomPassword, int maxSeatCount, int thinkTimeSeconds);
 
     ResultUtil listRecentRoomChat(String roomId, String viewerNickname, int limit);
 /**

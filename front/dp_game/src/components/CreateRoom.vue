@@ -139,6 +139,41 @@
             :class="{ 'cr-stagger-in': staggerReady }"
             :style="staggerReady ? { '--cr-stagger-delay': '200ms' } : null"
           >
+            <h2 class="cr-field-group__title">行动思考时间</h2>
+            <div class="cr-field">
+              <label class="cr-field__label" for="cr-think-time">每步上限（秒）</label>
+              <el-input-number
+                id="cr-think-time"
+                v-model="thinkTimeSeconds"
+                :min="15"
+                :max="180"
+                :step="5"
+                :precision="0"
+                controls-position="right"
+                class="cr-field__control"
+              />
+            </div>
+            <div class="cr-think-chips" role="group" aria-label="思考时间快捷">
+              <button
+                v-for="sec in thinkTimeQuickOptions"
+                :key="'think-' + sec"
+                type="button"
+                class="cr-think-chip"
+                :class="{ 'cr-think-chip--active': thinkTimeSeconds === sec }"
+                :aria-pressed="thinkTimeSeconds === sec"
+                @click="thinkTimeSeconds = sec"
+              >
+                {{ sec }}s
+              </button>
+            </div>
+            <p class="cr-field__hint">每步最多思考秒数（15～180），超时自动弃牌。</p>
+          </div>
+
+          <div
+            class="cr-field-group"
+            :class="{ 'cr-stagger-in': staggerReady }"
+            :style="staggerReady ? { '--cr-stagger-delay': '240ms' } : null"
+          >
             <h2 class="cr-field-group__title">进房（可选）</h2>
             <div class="cr-field cr-field--full">
               <label class="cr-field__label" for="cr-room-password">密码</label>
@@ -156,12 +191,12 @@
           <div
             class="cr-footer"
             :class="{ 'cr-stagger-in': staggerReady }"
-            :style="staggerReady ? { '--cr-stagger-delay': '240ms' } : null"
+            :style="staggerReady ? { '--cr-stagger-delay': '280ms' } : null"
           >
             <details class="cr-more">
               <summary class="cr-more__summary">了解更多</summary>
               <p class="cr-more__body">
-                在此设置本桌小猫小鱼干数（大猫自动为其 2 倍）、每人带入倍数（以大猫鱼干数为 1 倍）、一桌最多几名玩家（2～9）与可选进房密码。创建后将直接开桌进入对局页，你可先独自上桌，朋友随时可从大厅加入。
+                在此设置本桌小猫小鱼干数（大猫自动为其 2 倍）、每人带入倍数（以大猫鱼干数为 1 倍）、一桌最多几名玩家（2～9）、行动思考时间（15～180 秒，默认 30，超时自动弃牌）与可选进房密码。创建后将直接开桌进入对局页，你可先独自上桌，朋友随时可从大厅加入。
               </p>
             </details>
 
@@ -190,7 +225,7 @@ import DpFluidityToggle from '@/components/DpFluidityToggle.vue'
 import DpCreateRoomConsole from '@/components/DpCreateRoomConsole.vue'
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
 import { prefetchGameChunk } from '@/utils/dpPrefetchGameRoute'
-import { dpCreateRoomAndStart } from '@/utils/dpCreateRoomSubmit'
+import { clampThinkTimeSeconds, dpCreateRoomAndStart } from '@/utils/dpCreateRoomSubmit'
 
 var ROOM_PRESETS = [
   { id: 'casual', label: '休闲桌', smallBlind: 2, startingStackBb: 40, maxSeatCount: 6, roomPassword: '' },
@@ -209,6 +244,8 @@ export default {
       startingStackBb: 50,
       maxSeatCount: 9,
       roomPassword: '',
+      thinkTimeSeconds: 30,
+      thinkTimeQuickOptions: [30, 60, 90],
       creating: false,
       staggerReady: false,
       roomPresets: ROOM_PRESETS
@@ -278,8 +315,14 @@ export default {
       this.maxSeatCount = preset.maxSeatCount
       this.roomPassword = preset.roomPassword || ''
     },
+    validateThinkTimeSeconds() {
+      var tt = clampThinkTimeSeconds(this.thinkTimeSeconds)
+      this.thinkTimeSeconds = tt
+      return tt
+    },
     async submit() {
       if (this.creating) return
+      this.validateThinkTimeSeconds()
       this.creating = true
       var self = this
       var result = await dpCreateRoomAndStart({
@@ -290,6 +333,7 @@ export default {
           smallBlind: this.smallBlind,
           startingStackBb: this.startingStackBb,
           maxSeatCount: this.maxSeatCount,
+          thinkTimeSeconds: this.thinkTimeSeconds,
           roomPassword: this.roomPassword
         },
         onError: function (msg) {
@@ -503,6 +547,38 @@ export default {
   line-height: 1.4;
 }
 
+.cr-think-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 0;
+  padding-left: 8em;
+}
+
+.cr-think-chip {
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid var(--dp-subpanel-border);
+  border-radius: 8px;
+  background: var(--dp-subpanel-bg);
+  color: var(--dp-text-secondary);
+  font-family: var(--dp-font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cr-think-chip:hover {
+  border-color: var(--dp-accent);
+  color: var(--dp-accent);
+}
+
+.cr-think-chip--active {
+  border-color: var(--dp-accent);
+  background: color-mix(in srgb, var(--dp-accent) 12%, var(--dp-subpanel-bg));
+  color: var(--dp-text-primary);
+}
+
 .cr-derived {
   flex: 1;
   min-width: 0;
@@ -595,6 +671,10 @@ export default {
 
   .cr-page__back {
     align-self: flex-end;
+  }
+
+  .cr-think-chips {
+    padding-left: 0;
   }
 }
 </style>

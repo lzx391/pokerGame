@@ -25,7 +25,8 @@ public interface DpRoomServiceCallbacks {
             int bigBlindChips,
             int startingStackBb,
             String roomPassword,
-            int maxSeatCount);
+            int maxSeatCount,
+            int thinkTimeSeconds);
 
     boolean startGame(String roomId, String ownerNickname);
 

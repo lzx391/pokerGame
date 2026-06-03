@@ -787,7 +787,7 @@ ownerFieldChanged：房主字段是否发生变化。
 
     public DpRoomBO createRoom(String ownerNickname, Integer ownerUserId,
             int smallBlindChips, int bigBlindChips, int startingStackBb, String roomPassword,
-            int maxSeatCount) {
+            int maxSeatCount, int thinkTimeSeconds) {
         quickMatchBridge.cancelDefaultQuickMatchWaitForOwner(ownerNickname);
         String id = UUID.randomUUID().toString().substring(0, 8);// 随机生成的id?
         DpRoomBO r = new DpRoomBO();
@@ -813,6 +813,7 @@ ownerFieldChanged：房主字段是否发生变化。
         r.setStartingChips(starting);
         r.setRoomPassword(roomPassword);
         r.setMaxSeatCount(maxSeatCount);
+        r.setThinkTimeSeconds(thinkTimeSeconds);
 
         DpPlayer p = new DpPlayer();
         p.setNickname(ownerNickname);
@@ -2824,7 +2825,7 @@ ownerFieldChanged：房主字段是否发生变化。
         r.setLastHandHoleCardsPublic(false);
         r.setCurrentStage("settled");
         r.setSettledAtMs(System.currentTimeMillis());
-        r.setReadyDeadline(System.currentTimeMillis() + 30_000L);
+        r.setReadyDeadline(System.currentTimeMillis() + DpRoomBO.READY_TIMEOUT_MS);
         for (DpPlayer p : r.getPlayers()) {
             // settle阶段会自动把大家的准备状态设置为false
             p.setReady(false);
@@ -3167,7 +3168,7 @@ ownerFieldChanged：房主字段是否发生变化。
         r.setLastHandHoleCardsPublic(lastHandPublic);
         r.setCurrentStage("settled");
         r.setSettledAtMs(System.currentTimeMillis());
-        r.setReadyDeadline(System.currentTimeMillis() + 30_000L);
+        r.setReadyDeadline(System.currentTimeMillis() + DpRoomBO.READY_TIMEOUT_MS);
         for (DpPlayer p : r.getPlayers()) {
             p.setReady(false);
         }

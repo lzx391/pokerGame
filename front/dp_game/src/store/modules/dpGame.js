@@ -87,7 +87,11 @@ function initialState() {
     /** 后端 autoSettle 后写入的「场上积分并列最高」昵称，未结算过为空 */
     chipLeaderNicknames: [],
     /** 当前用户本段累计带入（快照字段 myCarryInChips） */
-    myCarryInChips: 0
+    myCarryInChips: 0,
+    /** 真人每步思考上限（秒）；与后端 thinkTimeSeconds 一致，默认 30 */
+    thinkTimeSeconds: 30,
+    /** 当前行动位起始时间（毫秒）；用于行动倒计时与后端对齐 */
+    lastActionTime: 0
   }
 }
 
@@ -390,6 +394,24 @@ export default {
         room.myCarryInChips != null && isFinite(Number(room.myCarryInChips))
           ? Math.max(0, Math.floor(Number(room.myCarryInChips)))
           : 0
+      if (room.thinkTimeSeconds != null && isFinite(Number(room.thinkTimeSeconds))) {
+        var think = Math.floor(Number(room.thinkTimeSeconds))
+        state.thinkTimeSeconds = think >= 15 && think <= 180 ? think : 30
+      }
+      if (room.lastActionTime != null && isFinite(Number(room.lastActionTime))) {
+        state.lastActionTime = Number(room.lastActionTime)
+      }
+    },
+    /** WS 指纹未变时仍刷新行动计时字段，供倒计时 resync */
+    SYNC_ACTION_COUNTDOWN_FIELDS: function (state, room) {
+      if (!room || typeof room !== 'object') return
+      if (room.thinkTimeSeconds != null && isFinite(Number(room.thinkTimeSeconds))) {
+        var thinkSec = Math.floor(Number(room.thinkTimeSeconds))
+        state.thinkTimeSeconds = thinkSec >= 15 && thinkSec <= 180 ? thinkSec : 30
+      }
+      if (room.lastActionTime != null && isFinite(Number(room.lastActionTime))) {
+        state.lastActionTime = Number(room.lastActionTime)
+      }
     },
     SET_LOADING: function (state, v) {
       state.loading = !!v

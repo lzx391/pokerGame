@@ -61,12 +61,17 @@ public class DpRoomController {
                              @RequestParam(required = false, defaultValue = "10") int bigBlindChips,
                              @RequestParam(required = false, defaultValue = "50") int startingStackBb,
                              @RequestParam(required = false, defaultValue = "9") int maxSeatCount,
+                             @RequestParam(required = false, defaultValue = "30") int thinkTimeSeconds,
                              @RequestParam(required = false) String roomPassword) {
         if (maxSeatCount < DpRoomBO.MIN_SEAT_COUNT
                 || maxSeatCount > DpRoomBO.MAX_SEAT_COUNT) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "人数上限需在 2～9 之间");
         }
-        return dpRoomService.createRoom(nickname, userId, smallBlindChips, bigBlindChips, startingStackBb, roomPassword, maxSeatCount);
+        if (!DpRoomBO.isThinkTimeSecondsInRange(thinkTimeSeconds)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "行动思考时间需在 15～180 秒之间");
+        }
+        return dpRoomService.createRoom(nickname, userId, smallBlindChips, bigBlindChips, startingStackBb,
+                roomPassword, maxSeatCount, thinkTimeSeconds);
     }
 
     @GetMapping("/{roomId}/chat/recent")
