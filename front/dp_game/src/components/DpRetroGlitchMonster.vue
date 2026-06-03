@@ -122,7 +122,7 @@ export default {
       return sprite && sprite.pixels ? sprite.pixels : []
     },
     monsterFlashStyle: function (monster, idx) {
-      var anchor = monster.anchor || { left: '50%', top: '62%' }
+      var anchor = monster.anchor || { left: '50%', top: '91%' }
       return {
         left: anchor.left,
         top: anchor.top,

@@ -46,46 +46,94 @@ function offsetVertexFromCenter(v, center, delta) {
 }
 
 /**
- * Ephemeral glitch monster on lower felt — below community cards / pot, inside polygon.
- * @param {{ center: { x: number, y: number } }} layout
+ * Ephemeral glitch monster on open felt near table rim — away from center cards / pot.
+ * @param {{ center: { x: number, y: number }, vertices?: Array<{ x: number, y: number }> }} layout
  */
 export function retroGlitchMonsterFeltAnchor(layout) {
   return retroGlitchMonsterBurstAnchors(layout, 1)[0]
 }
 
-/** Horizontal spread slots (% offset from table center) for multi-monster bursts. */
-var GLITCH_MONSTER_BURST_SLOTS = {
-  1: [{ x: 0, y: 0 }],
-  2: [{ x: -12, y: 2 }, { x: 12, y: -1 }],
-  3: [{ x: -15, y: 1 }, { x: 0, y: 4 }, { x: 15, y: 0 }],
-  4: [{ x: -17, y: 3 }, { x: -6, y: 6 }, { x: 7, y: 2 }, { x: 17, y: 5 }]
+/** Radial lerp from center toward rim target (0 = center, 1 = on edge/vertex). */
+var GLITCH_MONSTER_RIM_T_BASE = 0.86
+var GLITCH_MONSTER_RIM_T_SPREAD = 0.05
+
+function lerpTablePoint(from, to, t) {
+  return {
+    x: from.x + (to.x - from.x) * t,
+    y: from.y + (to.y - from.y) * t
+  }
+}
+
+function retroTableEdgeMidpoint(vertices, edgeIndex) {
+  var n = vertices.length
+  var i = ((edgeIndex % n) + n) % n
+  var a = vertices[i]
+  var b = vertices[(i + 1) % n]
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+}
+
+/** Evenly spaced edge indices around polygon, with random rotational offset. */
+function glitchMonsterBurstEdgeIndices(sideCount, burstCount) {
+  var n = Math.max(3, sideCount || 3)
+  var k = Math.max(1, Math.min(4, burstCount || 1))
+  var start = Math.floor(Math.random() * n)
+  var step = n / k
+  var indices = []
+  for (var i = 0; i < k; i++) {
+    indices.push(Math.floor(start + i * step) % n)
+  }
+  return indices
+}
+
+function retroGlitchMonsterRimAnchor(layout, edgeIndex) {
+  var center = layout.center
+  var verts = layout.vertices
+  var mid = retroTableEdgeMidpoint(verts, edgeIndex)
+  var t = GLITCH_MONSTER_RIM_T_BASE + (Math.random() - 0.5) * GLITCH_MONSTER_RIM_T_SPREAD * 2
+  t = Math.max(0.78, Math.min(0.92, t))
+  var jitter = burstCountJitter()
+  var pt = lerpTablePoint(center, mid, t)
+  pt.x += jitter.x
+  pt.y += jitter.y
+  return {
+    left: pt.x.toFixed(2) + '%',
+    top: pt.y.toFixed(2) + '%'
+  }
+}
+
+function burstCountJitter() {
+  var spread = 3
+  return {
+    x: (Math.random() - 0.5) * spread,
+    y: (Math.random() - 0.5) * spread
+  }
+}
+
+/** Default rim anchor when layout is missing (bottom edge, ~86% radial). */
+function retroGlitchMonsterRimFallbackAnchor() {
+  return { left: '50%', top: '91%' }
 }
 
 /**
- * Spread anchors across lower felt — avoids center stack overlap when count > 1.
- * @param {{ center: { x: number, y: number } }} layout
+ * Spread anchors along felt rim — radial ~78–92% from center toward edge midpoints.
+ * @param {{ center: { x: number, y: number }, vertices?: Array<{ x: number, y: number }>, sides?: number }} layout
  * @param {number} count
  * @returns {Array<{ left: string, top: string }>}
  */
 export function retroGlitchMonsterBurstAnchors(layout, count) {
-  var n = Math.max(1, Math.min(4, count || 1))
+  var burstCount = Math.max(1, Math.min(4, count || 1))
   var center = layout && layout.center
-  if (!center) {
+  var verts = layout && layout.vertices
+  if (!center || !verts || !verts.length) {
     var fallback = []
-    for (var f = 0; f < n; f++) fallback.push({ left: '50%', top: '62%' })
+    var fb = retroGlitchMonsterRimFallbackAnchor()
+    for (var f = 0; f < burstCount; f++) fallback.push(fb)
     return fallback
   }
-  var slots = GLITCH_MONSTER_BURST_SLOTS[n] || GLITCH_MONSTER_BURST_SLOTS[1]
-  var baseY = 10 + Math.random() * 10
+  var edgeIndices = glitchMonsterBurstEdgeIndices(layout.sides || verts.length, burstCount)
   var anchors = []
-  for (var i = 0; i < n; i++) {
-    var slot = slots[i] || slots[0]
-    var jitterX = (Math.random() - 0.5) * (n === 1 ? 14 : 6)
-    var jitterY = (Math.random() - 0.5) * (n === 1 ? 8 : 5)
-    anchors.push({
-      left: (center.x + slot.x + jitterX).toFixed(2) + '%',
-      top: (center.y + baseY + slot.y + jitterY).toFixed(2) + '%'
-    })
+  for (var i = 0; i < burstCount; i++) {
+    anchors.push(retroGlitchMonsterRimAnchor(layout, edgeIndices[i]))
   }
   return anchors
 }
