@@ -91,6 +91,9 @@ export default {
     glitchSeq: function (seq, prev) {
       dpRetroMonsterLog('seq-watcher', { seq: seq, prev: prev, animated: this.animated })
       if (seq > 0 && seq !== prev) this.runGlitchSequence()
+    },
+    tableGlitching: function (active) {
+      this.$emit('table-edge-alert', !!active)
     }
   },
   mounted: function () {
@@ -111,6 +114,7 @@ export default {
   beforeDestroy: function () {
     this.clearSequenceTimers()
     this.stopDebugVisibilityTrace()
+    this.$emit('table-edge-alert', false)
   },
   methods: {
     spritePixels: function (id) {

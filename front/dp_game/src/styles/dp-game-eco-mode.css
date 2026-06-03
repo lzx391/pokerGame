@@ -451,3 +451,26 @@ body[data-dp-fluidity='eco'] .lb-table-wrap--glitch-burst .lb-table-wrap__glitch
   clip-path: none !important;
   transform: none !important;
 }
+
+/* —— retro8bit 大厅邮箱未读 blink —— */
+.dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert,
+@media (prefers-reduced-motion: reduce) {
+  .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert {
+    animation: none !important;
+  }
+}
+
+.dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert .home-quick-card__label::before,
+.dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert .home-quick-card__mailbox-pip,
+@media (prefers-reduced-motion: reduce) {
+  .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert .home-quick-card__label::before,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert .home-quick-card__mailbox-pip {
+    animation: none !important;
+  }
+}
+
+body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert,
+body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert .home-quick-card__label::before,
+body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert .home-quick-card__mailbox-pip {
+  animation: none !important;
+}

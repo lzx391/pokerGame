@@ -8,11 +8,13 @@
             :layout="retroTableLayout"
             :animated="retroDesktopAnimated"
             :glitch-seq="retroGlitchSeq"
+            @table-edge-alert="retroTableEdgeAlert = $event"
         />
         <dp-retro-table-fx
             v-if="showRetroDesktopFx && retroTableLayout"
             :layout="retroTableLayout"
             :animated="retroDesktopAnimated"
+            :edge-alert="retroTableEdgeAlert"
         />
       </div>
       <svg
@@ -36,10 +38,6 @@
       <div class="dp-game-table__center">
         <div class="dp-game-table__center-stack">
           <dp-retro-stack-leader-ticker
-              v-if="showRetroDesktopFx"
-              :animated="retroDesktopAnimated"
-          />
-          <dp-retro-nick-flash
               v-if="showRetroDesktopFx"
               :animated="retroDesktopAnimated"
           />
@@ -173,7 +171,6 @@ import { dpSeatRayDevLog } from '../utils/dpSeatRayDevLog'
 import DpTablePotDisplay from './DpTablePotDisplay.vue'
 import DpRetroTableFx from './DpRetroTableFx.vue'
 import DpRetroStackLeaderTicker from './DpRetroStackLeaderTicker.vue'
-import DpRetroNickFlash from './DpRetroNickFlash.vue'
 import DpRetroGlitchMonster from './DpRetroGlitchMonster.vue'
 import { CAT_COPY, DEALER_BADGE_CHAR } from '../constants/dpCatThemeCopy'
 
@@ -186,7 +183,6 @@ export default {
     DpTablePotDisplay,
     DpRetroTableFx,
     DpRetroStackLeaderTicker,
-    DpRetroNickFlash,
     DpRetroGlitchMonster
   },
   props: {
@@ -228,7 +224,8 @@ export default {
   data() {
     return {
       catCopy: CAT_COPY,
-      dealerBadgeChar: DEALER_BADGE_CHAR
+      dealerBadgeChar: DEALER_BADGE_CHAR,
+      retroTableEdgeAlert: false
     }
   },
   watch: {

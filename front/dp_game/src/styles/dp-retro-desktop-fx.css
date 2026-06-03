@@ -67,6 +67,30 @@
   }
 }
 
+/* Table edge phosphor blink — synced to glitch monster lifecycle via edgeAlert */
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-table-fx--alert .dp-retro-table-fx__border-outer,
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-table-fx--alert .dp-retro-table-fx__border-inner,
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-table-fx--alert .dp-retro-table-fx__corner,
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-table-fx--alert .dp-retro-table-fx__edge {
+  animation: dp-retro-table-edge-alert-pulse 0.35s steps(2) infinite;
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-table-fx--alert .dp-retro-table-fx__edge--animate {
+  animation: dp-retro-table-edge-alert-pulse 0.35s steps(2) infinite;
+}
+
+@keyframes dp-retro-table-edge-alert-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    filter: drop-shadow(0 0 2px rgba(74, 246, 38, 0.25));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 8px rgba(74, 246, 38, 0.95));
+  }
+}
+
 .dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-stack-leader {
   font-family: var(--dp-font-mono, 'Courier New', monospace);
   font-size: clamp(9px, 1.1vw, 11px);
@@ -97,29 +121,6 @@
   to {
     opacity: 1;
   }
-}
-
-.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-nick-flash {
-  pointer-events: none;
-  font-family: var(--dp-font-mono, 'Courier New', monospace);
-  font-size: clamp(8px, 1vw, 10px);
-  color: #e0e8e0;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  white-space: nowrap;
-  text-align: center;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-nick-flash--in {
-  opacity: 1;
-}
-
-.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-nick-flash__tag {
-  color: #4af626;
-  margin-right: 0.4em;
 }
 
 .dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster {
@@ -267,7 +268,6 @@
 @media (min-width: 601px) {
   .dp-game-root[data-dp-game-theme='retro8bit']:not(.dp-game-root--retro-desktop-fx) .dp-retro-table-fx,
   .dp-game-root[data-dp-game-theme='retro8bit']:not(.dp-game-root--retro-desktop-fx) .dp-retro-glitch-monster,
-  .dp-game-root[data-dp-game-theme='retro8bit']:not(.dp-game-root--retro-desktop-fx) .dp-retro-nick-flash,
   .dp-game-root[data-dp-game-theme='retro8bit']:not(.dp-game-root--retro-desktop-fx) .dp-retro-stack-leader {
     display: none !important;
   }

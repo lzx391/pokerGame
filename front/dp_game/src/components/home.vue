@@ -131,7 +131,24 @@
           </button>
 
           <!-- 邮箱 -->
+          <button
+            v-if="gameUiTheme === 'retro8bit'"
+            type="button"
+            class="home-quick-card"
+            :class="{ 'home-quick-card--mailbox-alert': mailboxAlertBlink }"
+            aria-label="打开邮箱"
+            title="邮箱（好友申请 / 进房邀请）"
+            @click="openMailbox"
+          >
+            <span class="home-quick-card__icon-wrap">
+              <i class="el-icon-message"></i>
+              <span v-if="unreadCount" class="home-quick-card__mailbox-pip" aria-hidden="true">!</span>
+            </span>
+            <span class="home-quick-card__label">MAILBOX</span>
+            <span class="home-quick-card__desc">APPLY & INVITE</span>
+          </button>
           <el-badge
+            v-else
             :value="unreadCount"
             :hidden="!unreadCount"
             :max="99"
@@ -532,7 +549,16 @@
       </div>
     </el-dialog>
 
+    <dp-mailbox-console
+      v-if="gameUiTheme === 'retro8bit'"
+      :visible="mailboxVisible"
+      @open="onMailboxConsoleOpen"
+      @close="onMailboxConsoleClose"
+      @join="onMailboxConsoleJoin"
+    />
+
     <el-dialog
+      v-if="gameUiTheme !== 'retro8bit'"
       title="消息"
       :visible.sync="mailboxVisible"
       width="560px"
@@ -683,6 +709,7 @@ import { postQuickMatchCancel2 } from '@/utils/dpQuickMatchExit'
 import { prefetchGameChunk } from '@/utils/dpPrefetchGameRoute'
 import { enterGameFromLobby as enterGameFromLobbyWithBoot } from '@/utils/dpLobbyEnterGame'
 import DpCrtBootSequence from '@/components/DpCrtBootSequence.vue'
+import DpMailboxConsole from '@/components/DpMailboxConsole.vue'
 import { prefetchAvatarUrls } from '@/utils/dpAvatarPrefetch'
 import { avatarCacheBustFromUpdatedAt } from '@/utils/dpAvatarUrl'
 
@@ -695,7 +722,8 @@ export default {
     GameHandHistoryModal,
     DpUserAvatar,
     DpFluidityToggle,
-    DpCrtBootSequence
+    DpCrtBootSequence,
+    DpMailboxConsole
   },
   mixins: [dpLobbyThemeMixin],
   data() {
@@ -791,6 +819,9 @@ export default {
     },
     pageSize() {
       return 20
+    },
+    mailboxAlertBlink() {
+      return this.unreadCount > 0 && !this.mailboxVisible
     }
   },
   watch: {
@@ -1152,6 +1183,17 @@ export default {
     onMailboxDialogClose() {
       this.stopMailboxTick()
       this.fetchUnreadCount({ http: this.$http }).catch(() => {})
+    },
+    onMailboxConsoleOpen() {
+      /* blink stops via mailboxVisible; console owns fetch + tick */
+    },
+    onMailboxConsoleClose() {
+      this.mailboxVisible = false
+      this.fetchUnreadCount({ http: this.$http }).catch(() => {})
+    },
+    async onMailboxConsoleJoin(roomId) {
+      this.mailboxVisible = false
+      await this.enterGameFromLobby(roomId, 'join')
     },
     async openMailbox() {
       if (!this.user || !this.user.token) { alert('请先登录'); return }

@@ -1,6 +1,7 @@
 <template>
   <svg
       class="dp-retro-table-fx"
+      :class="{ 'dp-retro-table-fx--alert': edgeAlert }"
       viewBox="0 0 100 100"
       preserveAspectRatio="none"
       aria-hidden="true"
@@ -46,7 +47,9 @@ export default {
   name: 'DpRetroTableFx',
   props: {
     layout: { type: Object, default: null },
-    animated: { type: Boolean, default: false }
+    animated: { type: Boolean, default: false },
+    /** Synced to glitch monster burst (felt glitch + monster hold through recovery). */
+    edgeAlert: { type: Boolean, default: false }
   },
   computed: {
     borderPaths: function () {

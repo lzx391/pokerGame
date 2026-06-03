@@ -332,29 +332,6 @@ export default {
       }
       return 0
     },
-    /** 随机昵称彩蛋池：上桌玩家 + 观众，排除 bot */
-    retroNickReservoir: function (state) {
-      var out = []
-      var seen = {}
-      var players = state.players || []
-      for (var i = 0; i < players.length; i++) {
-        var p = players[i]
-        if (!p || !p.nickname || p.leftThisHand) continue
-        if (isDpBotNickname(p.nickname)) continue
-        if (!seen[p.nickname]) {
-          seen[p.nickname] = true
-          out.push(p.nickname)
-        }
-      }
-      var specs = state.spectators || []
-      for (var j = 0; j < specs.length; j++) {
-        var nick = specs[j]
-        if (!nick || isDpBotNickname(nick) || seen[nick]) continue
-        seen[nick] = true
-        out.push(nick)
-      }
-      return out
-    },
     /** 供 data-dp-game-theme 绑定 */
     effectiveThemeForCss: function (state) {
       return state.gameUiTheme || 'default'
