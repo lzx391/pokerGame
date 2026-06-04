@@ -86,6 +86,7 @@
               :act-index="actIndex"
               :stage="stage"
               :card-display-stage="cardDisplayStage"
+              :retro-showdown-tv-pending="retroShowdownTvPending"
               :community-cards-flip-complete="communityCardsFlipComplete"
               :is-owner="isOwner"
               :owner-reveal-all="ownerRevealAll"
@@ -589,7 +590,7 @@ export default {
     if (this.readyTimer) clearInterval(this.readyTimer)
     if (this.communityCardsFlipCompleteTimer) clearTimeout(this.communityCardsFlipCompleteTimer)
     if (this._gameUiThemeChangeTimer) clearTimeout(this._gameUiThemeChangeTimer)
-    this.retroShowdownTvPending = false
+    this.clearRetroShowdownTvPending()
     this._lastRoomApplyFingerprint = ''
     if (this._seatChatTimers) {
       var self = this
@@ -754,21 +755,39 @@ export default {
         onComplete()
       }
     },
+    clearRetroShowdownTvPending: function () {
+      if (this._retroShowdownTvFallbackTimer) {
+        clearTimeout(this._retroShowdownTvFallbackTimer)
+        this._retroShowdownTvFallbackTimer = null
+      }
+      this.retroShowdownTvPending = false
+      this.retroShowdownFromStage = null
+    },
     /** retro8bit：下注街→摊牌时播放 TV 弹窗（纯 overlay，不改牌桌状态） */
     beginRetroShowdownTvSequence: function () {
       if (this.gameUiTheme !== 'retro8bit') return
       if (this.retroShowdownTvPending) return
       this.retroShowdownTvPending = true
       var self = this
+      var finished = false
+      function finishRetroShowdownTv() {
+        if (finished) return
+        finished = true
+        self.clearRetroShowdownTvPending()
+        self.$nextTick(function () {
+          self.$forceUpdate()
+        })
+      }
+      if (this._retroShowdownTvFallbackTimer) {
+        clearTimeout(this._retroShowdownTvFallbackTimer)
+      }
+      this._retroShowdownTvFallbackTimer = setTimeout(finishRetroShowdownTv, 3500)
       this.fireCrtPopup(
         'danger',
-        'ALL-IN SHOWDOWN',
+        'SHOWDOWN',
         '决胜时刻',
         '双方亮牌，胜负在天',
-        function () {
-          self.retroShowdownTvPending = false
-          self.retroShowdownFromStage = null
-        }
+        finishRetroShowdownTv
       )
     },
     onRetroStageTransition: function (newVal, oldVal) {
@@ -781,8 +800,7 @@ export default {
         return
       }
       if (newVal === 'preflop') {
-        this.retroShowdownTvPending = false
-        this.retroShowdownFromStage = null
+        this.clearRetroShowdownTvPending()
         return
       }
       if (
@@ -851,8 +869,7 @@ export default {
     },
     /** 离开 retro8bit 前统一关闭特效/面板，再 nextTick×2 + rAF 切主题，避免 v-if 与 overlay 竞态 */
     teardownRetro8bitUi() {
-      this.retroShowdownTvPending = false
-      this.retroShowdownFromStage = null
+      this.clearRetroShowdownTvPending()
       this.$store.commit('dpGame/SET_HERO_HAND_HOLOGRAM', false)
       this.$store.commit('dpGame/CLOSE_OWNER_HUB')
       this.$store.commit('dpGame/SET_MOBILE_SHEETS', {

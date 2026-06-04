@@ -48,3 +48,11 @@ export function resolveShowdownHandLeaders(actualStage, tvPending, leaders) {
   if (tvPending && isRetroRevealStage(actualStage)) return []
   return leaders || []
 }
+
+/**
+ * 是否应展示他人摊牌亮牌（与 cardDisplayStage 解耦：TV 结束即亮，不依赖 display stage 回退）。
+ */
+export function shouldRevealHoleCardsAtShowdown(actualStage, tvPending) {
+  if (tvPending) return false
+  return isRetroRevealStage(actualStage)
+}

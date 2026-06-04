@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "vue-cli-service serve",
-    "build": "vue-cli-service build"
+    "build": "vue-cli-service build",
+    "test:retro-reveal": "node scripts/verify-dpRetroShowdownReveal.js"
   },
   "dependencies": {
     "axios": "^1.13.6",

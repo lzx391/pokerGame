@@ -131,6 +131,8 @@
             :box-style="getPlayerBoxStyle(row.player, row.seatIndex)"
             :act-index="actIndex"
             :stage="playerCardStage"
+            :actual-stage="stage"
+            :retro-showdown-tv-pending="retroShowdownTvPending"
             :community-cards="communityCards"
             :community-cards-flip-complete="communityCardsFlipComplete"
             :is-owner="isOwner"
@@ -202,6 +204,8 @@ export default {
     stage: { type: String, required: true },
     /** retro8bit TV 期间回退到上一下注街，供 GamePlayerCard 紧凑展示 */
     cardDisplayStage: { type: String, default: '' },
+    /** retro8bit：TV 播放中门闸，亮牌逻辑与 cardDisplayStage 解耦 */
+    retroShowdownTvPending: { type: Boolean, default: false },
     communityCardsFlipComplete: { type: Boolean, default: false },
     isOwner: { type: Boolean, default: false },
     ownerRevealAll: { type: Boolean, default: false },

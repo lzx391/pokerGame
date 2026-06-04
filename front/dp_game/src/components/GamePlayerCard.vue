@@ -9,7 +9,7 @@
       'dp-player-card--hand-dock': heroHandDock,
       /* 仅摊牌圈用毛玻璃；结算阶段与节能模式一致，仅用半透明底无 backdrop-filter */
       'dp-player-card--hand-reveal-glass':
-        (stage === 'showdown' || stage === 'settled')
+        isShowdownRevealActive
         && !player.leftThisHand,
       'dp-player-card--acting':
         rivalMini && !player.fold && !player.leftThisHand && actIndex === seatIndex
@@ -348,6 +348,7 @@ import { dealStaggerMsForTheme } from '../constants/dpGameDealTiming'
 import { getDealerAnchorViewportPoint } from '../utils/dpGameDealerAnchor'
 import { CAT_COPY } from '../constants/dpCatThemeCopy'
 import { displayHandRankName, displayHandRankDetail } from '../utils/dpHandRankDisplay'
+import { shouldRevealHoleCardsAtShowdown } from '../utils/dpRetroShowdownReveal'
 
 export default {
   name: 'GamePlayerCard',
@@ -360,6 +361,10 @@ export default {
     boxStyle: { type: Object, required: true },
     actIndex: { type: Number, required: true },
     stage: { type: String, required: true },
+    /** 服务端真实 stage（TV 期间与 stage 解耦，供亮牌门闸） */
+    actualStage: { type: String, default: '' },
+    /** retro8bit ALL-IN SHOWDOWN TV 播放中：保持紧凑 UI，TV 结束后再亮牌 */
+    retroShowdownTvPending: { type: Boolean, default: false },
     communityCards: { type: Array, required: true },
     communityCardsFlipComplete: { type: Boolean, required: true },
     isOwner: { type: Boolean, required: true },
@@ -503,7 +508,7 @@ export default {
       /* 摊牌 / 准备下一局：与页面底混色半透明 + 描边，减轻遮挡中央公共牌。
        * 第二色用 var(--dp-game-bg) 而非 transparent：浅色童话主题下「26%+透明」会与底图融成一片，像没渲染座位卡。 */
       if (
-        (this.stage === 'showdown' || this.stage === 'settled')
+        this.isShowdownRevealActive
         && !this.player.leftThisHand
       ) {
         var base = s.background || 'var(--dp-player-card-bg)'
@@ -536,7 +541,7 @@ export default {
        */
       if (this.heroHandDock && this.isMe) {
         if (this.skipHoleDealAnimation) return true
-        if (this.stage === 'showdown' || this.stage === 'settled') {
+        if (this.isShowdownRevealActive) {
           return true
         }
         if (this.stage === 'preflop') return !this.holeDealIntroDone
@@ -555,16 +560,20 @@ export default {
     displayPlayerName() {
       return dpDisplayNickname(this.player.nickname)
     },
+    resolvedActualStage() {
+      return this.actualStage || this.stage
+    },
+    /** 摊牌亮牌门闸：actualStage 已到 showdown/settled 且 TV 已结束 */
+    isShowdownRevealActive() {
+      return shouldRevealHoleCardsAtShowdown(this.resolvedActualStage, this.retroShowdownTvPending)
+    },
     /** 是否展示真实手牌（本人 / 房主看穿 / 摊牌后） */
     showHoleCardsRevealed() {
       if (this.player.leftThisHand) return false
       return (
         this.isMe
         || (this.isOwner && this.ownerRevealAll && this.player.holeCards && this.player.holeCards.length > 0)
-        || (
-          (this.stage === 'showdown' || this.stage === 'settled')
-          && !this.player.fold
-        )
+        || (this.isShowdownRevealActive && !this.player.fold)
       )
     },
     /** Flop 后且成牌可读时展示牌型与最大五张 */
@@ -573,16 +582,13 @@ export default {
       if (this.communityCards.length < 3) return false
       var boardOk =
         this.communityCardsFlipComplete
-        || (this.stage === 'showdown' && this.communityCards.length >= 5)
-        || (this.stage === 'settled' && this.communityCards.length >= 3)
+        || (this.resolvedActualStage === 'showdown' && this.communityCards.length >= 5)
+        || (this.resolvedActualStage === 'settled' && this.communityCards.length >= 3)
       if (!boardOk) return false
       return (
         this.isMe
         || (this.isOwner && this.ownerRevealAll && this.player.holeCards && this.player.holeCards.length > 0)
-        || (
-          (this.stage === 'showdown' || this.stage === 'settled')
-          && !this.player.fold
-        )
+        || (this.isShowdownRevealActive && !this.player.fold)
       )
     },
     /** 圆桌 rival-mini 模板用：本人席只做信息条，不挂牌型/最佳五张（与 dock 分工） */
@@ -618,7 +624,7 @@ export default {
       if (!leaders || !leaders.length) return false
       if (leaders.indexOf(this.player.nickname) === -1) return false
       return (
-        (this.stage === 'showdown' || this.stage === 'settled')
+        this.isShowdownRevealActive
         && this.showHandRankSection
       )
     },
@@ -666,7 +672,7 @@ export default {
       if (this.player.leftThisHand) return false
       var hc = this.player.holeCards
       if (!hc || hc.length === 0) return false
-      if (this.stage === 'showdown' || this.stage === 'settled') return false
+      if (this.isShowdownRevealActive) return false
       if (this.stage === 'preflop') return true
       if (this.compact && !this.showHoleCardsRevealed) return false
       return true
@@ -850,7 +856,7 @@ export default {
         }
         return '0s'
       }
-      if (this.stage === 'showdown' || this.stage === 'settled') return '0s'
+      if (this.isShowdownRevealActive) return '0s'
       if (this.holeDealChainFlip) {
         return (this.holeDealDelayMsForCard(ci) / 1000 + 0.42) + 's'
       }
@@ -876,7 +882,7 @@ export default {
       return base
     },
     bestHandCardEnterStyle(ci) {
-      if (this.stage === 'showdown' || this.stage === 'settled') {
+      if (this.isShowdownRevealActive) {
         return { animationDelay: '0s' }
       }
       return { animationDelay: (ci * 0.07) + 's' }
