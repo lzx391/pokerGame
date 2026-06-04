@@ -2854,6 +2854,20 @@ ownerFieldChanged：房主字段是否发生变化。
         if (archivedEarly != null) {
             enqueueSettlePersistence(archivedEarly, r, buildZeroPotHonorStatsIncrements(r), List.of());
         }
+        //如果是一个玩家，但是它下了鱼干，那就返还
+        if (r.getPots() != null) {
+            for (DpPot pot : r.getPots()) {
+                if (pot.getAmount() > 0 && pot.getEligiblePlayers() != null && pot.getEligiblePlayers().size() == 1) {
+                    String onlyPlayer = pot.getEligiblePlayers().get(0);
+                    for (DpPlayer p : r.getPlayers()) {
+                        if (onlyPlayer.equals(p.getNickname())) {
+                            p.setChips(p.getChips() + pot.getAmount());
+                            pot.setAmount(0);
+                        }
+                    }
+                }
+            }
+        }
         DpNpcStreetActionLog.clearHand(r);
         observedHandService.clearHand(r);
         llmNpcGlobalHandConversationStore.clearHand(r);
