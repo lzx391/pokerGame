@@ -1,7 +1,10 @@
 <template>
   <div
       class="dp-owner-hub-content"
-      :class="{ 'dp-owner-hub-content--inactive': !active }"
+      :class="{
+        'dp-owner-hub-content--inactive': !active,
+        'dp-owner-hub-content--touch': touchMode
+      }"
   >
     <!-- root menu -->
     <div
@@ -32,7 +35,7 @@
         role="listbox"
         aria-label="选择 NPC 类型"
     >
-      <p class="dp-owner-hub-content__hint">↑↓ 选择 · ←→ 数量 · Enter 确认</p>
+      <p v-if="!touchMode" class="dp-owner-hub-content__hint">↑↓ 选择 · ←→ 数量 · Enter 确认</p>
       <button
           v-for="(row, idx) in allNpcRows"
           :key="row.id"
@@ -59,7 +62,7 @@
       <p class="dp-owner-hub-content__confirm-body">
         {{ npcConfirmLabel }}
       </p>
-      <p class="dp-owner-hub-content__hint">Enter 确认 · Esc 返回</p>
+      <p v-if="!touchMode" class="dp-owner-hub-content__hint">Enter 确认 · Esc 返回</p>
     </div>
 
     <!-- transfer pick -->
@@ -69,7 +72,7 @@
         role="listbox"
         aria-label="选择移交对象"
     >
-      <p class="dp-owner-hub-content__hint">选择新房主 · Enter 确认</p>
+      <p v-if="!touchMode" class="dp-owner-hub-content__hint">选择新房主 · Enter 确认</p>
       <p v-if="transferPlayers.length === 0" class="dp-owner-hub-content__empty">当前没有可移交的玩家。</p>
       <button
           v-for="(p, idx) in transferPlayers"
@@ -95,7 +98,7 @@
       <p class="dp-owner-hub-content__confirm-body">
         移交给 <strong>{{ displayNickname(pendingTransferNick) }}</strong> ？
       </p>
-      <p class="dp-owner-hub-content__hint">Enter 确认 · Esc 返回</p>
+      <p v-if="!touchMode" class="dp-owner-hub-content__hint">Enter 确认 · Esc 返回</p>
     </div>
 
     <!-- kick pick -->
@@ -105,7 +108,7 @@
         role="listbox"
         aria-label="选择踢出玩家"
     >
-      <p class="dp-owner-hub-content__hint">Space 勾选 · Enter 下一步</p>
+      <p v-if="!touchMode" class="dp-owner-hub-content__hint">Space 勾选 · Enter 下一步</p>
       <p v-if="kickPlayers.length === 0" class="dp-owner-hub-content__empty">当前没有可踢出的玩家。</p>
       <button
           v-for="(p, idx) in kickPlayers"
@@ -137,7 +140,7 @@
         踢出 {{ kickSelectionNicknames.length }} 人至观众席？
       </p>
       <p class="dp-owner-hub-content__confirm-detail">{{ kickConfirmPreview }}</p>
-      <p class="dp-owner-hub-content__hint">Enter 确认 · Esc 返回</p>
+      <p v-if="!touchMode" class="dp-owner-hub-content__hint">Enter 确认 · Esc 返回</p>
     </div>
 
     <!-- reveal confirm -->
@@ -149,7 +152,7 @@
       <p class="dp-owner-hub-content__confirm-body">
         当前：<strong>{{ ownerRevealAll ? '开启' : '关闭' }}</strong>
       </p>
-      <p class="dp-owner-hub-content__hint">Enter 切换 · Esc 返回</p>
+      <p v-if="!touchMode" class="dp-owner-hub-content__hint">Enter 切换 · Esc 返回</p>
     </div>
   </div>
 </template>
@@ -164,6 +167,8 @@ export default {
   props: {
     active: { type: Boolean, default: false },
     terminalFocused: { type: Boolean, default: false },
+    /** 触控面板：更大点击区，看牌直接切换 */
+    touchMode: { type: Boolean, default: false },
     ownerRevealAll: { type: Boolean, default: false },
     demoBotAdding: { type: Boolean, default: false },
     demoBotAddedTip: { type: String, default: '' },
@@ -214,6 +219,14 @@ export default {
       return this.menuStack.length
     },
     rootItems() {
+      if (this.touchMode) {
+        return [
+          { id: 'add-npc', label: '添加 NPC' },
+          { id: 'reveal', label: '看牌' },
+          { id: 'kick', label: '踢人' },
+          { id: 'transfer', label: '转让' }
+        ]
+      }
       return [
         { id: 'add-npc', label: '添加NPC' },
         { id: 'transfer', label: '移交房主' },
@@ -388,6 +401,10 @@ export default {
         return
       }
       if (item.id === 'reveal') {
+        if (this.touchMode) {
+          this.$emit('toggle-reveal')
+          return
+        }
         this.pushScreen('reveal-confirm')
       }
     },

@@ -640,3 +640,76 @@ body[data-dp-game-theme='retro8bit'] .hand-history-detail__action-btn {
   border-radius: 0;
   font-family: var(--dp-font-ui, monospace);
 }
+
+/* ====== 房主触控入口与面板 ====== */
+
+.dp-owner-touch__entry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.45em 0.85em;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dp-owner-touch__entry--topbar {
+  background: var(--dp-owner-purple-bg, #722ed1);
+  color: var(--dp-owner-purple-fg, #fff);
+}
+
+.dp-owner-touch__entry--mobile {
+  flex: 0 0 auto;
+  min-height: 48px;
+  padding: 0 14px;
+  border-radius: 8px;
+  background: var(--dp-owner-purple-bg, #722ed1);
+  color: var(--dp-owner-purple-fg, #fff);
+  font-size: 14px;
+}
+
+.dp-owner-touch__entry--retro {
+  border-radius: 0;
+  font-family: 'Courier New', ui-monospace, monospace;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: rgba(10, 26, 10, 0.85);
+  color: #4af626;
+  border: 2px solid rgba(74, 246, 38, 0.45);
+  box-shadow: 0 0 0 1px #000, 2px 2px 0 rgba(0, 0, 0, 0.45);
+}
+
+.dp-owner-touch__entry--retro.dp-owner-touch__entry--mobile {
+  background: rgba(10, 26, 10, 0.92);
+}
+
+.dp-owner-hub-content--touch .dp-owner-terminal__row {
+  min-height: 52px;
+  padding: 12px 10px;
+  font-size: 15px;
+}
+
+.dp-owner-hub-content--touch .dp-owner-hub-content__hint {
+  font-size: 13px;
+  opacity: 0.75;
+  margin-bottom: 8px;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content--touch .dp-owner-terminal__row {
+  min-height: 56px;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-top-bar .dp-owner-touch__entry--topbar {
+  font-size: 12px;
+  padding: 0.35em 0.65em;
+  min-height: 36px;
+}

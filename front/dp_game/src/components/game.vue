@@ -28,6 +28,7 @@
         :wait-next-hand-count="waitNextHand.length"
         :is-fullscreen="layoutFullscreen"
         :is-owner="isOwner"
+        :owner-touch-open="ownerTouchSheetOpen"
         :can-invite-friend="canInviteFriend"
         :show-spectator-prepare="showSpectatorPrepareBlock"
         :next-hand-ready="nextHandReady"
@@ -253,6 +254,7 @@ export default {
       friendChatPeerAvatarUpdatedAt: null,
       friendChatPeerUnread: 0,
       ownerTerminalOpen: false,
+      ownerTouchSheetOpen: false,
       showOwnerPotJudgeSheet: false,
       showMusicPlayer: false,
       showHandHistoryPanel: false,
@@ -1945,18 +1947,22 @@ export default {
         viewportWidth: this.viewportWidth,
         useRetroOwnerPanelWide: this.useRetroOwnerPanelWide,
         ownerTerminalOpen: this.ownerTerminalOpen,
+        ownerTouchSheetOpen: this.ownerTouchSheetOpen,
         isOwner: this.isOwner,
         stage: this.stage
       })
-      if (this.useRetroOwnerPanelWide) {
-        if (this.ownerTerminalOpen) {
-          dpOwnerTerminalDevLog('branch', 'close terminal')
-          this.closeOwnerTerminal()
+      if (this.gameUiTheme === 'retro8bit') {
+        if (this.ownerTouchSheetOpen) {
+          dpOwnerTerminalDevLog('branch', 'close touch sheet')
+          this.closeOwnerTouchPanel()
         } else {
-          dpOwnerTerminalDevLog('branch', 'open terminal')
-          this.ownerTerminalOpen = true
+          dpOwnerTerminalDevLog('branch', 'open touch sheet')
+          this.openOwnerTouchPanel()
         }
-      } else if (this.showOwnerHubSheet) {
+        this.scheduleReparentElementUiLayersIntoFullscreenRoot()
+        return
+      }
+      if (this.showOwnerHubSheet) {
         dpOwnerTerminalDevLog('branch', 'close legacy sheet')
         this.closeOwnerHubPanel()
       } else {
@@ -1964,6 +1970,22 @@ export default {
         this.$store.commit('dpGame/OPEN_OWNER_HUB')
       }
       this.scheduleReparentElementUiLayersIntoFullscreenRoot()
+    },
+
+    openOwnerTouchPanel() {
+      if (!this.isOwner) return
+      this.ownerTouchSheetOpen = true
+      this.scheduleReparentElementUiLayersIntoFullscreenRoot()
+    },
+
+    closeOwnerTouchPanel() {
+      this.ownerTouchSheetOpen = false
+    },
+
+    onOwnerTouchToggleReveal() {
+      var next = !this.ownerRevealAll
+      this.$store.commit('dpGame/SET_OWNER_REVEAL_ALL', next)
+      this.$message.success(next ? '已开启看牌' : '已关闭看牌')
     },
 
     closeOwnerTerminal() {
@@ -1984,6 +2006,7 @@ export default {
     closeOwnerHubPanel() {
       this.$store.commit('dpGame/CLOSE_OWNER_HUB')
       this.closeOwnerTerminal()
+      this.closeOwnerTouchPanel()
     },
 
     // ---- 房主：移交房主（通过弹窗选择玩家） ----

@@ -151,6 +151,40 @@
     </game-bottom-sheet>
     </transition>
 
+    <game-owner-touch-panel
+        v-if="vm.isOwner && vm.gameUiTheme === 'retro8bit'"
+        :open="vm.ownerTouchSheetOpen"
+        :game-ui-theme="vm.gameUiTheme"
+        :owner-reveal-all="vm.ownerRevealAll"
+        :show-custom-npc-style-dialog="vm.showCustomNpcStyleDialog"
+        :custom-npc-pending-count="vm.customNpcPendingCount"
+        :demo-bot-adding="vm.demoBotAdding"
+        :demo-bot-added-tip="vm.demoBotAddedTip"
+        :maniac-bot-adding="vm.maniacBotAdding"
+        :maniac-bot-added-tip="vm.maniacBotAddedTip"
+        :tag-bot-adding="vm.tagBotAdding"
+        :tag-bot-added-tip="vm.tagBotAddedTip"
+        :lag-bot-adding="vm.lagBotAdding"
+        :lag-bot-added-tip="vm.lagBotAddedTip"
+        :nit-bot-adding="vm.nitBotAdding"
+        :nit-bot-added-tip="vm.nitBotAddedTip"
+        :call-bot-adding="vm.callBotAdding"
+        :call-bot-added-tip="vm.callBotAddedTip"
+        :llm-bot-adding="vm.llmBotAdding"
+        :llm-bot-added-tip="vm.llmBotAddedTip"
+        :llm-global-bot-adding="vm.llmGlobalBotAdding"
+        :llm-global-bot-added-tip="vm.llmGlobalBotAddedTip"
+        :custom-bot-adding="vm.customBotAdding"
+        :custom-bot-added-tip="vm.customBotAddedTip"
+        @close="vm.closeOwnerTouchPanel"
+        @close-custom-npc="vm.closeCustomNpcStyleDialog"
+        @submit-custom-npc="(profile) => vm.submitCustomNpcBatch(profile)"
+        @confirm-add-npcs="(p) => vm.confirmAddOwnerNpcs(p)"
+        @transfer-owner="() => vm.doTransferOwner()"
+        @kick-players="(nicks) => vm.doKickPlayers(nicks)"
+        @toggle-reveal="vm.onOwnerTouchToggleReveal"
+    />
+
     <transition name="dp-sheet">
     <game-bottom-sheet
         v-if="vm.isOwner && vm.stage === 'showdown' && vm.useRetroOwnerPanelWide && vm.showOwnerPotJudgeSheet"
@@ -290,6 +324,7 @@ import GameFriendChatSheet from './GameFriendChatSheet.vue'
 import GameFriendChatPanel from './GameFriendChatPanel.vue'
 import FriendChatDialog from './FriendChatDialog.vue'
 import GameOwnerHubPanel from './GameOwnerHubPanel.vue'
+import GameOwnerTouchPanel from './GameOwnerTouchPanel.vue'
 import CustomNpcStyleDialog from './CustomNpcStyleDialog.vue'
 
 export default {
@@ -308,6 +343,7 @@ export default {
     GameFriendChatPanel,
     FriendChatDialog,
     GameOwnerHubPanel,
+    GameOwnerTouchPanel,
     CustomNpcStyleDialog
   },
   inject: ['dpGameView'],

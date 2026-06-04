@@ -93,6 +93,18 @@
           房主操作
         </button>
         <button
+            v-if="isOwner && gameUiTheme === 'retro8bit'"
+            ref="guideTopOwnerTouch"
+            type="button"
+            class="dp-owner-touch__entry dp-owner-touch__entry--topbar dp-owner-touch__entry--retro dp-top-bar__btn"
+            aria-label="房主操作"
+            :aria-expanded="ownerTouchOpen ? 'true' : 'false'"
+            @click="$emit('open-owner-hub')"
+        >
+          <span class="dp-owner-touch__entry-icon" aria-hidden="true">⚙</span>
+          <span class="dp-owner-touch__entry-label">OWNER</span>
+        </button>
+        <button
             v-if="canInviteFriend"
             ref="guideTopInvite"
             type="button"
@@ -198,6 +210,8 @@ export default {
     ecoMode: { type: Boolean, required: true },
     /** 是否在顶栏显示「房主操作」入口 */
     isOwner: { type: Boolean, default: false },
+    /** retro8bit 触控房主面板是否已打开（顶栏按钮 aria） */
+    ownerTouchOpen: { type: Boolean, default: false },
     /** 局内未离座成员或观众：可邀请互为好友进房 */
     canInviteFriend: { type: Boolean, default: false },
     /** Vuex dpMailbox：好友私信未读总数 */

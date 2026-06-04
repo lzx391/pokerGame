@@ -194,6 +194,16 @@
               >
                 准备（{{ vm.readyTimeLeft }}s）
               </button>
+              <button
+                  v-if="vm.isOwner && vm.gameUiTheme === 'retro8bit'"
+                  type="button"
+                  class="dp-owner-touch__entry dp-owner-touch__entry--mobile dp-owner-touch__entry--retro dp-game-mobile-hero-bar__btn dp-game-mobile-hero-bar__btn--toolbar"
+                  aria-label="房主操作"
+                  @click="vm.openOwnerTouchPanel()"
+              >
+                <span class="dp-owner-touch__entry-icon" aria-hidden="true">⚙</span>
+                <span class="dp-owner-touch__entry-label">房主</span>
+              </button>
             </div>
           </div>
           <div
@@ -218,6 +228,16 @@
                 @click="$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileActionSheet: true })"
             >
               准备（{{ vm.readyTimeLeft }}s）
+            </button>
+            <button
+                v-if="vm.isOwner && vm.gameUiTheme === 'retro8bit'"
+                type="button"
+                class="dp-owner-touch__entry dp-owner-touch__entry--mobile dp-owner-touch__entry--retro dp-game-mobile-hero-bar__btn dp-game-mobile-hero-bar__btn--toolbar"
+                aria-label="房主操作"
+                @click="vm.openOwnerTouchPanel()"
+            >
+              <span class="dp-owner-touch__entry-icon" aria-hidden="true">⚙</span>
+              <span class="dp-owner-touch__entry-label">房主</span>
             </button>
           </div>
         </div>
