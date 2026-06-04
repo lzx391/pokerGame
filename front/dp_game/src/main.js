@@ -7,6 +7,11 @@ import { syncDpBodyGameTheme } from './utils/dpBodyGameTheme'
 import { syncDpBodyFluidity } from './utils/dpBodyFluidity'
 import { syncDpBodyRouteTransitionFlag } from './utils/dpRouteTransitionFlag'
 import { syncDpSiteHeartbeat } from './utils/dpSiteHeartbeat'
+import {
+  initDpSocialStreamClient,
+  syncDpSocialStreamConnection,
+  disconnectDpSocialStream
+} from './utils/dpSocialStreamClient'
 import DpThemePicker from './components/DpThemePicker.vue'
 
 Vue.component('DpThemePicker', DpThemePicker)
@@ -111,6 +116,7 @@ axios.interceptors.response.use(
         } catch (e) {
           /* ignore */
         }
+        disconnectDpSocialStream()
         var data = error.response && error.response.data
         var msg = (data && (data.message || data.msg)) || '未登录或登录已失效，请重新登录'
         Message.error(msg)
@@ -128,17 +134,21 @@ axios.interceptors.response.use(
 
 Vue.prototype.$http =axios
 
+initDpSocialStreamClient(store, axios)
+
 router.afterEach(function () {
   syncDpBodyGameTheme(store, router)
   syncDpBodyFluidity(store)
   syncDpBodyRouteTransitionFlag()
   syncDpSiteHeartbeat(axios, router)
+  syncDpSocialStreamConnection()
 })
 router.onReady(function () {
   syncDpBodyGameTheme(store, router)
   syncDpBodyFluidity(store)
   syncDpBodyRouteTransitionFlag()
   syncDpSiteHeartbeat(axios, router)
+  syncDpSocialStreamConnection()
 })
 store.subscribe(function (mutation) {
   if (mutation.type === 'dpGame/SET_GAME_UI_THEME') {

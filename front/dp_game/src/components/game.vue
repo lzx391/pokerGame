@@ -44,6 +44,8 @@
         @open-music-box="onOpenMusicBox"
         @open-owner-hub="onOwnerHubClick"
         @open-invite-friend="onInviteFriendClick"
+        @open-friend-chat="onFriendChatClick"
+        :friend-chat-unread-total="friendChatUnreadTotal"
         @exit="exitGame"
         @ready-next-hand="readyNextHand"
         :show-hero-economy="topBarShowHeroEconomy"
@@ -176,6 +178,7 @@ import { ensureDpUserIdInStorage } from '../utils/dpEnsureUserId'
 import { dpResultSuccess, dpResultData, dpResultMessage } from '../utils/dpApiResult'
 import { dpRoomApi } from '@/api/api.dpRoom'
 import { mapState, mapGetters } from 'vuex'
+import { dpSocialDisplayNickname } from '../utils/dpSocialDisplayName'
 import { encodeRoomApplyFingerprint } from '../utils/dpGameRoomFingerprint'
 import { CAT_COPY, dpPotDisplayLabel } from '../constants/dpCatThemeCopy'
 import { dpHandHologramDevLog } from '../utils/dpHandHologramDevLog'
@@ -240,6 +243,13 @@ export default {
       playerSocialOpen: false,
       playerSocialTarget: null,
       inviteFriendOpen: false,
+      friendChatPickerOpen: false,
+      friendChatVisible: false,
+      friendChatPeerId: null,
+      friendChatPeerName: '',
+      friendChatPeerAvatar: '',
+      friendChatPeerAvatarUpdatedAt: null,
+      friendChatPeerUnread: 0,
       ownerTerminalOpen: false,
       showOwnerPotJudgeSheet: false,
       showMusicPlayer: false,
@@ -267,6 +277,16 @@ export default {
     ...mapGetters('dpGame', [
       'effectiveThemeForCss', 'handRankReference', 'stageCN', 'isOwner', 'canInviteFriend', 'isMyTurn', 'myPlayer', 'showSpectatorPrepareBlock', 'myReady', 'myChips', 'myBet', 'callAmount', 'smallBlind', 'bigBlind', 'lastRaiseIncrementEffective', 'minTotalToRaise', 'minRaise', 'allPotsHaveWinners', 'inSettledStage', 'ownerActionPlayers', 'playersDisplayOrder', 'viewerSeatedAtTable', 'holeDealPlayerCountForAnim', 'heroDockRow', 'dealerDisplayIndex', 'showdownHandLeaderNicknames', 'spectatorSeatChatEntries', 'tableActionActorDisplayName', 'mobileHeroDockActive', 'showHeroViewHandButton', 'showBottomHeroDock'
     ]),
+    ...mapState('dpMailbox', ['friendChatUnreadTotal']),
+    ...mapGetters('dpMailbox', ['friendUnreadForUser']),
+    useRetroFriendChatPanelWide() {
+      return this.gameUiTheme === 'retro8bit' && this.viewportWidth > 600
+    },
+    friendChatMyUserId() {
+      var u = this.user
+      var n = u && u.userId != null && u.userId !== '' ? Number(u.userId) : 0
+      return isNaN(n) || n <= 0 ? 0 : n
+    },
     actionTimerThinkTotalSec() {
       var v = Number(this.$store.state.dpGame.thinkTimeSeconds)
       return isFinite(v) && v >= 1 ? Math.floor(v) : 30
@@ -1662,6 +1682,40 @@ export default {
     },
     closeInviteFriendSheet() {
       this.inviteFriendOpen = false
+    },
+    onFriendChatClick() {
+      if (this.useRetroFriendChatPanelWide) {
+        this.friendChatPickerOpen = !this.friendChatPickerOpen
+      } else {
+        this.friendChatPickerOpen = !this.friendChatPickerOpen
+      }
+      this.scheduleReparentElementUiLayersIntoFullscreenRoot()
+    },
+    closeFriendChatPicker() {
+      this.friendChatPickerOpen = false
+    },
+    friendChatDisplayName(f) {
+      return dpSocialDisplayNickname(f && f.nickname, f && f.userId, '未知好友')
+    },
+    openFriendChatFromPicker(f) {
+      var uid = f && f.userId != null ? Number(f.userId) : 0
+      if (!isFinite(uid) || uid <= 0) return
+      this.friendChatPickerOpen = false
+      this.friendChatPeerId = uid
+      this.friendChatPeerName = this.friendChatDisplayName(f)
+      this.friendChatPeerAvatar = (f && f.avatarUrl) || ''
+      this.friendChatPeerAvatarUpdatedAt = f && f.avatarUpdatedAt != null ? f.avatarUpdatedAt : null
+      this.friendChatPeerUnread = this.friendUnreadForUser(uid)
+      this.friendChatVisible = true
+      this.scheduleReparentElementUiLayersIntoFullscreenRoot()
+    },
+    onFriendChatClosed() {
+      this.friendChatPeerId = null
+      this.friendChatPeerName = ''
+      this.friendChatPeerAvatar = ''
+      this.friendChatPeerAvatarUpdatedAt = null
+      this.friendChatPeerUnread = 0
+      this.$store.dispatch('dpMailbox/fetchFriendChatUnreadSummary', { http: this.$http }).catch(function () {})
     },
     closePlayerSocialSheet() {
       this.playerSocialOpen = false

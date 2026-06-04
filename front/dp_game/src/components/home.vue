@@ -725,7 +725,7 @@ import GamePlayerSocialSheet from '@/components/GamePlayerSocialSheet.vue'
 import GameHandHistoryModal from '@/components/GameHandHistoryModal.vue'
 import DpUserAvatar from '@/components/DpUserAvatar.vue'
 import DpFluidityToggle from '@/components/DpFluidityToggle.vue'
-import { buildSocialStreamUrl } from '@/utils/dpSocialStream'
+import { disconnectDpSocialStream } from '@/utils/dpSocialStreamClient'
 import { mapGetters, mapState, mapActions } from 'vuex'
 import {
   peekCatTutorialRequested,
@@ -796,10 +796,6 @@ export default {
       mailboxVisible: false,
       mailboxTickSeconds: 0,
       mailboxTickTimer: null,
-      socialEventSource: null,
-      socialEsSession: 0,
-      socialEsReconnectTimer: null,
-      socialEsReconnectAttempt: 0,
       friendChatVisible: false,
       friendChatPeerId: null,
       friendChatPeerName: '',
@@ -865,13 +861,6 @@ export default {
     }
   },
   watch: {
-    '$route.path': function (path) {
-      if (path === '/home' && this.user && this.user.token) {
-        this.connectSocialStream()
-      } else {
-        this.closeSocialStream()
-      }
-    },
     quickMatchPolling: function (val) {
       if (val) prefetchGameChunk()
     }
@@ -915,7 +904,6 @@ export default {
       clearTimeout(this.friendsSearchDebounceTimer)
       this.friendsSearchDebounceTimer = null
     }
-    this.closeSocialStream()
     this.stopMailboxTick()
     this.quickMatchPolling = false
     this.quickMatchLoading = false
@@ -1073,114 +1061,6 @@ export default {
         ])
       })
       this.fetchFriends({ http }).catch(() => {})
-      this.connectSocialStream()
-    },
-    closeSocialStream() {
-      this.socialEsSession++
-      if (this.socialEsReconnectTimer != null) {
-        clearTimeout(this.socialEsReconnectTimer)
-        this.socialEsReconnectTimer = null
-      }
-      var es = this.socialEventSource
-      var notifyHandler = this._socialNotifyHandler
-      var presenceHandler = this._socialFriendPresenceHandler
-      this.socialEventSource = null
-      this._socialNotifyHandler = null
-      this._socialFriendPresenceHandler = null
-      if (es) {
-        es.onopen = null
-        es.onerror = null
-        es.onmessage = null
-        if (notifyHandler) {
-          try { es.removeEventListener('notify', notifyHandler) } catch (e) { /* ignore */ }
-        }
-        if (presenceHandler) {
-          try { es.removeEventListener('friendPresence', presenceHandler) } catch (e) { /* ignore */ }
-        }
-        try { es.close() } catch (e) { /* ignore */ }
-      }
-    },
-    scheduleSocialStreamReconnect() {
-      if (this.socialEsReconnectTimer != null) return
-      if (!this.user || !this.user.token) return
-      if (this.$route.path !== '/home') return
-      var self = this
-      var attempt = this.socialEsReconnectAttempt
-      var delay = Math.min(30000, 1000 * Math.pow(2, attempt))
-      this.socialEsReconnectTimer = setTimeout(function () {
-        self.socialEsReconnectTimer = null
-        self.socialEsReconnectAttempt++
-        self.connectSocialStream(true)
-      }, delay)
-    },
-    connectSocialStream(isReconnect) {
-      if (!this.user || !this.user.token) return
-      if (this.$route.path !== '/home') return
-      var url = buildSocialStreamUrl(this.user.token)
-      if (!url) return
-      this.closeSocialStream()
-      var session = ++this.socialEsSession
-      var self = this
-      var es
-      try { es = new EventSource(url) } catch (e) { this.scheduleSocialStreamReconnect(); return }
-      this.socialEventSource = es
-      this._socialNotifyHandler = function (ev) {
-        if (self.socialEsSession !== session) return
-        self.onSocialNotify(ev && ev.data)
-      }
-      this._socialFriendPresenceHandler = function (ev) {
-        if (self.socialEsSession !== session) return
-        self.onSocialFriendPresence(ev && ev.data)
-      }
-      var onNotify = this._socialNotifyHandler
-      var onFriendPresence = this._socialFriendPresenceHandler
-      es.addEventListener('notify', onNotify)
-      es.addEventListener('friendPresence', onFriendPresence)
-      es.onmessage = onNotify
-      es.onopen = function () {
-        if (self.socialEsSession !== session) return
-        self.socialEsReconnectAttempt = 0
-        if (isReconnect) {
-          self.fetchNotifySummary({ http: self.$http }).catch(function () {})
-        }
-      }
-      es.onerror = function () {
-        if (self.socialEsSession !== session) return
-        try { es.close() } catch (err) { /* ignore */ }
-        if (self.socialEventSource === es) self.socialEventSource = null
-        self.scheduleSocialStreamReconnect()
-      }
-    },
-    onSocialNotify(raw) {
-      if (raw) {
-        try {
-          var parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
-          if (process.env.NODE_ENV !== 'production') {
-            console.info('[social-sse] notify received', parsed)
-          }
-          this.applyNotifyPayload(parsed)
-          return
-        } catch (e) {
-          if (process.env.NODE_ENV !== 'production') {
-            console.warn('[social-sse] notify parse failed', raw, e)
-          }
-        }
-      }
-      this.fetchNotifySummary({ http: this.$http }).catch(() => {})
-    },
-    onSocialFriendPresence(raw) {
-      if (!raw) return
-      try {
-        var parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
-        if (process.env.NODE_ENV !== 'production') {
-          console.info('[social-sse] friendPresence received', parsed)
-        }
-        this.applyFriendPresencePayload(parsed)
-      } catch (e) {
-        if (process.env.NODE_ENV !== 'production') {
-          console.warn('[social-sse] friendPresence parse failed', raw, e)
-        }
-      }
     },
     openFriendChat(f) {
       var uid = f && f.userId != null ? Number(f.userId) : 0
@@ -1411,7 +1291,7 @@ export default {
         localStorage.setItem('userInfo', JSON.stringify(stored))
       } catch (e) { /* ignore */ }
     },
-    logout() { this.closeSocialStream(); localStorage.removeItem('userInfo'); this.$router.push('/') },
+    logout() { disconnectDpSocialStream(); localStorage.removeItem('userInfo'); this.$router.push('/') },
     goHandHistory() { this.$router.push('/hand-history') },
     goLeaderboard() { this.$router.push('/leaderboard') },
     goButtonGuide() { this.$router.push({ name: 'GameButtonGuide' }) },

@@ -562,6 +562,41 @@ body[data-dp-game-theme='retro8bit'] .dp-game-sheet__body {
   font-family: var(--dp-font-ui, monospace);
 }
 
+body[data-dp-game-theme='retro8bit'] .dp-friend-chat-picker__hint {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--dp-accent) 72%, var(--dp-text-muted));
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-friend-chat-picker__list {
+  border-radius: 0;
+  border: 1px solid var(--dp-terminal-border-active);
+  background: color-mix(in srgb, var(--dp-terminal-bg) 92%, #000);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-friend-chat-picker__name {
+  font-family: var(--dp-font-ui, monospace);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--dp-accent, #4af626);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-friend-chat-picker__dm-btn {
+  border-radius: 0;
+  font-family: var(--dp-font-ui, monospace);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid var(--dp-accent);
+  background: transparent;
+  color: var(--dp-accent);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-friend-chat-picker__dm-btn:hover {
+  background: var(--dp-accent);
+  color: #080a0c;
+}
+
 /* 观众席列表 */
 body[data-dp-game-theme='retro8bit'] .spectator-modal__empty {
   font-family: var(--dp-font-ui, monospace);

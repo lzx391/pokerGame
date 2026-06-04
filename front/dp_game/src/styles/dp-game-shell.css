@@ -2051,6 +2051,181 @@
     visibility: visible;
   }
 
+  /* retro8bit 宽视口：好友私信左上 CRT 面板 */
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel {
+    position: absolute;
+    inset: 0;
+    z-index: 1017;
+    pointer-events: none;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 1017;
+    pointer-events: none;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__shell {
+    position: absolute;
+    left: max(12px, env(safe-area-inset-left, 0px));
+    width: min(380px, calc(100vw - 24px));
+    height: min(420px, calc(100vh - 80px));
+    min-height: 240px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    pointer-events: auto;
+    border: 2px solid var(--dp-accent, #5fd068);
+    border-radius: 0;
+    background: var(--dp-terminal-bg, rgba(8, 14, 10, 0.96));
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--dp-accent) 35%, transparent),
+      0 12px 32px rgba(0, 0, 0, 0.45),
+      inset 0 0 24px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__head,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__head {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid color-mix(in srgb, var(--dp-accent) 40%, transparent);
+    background: color-mix(in srgb, var(--dp-panel-bg) 88%, var(--dp-accent) 12%);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__title,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__title {
+    font-family: var(--dp-font-ui);
+    font-size: 14px;
+    letter-spacing: 0.08em;
+    color: var(--dp-accent, #5fd068);
+    text-shadow: var(--dp-terminal-glow-text);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__close,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__close {
+    width: 36px;
+    height: 36px;
+    margin: 0;
+    padding: 0;
+    border: 1px solid color-mix(in srgb, var(--dp-accent) 35%, transparent);
+    border-radius: 0;
+    background: transparent;
+    color: var(--dp-accent, #5fd068);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__close:hover,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__close:hover {
+    background: color-mix(in srgb, var(--dp-accent) 18%, transparent);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__body,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__body {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__scanlines,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__scanlines {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.12;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.35) 2px,
+      rgba(0, 0, 0, 0.35) 4px
+    );
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content {
+    position: relative;
+    z-index: 2;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 8px 10px 10px;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content .dp-friend-chat-picker,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content .dp-friend-chat-picker {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content .dp-friend-chat-picker__hint,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content .dp-friend-chat-picker__hint {
+    font-family: var(--dp-font-ui);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: color-mix(in srgb, var(--dp-accent) 72%, var(--dp-text-muted));
+    text-transform: uppercase;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content .dp-friend-chat-picker__list,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content .dp-friend-chat-picker__list {
+    max-height: none;
+    flex: 1 1 auto;
+    min-height: 0;
+    border-radius: 0;
+    border: 1px solid var(--dp-terminal-border-active);
+    background: color-mix(in srgb, var(--dp-terminal-bg) 92%, #000);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content .dp-friend-chat-picker__row,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content .dp-friend-chat-picker__row {
+    border-bottom: 1px solid color-mix(in srgb, var(--dp-accent) 22%, transparent);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content .dp-friend-chat-picker__name,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content .dp-friend-chat-picker__name {
+    font-family: var(--dp-font-ui);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: var(--dp-accent, #5fd068);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content .dp-friend-chat-picker__dm-btn,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content .dp-friend-chat-picker__dm-btn {
+    border-radius: 0;
+    font-family: var(--dp-font-ui);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border: 1px solid var(--dp-accent);
+    background: transparent;
+    color: var(--dp-accent);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content .dp-friend-chat-picker__dm-btn:hover,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content .dp-friend-chat-picker__dm-btn:hover {
+    background: var(--dp-accent);
+    color: #080a0c;
+  }
+
   /* retro8bit 宽视口：房主终端右上显示板 */
   .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal {
     position: absolute;
@@ -4545,6 +4720,31 @@
 
 .dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__btn--ghost {
   border: 1px dashed var(--dp-terminal-border-active);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__btn--friend-chat {
+  position: relative;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__btn--friend-chat-alert {
+  animation: dp-mailbox-card-blink 0.65s step-end infinite;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__friend-chat-pip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 4px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border: 1px solid #f56c6c;
+  border-radius: 0;
+  background: #f56c6c;
+  color: #080a0c;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__settings-panel {

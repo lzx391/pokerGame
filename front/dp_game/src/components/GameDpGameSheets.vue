@@ -247,6 +247,32 @@
         @close="vm.closeInviteFriendSheet"
     />
 
+    <game-friend-chat-panel
+        v-if="vm.useRetroFriendChatPanelWide"
+        :open="vm.friendChatPickerOpen"
+        :my-user-id="friendChatMyUserId"
+        @close="vm.closeFriendChatPicker"
+        @open-chat="(f) => vm.openFriendChatFromPicker(f)"
+    />
+    <game-friend-chat-sheet
+        v-if="vm.friendChatPickerOpen && !vm.useRetroFriendChatPanelWide"
+        :visible="true"
+        :my-user-id="friendChatMyUserId"
+        :game-ui-theme="vm.gameUiTheme"
+        @close="vm.closeFriendChatPicker"
+        @open-chat="(f) => vm.openFriendChatFromPicker(f)"
+    />
+
+    <friend-chat-dialog
+        :visible.sync="vm.friendChatVisible"
+        :peer-user-id="vm.friendChatPeerId"
+        :peer-display-name="vm.friendChatPeerName"
+        :peer-avatar-url="vm.friendChatPeerAvatar"
+        :peer-avatar-updated-at="vm.friendChatPeerAvatarUpdatedAt"
+        :peer-unread-count="vm.friendChatPeerUnread"
+        @closed="vm.onFriendChatClosed"
+    />
+
   </div>
 </template>
 
@@ -260,6 +286,9 @@ import GameOwnerToolModal from './GameOwnerToolModal.vue'
 import GamePlayerSocialSheet from './GamePlayerSocialSheet.vue'
 import GameInviteFriendSheet from './GameInviteFriendSheet.vue'
 import GameInviteFriendPanel from './GameInviteFriendPanel.vue'
+import GameFriendChatSheet from './GameFriendChatSheet.vue'
+import GameFriendChatPanel from './GameFriendChatPanel.vue'
+import FriendChatDialog from './FriendChatDialog.vue'
 import GameOwnerHubPanel from './GameOwnerHubPanel.vue'
 import CustomNpcStyleDialog from './CustomNpcStyleDialog.vue'
 
@@ -275,6 +304,9 @@ export default {
     GamePlayerSocialSheet,
     GameInviteFriendSheet,
     GameInviteFriendPanel,
+    GameFriendChatSheet,
+    GameFriendChatPanel,
+    FriendChatDialog,
     GameOwnerHubPanel,
     CustomNpcStyleDialog
   },
@@ -287,6 +319,9 @@ export default {
       var u = this.vm && this.vm.user
       var n = u && u.userId != null && u.userId !== '' ? Number(u.userId) : 0
       return isNaN(n) || n <= 0 ? 0 : n
+    },
+    friendChatMyUserId: function () {
+      return this.vm && this.vm.friendChatMyUserId != null ? this.vm.friendChatMyUserId : 0
     }
   },
   methods: {

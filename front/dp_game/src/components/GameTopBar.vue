@@ -103,6 +103,21 @@
           邀请好友
         </button>
         <button
+            ref="guideTopFriendChat"
+            type="button"
+            class="dp-btn dp-top-bar__btn dp-top-bar__btn--ghost dp-top-bar__btn--friend-chat"
+            :class="{ 'dp-top-bar__btn--friend-chat-alert': friendChatUnreadTotal > 0 }"
+            :aria-label="friendChatBtnAria"
+            @click="$emit('open-friend-chat')"
+        >
+          <span class="dp-top-bar__friend-chat-label">{{ friendChatBtnLabel }}</span>
+          <span
+              v-if="friendChatUnreadTotal > 0"
+              class="dp-top-bar__friend-chat-pip"
+              aria-hidden="true"
+          >!</span>
+        </button>
+        <button
             ref="guideTopHandHistory"
             type="button"
             class="dp-btn dp-top-bar__btn dp-top-bar__btn--ghost"
@@ -185,6 +200,8 @@ export default {
     isOwner: { type: Boolean, default: false },
     /** 局内未离座成员或观众：可邀请互为好友进房 */
     canInviteFriend: { type: Boolean, default: false },
+    /** Vuex dpMailbox：好友私信未读总数 */
+    friendChatUnreadTotal: { type: Number, default: 0 },
     themeOptions: {
       type: Array,
       default: function () {
@@ -227,6 +244,16 @@ export default {
           this.heroEconomySecondaryValue,
           this.heroCarryInChips
       )
+    },
+    friendChatBtnLabel: function () {
+      return this.gameUiTheme === 'retro8bit' ? 'DM' : '私信'
+    },
+    friendChatBtnAria: function () {
+      var base = this.gameUiTheme === 'retro8bit' ? '好友私信' : '打开好友私信'
+      if (this.friendChatUnreadTotal > 0) {
+        return base + '，' + this.friendChatUnreadTotal + ' 条未读'
+      }
+      return base
     }
   },
   data: function () {

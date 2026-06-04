@@ -48,6 +48,8 @@
           @open-music-box="noopGuideTip('音乐盒')"
           @open-owner-hub="noopGuideTip('房主操作')"
           @open-invite-friend="noopGuideTip('邀请好友')"
+          @open-friend-chat="noopGuideTip('好友私信')"
+          :friend-chat-unread-total="0"
           @exit="exitToLobby"
           @ready-next-hand="noopGuideTip('下一局报名')"
         />
