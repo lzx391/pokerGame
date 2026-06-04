@@ -97,6 +97,7 @@ public class DpSettlePersistenceDispatcher {
         try {
             observedHandPersistService.save(job.archived(), job.roomSnapshotForParticipants());
             applyStatsIncrements(job.statsIncrements());
+            applyStreakFlushes(job.streakFlushes());
             return true;
         } catch (Exception e) {
             if (fromAsyncWorker) {
@@ -107,6 +108,18 @@ public class DpSettlePersistenceDispatcher {
                         e.toString());
             }
             return false;
+        }
+    }
+
+    private void applyStreakFlushes(List<DpMaxWinStreakFlush> flushes) {
+        if (flushes == null || flushes.isEmpty()) {
+            return;
+        }
+        for (DpMaxWinStreakFlush flush : flushes) {
+            if (flush == null || flush.streak() <= 0) {
+                continue;
+            }
+            dpUserStatsMapper.tryUpdateMaxWinStreak(flush.userId(), flush.streak());
         }
     }
 

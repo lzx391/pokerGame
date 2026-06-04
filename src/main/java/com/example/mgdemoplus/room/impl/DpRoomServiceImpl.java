@@ -7,6 +7,7 @@ import com.example.mgdemoplus.room.support.DpRoomHumanCounts;
 import com.example.mgdemoplus.room.support.DpRoomLobbySync;
 import com.example.mgdemoplus.room.support.DpRoomMutationEffect;
 import com.example.mgdemoplus.room.support.DpRoomQuickMatchBridge;
+import com.example.mgdemoplus.room.support.DpMaxWinStreakFlush;
 import com.example.mgdemoplus.room.support.DpSettlePersistJob;
 import com.example.mgdemoplus.room.support.DpSettlePersistenceDispatcher;
 import com.example.mgdemoplus.room.support.DpSettleStatsIncrement;
@@ -2647,12 +2648,14 @@ ownerFieldChanged：房主字段是否发生变化。
     /**
      * 本手牌池底分配完成后更新连胜：牌力全局第一或并列第一的玩家 +1，其余未离线座位清零。
      * 若没有任何此类赢家（异常局），不修改避免误清空。
+     * 断连胜时返回待异步 flush 的峰值（userId + streak），不在本方法内写库。
      */
-    private void applyWinStreakAfterHand(DpRoomBO r, Set<String> winnerNicknames) {
+    private List<DpMaxWinStreakFlush> applyWinStreakAfterHand(DpRoomBO r, Set<String> winnerNicknames) {
         if (r == null || r.getPlayers() == null)
-            return;
+            return List.of();
         if (winnerNicknames == null || winnerNicknames.isEmpty())
-            return;
+            return List.of();
+        List<DpMaxWinStreakFlush> flushes = new ArrayList<>();
         for (DpPlayer p : r.getPlayers()) {
             if (p == null || p.isLeftThisHand())
                 continue;
@@ -2663,9 +2666,14 @@ ownerFieldChanged：房主字段是否发生变化。
             if (winnerNicknames.contains(nick)) {
                 r.getWinStreakByNickname().compute(nick, (k, v) -> (v == null ? 0 : v) + 1);
             } else {
+                Integer streak = r.getWinStreakByNickname().get(nick);
+                if (streak != null && streak > 0 && p.getDpUserId() != null) {
+                    flushes.add(new DpMaxWinStreakFlush(p.getDpUserId(), streak));
+                }
                 r.getWinStreakByNickname().put(nick, 0);
             }
         }
+        return flushes;
     }
 
     // ========== 游戏尾声：结算与下一局准备 ==========
@@ -2763,8 +2771,17 @@ ownerFieldChanged：房主字段是否发生变化。
         }
         return out;
     }
-
-    private void enqueueSettlePersistence(DpObservedHandRecordBO archived, DpRoomBO r, List<DpSettleStatsIncrement> stats) {
+/**
+ * 开异步线程处理
+ * @param archived
+ * @param r
+ * @param stats
+ */
+    private void enqueueSettlePersistence(
+            DpObservedHandRecordBO archived,
+            DpRoomBO r,
+            List<DpSettleStatsIncrement> stats,
+            List<DpMaxWinStreakFlush> streakFlushes) {
         if (archived == null) {
             return;
         }
@@ -2772,7 +2789,8 @@ ownerFieldChanged：房主字段是否发生变化。
                 r.getRoomId(),
                 archived,
                 DpSettlePersistenceDispatcher.snapshotRoomForHandPersist(r),
-                stats != null ? List.copyOf(stats) : List.of());
+                stats != null ? List.copyOf(stats) : List.of(),
+                streakFlushes != null ? List.copyOf(streakFlushes) : List.of());
         settlePersistenceDispatcher.dispatch(job);
     }
 
@@ -2811,9 +2829,10 @@ ownerFieldChanged：房主字段是否发生变化。
         // 与 sanitizeHoleCardsForViewer 在 settled 阶段依赖本标志矛盾，导致非房主看不到赢家手牌。
         final boolean lastHandPublic = countPlayersStillInHand(r) >= 1;
 
-        // 没有任何下注，直接标记为结算完成
-        if (r.getPot() <= 0 && (r.getPots() == null || r.getPots().isEmpty())) {
+        // 没有任何下注，直接标记为结算完成,0底池或者单纯只有一个玩家的时候直接跳过
+        if (r.getPot() <= 0 && (r.getPots() == null || r.getPots().isEmpty()) || r.getPlayers().size()==1) {
             autoSettleZeroPotAndEnterSettledShortcut(r);
+            System.out.println("零池短路");
             return;
         }
 
@@ -2833,7 +2852,7 @@ ownerFieldChanged：房主字段是否发生变化。
         // 每局结算的时候将牌谱归档，并存入数据库
         DpObservedHandRecordBO archivedEarly = observedHandService.finalizeHand(r);
         if (archivedEarly != null) {
-            enqueueSettlePersistence(archivedEarly, r, buildZeroPotHonorStatsIncrements(r));
+            enqueueSettlePersistence(archivedEarly, r, buildZeroPotHonorStatsIncrements(r), List.of());
         }
         DpNpcStreetActionLog.clearHand(r);
         observedHandService.clearHand(r);
@@ -2933,7 +2952,7 @@ ownerFieldChanged：房主字段是否发生变化。
             }
         }
 
-        applyWinStreakAfterHand(r, streakWinnerNicknames);
+        List<DpMaxWinStreakFlush> streakFlushes = applyWinStreakAfterHand(r, streakWinnerNicknames);
 
         // 结算分配前快照底池结构（随后会清空 pots）
         observedHandService.capturePotsBeforeClear(r);
@@ -3152,7 +3171,7 @@ ownerFieldChanged：房主字段是否发生变化。
         DpObservedHandRecordBO archived = observedHandService.finalizeHand(r);
         if (archived != null) {
             enqueueSettlePersistence(
-                    archived, r, buildHonorStatsIncrementsAfterSettle(r, strengthMap, chipsBeforeSettle));
+                    archived, r, buildHonorStatsIncrementsAfterSettle(r, strengthMap, chipsBeforeSettle), streakFlushes);
         }
 
         // 逐街动作日志：本手结束后清理，避免内存增长

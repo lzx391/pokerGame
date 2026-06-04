@@ -10,5 +10,6 @@ public record DpSettlePersistJob(
         String roomId,
         DpObservedHandRecordBO archived,
         DpRoomBO roomSnapshotForParticipants,
-        List<DpSettleStatsIncrement> statsIncrements) {
+        List<DpSettleStatsIncrement> statsIncrements,
+        List<DpMaxWinStreakFlush> streakFlushes) {
 }
