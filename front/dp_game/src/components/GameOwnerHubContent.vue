@@ -35,22 +35,77 @@
         role="listbox"
         aria-label="选择 NPC 类型"
     >
-      <p v-if="!touchMode" class="dp-owner-hub-content__hint">↑↓ 选择 · ←→ 数量 · Enter 确认</p>
-      <button
-          v-for="(row, idx) in allNpcRows"
-          :key="row.id"
-          type="button"
-          class="dp-owner-terminal__row dp-owner-terminal__row--npc"
-          :class="{ 'dp-owner-terminal__row--active': cursorIndex === idx }"
-          role="option"
-          :aria-selected="cursorIndex === idx ? 'true' : 'false'"
-          @click="onNpcRowClick(idx)"
-      >
-        <span class="dp-owner-terminal__row-cursor" aria-hidden="true">{{ cursorIndex === idx ? '›' : ' ' }}</span>
-        <span class="dp-owner-terminal__row-label" :style="{ color: row.labelColor }">{{ row.label }}</span>
-        <span v-if="cursorIndex === idx" class="dp-owner-hub-content__count">× {{ npcCounts[row.id] }}</span>
-        <span v-if="row.adding" class="dp-owner-hub-content__status">提交中…</span>
-      </button>
+      <template v-if="touchMode">
+        <ul class="dp-owner-npc-console__list" role="presentation">
+          <li
+              v-for="(row, idx) in allNpcRows"
+              :key="row.id"
+              role="option"
+              :aria-selected="cursorIndex === idx ? 'true' : 'false'"
+              class="dp-owner-npc-console__row"
+              :class="{ 'dp-owner-npc-console__row--selected': cursorIndex === idx }"
+              @click="onNpcRowClick(idx)"
+          >
+            <div class="dp-owner-npc-console__left">
+              <span class="dp-owner-npc-console__cursor" aria-hidden="true">&gt;</span>
+              <span class="dp-owner-npc-console__label" :style="{ color: row.labelColor }">{{ row.label }}</span>
+            </div>
+            <span v-if="row.adding" class="dp-owner-npc-console__status">BUSY</span>
+          </li>
+        </ul>
+
+        <div
+            class="dp-owner-npc-console__row dp-owner-npc-console__row--count dp-owner-npc-console__row--selected"
+            aria-label="NPC 数量"
+        >
+          <div class="dp-owner-npc-console__left">
+            <span class="dp-owner-npc-console__cursor" aria-hidden="true">&gt;</span>
+            <span class="dp-owner-npc-console__label">COUNT</span>
+          </div>
+          <div class="dp-owner-npc-console__adj">
+            <button
+                type="button"
+                class="dp-owner-npc-console__chev"
+                aria-label="减少数量"
+                :disabled="selectedNpcCount <= 1"
+                @click.stop="bumpNpcCount(-1)"
+            >
+              &lt;
+            </button>
+            <span class="dp-owner-npc-console__value" aria-live="polite">{{ selectedNpcCount }}</span>
+            <button
+                type="button"
+                class="dp-owner-npc-console__chev"
+                aria-label="增加数量"
+                :disabled="selectedNpcCount >= npcCountMax"
+                @click.stop="bumpNpcCount(1)"
+            >
+              &gt;
+            </button>
+          </div>
+        </div>
+
+        <p class="dp-owner-npc-console__hint" aria-hidden="true">tap type · tap &lt;&gt; count · confirm below</p>
+      </template>
+
+      <template v-else>
+        <p class="dp-owner-hub-content__hint">↑↓ 选择 · ←→ 数量 · Enter 确认</p>
+        <button
+            v-for="(row, idx) in allNpcRows"
+            :key="row.id"
+            type="button"
+            class="dp-owner-terminal__row dp-owner-terminal__row--npc"
+            :class="{ 'dp-owner-terminal__row--active': cursorIndex === idx }"
+            role="option"
+            :aria-selected="cursorIndex === idx ? 'true' : 'false'"
+            @click="onNpcRowClick(idx)"
+        >
+          <span class="dp-owner-terminal__row-cursor" aria-hidden="true">{{ cursorIndex === idx ? '›' : ' ' }}</span>
+          <span class="dp-owner-terminal__row-label" :style="{ color: row.labelColor }">{{ row.label }}</span>
+          <span v-if="cursorIndex === idx" class="dp-owner-hub-content__count">× {{ npcCounts[row.id] }}</span>
+          <span v-if="row.adding" class="dp-owner-hub-content__status">提交中…</span>
+        </button>
+      </template>
     </div>
 
     <!-- NPC confirm -->
@@ -288,6 +343,14 @@ export default {
       var list = this.kickSelectionNicknames.slice(0, 6).map(this.displayNickname)
       if (this.kickSelectionNicknames.length > 6) list.push('…')
       return list.join('、')
+    },
+    npcCountMax() {
+      return 9
+    },
+    selectedNpcCount() {
+      var row = this.allNpcRows[this.cursorIndex]
+      if (!row) return 1
+      return this.clampCount(this.npcCounts[row.id], this.npcCountMax)
     }
   },
   watch: {
@@ -341,7 +404,11 @@ export default {
     bumpNpcCount(delta) {
       var row = this.allNpcRows[this.cursorIndex]
       if (!row) return
-      this.npcCounts[row.id] = this.clampCount(this.clampCount(this.npcCounts[row.id], 9) + delta, 9)
+      var next = this.clampCount(
+        this.clampCount(this.npcCounts[row.id], this.npcCountMax) + delta,
+        this.npcCountMax
+      )
+      this.$set(this.npcCounts, row.id, next)
     },
     isKickSelected(nick) {
       return this.kickSelectionNicknames.indexOf(nick) >= 0
@@ -372,7 +439,9 @@ export default {
     },
     onNpcRowClick(idx) {
       this.cursorIndex = idx
-      this.enterNpcConfirm()
+      if (!this.touchMode) {
+        this.enterNpcConfirm()
+      }
     },
     onTransferRowClick(idx) {
       this.cursorIndex = idx

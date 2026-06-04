@@ -713,3 +713,179 @@ body[data-dp-game-theme='retro8bit'] .dp-top-bar .dp-owner-touch__entry--topbar 
   padding: 0.35em 0.65em;
   min-height: 36px;
 }
+
+/* ====== 房主触控：添加 NPC — create-room 风格 CRT 参数行 ====== */
+
+.dp-owner-npc-console__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dp-owner-npc-console__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 6px;
+  min-height: 48px;
+  margin: 2px 0;
+  font-family: 'Courier New', ui-monospace, monospace;
+  font-size: clamp(11px, 2.8vw, 13px);
+  letter-spacing: 0.03em;
+  color: rgba(224, 240, 216, 0.82);
+  border: 2px solid transparent;
+  box-sizing: border-box;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.dp-owner-npc-console__left {
+  display: grid;
+  grid-template-columns: 1.4em 1fr;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 8px 10px;
+  border: 2px solid transparent;
+  box-sizing: border-box;
+}
+
+.dp-owner-npc-console__cursor {
+  font-family: var(--dp-font-pixel, 'Press Start 2P', monospace);
+  font-size: 10px;
+  color: transparent;
+  text-align: center;
+}
+
+.dp-owner-npc-console__row--selected .dp-owner-npc-console__cursor {
+  color: inherit;
+}
+
+.dp-owner-npc-console__row--selected .dp-owner-npc-console__left {
+  color: #080a0c;
+  background: var(--dp-terminal-led-green, #4af626);
+  border-color: #72f052;
+  box-shadow: inset 0 0 0 1px #080a0c;
+}
+
+.dp-owner-npc-console__label {
+  font-weight: 600;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dp-owner-npc-console__status {
+  display: flex;
+  align-items: center;
+  padding-right: 8px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: rgba(74, 246, 38, 0.55);
+}
+
+.dp-owner-npc-console__row--count {
+  margin-top: 8px;
+  cursor: default;
+}
+
+.dp-owner-npc-console__adj {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-end;
+  min-height: 48px;
+  padding: 6px 8px 6px 0;
+  box-sizing: border-box;
+  color: rgba(224, 240, 216, 0.92);
+}
+
+.dp-owner-npc-console__row--selected .dp-owner-npc-console__adj,
+.dp-owner-npc-console__row--selected .dp-owner-npc-console__chev,
+.dp-owner-npc-console__row--selected .dp-owner-npc-console__value {
+  color: var(--dp-terminal-led-green, #4af626);
+}
+
+.dp-owner-npc-console__chev {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 2px 6px;
+  border: 1px solid rgba(74, 246, 38, 0.28);
+  border-radius: 0;
+  background: rgba(0, 0, 0, 0.22);
+  color: inherit;
+  font-family: var(--dp-font-pixel, 'Press Start 2P', monospace);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dp-owner-npc-console__row--selected .dp-owner-npc-console__chev {
+  border-color: rgba(74, 246, 38, 0.45);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.dp-owner-npc-console__chev:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.dp-owner-npc-console__chev:active:not(:disabled),
+.dp-owner-npc-console__chev:focus-visible:not(:disabled) {
+  background: rgba(74, 246, 38, 0.22);
+  outline: 1px solid currentColor;
+  outline-offset: 1px;
+}
+
+.dp-owner-npc-console__value {
+  min-width: 2.5em;
+  padding: 4px 8px;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(14px, 3.2vw, 16px);
+  font-weight: 700;
+  text-align: center;
+}
+
+.dp-owner-npc-console__hint {
+  margin: 10px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid rgba(74, 246, 38, 0.14);
+  font-family: 'Courier New', ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-align: center;
+  color: rgba(74, 246, 38, 0.38);
+  text-transform: uppercase;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-owner-touch__sheet--retro .dp-owner-hub-content--touch .dp-owner-terminal__row {
+  border-radius: 0;
+  border: 2px solid transparent;
+  background: transparent;
+  font-family: 'Courier New', ui-monospace, monospace;
+  letter-spacing: 0.04em;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-owner-touch__sheet--retro .dp-owner-hub-content--touch .dp-owner-terminal__row--active {
+  color: #080a0c;
+  background: var(--dp-terminal-led-green, #4af626);
+  border-color: #72f052;
+  box-shadow: inset 0 0 0 1px #080a0c;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-owner-touch__sheet--retro .dp-owner-hub-content__screen--confirm {
+  padding: 12px 10px;
+  border: 2px solid rgba(74, 246, 38, 0.22);
+  background: rgba(0, 0, 0, 0.25);
+  font-family: 'Courier New', ui-monospace, monospace;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub {
+  padding-top: 6px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+}

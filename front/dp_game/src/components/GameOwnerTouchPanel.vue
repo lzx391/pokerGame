@@ -16,7 +16,7 @@
     <transition name="dp-sheet">
       <game-bottom-sheet
           v-if="open"
-          title="房主操作"
+          :title="sheetTitle"
           aria-label="房主操作"
           :wide="true"
           body-modifier="owner-hub"
@@ -37,36 +37,54 @@
             class="dp-owner-touch__sheet"
             :class="{ 'dp-owner-touch__sheet--retro': gameUiTheme === 'retro8bit' }"
         >
-          <game-owner-hub-content
-              ref="hubContent"
-              :active="open"
-              :touch-mode="true"
-              :terminal-focused="false"
-              :owner-reveal-all="ownerRevealAll"
-              :demo-bot-adding="demoBotAdding"
-              :demo-bot-added-tip="demoBotAddedTip"
-              :maniac-bot-adding="maniacBotAdding"
-              :maniac-bot-added-tip="maniacBotAddedTip"
-              :tag-bot-adding="tagBotAdding"
-              :tag-bot-added-tip="tagBotAddedTip"
-              :lag-bot-adding="lagBotAdding"
-              :lag-bot-added-tip="lagBotAddedTip"
-              :nit-bot-adding="nitBotAdding"
-              :nit-bot-added-tip="nitBotAddedTip"
-              :call-bot-adding="callBotAdding"
-              :call-bot-added-tip="callBotAddedTip"
-              :llm-bot-adding="llmBotAdding"
-              :llm-bot-added-tip="llmBotAddedTip"
-              :llm-global-bot-adding="llmGlobalBotAdding"
-              :llm-global-bot-added-tip="llmGlobalBotAddedTip"
-              :custom-bot-adding="customBotAdding"
-              :custom-bot-added-tip="customBotAddedTip"
-              @confirm-add-npcs="$emit('confirm-add-npcs', $event)"
-              @transfer-owner="$emit('transfer-owner')"
-              @kick-players="$emit('kick-players', $event)"
-              @toggle-reveal="$emit('toggle-reveal')"
-              @request-close="closePanel"
-          />
+          <div
+              class="dp-owner-touch__console"
+              :class="{ 'dp-owner-touch__console--retro': gameUiTheme === 'retro8bit' }"
+          >
+            <div
+                v-if="gameUiTheme === 'retro8bit'"
+                class="dp-owner-touch__console-scanlines"
+                aria-hidden="true"
+            />
+            <p
+                v-if="gameUiTheme === 'retro8bit'"
+                class="dp-owner-touch__console-subhead"
+                aria-hidden="true"
+            >
+              {{ consoleSubhead }}
+            </p>
+
+            <game-owner-hub-content
+                ref="hubContent"
+                :active="open"
+                :touch-mode="true"
+                :terminal-focused="false"
+                :owner-reveal-all="ownerRevealAll"
+                :demo-bot-adding="demoBotAdding"
+                :demo-bot-added-tip="demoBotAddedTip"
+                :maniac-bot-adding="maniacBotAdding"
+                :maniac-bot-added-tip="maniacBotAddedTip"
+                :tag-bot-adding="tagBotAdding"
+                :tag-bot-added-tip="tagBotAddedTip"
+                :lag-bot-adding="lagBotAdding"
+                :lag-bot-added-tip="lagBotAddedTip"
+                :nit-bot-adding="nitBotAdding"
+                :nit-bot-added-tip="nitBotAddedTip"
+                :call-bot-adding="callBotAdding"
+                :call-bot-added-tip="callBotAddedTip"
+                :llm-bot-adding="llmBotAdding"
+                :llm-bot-added-tip="llmBotAddedTip"
+                :llm-global-bot-adding="llmGlobalBotAdding"
+                :llm-global-bot-added-tip="llmGlobalBotAddedTip"
+                :custom-bot-adding="customBotAdding"
+                :custom-bot-added-tip="customBotAddedTip"
+                @confirm-add-npcs="$emit('confirm-add-npcs', $event)"
+                @transfer-owner="$emit('transfer-owner')"
+                @kick-players="$emit('kick-players', $event)"
+                @toggle-reveal="$emit('toggle-reveal')"
+                @request-close="closePanel"
+            />
+          </div>
 
           <div
               v-if="touchFooterVisible"
@@ -81,32 +99,6 @@
             >
               {{ footerBackLabel }}
             </button>
-
-            <div
-                v-if="hubScreen === 'npc-pick' && hubListLength > 0"
-                class="dp-owner-touch__count-stepper"
-                aria-label="NPC 数量"
-            >
-              <button
-                  type="button"
-                  class="dp-owner-touch__count-btn"
-                  :disabled="npcCount <= 1"
-                  aria-label="减少数量"
-                  @click="bumpNpc(-1)"
-              >
-                −
-              </button>
-              <span class="dp-owner-touch__count-val">× {{ npcCount }}</span>
-              <button
-                  type="button"
-                  class="dp-owner-touch__count-btn"
-                  :disabled="npcCount >= 9"
-                  aria-label="增加数量"
-                  @click="bumpNpc(1)"
-              >
-                +
-              </button>
-            </div>
 
             <button
                 v-if="footerPrimary"
@@ -173,6 +165,24 @@ export default {
       }
       return '房主操作'
     },
+    sheetTitle: function () {
+      if (this.gameUiTheme !== 'retro8bit') return '房主操作'
+      var screen = this.hubScreen
+      if (screen === 'npc-pick' || screen === 'npc-confirm') return '— ADD NPC —'
+      if (screen === 'transfer-pick' || screen === 'transfer-confirm') return '— TRANSFER —'
+      if (screen === 'kick-pick' || screen === 'kick-confirm') return '— KICK —'
+      return '— OWNER —'
+    },
+    consoleSubhead: function () {
+      var screen = this.hubScreen
+      if (screen === 'npc-pick') return 'SELECT TYPE · ADJUST COUNT'
+      if (screen === 'npc-confirm') return 'CONFIRM ADD'
+      if (screen === 'transfer-pick') return 'PICK NEW OWNER'
+      if (screen === 'transfer-confirm') return 'CONFIRM TRANSFER'
+      if (screen === 'kick-pick') return 'SELECT PLAYERS'
+      if (screen === 'kick-confirm') return 'CONFIRM KICK'
+      return 'OWNER CONTROLS'
+    },
     entryClass: function () {
       return {
         'dp-owner-touch__entry--topbar': this.entryVariant === 'topbar',
@@ -189,43 +199,41 @@ export default {
     hubListLength: function () {
       return this.hub ? this.hub.listLength : 0
     },
-    npcCount: function () {
-      if (!this.hub || this.hubScreen !== 'npc-pick') return 1
-      var row = this.hub.allNpcRows[this.hub.cursorIndex]
-      if (!row) return 1
-      return this.hub.npcCounts[row.id] || 1
-    },
     touchFooterVisible: function () {
       return this.hubScreen !== 'root'
     },
     footerBackLabel: function () {
+      if (this.gameUiTheme === 'retro8bit') {
+        return this.hub && this.hub.stackDepth > 1 ? 'BACK' : 'CLOSE'
+      }
       return this.hub && this.hub.stackDepth > 1 ? '返回' : '关闭'
     },
     footerPrimary: function () {
       if (!this.hub) return null
       var screen = this.hubScreen
+      var retro = this.gameUiTheme === 'retro8bit'
       if (screen === 'npc-pick' && this.hubListLength > 0) {
-        return { label: '选择类型', action: 'npc-next', disabled: false }
+        return { label: retro ? 'NEXT >>' : '下一步', action: 'npc-next', disabled: false }
       }
       if (screen === 'npc-confirm') {
-        return { label: '确认添加', action: 'npc-confirm', disabled: false }
+        return { label: retro ? 'ADD >>' : '确认添加', action: 'npc-confirm', disabled: false }
       }
       if (screen === 'transfer-pick' && this.hubListLength > 0) {
-        return { label: '下一步', action: 'transfer-next', disabled: false }
+        return { label: retro ? 'NEXT >>' : '下一步', action: 'transfer-next', disabled: false }
       }
       if (screen === 'transfer-confirm') {
-        return { label: '确认移交', action: 'transfer-confirm', disabled: false }
+        return { label: retro ? 'TRANSFER >>' : '确认移交', action: 'transfer-confirm', disabled: false }
       }
       if (screen === 'kick-pick') {
         var n = this.hub.kickSelectionNicknames.length
         return {
-          label: n > 0 ? '下一步（' + n + '）' : '请勾选玩家',
+          label: n > 0 ? (retro ? 'NEXT (' + n + ') >>' : '下一步（' + n + '）') : (retro ? 'PICK PLAYERS' : '请勾选玩家'),
           action: 'kick-next',
           disabled: n === 0
         }
       }
       if (screen === 'kick-confirm') {
-        return { label: '确认踢出', action: 'kick-confirm', danger: true, disabled: false }
+        return { label: retro ? 'KICK >>' : '确认踢出', action: 'kick-confirm', danger: true, disabled: false }
       }
       return null
     }
@@ -250,11 +258,6 @@ export default {
         return
       }
       this.closePanel()
-    },
-    bumpNpc: function (delta) {
-      if (this.hub && typeof this.hub.bumpNpcCount === 'function') {
-        this.hub.bumpNpcCount(delta)
-      }
     },
     onFooterPrimary: function () {
       if (!this.hub || !this.footerPrimary) return
@@ -336,6 +339,48 @@ export default {
   gap: 12px;
 }
 
+.dp-owner-touch__console {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.dp-owner-touch__console--retro {
+  border: 2px solid rgba(74, 246, 38, 0.28);
+  background: rgba(6, 8, 10, 0.65);
+  padding: 8px 10px 10px;
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.35);
+}
+
+.dp-owner-touch__console-scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0 2px,
+    rgba(0, 0, 0, 0.1) 2px 3px
+  );
+  background-size: 100% 3px;
+  opacity: 0.14;
+}
+
+.dp-owner-touch__console-subhead {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-family: 'Courier New', ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-align: center;
+  color: rgba(74, 246, 38, 0.45);
+  text-transform: uppercase;
+}
+
+.dp-owner-touch__sheet--retro {
+  gap: 8px;
+}
+
 .dp-owner-touch__footer {
   display: flex;
   flex-wrap: wrap;
@@ -375,44 +420,12 @@ export default {
   cursor: not-allowed;
 }
 
-.dp-owner-touch__count-stepper {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex: 0 0 auto;
-}
-
-.dp-owner-touch__count-btn {
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
-  border: 1px solid var(--dp-btn-ghost-border, rgba(255, 255, 255, 0.2));
-  background: var(--dp-btn-ghost-bg, rgba(255, 255, 255, 0.08));
-  color: var(--dp-text-primary, #e8e8e8);
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-  touch-action: manipulation;
-}
-
-.dp-owner-touch__count-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.dp-owner-touch__count-val {
-  min-width: 3em;
-  text-align: center;
-  font-weight: 700;
-  font-size: 16px;
-}
-
 .dp-owner-touch__sheet--retro .dp-owner-touch__footer {
   border-top-color: rgba(74, 246, 38, 0.22);
 }
 
 .dp-owner-touch__sheet--retro .dp-owner-touch__footer-btn,
-.dp-owner-touch__sheet--retro .dp-owner-touch__count-btn {
+.dp-owner-touch__sheet--retro .dp-owner-touch__footer-btn--primary {
   border-radius: 0;
   font-family: 'Courier New', ui-monospace, monospace;
   background: rgba(10, 26, 10, 0.75);
