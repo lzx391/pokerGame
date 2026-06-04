@@ -1,5 +1,25 @@
 <template>
   <div
+    v-if="useRetroDetail"
+    class="dp-game-root dp-hh-lobby-route"
+    :data-dp-game-theme="effectiveThemeForCss"
+  >
+    <header class="dp-hh-lobby-route__header">
+      <div class="dp-hh-lobby-route__header-actions">
+        <div class="dp-game-theme-row dp-hh-lobby-route__theme-row">
+          <span class="dp-game-theme-row__label">界面主题</span>
+          <dp-theme-picker
+            :game-ui-theme="gameUiTheme"
+            :theme-options="gameThemeOptions"
+            @input-theme="onLobbyThemeChange($event)"
+          />
+        </div>
+      </div>
+    </header>
+    <dp-hand-history-detail context="lobby-page" :hand-history-id="handHistoryId" />
+  </div>
+  <div
+    v-else
     class="hand-detail-page-root"
     :class="{ 'dp-game-root': !embedded }"
     :data-dp-game-theme="!embedded ? effectiveThemeForCss : undefined"
@@ -272,9 +292,11 @@ import {
 } from '@/utils/dpHandHistoryReplay.js'
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
 import { CAT_COPY, dpPotDisplayLabel } from '@/constants/dpCatThemeCopy'
+import DpHandHistoryDetail from '@/components/DpHandHistoryDetail.vue'
 
 export default {
   name: 'HandHistoryDetail',
+  components: { DpHandHistoryDetail },
   mixins: [dpLobbyThemeMixin],
   props: {
     handHistoryId: {
@@ -296,6 +318,9 @@ export default {
     }
   },
   computed: {
+    useRetroDetail() {
+      return !this.embedded && this.gameUiTheme === 'retro8bit'
+    },
     payload() {
       return (this.detail && this.detail.payload) || {}
     },
@@ -462,6 +487,7 @@ export default {
     }
   },
   async created() {
+    if (this.useRetroDetail) return
     try {
       const raw = localStorage.getItem('userInfo')
       this.user = raw ? JSON.parse(raw) : null
@@ -1318,5 +1344,24 @@ export default {
   .hand-detail-page__panel {
     padding: 14px;
   }
+}
+
+.dp-hh-lobby-route {
+  max-width: min(960px, 100%);
+  margin: 0 auto;
+}
+.dp-hh-lobby-route__header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: clamp(8px, 2vw, 14px);
+}
+.dp-hh-lobby-route__header-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+.dp-hh-lobby-route__theme-row {
+  justify-content: flex-end;
 }
 </style>

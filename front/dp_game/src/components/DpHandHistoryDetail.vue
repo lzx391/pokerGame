@@ -1,6 +1,11 @@
 <template>
-  <transition name="dp-hd-root">
-    <div v-if="visible" class="dp-hd" @click.self="close">
+  <transition :name="isLobbyPage ? '' : 'dp-hd-root'">
+    <div
+      v-if="rootVisible"
+      class="dp-hd"
+      :class="{ 'dp-hd--lobby-page': isLobbyPage }"
+      @click.self="onBackdropClick"
+    >
       <div class="dp-hd__tv" :class="tvAnimClass">
         <div class="dp-hd__antenna dp-hd__antenna--l" />
         <div class="dp-hd__antenna dp-hd__antenna--r" />
@@ -26,13 +31,13 @@
                   <!-- 元信息 -->
                   <div class="dp-hd__meta">
                     <span class="dp-hd__meta-item">ROOM:{{ detail.roomId || '-' }}</span>
-                    <button class="dp-hd__meta-close" @click="close" title="关闭">[X]</button>
                     <span class="dp-hd__meta-sep">|</span>
                     <span class="dp-hd__meta-item">BLINDS:{{ detail.smallBlindChips }}/{{ detail.bigBlindChips }}</span>
                     <span class="dp-hd__meta-sep">|</span>
                     <span class="dp-hd__meta-item">DEALER:{{ detail.dealerNickname || '--' }}</span>
                     <span class="dp-hd__meta-sep">|</span>
                     <span class="dp-hd__meta-item">{{ formatTime(detail.endedAtMs) }}</span>
+                    <button class="dp-hd__meta-close" @click="close" title="关闭">[X]</button>
                   </div>
 
                   <!-- Tabs -->
@@ -137,8 +142,10 @@
 </template>
 
 <script>
+import { mapState } from 'vuex'
 import { getCardClass, getCardDisplay } from '@/utils/dpGameCardVisual'
 import { getHandRank } from '@/utils/dpGameHandRank'
+import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
 import {
   STREET_ORDER, seatNicknamesOrdered, formatActionText,
   activePlayersBeforeStreet, boardForStreet, firstFoldStage,
@@ -153,7 +160,13 @@ export default {
   name: 'DpHandHistoryDetail',
   inject: { dpGameView: { default: null } },
   props: {
-    handHistoryId: { type: [String, Number], default: null }
+    handHistoryId: { type: [String, Number], default: null },
+    /** game-overlay: in-game CRT panel; lobby-page: /hand-history/detail route */
+    context: {
+      type: String,
+      default: 'game-overlay',
+      validator: function (v) { return v === 'game-overlay' || v === 'lobby-page' }
+    }
   },
   data: function () {
     return {
@@ -164,14 +177,26 @@ export default {
       loading: false,
       loadError: '',
       user: null,
-      timers: []
+      timers: [],
+      viewportWidth: typeof window !== 'undefined' ? window.innerWidth : 1024,
+      prefersReducedMotion: false,
+      lobbyReady: false
     }
   },
   computed: {
-    vm: function () { return this.dpGameView },
+    ...mapState('dpGame', ['gameUiTheme', 'ecoMode']),
+    isLobbyPage: function () { return this.context === 'lobby-page' },
+    vm: function () { return this.isLobbyPage ? null : this.dpGameView },
+    rootVisible: function () {
+      return this.isLobbyPage ? this.lobbyReady : this.visible
+    },
     showCrt: function () {
-      var vm = this.vm
-      return vm && vm.gameUiTheme === 'retro8bit' && vm.viewportWidth > 600 && !vm.ecoMode && !vm.prefersReducedMotion
+      var retro = this.isLobbyPage
+        ? this.gameUiTheme === 'retro8bit'
+        : (this.vm && this.vm.gameUiTheme === 'retro8bit')
+      if (!retro) return false
+      var vw = this.isLobbyPage ? this.viewportWidth : (this.vm && this.vm.viewportWidth)
+      return vw > 600 && !this.ecoMode && !this.prefersReducedMotion
     },
     tvAnimClass: function () {
       if (!this.showCrt) return 'dp-hd__tv--instant'
@@ -299,16 +324,68 @@ export default {
   },
   watch: {
     handHistoryId: function (v) {
+      if (this.isLobbyPage) {
+        if (v != null && this.lobbyReady) { this.activeTab = 'preflop'; this.fetchDetail(); this.startCrtSequence() }
+        return
+      }
       if (v != null) { this.visible = true; this.activeTab = 'preflop'; this.fetchDetail(); this.startCrtSequence() }
       else if (this.visible) { this.close() }
     }
   },
+  created: function () {
+    if (this.isLobbyPage) this.syncMotionPrefs()
+  },
   mounted: function () {
     var self = this
+    if (this.isLobbyPage) {
+      this._onResize = function () { self.viewportWidth = window.innerWidth }
+      window.addEventListener('resize', this._onResize)
+      this.bootstrapLobbyPage()
+      return
+    }
     try { var raw = localStorage.getItem('userInfo'); self.user = raw ? JSON.parse(raw) : null } catch (e) { self.user = null }
   },
-  beforeDestroy: function () { this.clearTimers() },
+  beforeDestroy: function () {
+    this.clearTimers()
+    if (this._onResize) window.removeEventListener('resize', this._onResize)
+  },
   methods: {
+    syncMotionPrefs: function () {
+      if (typeof window === 'undefined' || !window.matchMedia) {
+        this.prefersReducedMotion = false
+        return
+      }
+      this.prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    },
+    bootstrapLobbyPage: async function () {
+      try {
+        var raw = localStorage.getItem('userInfo')
+        this.user = raw ? JSON.parse(raw) : null
+      } catch (e) {
+        this.user = null
+      }
+      if (!this.user || !this.user.nickname) {
+        this.$router.replace('/login')
+        return
+      }
+      this.user = (await ensureDpUserIdInStorage(this.$http)) || this.user
+      var uid = Number(this.user && this.user.userId)
+      if (!this.user || isNaN(uid) || uid <= 0) {
+        this.$router.replace('/login')
+        return
+      }
+      this.user.userId = uid
+      this.lobbyReady = true
+      if (this.handHistoryId != null) {
+        this.activeTab = 'preflop'
+        this.fetchDetail()
+        this.startCrtSequence()
+      }
+    },
+    onBackdropClick: function () {
+      if (this.isLobbyPage) return
+      this.close()
+    },
     clearTimers: function () {
       for (var i = 0; i < this.timers.length; i++) clearTimeout(this.timers[i])
       this.timers = []
@@ -324,6 +401,10 @@ export default {
     },
     close: function () {
       var self = this
+      if (this.isLobbyPage) {
+        this.$router.push('/hand-history')
+        return
+      }
       if (this.showCrt && this.phase !== 'retracting' && this.phase !== 'idle') {
         this.phase = 'retracting'
         this.timers.push(setTimeout(function () { self.visible = false; self.phase = 'idle'; self.$emit('closed') }, 320))
@@ -354,13 +435,14 @@ export default {
     },
     potLabel: function (i) { return i === 0 ? 'MAIN' : 'SIDE' + i },
     fetchDetail: function () {
-      var vm = this.vm
-      if (!vm || !vm.user) { this.loadError = 'NO USER'; return }
+      var user = this.isLobbyPage ? this.user : (this.vm && this.vm.user)
+      var http = this.isLobbyPage ? this.$http : (this.vm && this.vm.$http)
+      if (!user || !http) { this.loadError = 'NO USER'; return }
       var id = Number(this.handHistoryId)
       if (isNaN(id) || id <= 0) { this.loadError = 'BAD ID'; return }
       this.loading = true; this.loadError = ''
       var self = this
-      vm.$http.get('/dpHandHistory/detail', { params: { handHistoryId: id, userId: Number(vm.user.userId) } }).then(function (res) {
+      http.get('/dpHandHistory/detail', { params: { handHistoryId: id, userId: Number(user.userId) } }).then(function (res) {
         self.detail = res.data || null
         if (!self.detail) self.loadError = 'NO DATA'
       }).catch(function (e) {
@@ -481,7 +563,8 @@ export default {
 
 /* 元信息 */
 .dp-hd__meta {
-  display:flex;flex-wrap:wrap;gap:0 6px;padding:3px 0 6px;
+  display:flex;flex-wrap:wrap;align-items:center;gap:0 6px;width:100%;
+  padding:3px 0 6px;
   border-bottom:1px solid rgba(74,246,38,0.16);
   font-size:9px;color:rgba(74,246,38,0.55);
   letter-spacing:0.03em;flex-shrink:0;
@@ -659,5 +742,14 @@ export default {
 @media(prefers-reduced-motion:reduce) {
   .dp-hd__tv--drop,.dp-hd__tv--retract,.dp-hd__tv--glitch{animation:none!important}
   .dp-hd__snow-noise,.dp-hd__snow-bars{animation:none!important}
+}
+
+/* Lobby full-page route (/hand-history/detail/:id) */
+.dp-hd--lobby-page {
+  position:relative;inset:auto;z-index:auto;display:block;pointer-events:auto;
+  width:100%;min-height:0;
+}
+.dp-hd--lobby-page .dp-hd__tv {
+  margin-top:0;width:min(920px,100%);margin-left:auto;margin-right:auto;
 }
 </style>

@@ -1,7 +1,12 @@
 <template>
-  <transition name="dp-hh-root">
-    <div v-if="visible" class="dp-hh" @click.self="close">
-      <div class="dp-hh__shell" :class="animClass" @animationend="onAnimEnd">
+  <transition :name="isLobbyPage ? '' : 'dp-hh-root'">
+    <div
+      v-if="rootVisible"
+      class="dp-hh"
+      :class="{ 'dp-hh--lobby-page': isLobbyPage }"
+      @click.self="onBackdropClick"
+    >
+      <div class="dp-hh__shell" :class="shellLayoutClass" @animationend="onAnimEnd">
         <!-- CRT 图层 -->
         <div class="dp-hh__scanlines" />
         <div v-if="showCrt" class="dp-hh__snow" :class="{ 'dp-hh__snow--active': snowing }">
@@ -12,7 +17,7 @@
         <!-- 头部 -->
         <div class="dp-hh__head">
           <span class="dp-hh__title">&gt; HAND HISTORY</span>
-          <button class="dp-hh__close" @click="close">[X]</button>
+          <button class="dp-hh__close" @click="close">{{ isLobbyPage ? '[BACK]' : '[X]' }}</button>
         </div>
 
         <!-- 加载/错误状态 -->
@@ -43,7 +48,7 @@
             <span class="dp-hh__pager-info">P{{ currentPage }}/{{ totalPages || 1 }}</span>
             <button class="dp-hh__pager-btn" :class="{ 'dp-hh__pager-btn--dim': currentPage >= totalPages }" :disabled="currentPage >= totalPages" @click="nextPage">&gt;&gt;</button>
           </div>
-          <div class="dp-hh__hint-bar">
+          <div v-if="!isLobbyPage" class="dp-hh__hint-bar">
             <span>W/S nav</span>
             <span>&larr;&rarr; page</span>
             <span>Enter detail</span>
@@ -56,11 +61,20 @@
 </template>
 
 <script>
+import { mapState } from 'vuex'
+import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
+
 export default {
   name: 'DpHandHistoryViewer',
   inject: { dpGameView: { default: null } },
   props: {
-    open: { type: Boolean, default: false }
+    open: { type: Boolean, default: false },
+    /** game-overlay: in-game panel; lobby-page: full-page /hand-history route */
+    context: {
+      type: String,
+      default: 'game-overlay',
+      validator: function (v) { return v === 'game-overlay' || v === 'lobby-page' }
+    }
   },
   data: function () {
     return {
@@ -74,13 +88,27 @@ export default {
       loading: false,
       loadError: '',
       snowTimer: null,
-      flashTimer: null
+      flashTimer: null,
+      user: null,
+      viewportWidth: typeof window !== 'undefined' ? window.innerWidth : 1024,
+      prefersReducedMotion: false,
+      lobbyReady: false
     }
   },
   computed: {
-    vm: function () { return this.dpGameView },
+    ...mapState('dpGame', ['gameUiTheme', 'ecoMode']),
+    isLobbyPage: function () { return this.context === 'lobby-page' },
+    vm: function () { return this.isLobbyPage ? null : this.dpGameView },
+    rootVisible: function () {
+      return this.isLobbyPage ? this.lobbyReady : this.visible
+    },
     showCrt: function () {
-      return this.vm && this.vm.gameUiTheme === 'retro8bit' && this.vm.viewportWidth > 600 && !this.vm.ecoMode && !this.vm.prefersReducedMotion
+      var retro = this.isLobbyPage
+        ? this.gameUiTheme === 'retro8bit'
+        : (this.vm && this.vm.gameUiTheme === 'retro8bit')
+      if (!retro) return false
+      var vw = this.isLobbyPage ? this.viewportWidth : (this.vm && this.vm.viewportWidth)
+      return vw > 600 && !this.ecoMode && !this.prefersReducedMotion
     },
     snowing: function () { return this.phase === 'snowing' },
     flashing: function () { return this.phase === 'flashing' },
@@ -90,19 +118,71 @@ export default {
         'dp-hh__shell--slide-in': this.phase === 'sliding',
         'dp-hh__shell--ready': this.phase === 'ready' || this.phase === 'flashing'
       }
+    },
+    shellLayoutClass: function () {
+      var cls = [this.animClass]
+      if (this.isLobbyPage) cls.push('dp-hh__shell--lobby-page')
+      return cls
     }
   },
   watch: {
     open: function (v) {
+      if (this.isLobbyPage) return
       if (v) this.startOpen(); else this.doClose()
     },
     visible: function (v) {
+      if (this.isLobbyPage) return
       if (v && this.showCrt) { this.phase = 'sliding' }
       else if (v && !this.showCrt) { this.phase = 'ready'; this.fetchList() }
     }
   },
-  beforeDestroy: function () { this.clearTimers() },
+  created: function () {
+    if (this.isLobbyPage) this.syncMotionPrefs()
+  },
+  mounted: function () {
+    if (!this.isLobbyPage) return
+    var self = this
+    this._onResize = function () { self.viewportWidth = window.innerWidth }
+    window.addEventListener('resize', this._onResize)
+    this.bootstrapLobbyPage()
+  },
+  beforeDestroy: function () {
+    this.clearTimers()
+    if (this._onResize) window.removeEventListener('resize', this._onResize)
+  },
   methods: {
+    syncMotionPrefs: function () {
+      if (typeof window === 'undefined' || !window.matchMedia) {
+        this.prefersReducedMotion = false
+        return
+      }
+      this.prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    },
+    bootstrapLobbyPage: async function () {
+      try {
+        var raw = localStorage.getItem('userInfo')
+        this.user = raw ? JSON.parse(raw) : null
+      } catch (e) {
+        this.user = null
+      }
+      if (!this.user || !this.user.nickname) {
+        this.$router.replace('/login')
+        return
+      }
+      this.user = (await ensureDpUserIdInStorage(this.$http)) || this.user
+      var uid = Number(this.user && this.user.userId)
+      if (!this.user || isNaN(uid) || uid <= 0) {
+        this.$router.replace('/login')
+        return
+      }
+      this.user.userId = uid
+      this.lobbyReady = true
+      this.startOpen()
+    },
+    onBackdropClick: function () {
+      if (this.isLobbyPage) return
+      this.close()
+    },
     clearTimers: function () {
       if (this.snowTimer) { clearTimeout(this.snowTimer); this.snowTimer = null }
       if (this.flashTimer) { clearTimeout(this.flashTimer); this.flashTimer = null }
@@ -112,8 +192,17 @@ export default {
       if (this.showCrt) { this.phase = 'sliding' }
       else { this.phase = 'ready'; this.fetchList() }
     },
-    close: function () { this.$emit('update:open', false) },
-    doClose: function () { this.clearTimers(); this.visible = false; this.phase = 'ready' },
+    close: function () {
+      if (this.isLobbyPage) {
+        this.$router.push('/home')
+        return
+      }
+      this.$emit('update:open', false)
+    },
+    doClose: function () {
+      if (this.isLobbyPage) return
+      this.clearTimers(); this.visible = false; this.phase = 'ready'
+    },
     onAnimEnd: function (e) {
       if (e.target !== e.currentTarget) return
       var n = e.animationName || ''
@@ -128,12 +217,13 @@ export default {
     },
     // ---- 数据 ----
     fetchList: function () {
-      var vm = this.vm
-      if (!vm || !vm.user) { this.loadError = '无用户数据'; return }
+      var user = this.isLobbyPage ? this.user : (this.vm && this.vm.user)
+      var http = this.isLobbyPage ? this.$http : (this.vm && this.vm.$http)
+      if (!user || !http) { this.loadError = '无用户数据'; return }
       this.loading = true; this.loadError = ''
       var self = this
-      vm.$http.get('/dpHandHistory/list', {
-        params: { userId: Number(vm.user.userId), page: this.currentPage, pageSize: this.pageSize }
+      http.get('/dpHandHistory/list', {
+        params: { userId: Number(user.userId), page: this.currentPage, pageSize: this.pageSize }
       }).then(function (res) {
         var body = res.data || {}
         // 兼容两种响应格式：{records,total} 或 {code,data:{records,total}}
@@ -160,6 +250,10 @@ export default {
     // ---- 交互 ----
     openDetail: function (r) {
       if (!r || !r.handHistoryId) return
+      if (this.isLobbyPage) {
+        this.$router.push('/hand-history/detail/' + encodeURIComponent(String(r.handHistoryId)))
+        return
+      }
       if (this.vm && typeof this.vm.openHandHistoryDetail === 'function') {
         this.vm.openHandHistoryDetail(r.handHistoryId)
       }
@@ -229,9 +323,9 @@ export default {
 .dp-hh__flash--pulse{animation:dp-hh-flash 0.1s ease-out}
 @keyframes dp-hh-flash{0%{opacity:1;background:rgba(248,250,252,0.9)}100%{opacity:0;background:transparent}}
 
-.dp-hh__head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px;flex-shrink:0;border-bottom:1px solid rgba(74,246,38,0.22);background:color-mix(in srgb,var(--dp-panel-bg,#12151a) 88%,var(--dp-accent,#4af626) 12%);position:relative;z-index:3}
-.dp-hh__title{font-family:'Press Start 2P',monospace;font-size:10px;color:#4af626;text-shadow:0 0 6px rgba(74,246,38,0.55);letter-spacing:0.04em}
-.dp-hh__close{flex-shrink:0;width:30px;height:30px;padding:0;border:1px solid rgba(74,246,38,0.28);border-radius:0;background:#0a0c0e;color:#4af626;font-family:'Courier New',monospace;font-size:13px;cursor:pointer}
+.dp-hh__head{display:flex;align-items:center;justify-content:flex-start;gap:12px;width:100%;padding:8px 12px;flex-shrink:0;border-bottom:1px solid rgba(74,246,38,0.22);background:color-mix(in srgb,var(--dp-panel-bg,#12151a) 88%,var(--dp-accent,#4af626) 12%);position:relative;z-index:3}
+.dp-hh__title{flex:1 1 auto;min-width:0;font-family:'Press Start 2P',monospace;font-size:10px;color:#4af626;text-shadow:0 0 6px rgba(74,246,38,0.55);letter-spacing:0.04em}
+.dp-hh__close{margin-left:auto;flex-shrink:0;width:30px;height:30px;padding:0;border:1px solid rgba(74,246,38,0.28);border-radius:0;background:#0a0c0e;color:#4af626;font-family:'Courier New',monospace;font-size:13px;cursor:pointer}
 .dp-hh__close:hover{background:#4af626;color:#080a0c}
 
 .dp-hh__status{padding:20px;text-align:center;color:#72f052;font-size:12px;position:relative;z-index:1}
@@ -261,4 +355,15 @@ export default {
 .dp-hh__hint-bar{display:flex;gap:12px;padding:2px 14px 6px;font-size:9px;color:rgba(74,246,38,0.28);user-select:none}
 
 @media(prefers-reduced-motion:reduce){.dp-hh__shell--slide-in{animation:none!important}}
+
+/* Lobby full-page route (/hand-history) */
+.dp-hh--lobby-page {
+  position:relative;inset:auto;z-index:auto;pointer-events:auto;
+  display:flex;justify-content:center;width:100%;min-height:0;
+}
+.dp-hh--lobby-page .dp-hh__shell--lobby-page {
+  position:relative;right:auto;top:auto;
+  width:min(920px,100%);height:auto;min-height:min(560px,calc(100dvh - 120px));max-height:none;
+  margin:0 auto;
+}
 </style>
