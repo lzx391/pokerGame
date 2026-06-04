@@ -192,6 +192,7 @@ import {
   communityFlipCompleteMsForTheme,
   communityFlipDelayMsForTheme
 } from '../constants/dpGameDealTiming'
+import { shouldRetroShowdownTvSequence } from '../utils/dpRetroShowdownReveal'
 
 export default {
   mixins: [dpGameFullscreenMixin, dpGameTableFitMixin, dpGameActionCountdownMixin, dpGameLayoutTierMixin],
@@ -251,7 +252,11 @@ export default {
       _seatEnterNickSeeded: false,
       joinRevealNicks: {},
       _gameUiThemeChangeTimer: null,
-      retroGlitchSeq: 0
+      retroGlitchSeq: 0,
+      /** retro8bit：首帧 stage 同步完成后才允许 TV 摊牌序列（避免进房即 settled 误触） */
+      _retroStageNavReady: false,
+      /** 本局摊牌 TV 是否已排队（避免 stage 重复触发） */
+      _retroShowdownTvPending: false
     }
   },
 
@@ -408,10 +413,7 @@ export default {
       if (newVal !== 'showdown') {
         this.showOwnerPotJudgeSheet = false
       }
-      // CRT 事件弹窗
-      if (newVal === 'showdown' && oldVal !== 'showdown') {
-        this.fireCrtPopup('danger', 'ALL-IN SHOWDOWN', '决胜时刻', '双方亮牌，胜负在天')
-      }
+      this.onRetroStageTransition(newVal, oldVal)
       if (newVal === 'preflop' && oldVal === 'settled') {
         var handSeed = this.currentHandSeed || ''
         this.fireCrtPopup('info', 'NEW HAND', '第 ' + handSeed + ' 局', '发牌中...')
@@ -547,6 +549,7 @@ export default {
     if (this.readyTimer) clearInterval(this.readyTimer)
     if (this.communityCardsFlipCompleteTimer) clearTimeout(this.communityCardsFlipCompleteTimer)
     if (this._gameUiThemeChangeTimer) clearTimeout(this._gameUiThemeChangeTimer)
+    this._retroShowdownTvPending = false
     this._lastRoomApplyFingerprint = ''
     if (this._seatChatTimers) {
       var self = this
@@ -699,11 +702,50 @@ export default {
         this.$nextTick(function () { cli.focusInput() })
       }
     },
-    fireCrtPopup: function (type, title, subtitle, detail) {
-      if (this.gameUiTheme !== 'retro8bit') return
+    fireCrtPopup: function (type, title, subtitle, detail, onComplete) {
+      if (this.gameUiTheme !== 'retro8bit') {
+        if (typeof onComplete === 'function') onComplete()
+        return
+      }
       var popup = this.$refs.crtEventPopup
       if (popup && typeof popup.trigger === 'function') {
-        popup.trigger(type, title, subtitle, detail)
+        popup.trigger(type, title, subtitle, detail, onComplete)
+      } else if (typeof onComplete === 'function') {
+        onComplete()
+      }
+    },
+    /** retro8bit：下注街→摊牌时播放 TV 弹窗（纯 overlay，不改牌桌状态） */
+    beginRetroShowdownTvSequence: function () {
+      if (this.gameUiTheme !== 'retro8bit') return
+      if (this._retroShowdownTvPending) return
+      this._retroShowdownTvPending = true
+      var self = this
+      this.fireCrtPopup(
+        'danger',
+        'ALL-IN SHOWDOWN',
+        '决胜时刻',
+        '双方亮牌，胜负在天',
+        function () { self._retroShowdownTvPending = false }
+      )
+    },
+    onRetroStageTransition: function (newVal, oldVal) {
+      if (this.gameUiTheme !== 'retro8bit') {
+        this._retroStageNavReady = true
+        return
+      }
+      if (!this._retroStageNavReady) {
+        this._retroStageNavReady = true
+        return
+      }
+      if (newVal === 'preflop') {
+        this._retroShowdownTvPending = false
+        return
+      }
+      if (
+        !this._retroShowdownTvPending
+        && shouldRetroShowdownTvSequence(oldVal, newVal, this._retroStageNavReady)
+      ) {
+        this.beginRetroShowdownTvSequence()
       }
     },
     onGameUiThemeChange(nextTheme) {
@@ -764,6 +806,7 @@ export default {
     },
     /** 离开 retro8bit 前统一关闭特效/面板，再 nextTick×2 + rAF 切主题，避免 v-if 与 overlay 竞态 */
     teardownRetro8bitUi() {
+      this._retroShowdownTvPending = false
       this.$store.commit('dpGame/SET_HERO_HAND_HOLOGRAM', false)
       this.$store.commit('dpGame/CLOSE_OWNER_HUB')
       this.$store.commit('dpGame/SET_MOBILE_SHEETS', {

@@ -9,8 +9,10 @@ export function isRetroTopBarEnglish(theme) {
 var STAGE_EN = Object.freeze({
   preflop: 'PREFLOP',
   flop: 'FLOP',
-  turn: 'TURN',
-  river: 'RIVER',
+  /** 后端 stage=turn；8bit 顶栏对齐「半决赛」 */
+  turn: 'SEMIFINAL',
+  /** 后端 stage=river；8bit 顶栏对齐「决赛圈」 */
+  river: 'FINAL',
   showdown: 'SHOWDOWN',
   settled: 'SETTLED'
 })

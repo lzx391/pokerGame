@@ -2,7 +2,7 @@
   <transition name="dp-popup-root">
     <div v-if="active" class="dp-popup" aria-live="assertive">
       <!-- 电视机外壳 -->
-      <div class="dp-popup__tv">
+      <div class="dp-popup__tv" :class="{ 'dp-popup--exiting': phase === 'exiting' }">
         <div class="dp-popup__antenna dp-popup__antenna--l" />
         <div class="dp-popup__antenna dp-popup__antenna--r" />
         <div class="dp-popup__body">
@@ -41,6 +41,9 @@
 </template>
 
 <script>
+/** 根节点 leave 250ms + 短停顿后再 onComplete */
+var CRT_POPUP_EXIT_TAIL_MS = 400
+
 export default {
   name: 'DpCrtEventPopup',
   data: function () {
@@ -100,8 +103,14 @@ export default {
      * @param {string} subtitle 副标题
      * @param {string} detail 详情
      */
-    trigger: function (type, title, subtitle, detail) {
-      this.queue.push({ type: type, title: title, subtitle: subtitle || '', detail: detail || '' })
+    trigger: function (type, title, subtitle, detail, onComplete) {
+      this.queue.push({
+        type: type,
+        title: title,
+        subtitle: subtitle || '',
+        detail: detail || '',
+        onComplete: typeof onComplete === 'function' ? onComplete : null
+      })
       if (!this.active) this.playNext()
     },
 
@@ -112,11 +121,14 @@ export default {
       this.eventTitle = evt.title
       this.eventSubtitle = evt.subtitle
       this.eventDetail = evt.detail
+      this._playOnComplete = evt.onComplete
       this.play()
     },
 
     play: function () {
       var self = this
+      var onComplete = this._playOnComplete
+      this._playOnComplete = null
       this.clearAllTimers()
       this.active = true
       this.phase = 'entering'
@@ -140,8 +152,13 @@ export default {
                 self.schedule(function () {
                   self.active = false
                   self.phase = 'idle'
-                  // 继续队列
-                  self.$nextTick(function () { self.playNext() })
+                  // 等根节点 leave + 短停顿后再 onComplete，避免 TV 未收完就亮牌
+                  self.schedule(function () {
+                    if (onComplete) {
+                      try { onComplete() } catch (e) { /* ignore */ }
+                    }
+                    self.$nextTick(function () { self.playNext() })
+                  }, CRT_POPUP_EXIT_TAIL_MS)
                 }, 280)
               }, 200)
             }, 1500)

@@ -9,7 +9,8 @@
       'dp-player-card--hand-dock': heroHandDock,
       /* 仅摊牌圈用毛玻璃；结算阶段与节能模式一致，仅用半透明底无 backdrop-filter */
       'dp-player-card--hand-reveal-glass':
-        stage === 'showdown' && !player.leftThisHand,
+        (stage === 'showdown' || stage === 'settled')
+        && !player.leftThisHand,
       'dp-player-card--acting':
         rivalMini && !player.fold && !player.leftThisHand && actIndex === seatIndex
     }"
@@ -501,7 +502,10 @@ export default {
       }
       /* 摊牌 / 准备下一局：与页面底混色半透明 + 描边，减轻遮挡中央公共牌。
        * 第二色用 var(--dp-game-bg) 而非 transparent：浅色童话主题下「26%+透明」会与底图融成一片，像没渲染座位卡。 */
-      if ((this.stage === 'showdown' || this.stage === 'settled') && !this.player.leftThisHand) {
+      if (
+        (this.stage === 'showdown' || this.stage === 'settled')
+        && !this.player.leftThisHand
+      ) {
         var base = s.background || 'var(--dp-player-card-bg)'
         var pct = this.rivalMini ? '48%' : '58%'
         s.background = 'color-mix(in srgb, ' + base + ' ' + pct + ', var(--dp-game-bg))'
@@ -532,7 +536,9 @@ export default {
        */
       if (this.heroHandDock && this.isMe) {
         if (this.skipHoleDealAnimation) return true
-        if (this.stage === 'showdown' || this.stage === 'settled') return true
+        if (this.stage === 'showdown' || this.stage === 'settled') {
+          return true
+        }
         if (this.stage === 'preflop') return !this.holeDealIntroDone
         return this.showHoleCardsRevealed
       }
@@ -555,7 +561,10 @@ export default {
       return (
         this.isMe
         || (this.isOwner && this.ownerRevealAll && this.player.holeCards && this.player.holeCards.length > 0)
-        || ((this.stage === 'showdown' || this.stage === 'settled') && !this.player.fold)
+        || (
+          (this.stage === 'showdown' || this.stage === 'settled')
+          && !this.player.fold
+        )
       )
     },
     /** Flop 后且成牌可读时展示牌型与最大五张 */
@@ -570,7 +579,10 @@ export default {
       return (
         this.isMe
         || (this.isOwner && this.ownerRevealAll && this.player.holeCards && this.player.holeCards.length > 0)
-        || ((this.stage === 'showdown' || this.stage === 'settled') && !this.player.fold)
+        || (
+          (this.stage === 'showdown' || this.stage === 'settled')
+          && !this.player.fold
+        )
       )
     },
     /** 圆桌 rival-mini 模板用：本人席只做信息条，不挂牌型/最佳五张（与 dock 分工） */

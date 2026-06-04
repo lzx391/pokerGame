@@ -454,25 +454,34 @@ body[data-dp-fluidity='eco'] .lb-table-wrap--glitch-burst .lb-table-wrap__glitch
   transform: none !important;
 }
 
-/* —— retro8bit 大厅邮箱未读 blink —— */
+/* —— retro8bit 大厅邮箱 / 好友未读 blink —— */
 .dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert,
+.dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert,
 @media (prefers-reduced-motion: reduce) {
-  .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert {
+  .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert {
     animation: none !important;
   }
 }
 
 .dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert .home-quick-card__label::before,
+.dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert .home-quick-card__label::before,
 .dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert .home-quick-card__mailbox-pip,
+.dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert .home-quick-card__friends-pip,
 @media (prefers-reduced-motion: reduce) {
   .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert .home-quick-card__label::before,
-  .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert .home-quick-card__mailbox-pip {
+  .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert .home-quick-card__label::before,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert .home-quick-card__mailbox-pip,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert .home-quick-card__friends-pip {
     animation: none !important;
   }
 }
 
 body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert,
+body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert,
 body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert .home-quick-card__label::before,
-body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert .home-quick-card__mailbox-pip {
+body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert .home-quick-card__label::before,
+body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert .home-quick-card__mailbox-pip,
+body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert .home-quick-card__friends-pip {
   animation: none !important;
 }

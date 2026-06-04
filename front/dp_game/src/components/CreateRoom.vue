@@ -6,8 +6,11 @@
     <dp-create-room-console
       v-if="gameUiTheme === 'retro8bit'"
       :user="user"
+      :resolve-boot-ref="resolveCreateEnterBootRef"
       @back="goHome"
     />
+
+    <dp-crt-boot-sequence v-if="gameUiTheme === 'retro8bit'" ref="createEnterBoot" />
 
     <div v-else class="dp-lobby-inner cr-page" :class="{ 'cr-page--stagger-ready': staggerReady }">
       <header
@@ -223,6 +226,7 @@ import '@/styles/dp-lobby-shell.css'
 import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import DpFluidityToggle from '@/components/DpFluidityToggle.vue'
 import DpCreateRoomConsole from '@/components/DpCreateRoomConsole.vue'
+import DpCrtBootSequence from '@/components/DpCrtBootSequence.vue'
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
 import { prefetchGameChunk } from '@/utils/dpPrefetchGameRoute'
 import { clampThinkTimeSeconds, dpCreateRoomAndStart } from '@/utils/dpCreateRoomSubmit'
@@ -235,7 +239,7 @@ var ROOM_PRESETS = [
 
 export default {
   name: 'CreateRoom',
-  components: { DpFluidityToggle, DpCreateRoomConsole },
+  components: { DpFluidityToggle, DpCreateRoomConsole, DpCrtBootSequence },
   mixins: [dpLobbyThemeMixin],
   data() {
     return {
@@ -300,6 +304,9 @@ export default {
     },
     goHome() {
       this.$router.push('/home')
+    },
+    resolveCreateEnterBootRef: function () {
+      return this.$refs.createEnterBoot || null
     },
     isPresetActive(preset) {
       return (

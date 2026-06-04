@@ -1,5 +1,5 @@
 import { exitLobbyQuickMatchSilently } from '@/utils/dpLobbyQuickMatchExit'
-import { enterGameAfterCreateRoom } from '@/utils/dpCreateRoomEnterGame'
+import { enterGameFromLobby } from '@/utils/dpLobbyEnterGame'
 
 var THINK_TIME_MIN = 15
 var THINK_TIME_MAX = 180
@@ -23,8 +23,8 @@ export function clampThinkTimeSeconds(raw) {
  * @param {object} opts.user — localStorage userInfo
  * @param {object} opts.config — { smallBlind, startingStackBb, maxSeatCount, thinkTimeSeconds?, roomPassword? }
  * @param {function(string): void} [opts.onError] — 用户可见错误
- * @param {boolean} [opts.crtHandoff] — retro 创建页：全屏 CRT 盖住切到 /game
- * @param {() => void} [opts.onCrtHandoffVisible] — CRT 盖住时回调（可收起本页 boot）
+ * @param {boolean} [opts.crtHandoff] — retro8bit：终端 boot + CRT 交接后进 /game
+ * @param {{ play: (opts: object) => void } | null} [opts.bootRef] — DpCrtBootSequence（与大厅进房一致）
  * @returns {Promise<{ ok: boolean, roomId?: string, error?: string }>}
  */
 export async function dpCreateRoomAndStart({
@@ -34,7 +34,7 @@ export async function dpCreateRoomAndStart({
   config,
   onError,
   crtHandoff,
-  onCrtHandoffVisible
+  bootRef
 }) {
   var notify = typeof onError === 'function' ? onError : function () {}
 
@@ -78,11 +78,11 @@ export async function dpCreateRoomAndStart({
     })
     if (startRes.data !== 'ok') {
       notify('房间已创建但开局未成功，请从大厅进入该房间重试')
-      await goGame(router, roomId, crtHandoff, onCrtHandoffVisible)
+      await goGame(router, roomId, crtHandoff, bootRef)
       return { ok: true, roomId: roomId, partial: true }
     }
 
-    await goGame(router, roomId, crtHandoff, onCrtHandoffVisible)
+    await goGame(router, roomId, crtHandoff, bootRef)
     return { ok: true, roomId: roomId }
   } catch (e) {
     console.error('dpCreateRoomAndStart', e)
@@ -95,12 +95,13 @@ export async function dpCreateRoomAndStart({
  * @param {import('vue-router').default} router
  * @param {string} roomId
  * @param {boolean} [crtHandoff]
- * @param {() => void} [onCrtHandoffVisible]
+ * @param {{ play: (opts: object) => void } | null} [bootRef]
  */
-async function goGame(router, roomId, crtHandoff, onCrtHandoffVisible) {
+async function goGame(router, roomId, crtHandoff, bootRef) {
   if (crtHandoff) {
-    await enterGameAfterCreateRoom(router, roomId, {
-      onOverlayVisible: onCrtHandoffVisible
+    await enterGameFromLobby(router, roomId, {
+      entryPath: 'create',
+      bootRef: bootRef || null
     })
     return
   }

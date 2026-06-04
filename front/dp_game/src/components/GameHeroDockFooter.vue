@@ -52,7 +52,10 @@
       <div
           v-if="vm.heroDockRow && vm.showBottomHeroDock"
           class="dp-game-hero-dock"
-          :class="{ 'dp-game-hero-dock--hand-reveal': vm.stage === 'showdown' || vm.stage === 'settled' }"
+          :class="{
+            'dp-game-hero-dock--hand-reveal':
+              vm.stage === 'showdown' || vm.stage === 'settled'
+          }"
       >
         <game-player-card
             :player="vm.heroDockRow.player"

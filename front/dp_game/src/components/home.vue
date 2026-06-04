@@ -170,7 +170,28 @@
           </el-badge>
 
           <!-- 好友 -->
+          <button
+            v-if="gameUiTheme === 'retro8bit'"
+            type="button"
+            class="home-quick-card"
+            :class="{ 'home-quick-card--friends-alert': friendsAlertBlink }"
+            aria-label="打开好友列表"
+            title="好友列表（私信与跟随）"
+            @click="openFriendsDrawer"
+          >
+            <span class="home-quick-card__icon-wrap">
+              <i class="el-icon-user"></i>
+              <span
+                v-if="friendChatUnreadTotal"
+                class="home-quick-card__friends-pip"
+                aria-hidden="true"
+              >!</span>
+            </span>
+            <span class="home-quick-card__label">FRIENDS</span>
+            <span class="home-quick-card__desc">DM &amp; FOLLOW</span>
+          </button>
           <el-badge
+            v-else
             :value="friendChatUnreadTotal"
             :hidden="!friendChatUnreadTotal"
             :max="99"
@@ -345,15 +366,23 @@
 
     <!-- ====== 以下弹层保持原样 ====== -->
     <el-drawer
-      title="好友列表"
+      :title="friendsDrawerTitle"
       :visible.sync="friendsDrawerVisible"
       direction="rtl"
       append-to-body
-      custom-class="home-friends-drawer"
+      :custom-class="friendsDrawerClass"
       size="380px"
       @open="onFriendsDrawerOpen"
     >
-      <div class="dp-social-sheet dp-social-sheet--drawer">
+      <div
+        v-if="gameUiTheme === 'retro8bit'"
+        class="home-friends-drawer__scanlines"
+        aria-hidden="true"
+      />
+      <div
+        class="dp-social-sheet dp-social-sheet--drawer"
+        :class="{ 'dp-social-sheet--retro8bit': gameUiTheme === 'retro8bit' }"
+      >
         <div class="home-friends-drawer__toolbar">
           <el-input
             v-model="friendsSearchInput"
@@ -822,6 +851,17 @@ export default {
     },
     mailboxAlertBlink() {
       return this.unreadCount > 0 && !this.mailboxVisible
+    },
+    friendsAlertBlink() {
+      return this.friendChatUnreadTotal > 0 && !this.friendsDrawerVisible
+    },
+    friendsDrawerTitle() {
+      return this.gameUiTheme === 'retro8bit' ? '— FRIENDS —' : '好友列表'
+    },
+    friendsDrawerClass() {
+      return this.gameUiTheme === 'retro8bit'
+        ? 'home-friends-drawer home-friends-drawer--retro8bit'
+        : 'home-friends-drawer'
     }
   },
   watch: {

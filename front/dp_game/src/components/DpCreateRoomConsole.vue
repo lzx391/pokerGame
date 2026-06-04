@@ -30,7 +30,7 @@
               type="button"
               class="dp-console-pass__chev"
               aria-label="上一个字符"
-              :disabled="committing || booting"
+              :disabled="committing"
               @click="cyclePasswordChar(-1)"
             >
               &lt;
@@ -39,7 +39,7 @@
               type="button"
               class="dp-console-pass__char-btn"
               aria-label="当前字符"
-              :disabled="committing || booting"
+              :disabled="committing"
               @click="passwordAppendChar"
             >
               {{ passwordPickerChar }}
@@ -48,7 +48,7 @@
               type="button"
               class="dp-console-pass__chev"
               aria-label="下一个字符"
-              :disabled="committing || booting"
+              :disabled="committing"
               @click="cyclePasswordChar(1)"
             >
               &gt;
@@ -58,7 +58,7 @@
             <button
               type="button"
               class="dp-console-pass__act"
-              :disabled="committing || booting"
+              :disabled="committing"
               @click="passwordAppendChar"
             >
               ADD
@@ -66,7 +66,7 @@
             <button
               type="button"
               class="dp-console-pass__act"
-              :disabled="committing || booting"
+              :disabled="committing"
               @click="passwordDeleteChar"
             >
               DEL
@@ -74,7 +74,7 @@
             <button
               type="button"
               class="dp-console-pass__act dp-console-pass__act--ok"
-              :disabled="committing || booting"
+              :disabled="committing"
               @click="confirmPasswordEdit"
             >
               OK
@@ -82,7 +82,7 @@
             <button
               type="button"
               class="dp-console-pass__act dp-console-pass__act--cancel"
-              :disabled="committing || booting"
+              :disabled="committing"
               @click="cancelPasswordEdit"
             >
               ESC
@@ -96,7 +96,7 @@
               class="dp-console-pass__charset-btn"
               :class="{ 'dp-console-pass__charset-btn--active': ci === passwordPickerIndex }"
               :aria-label="'字符 ' + ch"
-              :disabled="committing || booting"
+              :disabled="committing"
               @click="pickPasswordChar(ci)"
             >
               {{ ch === ' ' ? '·' : ch }}
@@ -130,7 +130,7 @@
                   type="button"
                   class="dp-console-menu__chev"
                   :aria-label="row.label + ' 减少'"
-                  :disabled="committing || booting"
+                  :disabled="committing"
                   @click.stop="onRowAdjust(i, -1)"
                 >
                   &lt;
@@ -139,7 +139,7 @@
                   type="button"
                   class="dp-console-menu__value-btn"
                   :aria-label="row.label + ' 当前值'"
-                  :disabled="committing || booting"
+                  :disabled="committing"
                   @click.stop="onRowValueTap(i)"
                 >
                   {{ rowValueText(row) }}
@@ -148,7 +148,7 @@
                   type="button"
                   class="dp-console-menu__chev"
                   :aria-label="row.label + ' 增加'"
-                  :disabled="committing || booting"
+                  :disabled="committing"
                   @click.stop="onRowAdjust(i, 1)"
                 >
                   &gt;
@@ -196,25 +196,6 @@
       </div>
     </div>
 
-    <transition name="dp-console-boot-fade">
-      <div v-if="bootVisible" class="dp-console-boot" aria-hidden="true">
-        <div v-if="bootPhase === 'snow'" class="dp-console-boot__snow">
-          <span class="dp-console-boot__snow-noise" />
-          <span class="dp-console-boot__snow-bars" />
-        </div>
-        <div v-if="bootPhase === 'typing' || bootPhase === 'fade'" class="dp-console-boot__terminal">
-          <pre class="dp-console-boot__lines"><span
-            v-for="(line, i) in bootVisibleLines"
-            :key="i"
-            class="dp-console-boot__line"
-            :class="{ 'dp-console-boot__line--ok': line.ok }"
-          >{{ line.text }}<span
-            v-if="i === bootVisibleLines.length - 1 && bootPhase === 'typing'"
-            class="dp-console-boot__cursor"
-          >█</span></span></pre>
-        </div>
-      </div>
-    </transition>
   </div>
 </template>
 
@@ -223,7 +204,7 @@ import '@/styles/dp-create-room-console.css'
 import { mapState } from 'vuex'
 import DpFluidityToggle from '@/components/DpFluidityToggle.vue'
 import { dpCreateRoomAndStart } from '@/utils/dpCreateRoomSubmit'
-import { RETRO_BOOT_LINES_CREATE as BOOT_LINES } from '@/utils/dpRetroBootLines'
+import { shouldSkipRetroEnterEffects } from '@/utils/dpRetroEnterGameHandoff'
 
 var ROOM_PRESETS = {
   casual: { smallBlind: 2, startingStackBb: 40, maxSeatCount: 6, roomPassword: '' },
@@ -285,6 +266,11 @@ export default {
       default: function () {
         return {}
       }
+    },
+    /** @type {() => import('@/components/DpCrtBootSequence.vue').default | null} */
+    resolveBootRef: {
+      type: Function,
+      default: null
     }
   },
   data: function () {
@@ -306,11 +292,6 @@ export default {
       dialogMessage: '',
       liveAnnounce: '',
       committing: false,
-      booting: false,
-      bootVisible: false,
-      bootPhase: 'snow',
-      bootVisibleLines: [],
-      bootTimers: [],
       prefersReducedMotion: false,
       menuRows: MENU_ROWS,
       dialogTitleId: 'dp-console-dialog-title',
@@ -319,16 +300,11 @@ export default {
   },
   computed: {
     ...mapState('dpGame', ['ecoMode']),
-    skipBootAnimation: function () {
-      if (this.ecoMode) return true
-      if (this.prefersReducedMotion) return true
-      if (typeof document !== 'undefined' && document.body.getAttribute('data-dp-fluidity') === 'eco') {
-        return true
-      }
-      return false
+    skipRetroEnterEffects: function () {
+      return shouldSkipRetroEnterEffects()
     },
     useRowBlink: function () {
-      return !this.skipBootAnimation
+      return !this.skipRetroEnterEffects
     },
     bigBlindChips: function () {
       var sc = Math.max(1, Number(this.config.smallBlind) || 5)
@@ -362,9 +338,6 @@ export default {
     }
     this.announce('Create table menu. Use arrow keys or tap rows.')
     this.$nextTick(this.focusShell)
-  },
-  beforeDestroy: function () {
-    this.clearBootTimers()
   },
   methods: {
     syncReducedMotion: function () {
@@ -422,7 +395,7 @@ export default {
       this.$nextTick(this.focusShell)
     },
     onBack: function () {
-      if (this.committing || this.booting) return
+      if (this.committing) return
       this.$emit('back')
     },
     rowHasTouchAdjust: function (row) {
@@ -436,7 +409,7 @@ export default {
       this.announce(row.label + ' ' + this.rowValueText(row))
     },
     onMenuRowTap: function (i) {
-      if (this.committing || this.booting || this.passwordEditMode) return
+      if (this.committing || this.passwordEditMode) return
       var row = this.menuRows[i]
       if (row.id === 'back') {
         this.onBack()
@@ -466,7 +439,7 @@ export default {
       }
     },
     onRowAdjust: function (i, delta) {
-      if (this.committing || this.booting || this.passwordEditMode) return
+      if (this.committing || this.passwordEditMode) return
       var row = this.menuRows[i]
       if (row.id === 'password') {
         this.selectRow(i)
@@ -483,7 +456,7 @@ export default {
       }
     },
     onRowValueTap: function (i) {
-      if (this.committing || this.booting || this.passwordEditMode) return
+      if (this.committing || this.passwordEditMode) return
       var row = this.menuRows[i]
       if (row.id === 'password') {
         this.selectRow(i)
@@ -493,14 +466,14 @@ export default {
       this.onRowAdjust(i, 1)
     },
     pickPasswordChar: function (index) {
-      if (this.committing || this.booting) return
+      if (this.committing) return
       var len = PASSWORD_CHARSET.length
       if (index < 0 || index >= len) return
       this.passwordPickerIndex = index
       this.announce('Character ' + this.passwordPickerChar)
     },
     onKeydown: function (e) {
-      if (this.committing || this.booting) return
+      if (this.committing) return
       if (this.dialogVisible) {
         if (e.key === 'Enter' || e.key === 'Escape') {
           e.preventDefault()
@@ -698,108 +671,42 @@ export default {
       return null
     },
     doCommit: function () {
-      if (this.committing || this.booting) return
+      if (this.committing) return
       var err = this.validateConfig()
       if (err) {
         this.showError(err)
         return
       }
-      var self = this
       this.committing = true
-      if (!this.skipBootAnimation) {
-        this.playCommitBoot()
-      }
       this.runSubmit()
     },
-    dismissCommitBoot: function () {
-      this.clearBootTimers()
-      this.booting = false
-      this.bootVisible = false
-      this.bootPhase = 'snow'
-      this.bootVisibleLines = []
-    },
-    hideCommitBootForHandoff: function () {
-      this.clearBootTimers()
-      this.booting = false
-      this.bootVisible = false
-      this.bootPhase = 'snow'
-      this.bootVisibleLines = []
+    resolveBootRefInstance: function () {
+      if (typeof this.resolveBootRef === 'function') {
+        return this.resolveBootRef()
+      }
+      return null
     },
     runSubmit: function () {
       var self = this
-      var useHandoff = !this.skipBootAnimation
+      var useHandoff = !this.skipRetroEnterEffects
       dpCreateRoomAndStart({
         http: this.$http,
         router: this.$router,
         user: this.user,
         config: this.config,
         crtHandoff: useHandoff,
-        onCrtHandoffVisible: useHandoff
-          ? function () {
-              self.hideCommitBootForHandoff()
-            }
-          : undefined,
+        bootRef: useHandoff ? this.resolveBootRefInstance() : null,
         onError: function (msg) {
           self.committing = false
-          self.dismissCommitBoot()
           self.showError(msg)
           self.$message.error(msg)
         }
       }).then(function (result) {
         if (!result.ok) {
           self.committing = false
-          self.dismissCommitBoot()
         }
       })
-    },
-    clearBootTimers: function () {
-      var t = this.bootTimers
-      for (var i = 0; i < t.length; i++) clearTimeout(t[i])
-      this.bootTimers = []
-    },
-    scheduleBoot: function (fn, ms) {
-      var id = setTimeout(fn, ms)
-      this.bootTimers.push(id)
-      return id
-    },
-    playCommitBoot: function () {
-      var self = this
-      this.clearBootTimers()
-      this.booting = true
-      this.bootVisible = true
-      this.bootPhase = 'snow'
-      this.bootVisibleLines = []
-
-      this.scheduleBoot(function () {
-        self.bootPhase = 'typing'
-        BOOT_LINES.forEach(function (line, idx) {
-          self.scheduleBoot(function () {
-            self.bootVisibleLines.push(line)
-            if (idx === BOOT_LINES.length - 1) {
-              self.scheduleBoot(function () {
-                self.bootPhase = 'fade'
-                self.scheduleBoot(function () {
-                  self.booting = false
-                }, 400)
-              }, 450)
-            }
-          }, 280 + idx * 260)
-        })
-      }, 500)
     }
   }
 }
 </script>
-
-<style scoped>
-.dp-console-boot-fade-enter-active {
-  transition: opacity 0.08s ease;
-}
-.dp-console-boot-fade-leave-active {
-  transition: opacity 0.35s ease;
-}
-.dp-console-boot-fade-enter,
-.dp-console-boot-fade-leave-to {
-  opacity: 0;
-}
-</style>

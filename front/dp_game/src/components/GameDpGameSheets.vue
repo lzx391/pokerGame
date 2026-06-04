@@ -9,7 +9,10 @@
     >
       <div
           class="dp-game-hero-dock dp-game-hero-dock--in-sheet"
-          :class="{ 'dp-game-hero-dock--hand-reveal': vm.stage === 'showdown' || vm.stage === 'settled' }"
+          :class="{
+            'dp-game-hero-dock--hand-reveal':
+              vm.stage === 'showdown' || vm.stage === 'settled'
+          }"
       >
         <game-player-card
             :player="vm.heroDockRow.player"
