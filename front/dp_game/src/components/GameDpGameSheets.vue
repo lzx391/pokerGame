@@ -11,7 +11,7 @@
           class="dp-game-hero-dock dp-game-hero-dock--in-sheet"
           :class="{
             'dp-game-hero-dock--hand-reveal':
-              vm.stage === 'showdown' || vm.stage === 'settled'
+              vm.cardDisplayStage === 'showdown' || vm.cardDisplayStage === 'settled'
           }"
       >
         <game-player-card
@@ -19,7 +19,7 @@
             :seat-index="vm.heroDockRow.seatIndex"
             :box-style="vm.getPlayerBoxStyle(vm.heroDockRow.player, vm.heroDockRow.seatIndex)"
             :act-index="vm.actIndex"
-            :stage="vm.stage"
+            :stage="vm.cardDisplayStage"
             :community-cards="vm.communityCards"
             :community-cards-flip-complete="vm.communityCardsFlipComplete"
             :is-owner="vm.isOwner"
@@ -30,7 +30,7 @@
             :hole-deal-player-count="vm.holeDealPlayerCountForAnim"
             :rival-mini="false"
             :hero-hand-dock="true"
-            :showdown-hand-leaders="vm.showdownHandLeaderNicknames"
+            :showdown-hand-leaders="vm.tableShowdownHandLeaderNicknames"
             :seat-chat-text="vm.seatChatTextFor(vm.heroDockRow.player.nickname)"
             :skip-hole-deal-animation="true"
             :deal-reveal-stagger-sec="0.22"

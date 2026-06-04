@@ -11,7 +11,7 @@
       }"
       :data-dp-game-theme="effectiveThemeForCss"
       :data-dp-eco-mode="ecoMode ? 'true' : 'false'"
-      :data-dp-stage="stage"
+      :data-dp-stage="cardDisplayStage"
       :data-dp-orientation="layoutOrientation"
       :style="retroPolygonRootStyle"
   >
@@ -85,13 +85,14 @@
               :viewer-seated-at-table="viewerSeatedAtTable"
               :act-index="actIndex"
               :stage="stage"
+              :card-display-stage="cardDisplayStage"
               :community-cards-flip-complete="communityCardsFlipComplete"
               :is-owner="isOwner"
               :owner-reveal-all="ownerRevealAll"
               :my-nickname="user ? user.nickname : ''"
               :current-hand-seed="currentHandSeed"
               :hole-deal-player-count-for-anim="holeDealPlayerCountForAnim"
-              :showdown-hand-leader-nicknames="showdownHandLeaderNicknames"
+              :showdown-hand-leader-nicknames="tableShowdownHandLeaderNicknames"
               :dealer-display-index="dealerDisplayIndex"
               :get-player-box-style="getPlayerBoxStyle"
               :hole-deal-order-from-dealer="holeDealOrderFromDealer"
@@ -195,7 +196,7 @@ import {
   communityFlipCompleteMsForTheme,
   communityFlipDelayMsForTheme
 } from '../constants/dpGameDealTiming'
-import { shouldRetroShowdownTvSequence } from '../utils/dpRetroShowdownReveal'
+import { shouldRetroShowdownTvSequence, resolveCardDisplayStage, resolveShowdownHandLeaders } from '../utils/dpRetroShowdownReveal'
 
 export default {
   mixins: [dpGameFullscreenMixin, dpGameTableFitMixin, dpGameActionCountdownMixin, dpGameLayoutTierMixin],
@@ -264,9 +265,11 @@ export default {
       _gameUiThemeChangeTimer: null,
       retroGlitchSeq: 0,
       /** retro8bit：首帧 stage 同步完成后才允许 TV 摊牌序列（避免进房即 settled 误触） */
-      _retroStageNavReady: false,
-      /** 本局摊牌 TV 是否已排队（避免 stage 重复触发） */
-      _retroShowdownTvPending: false
+      retroStageNavReady: false,
+      /** 本局摊牌 TV 是否已排队（避免 stage 重复触发）；勿用 _ 前缀，Vue2 computed 无法订阅 */
+      retroShowdownTvPending: false,
+      /** 进入摊牌前的下注街，供 TV 期间 cardDisplayStage 回退 */
+      retroShowdownFromStage: null
     }
   },
 
@@ -360,6 +363,23 @@ export default {
         logReason: 'game-root-polygon'
       })
       return { '--dp-table-polygon': layout.clipPath }
+    },
+    /** retro8bit TV 播放期间：玩家卡片仍按上一下注街展示（紧凑/未亮牌） */
+    cardDisplayStage() {
+      if (this.gameUiTheme !== 'retro8bit') return this.stage
+      return resolveCardDisplayStage(
+        this.stage,
+        this.retroShowdownTvPending,
+        this.retroShowdownFromStage
+      )
+    },
+    /** 牌桌摊牌高亮：TV 结束后再展示 */
+    tableShowdownHandLeaderNicknames() {
+      return resolveShowdownHandLeaders(
+        this.stage,
+        this.retroShowdownTvPending,
+        this.showdownHandLeaderNicknames
+      )
     }
   },
 
@@ -569,7 +589,7 @@ export default {
     if (this.readyTimer) clearInterval(this.readyTimer)
     if (this.communityCardsFlipCompleteTimer) clearTimeout(this.communityCardsFlipCompleteTimer)
     if (this._gameUiThemeChangeTimer) clearTimeout(this._gameUiThemeChangeTimer)
-    this._retroShowdownTvPending = false
+    this.retroShowdownTvPending = false
     this._lastRoomApplyFingerprint = ''
     if (this._seatChatTimers) {
       var self = this
@@ -737,34 +757,39 @@ export default {
     /** retro8bit：下注街→摊牌时播放 TV 弹窗（纯 overlay，不改牌桌状态） */
     beginRetroShowdownTvSequence: function () {
       if (this.gameUiTheme !== 'retro8bit') return
-      if (this._retroShowdownTvPending) return
-      this._retroShowdownTvPending = true
+      if (this.retroShowdownTvPending) return
+      this.retroShowdownTvPending = true
       var self = this
       this.fireCrtPopup(
         'danger',
         'ALL-IN SHOWDOWN',
         '决胜时刻',
         '双方亮牌，胜负在天',
-        function () { self._retroShowdownTvPending = false }
+        function () {
+          self.retroShowdownTvPending = false
+          self.retroShowdownFromStage = null
+        }
       )
     },
     onRetroStageTransition: function (newVal, oldVal) {
       if (this.gameUiTheme !== 'retro8bit') {
-        this._retroStageNavReady = true
+        this.retroStageNavReady = true
         return
       }
-      if (!this._retroStageNavReady) {
-        this._retroStageNavReady = true
+      if (!this.retroStageNavReady) {
+        this.retroStageNavReady = true
         return
       }
       if (newVal === 'preflop') {
-        this._retroShowdownTvPending = false
+        this.retroShowdownTvPending = false
+        this.retroShowdownFromStage = null
         return
       }
       if (
-        !this._retroShowdownTvPending
-        && shouldRetroShowdownTvSequence(oldVal, newVal, this._retroStageNavReady)
+        !this.retroShowdownTvPending
+        && shouldRetroShowdownTvSequence(oldVal, newVal, this.retroStageNavReady)
       ) {
+        this.retroShowdownFromStage = oldVal
         this.beginRetroShowdownTvSequence()
       }
     },
@@ -826,7 +851,8 @@ export default {
     },
     /** 离开 retro8bit 前统一关闭特效/面板，再 nextTick×2 + rAF 切主题，避免 v-if 与 overlay 竞态 */
     teardownRetro8bitUi() {
-      this._retroShowdownTvPending = false
+      this.retroShowdownTvPending = false
+      this.retroShowdownFromStage = null
       this.$store.commit('dpGame/SET_HERO_HAND_HOLOGRAM', false)
       this.$store.commit('dpGame/CLOSE_OWNER_HUB')
       this.$store.commit('dpGame/SET_MOBILE_SHEETS', {
@@ -2444,7 +2470,7 @@ export default {
     getPlayerBoxStyle(p, i) {
       return dpGamePlayerBoxStyle(p, i, {
         actIndex: this.actIndex,
-        stage: this.stage,
+        stage: this.cardDisplayStage,
         isOwner: this.isOwner,
         selectedWinners: this.selectedWinners,
         myNickname: this.user && this.user.nickname

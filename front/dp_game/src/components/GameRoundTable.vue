@@ -130,7 +130,7 @@
             :seat-index="row.seatIndex"
             :box-style="getPlayerBoxStyle(row.player, row.seatIndex)"
             :act-index="actIndex"
-            :stage="stage"
+            :stage="playerCardStage"
             :community-cards="communityCards"
             :community-cards-flip-complete="communityCardsFlipComplete"
             :is-owner="isOwner"
@@ -200,6 +200,8 @@ export default {
     viewerSeatedAtTable: { type: Boolean, default: false },
     actIndex: { type: Number, required: true },
     stage: { type: String, required: true },
+    /** retro8bit TV 期间回退到上一下注街，供 GamePlayerCard 紧凑展示 */
+    cardDisplayStage: { type: String, default: '' },
     communityCardsFlipComplete: { type: Boolean, default: false },
     isOwner: { type: Boolean, default: false },
     ownerRevealAll: { type: Boolean, default: false },
@@ -250,6 +252,9 @@ export default {
     this.logRetroSeatRayLayoutCompare('mounted')
   },
   computed: {
+    playerCardStage: function () {
+      return this.cardDisplayStage || this.stage
+    },
     muckStyle: function () {
       return muckPileRoundTableStyle(
         this.stage,

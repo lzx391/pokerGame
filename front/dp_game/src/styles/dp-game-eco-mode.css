@@ -287,6 +287,31 @@
   animation: none !important;
 }
 
+/* —— retro8bit 好友私信左上 CRT 面板 —— */
+@media (prefers-reduced-motion: reduce) {
+  .dp-friend-chat-panel--slide-in .dp-friend-chat-panel__shell,
+  .dp-friend-chat-panel--retract .dp-friend-chat-panel__shell,
+  .dp-friend-chat-panel__snow,
+  .dp-friend-chat-panel__snow--active,
+  .dp-friend-chat-panel__snow-noise,
+  .dp-friend-chat-panel__snow-bars,
+  .dp-friend-chat-panel__snow-bright,
+  .dp-friend-chat-panel__flash {
+    animation: none !important;
+  }
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .dp-friend-chat-panel--slide-in .dp-friend-chat-panel__shell,
+.dp-game-root[data-dp-eco-mode='true'] .dp-friend-chat-panel--retract .dp-friend-chat-panel__shell,
+.dp-game-root[data-dp-eco-mode='true'] .dp-friend-chat-panel__snow,
+.dp-game-root[data-dp-eco-mode='true'] .dp-friend-chat-panel__snow--active,
+.dp-game-root[data-dp-eco-mode='true'] .dp-friend-chat-panel__snow-noise,
+.dp-game-root[data-dp-eco-mode='true'] .dp-friend-chat-panel__snow-bars,
+.dp-game-root[data-dp-eco-mode='true'] .dp-friend-chat-panel__snow-bright,
+.dp-game-root[data-dp-eco-mode='true'] .dp-friend-chat-panel__flash {
+  animation: none !important;
+}
+
 /* —— retro8bit 房主终端右上显示板 —— */
 @media (prefers-reduced-motion: reduce) {
   .dp-owner-terminal--slide-in .dp-owner-terminal__shell,

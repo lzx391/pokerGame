@@ -44,6 +44,7 @@
           <span>Tab 补全</span>
           <span>music 音乐</span>
           <span>hands 历史</span>
+          <span>dm 私信</span>
           <span>help 帮助</span>
           <span v-if="vm && vm.isOwner" style="color:rgba(255,224,102,0.5)">npc/kick/transfer/reveal</span>
         </div>
@@ -76,6 +77,8 @@ var CMDS = {
   hands:  { u: 'hands',              d: '打开对局历史查看器',    act: 'fetchHands' },
   comment: { u: 'comment',            d: '切换房间聊天面板 开/关', act: 'toggleChatPanel' },
   chat:   { u: 'chat <消息>',        d: '发送房间聊天',          act: 'sendChat', needs: 'text' },
+  dm:     { u: 'dm [昵称|ID]',       d: '打开好友私信(无参打开选择器)', act: 'openDm' },
+  message:{ u: 'message [昵称|ID]',  d: '(同 dm)',               act: 'openDm' },
   clear:  { u: 'clear',              d: '清屏',                  act: 'clear' },
   exit:   { u: 'exit',               d: '关闭终端',              act: 'exit' },
   help:   { u: 'help',               d: '显示命令列表',          act: 'help' }
@@ -194,6 +197,13 @@ export default {
       // —— transfer 命令：transfer / transfer 张 ——
       if (lower === 'transfer' || lower.indexOf('transfer ') === 0) {
         this.autocompletePlayerArg(input, 'transfer', this.getTransferablePlayerNicks()); return
+      }
+      // —— dm / message 命令：dm / dm 张 ——
+      if (lower === 'dm' || lower.indexOf('dm ') === 0) {
+        this.autocompleteFriendArg(input, 'dm'); return
+      }
+      if (lower === 'message' || lower.indexOf('message ') === 0) {
+        this.autocompleteFriendArg(input, 'message'); return
       }
       // —— music 命令：music / music l / music play ——
       if (lower === 'music' || lower.indexOf('music ') === 0) {
@@ -322,6 +332,7 @@ export default {
       else if (act === 'toggleChatPanel') { this.addEntry('ok', raw, undefined); this.execToggleChatPanel() }
       else if (act === 'toggleHandCards') { this.addEntry('ok', raw, undefined); this.execToggleHandCards() }
       else if (act === 'sendChat') { this.execSendChat(raw, args) }
+      else if (act === 'openDm') { this.execOpenDm(raw, args) }
       else if (act === 'doSit') { this.execSit(raw) }
       else if (def.needs === 'amt') { this.execWithAmount(def, raw, args) }
       else { this.addEntry('ok', raw, undefined); this.invokeAction(act) }
@@ -538,6 +549,90 @@ export default {
       }
       this.appendOut('[ERR] 无法查看手牌')
     },
+    // ---- 好友私信：打开选择器或直接对话 ----
+    execOpenDm: async function (raw, args) {
+      var vm = this.vm
+      if (!vm) { this.addEntry('err', raw, '[ERR] 无游戏实例'); return }
+
+      if (!args.length) {
+        this.addEntry('ok', raw, '[OK] 打开好友私信')
+        vm.friendChatPickerOpen = true
+        if (typeof vm.scheduleReparentElementUiLayersIntoFullscreenRoot === 'function') {
+          vm.scheduleReparentElementUiLayersIntoFullscreenRoot()
+        }
+        this.$nextTick(function () { var inp = this.$refs.hiddenInput; if (inp) inp.blur() }.bind(this))
+        return
+      }
+
+      var target = args.join(' ').trim()
+      if (!target) { this.addEntry('err', raw, '[ERR] 用法: dm [昵称|ID]'); return }
+
+      var friends = (vm.$store.state.dpMailbox && vm.$store.state.dpMailbox.friends) || []
+      if (!friends.length && vm.$store && vm.$http) {
+        try {
+          var fetchRes = await vm.$store.dispatch('dpMailbox/fetchAllFriendsForInvite', { http: vm.$http })
+          if (fetchRes && fetchRes.ok) {
+            friends = (vm.$store.state.dpMailbox && vm.$store.state.dpMailbox.friends) || []
+          }
+        } catch (e) { /* 沿用下方未找到提示 */ }
+      }
+
+      var friend = this.findFriendByTarget(friends, target)
+      if (!friend) {
+        this.addEntry('err', raw, '[ERR] 未找到好友: ' + target + ' — 无参 dm 打开选择器')
+        return
+      }
+
+      this.addEntry('ok', raw, undefined)
+      if (typeof vm.openFriendChatFromPicker === 'function') {
+        vm.openFriendChatFromPicker(friend)
+        var label = typeof vm.friendChatDisplayName === 'function'
+          ? vm.friendChatDisplayName(friend)
+          : ((friend && friend.nickname) || ('#' + friend.userId))
+        this.appendOut('[OK] 已与 ' + label + ' 打开私信')
+      } else {
+        this.appendOut('[ERR] 无法打开私信')
+      }
+    },
+
+    findFriendByTarget: function (friends, target) {
+      if (!target || !friends || !friends.length) return null
+      var uid = parseInt(target, 10)
+      if (isFinite(uid) && uid > 0) {
+        for (var i = 0; i < friends.length; i++) {
+          if (Number(friends[i].userId) === uid) return friends[i]
+        }
+      }
+      for (var j = 0; j < friends.length; j++) {
+        if (friends[j].nickname === target) return friends[j]
+      }
+      var lower = target.toLowerCase()
+      var matches = friends.filter(function (f) {
+        return f && f.nickname && f.nickname.toLowerCase().indexOf(lower) !== -1
+      })
+      if (matches.length === 1) return matches[0]
+      return null
+    },
+
+    getFriendNicknames: function () {
+      var vm = this.vm; if (!vm) return []
+      var friends = (vm.$store.state.dpMailbox && vm.$store.state.dpMailbox.friends) || []
+      return friends.map(function (f) { return (f && f.nickname) || '' }).filter(Boolean)
+    },
+
+    autocompleteFriendArg: function (input, cmd) {
+      var actualPrefix = input.slice(0, cmd.length + 1)
+      var partial = input.slice(cmd.length + 1)
+      var matches = this.getFriendNicknames().filter(function (n) {
+        return n.toLowerCase().indexOf(partial.toLowerCase()) === 0
+      })
+      if (matches.length === 1) {
+        this.inputBuffer = actualPrefix + matches[0] + ' '
+      } else if (matches.length > 1) {
+        this.addEntry('info', input, matches.join('  '))
+      }
+    },
+
     execSendChat: function (raw, args) {
       var vm = this.vm
       var text = args.join(' ').trim()
@@ -698,7 +793,7 @@ export default {
         ownerCmds.forEach(function (n) { var d = CMDS[n]; lines.push('  ' + d.u + '  — ' + d.d) })
       }
       lines.push('  —— 通用 ——')
-      var utilCmds = ['music','hands','comment','chat','clear','exit','help']
+      var utilCmds = ['music','hands','comment','chat','dm','clear','exit','help']
       utilCmds.forEach(function (n) { var d = CMDS[n]; lines.push('  ' + d.u + '  — ' + d.d) })
       this.addEntry('info', raw, lines.join('\n'))
     },

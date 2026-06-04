@@ -1,9 +1,10 @@
 /**
- * retro8bit：河牌→摊牌 TV 弹窗触发条件（纯 overlay，不门闸亮牌）。
+ * retro8bit：河牌→摊牌 TV 弹窗 + 摊牌亮牌门闸（TV 播放期间保持下注圈紧凑 UI）。
  */
 
 var BETTING_STAGES = Object.freeze(['preflop', 'flop', 'turn', 'river'])
 var REVEAL_STAGES = Object.freeze(['showdown', 'settled'])
+var DEFAULT_BETTING_STAGE_BEFORE_SHOWDOWN = 'river'
 
 export function isRetroBettingStage(stage) {
   return BETTING_STAGES.indexOf(stage) !== -1
@@ -24,4 +25,26 @@ export function shouldRetroShowdownTvSequence(oldStage, newStage, navReady) {
   if (!oldStage || oldStage === newStage) return false
   if (!isRetroBettingStage(oldStage)) return false
   return isRetroRevealStage(newStage)
+}
+
+/**
+ * TV 播放期间：玩家卡片仍按上一下注街渲染（紧凑/背面），避免 settled 快照一到就展开。
+ * @param {string} actualStage 服务端 stage
+ * @param {boolean} tvPending 摊牌 TV 是否进行中
+ * @param {string|null|undefined} bettingStageBeforeShowdown 进入摊牌前的下注街（如 river）
+ */
+export function resolveCardDisplayStage(actualStage, tvPending, bettingStageBeforeShowdown) {
+  if (!tvPending || !isRetroRevealStage(actualStage)) return actualStage
+  if (bettingStageBeforeShowdown && isRetroBettingStage(bettingStageBeforeShowdown)) {
+    return bettingStageBeforeShowdown
+  }
+  return DEFAULT_BETTING_STAGE_BEFORE_SHOWDOWN
+}
+
+/**
+ * TV 播放期间暂不展示摊牌牌力领先者高亮，避免与紧凑 UI 冲突。
+ */
+export function resolveShowdownHandLeaders(actualStage, tvPending, leaders) {
+  if (tvPending && isRetroRevealStage(actualStage)) return []
+  return leaders || []
 }
