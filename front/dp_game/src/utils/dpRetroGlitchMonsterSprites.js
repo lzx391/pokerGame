@@ -339,7 +339,7 @@ export function pickGlitchMonsterSpriteIds(count) {
   return ids
 }
 
-var MONSTER_IDLE_ANIMS = ['peek', 'walk-x', 'bob-y', 'spin']
+var MONSTER_IDLE_ANIMS = ['walk-x', 'bob-y', 'spin']
 var QM_CRITTER_ANIMS = MONSTER_IDLE_ANIMS.concat(['fight'])
 
 function pickMonsterIdleAnim() {
