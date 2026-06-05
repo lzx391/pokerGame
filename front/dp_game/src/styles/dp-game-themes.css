@@ -278,9 +278,13 @@ body[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-cli__history,
 body[data-dp-game-theme='retro8bit'] .dp-cli__history,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list,
-body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list {
-  scrollbar-width: auto;
-  scrollbar-color: var(--dp-accent) var(--dp-terminal-bg);
+body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body,
+body[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console,
+body[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console {
+  scrollbar-width: thin;
+  scrollbar-color: var(--dp-accent, #4af626) var(--dp-terminal-bg, #080a0c);
 }
 
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar,
@@ -288,9 +292,28 @@ body[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar,
 body[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar,
-body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar {
+body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar,
+body[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console::-webkit-scrollbar,
+body[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console::-webkit-scrollbar {
   width: 10px;
   height: 10px;
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar-button,
+body[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar-button,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-button,
+body[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-button,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-button,
+body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-button,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-button,
+body[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-button,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console::-webkit-scrollbar-button,
+body[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar-track,
@@ -298,8 +321,12 @@ body[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar-trac
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-track,
 body[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-track,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-track,
-body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-track {
-  background: var(--dp-terminal-bg);
+body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-track,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-track,
+body[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-track,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console::-webkit-scrollbar-track,
+body[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console::-webkit-scrollbar-track {
+  background: var(--dp-terminal-bg, #080a0c);
   border-left: 2px solid rgba(74, 246, 38, 0.12);
   box-shadow: inset 2px 0 0 rgba(0, 0, 0, 0.55);
 }
@@ -309,10 +336,14 @@ body[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar-thum
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-thumb,
 body[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-thumb,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-thumb,
-body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-thumb {
+body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-thumb,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-thumb,
+body[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-thumb,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console::-webkit-scrollbar-thumb,
+body[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console::-webkit-scrollbar-thumb {
   border: 2px solid #000;
   border-radius: 0;
-  background: var(--dp-accent);
+  background: var(--dp-accent, #4af626);
   box-shadow:
     inset 0 0 0 1px rgba(114, 240, 82, 0.45),
     0 0 6px rgba(74, 246, 38, 0.35);
@@ -323,8 +354,12 @@ body[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar-thum
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-thumb:hover,
 body[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-thumb:hover,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-thumb:hover,
-body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-thumb:hover {
-  background: var(--dp-text-secondary);
+body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-thumb:hover,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-thumb:hover,
+body[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-thumb:hover,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console::-webkit-scrollbar-thumb:hover,
+body[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console::-webkit-scrollbar-thumb:hover {
+  background: var(--dp-text-secondary, #72f052);
 }
 
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar-corner,
@@ -332,14 +367,25 @@ body[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar-corn
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-corner,
 body[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-corner,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-corner,
-body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-corner {
-  background: var(--dp-terminal-bg);
+body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-corner,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-corner,
+body[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-corner,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console::-webkit-scrollbar-corner,
+body[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console::-webkit-scrollbar-corner {
+  background: var(--dp-terminal-bg, #080a0c);
 }
 
 /* 节能：同色块滑条，去掉磷光外晕 */
 .dp-game-root[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] .dp-retro-scrollbar::-webkit-scrollbar-thumb,
+body[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] .dp-retro-scrollbar::-webkit-scrollbar-thumb,
 .dp-game-root[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] .dp-cli__history::-webkit-scrollbar-thumb,
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] .dp-game-room-chat-panel__list::-webkit-scrollbar-thumb {
+body[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] .dp-cli__history::-webkit-scrollbar-thumb,
+.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] .dp-game-room-chat-panel__list::-webkit-scrollbar-thumb,
+body[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] .dp-game-room-chat-panel__list::-webkit-scrollbar-thumb,
+.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] .dp-custom-npc-panel__body::-webkit-scrollbar-thumb,
+body[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] .dp-custom-npc-panel__body::-webkit-scrollbar-thumb,
+.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console::-webkit-scrollbar-thumb,
+body[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console::-webkit-scrollbar-thumb {
   box-shadow: inset 0 0 0 1px rgba(58, 138, 42, 0.5);
 }
 

@@ -267,3 +267,52 @@ export default {
   flex-shrink: 0;
 }
 </style>
+
+<!-- 非 scoped：::-webkit-scrollbar 必须全局命中 .dp-custom-npc-panel__body（真实 overflow 容器） -->
+<style>
+body[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body {
+  scrollbar-width: thin;
+  scrollbar-color: var(--dp-accent, #4af626) var(--dp-terminal-bg, #080a0c);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-button,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-track,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-track {
+  background: var(--dp-terminal-bg, #080a0c);
+  border-left: 2px solid rgba(74, 246, 38, 0.12);
+  box-shadow: inset 2px 0 0 rgba(0, 0, 0, 0.55);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-thumb,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-thumb {
+  border: 2px solid #000;
+  border-radius: 0;
+  background: var(--dp-accent, #4af626);
+  box-shadow:
+    inset 0 0 0 1px rgba(114, 240, 82, 0.45),
+    0 0 6px rgba(74, 246, 38, 0.35);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-thumb:hover,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-thumb:hover {
+  background: var(--dp-text-secondary, #72f052);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-corner,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-corner {
+  background: var(--dp-terminal-bg, #080a0c);
+}
+</style>

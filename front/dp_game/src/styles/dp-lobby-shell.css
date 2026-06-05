@@ -350,6 +350,20 @@ body[data-dp-game-theme] {
   color: var(--dp-text-muted, #3a8a2a);
 }
 
+/* 快匹排队：finding... 终端 accent 绿 */
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card__desc--qm-finding {
+  color: var(--dp-accent, #4af626);
+  text-shadow: var(--dp-terminal-glow-text, 0 0 6px rgba(74, 246, 38, 0.55));
+}
+
+/* 快匹排队：Cancel 用像素英文字体，与大厅终端一致 */
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card__label--qm-cancel {
+  font-family: var(--dp-font-pixel, 'Press Start 2P', monospace);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  text-shadow: var(--dp-terminal-glow-text, 0 0 6px rgba(74, 246, 38, 0.55));
+}
+
 .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card__icon-wrap {
   background: var(--dp-terminal-bg, #0a0c0e);
   border: 1px solid rgba(74, 246, 38, 0.22);

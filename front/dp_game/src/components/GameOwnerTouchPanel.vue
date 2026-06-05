@@ -45,6 +45,16 @@
               }"
           >
             <div
+                v-if="gameUiTheme === 'retro8bit' && glitchActive"
+                class="dp-owner-touch__glitch"
+                aria-hidden="true"
+            >
+              <span class="dp-owner-touch__glitch-noise" />
+              <span class="dp-owner-touch__glitch-bars" />
+              <span class="dp-owner-touch__glitch-flash" />
+              <span class="dp-owner-touch__glitch-chroma" />
+            </div>
+            <div
                 v-if="gameUiTheme === 'retro8bit'"
                 class="dp-owner-touch__console-scanlines"
                 aria-hidden="true"
@@ -128,6 +138,11 @@ import GameBottomSheet from './GameBottomSheet.vue'
 import GameOwnerHubContent from './GameOwnerHubContent.vue'
 import CustomNpcStyleDialog from './CustomNpcStyleDialog.vue'
 
+/** 与 dp-sheet 滑入时长 (--dp-motion-duration-dialog) 对齐 */
+var OWNER_TOUCH_SLIDE_MS = 300
+/** 滑入完成后的 CRT 花屏时长 */
+var OWNER_TOUCH_GLITCH_MS = 450
+
 export default {
   name: 'GameOwnerTouchPanel',
   components: { GameBottomSheet, GameOwnerHubContent, CustomNpcStyleDialog },
@@ -174,8 +189,22 @@ export default {
       },
       touchFooterBackSeq: 0,
       touchFooterPrimarySeq: 0,
-      touchFooterPrimaryCmd: null
+      touchFooterPrimaryCmd: null,
+      glitchActive: false,
+      glitchTimers: []
     }
+  },
+  watch: {
+    open: function (val) {
+      this.clearGlitchTimers()
+      this.glitchActive = false
+      if (val && this.gameUiTheme === 'retro8bit') {
+        this.scheduleOpenGlitch()
+      }
+    }
+  },
+  beforeDestroy: function () {
+    this.clearGlitchTimers()
   },
   computed: {
     entryLabel: function () {
@@ -255,6 +284,30 @@ export default {
     }
   },
   methods: {
+    clearGlitchTimers: function () {
+      var t = this.glitchTimers
+      for (var i = 0; i < t.length; i++) clearTimeout(t[i])
+      this.glitchTimers = []
+    },
+    scheduleGlitchTimer: function (fn, ms) {
+      var id = setTimeout(fn, ms)
+      this.glitchTimers.push(id)
+      return id
+    },
+    scheduleOpenGlitch: function () {
+      if (typeof window !== 'undefined' && window.matchMedia &&
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        return
+      }
+      var self = this
+      this.scheduleGlitchTimer(function () {
+        if (!self.open || self.gameUiTheme !== 'retro8bit') return
+        self.glitchActive = true
+        self.scheduleGlitchTimer(function () {
+          self.glitchActive = false
+        }, OWNER_TOUCH_GLITCH_MS)
+      }, OWNER_TOUCH_SLIDE_MS)
+    },
     resetHubScreenState: function () {
       this.hubScreenState = {
         screen: 'root',
@@ -279,6 +332,8 @@ export default {
       this.$emit('open')
     },
     closePanel: function () {
+      this.clearGlitchTimers()
+      this.glitchActive = false
       this.resetHubScreenState()
       this.$emit('close')
     },

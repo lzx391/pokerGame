@@ -340,9 +340,33 @@ export function pickGlitchMonsterSpriteIds(count) {
 }
 
 var MONSTER_IDLE_ANIMS = ['peek', 'walk-x', 'bob-y', 'spin']
+var QM_CRITTER_ANIMS = MONSTER_IDLE_ANIMS.concat(['fight'])
 
 function pickMonsterIdleAnim() {
   return MONSTER_IDLE_ANIMS[Math.floor(Math.random() * MONSTER_IDLE_ANIMS.length)]
+}
+
+/**
+ * Random idle animation for quick-match waiting critter (single monster; fight uses random dir).
+ * @param {string} [exclude]
+ * @returns {{ anim: string, animDur: string, animDelay: string, fightDir?: number }}
+ */
+export function pickQmCritterAnim(exclude) {
+  var pool = QM_CRITTER_ANIMS.filter(function (a) { return a !== exclude })
+  if (!pool.length) pool = QM_CRITTER_ANIMS.slice()
+  var anim = pool[Math.floor(Math.random() * pool.length)]
+  var result = {
+    anim: anim,
+    animDur: (0.65 + Math.random() * 0.55).toFixed(2),
+    animDelay: (0.22 + Math.random() * 0.18).toFixed(2)
+  }
+  if (anim === 'fight') result.fightDir = Math.random() < 0.5 ? 1 : -1
+  return result
+}
+
+/** Horizontal anchor for quick-match card lower band (28–72%). */
+export function pickQmCritterPosLeft() {
+  return (28 + Math.random() * 44).toFixed(1) + '%'
 }
 
 function parseAnchorPct(anchor) {

@@ -1,0 +1,260 @@
+/* Quick-match waiting: single monster + card-scoped CRT glitch cycle */
+
+.qm-critters {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: inherit;
+  isolation: isolate;
+  contain: paint;
+}
+
+/* Lower band (55–94%): critter stays below Cancel / finding... */
+.qm-critters__stage {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 55%;
+  bottom: 6%;
+  z-index: 1;
+}
+
+.qm-critters__monster {
+  position: absolute;
+  left: var(--qm-pos-left, 50%);
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.qm-critters__anim {
+  display: inline-block;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+/* Gate idle motion on monster reveal (mirrors dp-retro-glitch-monster__flash--in) */
+.qm-critters__monster--in .qm-critters__anim--peek {
+  animation: qm-critter-peek var(--anim-dur, 1.1s) steps(2) var(--anim-delay, 0.25s) infinite;
+}
+
+.qm-critters__monster--in .qm-critters__anim--walk-x {
+  animation: qm-critter-walk-x var(--anim-dur, 0.85s) steps(4) var(--anim-delay, 0.25s) infinite;
+}
+
+.qm-critters__monster--in .qm-critters__anim--bob-y {
+  animation: qm-critter-bob-y var(--anim-dur, 0.75s) steps(3) var(--anim-delay, 0.25s) infinite;
+}
+
+.qm-critters__monster--in .qm-critters__anim--spin {
+  animation: qm-critter-spin var(--anim-dur, 1.4s) steps(8) var(--anim-delay, 0.25s) infinite;
+}
+
+.qm-critters__monster--in .qm-critters__anim--fight {
+  animation: qm-critter-fight var(--anim-dur, 0.55s) steps(4) var(--anim-delay, 0.25s) infinite;
+}
+
+.qm-critters__sprite {
+  display: block;
+  width: clamp(56px, 13vw, 88px);
+  height: clamp(56px, 13vw, 88px);
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.qm-critters--retro .qm-critters__sprite {
+  filter:
+    drop-shadow(0 0 6px rgba(255, 77, 216, 0.75))
+    drop-shadow(0 0 10px rgba(0, 229, 255, 0.4))
+    drop-shadow(0 2px 0 rgba(10, 12, 14, 0.9));
+}
+
+.qm-critters__dot {
+  display: block;
+  width: clamp(36px, 8vw, 56px);
+  height: clamp(36px, 8vw, 56px);
+  border-radius: 50%;
+  opacity: 0.9;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes qm-critter-peek {
+  0%, 40%, 60%, 100% { transform: scaleX(1); }
+  50% { transform: scaleX(-1); }
+}
+
+@keyframes qm-critter-walk-x {
+  0%, 100% { transform: translateX(-10px); }
+  50% { transform: translateX(10px); }
+}
+
+@keyframes qm-critter-bob-y {
+  0%, 100% { transform: translateY(4px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes qm-critter-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes qm-critter-fight {
+  0%, 100% {
+    transform: translateX(calc(var(--fight-dir, 1) * -3px)) rotate(calc(var(--fight-dir, 1) * -6deg));
+  }
+  25% {
+    transform: translateX(calc(var(--fight-dir, 1) * 8px)) rotate(calc(var(--fight-dir, 1) * 10deg)) scale(1.06);
+  }
+  50% {
+    transform: translateX(calc(var(--fight-dir, 1) * 11px)) rotate(calc(var(--fight-dir, 1) * -8deg));
+  }
+  75% {
+    transform: translateX(calc(var(--fight-dir, 1) * 5px)) rotate(calc(var(--fight-dir, 1) * 5deg));
+  }
+}
+
+/* CRT glitch — confined to quick-match card (see isolation/contain on .qm-critters) */
+.qm-critters__glitch {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: inherit;
+  background: #0e1012;
+  opacity: 0.94;
+  animation: qm-critter-glitch-jitter 0.06s steps(2) infinite;
+}
+
+.qm-critters__glitch-noise,
+.qm-critters__glitch-bars,
+.qm-critters__glitch-flash,
+.qm-critters__glitch-chroma {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.qm-critters__glitch-noise {
+  opacity: 0.85;
+  background-image:
+    repeating-radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.6) 0 0.45px, transparent 0.55px),
+    repeating-radial-gradient(circle at 78% 62%, rgba(210, 218, 228, 0.5) 0 0.4px, transparent 0.5px),
+    repeating-radial-gradient(circle at 44% 81%, rgba(240, 245, 252, 0.42) 0 0.35px, transparent 0.45px),
+    repeating-linear-gradient(92deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 2px);
+  background-size: 3px 3px, 4px 4px, 2.5px 2.5px, 5px 100%;
+  animation: qm-critter-glitch-noise 0.04s steps(3) infinite;
+}
+
+.qm-critters__glitch-bars {
+  opacity: 0.7;
+  mix-blend-mode: overlay;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.14) 0 1px,
+    rgba(235, 240, 248, 0.16) 1px 2px,
+    rgba(255, 255, 255, 0.08) 2px 3px,
+    transparent 3px 6px
+  );
+  background-size: 100% 6px;
+  animation: qm-critter-glitch-bars 0.25s linear infinite;
+}
+
+.qm-critters__glitch-flash {
+  z-index: 2;
+  opacity: 0;
+  animation: qm-critter-glitch-flash 0.14s ease-out;
+}
+
+.qm-critters__glitch-chroma {
+  z-index: 1;
+  opacity: 0;
+  background:
+    linear-gradient(90deg, rgba(255, 68, 68, 0.35) 0 33%, transparent 33% 66%, rgba(68, 136, 255, 0.35) 66% 100%);
+  animation: qm-critter-glitch-chroma 0.45s steps(4) forwards;
+}
+
+@keyframes qm-critter-glitch-jitter {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-1.5px, 0.8px); }
+}
+
+@keyframes qm-critter-glitch-noise {
+  0% { background-position: 0 0, 1px 0, 0 1px, 0 0; opacity: 0.78; }
+  50% { background-position: 2px 1px, -1px 2px, 1px -1px, 3px 0; opacity: 0.92; }
+  100% { background-position: -1px 2px, 2px -1px, -2px 1px, -2px 0; opacity: 0.75; }
+}
+
+@keyframes qm-critter-glitch-bars {
+  to { background-position: 0 -6px; }
+}
+
+@keyframes qm-critter-glitch-flash {
+  0% { opacity: 1; background: #f8fafc; }
+  100% { opacity: 0; background: transparent; }
+}
+
+@keyframes qm-critter-glitch-chroma {
+  0% { opacity: 0.55; transform: translateX(-3px); }
+  25% { opacity: 0.35; transform: translateX(4px); }
+  50% { opacity: 0.2; transform: translateX(-2px); }
+  75% { opacity: 0.08; transform: translateX(1px); }
+  100% { opacity: 0; transform: translateX(0); }
+}
+
+/* retro8bit: scanline tint over monster stage */
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--matching .qm-critters--retro::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.1;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0 2px,
+    rgba(74, 246, 38, 0.08) 2px 3px
+  );
+}
+
+/* Match card: contain glitch compositing within card bounds */
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--matching,
+.home-quick-card--matching {
+  isolation: isolate;
+  contain: paint;
+}
+
+/* Static / reduced motion: no glitch layers, no critter motion */
+.qm-critters--static .qm-critters__anim,
+.qm-critters--static .qm-critters__glitch,
+.qm-critters--static .qm-critters__glitch-noise,
+.qm-critters--static .qm-critters__glitch-bars,
+.qm-critters--static .qm-critters__glitch-flash,
+.qm-critters--static .qm-critters__glitch-chroma {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qm-critters__anim,
+  .qm-critters__glitch,
+  .qm-critters__glitch-noise,
+  .qm-critters__glitch-bars,
+  .qm-critters__glitch-flash,
+  .qm-critters__glitch-chroma {
+    animation: none !important;
+  }
+}
+
+body[data-dp-fluidity='eco'] .qm-critters__anim,
+body[data-dp-fluidity='eco'] .qm-critters__glitch,
+body[data-dp-fluidity='eco'] .qm-critters__glitch-noise,
+body[data-dp-fluidity='eco'] .qm-critters__glitch-bars,
+body[data-dp-fluidity='eco'] .qm-critters__glitch-chroma,
+.dp-game-root[data-dp-eco-mode='true'] .qm-critters__anim,
+.dp-game-root[data-dp-eco-mode='true'] .qm-critters__glitch,
+.dp-game-root[data-dp-eco-mode='true'] .qm-critters__glitch-noise,
+.dp-game-root[data-dp-eco-mode='true'] .qm-critters__glitch-bars,
+.dp-game-root[data-dp-eco-mode='true'] .qm-critters__glitch-chroma {
+  animation: none !important;
+}

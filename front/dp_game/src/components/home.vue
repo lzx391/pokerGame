@@ -75,15 +75,33 @@
           <button
             type="button"
             class="home-quick-card home-quick-card--primary"
-            :class="{ 'home-quick-card--match-alert': quickMatchAlertBlink }"
+            :class="{
+              'home-quick-card--match-alert': quickMatchAlertBlink,
+              'home-quick-card--matching': quickMatchAlertBlink
+            }"
             :disabled="quickMatchLoading && !quickMatchPolling"
             @click="onQuickMatchButtonClick"
           >
-            <span class="home-quick-card__icon-wrap home-quick-card__icon-wrap--match">
+            <quick-match-pixel-critters
+              v-if="quickMatchAlertBlink"
+              :active="quickMatchAlertBlink"
+              :retro="gameUiTheme === 'retro8bit'"
+              :eco-mode="ecoMode"
+            />
+            <span
+              v-if="!quickMatchAlertBlink"
+              class="home-quick-card__icon-wrap home-quick-card__icon-wrap--match"
+            >
               <i class="el-icon-s-flag"></i>
             </span>
-            <span class="home-quick-card__label">{{ quickMatchPolling ? '取消匹配' : quickMatchLoading ? '匹配中…' : '快速匹配' }}</span>
-            <span class="home-quick-card__desc">{{ quickMatchPolling ? '正在寻找对手…' : '即刻加入对局' }}</span>
+            <span
+              class="home-quick-card__label"
+              :class="{ 'home-quick-card__label--qm-cancel': quickMatchPolling }"
+            >{{ quickMatchPolling ? 'Cancel' : quickMatchLoading ? '匹配中…' : '快速匹配' }}</span>
+            <span
+              class="home-quick-card__desc"
+              :class="{ 'home-quick-card__desc--qm-finding': quickMatchPolling }"
+            >{{ quickMatchPolling ? 'finding...' : quickMatchLoading ? '连接匹配通道…' : '即刻加入对局' }}</span>
           </button>
 
           <!-- 创建房间 -->
@@ -740,6 +758,7 @@ import { prefetchGameChunk } from '@/utils/dpPrefetchGameRoute'
 import { enterGameFromLobby as enterGameFromLobbyWithBoot } from '@/utils/dpLobbyEnterGame'
 import DpCrtBootSequence from '@/components/DpCrtBootSequence.vue'
 import DpMailboxConsole from '@/components/DpMailboxConsole.vue'
+import QuickMatchPixelCritters from '@/components/QuickMatchPixelCritters.vue'
 import { prefetchAvatarUrls } from '@/utils/dpAvatarPrefetch'
 import { avatarCacheBustFromUpdatedAt } from '@/utils/dpAvatarUrl'
 
@@ -753,7 +772,8 @@ export default {
     DpUserAvatar,
     DpFluidityToggle,
     DpCrtBootSequence,
-    DpMailboxConsole
+    DpMailboxConsole,
+    QuickMatchPixelCritters
   },
   mixins: [dpLobbyThemeMixin],
   data() {
@@ -813,6 +833,7 @@ export default {
   },
   computed: {
     ...mapGetters('dpGame', ['handRankReference']),
+    ...mapState('dpGame', ['ecoMode']),
     ...mapState('dpMailbox', [
       'unreadCount',
       'friendChatUnreadTotal',
@@ -1900,6 +1921,14 @@ export default {
   font-size: clamp(10px, 2vw, 11px);
   color: var(--dp-text-muted);
   line-height: 1.3;
+}
+
+/* 快匹等待：文案与图标压在像素怪物层之上，取消按钮仍可点 */
+.home-quick-card--matching .home-quick-card__icon-wrap,
+.home-quick-card--matching .home-quick-card__label,
+.home-quick-card--matching .home-quick-card__desc {
+  position: relative;
+  z-index: 2;
 }
 
 /* Badge 包裹 */
