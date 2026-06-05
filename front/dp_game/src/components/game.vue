@@ -853,7 +853,7 @@ export default {
         'danger',
         'SHOWDOWN',
         '决胜时刻',
-        '双方亮牌',
+        '摊牌!',
         finishRetroShowdownTv
       )
     },
