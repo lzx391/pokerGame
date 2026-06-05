@@ -788,7 +788,7 @@ export default {
         'danger',
         'SHOWDOWN',
         '决胜时刻',
-        '双方亮牌，胜负在天',
+        '双方亮牌',
         finishRetroShowdownTv
       )
     },
