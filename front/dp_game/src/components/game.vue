@@ -2010,7 +2010,7 @@ export default {
     },
 
     // ---- 房主：移交房主（通过弹窗选择玩家） ----
-    async doTransferOwner() {
+    async doTransferOwner(options) {
       if (!this.ownerActionTarget) {
         this.$message.warning('请先选择要移交房主的玩家')
         return
@@ -2019,13 +2019,17 @@ export default {
         this.$message.warning('不能把房主移交给自己')
         return
       }
-      try {
-        await this.dpConfirm(
-          '确定将房主移交给 [' + dpDisplayNickname(this.ownerActionTarget) + '] 吗？',
-          '移交房主'
-        )
-      } catch (e) {
-        return
+      var skipConfirm = options && options.skipConfirm
+      if (!skipConfirm) {
+        this.scheduleReparentElementUiLayersIntoFullscreenRoot()
+        try {
+          await this.dpConfirm(
+            '确定将房主移交给 [' + dpDisplayNickname(this.ownerActionTarget) + '] 吗？',
+            '移交房主'
+          )
+        } catch (e) {
+          return
+        }
       }
       try {
         var res = await this.$http.post('/dpRoom/transferOwner', null, {
@@ -2048,7 +2052,7 @@ export default {
     },
 
     // ---- 房主：踢人到观众席（可多选批量） ----
-    async doKickPlayers (nicknames) {
+    async doKickPlayers (nicknames, options) {
       var raw = [].concat(nicknames || []).filter(Boolean)
       var seen = {}
       var list = []
@@ -2062,20 +2066,24 @@ export default {
         this.$message.warning('请至少选择一名要踢出的玩家')
         return
       }
-      var preview = list.slice(0, 8).map(function (n) {
-        return dpDisplayNickname(n)
-      }).join('、')
-      if (list.length > 8) preview += ' …'
-      try {
-        await this.dpConfirm(
-          '确定将以下 ' +
-            list.length +
-            ' 人踢出本局并移至观众席吗？\n\n' +
-            preview,
-          '批量踢出'
-        )
-      } catch (e) {
-        return
+      var skipConfirm = options && options.skipConfirm
+      if (!skipConfirm) {
+        var preview = list.slice(0, 8).map(function (n) {
+          return dpDisplayNickname(n)
+        }).join('、')
+        if (list.length > 8) preview += ' …'
+        this.scheduleReparentElementUiLayersIntoFullscreenRoot()
+        try {
+          await this.dpConfirm(
+            '确定将以下 ' +
+              list.length +
+              ' 人踢出本局并移至观众席吗？\n\n' +
+              preview,
+            '批量踢出'
+          )
+        } catch (e) {
+          return
+        }
       }
       try {
         var res = await this.$http.post('/dpRoom/kickPlayersBatch', null, {

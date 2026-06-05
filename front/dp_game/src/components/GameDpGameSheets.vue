@@ -180,8 +180,8 @@
         @close-custom-npc="vm.closeCustomNpcStyleDialog"
         @submit-custom-npc="(profile) => vm.submitCustomNpcBatch(profile)"
         @confirm-add-npcs="(p) => vm.confirmAddOwnerNpcs(p)"
-        @transfer-owner="() => vm.doTransferOwner()"
-        @kick-players="(nicks) => vm.doKickPlayers(nicks)"
+        @transfer-owner="() => vm.doTransferOwner({ skipConfirm: true })"
+        @kick-players="(nicks) => vm.doKickPlayers(nicks, { skipConfirm: true })"
         @toggle-reveal="vm.onOwnerTouchToggleReveal"
     />
 

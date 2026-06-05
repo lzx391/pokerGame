@@ -878,6 +878,19 @@ body[data-dp-game-theme='retro8bit'] .dp-owner-touch__sheet--retro .dp-owner-hub
   box-shadow: inset 0 0 0 1px #080a0c;
 }
 
+/* kick-select: checkbox/cursor must contrast on green active row */
+body[data-dp-game-theme='retro8bit'] .dp-owner-touch__sheet--retro .dp-owner-hub-content--touch .dp-owner-terminal__row--active .dp-owner-hub-content__check,
+body[data-dp-game-theme='retro8bit'] .dp-owner-touch__sheet--retro .dp-owner-hub-content--touch .dp-owner-terminal__row--active .dp-owner-terminal__row-cursor {
+  color: #080a0c;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-owner-touch__sheet--retro .dp-owner-hub-content--touch .dp-owner-terminal__row--active.dp-owner-terminal__row--checked .dp-owner-hub-content__check {
+  background: #080a0c;
+  color: var(--dp-terminal-led-green, #4af626);
+  padding: 0 2px;
+  box-shadow: inset 0 0 0 1px #080a0c;
+}
+
 body[data-dp-game-theme='retro8bit'] .dp-owner-touch__sheet--retro .dp-owner-hub-content__screen--confirm {
   padding: 12px 10px;
   border: 2px solid rgba(74, 246, 38, 0.22);
@@ -886,6 +899,29 @@ body[data-dp-game-theme='retro8bit'] .dp-owner-touch__sheet--retro .dp-owner-hub
 }
 
 body[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   padding-top: 6px;
   padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__sheet {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__footer {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 3;
 }

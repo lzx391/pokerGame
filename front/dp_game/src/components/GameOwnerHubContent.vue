@@ -242,7 +242,16 @@ export default {
     llmGlobalBotAdding: { type: Boolean, default: false },
     llmGlobalBotAddedTip: { type: String, default: '' },
     customBotAdding: { type: Boolean, default: false },
-    customBotAddedTip: { type: String, default: '' }
+    customBotAddedTip: { type: String, default: '' },
+    /** 触控 footer BACK：父组件递增序号触发 pop */
+    touchFooterBackSeq: { type: Number, default: 0 },
+    /** 触控 footer 主按钮：{ seq, action } */
+    touchFooterPrimaryCmd: {
+      type: Object,
+      default: function () {
+        return null
+      }
+    }
   },
   data() {
     return {
@@ -355,7 +364,14 @@ export default {
   },
   watch: {
     active(now) {
-      if (!now) this.resetStack()
+      if (!now) {
+        this.resetStack()
+        return
+      }
+      var self = this
+      this.$nextTick(function () {
+        self.emitHubScreenState()
+      })
     },
     ownerActionPlayers: {
       deep: true,
@@ -371,6 +387,24 @@ export default {
           stackDepth: stack.length,
           screen: stack[stack.length - 1]
         })
+        this.emitHubScreenState()
+      }
+    },
+    kickSelectionNicknames: {
+      deep: true,
+      handler() {
+        this.emitHubScreenState()
+      }
+    },
+    touchFooterBackSeq: function (next, prev) {
+      if (!this.touchMode || next === prev) return
+      this.goBack()
+    },
+    touchFooterPrimaryCmd: {
+      deep: true,
+      handler: function (cmd) {
+        if (!this.touchMode || !cmd || !cmd.action) return
+        this.runTouchFooterAction(cmd.action)
       }
     }
   },
@@ -383,18 +417,53 @@ export default {
       this.pendingTransferNick = ''
       this.pendingNpcRow = null
       this.submitting = false
+      this.emitHubScreenState()
+    },
+    emitHubScreenState() {
+      this.$emit('screen-change', {
+        screen: this.currentScreen,
+        stackDepth: this.stackDepth,
+        listLength: this.listLength,
+        kickSelectionCount: this.kickSelectionNicknames.length
+      })
     },
     pushScreen(screen) {
       this.menuStack.push(screen)
       this.cursorIndex = 0
       dpOwnerTerminalDevLog('menu stack push', { screen: screen, stackDepth: this.menuStack.length })
+      this.emitHubScreenState()
     },
     popScreen() {
       if (this.menuStack.length <= 1) return false
-      this.menuStack.pop()
+      this.menuStack.splice(this.menuStack.length - 1, 1)
       this.cursorIndex = 0
       dpOwnerTerminalDevLog('menu stack pop', { stackDepth: this.menuStack.length, screen: this.currentScreen })
+      this.emitHubScreenState()
       return true
+    },
+    goBack() {
+      if (this.menuStack.length > 1) {
+        this.popScreen()
+        return true
+      }
+      return false
+    },
+    runTouchFooterAction(action) {
+      if (action === 'npc-next') {
+        this.enterNpcConfirm()
+      } else if (action === 'npc-confirm') {
+        this.emitNpcConfirm()
+      } else if (action === 'transfer-next') {
+        this.enterTransferConfirm()
+      } else if (action === 'transfer-confirm') {
+        this.emitTransferConfirm()
+      } else if (action === 'kick-next') {
+        if (this.kickSelectionNicknames.length > 0) {
+          this.pushScreen('kick-confirm')
+        }
+      } else if (action === 'kick-confirm') {
+        this.emitKickConfirm()
+      }
     },
     clampCount(raw, max) {
       var n = parseInt(raw, 10)
@@ -517,6 +586,7 @@ export default {
       dpOwnerTerminalDevLog('API emit', { action: 'transfer-owner', target: this.pendingTransferNick })
       this.$emit('transfer-owner')
       this.submitting = false
+      this.resetStack()
     },
     emitKickConfirm() {
       if (this.submitting || !this.kickSelectionNicknames.length) return
@@ -524,6 +594,7 @@ export default {
       dpOwnerTerminalDevLog('API emit', { action: 'kick-players', count: this.kickSelectionNicknames.length })
       this.$emit('kick-players', this.kickSelectionNicknames.slice())
       this.submitting = false
+      this.resetStack()
     },
     emitRevealToggle() {
       if (this.submitting) return

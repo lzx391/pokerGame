@@ -58,6 +58,8 @@
                 ref="hubContent"
                 :active="open"
                 :touch-mode="true"
+                :touch-footer-back-seq="touchFooterBackSeq"
+                :touch-footer-primary-cmd="touchFooterPrimaryCmd"
                 :terminal-focused="false"
                 :owner-reveal-all="ownerRevealAll"
                 :demo-bot-adding="demoBotAdding"
@@ -83,6 +85,7 @@
                 @kick-players="$emit('kick-players', $event)"
                 @toggle-reveal="$emit('toggle-reveal')"
                 @request-close="closePanel"
+                @screen-change="onHubScreenChange"
             />
           </div>
 
@@ -95,7 +98,7 @@
             <button
                 type="button"
                 class="dp-owner-touch__footer-btn dp-owner-touch__footer-btn--back"
-                @click="onFooterBack"
+                @click.stop="onFooterBack"
             >
               {{ footerBackLabel }}
             </button>
@@ -106,7 +109,7 @@
                 class="dp-owner-touch__footer-btn dp-owner-touch__footer-btn--primary"
                 :class="{ 'dp-owner-touch__footer-btn--danger': footerPrimary.danger }"
                 :disabled="footerPrimary.disabled"
-                @click="onFooterPrimary"
+                @click.stop="onFooterPrimary"
             >
               {{ footerPrimary.label }}
             </button>
@@ -158,6 +161,19 @@ export default {
     customBotAdding: { type: Boolean, default: false },
     customBotAddedTip: { type: String, default: '' }
   },
+  data: function () {
+    return {
+      hubScreenState: {
+        screen: 'root',
+        stackDepth: 1,
+        listLength: 0,
+        kickSelectionCount: 0
+      },
+      touchFooterBackSeq: 0,
+      touchFooterPrimarySeq: 0,
+      touchFooterPrimaryCmd: null
+    }
+  },
   computed: {
     entryLabel: function () {
       if (this.gameUiTheme === 'retro8bit') {
@@ -190,26 +206,23 @@ export default {
         'dp-owner-touch__entry--retro': this.gameUiTheme === 'retro8bit'
       }
     },
-    hub: function () {
-      return this.$refs.hubContent || null
-    },
     hubScreen: function () {
-      return this.hub ? this.hub.currentScreen : 'root'
+      return this.hubScreenState.screen || 'root'
     },
     hubListLength: function () {
-      return this.hub ? this.hub.listLength : 0
+      return this.hubScreenState.listLength || 0
     },
     touchFooterVisible: function () {
       return this.hubScreen !== 'root'
     },
     footerBackLabel: function () {
+      var depth = this.hubScreenState.stackDepth || 1
       if (this.gameUiTheme === 'retro8bit') {
-        return this.hub && this.hub.stackDepth > 1 ? 'BACK' : 'CLOSE'
+        return depth > 1 ? 'BACK' : 'CLOSE'
       }
-      return this.hub && this.hub.stackDepth > 1 ? '返回' : '关闭'
+      return depth > 1 ? '返回' : '关闭'
     },
     footerPrimary: function () {
-      if (!this.hub) return null
       var screen = this.hubScreen
       var retro = this.gameUiTheme === 'retro8bit'
       if (screen === 'npc-pick' && this.hubListLength > 0) {
@@ -225,7 +238,7 @@ export default {
         return { label: retro ? 'TRANSFER >>' : '确认移交', action: 'transfer-confirm', disabled: false }
       }
       if (screen === 'kick-pick') {
-        var n = this.hub.kickSelectionNicknames.length
+        var n = this.hubScreenState.kickSelectionCount || 0
         return {
           label: n > 0 ? (retro ? 'NEXT (' + n + ') >>' : '下一步（' + n + '）') : (retro ? 'PICK PLAYERS' : '请勾选玩家'),
           action: 'kick-next',
@@ -239,41 +252,46 @@ export default {
     }
   },
   methods: {
+    resetHubScreenState: function () {
+      this.hubScreenState = {
+        screen: 'root',
+        stackDepth: 1,
+        listLength: 0,
+        kickSelectionCount: 0
+      }
+      this.touchFooterBackSeq = 0
+      this.touchFooterPrimarySeq = 0
+      this.touchFooterPrimaryCmd = null
+    },
+    onHubScreenChange: function (state) {
+      if (!state || typeof state !== 'object') return
+      this.hubScreenState = {
+        screen: state.screen || 'root',
+        stackDepth: state.stackDepth || 1,
+        listLength: state.listLength || 0,
+        kickSelectionCount: state.kickSelectionCount || 0
+      }
+    },
     openPanel: function () {
       this.$emit('open')
     },
     closePanel: function () {
-      if (this.hub && typeof this.hub.resetStack === 'function') {
-        this.hub.resetStack()
-      }
+      this.resetHubScreenState()
       this.$emit('close')
     },
     onFooterBack: function () {
-      if (!this.hub) {
-        this.closePanel()
-        return
-      }
-      if (this.hub.stackDepth > 1 && typeof this.hub.popScreen === 'function') {
-        this.hub.popScreen()
+      if ((this.hubScreenState.stackDepth || 1) > 1) {
+        this.touchFooterBackSeq += 1
         return
       }
       this.closePanel()
     },
     onFooterPrimary: function () {
-      if (!this.hub || !this.footerPrimary) return
-      var action = this.footerPrimary.action
-      if (action === 'npc-next') {
-        this.hub.enterNpcConfirm()
-      } else if (action === 'npc-confirm') {
-        this.hub.emitNpcConfirm()
-      } else if (action === 'transfer-next') {
-        this.hub.enterTransferConfirm()
-      } else if (action === 'transfer-confirm') {
-        this.hub.emitTransferConfirm()
-      } else if (action === 'kick-next') {
-        this.hub.pushScreen('kick-confirm')
-      } else if (action === 'kick-confirm') {
-        this.hub.emitKickConfirm()
+      if (!this.footerPrimary || this.footerPrimary.disabled) return
+      this.touchFooterPrimarySeq += 1
+      this.touchFooterPrimaryCmd = {
+        action: this.footerPrimary.action,
+        seq: this.touchFooterPrimarySeq
       }
     }
   }
@@ -337,6 +355,7 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-height: 0;
 }
 
 .dp-owner-touch__console {
@@ -384,6 +403,9 @@ export default {
 .dp-owner-touch__footer {
   display: flex;
   flex-wrap: wrap;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
   align-items: center;
   gap: 10px;
   padding-top: 8px;
@@ -402,6 +424,7 @@ export default {
   font-weight: 600;
   cursor: pointer;
   touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .dp-owner-touch__footer-btn--primary {
