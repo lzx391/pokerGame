@@ -1,7 +1,7 @@
 <template>
   <div>
     <div
-        v-if="vm.heroDockRow || vm.isMyTurn || vm.inSettledStage || vm.isOwner"
+        v-if="vm.heroDockRow || vm.isMyTurn || vm.inSettledStage"
         class="dp-game-hero-action-row dp-game-hero-action-row--hide-narrow"
         aria-label="本人手牌与操作"
     >
@@ -125,7 +125,7 @@
 
     <!-- 窄屏 / 全屏：聊天 + 离座/手牌/行动 同一横排靠左 -->
     <div
-        v-if="vm.heroDockRow || vm.isMyTurn || vm.inSettledStage || vm.isOwner"
+        v-if="vm.heroDockRow || vm.isMyTurn || vm.inSettledStage"
         class="dp-game-mobile-hero-bar"
         aria-label="手牌与行动"
     >
@@ -194,16 +194,6 @@
               >
                 准备（{{ vm.readyTimeLeft }}s）
               </button>
-              <button
-                  v-if="vm.isOwner && vm.gameUiTheme === 'retro8bit'"
-                  type="button"
-                  class="dp-owner-touch__entry dp-owner-touch__entry--mobile dp-owner-touch__entry--retro dp-game-mobile-hero-bar__btn dp-game-mobile-hero-bar__btn--toolbar"
-                  aria-label="房主操作"
-                  @click="vm.openOwnerTouchPanel()"
-              >
-                <span class="dp-owner-touch__entry-icon" aria-hidden="true">⚙</span>
-                <span class="dp-owner-touch__entry-label">房主</span>
-              </button>
             </div>
           </div>
           <div
@@ -228,16 +218,6 @@
                 @click="$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileActionSheet: true })"
             >
               准备（{{ vm.readyTimeLeft }}s）
-            </button>
-            <button
-                v-if="vm.isOwner && vm.gameUiTheme === 'retro8bit'"
-                type="button"
-                class="dp-owner-touch__entry dp-owner-touch__entry--mobile dp-owner-touch__entry--retro dp-game-mobile-hero-bar__btn dp-game-mobile-hero-bar__btn--toolbar"
-                aria-label="房主操作"
-                @click="vm.openOwnerTouchPanel()"
-            >
-              <span class="dp-owner-touch__entry-icon" aria-hidden="true">⚙</span>
-              <span class="dp-owner-touch__entry-label">房主</span>
             </button>
           </div>
         </div>
