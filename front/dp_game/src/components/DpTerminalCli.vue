@@ -698,7 +698,7 @@ export default {
       }
 
       // 已入座且结算阶段 → 不足大盲先补码，再准备/取消准备
-      if (vm.inSettledStage) {
+      if (vm.uiInSettledStage) {
         if (typeof vm.toggleReady !== 'function') {
           this.addEntry('err', raw, '[ERR] toggleReady 不可用'); return
         }

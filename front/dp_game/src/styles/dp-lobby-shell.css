@@ -562,12 +562,14 @@ body[data-dp-game-theme] {
 }
 
 .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert,
-.dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert {
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert,
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--match-alert {
   animation: dp-mailbox-card-blink 0.65s step-end infinite;
 }
 
 .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert .home-quick-card__label::before,
-.dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert .home-quick-card__label::before {
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert .home-quick-card__label::before,
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--match-alert .home-quick-card__label::before {
   animation: dp-mailbox-pip-blink 0.65s step-end infinite;
 }
 
@@ -601,15 +603,18 @@ body[data-dp-game-theme] {
 @media (prefers-reduced-motion: reduce) {
   .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert,
   .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--match-alert,
   .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert .home-quick-card__label::before,
   .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert .home-quick-card__label::before,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--match-alert .home-quick-card__label::before,
   .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert .home-quick-card__mailbox-pip,
   .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert .home-quick-card__friends-pip {
     animation: none !important;
   }
 
   .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert,
-  .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert {
+  .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--match-alert {
     border-color: var(--dp-accent, #4af626);
     box-shadow: 0 0 6px rgba(74, 246, 38, 0.35);
   }
@@ -617,30 +622,36 @@ body[data-dp-game-theme] {
 
 body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert,
 body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert,
+body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--match-alert,
 body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert .home-quick-card__label::before,
 body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert .home-quick-card__label::before,
+body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--match-alert .home-quick-card__label::before,
 body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert .home-quick-card__mailbox-pip,
 body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert .home-quick-card__friends-pip {
   animation: none !important;
 }
 
 body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert,
-body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert {
+body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert,
+body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--match-alert {
   border-color: var(--dp-accent, #4af626);
   box-shadow: 0 0 6px rgba(74, 246, 38, 0.35);
 }
 
 .dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert,
 .dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert,
+.dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--match-alert,
 .dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert .home-quick-card__label::before,
 .dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert .home-quick-card__label::before,
+.dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--match-alert .home-quick-card__label::before,
 .dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert .home-quick-card__mailbox-pip,
 .dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert .home-quick-card__friends-pip {
   animation: none !important;
 }
 
 .dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert,
-.dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert {
+.dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert,
+.dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--match-alert {
   border-color: var(--dp-accent, #4af626);
   box-shadow: 0 0 6px rgba(74, 246, 38, 0.35);
 }

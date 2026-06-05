@@ -46,9 +46,9 @@
         class="dp-player-card__rival-stats"
         :class="{ 'dp-player-card__rival-stats--fold': player.fold }"
       >
-        <span>{{ player.chips }}</span>
+        <span>{{ resolvedChips }}</span>
         <span class="dp-player-card__rival-stats-sep">·</span>
-        <span>{{ catCopy.roundShort }} {{ player.bet }}</span>
+        <span>{{ catCopy.roundShort }} {{ resolvedBet }}</span>
       </div>
       <div v-if="player.fold" class="dp-player-card__rival-fold">已盖牌</div>
       <div
@@ -256,11 +256,11 @@
       >
         <div class="dp-player-card__chips">
           <span class="dp-player-card__mini-label">{{ catCopy.stackShort }}</span>
-          <span class="dp-player-card__chips-val">{{ player.chips }}</span>
+          <span class="dp-player-card__chips-val">{{ resolvedChips }}</span>
         </div>
         <div class="dp-player-card__bet" aria-label="本轮已出小鱼干">
           <span class="dp-player-card__mini-label">{{ catCopy.roundShort }}</span>
-          <span class="dp-player-card__bet-val">{{ player.bet }}</span>
+          <span class="dp-player-card__bet-val">{{ resolvedBet }}</span>
         </div>
         <div
           v-if="showHoleCardsArea"
@@ -382,6 +382,10 @@ export default {
     holeDealPlayerCount: { type: Number, default: 1 },
     /** 摊牌阶段牌力最高者昵称列表（平局时并列者均展示完整牌型） */
     showdownHandLeaders: { type: Array, default: function () { return [] } },
+    /** TV 冻结期间覆盖展示筹码（不传则用 player.chips） */
+    displayChips: { type: [Number, String], default: null },
+    /** TV 冻结期间覆盖展示本轮下注（不传则用 player.bet） */
+    displayBet: { type: [Number, String], default: null },
     /** 该座位玩家最近一条房间聊天（同一人新发会顶掉；由 game.vue 按昵称写入） */
     seatChatText: { type: String, default: '' },
     /** 聊天气泡锚点：top | left | right（圆桌左/右半圈侧向伸出，减轻被邻座遮挡） */
@@ -559,6 +563,12 @@ export default {
     },
     displayPlayerName() {
       return dpDisplayNickname(this.player.nickname)
+    },
+    resolvedChips() {
+      return this.displayChips != null ? this.displayChips : this.player.chips
+    },
+    resolvedBet() {
+      return this.displayBet != null ? this.displayBet : this.player.bet
     },
     resolvedActualStage() {
       return this.actualStage || this.stage

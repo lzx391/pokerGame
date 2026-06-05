@@ -151,8 +151,15 @@
                     </span>
                   </td>
                   <td class="lb-table__nick">
-                    <div v-if="isPodiumRank(row.rank)" class="lb-table__nick-podium">
+                    <button
+                      type="button"
+                      class="lb-table__profile-btn"
+                      :class="{ 'lb-table__nick-podium': isPodiumRank(row.rank) }"
+                      :aria-label="'查看 ' + displayNickname(row.nickname) + ' 的资料'"
+                      @click="onRowProfileClick(row)"
+                    >
                       <dp-user-avatar
+                        v-if="isPodiumRank(row.rank)"
                         :avatar-url="row.avatarUrl"
                         :nickname="row.nickname"
                         :cache-bust="avatarCacheBustFromUpdatedAt(row.avatarUpdatedAt)"
@@ -161,13 +168,9 @@
                       />
                       <span
                         class="lb-table__nick-text"
-                        :class="{ 'lb-table__pixel-en': retroLbFx }"
+                        :class="{ 'lb-table__pixel-en': retroLbFx, 'lb-table__nick-text--plain': !isPodiumRank(row.rank) }"
                       >{{ displayNickname(row.nickname) }}</span>
-                    </div>
-                    <span
-                      v-else
-                      :class="{ 'lb-table__pixel-en': retroLbFx }"
-                    >{{ displayNickname(row.nickname) }}</span>
+                    </button>
                   </td>
                   <td class="lb-table__mult">
                     <span :class="{ 'lb-table__pixel-en': retroLbFx }">{{ formatMultiplier(row.multiplier) }}</span>
@@ -192,6 +195,15 @@
         <span v-else class="lb-page__footer-muted">登录后查看我的名次</span>
       </footer>
     </div>
+
+    <home-profile-modal :visible.sync="profileVisible" />
+
+    <game-player-social-sheet
+      v-if="playerSocialOpen && playerSocialTarget"
+      :visible="true"
+      :target="playerSocialTarget"
+      @close="closePlayerSocialSheet"
+    />
   </div>
 </template>
 
@@ -203,10 +215,13 @@ import { mapState } from 'vuex'
 import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import DpFluidityToggle from '@/components/DpFluidityToggle.vue'
 import DpUserAvatar from '@/components/DpUserAvatar.vue'
+import HomeProfileModal from '@/components/HomeProfileModal.vue'
+import GamePlayerSocialSheet from '@/components/GamePlayerSocialSheet.vue'
 import { getWeeklyHandLeaderboard, getWeeklyRoomLeaderboard } from '@/api/api.dpLeaderboard'
+import { dpSocialApi } from '@/api/api.dpSocial'
 import { dpResultSuccess, dpResultData, dpResultMessage, dpAxiosErrorMessage } from '@/utils/dpApiResult'
 import { avatarCacheBustFromUpdatedAt } from '@/utils/dpAvatarUrl'
-import { dpDisplayNickname } from '@/utils/dpDisplayNickname'
+import { dpDisplayNickname, isDpBotNickname } from '@/utils/dpDisplayNickname'
 
 var TAB_CACHE_MS = 30000
 var SCAN_ROW_STAGGER_MS = 48
@@ -218,7 +233,7 @@ var SCAN_SKELETON_NICKS = ['SCAN...', 'LOAD...', 'WAIT...', 'SYNC...', 'SCAN...'
 
 export default {
   name: 'LeaderboardPage',
-  components: { DpFluidityToggle, DpUserAvatar },
+  components: { DpFluidityToggle, DpUserAvatar, HomeProfileModal, GamePlayerSocialSheet },
   mixins: [dpLobbyThemeMixin],
   data() {
     return {
@@ -232,6 +247,10 @@ export default {
       loading: false,
       loadError: '',
       isLoggedIn: false,
+      user: {},
+      profileVisible: false,
+      playerSocialOpen: false,
+      playerSocialTarget: null,
       prefersReducedMotion: false,
       scanRevealKey: 0,
       scanActive: false,
@@ -299,13 +318,59 @@ export default {
         var raw = localStorage.getItem('userInfo')
         if (!raw) {
           this.isLoggedIn = false
+          this.user = {}
           return
         }
         var u = JSON.parse(raw)
+        this.user = u || {}
         this.isLoggedIn = !!(u && u.token)
       } catch (e) {
         this.isLoggedIn = false
+        this.user = {}
       }
+    },
+    onRowProfileClick(row) {
+      if (!row || !row.nickname) return
+      if (isDpBotNickname(row.nickname)) {
+        this.$message.info('机器人不支持该功能')
+        return
+      }
+      this.openPlayerSocialProfile({ nickname: row.nickname, userId: row.userId })
+    },
+    async openPlayerSocialProfile(payload) {
+      var nickname = payload && payload.nickname
+      if (!nickname) return
+
+      if (this.user && nickname === this.user.nickname) {
+        this.profileVisible = true
+        return
+      }
+
+      var uid = payload && payload.userId != null ? Number(payload.userId) : 0
+      if (!uid || uid <= 0 || isNaN(uid)) {
+        try {
+          var res = await dpSocialApi(this.$http).lookupUser(String(nickname))
+          if (dpResultSuccess(res.data)) {
+            var user = (dpResultData(res.data) || {}).user
+            var looked = user && user.userId != null ? Number(user.userId) : 0
+            if (looked > 0 && !isNaN(looked)) uid = looked
+          }
+        } catch (e) {
+          /* 静默 */
+        }
+      }
+
+      if (!uid || uid <= 0 || isNaN(uid)) {
+        this.$message.warning('无法获取该玩家的账号信息')
+        return
+      }
+
+      this.playerSocialTarget = { nickname: nickname, userId: uid }
+      this.playerSocialOpen = true
+    },
+    closePlayerSocialSheet() {
+      this.playerSocialOpen = false
+      this.playerSocialTarget = null
     },
     goBack() {
       this.$router.push('/home')
@@ -641,6 +706,30 @@ export default {
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
 }
+.lb-table__profile-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.lb-table__profile-btn:hover,
+.lb-table__profile-btn:focus-visible {
+  opacity: 0.88;
+  text-decoration: underline;
+}
+.lb-table__profile-btn:focus-visible {
+  outline: 2px solid var(--dp-accent, #409eff);
+  outline-offset: 2px;
+}
 .lb-table__nick-podium {
   display: flex;
   align-items: center;
@@ -653,6 +742,9 @@ export default {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 600;
+}
+.lb-table__nick-text--plain {
+  font-weight: inherit;
 }
 .lb-table__row--podium-gold td {
   background: var(--dp-lb-podium-row-bg-gold);

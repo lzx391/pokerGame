@@ -75,6 +75,7 @@
           <button
             type="button"
             class="home-quick-card home-quick-card--primary"
+            :class="{ 'home-quick-card--match-alert': quickMatchAlertBlink }"
             :disabled="quickMatchLoading && !quickMatchPolling"
             @click="onQuickMatchButtonClick"
           >
@@ -850,6 +851,10 @@ export default {
     },
     friendsAlertBlink() {
       return this.friendChatUnreadTotal > 0 && !this.friendsDrawerVisible
+    },
+    /** retro8bit：快速匹配连接中 / 排队中 — 与邮箱、好友未读同款卡片 blink */
+    quickMatchAlertBlink() {
+      return this.quickMatchPolling || this.quickMatchLoading
     },
     friendsDrawerTitle() {
       return this.gameUiTheme === 'retro8bit' ? '— FRIENDS —' : '好友列表'

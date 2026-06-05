@@ -56,3 +56,81 @@ export function shouldRevealHoleCardsAtShowdown(actualStage, tvPending) {
   if (tvPending) return false
   return isRetroRevealStage(actualStage)
 }
+
+/** TV 播放期间：摊牌/结算 presentation 冻结（数据可进内存，UI 仍按决赛圈展示） */
+export function isSettlePresentationFrozen(tvPending, actualStage) {
+  return !!tvPending && isRetroRevealStage(actualStage)
+}
+
+export function liveTableChipLeaderNicksFromPlayers(players) {
+  var max = -1
+  var nicks = []
+  var list = players || []
+  for (var i = 0; i < list.length; i++) {
+    var p = list[i]
+    if (!p || p.leftThisHand) continue
+    var c = Number(p.chips)
+    if (!isFinite(c) || c < 0) c = 0
+    if (c > max) {
+      max = c
+      nicks = [p.nickname]
+    } else if (c === max && p.nickname) {
+      nicks.push(p.nickname)
+    }
+  }
+  return nicks
+}
+
+/** 每次下注街快照更新；进入摊牌/结算 TV 期间用此冻结积分展示 */
+export function captureBettingEconomySnapshot(room) {
+  if (!room) return null
+  var players = room.players || []
+  var byNick = {}
+  for (var i = 0; i < players.length; i++) {
+    var p = players[i]
+    if (!p || !p.nickname) continue
+    byNick[p.nickname] = {
+      chips: p.chips != null ? p.chips : 0,
+      bet: p.bet != null ? p.bet : 0
+    }
+  }
+  return {
+    byNick: byNick,
+    pot: room.pot != null ? room.pot : 0,
+    currentBetToCall: room.currentBetToCall != null ? room.currentBetToCall : 0,
+    chipLeaderNicknames: liveTableChipLeaderNicksFromPlayers(players)
+  }
+}
+
+export function resolvePlayerEconomyDisplay(player, snapshot, frozen) {
+  if (!player) return { chips: 0, bet: 0 }
+  if (!frozen || !snapshot || !snapshot.byNick) {
+    return {
+      chips: player.chips != null ? player.chips : 0,
+      bet: player.bet != null ? player.bet : 0
+    }
+  }
+  var entry = snapshot.byNick[player.nickname]
+  if (!entry) {
+    return {
+      chips: player.chips != null ? player.chips : 0,
+      bet: player.bet != null ? player.bet : 0
+    }
+  }
+  return { chips: entry.chips, bet: entry.bet }
+}
+
+export function resolveFrozenTablePot(livePot, snapshot, frozen) {
+  if (!frozen || !snapshot) return livePot
+  return snapshot.pot != null ? snapshot.pot : livePot
+}
+
+export function resolveFrozenCurrentBetToCall(liveValue, snapshot, frozen) {
+  if (!frozen || !snapshot) return liveValue
+  return snapshot.currentBetToCall != null ? snapshot.currentBetToCall : liveValue
+}
+
+export function resolveFrozenChipLeaderNicknames(liveLeaders, snapshot, frozen) {
+  if (!frozen || !snapshot) return liveLeaders || []
+  return snapshot.chipLeaderNicknames || []
+}

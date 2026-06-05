@@ -133,6 +133,8 @@
             :stage="playerCardStage"
             :actual-stage="stage"
             :retro-showdown-tv-pending="retroShowdownTvPending"
+            :display-chips="playerEconomyForDisplay(row.player).chips"
+            :display-bet="playerEconomyForDisplay(row.player).bet"
             :community-cards="communityCards"
             :community-cards-flip-complete="communityCardsFlipComplete"
             :is-owner="isOwner"
@@ -219,6 +221,14 @@ export default {
     getPlayerBoxStyle: { type: Function, required: true },
     holeDealOrderFromDealer: { type: Function, required: true },
     seatChatTextFor: { type: Function, required: true },
+    /** TV 冻结期间：按昵称返回展示用 chips/bet */
+    playerEconomyForDisplay: {
+      type: Function,
+      default: function (player) {
+        if (!player) return { chips: 0, bet: 0 }
+        return { chips: player.chips, bet: player.bet }
+      }
+    },
     joinRevealNicks: { type: Object, default: function () { return {} } },
     seatEnterRevealEnabled: { type: Boolean, default: false },
     gameUiTheme: { type: String, default: 'default' },

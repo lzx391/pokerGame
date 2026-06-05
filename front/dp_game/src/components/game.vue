@@ -20,10 +20,10 @@
     <header class="dp-game-layout__header">
     <game-top-bar
         :room-id="roomId"
-        :stage="stage"
-        :stage-label="stageCN"
-        :pot="pot"
-        :current-bet-to-call="currentBetToCall"
+        :stage="cardDisplayStage"
+        :stage-label="displayStageCN"
+        :pot="displayPot"
+        :current-bet-to-call="displayCurrentBetToCall"
         :spectator-count="spectators.length"
         :wait-next-hand-count="waitNextHand.length"
         :is-fullscreen="layoutFullscreen"
@@ -50,7 +50,7 @@
         @exit="exitGame"
         @ready-next-hand="readyNextHand"
         :show-hero-economy="topBarShowHeroEconomy"
-        :hero-my-chips="myChips"
+        :hero-my-chips="displayMyChips"
         :hero-economy-secondary-label="topBarHeroEconomySecondaryLabel"
         :hero-economy-secondary-value="topBarHeroEconomySecondaryValue"
         :hero-carry-in-chips="myCarryInChips"
@@ -61,7 +61,7 @@
     <main
         ref="gameMain"
         class="dp-game-layout__main dp-game-layout__main--fit-table"
-        :class="{ 'dp-game-layout__main--settlement-scroll': stage === 'showdown' || stage === 'settled' }"
+        :class="{ 'dp-game-layout__main--settlement-scroll': cardDisplayStage === 'showdown' || cardDisplayStage === 'settled' }"
     >
     <p
         v-if="layoutTier === 'phone' && layoutOrientation === 'portrait'"
@@ -73,7 +73,7 @@
     <div class="dp-game-table-fit" :style="tableFitClipStyleObj">
       <div ref="tableFitInner" class="dp-game-table-fit__inner">
           <game-round-table
-              :chip-leader-nicknames="chipLeaderNicknames"
+              :chip-leader-nicknames="tableChipLeaderNicknames"
               :players-display-order="playersDisplayOrder"
               :show-table-action-timer="showTableActionTimer"
               :time-left="timeLeft"
@@ -102,7 +102,8 @@
               :join-reveal-nicks="joinRevealNicks"
               :seat-enter-reveal-enabled="useRetroSeatEnterReveal"
               :game-ui-theme="gameUiTheme"
-              :pot="pot"
+              :pot="displayPot"
+              :player-economy-for-display="playerEconomyForDisplay"
               :show-retro-desktop-fx="showRetroDesktopFx"
               :retro-desktop-animated="useRetroDesktopAmbience"
               :retro-glitch-seq="retroGlitchSeq"
@@ -198,7 +199,8 @@ import {
   communityFlipCompleteMsForTheme,
   communityFlipDelayMsForTheme
 } from '../constants/dpGameDealTiming'
-import { shouldRetroShowdownTvSequence, resolveCardDisplayStage, resolveShowdownHandLeaders } from '../utils/dpRetroShowdownReveal'
+import { shouldRetroShowdownTvSequence, resolveCardDisplayStage, resolveShowdownHandLeaders, isRetroBettingStage, isSettlePresentationFrozen, captureBettingEconomySnapshot, resolvePlayerEconomyDisplay, resolveFrozenTablePot, resolveFrozenCurrentBetToCall, resolveFrozenChipLeaderNicknames } from '../utils/dpRetroShowdownReveal'
+import { dpGameStageDisplay } from '../constants/dpCatThemeCopy'
 
 export default {
   mixins: [dpGameFullscreenMixin, dpGameTableFitMixin, dpGameActionCountdownMixin, dpGameLayoutTierMixin],
@@ -272,7 +274,9 @@ export default {
       /** 本局摊牌 TV 是否已排队（避免 stage 重复触发）；勿用 _ 前缀，Vue2 computed 无法订阅 */
       retroShowdownTvPending: false,
       /** 进入摊牌前的下注街，供 TV 期间 cardDisplayStage 回退 */
-      retroShowdownFromStage: null
+      retroShowdownFromStage: null,
+      /** 最后一帧下注街经济快照（TV 期间冻结积分/底池展示） */
+      retroBettingEconomySnapshot: null
     }
   },
 
@@ -281,7 +285,7 @@ export default {
       'gameUiTheme', 'ecoMode', 'gameThemeOptions', 'roomId', 'user', 'currentHandSeed', 'owner', 'players', 'playing', 'stage', 'communityCards', 'pot', 'pots', 'currentBetToCall', 'lastRaiseIncrement', 'actIndex', 'spectators', 'waitNextHand', 'raiseAmount', 'selectedWinners', 'potWinners', 'nextHandReady', 'loading', 'communityCardsFlipState', 'communityCardsFlipComplete', 'seatChatTextByNick', 'roomChatMessages', 'chatInputDraft', 'showPlayGuideModal', 'playGuideTab', 'showSpectatorModal', 'showWaitNextHandModal', 'showHandHistoryModal', 'showOpponentHandHistoryModal', 'opponentHandHistoryOtherUserId', 'opponentHandHistoryDisplayName', 'showMusicBoxModal', 'musicTracks', 'musicTracksLoading', 'musicTracksError', 'roomMusicState', 'showOwnerHubSheet', 'showCustomNpcStyleDialog', 'customNpcPendingCount', 'ownerToolType', 'ownerActionTarget', 'demoBotAdding', 'demoBotAddedTip', 'maniacBotAdding', 'maniacBotAddedTip', 'tagBotAdding', 'tagBotAddedTip', 'lagBotAdding', 'lagBotAddedTip', 'nitBotAdding', 'nitBotAddedTip', 'callBotAdding', 'callBotAddedTip', 'llmBotAdding', 'llmBotAddedTip', 'llmGlobalBotAdding', 'llmGlobalBotAddedTip', 'customBotAdding', 'customBotAddedTip', 'ownerRevealAll', 'showMobileHandSheet', 'showMobileActionSheet', 'showHeroHandHologram', 'heroHoleDealIntroDone', 'chipLeaderNicknames', 'myCarryInChips'
     ]),
     ...mapGetters('dpGame', [
-      'effectiveThemeForCss', 'handRankReference', 'stageCN', 'isOwner', 'canInviteFriend', 'isMyTurn', 'myPlayer', 'showSpectatorPrepareBlock', 'myReady', 'myChips', 'myBet', 'callAmount', 'smallBlind', 'bigBlind', 'lastRaiseIncrementEffective', 'minTotalToRaise', 'minRaise', 'allPotsHaveWinners', 'inSettledStage', 'ownerActionPlayers', 'playersDisplayOrder', 'viewerSeatedAtTable', 'holeDealPlayerCountForAnim', 'heroDockRow', 'dealerDisplayIndex', 'showdownHandLeaderNicknames', 'spectatorSeatChatEntries', 'tableActionActorDisplayName', 'mobileHeroDockActive', 'showHeroViewHandButton', 'showBottomHeroDock'
+      'effectiveThemeForCss', 'handRankReference', 'stageCN', 'isOwner', 'canInviteFriend', 'isMyTurn', 'myPlayer', 'showSpectatorPrepareBlock', 'myReady', 'myChips', 'myBet', 'callAmount', 'smallBlind', 'bigBlind', 'lastRaiseIncrementEffective', 'minTotalToRaise', 'minRaise', 'allPotsHaveWinners', 'inSettledStage', 'ownerActionPlayers', 'playersDisplayOrder', 'viewerSeatedAtTable', 'holeDealPlayerCountForAnim', 'heroDockRow', 'dealerDisplayIndex', 'showdownHandLeaderNicknames', 'spectatorSeatChatEntries', 'tableActionActorDisplayName', 'showHeroViewHandButton', 'showBottomHeroDock'
     ]),
     ...mapState('dpMailbox', ['friendChatUnreadTotal']),
     ...mapGetters('dpMailbox', ['friendUnreadForUser']),
@@ -318,16 +322,16 @@ export default {
       return !!(this.viewerSeatedAtTable && this.heroDockRow)
     },
     topBarHeroEconomySecondaryLabel() {
-      if (this.isMyTurn && !this.inSettledStage && (Number(this.callAmount) || 0) > 0) {
+      if (this.isMyTurn && !this.uiInSettledStage && (Number(this.callAmount) || 0) > 0) {
         return '还需补'
       }
       return '本轮'
     },
     topBarHeroEconomySecondaryValue() {
-      if (this.isMyTurn && !this.inSettledStage && (Number(this.callAmount) || 0) > 0) {
+      if (this.isMyTurn && !this.uiInSettledStage && (Number(this.callAmount) || 0) > 0) {
         return Number(this.callAmount) || 0
       }
-      return Number(this.myBet) || 0
+      return Number(this.displayMyBet) || 0
     },
     useRetroHandHologramWide() {
       return this.gameUiTheme === 'retro8bit' && this.viewportWidth > 600
@@ -383,6 +387,57 @@ export default {
         this.retroShowdownTvPending,
         this.showdownHandLeaderNicknames
       )
+    },
+    /** retro8bit TV 播放中：presentation 冻结（亮牌/结算 UI/积分/NPC 气泡） */
+    settlePresentationFrozen() {
+      if (this.gameUiTheme !== 'retro8bit') return false
+      return isSettlePresentationFrozen(this.retroShowdownTvPending, this.stage)
+    },
+    uiInSettledStage() {
+      if (this.settlePresentationFrozen) return false
+      return this.inSettledStage
+    },
+    mobileHeroDockActive() {
+      return !!(this.heroDockRow || this.isMyTurn || this.uiInSettledStage || this.isOwner)
+    },
+    displayStageCN() {
+      if (!this.settlePresentationFrozen) return this.stageCN
+      return dpGameStageDisplay(this.cardDisplayStage)
+    },
+    displayPot() {
+      return resolveFrozenTablePot(this.pot, this.retroBettingEconomySnapshot, this.settlePresentationFrozen)
+    },
+    displayCurrentBetToCall() {
+      return resolveFrozenCurrentBetToCall(
+        this.currentBetToCall,
+        this.retroBettingEconomySnapshot,
+        this.settlePresentationFrozen
+      )
+    },
+    tableChipLeaderNicknames() {
+      return resolveFrozenChipLeaderNicknames(
+        this.chipLeaderNicknames,
+        this.retroBettingEconomySnapshot,
+        this.settlePresentationFrozen
+      )
+    },
+    displayMyChips() {
+      var mp = this.myPlayer
+      if (!mp) return 0
+      return resolvePlayerEconomyDisplay(
+        mp,
+        this.retroBettingEconomySnapshot,
+        this.settlePresentationFrozen
+      ).chips
+    },
+    displayMyBet() {
+      var mp = this.myPlayer
+      if (!mp) return 0
+      return resolvePlayerEconomyDisplay(
+        mp,
+        this.retroBettingEconomySnapshot,
+        this.settlePresentationFrozen
+      ).bet
     }
   },
 
@@ -444,7 +499,9 @@ export default {
         this.$store.commit('dpGame/SET_HERO_HOLE_DEAL', true)
       }
       if (newVal === 'settled') {
-        this.startReadyCountdown()
+        if (!this.settlePresentationFrozen) {
+          this.startReadyCountdown()
+        }
       } else {
         this.stopReadyCountdown()
         this.$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileActionSheet: false })
@@ -501,6 +558,7 @@ export default {
 
   created() {
     this._seatChatTimers = Object.create(null)
+    this._deferredSeatChats = []
     this._seatEnterNickSnapshot = new Set()
     this.resetRoomChatUiForEnter()
     this.resetSeatEnterStateForRoom()
@@ -764,6 +822,7 @@ export default {
       }
       this.retroShowdownTvPending = false
       this.retroShowdownFromStage = null
+      this.retroBettingEconomySnapshot = null
     },
     /** retro8bit：下注街→摊牌时播放 TV 弹窗（纯 overlay，不改牌桌状态） */
     beginRetroShowdownTvSequence: function () {
@@ -778,6 +837,12 @@ export default {
         self.clearRetroShowdownTvPending()
         self.$nextTick(function () {
           self.$forceUpdate()
+          if (self.stage === 'settled') {
+            self.startReadyCountdown()
+          }
+          self.$nextTick(function () {
+            self.flushDeferredSeatChats()
+          })
         })
       }
       if (this._retroShowdownTvFallbackTimer) {
@@ -1434,6 +1499,28 @@ export default {
       var nick = (data.nickname || '').trim()
       var text = (data.text != null ? String(data.text) : '').trim()
       if (!nick || !text) return
+      if (this.settlePresentationFrozen) {
+        if (!this._deferredSeatChats) this._deferredSeatChats = []
+        this._deferredSeatChats.push(data)
+        return
+      }
+      this.applySeatChatFromServer(data, nick, text)
+    },
+
+    flushDeferredSeatChats: function () {
+      if (!this._deferredSeatChats || !this._deferredSeatChats.length) return
+      var queue = this._deferredSeatChats.slice()
+      this._deferredSeatChats = []
+      for (var i = 0; i < queue.length; i++) {
+        var data = queue[i]
+        var nick = (data.nickname || '').trim()
+        var text = (data.text != null ? String(data.text) : '').trim()
+        if (!nick || !text) continue
+        this.applySeatChatFromServer(data, nick, text)
+      }
+    },
+
+    applySeatChatFromServer(data, nick, text) {
       this.$store.commit('dpGame/APPEND_ROOM_CHAT_MESSAGE', this.normalizeRoomChatRow(data, nick, text))
       var ttl = typeof data.ttlMs === 'number' && data.ttlMs > 0 ? data.ttlMs : 15000
       var prev = this._seatChatTimers[nick]
@@ -1452,6 +1539,17 @@ export default {
       this._seatChatTimers[nick] = tid
     },
 
+    playerEconomyForDisplay(player) {
+      return resolvePlayerEconomyDisplay(
+        player,
+        this.retroBettingEconomySnapshot,
+        this.settlePresentationFrozen
+      )
+    },
+
+    /**
+     * 拉取最近房间聊天记录（HTTP 进房补全；不落座位气泡）
+     */
     async fetchRoomChatRecent() {
       if (!this.roomId || !this.$http) return
       var api = dpRoomApi(this.$http)
@@ -1510,6 +1608,9 @@ export default {
       this.syncSeatEnterRevealFromRoom(room)
       if (room) {
         this.$store.commit('dpGame/SYNC_ACTION_COUNTDOWN_FIELDS', room)
+        if (this.gameUiTheme === 'retro8bit' && isRetroBettingStage(room.currentStage)) {
+          this.retroBettingEconomySnapshot = captureBettingEconomySnapshot(room)
+        }
       }
       var fp = encodeRoomApplyFingerprint(room)
       if (fp && fp === this._lastRoomApplyFingerprint) {

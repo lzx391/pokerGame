@@ -142,7 +142,10 @@ export default {
       st.removeProperty("transform")
       st.removeProperty("transform-origin")
 
-      var settlement = this.stage === "showdown" || this.stage === "settled"
+      var stageForLayout = typeof this.cardDisplayStage === 'string' && this.cardDisplayStage
+        ? this.cardDisplayStage
+        : this.stage
+      var settlement = stageForLayout === "showdown" || stageForLayout === "settled"
 
       /*
        * 摊牌/结算：展示面更大、绝对定位座位易超出 inner 的 scrollWidth，硬缩放易左右裁切。
