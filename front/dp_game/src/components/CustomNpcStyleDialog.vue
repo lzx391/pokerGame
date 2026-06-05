@@ -19,7 +19,7 @@
           ×
         </button>
       </div>
-      <div class="dp-custom-npc-panel__body">
+      <div class="dp-custom-npc-panel__body dp-retro-scrollbar">
         <p class="custom-npc-style-dialog__intro">
           本批将加入 <strong>{{ pendingCount }}</strong> 个 BOT_CUSTOM，共用下面这一套参数（默认与 TAG 猫相同）。上桌后不可改，要试新参数请踢掉再重新添加。
         </p>
@@ -34,14 +34,16 @@
               <span class="custom-npc-style-dialog__label-hint">{{ field.hint }}</span>
             </div>
             <div class="custom-npc-style-dialog__row">
-              <el-slider
-                v-model="draft[field.key]"
+              <input
+                type="range"
+                class="dp-retro-range custom-npc-style-dialog__range"
                 :min="0"
                 :max="1"
                 :step="0.01"
-                :show-tooltip="true"
-                :format-tooltip="formatSliderTooltip"
-              />
+                :value="draft[field.key]"
+                :aria-label="field.label"
+                @input="onRangeInput(field.key, $event.target.value)"
+              >
               <el-input-number
                 v-model="draft[field.key]"
                 :min="0"
@@ -104,8 +106,11 @@ export default {
     }
   },
   methods: {
-    formatSliderTooltip (val) {
-      return (Math.round(Number(val) * 100) / 100).toFixed(2)
+    onRangeInput (key, raw) {
+      var n = parseFloat(raw)
+      if (isNaN(n)) return
+      n = Math.min(1, Math.max(0, Math.round(n * 100) / 100))
+      this.$set(this.draft, key, n)
     },
     onCancel () {
       this.$emit('cancel')
@@ -252,7 +257,7 @@ export default {
   gap: 12px;
 }
 
-.custom-npc-style-dialog__row >>> .el-slider {
+.custom-npc-style-dialog__range {
   flex: 1;
   min-width: 0;
 }

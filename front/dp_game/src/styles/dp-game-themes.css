@@ -272,7 +272,9 @@ body[data-dp-game-theme='retro8bit'] {
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 16 16'%3E%3Crect x='7' y='1' width='2' height='14' fill='%234af626'/%3E%3Crect x='1' y='7' width='14' height='2' fill='%234af626'/%3E%3C/svg%3E") 8 8, auto;
 }
 
-/* retro8bit：终端历史 / 聊天消息区 — 像素风滑条（仅本主题，不污染 default 等） */
+/* retro8bit：overflow 滚动条 — 像素风（~ 召唤终端 .dp-cli__history） */
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar,
+body[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-cli__history,
 body[data-dp-game-theme='retro8bit'] .dp-cli__history,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list,
@@ -281,6 +283,8 @@ body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list {
   scrollbar-color: var(--dp-accent) var(--dp-terminal-bg);
 }
 
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar,
+body[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar,
 body[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar,
@@ -289,6 +293,8 @@ body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scr
   height: 10px;
 }
 
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar-track,
+body[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar-track,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-track,
 body[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-track,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-track,
@@ -298,6 +304,8 @@ body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scr
   box-shadow: inset 2px 0 0 rgba(0, 0, 0, 0.55);
 }
 
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar-thumb,
+body[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar-thumb,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-thumb,
 body[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-thumb,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-thumb,
@@ -310,6 +318,8 @@ body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scr
     0 0 6px rgba(74, 246, 38, 0.35);
 }
 
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar-thumb:hover,
+body[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar-thumb:hover,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-thumb:hover,
 body[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-thumb:hover,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-thumb:hover,
@@ -317,6 +327,8 @@ body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scr
   background: var(--dp-text-secondary);
 }
 
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar-corner,
+body[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar-corner,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-corner,
 body[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-corner,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-corner,
@@ -325,8 +337,83 @@ body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scr
 }
 
 /* 节能：同色块滑条，去掉磷光外晕 */
+.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] .dp-retro-scrollbar::-webkit-scrollbar-thumb,
 .dp-game-root[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] .dp-cli__history::-webkit-scrollbar-thumb,
 .dp-game-root[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] .dp-game-room-chat-panel__list::-webkit-scrollbar-thumb {
+  box-shadow: inset 0 0 0 1px rgba(58, 138, 42, 0.5);
+}
+
+/* retro8bit：像素风 range — 视觉语言同 .dp-cli__history 滚动条（~ 召唤终端） */
+.dp-retro-range {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  height: 8px;
+  accent-color: var(--dp-btn-primary-bg, #1677ff);
+  cursor: pointer;
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-retro-range,
+body[data-dp-game-theme='retro8bit'] .dp-retro-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 10px;
+  background: transparent;
+  accent-color: var(--dp-accent);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-retro-range::-webkit-slider-runnable-track,
+body[data-dp-game-theme='retro8bit'] .dp-retro-range::-webkit-slider-runnable-track {
+  height: 10px;
+  border: 2px solid rgba(74, 246, 38, 0.12);
+  border-radius: 0;
+  background: var(--dp-terminal-bg);
+  box-shadow: inset 2px 0 0 rgba(0, 0, 0, 0.55);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-retro-range::-webkit-slider-thumb,
+body[data-dp-game-theme='retro8bit'] .dp-retro-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -2px;
+  border: 2px solid #000;
+  border-radius: 0;
+  background: var(--dp-accent);
+  box-shadow:
+    inset 0 0 0 1px rgba(114, 240, 82, 0.45),
+    0 0 6px rgba(74, 246, 38, 0.35);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-retro-range::-moz-range-track,
+body[data-dp-game-theme='retro8bit'] .dp-retro-range::-moz-range-track {
+  height: 10px;
+  border: 2px solid rgba(74, 246, 38, 0.12);
+  border-radius: 0;
+  background: var(--dp-terminal-bg);
+  box-shadow: inset 2px 0 0 rgba(0, 0, 0, 0.55);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-retro-range::-moz-range-thumb,
+body[data-dp-game-theme='retro8bit'] .dp-retro-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #000;
+  border-radius: 0;
+  background: var(--dp-accent);
+  box-shadow:
+    inset 0 0 0 1px rgba(114, 240, 82, 0.45),
+    0 0 6px rgba(74, 246, 38, 0.35);
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-retro-range:focus-visible,
+body[data-dp-game-theme='retro8bit'] .dp-retro-range:focus-visible {
+  outline: 1px solid var(--dp-accent);
+  outline-offset: 2px;
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] .dp-retro-range::-webkit-slider-thumb,
+.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] .dp-retro-range::-moz-range-thumb {
   box-shadow: inset 0 0 0 1px rgba(58, 138, 42, 0.5);
 }
 

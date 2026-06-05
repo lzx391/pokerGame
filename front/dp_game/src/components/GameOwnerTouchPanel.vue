@@ -39,7 +39,10 @@
         >
           <div
               class="dp-owner-touch__console"
-              :class="{ 'dp-owner-touch__console--retro': gameUiTheme === 'retro8bit' }"
+              :class="{
+                'dp-owner-touch__console--retro': gameUiTheme === 'retro8bit',
+                'dp-retro-scrollbar': gameUiTheme === 'retro8bit'
+              }"
           >
             <div
                 v-if="gameUiTheme === 'retro8bit'"
