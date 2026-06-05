@@ -423,12 +423,20 @@
             添加好友
           </el-button>
         </div>
+        <div
+          class="home-friends-drawer__list-scroll"
+          :class="{ 'dp-retro-scrollbar': gameUiTheme === 'retro8bit' }"
+        >
         <p v-if="friendsLoading" class="dp-social-sheet__hint">加载中…</p>
         <p v-else-if="friendsTotal === 0" class="dp-social-sheet__hint">
           {{ friendsQuery ? '没有匹配的好友' : '暂无好友' }}
         </p>
-        <template v-else>
-        <ul class="dp-social-list" role="list" aria-label="好友">
+        <ul
+          v-else
+          class="dp-social-list"
+          role="list"
+          aria-label="好友"
+        >
           <li
             v-for="f in friends"
             :key="'friend-' + f.userId"
@@ -513,8 +521,9 @@
             </div>
           </li>
         </ul>
+        </div>
         <el-pagination
-          v-if="friendsTotal > friendsPageSize"
+          v-if="!friendsLoading && friendsTotal > friendsPageSize"
           class="home-friends-drawer__pager"
           layout="prev, pager, next"
           :total="friendsTotal"
@@ -522,7 +531,6 @@
           :current-page="friendsPage"
           @current-change="onFriendsPageChange"
         />
-        </template>
       </div>
     </el-drawer>
 
