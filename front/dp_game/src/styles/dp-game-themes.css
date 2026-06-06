@@ -1286,6 +1286,7 @@ body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-
   font-family: var(--dp-font-pixel, 'Press Start 2P', monospace);
   font-weight: 400;
   font-size: 10px;
+  white-space: nowrap;
   -webkit-font-smoothing: none;
   -moz-osx-font-smoothing: unset;
   border-radius: 4px;
@@ -1308,6 +1309,7 @@ body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-
   font-family: var(--dp-font-pixel, 'Press Start 2P', monospace);
   font-weight: 400;
   font-size: 11px;
+  white-space: nowrap;
   -webkit-font-smoothing: none;
   -moz-osx-font-smoothing: unset;
   border-radius: 4px;

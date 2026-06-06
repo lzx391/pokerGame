@@ -254,7 +254,7 @@ export default {
       return getCardClass(code).replace('card-base', '').trim()
     },
     cardFace: function (code) {
-      return getCardDisplay(code)
+      return getCardDisplay(code, { tenChar: 'T' })
     },
     gridCardClasses: function (suit, rank) {
       var code = suit + '_' + rank
