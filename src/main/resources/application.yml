@@ -66,6 +66,14 @@ mgdemoplus:
     expiration:
       time: 259200000  # [D] 约 3 天
 
+  # --- A: GitHub OAuth 登录/注册 ---
+  oauth:
+    github:
+      client-id: ${GITHUB_CLIENT_ID:}  # [A] env: GITHUB_CLIENT_ID
+      client-secret: ${GITHUB_CLIENT_SECRET:}  # [A] env: GITHUB_CLIENT_SECRET
+      redirect-uri: ${GITHUB_REDIRECT_URI:http://localhost:8080/api/auth/callback}  # [C] GitHub OAuth App 回调
+      frontend-callback-url: ${GITHUB_FRONTEND_CALLBACK_URL:http://localhost:8080/#/oauth-callback}  # [C] 成功后前端落地页
+
   # --- B: Redis 缓存 TTL ---
   cache:
     music-list-ttl-seconds: ${MGDEMOPLUS_CACHE_MUSIC_LIST_TTL_SECONDS:300}  # [B] env: MGDEMOPLUS_CACHE_MUSIC_LIST_TTL_SECONDS
