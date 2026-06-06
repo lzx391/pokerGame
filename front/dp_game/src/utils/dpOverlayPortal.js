@@ -63,21 +63,58 @@ export function dpOpenBodyOverlayZIndex(layer) {
 }
 
 /**
- * 好友抽屉叠层恢复：移除落在好友层 z-index 段内的残留 v-modal（旧版 modal=true 或 PopupManager 未对齐时）。
+ * Element UI 的 v-modal 与 el-dialog__wrapper 为 body 同级兄弟（非 wrapper 子节点）。
+ * @param {HTMLElement|null|undefined} wrapper
+ * @returns {HTMLElement|null}
  */
-export function dpPruneFriendDrawerStrayVModal() {
+export function dpFindDialogPairedVModal(wrapper) {
+  if (!wrapper) return null
+  var prev = wrapper.previousElementSibling
+  if (prev && prev.classList && prev.classList.contains('v-modal')) return prev
+  return null
+}
+
+/**
+ * 对齐 dialog wrapper 与同层 v-modal 的 z-index（wrapper = z，v-modal = z - 1）。
+ * @param {HTMLElement|null|undefined} wrapper
+ * @param {number} zIndex
+ */
+export function dpSyncDialogPairedVModal(wrapper, zIndex) {
+  if (!wrapper || !isFinite(zIndex)) return
+  wrapper.style.zIndex = String(zIndex)
+  var modal = dpFindDialogPairedVModal(wrapper)
+  if (modal) modal.style.zIndex = String(zIndex - 1)
+}
+
+/**
+ * 移除 overlay 根上落在 [lo, hi) z-index 段内的残留 v-modal。
+ * @param {number} lo
+ * @param {number} hi
+ */
+export function dpPruneStrayVModalInRange(lo, hi) {
   if (typeof document === 'undefined') return
   var modals = document.getElementsByClassName('v-modal')
   if (!modals.length) return
-  var lo = DP_Z_LAYER.friendList - 1
-  var hi = DP_Z_LAYER.playerSheet
+  var portal = dpGetOverlayPortalRoot()
   var i = 0
   for (i = modals.length - 1; i >= 0; i--) {
     var node = modals[i]
-    if (!node || node.style.display === 'none' || node.parentNode !== document.body) continue
+    if (!node || node.style.display === 'none') continue
+    var parent = node.parentNode
+    if (parent !== document.body && parent !== portal) continue
     var z = parseInt(node.style.zIndex, 10)
     if (isFinite(z) && z >= lo && z < hi) {
-      node.parentNode.removeChild(node)
+      parent.removeChild(node)
     }
   }
+}
+
+/** 好友抽屉：清理好友层段内残留 v-modal */
+export function dpPruneFriendDrawerStrayVModal() {
+  dpPruneStrayVModalInRange(DP_Z_LAYER.friendList - 1, DP_Z_LAYER.playerSheet)
+}
+
+/** 成就墙：modal=false 时不应有 v-modal，清理成就层段内残留 */
+export function dpPruneAchievementStrayVModal() {
+  dpPruneStrayVModalInRange(DP_Z_LAYER.achievement - 1, DP_Z_LAYER.handHistory + 100)
 }

@@ -4,6 +4,7 @@
     width="min(92vw, 480px)"
     custom-class="dp-achievement-wall-dialog"
     append-to-body
+    :modal="false"
     :z-index="dialogZIndex"
     :close-on-click-modal="!loading"
     :show-close="false"
@@ -72,8 +73,10 @@ import { dpLayerZIndex, dpNextZIndex } from '@/utils/dpModalZIndex'
 import {
   dpGetOverlayPortalRoot,
   dpPortalOverlayToBody,
+  dpPruneAchievementStrayVModal,
   dpRestoreOverlayFromPortal,
-  dpScheduleOverlayFullscreenReparent
+  dpScheduleOverlayFullscreenReparent,
+  dpSyncDialogPairedVModal
 } from '@/utils/dpOverlayPortal'
 
 export default {
@@ -119,6 +122,7 @@ export default {
     visible(v) {
       if (v) {
         this.dialogZIndex = dpNextZIndex('achievement')
+        dpPruneAchievementStrayVModal()
         var self = this
         this.$nextTick(function () {
           self.loadAchievements()
@@ -154,11 +158,8 @@ export default {
           self._portalAnchor = { parent: null, next: null }
         }
         dpPortalOverlayToBody(wrapper, self._portalAnchor, dpGetOverlayPortalRoot())
-        wrapper.style.zIndex = String(self.dialogZIndex)
-        var modal = wrapper.querySelector('.v-modal')
-        if (modal) {
-          modal.style.zIndex = String(self.dialogZIndex - 1)
-        }
+        dpSyncDialogPairedVModal(wrapper, self.dialogZIndex)
+        dpPruneAchievementStrayVModal()
         dpScheduleOverlayFullscreenReparent(self.dpGameView)
         return true
       }
@@ -176,6 +177,7 @@ export default {
       var wrapper = this.findDialogWrapper()
       dpRestoreOverlayFromPortal(wrapper, this._portalAnchor)
       this._portalAnchor = null
+      dpPruneAchievementStrayVModal()
     },
     onClosed() {
       this.detachPortal()

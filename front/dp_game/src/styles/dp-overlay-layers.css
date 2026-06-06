@@ -26,7 +26,12 @@ body[data-dp-game-theme] .el-drawer__wrapper:has(.home-friends-drawer) {
   z-index: var(--dp-z-friend-list) !important;
 }
 
-/* 成就墙：叠在玩家资料卡之上 */
+/*
+ * 成就墙：叠在玩家/个人资料之上；:modal="false" 不创建 v-modal，靠父层已有遮罩变暗。
+ * wrapper 须透明，避免再叠一层半透明底。
+ */
 body[data-dp-game-theme] .el-dialog__wrapper:has(.dp-achievement-wall-dialog) {
   z-index: var(--dp-z-achievement, 9100) !important;
+  background: transparent !important;
+  pointer-events: auto;
 }
