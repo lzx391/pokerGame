@@ -1,9 +1,11 @@
 <template>
+  <div class="home-profile-modal-root">
   <el-dialog
     :visible.sync="dialogVisible"
     width="min(92vw, 520px)"
     custom-class="home-profile-dialog"
     append-to-body
+    :z-index="profileDialogZIndex"
     :close-on-click-modal="!saving"
     :show-close="false"
     @closed="onClosed"
@@ -191,6 +193,9 @@
           <button type="button" class="home-prof-btn home-prof-btn--gold" @click="enterEditMode">
             编辑资料
           </button>
+          <button type="button" class="home-prof-btn home-prof-btn--outline" @click.stop="openAchievementWall">
+            成就墙
+          </button>
         </div>
       </template>
 
@@ -281,11 +286,19 @@
         </div>
       </template>
     </div>
+
   </el-dialog>
+
+  <dp-achievement-wall-modal
+    :visible.sync="achievementWallVisible"
+    :user-id="null"
+  />
+  </div>
 </template>
 
 <script>
 import DpUserAvatar from '@/components/DpUserAvatar.vue'
+import DpAchievementWallModal from '@/components/DpAchievementWallModal.vue'
 import dpProfileGrayGlitchMixin, {
   DP_PROF_GLITCH_BURST_MS,
   DP_PROF_GLITCH_REVEAL_MS
@@ -293,6 +306,7 @@ import dpProfileGrayGlitchMixin, {
 import { dpResultSuccess, dpResultData, dpResultMessage } from '@/utils/dpApiResult'
 import { formatNetWinMultiplier, formatRoomNetMultiplier } from '@/utils/dpRoomNetMultiplier'
 import { avatarCacheBustFromUpdatedAt, avatarFileSrc } from '@/utils/dpAvatarUrl'
+import { dpLayerZIndex } from '@/utils/dpModalZIndex'
 
 var HONOR_GLITCH_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%&*'
 var HONOR_SCRAMBLE_MS = 320
@@ -300,7 +314,7 @@ var HONOR_SCRAMBLE_TICK_MS = 48
 
 export default {
   name: 'HomeProfileModal',
-  components: { DpUserAvatar },
+  components: { DpUserAvatar, DpAchievementWallModal },
   mixins: [dpProfileGrayGlitchMixin],
   props: {
     visible: {
@@ -320,6 +334,7 @@ export default {
       honorGlitchTick: 0,
       honorGlitchTimer: null,
       honorRevealTimer: null,
+      achievementWallVisible: false,
       form: {
         id: '',
         nickname: '',
@@ -347,6 +362,9 @@ export default {
       set(v) {
         this.$emit('update:visible', v)
       }
+    },
+    profileDialogZIndex() {
+      return dpLayerZIndex('profileDialog')
     },
     showBackdrop() {
       if (this.mode === 'edit' || this.shouldSkipEffects()) return false
@@ -411,6 +429,9 @@ export default {
       this.form.newPassword = ''
       this.form.confirmPassword = ''
       this.editingPassword = false
+    },
+    openAchievementWall() {
+      this.achievementWallVisible = true
     },
     leaveEditMode() {
       this.mode = 'view'

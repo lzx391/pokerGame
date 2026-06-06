@@ -1,4 +1,5 @@
 <template>
+  <div class="game-player-social-sheet-root">
   <transition name="game-prof-fade">
     <div
       v-if="visible && target"
@@ -192,16 +193,23 @@
           <button
             type="button"
             class="game-prof-btn game-prof-btn--ghost"
-            @click="$emit('close')"
+            @click.stop="$emit('close')"
           >
             关闭
           </button>
           <button
             type="button"
             class="game-prof-btn game-prof-btn--outline"
-            @click="onViewHandHistoryWithOpponent"
+            @click.stop="onViewHandHistoryWithOpponent"
           >
             历史对局
+          </button>
+          <button
+            type="button"
+            class="game-prof-btn game-prof-btn--outline"
+            @click.stop="openAchievementWall"
+          >
+            成就墙
           </button>
           <div v-if="socialPrimaryIsStaticHint" class="game-prof-footer__hint">
             {{ primaryLabel }}
@@ -221,10 +229,18 @@
       </div>
     </div>
   </transition>
+
+  <dp-achievement-wall-modal
+    :visible.sync="achievementWallVisible"
+    :user-id="achievementWallTargetUserId"
+    :subject-name="displayName"
+  />
+  </div>
 </template>
 
 <script>
 import DpUserAvatar from '@/components/DpUserAvatar.vue'
+import DpAchievementWallModal from '@/components/DpAchievementWallModal.vue'
 import dpProfileGrayGlitchMixin, {
   DP_PROF_GLITCH_BURST_MS,
   DP_PROF_GLITCH_REVEAL_MS
@@ -236,6 +252,7 @@ import { dpSocialApi } from '@/api/api.dpSocial'
 import { formatNetWinMultiplier, formatRoomNetMultiplier } from '../utils/dpRoomNetMultiplier'
 import { avatarCacheBustFromUpdatedAt, avatarFileSrc } from '@/utils/dpAvatarUrl'
 import { copySocialId as copySocialIdToClipboard } from '@/utils/dpCopySocialId'
+import { dpScheduleOverlayFullscreenReparent } from '@/utils/dpOverlayPortal'
 
 var HONOR_GLITCH_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%&*'
 var HONOR_SCRAMBLE_MS = 320
@@ -243,8 +260,11 @@ var HONOR_SCRAMBLE_TICK_MS = 48
 
 export default {
   name: 'GamePlayerSocialSheet',
-  components: { DpUserAvatar },
+  components: { DpUserAvatar, DpAchievementWallModal },
   mixins: [dpProfileGrayGlitchMixin],
+  inject: {
+    dpGameView: { default: null }
+  },
   props: {
     visible: { type: Boolean, default: false },
     target: {
@@ -262,6 +282,7 @@ export default {
       honorGlitchPhase: 'idle',
       honorGlitchTick: 0,
       honorGlitchTimer: null,
+      achievementWallVisible: false,
       honorRevealTimer: null,
       honorFetchSettled: false
     }
@@ -341,6 +362,13 @@ export default {
         '--dp-prof-burst-ms': DP_PROF_GLITCH_BURST_MS + 'ms',
         '--dp-prof-reveal-ms': DP_PROF_GLITCH_REVEAL_MS + 'ms'
       }
+    },
+    /** 他人资料卡：成就墙始终带目标 userId，避免与 visible 同 tick 时 prop 未就绪 */
+    achievementWallTargetUserId() {
+      if (!this.target) return null
+      var uid = Number(this.target.userId)
+      if (!uid || uid <= 0 || isNaN(uid)) return null
+      return uid
     }
   },
   watch: {
@@ -557,6 +585,14 @@ export default {
         displayName: this.displayName || this.target.nickname
       })
     },
+    openAchievementWall() {
+      if (!this.achievementWallTargetUserId) return
+      this.achievementWallVisible = true
+      var self = this
+      this.$nextTick(function () {
+        dpScheduleOverlayFullscreenReparent(self.dpGameView)
+      })
+    },
     async onSendRequest() {
       if (!this.target || this.primaryDisabled) return
       var uid = Number(this.target.userId)
@@ -605,7 +641,7 @@ export default {
 .game-prof-overlay {
   position: fixed;
   inset: 0;
-  z-index: 9000;
+  z-index: var(--dp-z-player-sheet, 9000);
   display: flex;
   align-items: center;
   justify-content: center;

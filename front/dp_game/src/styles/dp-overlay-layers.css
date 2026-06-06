@@ -1,0 +1,27 @@
+/**
+ * 社交/资料/弹窗 overlay 层级阶梯（从低到高）。
+ * 打开子层时 z-index 须严格高于父层；Element PopupManager 默认 2000+ 递增，勿混用未设层的 el-dialog。
+ *
+ * 8000 好友抽屉 → 8500 个人资料 → 9000 玩家资料卡 → 9100 成就墙 → 9200 历史对局
+ * 10000+ 对局 CRT/CLI 等全屏工具（见各组件内联 z-index）
+ */
+:root,
+body[data-dp-game-theme] {
+  --dp-z-friend-list: 8000;
+  --dp-z-profile-dialog: 8500;
+  --dp-z-player-sheet: 9000;
+  --dp-z-achievement: 9100;
+  --dp-z-hand-history: 9200;
+}
+
+/*
+ * 好友抽屉：使用 el-drawer :modal="false"（仅 wrapper 遮罩，不创建 v-modal），
+ * 靠 :z-index prop 对齐层级。若其他弹窗在同一 tick 留下 v-modal，用相邻选择器对齐。
+ */
+body[data-dp-game-theme] .v-modal:has(+ .el-drawer__wrapper .home-friends-drawer) {
+  z-index: calc(var(--dp-z-friend-list) - 1) !important;
+}
+
+body[data-dp-game-theme] .el-drawer__wrapper:has(.home-friends-drawer) {
+  z-index: var(--dp-z-friend-list) !important;
+}

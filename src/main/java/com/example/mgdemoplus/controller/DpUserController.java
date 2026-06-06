@@ -25,8 +25,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.example.mgdemoplus.achievement.DpAchievementService;
+import com.example.mgdemoplus.achievement.vo.DpAchievementWallItemVO;
 import com.example.mgdemoplus.user.dto.DpAvatarUploadResult;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -40,6 +43,8 @@ public class DpUserController {
     DpRedisLoginCacheService dpRedisLoginCacheService;
     @Autowired
     JwtTokenService jwtTokenService;
+    @Autowired
+    DpAchievementService dpAchievementService;
 
     @PostMapping("/registerUser")
     public ResultUtil registerUser(@RequestBody DpUser dpUser) {
@@ -150,6 +155,31 @@ public class DpUserController {
                 .data("message", outcome.getMessage())
                 .data("avatarUrl", outcome.getAvatarUrl())
                 .data("avatarUpdatedAt", outcome.getAvatarUpdatedAt());
+    }
+
+    /**
+     * 当前登录用户成就墙（全部成就 + 本人解锁状态）。
+     */
+    @GetMapping("/achievements")
+    public ResultUtil getMyAchievements() {
+        DpUser current = requireCurrentUser();
+        if (current == null) {
+            return ResultUtil.error().data("message", "未登录或登录已失效");
+        }
+        List<DpAchievementWallItemVO> items = dpAchievementService.buildWallForUser(current.getId());
+        return ResultUtil.ok().data("achievements", items);
+    }
+
+    /**
+     * 指定用户公开成就墙（登录即可查看）。
+     */
+    @GetMapping("/achievements/{userId}")
+    public ResultUtil getUserAchievements(@PathVariable int userId) {
+        List<DpAchievementWallItemVO> items = dpAchievementService.buildWallForUser(userId);
+        if (items == null) {
+            return ResultUtil.error().data("message", "用户不存在");
+        }
+        return ResultUtil.ok().data("achievements", items);
     }
 
     /**

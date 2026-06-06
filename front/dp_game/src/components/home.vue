@@ -390,8 +390,12 @@
       direction="rtl"
       append-to-body
       :custom-class="friendsDrawerClass"
+      :z-index="DP_Z_LAYER.friendList"
+      :modal="false"
+      :wrapper-closable="friendsDrawerBackdropClosable"
       size="380px"
       @open="onFriendsDrawerOpen"
+      @closed="onFriendsDrawerClosed"
     >
       <div
         v-if="gameUiTheme === 'retro8bit'"
@@ -727,6 +731,7 @@
     <game-hand-history-modal
       :visible="opponentHandHistoryOpen"
       list-mode="withOpponent"
+      stacked
       :other-user-id="opponentHandHistoryUserId"
       :opponent-display-name="opponentHandHistoryDisplayName"
       :game-ui-theme="gameUiTheme"
@@ -769,6 +774,8 @@ import DpMailboxConsole from '@/components/DpMailboxConsole.vue'
 import QuickMatchPixelCritters from '@/components/QuickMatchPixelCritters.vue'
 import { prefetchAvatarUrls } from '@/utils/dpAvatarPrefetch'
 import { avatarCacheBustFromUpdatedAt } from '@/utils/dpAvatarUrl'
+import { DP_Z_LAYER } from '@/utils/dpModalZIndex'
+import { dpPruneFriendDrawerStrayVModal } from '@/utils/dpOverlayPortal'
 
 export default {
   components: {
@@ -836,7 +843,8 @@ export default {
       playerSocialTarget: null,
       opponentHandHistoryOpen: false,
       opponentHandHistoryUserId: null,
-      opponentHandHistoryDisplayName: ''
+      opponentHandHistoryDisplayName: '',
+      DP_Z_LAYER
     }
   },
   computed: {
@@ -892,11 +900,27 @@ export default {
       return this.gameUiTheme === 'retro8bit'
         ? 'home-friends-drawer home-friends-drawer--retro8bit'
         : 'home-friends-drawer'
+    },
+    /** 玩家资料/历史对局叠层打开时，禁止点遮罩误关好友抽屉 */
+    friendsDrawerBackdropClosable() {
+      return !this.playerSocialOpen && !this.opponentHandHistoryOpen
     }
   },
   watch: {
     quickMatchPolling: function (val) {
       if (val) prefetchGameChunk()
+    },
+    playerSocialOpen: function () {
+      this.syncFriendsDrawerOverlayState()
+    },
+    opponentHandHistoryOpen: function () {
+      this.syncFriendsDrawerOverlayState()
+    },
+    friendsDrawerVisible: function (val) {
+      if (val) {
+        var self = this
+        this.$nextTick(function () { self.syncFriendsDrawerOverlayState() })
+      }
     }
   },
   async created() {
@@ -1066,7 +1090,6 @@ export default {
       if (!payload || payload.userId == null || payload.userId === '') return
       var uid = Number(payload.userId)
       if (!uid || uid <= 0 || isNaN(uid)) return
-      this.closePlayerSocialSheet()
       this.opponentHandHistoryUserId = uid
       this.opponentHandHistoryDisplayName = payload.displayName || ''
       this.opponentHandHistoryOpen = true
@@ -1159,10 +1182,27 @@ export default {
     },
     async onFriendsDrawerOpen() {
       if (!this.user || !this.user.token) return
+      this.syncFriendsDrawerOverlayState()
       this.friendsSearchInput = this.friendsQuery || ''
       var http = this.$http
       var r = await this.fetchFriends({ http, page: 1, pageSize: this.friendsPageSize, q: this.friendsQuery })
       if (r && r.ok === false && r.message) { alert(r.message) }
+    },
+    onFriendsDrawerClosed() {
+      this.syncFriendsDrawerOverlayState()
+    },
+    /** 子叠层开关后对齐好友抽屉遮罩，清理好友层段内残留 v-modal */
+    syncFriendsDrawerOverlayState() {
+      var self = this
+      this.$nextTick(function () {
+        if (!self.friendsDrawerVisible) return
+        dpPruneFriendDrawerStrayVModal()
+        var wrap = document.querySelector('.el-drawer__wrapper:has(.home-friends-drawer)')
+        if (wrap) {
+          wrap.style.zIndex = String(DP_Z_LAYER.friendList)
+          wrap.style.pointerEvents = ''
+        }
+      })
     },
     onFriendsSearchInput() {
       var self = this

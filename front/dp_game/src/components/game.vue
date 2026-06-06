@@ -1875,12 +1875,12 @@ export default {
       if (!payload || payload.userId == null || payload.userId === '') return
       var uid = Number(payload.userId)
       if (!uid || uid <= 0 || isNaN(uid)) return
-      this.closePlayerSocialSheet()
       this.$store.commit('dpGame/SET_MODAL', {
         showOpponentHandHistoryModal: true,
         opponentHandHistoryOtherUserId: uid,
         opponentHandHistoryDisplayName: payload.displayName || ''
       })
+      this.scheduleReparentElementUiLayersIntoFullscreenRoot()
     },
     /**
      * @param {string|{nickname:string,userId?:number}} payload

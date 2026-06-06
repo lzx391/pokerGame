@@ -270,6 +270,16 @@
         @close="() => vm.closePlayerSocialSheet()"
         @view-hand-history-with-opponent="(p) => vm.openOpponentHandHistoryFromSocial(p)"
     />
+
+    <game-hand-history-modal
+        :visible="vm.showOpponentHandHistoryModal"
+        :game-ui-theme="vm.effectiveThemeForCss"
+        list-mode="withOpponent"
+        stacked
+        :other-user-id="vm.opponentHandHistoryOtherUserId"
+        :opponent-display-name="vm.opponentHandHistoryDisplayName"
+        @close="$store.commit('dpGame/SET_MODAL', { showOpponentHandHistoryModal: false })"
+    />
     <game-invite-friend-panel
         v-if="vm.useRetroInvitePanelWide"
         :open="vm.inviteFriendOpen"
@@ -322,6 +332,7 @@ import GameSettledPrepareBar from './GameSettledPrepareBar.vue'
 import GameOwnerPanel from './GameOwnerPanel.vue'
 import GameOwnerToolModal from './GameOwnerToolModal.vue'
 import GamePlayerSocialSheet from './GamePlayerSocialSheet.vue'
+import GameHandHistoryModal from './GameHandHistoryModal.vue'
 import GameInviteFriendSheet from './GameInviteFriendSheet.vue'
 import GameInviteFriendPanel from './GameInviteFriendPanel.vue'
 import GameFriendChatSheet from './GameFriendChatSheet.vue'
@@ -341,6 +352,7 @@ export default {
     GameOwnerPanel,
     GameOwnerToolModal,
     GamePlayerSocialSheet,
+    GameHandHistoryModal,
     GameInviteFriendSheet,
     GameInviteFriendPanel,
     GameFriendChatSheet,

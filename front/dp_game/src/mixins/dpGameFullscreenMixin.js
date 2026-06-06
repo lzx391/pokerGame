@@ -150,6 +150,8 @@ export default {
       moveAll('.el-message-box__wrapper')
       moveAll('.el-dialog__wrapper')
       moveAll('.el-drawer__wrapper')
+      /* 玩家资料子层：历史对局自定义遮罩（stacked + portal） */
+      moveAll('.hand-rank-modal-mask--stacked')
       /* el-select / 部分下拉挂在 body，全屏时必须在 gameRoot 内才能看见 */
       moveAll('.el-select-dropdown')
       var modals = document.getElementsByClassName('v-modal')

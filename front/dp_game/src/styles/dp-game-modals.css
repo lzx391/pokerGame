@@ -89,6 +89,11 @@
   font-family: var(--dp-font-ui, inherit);
 }
 
+/* 叠在玩家资料/好友抽屉之上的历史对局弹层 */
+.hand-rank-modal-mask.hand-rank-modal-mask--stacked {
+  z-index: var(--dp-z-hand-history, 9200);
+}
+
 .hand-rank-modal {
   background: var(--dp-panel-bg, #1e1e1e);
   color: var(--dp-text-primary, #e8e8e8);
