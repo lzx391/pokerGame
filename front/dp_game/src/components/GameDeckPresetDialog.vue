@@ -41,12 +41,17 @@
             :key="'sel-' + card + '-' + idx"
             type="button"
             class="dp-deck-preset-dialog__chip"
-            :class="chipColorClass(card)"
+            :class="isRetro8bit ? 'dp-deck-preset-dialog__chip--crt' : chipColorClass(card)"
             :title="'第 ' + (idx + 1) + ' 张 · 点击移除'"
             @click="removeAt(idx)"
         >
           <span class="dp-deck-preset-dialog__chip-idx">{{ idx + 1 }}</span>
-          {{ cardLabel(card) }}
+          <span
+              v-if="isRetro8bit"
+              class="dp-hd__mini-card"
+              :class="crtMiniCardClass(card)"
+          >{{ cardFace(card) }}</span>
+          <template v-else>{{ cardLabel(card) }}</template>
         </button>
       </div>
       <p v-else class="dp-deck-preset-dialog__empty">{{ isRetro8bit ? '> awaiting card input...' : '从下方点选牌，按发牌顺序追加。' }}</p>
@@ -62,19 +67,12 @@
             :key="suit + '_' + rank"
             type="button"
             role="listitem"
-            class="dp-deck-preset-dialog__card"
-            :class="[
-              suitColorClass(suit + '_' + rank),
-              {
-                'dp-deck-preset-dialog__card--used': isUsed(suit + '_' + rank),
-                'dp-deck-preset-dialog__card--disabled': isUsed(suit + '_' + rank) || submitting
-              }
-            ]"
+            :class="gridCardClasses(suit, rank)"
             :disabled="isUsed(suit + '_' + rank) || submitting"
             :aria-label="cardLabel(suit + '_' + rank) + (isUsed(suit + '_' + rank) ? '，已选' : '')"
             @click="appendCard(suit + '_' + rank)"
         >
-          {{ rank }}
+          {{ isRetro8bit ? cardFace(suit + '_' + rank) : rank }}
         </button>
       </div>
     </div>
@@ -95,6 +93,7 @@ import {
   DP_RANKS,
   DP_SUIT_LABELS
 } from '../utils/dpDeckCards'
+import { getCardClass, getCardDisplay } from '../utils/dpGameCardVisual'
 import { dpNextZIndex } from '@/utils/dpModalZIndex'
 import {
   dpGetOverlayPortalRoot,
@@ -250,6 +249,35 @@ export default {
     },
     chipColorClass: function (code) {
       return this.colorClassFor(code, 'chip')
+    },
+    crtMiniCardClass: function (code) {
+      return getCardClass(code).replace('card-base', '').trim()
+    },
+    cardFace: function (code) {
+      return getCardDisplay(code)
+    },
+    gridCardClasses: function (suit, rank) {
+      var code = suit + '_' + rank
+      var used = this.isUsed(code)
+      if (this.isRetro8bit) {
+        return [
+          'dp-hd__mini-card',
+          'dp-deck-preset-dialog__crt-card',
+          this.crtMiniCardClass(code),
+          {
+            'dp-deck-preset-dialog__crt-card--used': used,
+            'dp-deck-preset-dialog__crt-card--disabled': used || this.submitting
+          }
+        ]
+      }
+      return [
+        'dp-deck-preset-dialog__card',
+        this.suitColorClass(code),
+        {
+          'dp-deck-preset-dialog__card--used': used,
+          'dp-deck-preset-dialog__card--disabled': used || this.submitting
+        }
+      ]
     },
     colorClassFor: function (code, kind) {
       var prefix = kind === 'chip'

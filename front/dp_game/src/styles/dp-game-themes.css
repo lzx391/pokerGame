@@ -1254,10 +1254,42 @@ body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-
   font-family: 'Courier New', ui-monospace, monospace;
 }
 
+body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__chip--crt,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__chip--crt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px 3px 4px;
+  border: 1px solid rgba(74, 246, 38, 0.22);
+  background: rgba(0, 0, 0, 0.35);
+  color: #e0f0d8;
+}
+
 body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__chip:hover,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__chip:hover {
   border-color: #4af626;
   background: rgba(74, 246, 38, 0.12);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__chip--crt:hover,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__chip--crt:hover {
+  background: rgba(74, 246, 38, 0.08);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__chip--crt .dp-hd__mini-card,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__chip--crt .dp-hd__mini-card {
+  width: 28px;
+  height: 21px;
+  min-width: 28px;
+  min-height: 21px;
+  padding: 0 3px;
+  font-family: var(--dp-font-pixel, 'Press Start 2P', monospace);
+  font-weight: 400;
+  font-size: 10px;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+  border-radius: 4px;
+  pointer-events: none;
 }
 
 body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__empty,
@@ -1266,21 +1298,54 @@ body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-
   font-style: italic;
 }
 
-body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__card,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__card {
-  border-radius: 0;
-  border: 1px solid rgba(74, 246, 38, 0.28);
-  background: rgba(10, 12, 14, 0.92);
-  font-family: 'Press Start 2P', monospace;
-  font-size: 10px;
-  box-shadow: none;
+body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__crt-card,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__crt-card {
+  width: 32px;
+  height: 24px;
+  min-width: 32px;
+  min-height: 24px;
+  padding: 0 3px;
+  font-family: var(--dp-font-pixel, 'Press Start 2P', monospace);
+  font-weight: 400;
+  font-size: 11px;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+  border-radius: 4px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.15s ease;
 }
 
-body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__card:hover:not(:disabled),
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__card:hover:not(:disabled) {
-  border-color: #4af626;
-  box-shadow: 0 0 8px rgba(74, 246, 38, 0.25);
+body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__crt-card:hover:not(:disabled),
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__crt-card:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow:
+    0 0 0 1px rgba(180, 150, 90, 0.55),
+    0 2px 8px rgba(0, 0, 0, 0.45),
+    0 0 6px rgba(74, 246, 38, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__crt-card--used,
+body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__crt-card--disabled,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__crt-card--used,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__crt-card--disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
   transform: none;
+  filter: grayscale(0.45);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__grid,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__grid {
+  gap: 10px;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__suit-col,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__suit-col {
+  align-items: center;
+  gap: 6px;
 }
 
 body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__suit-head,

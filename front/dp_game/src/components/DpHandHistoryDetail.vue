@@ -631,30 +631,6 @@ export default {
 }
 .dp-hd__board-label { color:rgba(74,246,38,0.45);font-size:9px;flex-shrink:0 }
 .dp-hd__board-empty { color:rgba(74,246,38,0.18);font-size:9px }
-.dp-hd__card {
-  display:inline-flex;align-items:center;justify-content:center;
-  width:34px;height:26px;font-size:13px;font-weight:800;
-  font-family:Garamond,Georgia,'Noto Serif SC',serif;
-  color:#f5f5f5;text-shadow:0 1px 0 rgba(0,0,0,0.4);
-  border-radius:4px;
-  border:1px solid rgba(0,0,0,0.2);
-  box-shadow:0 0 0 1px rgba(180,150,90,0.4),0 2px 6px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.15);
-}
-.dp-hd__card.bg-red {
-  background:radial-gradient(ellipse 120% 80% at 30% 20%,rgba(255,255,255,0.35) 0%,transparent 55%),linear-gradient(145deg,#ff6b8a 0%,#e84855 35%,#a8071a 100%);
-}
-.dp-hd__card.bg-blue {
-  background:radial-gradient(ellipse 120% 80% at 28% 18%,rgba(255,255,255,0.38) 0%,transparent 50%),linear-gradient(145deg,#69c0ff 0%,#1890ff 40%,#0050b3 100%);
-}
-.dp-hd__card.bg-green {
-  background:radial-gradient(ellipse 120% 80% at 30% 22%,rgba(255,255,255,0.32) 0%,transparent 52%),linear-gradient(145deg,#95de64 0%,#389e0d 42%,#135200 100%);
-}
-.dp-hd__card.bg-black {
-  background:radial-gradient(ellipse 100% 70% at 35% 15%,rgba(255,255,255,0.14) 0%,transparent 45%),linear-gradient(145deg,#4a5568 0%,#2f3542 38%,#141820 100%);
-}
-.dp-hd__card.bg-gray {
-  background:linear-gradient(145deg,#2f3542 0%,#1a1e26 100%);color:rgba(255,255,255,0.4);
-}
 
 /* ====== 滚动区 ====== */
 .dp-hd__body-scroll { flex:1;min-height:0;overflow-y:auto }
@@ -710,31 +686,6 @@ export default {
 }
 .dp-hd__hole-hidden { color:rgba(74,246,38,0.18);font-size:7px }
 .dp-hd__hole-empty { color:rgba(74,246,38,0.1);font-size:8px }
-.dp-hd__mini-card {
-  display:inline-flex;align-items:center;justify-content:center;
-  width:22px;height:17px;padding:0 2px;
-  font-family:Garamond,Georgia,'Noto Serif SC',serif;font-weight:800;
-  font-size:10px;color:#f5f5f5;
-  text-shadow:0 1px 0 rgba(0,0,0,0.45);
-  border-radius:3px;
-  border:1px solid rgba(0,0,0,0.2);
-  box-shadow:0 0 0 1px rgba(180,150,90,0.4),0 1px 3px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.15);
-}
-.dp-hd__mini-card.bg-red {
-  background:radial-gradient(ellipse 120% 80% at 30% 20%,rgba(255,255,255,0.3) 0%,transparent 55%),linear-gradient(145deg,#ff6b8a 0%,#e84855 35%,#a8071a 100%);
-}
-.dp-hd__mini-card.bg-blue {
-  background:radial-gradient(ellipse 120% 80% at 28% 18%,rgba(255,255,255,0.3) 0%,transparent 50%),linear-gradient(145deg,#69c0ff 0%,#1890ff 40%,#0050b3 100%);
-}
-.dp-hd__mini-card.bg-green {
-  background:radial-gradient(ellipse 120% 80% at 30% 22%,rgba(255,255,255,0.28) 0%,transparent 52%),linear-gradient(145deg,#95de64 0%,#389e0d 42%,#135200 100%);
-}
-.dp-hd__mini-card.bg-black {
-  background:radial-gradient(ellipse 100% 70% at 35% 15%,rgba(255,255,255,0.12) 0%,transparent 45%),linear-gradient(145deg,#4a5568 0%,#2f3542 38%,#141820 100%);
-}
-.dp-hd__mini-card.bg-gray {
-  background:linear-gradient(145deg,#2f3542 0%,#1a1e26 100%);color:rgba(255,255,255,0.4);
-}
 
 /* 行动单元格 */
 .dp-hd__tbl-act {
