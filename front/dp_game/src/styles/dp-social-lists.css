@@ -549,56 +549,6 @@ body[data-dp-game-theme='retro8bit'] .home-friends-drawer--retro8bit .home-frien
   border-color: var(--dp-accent, #4af626);
 }
 
-/*
- * retro8bit：好友列表竖滑条 — 显式命中真实 overflow 容器
- * 对齐 dp-game-modals.css 中 .dp-custom-npc-panel__body / .dp-owner-touch__console
- */
-body[data-dp-game-theme='retro8bit'] .home-friends-drawer--retro8bit .home-friends-drawer__list-scroll,
-.dp-game-root[data-dp-game-theme='retro8bit'] .home-friends-drawer--retro8bit .home-friends-drawer__list-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: var(--dp-accent, #4af626) var(--dp-terminal-bg, #080a0c);
-}
-
-body[data-dp-game-theme='retro8bit'] .home-friends-drawer--retro8bit .home-friends-drawer__list-scroll::-webkit-scrollbar,
-.dp-game-root[data-dp-game-theme='retro8bit'] .home-friends-drawer--retro8bit .home-friends-drawer__list-scroll::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-body[data-dp-game-theme='retro8bit'] .home-friends-drawer--retro8bit .home-friends-drawer__list-scroll::-webkit-scrollbar-button,
-.dp-game-root[data-dp-game-theme='retro8bit'] .home-friends-drawer--retro8bit .home-friends-drawer__list-scroll::-webkit-scrollbar-button {
-  display: none;
-  width: 0;
-  height: 0;
-}
-
-body[data-dp-game-theme='retro8bit'] .home-friends-drawer--retro8bit .home-friends-drawer__list-scroll::-webkit-scrollbar-track,
-.dp-game-root[data-dp-game-theme='retro8bit'] .home-friends-drawer--retro8bit .home-friends-drawer__list-scroll::-webkit-scrollbar-track {
-  background: var(--dp-terminal-bg, #080a0c);
-  border-left: 2px solid rgba(74, 246, 38, 0.12);
-  box-shadow: inset 2px 0 0 rgba(0, 0, 0, 0.55);
-}
-
-body[data-dp-game-theme='retro8bit'] .home-friends-drawer--retro8bit .home-friends-drawer__list-scroll::-webkit-scrollbar-thumb,
-.dp-game-root[data-dp-game-theme='retro8bit'] .home-friends-drawer--retro8bit .home-friends-drawer__list-scroll::-webkit-scrollbar-thumb {
-  border: 2px solid #000;
-  border-radius: 0;
-  background: var(--dp-accent, #4af626);
-  box-shadow:
-    inset 0 0 0 1px rgba(114, 240, 82, 0.45),
-    0 0 6px rgba(74, 246, 38, 0.35);
-}
-
-body[data-dp-game-theme='retro8bit'] .home-friends-drawer--retro8bit .home-friends-drawer__list-scroll::-webkit-scrollbar-thumb:hover,
-.dp-game-root[data-dp-game-theme='retro8bit'] .home-friends-drawer--retro8bit .home-friends-drawer__list-scroll::-webkit-scrollbar-thumb:hover {
-  background: var(--dp-text-secondary, #72f052);
-}
-
-body[data-dp-game-theme='retro8bit'] .home-friends-drawer--retro8bit .home-friends-drawer__list-scroll::-webkit-scrollbar-corner,
-.dp-game-root[data-dp-game-theme='retro8bit'] .home-friends-drawer--retro8bit .home-friends-drawer__list-scroll::-webkit-scrollbar-corner {
-  background: var(--dp-terminal-bg, #080a0c);
-}
-
 body[data-dp-game-theme='retro8bit'] .dp-social-sheet--retro8bit .dp-social-list {
   gap: 10px;
 }
@@ -834,29 +784,6 @@ body[data-dp-game-theme='retro8bit'] .home-friend-chat-dialog .friend-chat__scro
   background-size: 100% 3px, auto;
   border: 2px solid rgba(74, 246, 38, 0.2);
   box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.35);
-  scrollbar-color: rgba(74, 246, 38, 0.45) var(--dp-terminal-bg, #080a0c);
-  scrollbar-width: thin;
-}
-
-body[data-dp-game-theme='retro8bit'] .home-friend-chat-dialog .friend-chat__scroll::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-body[data-dp-game-theme='retro8bit'] .home-friend-chat-dialog .friend-chat__scroll::-webkit-scrollbar-track {
-  background: var(--dp-terminal-bg, #080a0c);
-  border-left: 1px solid rgba(74, 246, 38, 0.12);
-}
-
-body[data-dp-game-theme='retro8bit'] .home-friend-chat-dialog .friend-chat__scroll::-webkit-scrollbar-thumb {
-  border-radius: 0;
-  background: rgba(74, 246, 38, 0.35);
-  border: 1px solid rgba(74, 246, 38, 0.22);
-  box-shadow: inset 0 0 4px rgba(74, 246, 38, 0.2);
-}
-
-body[data-dp-game-theme='retro8bit'] .home-friend-chat-dialog .friend-chat__scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(74, 246, 38, 0.55);
 }
 
 body[data-dp-game-theme='retro8bit'] .home-friend-chat-dialog .friend-chat__sender {

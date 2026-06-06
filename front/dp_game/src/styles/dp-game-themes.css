@@ -272,75 +272,39 @@ body[data-dp-game-theme='retro8bit'] {
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 16 16'%3E%3Crect x='7' y='1' width='2' height='14' fill='%234af626'/%3E%3Crect x='1' y='7' width='14' height='2' fill='%234af626'/%3E%3C/svg%3E") 8 8, auto;
 }
 
-/* retro8bit：overflow 滚动条 — 像素风（~ 召唤终端 .dp-cli__history） */
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar,
-body[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-cli__history,
-body[data-dp-game-theme='retro8bit'] .dp-cli__history,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list,
-body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body,
-body[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console,
-body[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console {
+/*
+ * retro8bit：全局像素风滚动条
+ * 作用于所有原生 overflow 滚动容器；::-webkit-scrollbar 仅在实际出现滚动条时生效。
+ * 排除 Element UI 自定义滚动条包裹层（.el-scrollbar__wrap 使用自绘滑条）。
+ */
+body[data-dp-game-theme='retro8bit'] *:not(.el-scrollbar__wrap),
+.dp-game-root[data-dp-game-theme='retro8bit'] *:not(.el-scrollbar__wrap) {
   scrollbar-width: thin;
   scrollbar-color: var(--dp-accent, #4af626) var(--dp-terminal-bg, #080a0c);
 }
 
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar,
-body[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar,
-body[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar,
-body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar,
-body[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console::-webkit-scrollbar,
-body[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console::-webkit-scrollbar {
+body[data-dp-game-theme='retro8bit'] *:not(.el-scrollbar__wrap)::-webkit-scrollbar,
+.dp-game-root[data-dp-game-theme='retro8bit'] *:not(.el-scrollbar__wrap)::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar-button,
-body[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar-button,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-button,
-body[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-button,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-button,
-body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-button,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-button,
-body[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-button,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console::-webkit-scrollbar-button,
-body[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console::-webkit-scrollbar-button {
+body[data-dp-game-theme='retro8bit'] *:not(.el-scrollbar__wrap)::-webkit-scrollbar-button,
+.dp-game-root[data-dp-game-theme='retro8bit'] *:not(.el-scrollbar__wrap)::-webkit-scrollbar-button {
   display: none;
   width: 0;
   height: 0;
 }
 
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar-track,
-body[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar-track,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-track,
-body[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-track,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-track,
-body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-track,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-track,
-body[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-track,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console::-webkit-scrollbar-track,
-body[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console::-webkit-scrollbar-track {
+body[data-dp-game-theme='retro8bit'] *:not(.el-scrollbar__wrap)::-webkit-scrollbar-track,
+.dp-game-root[data-dp-game-theme='retro8bit'] *:not(.el-scrollbar__wrap)::-webkit-scrollbar-track {
   background: var(--dp-terminal-bg, #080a0c);
   border-left: 2px solid rgba(74, 246, 38, 0.12);
   box-shadow: inset 2px 0 0 rgba(0, 0, 0, 0.55);
 }
 
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar-thumb,
-body[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar-thumb,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-thumb,
-body[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-thumb,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-thumb,
-body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-thumb,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-thumb,
-body[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-thumb,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console::-webkit-scrollbar-thumb,
-body[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console::-webkit-scrollbar-thumb {
+body[data-dp-game-theme='retro8bit'] *:not(.el-scrollbar__wrap)::-webkit-scrollbar-thumb,
+.dp-game-root[data-dp-game-theme='retro8bit'] *:not(.el-scrollbar__wrap)::-webkit-scrollbar-thumb {
   border: 2px solid #000;
   border-radius: 0;
   background: var(--dp-accent, #4af626);
@@ -349,44 +313,28 @@ body[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-t
     0 0 6px rgba(74, 246, 38, 0.35);
 }
 
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar-thumb:hover,
-body[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar-thumb:hover,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-thumb:hover,
-body[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-thumb:hover,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-thumb:hover,
-body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-thumb:hover,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-thumb:hover,
-body[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-thumb:hover,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console::-webkit-scrollbar-thumb:hover,
-body[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console::-webkit-scrollbar-thumb:hover {
+body[data-dp-game-theme='retro8bit'] *:not(.el-scrollbar__wrap)::-webkit-scrollbar-thumb:hover,
+.dp-game-root[data-dp-game-theme='retro8bit'] *:not(.el-scrollbar__wrap)::-webkit-scrollbar-thumb:hover {
   background: var(--dp-text-secondary, #72f052);
 }
 
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar-corner,
-body[data-dp-game-theme='retro8bit'] .dp-retro-scrollbar::-webkit-scrollbar-corner,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-corner,
-body[data-dp-game-theme='retro8bit'] .dp-cli__history::-webkit-scrollbar-corner,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-corner,
-body[data-dp-game-theme='retro8bit'] .dp-game-room-chat-panel__list::-webkit-scrollbar-corner,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-corner,
-body[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-corner,
-.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console::-webkit-scrollbar-corner,
-body[data-dp-game-theme='retro8bit'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console::-webkit-scrollbar-corner {
+body[data-dp-game-theme='retro8bit'] *:not(.el-scrollbar__wrap)::-webkit-scrollbar-corner,
+.dp-game-root[data-dp-game-theme='retro8bit'] *:not(.el-scrollbar__wrap)::-webkit-scrollbar-corner {
   background: var(--dp-terminal-bg, #080a0c);
 }
 
-/* 节能：同色块滑条，去掉磷光外晕 */
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] .dp-retro-scrollbar::-webkit-scrollbar-thumb,
-body[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] .dp-retro-scrollbar::-webkit-scrollbar-thumb,
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] .dp-cli__history::-webkit-scrollbar-thumb,
-body[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] .dp-cli__history::-webkit-scrollbar-thumb,
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] .dp-game-room-chat-panel__list::-webkit-scrollbar-thumb,
-body[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] .dp-game-room-chat-panel__list::-webkit-scrollbar-thumb,
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] .dp-custom-npc-panel__body::-webkit-scrollbar-thumb,
-body[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] .dp-custom-npc-panel__body::-webkit-scrollbar-thumb,
-.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console::-webkit-scrollbar-thumb,
-body[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] .dp-game-sheet__body--owner-hub .dp-owner-touch__console::-webkit-scrollbar-thumb {
+/* 节能 / 减少动效：同色块滑条，去掉磷光外晕 */
+.dp-game-root[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] *:not(.el-scrollbar__wrap)::-webkit-scrollbar-thumb,
+body[data-dp-game-theme='retro8bit'][data-dp-eco-mode='true'] *:not(.el-scrollbar__wrap)::-webkit-scrollbar-thumb,
+body[data-dp-fluidity='eco'][data-dp-game-theme='retro8bit'] *:not(.el-scrollbar__wrap)::-webkit-scrollbar-thumb {
   box-shadow: inset 0 0 0 1px rgba(58, 138, 42, 0.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dp-game-root[data-dp-game-theme='retro8bit'] *:not(.el-scrollbar__wrap)::-webkit-scrollbar-thumb,
+  body[data-dp-game-theme='retro8bit'] *:not(.el-scrollbar__wrap)::-webkit-scrollbar-thumb {
+    box-shadow: inset 0 0 0 1px rgba(58, 138, 42, 0.5);
+  }
 }
 
 /* retro8bit：像素风 range — 视觉语言同 .dp-cli__history 滚动条（~ 召唤终端） */
