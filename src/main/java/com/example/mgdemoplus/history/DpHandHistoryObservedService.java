@@ -36,7 +36,11 @@ public interface DpHandHistoryObservedService {
     void recordBetLikeAction(DpRoomBO room, DpPlayer actor, int amount, int betToCallBefore, int actorBetBefore, int potBefore, boolean becameAllIn, boolean isRaise);
 
     void capturePotsBeforeClear(DpRoomBO room);
-
+/**
+ * 归档信息获取
+ * @param room
+ * @return
+ */
     DpObservedHandRecordBO finalizeHand(DpRoomBO room);
 
     void clearHand(DpRoomBO room);

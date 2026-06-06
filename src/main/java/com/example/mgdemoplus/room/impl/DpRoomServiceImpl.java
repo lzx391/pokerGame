@@ -2758,7 +2758,11 @@ ownerFieldChanged：房主字段是否发生变化。
         }
         return out;
     }
-
+/**
+ * 零池荣誉统计增量构建
+ * @param r
+ * @return
+ */
     private List<DpSettleStatsIncrement> buildZeroPotHonorStatsIncrements(DpRoomBO r) {
         if (r == null || r.getPlayers() == null) {
             return List.of();
@@ -2851,6 +2855,7 @@ ownerFieldChanged：房主字段是否发生变化。
         }
         // 每局结算的时候将牌谱归档，并存入数据库
         DpObservedHandRecordBO archivedEarly = observedHandService.finalizeHand(r);
+        //零池必返null
         if (archivedEarly != null) {
             enqueueSettlePersistence(archivedEarly, r, buildZeroPotHonorStatsIncrements(r), List.of());
         }

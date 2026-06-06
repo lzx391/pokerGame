@@ -82,6 +82,7 @@ public class DpHandHistoryPersistServiceImpl implements DpHandHistoryPersistServ
             Payload payload = Payload.from(rec);
             //将Payload对象转换为JSON字符串
             String json = payloadMapper.writeValueAsString(payload);
+            //这个是牌局详情表
             DpObservedHandHistory row = new DpObservedHandHistory();
             row.setRoomId(rec.roomId);
             row.setHandSeed(rec.handSeed);
