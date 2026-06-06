@@ -1179,3 +1179,140 @@ body[data-dp-game-theme='retro8bit'] .card-base {
   }
 }
 
+/* ====== retro8bit：实验排牌面板（GameDeckPresetDialog） ====== */
+body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit {
+  background: rgba(8, 10, 12, 0.98);
+  border: 2px solid rgba(74, 246, 38, 0.34);
+  box-shadow: 0 0 0 1px #000, 0 12px 40px rgba(0, 0, 0, 0.65);
+  font-family: 'Courier New', ui-monospace, 'PingFang SC', monospace;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .el-dialog__header,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .el-dialog__header {
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(74, 246, 38, 0.22);
+  background: color-mix(in srgb, #12151a 88%, #4af626 12%);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .el-dialog__title,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .el-dialog__title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: #4af626;
+  text-shadow: 0 0 6px rgba(74, 246, 38, 0.55);
+  letter-spacing: 0.04em;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .el-dialog__headerbtn .el-dialog__close,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .el-dialog__headerbtn .el-dialog__close {
+  color: #4af626;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .el-dialog__body,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .el-dialog__body {
+  color: #e0f0d8;
+  background: rgba(8, 10, 12, 0.98);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__hint--primary,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__hint--primary {
+  background: rgba(74, 246, 38, 0.06);
+  border: 1px solid rgba(74, 246, 38, 0.28);
+  color: #72f052;
+  font-size: 11px;
+  line-height: 1.6;
+  text-shadow: 0 0 3px rgba(114, 240, 82, 0.25);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__status,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__status {
+  color: #ffe066;
+  text-shadow: 0 0 4px rgba(255, 224, 102, 0.35);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__selected,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__selected {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(74, 246, 38, 0.22);
+  border-radius: 0;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__selected-head,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__selected-head {
+  color: #4af626;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__chip,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__chip {
+  border-radius: 0;
+  border: 1px solid rgba(74, 246, 38, 0.35);
+  background: rgba(10, 12, 14, 0.92);
+  color: #e0f0d8;
+  font-family: 'Courier New', ui-monospace, monospace;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__chip:hover,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__chip:hover {
+  border-color: #4af626;
+  background: rgba(74, 246, 38, 0.12);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__empty,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__empty {
+  color: rgba(114, 240, 82, 0.55);
+  font-style: italic;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__card,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__card {
+  border-radius: 0;
+  border: 1px solid rgba(74, 246, 38, 0.28);
+  background: rgba(10, 12, 14, 0.92);
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  box-shadow: none;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__card:hover:not(:disabled),
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__card:hover:not(:disabled) {
+  border-color: #4af626;
+  box-shadow: 0 0 8px rgba(74, 246, 38, 0.25);
+  transform: none;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__suit-head,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .dp-deck-preset-dialog__suit-head {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .el-dialog__footer,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .el-dialog__footer {
+  border-top: 1px solid rgba(74, 246, 38, 0.14);
+  background: rgba(8, 10, 12, 0.98);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .el-button,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .el-button {
+  border-radius: 0;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .el-button--default,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .el-button--default {
+  background: #0a0c0e;
+  border-color: rgba(74, 246, 38, 0.28);
+  color: #4af626;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .el-button--primary,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-deck-preset-dialog--retro8bit .el-button--primary {
+  background: #4af626;
+  border-color: #4af626;
+  color: #080a0c;
+}
+

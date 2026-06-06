@@ -10,6 +10,53 @@ deck = [房主定的有序前缀] + shuffle(剩余未出现的牌)
 
 用一次后自动清空 preset；不向其他玩家广播，房间快照也不下发 prefix/deck。当前进行中的手牌不受影响。
 
+## 访问密码门禁
+
+打开排牌面板或调用 preset API **之前**需验证访问密码：
+
+| 项 | 说明 |
+|---|---|
+| 环境变量 | `EXPERIMENTAL_DECK_PRESET_PASSWORD` |
+| yml 键 | `mgdemoplus.experimental-deck-preset-password: ${EXPERIMENTAL_DECK_PRESET_PASSWORD:}` |
+| 示例占位 | 见根目录 `.env.example`（**勿提交真实密码**） |
+| 未配置 | 前后端均拒绝访问，提示「实验排牌功能未启用」 |
+| 错误密码 | 提示「实验排牌访问密码错误」，**不泄露**配置值 |
+
+### 前端解锁范围
+
+- 验证通过后写入 `sessionStorage`：`dp_deck_preset_unlock_${roomId}`（值为密码，供后续 API 携带）
+- 同一浏览器标签页、同一房间可复用，关闭标签页后需重输
+- 绕过前端直接调 API 仍会被后端 `experimentalPassword` 校验拦截
+
+### 后端 API
+
+**POST** `/dpRoom/verifyExperimentalDeckPassword`
+
+```json
+{
+  "roomId": "房间号",
+  "requesterNickname": "房主昵称",
+  "experimentalPassword": "访问密码"
+}
+```
+
+- 仅房主；密码正确返回 `{ message: "访问密码验证通过" }`
+
+**POST** `/dpRoom/setNextHandDeckPrefix`
+
+```json
+{
+  "roomId": "房间号",
+  "requesterNickname": "房主昵称",
+  "experimentalPassword": "访问密码",
+  "cards": ["hearts_A", "spades_K", "..."]
+}
+```
+
+**GET** `/dpRoom/nextHandDeckPrefixStatus?roomId=&requesterNickname=&experimentalPassword=`
+
+- 以上三个接口均校验 `experimentalPassword`（或 verify 通过后前端 session 内复用）
+
 ## 发牌顺序（UI 提示）
 
 与后端 `getAllCanPlayer` 上桌顺序一致：
@@ -27,33 +74,14 @@ deck = [房主定的有序前缀] + shuffle(剩余未出现的牌)
 |------|------|
 | `common/bo/DpRoomBO.java` | `@JsonIgnore List<String> nextHandDeckPrefix` |
 | `utils/DpDeckUtil.java` | 52 张牌校验、`shuffleDeckWithPrefix` |
-| `room/dto/SetNextHandDeckPrefixRequest.java` | POST 请求体 |
+| `room/dto/SetNextHandDeckPrefixRequest.java` | POST 请求体（含 `experimentalPassword`） |
+| `room/dto/VerifyExperimentalDeckPasswordRequest.java` | 密码验证请求体 |
+| `room/support/DpExperimentalDeckPresetPasswordGuard.java` | 密码校验（常量时间比较） |
 | `room/DpRoomService.java` | 接口声明 |
-| `room/impl/DpRoomServiceImpl.java` | `buildDeckForNewHand` hook；set/get 实现 |
+| `room/impl/DpRoomServiceImpl.java` | `buildDeckForNewHand` hook；set/get/verify 实现 |
 | `controller/DpRoomController.java` | REST 端点 |
-
-### API
-
-**POST** `/dpRoom/setNextHandDeckPrefix`
-
-```json
-{
-  "roomId": "房间号",
-  "requesterNickname": "房主昵称",
-  "cards": ["hearts_A", "spades_K", "..."]
-}
-```
-
-- 仅房主（`isRoomOwnerNickname`）
-- **任意时刻**可设（含 preflop / flop 等对局进行中），仅影响下一局发牌
-- 校验：`hearts_A` 格式、52 张合法编码、prefix 内无重复
-- 空数组 = 清空预设
-
-**GET** `/dpRoom/nextHandDeckPrefixStatus?roomId=&requesterNickname=`
-
-- 仅房主可调用
-- 返回 `{ presetCount, cards, canSet }`；`canSet` 恒为 `true`（房主通过校验后），`presetCount` 表示已预设张数
-- **不**写入普通 `getNowRoom` 快照
+| `application.yml` | `${EXPERIMENTAL_DECK_PRESET_PASSWORD:}` |
+| `.env.example` | 占位说明 |
 
 ### newHand 消费点
 
@@ -64,25 +92,33 @@ deck = [房主定的有序前缀] + shuffle(剩余未出现的牌)
 | 文件 | 说明 |
 |------|------|
 | `utils/dpDeckCards.js` | 52 张牌常量、`suggestedPrefixLength` |
-| `components/GameDeckPresetDialog.vue` | el-dialog 排牌面板 |
-| `components/GameOwnerHubContent.vue` | 主菜单新增入口 |
-| `components/GameOwnerHubPanel.vue` | 事件透传 |
-| `components/GameOwnerTouchPanel.vue` | 事件透传 |
-| `components/GameDpGameSheets.vue` | 挂载 dialog |
-| `components/game.vue` | API 调用与状态 |
+| `utils/dpDeckPresetUnlock.js` | sessionStorage 解锁 helpers |
+| `components/GameDeckPresetPasswordGate.vue` | 密码门禁（default / retro8bit 双形态） |
+| `components/GameDeckPresetDialog.vue` | 排牌面板（retro8bit 终端文案） |
+| `components/GameOwnerHubContent.vue` | 主菜单入口 |
+| `components/GameDpGameSheets.vue` | 挂载 gate + dialog |
+| `components/game.vue` | 解锁流程与 API 调用 |
+| `styles/dp-game-themes.css` | retro8bit 排牌面板样式 |
 
-入口路径：**房主终端 / 触控 Owner Hub →「实验玩法/预设下局牌序」**（retro8bit 宽屏终端与触控面板均可用）。
+入口路径：**房主终端 / 触控 Owner Hub →「实验玩法/预设下局牌序」**。
 
-UI 提示：**随时可预设，下一局发牌时生效**；对局进行中不禁用点选与确认。
+## 主题差异（default vs retro8bit）
+
+| 区域 | default | retro8bit (`gameUiTheme === 'retro8bit'`) |
+|------|---------|-------------------------------------------|
+| 密码门禁 | 白底 `el-dialog`，中文提示 | CRT 终端层：绿字、`[ROOT] ACCESS:`、扫描线、`EXECUTE` / `ABORT` |
+| 排牌面板 | 白底 dialog，中文标题与按钮 | 标题 `> DECK_PRESET // NEXT_HAND`；log 行已选区；像素绿框牌面；`CONFIRM_PRESET` / `ABORT` |
+| 样式文件 | 组件 scoped 默认色 | `dp-game-themes.css` 中 `--retro8bit` 覆盖 |
 
 ## 手动验证
 
-1. 房主进房，打开 Owner Hub → 实验排牌，选若干张牌并确认。
-2. GET `nextHandDeckPrefixStatus` 或 UI 应显示「已预设 N 张」。
-3. **对局进行中**（如 preflop）再次打开面板：可点选并确认，API 应成功；当前手牌发牌顺序不变。
-4. 下一局 `newHand` 开始：发牌顺序与前缀一致（可用固定 AA/KK 等易辨认组合）。
-5. 再开一手：应恢复随机（preset 已消费）。
-6. 非房主调用 API 应失败；`getNowRoom` 响应中无 `nextHandDeckPrefix` / `deck`。
+1. 在 `.env` 设置 `EXPERIMENTAL_DECK_PRESET_PASSWORD=你的测试密码`，重启后端。
+2. 房主进房 → Owner Hub → 实验排牌：**应先弹出密码层**，错误密码有清晰提示且不泄露真值。
+3. 密码正确后打开排牌面板；刷新同标签页可继续用（sessionStorage）；关标签重开需重输。
+4. GET `nextHandDeckPrefixStatus` / POST `setNextHandDeckPrefix` 不带或带错密码应失败。
+5. 不带 JWT 或非房主调用应失败（与原先一致）。
+6. **retro8bit 主题**：密码层与排牌面板为终端/CRT 风格；切回 default 仍为白底 dialog。
+7. 选牌确认 → 下一局发牌顺序与前缀一致 → 再开一手恢复随机。
 
 ## 构建
 
@@ -95,4 +131,5 @@ cd front/dp_game && npm run build
 
 - 无 Flyway 变更（纯内存房间字段）
 - 无 git commit
+- 密码仅 env，不进 Git
 - 无实验房标签、无 WebSocket 广播

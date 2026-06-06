@@ -105,6 +105,9 @@ mgdemoplus:
     async-enabled: ${MGDEMOPLUS_SETTLE_PERSIST_ASYNC_ENABLED:true}  # [B] env: MGDEMOPLUS_SETTLE_PERSIST_ASYNC_ENABLED
     queue-capacity: ${MGDEMOPLUS_SETTLE_PERSIST_QUEUE_CAPACITY:256}  # [B] env: MGDEMOPLUS_SETTLE_PERSIST_QUEUE_CAPACITY
 
+  # --- A: 实验排牌访问密码（勿提交真值；未配置则功能不可用） ---
+  experimental-deck-preset-password: ${EXPERIMENTAL_DECK_PRESET_PASSWORD:}  # [A] env: EXPERIMENTAL_DECK_PRESET_PASSWORD
+
 # -----------------------------------------------------------------------------
 # mybatis-plus / pagehelper — 持久层（D）
 # -----------------------------------------------------------------------------

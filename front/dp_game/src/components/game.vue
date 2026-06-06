@@ -188,6 +188,12 @@ import dpGameLayoutTierMixin from '../mixins/dpGameLayoutTierMixin'
 import { dpGamePlayerBoxStyle } from '../utils/dpGamePlayerBoxStyle'
 import { ensureDpUserIdInStorage } from '../utils/dpEnsureUserId'
 import { dpResultSuccess, dpResultData, dpResultMessage } from '../utils/dpApiResult'
+import {
+  isDeckPresetUnlocked,
+  setDeckPresetSessionUnlock,
+  dpDeckPresetSessionPassword,
+  clearDeckPresetSessionUnlock
+} from '../utils/dpDeckPresetUnlock'
 import { dpRoomApi } from '@/api/api.dpRoom'
 import { mapState, mapGetters } from 'vuex'
 import { dpSocialDisplayNickname } from '../utils/dpSocialDisplayName'
@@ -287,6 +293,7 @@ export default {
       /** 最后一帧下注街经济快照（TV 期间冻结积分/底池展示） */
       retroBettingEconomySnapshot: null,
       showDeckPresetDialog: false,
+      showDeckPresetPasswordGate: false,
       deckPresetSavedCount: 0,
       deckPresetInitialCards: [],
       deckPresetSubmitting: false
@@ -2148,15 +2155,21 @@ export default {
 
     async loadDeckPresetStatus() {
       if (!this.isOwner || !this.roomId || !this.user) return
+      var pwd = dpDeckPresetSessionPassword(this.roomId)
+      if (!pwd) return
       try {
         var res = await this.$http.get('/dpRoom/nextHandDeckPrefixStatus', {
           params: {
             roomId: this.roomId,
-            requesterNickname: this.user.nickname
+            requesterNickname: this.user.nickname,
+            experimentalPassword: pwd
           }
         })
         var body = res.data
-        if (!dpResultSuccess(body)) return
+        if (!dpResultSuccess(body)) {
+          this.handleDeckPresetAuthFailure(body)
+          return
+        }
         var d = dpResultData(body) || {}
         this.deckPresetSavedCount = d.presetCount != null ? d.presetCount : 0
         this.deckPresetInitialCards = Array.isArray(d.cards) ? d.cards.slice() : []
@@ -2165,25 +2178,56 @@ export default {
       }
     },
 
+    handleDeckPresetAuthFailure(body) {
+      var msg = dpResultMessage(body) || ''
+      if (msg.indexOf('密码') >= 0 || msg.indexOf('访问') >= 0 || msg.indexOf('未启用') >= 0 || msg.indexOf('验证') >= 0) {
+        clearDeckPresetSessionUnlock(this.roomId)
+        this.showDeckPresetDialog = false
+        this.showDeckPresetPasswordGate = true
+        this.$message.error(msg || '实验排牌访问验证已失效，请重新输入密码')
+      }
+    },
+
     openDeckPresetDialog() {
       if (!this.isOwner) return
       this.closeOwnerHubPanel()
+      if (isDeckPresetUnlocked(this.roomId)) {
+        this.showDeckPresetDialog = true
+        this.loadDeckPresetStatus()
+      } else {
+        this.showDeckPresetPasswordGate = true
+      }
+    },
+
+    onDeckPresetPasswordVerified(password) {
+      setDeckPresetSessionUnlock(this.roomId, password)
+      this.showDeckPresetPasswordGate = false
       this.showDeckPresetDialog = true
       this.loadDeckPresetStatus()
     },
 
     async submitDeckPreset(cards) {
       if (!this.isOwner || this.deckPresetSubmitting) return
+      var pwd = dpDeckPresetSessionPassword(this.roomId)
+      if (!pwd) {
+        this.showDeckPresetDialog = false
+        this.showDeckPresetPasswordGate = true
+        return
+      }
       this.deckPresetSubmitting = true
       try {
         var res = await this.$http.post('/dpRoom/setNextHandDeckPrefix', {
           roomId: this.roomId,
           requesterNickname: this.user.nickname,
+          experimentalPassword: pwd,
           cards: cards || []
         })
         var body = res.data
         if (!dpResultSuccess(body)) {
-          this.$message.error(dpResultMessage(body) || '预设失败')
+          this.handleDeckPresetAuthFailure(body)
+          if (!this.showDeckPresetPasswordGate) {
+            this.$message.error(dpResultMessage(body) || '预设失败')
+          }
           return
         }
         var d = dpResultData(body) || {}

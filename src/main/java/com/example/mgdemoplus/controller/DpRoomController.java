@@ -11,6 +11,7 @@ import com.example.mgdemoplus.room.DpRoomService;
 import com.example.mgdemoplus.room.KickPlayersBatchResult;
 import com.example.mgdemoplus.room.dto.AddCustomNpcBatchRequest;
 import com.example.mgdemoplus.room.dto.SetNextHandDeckPrefixRequest;
+import com.example.mgdemoplus.room.dto.VerifyExperimentalDeckPasswordRequest;
 import com.example.mgdemoplus.utils.ResultUtil;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -359,6 +360,20 @@ public class DpRoomController {
     }
 
     /**
+     * 房主验证实验排牌访问密码（前端 session 解锁前调用）。
+     */
+    @PostMapping("/verifyExperimentalDeckPassword")
+    public ResultUtil verifyExperimentalDeckPassword(@RequestBody VerifyExperimentalDeckPasswordRequest req) {
+        if (req == null || req.getRoomId() == null || req.getRoomId().isEmpty()) {
+            return ResultUtil.error().data("message", "roomId 不能为空");
+        }
+        return dpRoomService.verifyExperimentalDeckPassword(
+                req.getRoomId(),
+                req.getRequesterNickname(),
+                req.getExperimentalPassword());
+    }
+
+    /**
      * 房主预设下一局牌堆前缀（按发牌顺序）；对局进行中也可提交/更新，下一局 newHand 时消费并清空。
      */
     @PostMapping("/setNextHandDeckPrefix")
@@ -369,7 +384,8 @@ public class DpRoomController {
         return dpRoomService.setNextHandDeckPrefix(
                 req.getRoomId(),
                 req.getRequesterNickname(),
-                req.getCards());
+                req.getCards(),
+                req.getExperimentalPassword());
     }
 
     /**
@@ -377,8 +393,9 @@ public class DpRoomController {
      */
     @GetMapping("/nextHandDeckPrefixStatus")
     public ResultUtil nextHandDeckPrefixStatus(@RequestParam String roomId,
-                                               @RequestParam String requesterNickname) {
-        return dpRoomService.getNextHandDeckPrefixStatus(roomId, requesterNickname);
+                                               @RequestParam String requesterNickname,
+                                               @RequestParam String experimentalPassword) {
+        return dpRoomService.getNextHandDeckPrefixStatus(roomId, requesterNickname, experimentalPassword);
     }
 
     @GetMapping("/getAllRooms2")

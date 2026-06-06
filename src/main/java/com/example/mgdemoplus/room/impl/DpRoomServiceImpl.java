@@ -2,6 +2,7 @@ package com.example.mgdemoplus.room.impl;
 
 import com.example.mgdemoplus.room.DpRoomService;
 import com.example.mgdemoplus.room.KickPlayersBatchResult;
+import com.example.mgdemoplus.room.support.DpExperimentalDeckPresetPasswordGuard;
 import com.example.mgdemoplus.room.support.DpRoomHeartbeatScheduler;
 import com.example.mgdemoplus.room.support.DpRoomHumanCounts;
 import com.example.mgdemoplus.room.support.DpRoomLobbySync;
@@ -91,6 +92,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     private final DpFriendPresenceService friendPresence;
     private final RoomChatBuffer roomChatBuffer;
     private final DpRoomChatPersistenceService roomChatPersistenceService;
+    private final DpExperimentalDeckPresetPasswordGuard experimentalDeckPresetPasswordGuard;
 
     // 统一从 NPC 引擎中获取机器人昵称，避免散落魔法字符串
     public boolean addDemoBotToNextHand(String roomId) {
@@ -299,7 +301,8 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
             DpFriendPresenceService friendPresence,
             RoomChatBuffer roomChatBuffer,
             DpRoomChatPersistenceService roomChatPersistenceService,
-            com.example.mgdemoplus.moderation.DpSensitiveWordService sensitiveWordService) {
+            com.example.mgdemoplus.moderation.DpSensitiveWordService sensitiveWordService,
+            DpExperimentalDeckPresetPasswordGuard experimentalDeckPresetPasswordGuard) {
         this.observedHandPersistService = observedHandPersistService;
         this.settlePersistenceDispatcher = settlePersistenceDispatcher;
         this.llmNpcDecisionService = llmNpcDecisionService;
@@ -317,6 +320,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         this.friendPresence = friendPresence;
         this.roomChatBuffer = roomChatBuffer;
         this.roomChatPersistenceService = roomChatPersistenceService;
+        this.experimentalDeckPresetPasswordGuard = experimentalDeckPresetPasswordGuard;
         this.lobbySync = new DpRoomLobbySync(
                 registry,
                 joinableQuickMatchRoomIndex,
@@ -498,13 +502,33 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     }
 
     @Override
-    public ResultUtil setNextHandDeckPrefix(String roomId, String requesterNickname, List<String> cards) {
+    public ResultUtil verifyExperimentalDeckPassword(String roomId, String requesterNickname, String experimentalPassword) {
+        DpRoomBO r = roomMap.get(roomId);
+        if (r == null) {
+            return ResultUtil.error().data("message", "房间不存在");
+        }
+        if (!isRoomOwnerNickname(roomId, requesterNickname)) {
+            return ResultUtil.error().data("message", "仅房主可访问实验排牌");
+        }
+        ResultUtil gate = experimentalDeckPresetPasswordGuard.gate(experimentalPassword);
+        if (gate != null) {
+            return gate;
+        }
+        return ResultUtil.ok().data("message", "访问密码验证通过");
+    }
+
+    @Override
+    public ResultUtil setNextHandDeckPrefix(String roomId, String requesterNickname, List<String> cards, String experimentalPassword) {
         DpRoomBO r = roomMap.get(roomId);
         if (r == null) {
             return ResultUtil.error().data("message", "房间不存在");
         }
         if (!isRoomOwnerNickname(roomId, requesterNickname)) {
             return ResultUtil.error().data("message", "仅房主可预设牌序");
+        }
+        ResultUtil gate = experimentalDeckPresetPasswordGuard.gate(experimentalPassword);
+        if (gate != null) {
+            return gate;
         }
         List<String> normalized = new ArrayList<>();
         if (cards != null) {
@@ -534,13 +558,17 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     }
 
     @Override
-    public ResultUtil getNextHandDeckPrefixStatus(String roomId, String requesterNickname) {
+    public ResultUtil getNextHandDeckPrefixStatus(String roomId, String requesterNickname, String experimentalPassword) {
         DpRoomBO r = roomMap.get(roomId);
         if (r == null) {
             return ResultUtil.error().data("message", "房间不存在");
         }
         if (!isRoomOwnerNickname(roomId, requesterNickname)) {
             return ResultUtil.error().data("message", "仅房主可查询牌序预设");
+        }
+        ResultUtil gate = experimentalDeckPresetPasswordGuard.gate(experimentalPassword);
+        if (gate != null) {
+            return gate;
         }
         List<String> prefix;
         synchronized (r) {

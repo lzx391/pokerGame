@@ -266,12 +266,21 @@
         @toggle-reveal="vm.onOwnerTerminalToggleReveal"
     />
 
+    <game-deck-preset-password-gate
+        :visible.sync="vm.showDeckPresetPasswordGate"
+        :room-id="vm.roomId"
+        :requester-nickname="vm.user && vm.user.nickname"
+        :game-ui-theme="vm.gameUiTheme"
+        @verified="(pwd) => vm.onDeckPresetPasswordVerified(pwd)"
+    />
+
     <game-deck-preset-dialog
         :visible.sync="vm.showDeckPresetDialog"
         :player-count="vm.deckPresetPlayerCount"
         :saved-preset-count="vm.deckPresetSavedCount"
         :initial-cards="vm.deckPresetInitialCards"
         :submitting="vm.deckPresetSubmitting"
+        :game-ui-theme="vm.gameUiTheme"
         @confirm="(cards) => vm.submitDeckPreset(cards)"
     />
 
@@ -355,6 +364,7 @@ import GameOwnerHubPanel from './GameOwnerHubPanel.vue'
 import GameOwnerTouchPanel from './GameOwnerTouchPanel.vue'
 import CustomNpcStyleDialog from './CustomNpcStyleDialog.vue'
 import GameDeckPresetDialog from './GameDeckPresetDialog.vue'
+import GameDeckPresetPasswordGate from './GameDeckPresetPasswordGate.vue'
 
 export default {
   name: 'GameDpGameSheets',
@@ -375,7 +385,8 @@ export default {
     GameOwnerHubPanel,
     GameOwnerTouchPanel,
     CustomNpcStyleDialog,
-    GameDeckPresetDialog
+    GameDeckPresetDialog,
+    GameDeckPresetPasswordGate
   },
   inject: ['dpGameView'],
   computed: {

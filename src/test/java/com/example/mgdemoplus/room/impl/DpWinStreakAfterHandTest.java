@@ -64,7 +64,7 @@ class DpWinStreakAfterHandTest {
                 mock(DpFriendPresenceService.class),
                 new RoomChatBuffer(),
                 mock(DpRoomChatPersistenceService.class),
-                mock(com.example.mgdemoplus.moderation.DpSensitiveWordService.class));
+                mock(com.example.mgdemoplus.moderation.DpSensitiveWordService.class), null);
     }
 
     @AfterEach

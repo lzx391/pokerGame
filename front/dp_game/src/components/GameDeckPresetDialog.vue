@@ -1,10 +1,10 @@
 <template>
   <el-dialog
       :visible.sync="dialogVisible"
-      title="实验玩法 · 预设下局牌序"
+      :title="dialogTitle"
       width="92%"
       top="4vh"
-      custom-class="dp-deck-preset-dialog"
+      :custom-class="dialogCustomClass"
       append-to-body
       :modal="false"
       :z-index="dialogZIndex"
@@ -12,20 +12,27 @@
       @closed="onClosed"
   >
     <p class="dp-deck-preset-dialog__hint dp-deck-preset-dialog__hint--primary">
-      <strong>按发牌顺序点击选牌</strong>（点选即可，无需拖拽）。各玩家底牌 2 张 → 翻牌 3 张 → 转牌 1 张 → 河牌 1 张。
-      当前 {{ playerCount }} 人桌建议预设前 <strong>{{ suggestedLen }}</strong> 张（2×人数+5）。
-      随时可预设，<strong>下一局</strong>发牌时生效；其他玩家不会收到通知。
+      <template v-if="isRetro8bit">
+        &gt; SELECT CARDS IN DEAL ORDER — hole×2 per seat → flop×3 → turn×1 → river×1<br>
+        &gt; TABLE {{ playerCount }}P — SUGGEST PREFIX {{ suggestedLen }} CARDS<br>
+        &gt; EFFECT ON NEXT HAND ONLY — NO BROADCAST
+      </template>
+      <template v-else>
+        <strong>按发牌顺序点击选牌</strong>（点选即可，无需拖拽）。各玩家底牌 2 张 → 翻牌 3 张 → 转牌 1 张 → 河牌 1 张。
+        当前 {{ playerCount }} 人桌建议预设前 <strong>{{ suggestedLen }}</strong> 张（2×人数+5）。
+        随时可预设，<strong>下一局</strong>发牌时生效；其他玩家不会收到通知。
+      </template>
     </p>
     <p v-if="savedPresetCount > 0" class="dp-deck-preset-dialog__status">
-      已预设 {{ savedPresetCount }} 张，下一局发牌时生效
+      {{ isRetro8bit ? '> STATUS: PRESET ' + savedPresetCount + ' CARDS — NEXT HAND' : ('已预设 ' + savedPresetCount + ' 张，下一局发牌时生效') }}
     </p>
 
     <div class="dp-deck-preset-dialog__selected">
       <div class="dp-deck-preset-dialog__selected-head">
-        <span>已选 {{ selectedCards.length }} 张</span>
+        <span>{{ isRetro8bit ? ('> LOG: SELECTED ' + selectedCards.length) : ('已选 ' + selectedCards.length + ' 张') }}</span>
         <span>
-          <el-button size="mini" :disabled="!selectedCards.length" @click="undoLast">撤销</el-button>
-          <el-button size="mini" :disabled="!selectedCards.length" @click="clearSelected">清空</el-button>
+          <el-button size="mini" :disabled="!selectedCards.length" @click="undoLast">{{ isRetro8bit ? 'UNDO' : '撤销' }}</el-button>
+          <el-button size="mini" :disabled="!selectedCards.length" @click="clearSelected">{{ isRetro8bit ? 'CLR' : '清空' }}</el-button>
         </span>
       </div>
       <div v-if="selectedCards.length" class="dp-deck-preset-dialog__selected-list">
@@ -42,7 +49,7 @@
           {{ cardLabel(card) }}
         </button>
       </div>
-      <p v-else class="dp-deck-preset-dialog__empty">从下方点选牌，按发牌顺序追加。</p>
+      <p v-else class="dp-deck-preset-dialog__empty">{{ isRetro8bit ? '> awaiting card input...' : '从下方点选牌，按发牌顺序追加。' }}</p>
     </div>
 
     <div class="dp-deck-preset-dialog__grid" role="list" aria-label="可选牌面">
@@ -73,9 +80,9 @@
     </div>
 
     <span slot="footer" class="dialog-footer">
-      <el-button @click="dialogVisible = false">取消</el-button>
+      <el-button @click="dialogVisible = false">{{ isRetro8bit ? 'ABORT' : '取消' }}</el-button>
       <el-button type="primary" :loading="submitting" :disabled="!selectedCards.length" @click="confirm">
-        确认预设（{{ selectedCards.length }} 张）
+        {{ confirmButtonLabel }}
       </el-button>
     </span>
   </el-dialog>
@@ -113,7 +120,8 @@ export default {
         return []
       }
     },
-    submitting: { type: Boolean, default: false }
+    submitting: { type: Boolean, default: false },
+    gameUiTheme: { type: String, default: 'default' }
   },
   data: function () {
     return {
@@ -136,6 +144,23 @@ export default {
     },
     suggestedLen: function () {
       return suggestedPrefixLength(this.playerCount)
+    },
+    isRetro8bit: function () {
+      return this.gameUiTheme === 'retro8bit'
+    },
+    dialogTitle: function () {
+      return this.isRetro8bit ? '> DECK_PRESET // NEXT_HAND' : '实验玩法 · 预设下局牌序'
+    },
+    dialogCustomClass: function () {
+      return this.isRetro8bit
+        ? 'dp-deck-preset-dialog dp-deck-preset-dialog--retro8bit'
+        : 'dp-deck-preset-dialog'
+    },
+    confirmButtonLabel: function () {
+      if (this.isRetro8bit) {
+        return this.submitting ? 'EXECUTING...' : ('CONFIRM_PRESET (' + this.selectedCards.length + ')')
+      }
+      return '确认预设（' + this.selectedCards.length + ' 张）'
     },
     usedSet: function () {
       var set = {}
