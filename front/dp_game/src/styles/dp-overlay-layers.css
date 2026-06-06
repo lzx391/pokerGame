@@ -2,7 +2,7 @@
  * 社交/资料/弹窗 overlay 层级阶梯（从低到高）。
  * 打开子层时 z-index 须严格高于父层；Element PopupManager 默认 2000+ 递增，勿混用未设层的 el-dialog。
  *
- * 8000 好友抽屉 → 8500 个人资料 → 9000 玩家资料卡 → 9100 成就墙 → 9200 历史对局
+ * 8000 好友抽屉 → 8500 个人资料 → 9000 玩家资料卡 → 9100 成就墙 → 9200 历史对局 → 9300 排牌预设
  * 10000+ 对局 CRT/CLI 等全屏工具（见各组件内联 z-index）
  */
 :root,
@@ -12,6 +12,7 @@ body[data-dp-game-theme] {
   --dp-z-player-sheet: 9000;
   --dp-z-achievement: 9100;
   --dp-z-hand-history: 9200;
+  --dp-z-deck-preset: 9300;
 }
 
 /*
@@ -32,6 +33,15 @@ body[data-dp-game-theme] .el-drawer__wrapper:has(.home-friends-drawer) {
  */
 body[data-dp-game-theme] .el-dialog__wrapper:has(.dp-achievement-wall-dialog) {
   z-index: var(--dp-z-achievement, 9100) !important;
+  background: transparent !important;
+  pointer-events: auto;
+}
+
+/*
+ * 排牌预设：全屏对局内须高于成就/历史层；:modal="false" 不创建 v-modal。
+ */
+body[data-dp-game-theme] .el-dialog__wrapper:has(.dp-deck-preset-dialog) {
+  z-index: var(--dp-z-deck-preset, 9300) !important;
   background: transparent !important;
   pointer-events: auto;
 }

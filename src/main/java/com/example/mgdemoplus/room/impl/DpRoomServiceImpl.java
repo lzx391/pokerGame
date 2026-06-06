@@ -41,6 +41,7 @@ import com.example.mgdemoplus.npc.mood.NpcMoodState;
 import com.example.mgdemoplus.npc.tabletalk.DpNpcTableTalkService;
 import com.example.mgdemoplus.npc.llm.LlmNpcGlobalHandConversationStore;
 import com.example.mgdemoplus.utils.ResultUtil;
+import com.example.mgdemoplus.utils.DpDeckUtil;
 import com.example.mgdemoplus.utils.DpUtilHandEvaluator;
 import com.example.mgdemoplus.roomchat.buffer.RoomChatBuffer;
 import com.example.mgdemoplus.roomchat.DpRoomChatPersistenceService;
@@ -418,6 +419,16 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         return deck;
     }
 
+    /** 若房主已预设下一局前缀则应用并清空；否则纯随机洗牌。 */
+    private List<String> buildDeckForNewHand(DpRoomBO r) {
+        List<String> prefix = r.getNextHandDeckPrefix();
+        if (prefix != null && !prefix.isEmpty()) {
+            r.setNextHandDeckPrefix(null);
+            return DpDeckUtil.shuffleDeckWithPrefix(prefix);
+        }
+        return newDeck();
+    }
+
     private void syncLobbyForRoomId(String roomId) {
         lobbySync.syncLobbyForRoomId(roomId);
     }
@@ -484,6 +495,62 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         }
         refreshJoinableQmIndexThenSyncLobby(roomId);
         return true;
+    }
+
+    @Override
+    public ResultUtil setNextHandDeckPrefix(String roomId, String requesterNickname, List<String> cards) {
+        DpRoomBO r = roomMap.get(roomId);
+        if (r == null) {
+            return ResultUtil.error().data("message", "房间不存在");
+        }
+        if (!isRoomOwnerNickname(roomId, requesterNickname)) {
+            return ResultUtil.error().data("message", "仅房主可预设牌序");
+        }
+        List<String> normalized = new ArrayList<>();
+        if (cards != null) {
+            for (String c : cards) {
+                if (c != null && !c.isBlank()) {
+                    normalized.add(c.trim());
+                }
+            }
+        }
+        String validationError = DpDeckUtil.validatePrefix(normalized);
+        if (validationError != null) {
+            return ResultUtil.error().data("message", validationError);
+        }
+        synchronized (r) {
+            if (!isRoomOwnerNickname(roomId, requesterNickname)) {
+                return ResultUtil.error().data("message", "仅房主可预设牌序");
+            }
+            if (normalized.isEmpty()) {
+                r.setNextHandDeckPrefix(null);
+            } else {
+                r.setNextHandDeckPrefix(new ArrayList<>(normalized));
+            }
+        }
+        return ResultUtil.ok()
+                .data("presetCount", normalized.size())
+                .data("message", normalized.isEmpty() ? "已清空下局牌序预设" : "已预设 " + normalized.size() + " 张，下局生效");
+    }
+
+    @Override
+    public ResultUtil getNextHandDeckPrefixStatus(String roomId, String requesterNickname) {
+        DpRoomBO r = roomMap.get(roomId);
+        if (r == null) {
+            return ResultUtil.error().data("message", "房间不存在");
+        }
+        if (!isRoomOwnerNickname(roomId, requesterNickname)) {
+            return ResultUtil.error().data("message", "仅房主可查询牌序预设");
+        }
+        List<String> prefix;
+        synchronized (r) {
+            prefix = r.getNextHandDeckPrefix();
+        }
+        List<String> cardsCopy = prefix != null ? new ArrayList<>(prefix) : new ArrayList<>();
+        return ResultUtil.ok()
+                .data("presetCount", cardsCopy.size())
+                .data("cards", cardsCopy)
+                .data("canSet", true);
     }
 
     private static final class GiveOwnerMutationOutcome {
@@ -2121,7 +2188,7 @@ ownerFieldChanged：房主字段是否发生变化。
         // 开始一手牌谱的记录
         observedHandService.beginHand(r);
 
-        r.setDeck(newDeck());
+        r.setDeck(buildDeckForNewHand(r));
         r.setCommunityCards(new ArrayList<>());
         r.setCurrentStage("preflop");
         r.setPot(0);

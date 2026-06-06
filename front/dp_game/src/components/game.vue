@@ -285,7 +285,11 @@ export default {
       /** 进入摊牌前的下注街，供 TV 期间 cardDisplayStage 回退 */
       retroShowdownFromStage: null,
       /** 最后一帧下注街经济快照（TV 期间冻结积分/底池展示） */
-      retroBettingEconomySnapshot: null
+      retroBettingEconomySnapshot: null,
+      showDeckPresetDialog: false,
+      deckPresetSavedCount: 0,
+      deckPresetInitialCards: [],
+      deckPresetSubmitting: false
     }
   },
 
@@ -405,6 +409,15 @@ export default {
     uiInSettledStage() {
       if (this.settlePresentationFrozen) return false
       return this.inSettledStage
+    },
+    deckPresetPlayerCount() {
+      var ps = this.players || []
+      var n = 0
+      for (var i = 0; i < ps.length; i++) {
+        var p = ps[i]
+        if (p && !p.leftThisHand) n++
+      }
+      return n
     },
     mobileHeroDockActive() {
       return !!(this.heroDockRow || this.isMyTurn || this.uiInSettledStage || this.isOwner)
@@ -2131,6 +2144,58 @@ export default {
       this.$store.commit('dpGame/CLOSE_OWNER_HUB')
       this.closeOwnerTerminal()
       this.closeOwnerTouchPanel()
+    },
+
+    async loadDeckPresetStatus() {
+      if (!this.isOwner || !this.roomId || !this.user) return
+      try {
+        var res = await this.$http.get('/dpRoom/nextHandDeckPrefixStatus', {
+          params: {
+            roomId: this.roomId,
+            requesterNickname: this.user.nickname
+          }
+        })
+        var body = res.data
+        if (!dpResultSuccess(body)) return
+        var d = dpResultData(body) || {}
+        this.deckPresetSavedCount = d.presetCount != null ? d.presetCount : 0
+        this.deckPresetInitialCards = Array.isArray(d.cards) ? d.cards.slice() : []
+      } catch (e) {
+        /* 非关键路径，静默 */
+      }
+    },
+
+    openDeckPresetDialog() {
+      if (!this.isOwner) return
+      this.closeOwnerHubPanel()
+      this.showDeckPresetDialog = true
+      this.loadDeckPresetStatus()
+    },
+
+    async submitDeckPreset(cards) {
+      if (!this.isOwner || this.deckPresetSubmitting) return
+      this.deckPresetSubmitting = true
+      try {
+        var res = await this.$http.post('/dpRoom/setNextHandDeckPrefix', {
+          roomId: this.roomId,
+          requesterNickname: this.user.nickname,
+          cards: cards || []
+        })
+        var body = res.data
+        if (!dpResultSuccess(body)) {
+          this.$message.error(dpResultMessage(body) || '预设失败')
+          return
+        }
+        var d = dpResultData(body) || {}
+        this.deckPresetSavedCount = d.presetCount != null ? d.presetCount : (cards || []).length
+        this.deckPresetInitialCards = (cards || []).slice()
+        this.$message.success(d.message || '已预设下局牌序')
+        this.showDeckPresetDialog = false
+      } catch (err) {
+        this.$message.error('网络错误: ' + err.message)
+      } finally {
+        this.deckPresetSubmitting = false
+      }
     },
 
     // ---- 房主：移交房主（通过弹窗选择玩家） ----

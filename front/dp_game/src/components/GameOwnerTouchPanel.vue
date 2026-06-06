@@ -94,6 +94,7 @@
                 :custom-bot-adding="customBotAdding"
                 :custom-bot-added-tip="customBotAddedTip"
                 @confirm-add-npcs="$emit('confirm-add-npcs', $event)"
+                @open-deck-preset="$emit('open-deck-preset')"
                 @transfer-owner="$emit('transfer-owner')"
                 @kick-players="$emit('kick-players', $event)"
                 @toggle-reveal="$emit('toggle-reveal')"

@@ -138,6 +138,13 @@ public class DpRoomBO {
     private Map<String, DpPlayerStats> playerStatsMap = new HashMap<>();
 
     /**
+     * 房主预设的下一局牌堆前缀（按发牌顺序）；{@link com.example.mgdemoplus.room.impl.DpRoomServiceImpl#newHandWithoutLobbyUpsert}
+     * 消费一次后清空。不下发 JSON。
+     */
+    @JsonIgnore
+    private List<String> nextHandDeckPrefix;
+
+    /**
      * 当前这手牌的随机种子：用于让机器人在同一局内的随机行为可复现、跨多次调用共享。
      * 由服务层在 newHand 时生成。
      */
@@ -366,6 +373,14 @@ public class DpRoomBO {
 
     public void setCurrentHandSeed(long currentHandSeed) {
         this.currentHandSeed = currentHandSeed;
+    }
+
+    public List<String> getNextHandDeckPrefix() {
+        return nextHandDeckPrefix;
+    }
+
+    public void setNextHandDeckPrefix(List<String> nextHandDeckPrefix) {
+        this.nextHandDeckPrefix = nextHandDeckPrefix;
     }
 
     public List<String> getChipLeaderNicknames() {

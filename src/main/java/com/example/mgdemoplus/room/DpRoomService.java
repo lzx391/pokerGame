@@ -103,6 +103,10 @@ public interface DpRoomService {
 
     boolean transferOwner(String roomId, String fromNickname, String toNickname);
 
+    ResultUtil setNextHandDeckPrefix(String roomId, String requesterNickname, List<String> cards);
+
+    ResultUtil getNextHandDeckPrefixStatus(String roomId, String requesterNickname);
+
     List<DpRoom> getAllRooms2();
 
     Set<String> getRoomIdsInMemory();

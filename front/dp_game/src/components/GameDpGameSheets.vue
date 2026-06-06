@@ -149,6 +149,7 @@
           :custom-bot-added-tip="vm.customBotAddedTip"
           @close="vm.closeOwnerHubPanel"
           @confirm-add-npcs="(p) => vm.confirmAddOwnerNpcs(p)"
+          @open-deck-preset="() => vm.openDeckPresetDialog()"
           @transfer-owner="() => vm.doTransferOwner()"
           @kick-players="(nicks) => vm.doKickPlayers(nicks)"
       />
@@ -184,6 +185,7 @@
         @close-custom-npc="vm.closeCustomNpcStyleDialog"
         @submit-custom-npc="(profile) => vm.submitCustomNpcBatch(profile)"
         @confirm-add-npcs="(p) => vm.confirmAddOwnerNpcs(p)"
+        @open-deck-preset="() => vm.openDeckPresetDialog()"
         @transfer-owner="() => vm.doTransferOwner({ skipConfirm: true })"
         @kick-players="(nicks) => vm.doKickPlayers(nicks, { skipConfirm: true })"
         @toggle-reveal="vm.onOwnerTouchToggleReveal"
@@ -258,9 +260,19 @@
         :custom-bot-added-tip="vm.customBotAddedTip"
         @close="vm.closeOwnerTerminal"
         @confirm-add-npcs="(p) => vm.confirmAddOwnerNpcs(p)"
+        @open-deck-preset="() => vm.openDeckPresetDialog()"
         @transfer-owner="() => vm.doTransferOwner()"
         @kick-players="(nicks) => vm.doKickPlayers(nicks)"
         @toggle-reveal="vm.onOwnerTerminalToggleReveal"
+    />
+
+    <game-deck-preset-dialog
+        :visible.sync="vm.showDeckPresetDialog"
+        :player-count="vm.deckPresetPlayerCount"
+        :saved-preset-count="vm.deckPresetSavedCount"
+        :initial-cards="vm.deckPresetInitialCards"
+        :submitting="vm.deckPresetSubmitting"
+        @confirm="(cards) => vm.submitDeckPreset(cards)"
     />
 
     <game-player-social-sheet
@@ -342,6 +354,7 @@ import FriendChatDialog from './FriendChatDialog.vue'
 import GameOwnerHubPanel from './GameOwnerHubPanel.vue'
 import GameOwnerTouchPanel from './GameOwnerTouchPanel.vue'
 import CustomNpcStyleDialog from './CustomNpcStyleDialog.vue'
+import GameDeckPresetDialog from './GameDeckPresetDialog.vue'
 
 export default {
   name: 'GameDpGameSheets',
@@ -361,7 +374,8 @@ export default {
     FriendChatDialog,
     GameOwnerHubPanel,
     GameOwnerTouchPanel,
-    CustomNpcStyleDialog
+    CustomNpcStyleDialog,
+    GameDeckPresetDialog
   },
   inject: ['dpGameView'],
   computed: {

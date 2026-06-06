@@ -10,6 +10,7 @@ import com.example.mgdemoplus.npc.CustomNpcStyleSnapshot;
 import com.example.mgdemoplus.room.DpRoomService;
 import com.example.mgdemoplus.room.KickPlayersBatchResult;
 import com.example.mgdemoplus.room.dto.AddCustomNpcBatchRequest;
+import com.example.mgdemoplus.room.dto.SetNextHandDeckPrefixRequest;
 import com.example.mgdemoplus.utils.ResultUtil;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -356,6 +357,30 @@ public class DpRoomController {
                                 @RequestParam String toNickname) {
         return dpRoomService.transferOwner(roomId, fromNickname, toNickname) ? "ok" : "fail";
     }
+
+    /**
+     * 房主预设下一局牌堆前缀（按发牌顺序）；对局进行中也可提交/更新，下一局 newHand 时消费并清空。
+     */
+    @PostMapping("/setNextHandDeckPrefix")
+    public ResultUtil setNextHandDeckPrefix(@RequestBody SetNextHandDeckPrefixRequest req) {
+        if (req == null || req.getRoomId() == null || req.getRoomId().isEmpty()) {
+            return ResultUtil.error().data("message", "roomId 不能为空");
+        }
+        return dpRoomService.setNextHandDeckPrefix(
+                req.getRoomId(),
+                req.getRequesterNickname(),
+                req.getCards());
+    }
+
+    /**
+     * 房主查询当前是否已设下局牌序预设（不下发至普通房间快照）。
+     */
+    @GetMapping("/nextHandDeckPrefixStatus")
+    public ResultUtil nextHandDeckPrefixStatus(@RequestParam String roomId,
+                                               @RequestParam String requesterNickname) {
+        return dpRoomService.getNextHandDeckPrefixStatus(roomId, requesterNickname);
+    }
+
     @GetMapping("/getAllRooms2")
     public List<DpRoom> getAllRooms2() {
         return dpRoomService.getAllRooms2();

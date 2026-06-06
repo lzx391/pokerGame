@@ -8,12 +8,13 @@ export var DP_Z_LAYER = {
   profileDialog: 8500,
   playerSheet: 9000,
   achievement: 9100,
-  handHistory: 9200
+  handHistory: 9200,
+  deckPreset: 9300
 }
 
 var stackBump = 0
 
-/** @param {'friendList'|'profileDialog'|'playerSheet'|'achievement'|'handHistory'} layer */
+/** @param {'friendList'|'profileDialog'|'playerSheet'|'achievement'|'handHistory'|'deckPreset'} layer */
 export function dpLayerZIndex(layer) {
   var base = DP_Z_LAYER[layer]
   if (base == null) base = DP_Z_LAYER.playerSheet

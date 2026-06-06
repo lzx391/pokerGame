@@ -286,6 +286,7 @@ export default {
       if (this.touchMode) {
         return [
           { id: 'add-npc', label: '添加 NPC' },
+          { id: 'deck-preset', label: '实验排牌' },
           { id: 'reveal', label: '看牌' },
           { id: 'kick', label: '踢人' },
           { id: 'transfer', label: '转让' }
@@ -293,6 +294,7 @@ export default {
       }
       return [
         { id: 'add-npc', label: '添加NPC' },
+        { id: 'deck-preset', label: '实验玩法/预设下局牌序' },
         { id: 'transfer', label: '移交房主' },
         { id: 'kick', label: '踢出玩家' },
         { id: 'reveal', label: '看穿底牌' }
@@ -525,6 +527,11 @@ export default {
       if (!item) return
       if (item.id === 'add-npc') {
         this.pushScreen('npc-pick')
+        return
+      }
+      if (item.id === 'deck-preset') {
+        dpOwnerTerminalDevLog('API emit', { action: 'open-deck-preset' })
+        this.$emit('open-deck-preset')
         return
       }
       if (item.id === 'transfer') {

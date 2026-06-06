@@ -118,3 +118,8 @@ export function dpPruneFriendDrawerStrayVModal() {
 export function dpPruneAchievementStrayVModal() {
   dpPruneStrayVModalInRange(DP_Z_LAYER.achievement - 1, DP_Z_LAYER.handHistory + 100)
 }
+
+/** 排牌预设：modal=false 时不应有 v-modal，清理排牌层段内残留 */
+export function dpPruneDeckPresetStrayVModal() {
+  dpPruneStrayVModalInRange(DP_Z_LAYER.deckPreset - 1, DP_Z_LAYER.deckPreset + 100)
+}
