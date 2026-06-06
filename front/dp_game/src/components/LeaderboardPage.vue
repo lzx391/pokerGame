@@ -203,6 +203,17 @@
       :visible="true"
       :target="playerSocialTarget"
       @close="closePlayerSocialSheet"
+      @view-hand-history-with-opponent="openOpponentHandHistoryFromSocial"
+    />
+
+    <game-hand-history-modal
+      :visible="opponentHandHistoryOpen"
+      list-mode="withOpponent"
+      stacked
+      :other-user-id="opponentHandHistoryUserId"
+      :opponent-display-name="opponentHandHistoryDisplayName"
+      :game-ui-theme="gameUiTheme"
+      @close="closeOpponentHandHistoryModal"
     />
   </div>
 </template>
@@ -217,6 +228,7 @@ import DpFluidityToggle from '@/components/DpFluidityToggle.vue'
 import DpUserAvatar from '@/components/DpUserAvatar.vue'
 import HomeProfileModal from '@/components/HomeProfileModal.vue'
 import GamePlayerSocialSheet from '@/components/GamePlayerSocialSheet.vue'
+import GameHandHistoryModal from '@/components/GameHandHistoryModal.vue'
 import { getWeeklyHandLeaderboard, getWeeklyRoomLeaderboard } from '@/api/api.dpLeaderboard'
 import { dpSocialApi } from '@/api/api.dpSocial'
 import { dpResultSuccess, dpResultData, dpResultMessage, dpAxiosErrorMessage } from '@/utils/dpApiResult'
@@ -233,7 +245,13 @@ var SCAN_SKELETON_NICKS = ['SCAN...', 'LOAD...', 'WAIT...', 'SYNC...', 'SCAN...'
 
 export default {
   name: 'LeaderboardPage',
-  components: { DpFluidityToggle, DpUserAvatar, HomeProfileModal, GamePlayerSocialSheet },
+  components: {
+    DpFluidityToggle,
+    DpUserAvatar,
+    HomeProfileModal,
+    GamePlayerSocialSheet,
+    GameHandHistoryModal
+  },
   mixins: [dpLobbyThemeMixin],
   data() {
     return {
@@ -251,6 +269,9 @@ export default {
       profileVisible: false,
       playerSocialOpen: false,
       playerSocialTarget: null,
+      opponentHandHistoryOpen: false,
+      opponentHandHistoryUserId: null,
+      opponentHandHistoryDisplayName: '',
       prefersReducedMotion: false,
       scanRevealKey: 0,
       scanActive: false,
@@ -371,6 +392,19 @@ export default {
     closePlayerSocialSheet() {
       this.playerSocialOpen = false
       this.playerSocialTarget = null
+    },
+    openOpponentHandHistoryFromSocial(payload) {
+      if (!payload || payload.userId == null || payload.userId === '') return
+      var uid = Number(payload.userId)
+      if (!uid || uid <= 0 || isNaN(uid)) return
+      this.opponentHandHistoryUserId = uid
+      this.opponentHandHistoryDisplayName = payload.displayName || ''
+      this.opponentHandHistoryOpen = true
+    },
+    closeOpponentHandHistoryModal() {
+      this.opponentHandHistoryOpen = false
+      this.opponentHandHistoryUserId = null
+      this.opponentHandHistoryDisplayName = ''
     },
     goBack() {
       this.$router.push('/home')
