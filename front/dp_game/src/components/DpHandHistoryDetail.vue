@@ -63,6 +63,7 @@
                           <span class="dp-hd__tbl-hd dp-hd__tbl-hd--nick">PLAYER</span>
                           <span class="dp-hd__tbl-hd dp-hd__tbl-hd--holes">HOLE</span>
                           <span v-for="(h, hi) in roundColHeaders" :key="'hdr-' + hi" class="dp-hd__tbl-hd dp-hd__tbl-hd--round">{{ h }}</span>
+                          <span class="dp-hd__tbl-hd dp-hd__tbl-hd--rank-street">HAND</span>
                         </div>
                         <!-- 表体 -->
                         <div v-for="nick in activePlayers" :key="'apr-' + nick" class="dp-hd__tbl-row" :class="{ 'dp-hd__tbl-row--folded': foldedSet.has(nick), 'dp-hd__tbl-row--self': isSelfNick(nick) }">
@@ -83,6 +84,7 @@
                           </span>
                           <!-- 各轮行动 -->
                           <span v-for="(col, ci) in roundGrid" :key="nick + '-act-' + ci" class="dp-hd__tbl-act">{{ col[nick] || '--' }}</span>
+                          <span class="dp-hd__tbl-rank dp-hd__tbl-rank--street">{{ handRankTextForStreet(nick) || '--' }}</span>
                         </div>
                       </template>
                     </div>
@@ -145,11 +147,13 @@
 import { mapState } from 'vuex'
 import { getCardClass, getCardDisplay } from '@/utils/dpGameCardVisual'
 import { getHandRank } from '@/utils/dpGameHandRank'
+import { displayHandRankName } from '@/utils/dpHandRankDisplay'
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
 import {
   STREET_ORDER, seatNicknamesOrdered, formatActionText,
   activePlayersBeforeStreet, boardForStreet, firstFoldStage,
-  finalCommunityCards, playerRoleTagsByNickname, shouldShowHoleCardsOnStreetTab,
+  finalCommunityCards, finalHandRankNameByPlayer, handRankNameByStreet,
+  playerRoleTagsByNickname, shouldShowHoleCardsOnStreetTab,
   splitRoundsByRaises, buildRoundGrid
 } from '@/utils/dpHandHistoryReplay.js'
 
@@ -301,6 +305,7 @@ export default {
       if (!net || typeof net !== 'object') return []
       var self = this
       var community = finalCommunityCards(this.boardsByStreet)
+      var rankMap = finalHandRankNameByPlayer(self.boardsByStreet)
       var viewer = this.user && this.user.nickname
       var holes = this.holeCardsAtEnd
       return this.rowNicknames.filter(function (n) { return Object.prototype.hasOwnProperty.call(net, n) }).map(function (nick) {
@@ -313,10 +318,7 @@ export default {
         } else if (!folded) {
           cards = Array.isArray(holes[nick]) ? holes[nick] : []
         }
-        var rankText = ''
-        if (cards.length >= 2 && community.length >= 3) {
-          rankText = getHandRank(cards, community) || ''
-        }
+        var rankText = self.handRankTextForSettlement(nick, folded, isSelf, cards, community, rankMap)
         return { nick: nick, net: nv, folded: folded, isSelf: isSelf, cards: cards, rankText: rankText }
       })
     },
@@ -434,6 +436,34 @@ export default {
       return M + '/' + D + ' ' + h + ':' + m
     },
     potLabel: function (i) { return i === 0 ? 'MAIN' : 'SIDE' + i },
+    handRankTextForStreet: function (nick) {
+      if (!nick || this.activeTab === 'settlement') return ''
+      var viewer = this.user && this.user.nickname
+      var isSelf = viewer && nick === viewer
+      var holesCell = this.holeCardsByStreet[nick]
+      if (!isSelf && holesCell === null) return ''
+      var community = this.boardCards
+      if (!community || community.length < 3) return ''
+      var map = handRankNameByStreet(this.boardsByStreet, this.activeTab)
+      var text = map[nick]
+      if (text && String(text).trim()) return displayHandRankName(String(text).trim())
+      if (!isSelf) return ''
+      var holeList = Array.isArray(holesCell) ? holesCell : []
+      if (holeList.length < 2) return ''
+      return displayHandRankName(getHandRank(holeList, community) || '')
+    },
+    handRankTextForSettlement: function (nick, folded, isSelf, cards, community, rankMap) {
+      if (!nick) return ''
+      if (folded && !isSelf) return ''
+      if (!community || community.length < 3) return ''
+      var map = rankMap || finalHandRankNameByPlayer(this.boardsByStreet)
+      var text = map[nick]
+      if (text && String(text).trim()) return displayHandRankName(String(text).trim())
+      if (!isSelf) return ''
+      var holeList = Array.isArray(cards) ? cards : []
+      if (holeList.length < 2) return ''
+      return displayHandRankName(getHandRank(holeList, community) || '')
+    },
     fetchDetail: function () {
       var user = this.isLobbyPage ? this.user : (this.vm && this.vm.user)
       var http = this.isLobbyPage ? this.$http : (this.vm && this.vm.$http)
@@ -645,6 +675,7 @@ export default {
 .dp-hd__tbl-hd--round { flex:1;text-align:center;min-width:50px }
 .dp-hd__tbl-hd--net { width:56px;flex-shrink:0;text-align:right }
 .dp-hd__tbl-hd--rank { flex:1;text-align:left;padding-left:4px }
+.dp-hd__tbl-hd--rank-street { width:52px;flex-shrink:0;text-align:left;padding-left:4px }
 
 .dp-hd__tbl-row {
   display:flex;align-items:center;gap:0;
@@ -721,6 +752,7 @@ export default {
 .dp-hd__tbl-net--plus { color:#72f052;text-shadow:0 0 4px rgba(114,240,82,0.35) }
 .dp-hd__tbl-net--minus { color:#ff6666 }
 .dp-hd__tbl-rank { flex:1;padding-left:4px;color:rgba(74,246,38,0.32);font-size:9px }
+.dp-hd__tbl-rank--street { width:52px;flex-shrink:0;flex:none;font-size:8px;line-height:1.3;word-break:break-all }
 
 .dp-hd__pots { margin-top:4px }
 .dp-hd__pot { display:flex;gap:6px;padding:2px 0;font-size:9px;color:rgba(74,246,38,0.4) }
