@@ -16,6 +16,9 @@ export function dpGetOverlayPortalRoot() {
   if (fs && fs.classList && fs.classList.contains('dp-game-root')) {
     return fs
   }
+  /* 伪全屏：叠层须挂在对局根内，否则 body 上的 fixed 层可能被整页 stacking 挡住 */
+  var pseudo = document.querySelector('.dp-game-root.dp-game-root--pseudo-fs')
+  if (pseudo) return pseudo
   return document.body
 }
 

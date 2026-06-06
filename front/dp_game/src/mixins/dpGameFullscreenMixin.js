@@ -134,7 +134,7 @@ export default {
     },
     reparentElementUiLayersIntoFullscreenRoot: function () {
       var root = this.$refs.gameRoot
-      if (!root || !this.isFullscreen) return
+      if (!root || !this.layoutFullscreen) return
       var moveIfOutside = function (node) {
         if (!node || !node.parentNode || root.contains(node)) return
         root.appendChild(node)
@@ -165,7 +165,7 @@ export default {
     },
     scheduleReparentElementUiLayersIntoFullscreenRoot: function () {
       var self = this
-      if (!self.isFullscreen) return
+      if (!self.layoutFullscreen) return
       var run = function () {
         self.reparentElementUiLayersIntoFullscreenRoot()
       }

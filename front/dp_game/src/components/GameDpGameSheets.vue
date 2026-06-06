@@ -272,6 +272,7 @@
     />
 
     <game-hand-history-modal
+        v-if="vm.gameUiTheme !== 'retro8bit'"
         :visible="vm.showOpponentHandHistoryModal"
         :game-ui-theme="vm.effectiveThemeForCss"
         list-mode="withOpponent"

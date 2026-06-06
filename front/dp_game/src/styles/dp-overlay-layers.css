@@ -25,3 +25,8 @@ body[data-dp-game-theme] .v-modal:has(+ .el-drawer__wrapper .home-friends-drawer
 body[data-dp-game-theme] .el-drawer__wrapper:has(.home-friends-drawer) {
   z-index: var(--dp-z-friend-list) !important;
 }
+
+/* 成就墙：叠在玩家资料卡之上 */
+body[data-dp-game-theme] .el-dialog__wrapper:has(.dp-achievement-wall-dialog) {
+  z-index: var(--dp-z-achievement, 9100) !important;
+}

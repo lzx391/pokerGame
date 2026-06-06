@@ -69,7 +69,12 @@
 <script>
 import { dpResultSuccess, dpResultData, dpResultMessage, dpAxiosErrorMessage } from '@/utils/dpApiResult'
 import { dpLayerZIndex, dpNextZIndex } from '@/utils/dpModalZIndex'
-import { dpScheduleOverlayFullscreenReparent } from '@/utils/dpOverlayPortal'
+import {
+  dpGetOverlayPortalRoot,
+  dpPortalOverlayToBody,
+  dpRestoreOverlayFromPortal,
+  dpScheduleOverlayFullscreenReparent
+} from '@/utils/dpOverlayPortal'
 
 export default {
   name: 'DpAchievementWallModal',
@@ -87,7 +92,8 @@ export default {
       dialogZIndex: dpLayerZIndex('achievement'),
       loading: false,
       loadError: '',
-      items: []
+      items: [],
+      _portalAnchor: null
     }
   },
   computed: {
@@ -116,13 +122,63 @@ export default {
         var self = this
         this.$nextTick(function () {
           self.loadAchievements()
+          self.attachPortal()
           dpScheduleOverlayFullscreenReparent(self.dpGameView)
         })
+      } else {
+        this.detachPortal()
       }
     }
   },
+  beforeDestroy() {
+    this.detachPortal()
+  },
   methods: {
+    findDialogWrapper() {
+      if (typeof document === 'undefined') return null
+      var nodes = document.querySelectorAll('.el-dialog__wrapper')
+      var i = 0
+      for (i = nodes.length - 1; i >= 0; i--) {
+        var node = nodes[i]
+        if (!node || node.style.display === 'none') continue
+        if (node.querySelector('.dp-achievement-wall-dialog')) return node
+      }
+      return null
+    },
+    attachPortal() {
+      var self = this
+      var attempt = function () {
+        var wrapper = self.findDialogWrapper()
+        if (!wrapper) return false
+        if (!self._portalAnchor) {
+          self._portalAnchor = { parent: null, next: null }
+        }
+        dpPortalOverlayToBody(wrapper, self._portalAnchor, dpGetOverlayPortalRoot())
+        wrapper.style.zIndex = String(self.dialogZIndex)
+        var modal = wrapper.querySelector('.v-modal')
+        if (modal) {
+          modal.style.zIndex = String(self.dialogZIndex - 1)
+        }
+        dpScheduleOverlayFullscreenReparent(self.dpGameView)
+        return true
+      }
+      if (attempt()) return
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(function () {
+          if (!attempt()) setTimeout(attempt, 0)
+        })
+      } else {
+        setTimeout(attempt, 0)
+      }
+      setTimeout(attempt, 50)
+    },
+    detachPortal() {
+      var wrapper = this.findDialogWrapper()
+      dpRestoreOverlayFromPortal(wrapper, this._portalAnchor)
+      this._portalAnchor = null
+    },
     onClosed() {
+      this.detachPortal()
       this.items = []
       this.loadError = ''
       this.loading = false

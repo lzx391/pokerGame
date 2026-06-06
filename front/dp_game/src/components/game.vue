@@ -138,6 +138,14 @@
     <dp-crt-event-popup v-if="gameUiTheme === 'retro8bit'" ref="crtEventPopup" />
     <dp-music-player ref="musicPlayer" v-if="gameUiTheme === 'retro8bit'" :open.sync="showMusicPlayer" />
     <dp-hand-history-viewer ref="handHistoryViewer" v-if="gameUiTheme === 'retro8bit'" :open.sync="showHandHistoryPanel" />
+    <dp-hand-history-viewer
+        v-if="gameUiTheme === 'retro8bit'"
+        ref="opponentHandHistoryViewer"
+        :open.sync="showOpponentHandHistoryPanel"
+        list-mode="withOpponent"
+        :other-user-id="opponentHandHistoryOtherUserId"
+        :opponent-display-name="opponentHandHistoryDisplayName"
+    />
     <dp-hand-history-detail ref="handHistoryDetail" v-if="gameUiTheme === 'retro8bit'" :hand-history-id="handHistoryDetailId" @closed="handHistoryDetailId = null" />
 
     <dp-retro-ambient-overlay
@@ -260,6 +268,7 @@ export default {
       showOwnerPotJudgeSheet: false,
       showMusicPlayer: false,
       showHandHistoryPanel: false,
+      showOpponentHandHistoryPanel: false,
       handHistoryDetailId: null,
       viewportWidth: typeof window !== 'undefined' ? window.innerWidth : 1024,
       prefersReducedMotion: false,
@@ -536,8 +545,11 @@ export default {
     showHandHistoryPanel(v) {
       if (!v) { this.refocusTerminalIfOpen() }
     },
+    showOpponentHandHistoryPanel(v) {
+      if (!v) { this.refocusTerminalIfOpen() }
+    },
     handHistoryDetailId(v) {
-      if (v == null && !this.showHandHistoryPanel) { this.refocusTerminalIfOpen() }
+      if (v == null && !this.showHandHistoryPanel && !this.showOpponentHandHistoryPanel) { this.refocusTerminalIfOpen() }
     }
   },
 
@@ -737,11 +749,13 @@ export default {
             if (mp && typeof mp.onKey === 'function') { mp.onKey(e); return }
             this.showMusicPlayer = false; return
           }
-          if (this.showHandHistoryPanel) {
+          if (this.showHandHistoryPanel || this.showOpponentHandHistoryPanel) {
             e.preventDefault()
-            var hh = this.$refs.handHistoryViewer
+            var hh = this.resolveActiveHandHistoryViewer()
             if (hh && typeof hh.onKey === 'function') { hh.onKey(e); return }
-            this.showHandHistoryPanel = false; return
+            this.showHandHistoryPanel = false
+            this.showOpponentHandHistoryPanel = false
+            return
           }
         }
         return
@@ -765,11 +779,14 @@ export default {
           return
         }
         // 如果历史对局开着，先关历史对局
-        if (this.showHandHistoryPanel) {
+        if (this.showHandHistoryPanel || this.showOpponentHandHistoryPanel) {
           e.preventDefault()
-          var hh2 = this.$refs.handHistoryViewer
+          var hh2 = this.resolveActiveHandHistoryViewer()
           if (hh2 && typeof hh2.close === 'function') { hh2.close() }
-          else { this.showHandHistoryPanel = false }
+          else {
+            this.showHandHistoryPanel = false
+            this.showOpponentHandHistoryPanel = false
+          }
           return
         }
         e.preventDefault()
@@ -790,8 +807,8 @@ export default {
           var mp3 = this.$refs.musicPlayer
           if (mp3 && typeof mp3.onKey === 'function' && mp3.onKey(e)) return
         }
-        if (this.showHandHistoryPanel) {
-          var hh3 = this.$refs.handHistoryViewer
+        if (this.showHandHistoryPanel || this.showOpponentHandHistoryPanel) {
+          var hh3 = this.resolveActiveHandHistoryViewer()
           if (hh3 && typeof hh3.onKey === 'function' && hh3.onKey(e)) return
         }
       }
@@ -1876,9 +1893,15 @@ export default {
       var uid = Number(payload.userId)
       if (!uid || uid <= 0 || isNaN(uid)) return
       this.$store.commit('dpGame/SET_MODAL', {
-        showOpponentHandHistoryModal: true,
         opponentHandHistoryOtherUserId: uid,
         opponentHandHistoryDisplayName: payload.displayName || ''
+      })
+      if (this.gameUiTheme === 'retro8bit') {
+        this.showOpponentHandHistoryPanel = true
+        return
+      }
+      this.$store.commit('dpGame/SET_MODAL', {
+        showOpponentHandHistoryModal: true
       })
       this.scheduleReparentElementUiLayersIntoFullscreenRoot()
     },
@@ -2411,6 +2434,12 @@ export default {
     openHandHistory() {
       if (this.gameUiTheme === 'retro8bit') { this.showHandHistoryPanel = true; return }
       this.$store.commit('dpGame/SET_MODAL', { showHandHistoryModal: true })
+    },
+    resolveActiveHandHistoryViewer() {
+      if (this.showOpponentHandHistoryPanel) {
+        return this.$refs.opponentHandHistoryViewer || this.$refs.handHistoryViewer
+      }
+      return this.$refs.handHistoryViewer
     },
     openHandHistoryDetail(handHistoryId) {
       this.handHistoryDetailId = handHistoryId

@@ -16,7 +16,7 @@
 
         <!-- 头部 -->
         <div class="dp-hh__head">
-          <span class="dp-hh__title">&gt; HAND HISTORY</span>
+          <span class="dp-hh__title">{{ headTitle }}</span>
           <button class="dp-hh__close" @click="close">{{ isLobbyPage ? '[BACK]' : '[X]' }}</button>
         </div>
 
@@ -69,6 +69,16 @@ export default {
   inject: { dpGameView: { default: null } },
   props: {
     open: { type: Boolean, default: false },
+    /** mine：`/dpHandHistory/list`；withOpponent：与同局真人双方的共同列表 */
+    listMode: {
+      type: String,
+      default: 'mine',
+      validator: function (v) { return v === 'mine' || v === 'withOpponent' }
+    },
+    /** `listMode===withOpponent` 时为对方 dp_user.id */
+    otherUserId: { type: Number, default: null },
+    /** 列表标题展示用，须与卡片/dpDisplayNickname 一致 */
+    opponentDisplayName: { type: String, default: '' },
     /** game-overlay: in-game panel; lobby-page: full-page /hand-history route */
     context: {
       type: String,
@@ -123,12 +133,27 @@ export default {
       var cls = [this.animClass]
       if (this.isLobbyPage) cls.push('dp-hh__shell--lobby-page')
       return cls
+    },
+    headTitle: function () {
+      if (
+        this.listMode === 'withOpponent'
+        && this.opponentDisplayName
+      ) {
+        return '> VS ' + String(this.opponentDisplayName).toUpperCase()
+      }
+      return '> HAND HISTORY'
     }
   },
   watch: {
     open: function (v) {
       if (this.isLobbyPage) return
       if (v) this.startOpen(); else this.doClose()
+    },
+    otherUserId: function () {
+      if (this.isLobbyPage || !this.visible) return
+      this.currentPage = 1
+      this.cursor = 0
+      this.fetchList()
     },
     visible: function (v) {
       if (this.isLobbyPage) return
@@ -188,6 +213,16 @@ export default {
       if (this.flashTimer) { clearTimeout(this.flashTimer); this.flashTimer = null }
     },
     startOpen: function () {
+      if (this.listMode === 'withOpponent') {
+        var oid = Number(this.otherUserId)
+        if (!oid || oid <= 0 || isNaN(oid)) {
+          this.loadError = '无效的对手 ID'
+          this.visible = true
+          this.phase = 'ready'
+          this.rows = []
+          return
+        }
+      }
       this.visible = true; this.cursor = 0; this.currentPage = 1; this.loadError = ''
       if (this.showCrt) { this.phase = 'sliding' }
       else { this.phase = 'ready'; this.fetchList() }
@@ -220,10 +255,29 @@ export default {
       var user = this.isLobbyPage ? this.user : (this.vm && this.vm.user)
       var http = this.isLobbyPage ? this.$http : (this.vm && this.vm.$http)
       if (!user || !http) { this.loadError = '无用户数据'; return }
+      if (this.listMode === 'withOpponent') {
+        var otherId = Number(this.otherUserId)
+        if (!otherId || otherId <= 0 || isNaN(otherId)) {
+          this.loadError = '无效的对手 ID'
+          this.rows = []
+          this.loading = false
+          return
+        }
+      }
       this.loading = true; this.loadError = ''
       var self = this
-      http.get('/dpHandHistory/list', {
-        params: { userId: Number(user.userId), page: this.currentPage, pageSize: this.pageSize }
+      var params = {
+        userId: Number(user.userId),
+        page: this.currentPage,
+        pageSize: this.pageSize
+      }
+      var url = '/dpHandHistory/list'
+      if (this.listMode === 'withOpponent') {
+        url = '/dpHandHistory/checkUserAndOtherPlayerHandHistoryList'
+        params.otherUserId = Number(this.otherUserId)
+      }
+      http.get(url, {
+        params: params
       }).then(function (res) {
         var body = res.data || {}
         // 兼容两种响应格式：{records,total} 或 {code,data:{records,total}}

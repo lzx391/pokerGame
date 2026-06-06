@@ -53,6 +53,7 @@
 import HandHistory from './HandHistory.vue'
 import HandHistoryDetail from './HandHistoryDetail.vue'
 import {
+  dpGetOverlayPortalRoot,
   dpOpenBodyOverlayZIndex,
   dpPortalOverlayToBody,
   dpRestoreOverlayFromPortal,
@@ -132,18 +133,38 @@ export default {
       }
     }
   },
+  mounted() {
+    if (this.visible && this.useStackedOverlay) {
+      if (this.portalZIndex == null) {
+        this.portalZIndex = dpOpenBodyOverlayZIndex('handHistory')
+      }
+      this.attachPortal()
+    }
+  },
   beforeDestroy() {
     this.detachPortal()
   },
   methods: {
     attachPortal() {
-      var el = this.$refs.mask
-      if (!el) return
-      if (!this._portalAnchor) {
-        this._portalAnchor = { parent: null, next: null }
+      var self = this
+      var attempt = function () {
+        var el = self.$refs.mask
+        if (!el) return false
+        if (!self._portalAnchor) {
+          self._portalAnchor = { parent: null, next: null }
+        }
+        dpPortalOverlayToBody(el, self._portalAnchor, dpGetOverlayPortalRoot())
+        dpScheduleOverlayFullscreenReparent(self.dpGameView)
+        return true
       }
-      dpPortalOverlayToBody(el, this._portalAnchor)
-      dpScheduleOverlayFullscreenReparent(this.dpGameView)
+      if (attempt()) return
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(function () {
+          if (!attempt()) setTimeout(attempt, 0)
+        })
+      } else {
+        setTimeout(attempt, 0)
+      }
     },
     detachPortal() {
       dpRestoreOverlayFromPortal(this.$refs.mask, this._portalAnchor)
