@@ -229,45 +229,16 @@
               <el-form-item label="登录密码">
                 <div class="home-prof-pwd-row">
                   <span class="home-prof-pwd-hint">
-                    {{ form.passwordSet ? '已设置（加密存储，不可查看）' : '未设置' }}
+                    {{ form.passwordSet ? '已设置（加密存储，不可查看）' : '未设置（可单独设置密码）' }}
                   </span>
                   <button
-                    v-if="!editingPassword"
                     type="button"
                     class="home-prof-btn home-prof-btn--outline home-prof-btn--sm"
-                    @click="editingPassword = true"
+                    @click="openPasswordDialog"
                   >
                     修改密码
                   </button>
                 </div>
-                <template v-if="editingPassword">
-                  <el-input
-                    v-model="form.newPassword"
-                    type="password"
-                    show-password
-                    autocomplete="new-password"
-                    placeholder="新密码（至少 6 位，留空不改）"
-                    class="home-prof-field-gap"
-                  />
-                  <el-input
-                    v-model="form.confirmPassword"
-                    type="password"
-                    show-password
-                    autocomplete="new-password"
-                    placeholder="再次输入新密码"
-                    class="home-prof-field-gap"
-                  />
-                </template>
-              </el-form-item>
-
-              <el-form-item v-if="form.passwordSet" label="当前密码" required>
-                <el-input
-                  v-model="form.oldPassword"
-                  type="password"
-                  show-password
-                  autocomplete="current-password"
-                  placeholder="保存前须验证当前密码"
-                />
               </el-form-item>
             </el-form>
           </div>
@@ -287,6 +258,72 @@
       </template>
     </div>
 
+  </el-dialog>
+
+  <el-dialog
+    :visible.sync="passwordDialogVisible"
+    :title="form.passwordSet ? '修改密码' : '设置密码'"
+    width="min(92vw, 420px)"
+    custom-class="home-profile-pwd-dialog"
+    append-to-body
+    :z-index="passwordDialogZIndex"
+    :close-on-click-modal="!passwordSaving"
+    @closed="onPasswordDialogClosed"
+  >
+    <el-form
+      label-position="top"
+      class="home-prof-form"
+      @submit.native.prevent="onSavePassword"
+    >
+      <el-form-item label="新密码" required>
+        <el-input
+          v-model="pwdForm.newPassword"
+          type="password"
+          show-password
+          autocomplete="new-password"
+          placeholder="至少 6 位"
+        />
+      </el-form-item>
+      <el-form-item label="确认新密码" required>
+        <el-input
+          v-model="pwdForm.confirmPassword"
+          type="password"
+          show-password
+          autocomplete="new-password"
+          placeholder="再次输入新密码"
+        />
+      </el-form-item>
+      <el-form-item v-if="form.passwordSet" label="当前密码" required>
+        <el-input
+          v-model="pwdForm.oldPassword"
+          type="password"
+          show-password
+          autocomplete="current-password"
+          placeholder="请输入当前密码"
+        />
+      </el-form-item>
+    </el-form>
+    <div slot="footer" class="home-prof-footer home-prof-footer--pwd">
+      <button
+        type="button"
+        class="home-prof-btn home-prof-btn--ghost"
+        :disabled="passwordSaving"
+        @click="passwordDialogVisible = false"
+      >
+        取消
+      </button>
+      <button
+        type="button"
+        class="home-prof-btn home-prof-btn--gold"
+        :disabled="passwordSaving"
+        @click="onSavePassword"
+      >
+        <span v-if="!passwordSaving">保存</span>
+        <span v-else class="home-prof-btn__saving">
+          <i class="el-icon-loading"></i> 保存中…
+        </span>
+      </button>
+    </div>
   </el-dialog>
 
   <dp-achievement-wall-modal
@@ -329,7 +366,8 @@ export default {
       saving: false,
       avatarUploading: false,
       avatarCacheBust: '',
-      editingPassword: false,
+      passwordDialogVisible: false,
+      passwordSaving: false,
       honorGlitchPhase: 'idle',
       honorGlitchTick: 0,
       honorGlitchTimer: null,
@@ -347,10 +385,12 @@ export default {
         leaderboardTopCount: null,
         largestPotWon: null,
         largestRoomNet: null,
-        totalHandsPlayed: null,
-        oldPassword: '',
+        totalHandsPlayed: null
+      },
+      pwdForm: {
         newPassword: '',
-        confirmPassword: ''
+        confirmPassword: '',
+        oldPassword: ''
       }
     }
   },
@@ -365,6 +405,9 @@ export default {
     },
     profileDialogZIndex() {
       return dpLayerZIndex('profileDialog')
+    },
+    passwordDialogZIndex() {
+      return dpLayerZIndex('profileDialog') + 50
     },
     showBackdrop() {
       if (this.mode === 'edit' || this.shouldSkipEffects()) return false
@@ -425,28 +468,35 @@ export default {
     },
     enterEditMode() {
       this.mode = 'edit'
-      this.form.oldPassword = ''
-      this.form.newPassword = ''
-      this.form.confirmPassword = ''
-      this.editingPassword = false
+      this.passwordDialogVisible = false
+      this.resetPwdForm()
+    },
+    openPasswordDialog() {
+      this.resetPwdForm()
+      this.passwordDialogVisible = true
+    },
+    resetPwdForm() {
+      this.pwdForm.newPassword = ''
+      this.pwdForm.confirmPassword = ''
+      this.pwdForm.oldPassword = ''
+    },
+    onPasswordDialogClosed() {
+      this.resetPwdForm()
+      this.passwordSaving = false
     },
     openAchievementWall() {
       this.achievementWallVisible = true
     },
     leaveEditMode() {
       this.mode = 'view'
-      this.editingPassword = false
-      this.form.oldPassword = ''
-      this.form.newPassword = ''
-      this.form.confirmPassword = ''
+      this.passwordDialogVisible = false
+      this.resetPwdForm()
     },
     onClosed() {
       this.mode = 'view'
-      this.editingPassword = false
+      this.passwordDialogVisible = false
       this.honorGlitchPhase = 'idle'
-      this.form.oldPassword = ''
-      this.form.newPassword = ''
-      this.form.confirmPassword = ''
+      this.resetPwdForm()
       this.stopHonorGlitch()
       this.resetProfGrayGlitch()
     },
@@ -634,10 +684,6 @@ export default {
       }
     },
     async onSave() {
-      if (this.form.passwordSet && !this.form.oldPassword) {
-        this.$message.warning('请填写当前密码')
-        return
-      }
       if (!this.form.nickname) {
         this.$message.warning('昵称不能为空')
         return
@@ -646,26 +692,11 @@ export default {
         this.$message.warning('昵称不能为纯数字')
         return
       }
-      if (this.editingPassword && this.form.newPassword) {
-        if (this.form.newPassword.length < 6) {
-          this.$message.warning('新密码至少 6 位')
-          return
-        }
-        if (this.form.newPassword !== this.form.confirmPassword) {
-          this.$message.warning('两次输入的新密码不一致')
-          return
-        }
-      }
-      const payload = {
-        nickname: this.form.nickname,
-        oldPassword: this.form.oldPassword
-      }
-      if (this.editingPassword && this.form.newPassword) {
-        payload.newPassword = this.form.newPassword
-      }
       this.saving = true
       try {
-        const res = await this.$http.put('/dpUser/profile', payload)
+        const res = await this.$http.put('/dpUser/profile', {
+          nickname: this.form.nickname
+        })
         const body = res.data
         if (!dpResultSuccess(body)) {
           this.$message.error(dpResultMessage(body) || '保存失败')
@@ -676,11 +707,9 @@ export default {
         this.$emit('saved', {
           nickname: saved.nickname || this.form.nickname,
           token: saved.token,
-          nicknameChanged: !!saved.nicknameChanged,
-          newPassword: this.editingPassword && this.form.newPassword ? this.form.newPassword : '',
-          passwordForStorage: this.form.oldPassword
+          nicknameChanged: !!saved.nicknameChanged
         })
-        this.dialogVisible = false
+        this.mode = 'view'
       } catch (e) {
         const msg =
           (e.response && e.response.data && (e.response.data.message || e.response.data.msg)) ||
@@ -688,6 +717,48 @@ export default {
         this.$message.error(msg)
       } finally {
         this.saving = false
+      }
+    },
+    async onSavePassword() {
+      if (!this.pwdForm.newPassword) {
+        this.$message.warning('请填写新密码')
+        return
+      }
+      if (this.pwdForm.newPassword.length < 6) {
+        this.$message.warning('新密码至少 6 位')
+        return
+      }
+      if (this.pwdForm.newPassword !== this.pwdForm.confirmPassword) {
+        this.$message.warning('两次输入的新密码不一致')
+        return
+      }
+      if (this.form.passwordSet && !this.pwdForm.oldPassword) {
+        this.$message.warning('请填写当前密码')
+        return
+      }
+      const payload = { newPassword: this.pwdForm.newPassword }
+      if (this.form.passwordSet) {
+        payload.oldPassword = this.pwdForm.oldPassword
+      }
+      this.passwordSaving = true
+      try {
+        const res = await this.$http.put('/dpUser/password', payload)
+        const body = res.data
+        if (!dpResultSuccess(body)) {
+          this.$message.error(dpResultMessage(body) || '保存失败')
+          return
+        }
+        const saved = dpResultData(body) || {}
+        this.$message.success(saved.message || dpResultMessage(body) || '密码已更新')
+        this.form.passwordSet = true
+        this.passwordDialogVisible = false
+      } catch (e) {
+        const msg =
+          (e.response && e.response.data && (e.response.data.message || e.response.data.msg)) ||
+          '保存失败'
+        this.$message.error(msg)
+      } finally {
+        this.passwordSaving = false
       }
     }
   }
@@ -1212,8 +1283,8 @@ export default {
   color: var(--dp-text-muted);
   line-height: 1.4;
 }
-.home-prof-field-gap {
-  margin-top: 8px;
+.home-prof-footer--pwd {
+  padding-top: 0;
 }
 
 /* ---- Footer ---- */
@@ -1335,6 +1406,23 @@ export default {
 }
 .home-profile-dialog .el-dialog__footer {
   display: none;
+}
+
+.home-profile-pwd-dialog {
+  max-width: calc(100vw - 16px);
+  border-radius: 14px !important;
+}
+.home-profile-pwd-dialog .el-dialog__header {
+  padding: 16px 20px 8px;
+  background: var(--dp-panel-bg);
+}
+.home-profile-pwd-dialog .el-dialog__body {
+  padding: 8px 20px 4px;
+  background: var(--dp-panel-bg);
+}
+.home-profile-pwd-dialog .el-dialog__footer {
+  padding: 8px 20px 16px;
+  background: var(--dp-panel-bg);
 }
 
 /* eco / PRM：跳过头像 blur 与 honor 揭示动画 */

@@ -6,6 +6,7 @@ import com.example.mgdemoplus.common.mapper.DpUserMapper;
 import com.example.mgdemoplus.moderation.DpSensitiveWordService;
 import com.example.mgdemoplus.user.DpUserService;
 import com.example.mgdemoplus.user.dto.DpAvatarUploadResult;
+import com.example.mgdemoplus.user.dto.DpUserPasswordUpdateRequest;
 import com.example.mgdemoplus.user.dto.DpUserProfileUpdateRequest;
 import com.example.mgdemoplus.user.dto.DpUserProfileUpdateResult;
 import com.example.mgdemoplus.user.dto.DpPlayerHonorView;
@@ -55,6 +56,7 @@ public class DpUserServiceImpl implements DpUserService {
 
     public static final String MSG_SENSITIVE = "敏感词汇";
     public static final String MSG_NUMERIC_NICKNAME = "昵称不能为纯数字";
+    public static final String MSG_USE_PASSWORD_ENDPOINT = "请使用改密接口";
 
     public int registerUser(DpUser dpUser) {
         String nickname = dpUser.getNickname() == null ? "" : dpUser.getNickname().trim();
@@ -167,85 +169,121 @@ public class DpUserServiceImpl implements DpUserService {
             result.setMessage("参数无效");
             return result;
         }
-        //验证旧密码是否输入
-        String oldPassword = request.getOldPassword();
-        if (oldPassword == null || oldPassword.isBlank()) {
-            result.setMessage("请填写当前密码");
-            return result;
-        }
-        //验证旧密码是否正确
         DpUser stored = dpUserMapper.selectById(current.getId());
         if (stored == null) {
             result.setMessage("用户不存在");
             return result;
         }
-        // OAuth 用户无密码：跳过旧密码校验
-        if (stored.getPassword() != null && !stored.getPassword().isBlank()) {
-            if (!CryptoUtil.bcryptMatches(oldPassword, stored.getPassword())) {
-                result.setMessage("当前密码错误");
-                return result;
-            }
-        }
-        //验证昵称是否输入
-        String newNickname = request.getNickname() != null ? request.getNickname().trim() : "";
-        if (newNickname.isEmpty()) {
-            result.setMessage("昵称不能为空");
-            return result;
-        }
-        //验证昵称长度
-        if (newNickname.length() > 10) {
-            result.setMessage("昵称最多 10 个字符");
-            return result;
-        }
-        if (newNickname.matches("\\d+")) {
-            result.setMessage(MSG_NUMERIC_NICKNAME);
-            return result;
-        }
-        if (sensitiveWordService.containsSensitive(newNickname)) {
-            result.setMessage(MSG_SENSITIVE);
-            return result;
-        }
 
-        boolean nicknameChanged = !newNickname.equals(stored.getNickname());
-        if (nicknameChanged) {
-            DpUser taken = dpUserMapper.selectByNickname(newNickname);
-            if (taken != null && taken.getId() != stored.getId()) {
-                result.setMessage("昵称已被占用");
-                return result;
-            }
-            DpUser patch = new DpUser();
-            patch.setId(stored.getId());
-            patch.setNickname(newNickname);
-            if (dpUserMapper.updateNickname(patch) != 1) {
-                result.setMessage("昵称更新失败");
-                return result;
-            }
-            result.setNicknameChanged(true);
-            result.setNickname(newNickname);
-        }
-
-        String newPassword = request.getNewPassword();
-        if (newPassword != null && !newPassword.isBlank()) {
-            if (newPassword.length() < 6) {
-                result.setMessage("新密码至少 6 位");
-                return result;
-            }
-            DpUser patch = new DpUser();
-            patch.setId(stored.getId());
-            patch.setPassword(CryptoUtil.bcryptEncode(newPassword));
-            if (dpUserMapper.updatePasswordHash(patch) != 1) {
-                result.setMessage("密码更新失败");
-                return result;
-            }
-        }
-
-        if (!nicknameChanged && (newPassword == null || newPassword.isBlank())) {
+        if (request.getNickname() == null) {
             result.setMessage("没有需要保存的修改");
+            return result;
+        }
+
+        String nicknameError = validateNicknameUpdate(stored, request.getNickname().trim(), result);
+        if (nicknameError != null) {
+            result.setMessage(nicknameError);
+            return result;
+        }
+
+        if (!result.isNicknameChanged()) {
+            result.setMessage("没有需要保存的修改");
+            return result;
+        }
+
+        DpUser patch = new DpUser();
+        patch.setId(stored.getId());
+        patch.setNickname(result.getNickname());
+        if (dpUserMapper.updateNickname(patch) != 1) {
+            result.setNicknameChanged(false);
+            result.setNickname(null);
+            result.setMessage("昵称更新失败");
             return result;
         }
 
         result.setMessage("保存成功");
         return result;
+    }
+
+    @Override
+    public String updatePassword(DpUser current, DpUserPasswordUpdateRequest request) {
+        if (current == null || request == null) {
+            return "参数无效";
+        }
+        String newPassword = request.getNewPassword();
+        if (newPassword == null || newPassword.isBlank()) {
+            return "请填写新密码";
+        }
+
+        DpUser stored = dpUserMapper.selectById(current.getId());
+        if (stored == null) {
+            return "用户不存在";
+        }
+//有无旧密码？
+        boolean hasPassword = stored.getPassword() != null && !stored.getPassword().isBlank();
+        //输入旧密码
+        String oldPassword = request.getOldPassword();
+        //旧密码是否存在
+        boolean hasOldPasswordInRequest = oldPassword != null && !oldPassword.isBlank();
+//没有密码但是输入了旧密码
+        if (!hasPassword && hasOldPasswordInRequest) {
+            return "尚未设置密码，无需填写当前密码";
+        }
+//校验，如果有旧密码就验证旧密码对不对，没有旧密码通过，旧密码正确通过，然后出来直接设置新密码
+        String passwordError = validatePasswordUpdate(stored, hasPassword, oldPassword, newPassword);
+        if (passwordError != null) {
+            return passwordError;
+        }
+
+        DpUser patch = new DpUser();
+        patch.setId(stored.getId());
+        patch.setPassword(CryptoUtil.bcryptEncode(newPassword));
+        if (dpUserMapper.updatePasswordHash(patch) != 1) {
+            return "密码更新失败";
+        }
+        return "保存成功";
+    }
+
+    /** 仅改昵称路径：不校验旧密码；oldPassword 传了也忽略。 */
+    private String validateNicknameUpdate(DpUser stored, String newNickname, DpUserProfileUpdateResult result) {
+        if (newNickname.isEmpty()) {
+            return "昵称不能为空";
+        }
+        if (newNickname.length() > 10) {
+            return "昵称最多 10 个字符";
+        }
+        if (newNickname.matches("\\d+")) {
+            return MSG_NUMERIC_NICKNAME;
+        }
+        if (sensitiveWordService.containsSensitive(newNickname)) {
+            return MSG_SENSITIVE;
+        }
+        if (newNickname.equals(stored.getNickname())) {
+            return null;
+        }
+        DpUser taken = dpUserMapper.selectByNickname(newNickname);
+        if (taken != null && taken.getId() != stored.getId()) {
+            return "昵称已被占用";
+        }
+        result.setNicknameChanged(true);
+        result.setNickname(newNickname);
+        return null;
+    }
+
+    /** 改密 / 首次设密路径：与昵称逻辑分离，仅校验不写库。 */
+    private String validatePasswordUpdate(DpUser stored, boolean hasPassword, String oldPassword, String newPassword) {
+        if (newPassword.length() < 6) {
+            return "新密码至少 6 位";
+        }
+        if (hasPassword) {
+            if (oldPassword == null || oldPassword.isBlank()) {
+                return "请填写当前密码";
+            }
+            if (!CryptoUtil.bcryptMatches(oldPassword, stored.getPassword())) {
+                return "当前密码错误";
+            }
+        }
+        return null;
     }
 
     @Override
