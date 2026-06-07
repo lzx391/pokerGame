@@ -147,7 +147,14 @@ public class DpUserServiceImpl implements DpUserService {
 
     public DpUser loginUserOrNull(String nickname, String password) {
         DpUser user = dpUserMapper.selectByNickname(nickname);
-        if (user == null || !CryptoUtil.bcryptMatches(password, user.getPassword())) {
+        if (user == null) {
+            return null;
+        }
+        // OAuth 用户无本地密码
+        if (user.getPassword() == null || user.getPassword().isBlank()) {
+            return null;
+        }
+        if (!CryptoUtil.bcryptMatches(password, user.getPassword())) {
             return null;
         }
         return user;
@@ -168,9 +175,16 @@ public class DpUserServiceImpl implements DpUserService {
         }
         //验证旧密码是否正确
         DpUser stored = dpUserMapper.selectById(current.getId());
-        if (stored == null || !CryptoUtil.bcryptMatches(oldPassword, stored.getPassword())) {
-            result.setMessage("当前密码错误");
+        if (stored == null) {
+            result.setMessage("用户不存在");
             return result;
+        }
+        // OAuth 用户无密码：跳过旧密码校验
+        if (stored.getPassword() != null && !stored.getPassword().isBlank()) {
+            if (!CryptoUtil.bcryptMatches(oldPassword, stored.getPassword())) {
+                result.setMessage("当前密码错误");
+                return result;
+            }
         }
         //验证昵称是否输入
         String newNickname = request.getNickname() != null ? request.getNickname().trim() : "";

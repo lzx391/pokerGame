@@ -102,6 +102,10 @@ export default new Router({
     {
       path: '/download-center',
       component: () => import(/* webpackChunkName: "route-download-center" */ '@/components/DownloadCenter.vue')
+    },
+    {
+      path: '/oauth/callback',
+      component: () => import(/* webpackChunkName: "route-oauth-callback" */ '@/components/OAuthCallback.vue')
     }
   ]
 })

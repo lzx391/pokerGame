@@ -260,7 +260,7 @@
                 </template>
               </el-form-item>
 
-              <el-form-item label="当前密码" required>
+              <el-form-item v-if="form.passwordSet" label="当前密码" required>
                 <el-input
                   v-model="form.oldPassword"
                   type="password"
@@ -634,7 +634,7 @@ export default {
       }
     },
     async onSave() {
-      if (!this.form.oldPassword) {
+      if (this.form.passwordSet && !this.form.oldPassword) {
         this.$message.warning('请填写当前密码')
         return
       }

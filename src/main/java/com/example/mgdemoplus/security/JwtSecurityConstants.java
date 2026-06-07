@@ -12,6 +12,7 @@ public final class JwtSecurityConstants {
     public static final String[] PERMIT_ALL = {
             "/dpUser/loginProfile",
             "/dpUser/registerUser",
+            "/oauth/**",
             "/error",
             "/ws/**",
             "/images/**",

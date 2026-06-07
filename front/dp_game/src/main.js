@@ -84,7 +84,7 @@ axios.defaults.baseURL =
 
 axios.interceptors.request.use(function (config) {
   var url = config.url || ''
-  if (url.indexOf('/dpUser/loginProfile') !== -1 || url.indexOf('/dpUser/registerUser') !== -1) {
+  if (url.indexOf('/dpUser/loginProfile') !== -1 || url.indexOf('/dpUser/registerUser') !== -1 || url.indexOf('/oauth/') !== -1) {
     return config
   }
   try {
