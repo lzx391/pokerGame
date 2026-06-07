@@ -71,8 +71,8 @@ mgdemoplus:
     github:
       client-id: ${GITHUB_CLIENT_ID:}  # [A] env: GITHUB_CLIENT_ID
       client-secret: ${GITHUB_CLIENT_SECRET:}  # [A] env: GITHUB_CLIENT_SECRET
-      redirect-uri: ${GITHUB_REDIRECT_URI:http://localhost:8080/oauth/github/callback}  # [C] GitHub OAuth App 回调（前端端口，dev-server 代理到后端）
-      frontend-base-url: ${GITHUB_FRONTEND_BASE_URL:http://localhost:8080}  # [C] 授权成功后 302 跳转至前端
+      redirect-uri: ${GITHUB_REDIRECT_URI:http://192.168.3.56:8080/oauth/github/callback}  # [C] GitHub OAuth App 回调（前端端口，dev-server 代理到后端）
+      frontend-base-url: ${GITHUB_FRONTEND_BASE_URL:http://192.168.3.56:8080}  # [C] 授权成功后 302 跳转至前端
 
   # --- B: Redis 缓存 TTL ---
   cache:
