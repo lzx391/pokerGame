@@ -1,5 +1,10 @@
 # GitHub OAuth 2.0 业务流程设计
 
+> **实现现状（2026-06）**
+> - GitHub **登录**链路已上线：`GET /oauth/github/authorize-url` → GitHub 授权 → `GET /oauth/github/callback` → 前端 `POST /oauth/exchange-token` 换 JWT。
+> - OAuth 用户**首次设密 / 改密**统一走 `PUT /dpUser/password`（JWT 鉴权），不再走 GitHub 二次授权。
+> - 下文「场景四」及 setupToken / `POST /oauth/setup-password` 设计**已废弃删除**，仅作历史参考。
+
 ## 数据库改动
 
 ```sql
@@ -170,22 +175,24 @@ OAuth 登录走 POST /oauth/github/callback
 
 ### 回答你的疑问②：没密码怎么验证身份？JWT 够不够？
 
-**改昵称、玩游戏：JWT 够用。设密码：不够，必须重新验证。**
+**改昵称、改资料、首次设密码：JWT 够用**（当前实现：`PUT /dpUser/password` 在已登录态下设密，无需旧密码）。
 
-JWT 能证明"这个浏览器当前有一个有效会话"，但不能证明"屏幕前面坐的是本人"。如果用户忘记登出，别人坐到电脑前就能悄悄设个密码——之后 JWT 过期了，那人还能用密码登录进来。
-
-**危险等级判断**：
-
-| 操作 | 如果被冒用…… | 需要额外验证？ |
-|------|-------------|---------------|
-| 改昵称 | 可以改回来 | JWT 够 |
-| 玩游戏 | 不影响账号归属 | JWT 够 |
-| **首次设密码** | 开了永久后门，JWT 过期后还能进 | **必须重新三方授权** |
-| 改密码（旧换新） | 已有旧密码把关 | 旧密码本身就是验证 |
+| 操作 | 如果被冒用…… | 当前验证方式 |
+|------|-------------|-------------|
+| 改昵称 | 可以改回来 | JWT |
+| 玩游戏 | 不影响账号归属 | JWT |
+| **首次设密码** | 开了永久后门 | JWT（`PUT /dpUser/password`） |
+| 改密码（旧换新） | 已有旧密码把关 | 旧密码 + JWT |
 
 ---
 
-## 场景四：OAuth 用户想设置密码（高危操作，需 GitHub 重新授权）
+## ~~场景四：OAuth 用户想设置密码（GitHub 重新授权）~~ **已废弃**
+
+> 原设计：GitHub 二次授权 → Redis setupToken → `POST /oauth/setup-password`。  
+> **已删除**。OAuth 用户设密请使用 `PUT /dpUser/password`（登录后、无旧密码时跳过旧密码校验）。
+
+<details>
+<summary>历史设计（仅供参考）</summary>
 
 ```
 1. 用户点 "设置密码"
@@ -198,16 +205,14 @@ JWT 能证明"这个浏览器当前有一个有效会话"，但不能证明"屏�
    前端拿到后跳转到设密码页面
    ↓
 5. 前端表单：输入新密码（无需昵称，无需旧密码）
-   POST /dpUser/setPassword { setupToken: "xxx", newPassword: "123456" }
+   POST /oauth/setup-password { setupToken: "xxx", newPassword: "123456" }
    ↓
 6. 后端：验 setupToken → 验密码长度 → bcrypt 写库
    ↓
 7. 之后就能用昵称+密码登录了
 ```
 
-**注意**：如果用户已经设过密码了，再想改密码就走正常的旧密码验证——不需要也不应该走这个 GitHub 重新授权的通道。
-
----
+</details>
 
 ## 场景五：已有密码账号绑定 GitHub
 
@@ -279,8 +284,8 @@ provider 总共就 5~10 个值（github/wechat/qq/google/apple），不会频繁
 | 1 | 建 `dp_user_social_auth` 表 | DDL + Mapper |
 | 2 | `dp_user.password` 改成可空 | DDL |
 | 3 | 加 `DpOAuthService` | GitHub 换 token、调 API、头像下载 |
-| 4 | 加 `DpOAuthController` | `GET /oauth/github/authorize-url`、`POST /oauth/github/callback` |
-| 5 | 加 `POST /dpUser/setPassword` | 凭 setupToken（Redis 临时凭证）设密码 |
+| 4 | 加 `DpOAuthController` | `GET /oauth/github/authorize-url`、`GET /oauth/github/callback`、`POST /oauth/exchange-token` |
+| 5 | 加 `PUT /dpUser/password` | OAuth 首次设密 / 改密（JWT 鉴权，拆分自 updateProfile） |
 | 6 | 改 `DpUserServiceImpl.updateProfile` | password 为 NULL 时跳过旧密码校验（改昵称场景） |
 | 7 | 改 `DpUserServiceImpl.loginUserOrNull` | 密码为空时返回 null，前端提示"请用 GitHub 登录" |
 | 8 | 配置文件 | `application.yml` 加 GitHub OAuth 配置段 |

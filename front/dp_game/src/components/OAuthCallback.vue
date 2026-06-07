@@ -27,21 +27,11 @@ export default {
   methods: {
     handleCallback() {
       const query = this.$route.query || {}
-      const mode = query.mode
       const errorMsg = query.error
 
       if (errorMsg) {
         this.error = decodeURIComponent(errorMsg)
         this.loading = false
-        return
-      }
-
-      // set-password 模式
-      if (mode === 'setup-password' && query.setupToken) {
-        this.$router.replace({
-          path: '/home',
-          query: { setupPasswordToken: query.setupToken }
-        })
         return
       }
 
