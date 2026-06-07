@@ -166,7 +166,23 @@
                 </nav>
 
                 <div class="dp-auth-stage__form-panel">
-                  <router-view v-if="contentVisible" :key="authMode" />
+                  <!-- 双表单叠层：两 Tab 同占一格，高度取较高者，切换时 CRT 不再伸缩 -->
+                  <div class="dp-auth-stage__form-stack">
+                    <div
+                      class="dp-auth-stage__form-layer"
+                      :class="{ 'dp-auth-stage__form-layer--active': authMode === 'login' }"
+                      :aria-hidden="authMode !== 'login'"
+                    >
+                      <login-form />
+                    </div>
+                    <div
+                      class="dp-auth-stage__form-layer"
+                      :class="{ 'dp-auth-stage__form-layer--active': authMode === 'register' }"
+                      :aria-hidden="authMode !== 'register'"
+                    >
+                      <register-form />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -182,6 +198,8 @@
 <script>
 import { mapState } from 'vuex'
 import { CAT_COPY } from '@/constants/dpCatThemeCopy'
+import LoginForm from '@/components/login.vue'
+import RegisterForm from '@/components/register.vue'
 
 /** @typedef {'boot' | 'idle' | 'transition'} AuthPhase */
 
@@ -221,6 +239,7 @@ const AUTH_ERROR_TIMING_ECO = {
 
 export default {
   name: 'DpAuthStage',
+  components: { LoginForm, RegisterForm },
   provide() {
     return { dpAuthStage: this }
   },
@@ -472,9 +491,9 @@ export default {
 .dp-auth-stage {
   position: relative;
   width: 100%;
-  max-width: min(100%, 42rem);
+  max-width: min(100%, 46rem);
   margin: 0 auto;
-  min-height: clamp(420px, 72vh, 640px);
+  min-height: 0;
   isolation: isolate;
 }
 
@@ -732,10 +751,10 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   width: 100%;
-  aspect-ratio: 16 / 9;
-  min-height: clamp(256px, 48vw, 320px);
+  height: auto;
+  min-height: 0;
   overflow: hidden;
   background: var(--dp-auth-screen-off);
   clip-path: url(#dp-auth-clip-screen);
@@ -1123,34 +1142,18 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  flex: 0 1 auto;
-  min-height: 0;
-  max-height: 100%;
+  justify-content: flex-start;
+  flex: 0 0 auto;
   width: 100%;
-  margin: auto 0;
-  padding: clamp(6px, 1.5vw, 10px) clamp(10px, 2.5vw, 14px);
+  padding: clamp(20px, 4.2vw, 28px) clamp(10px, 2.5vw, 14px);
   box-sizing: border-box;
-  overflow-x: hidden;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--dp-auth-phosphor) 35%, transparent) transparent;
+  overflow: visible;
   opacity: 0;
   transform: scale(0.98);
   transition:
     opacity 0.28s ease,
     transform 0.32s ease;
   pointer-events: none;
-}
-
-.dp-auth-stage__content::-webkit-scrollbar {
-  width: 4px;
-}
-
-.dp-auth-stage__content::-webkit-scrollbar-thumb {
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--dp-auth-phosphor) 40%, var(--dp-auth-phosphor-dim));
 }
 
 .dp-auth-stage--interactive .dp-auth-stage__content {
@@ -1296,7 +1299,7 @@ export default {
   flex-shrink: 0;
   width: 100%;
   text-align: center;
-  margin: 0 0 clamp(6px, 1.4vw, 10px);
+  margin: 0 0 clamp(4px, 1vw, 8px);
   font-size: clamp(1.2rem, 4.4vw, 1.55rem);
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -1312,7 +1315,7 @@ export default {
   justify-content: center;
   width: 100%;
   gap: clamp(8px, 2vw, 12px);
-  margin-bottom: clamp(8px, 2vw, 12px);
+  margin-bottom: clamp(6px, 1.5vw, 10px);
 }
 
 .dp-auth-stage__tab {
@@ -1349,25 +1352,44 @@ export default {
 }
 
 .dp-auth-stage__form-panel {
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
   min-width: 0;
-  overflow-x: hidden;
+  overflow: visible;
+}
+
+/* 登录/注册叠在同一 grid 格：隐藏层仍参与布局，CRT 高度恒为两者较高值 */
+.dp-auth-stage__form-stack {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+}
+
+.dp-auth-stage__form-layer {
+  grid-row: 1;
+  grid-column: 1;
+  width: 100%;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.dp-auth-stage__form-layer--active {
+  visibility: visible;
+  pointer-events: auto;
 }
 
 /* 桌面大屏：舞台加宽、显示器占比更大、曲面更明显 */
 @media (min-width: 1280px) {
   .dp-auth-stage {
-    max-width: min(100%, 58rem);
-    min-height: clamp(520px, 80vh, 860px);
+    max-width: min(100%, 62rem);
   }
 
   .dp-auth-stage__monitor {
-    width: min(100%, 85%);
-    max-width: 52rem;
+    width: min(100%, 92%);
+    max-width: 56rem;
   }
 
   .dp-auth-stage__monitor-curve {
@@ -1396,7 +1418,6 @@ export default {
 
   .dp-auth-stage__screen {
     clip-path: url(#dp-auth-clip-screen-lg);
-    min-height: clamp(352px, 37vw, 520px);
     box-shadow:
       inset 0 0 0 1px color-mix(in srgb, var(--dp-auth-phosphor-dim) 35%, #000),
       inset 0 -8px 22px -10px color-mix(in srgb, #fff 7%, transparent),
@@ -1479,7 +1500,7 @@ export default {
   }
 
   .dp-auth-stage__content {
-    padding: clamp(10px, 1.2vw, 16px) clamp(18px, 2.2vw, 26px);
+    padding: clamp(24px, 2.4vw, 34px) clamp(18px, 2.2vw, 26px);
   }
 
   .dp-auth-stage__title {
@@ -1502,15 +1523,10 @@ export default {
 @media (max-width: 380px) {
   .dp-auth-stage {
     max-width: 100%;
-    min-height: 380px;
-  }
-
-  .dp-auth-stage__screen {
-    min-height: clamp(244px, 61vw, 288px);
   }
 
   .dp-auth-stage__content {
-    padding: 8px 10px;
+    padding: 16px 10px;
   }
 
   .dp-auth-stage__title {
