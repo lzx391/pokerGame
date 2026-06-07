@@ -5,6 +5,7 @@ import com.example.mgdemoplus.common.entity.DpPlayer;
 import com.example.mgdemoplus.npc.engine.DpNpcEngine.BoardDanger;
 import com.example.mgdemoplus.npc.engine.DpNpcEngine.BotType;
 import com.example.mgdemoplus.npc.engine.DpNpcEngine.TablePosition;
+import com.example.mgdemoplus.npc.eval.DpNpcHandSnapshot;
 import com.example.mgdemoplus.utils.DpUtilHandEvaluator.SimpleStrength;
 
 import java.util.Random;
@@ -25,6 +26,9 @@ public final class DpNpcRuleDecisionParams {
     public final String stageForNpc;
     public final Random random;
     public final BoardDanger boardDanger;
+    /** 规则 NPC 细化牌力快照（翻后 12 档 + 听牌；翻前 preflop 档） */
+    public final DpNpcHandSnapshot handSnapshot;
+    /** 旧四档桥接值；LLM / granular-strength.enabled=false 时为主要输入 */
     public final SimpleStrength strength;
     public final double preflopTight;
     public final double aggression;
@@ -44,6 +48,7 @@ public final class DpNpcRuleDecisionParams {
             String stageForNpc,
             Random random,
             BoardDanger boardDanger,
+            DpNpcHandSnapshot handSnapshot,
             SimpleStrength strength,
             double preflopTight,
             double aggression,
@@ -61,6 +66,7 @@ public final class DpNpcRuleDecisionParams {
         this.stageForNpc = stageForNpc;
         this.random = random;
         this.boardDanger = boardDanger;
+        this.handSnapshot = handSnapshot;
         this.strength = strength;
         this.preflopTight = preflopTight;
         this.aggression = aggression;

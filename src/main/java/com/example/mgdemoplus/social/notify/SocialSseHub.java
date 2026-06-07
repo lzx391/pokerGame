@@ -171,6 +171,50 @@ public class SocialSseHub {
         log.info("[social-sse] friendPresence done userId={} sentTo={}/{}", userId, sent, n);
     }
 
+    /** 成就首次解锁（与 {@code notify} 共用连接，独立事件名）。 */
+    public void broadcastAchievementUnlocked(int userId, AchievementUnlockNotifyPayload payload) {
+        if (userId <= 0 || payload == null) {
+            return;
+        }
+        Set<SseEmitter> set = emittersByUser.get(userId);
+        int n = set != null ? set.size() : 0;
+        if (n == 0) {
+            log.warn(
+                    "[social-sse] achievement_unlocked skipped: no active SSE for userId={} code={} "
+                            + "onlineUserIds={}",
+                    userId,
+                    payload.getCode(),
+                    onlineUserIdsSnapshot());
+            return;
+        }
+        log.info(
+                "[social-sse] achievement_unlocked broadcast userId={} connections={} code={} title={}",
+                userId,
+                n,
+                payload.getCode(),
+                payload.getTitle());
+        int sent = 0;
+        for (SseEmitter emitter : set) {
+            try {
+                sendAchievementUnlockedEvent(emitter, payload);
+                sent++;
+            } catch (IOException e) {
+                log.warn(
+                        "[social-sse] achievement_unlocked send failed userId={} emitter={} reason={}",
+                        userId,
+                        System.identityHashCode(emitter),
+                        e.toString());
+                unregister(userId, emitter, "achievement_unlocked-send-failed");
+                try {
+                    emitter.completeWithError(e);
+                } catch (Exception ignored) {
+                    // already closed
+                }
+            }
+        }
+        log.info("[social-sse] achievement_unlocked done userId={} sentTo={}/{}", userId, sent, n);
+    }
+
     private void register(int userId, SseEmitter emitter) {
         Set<SseEmitter> set =
                 emittersByUser.computeIfAbsent(userId, k -> ConcurrentHashMap.newKeySet());
@@ -228,6 +272,15 @@ public class SocialSseHub {
         emitter.send(
                 SseEmitter.event()
                         .name("friendPresence")
+                        .data(json, MediaType.APPLICATION_JSON));
+    }
+
+    private void sendAchievementUnlockedEvent(SseEmitter emitter, AchievementUnlockNotifyPayload payload)
+            throws IOException {
+        String json = objectMapper.writeValueAsString(payload.toDataMap());
+        emitter.send(
+                SseEmitter.event()
+                        .name("achievement_unlocked")
                         .data(json, MediaType.APPLICATION_JSON));
     }
 

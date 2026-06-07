@@ -4,6 +4,7 @@ import com.example.mgdemoplus.achievement.DpAchievementService;
 import com.example.mgdemoplus.achievement.entity.DpAchievement;
 import com.example.mgdemoplus.achievement.mapper.DpAchievementMapper;
 import com.example.mgdemoplus.achievement.mapper.DpUserAchievementMapper;
+import com.example.mgdemoplus.achievement.notify.AchievementNotifyPublisher;
 import com.example.mgdemoplus.achievement.vo.DpAchievementWallItemVO;
 import com.example.mgdemoplus.common.mapper.DpUserMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +21,8 @@ public class DpAchievementServiceImpl implements DpAchievementService {
     private DpUserAchievementMapper dpUserAchievementMapper;
     @Autowired
     private DpUserMapper dpUserMapper;
+    @Autowired
+    private AchievementNotifyPublisher achievementNotifyPublisher;
 
     @Override
     public List<DpAchievementWallItemVO> buildWallForUser(int userId) {
@@ -43,5 +46,6 @@ public class DpAchievementServiceImpl implements DpAchievementService {
             return;
         }
         dpUserAchievementMapper.tryUnlock(userId, def.getId());
+        achievementNotifyPublisher.notifyUnlocked(userId, def);
     }
 }

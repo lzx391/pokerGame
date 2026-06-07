@@ -4,6 +4,7 @@ import com.example.mgdemoplus.common.bo.DpRoomBO;
 import com.example.mgdemoplus.common.entity.DpPlayer;
 import com.example.mgdemoplus.common.entity.DpPlayerStats;
 import com.example.mgdemoplus.npc.engine.DpNpcEngine;
+import com.example.mgdemoplus.npc.eval.DpNpcPreflopCategory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -955,5 +956,18 @@ public final class DpNpcUnifiedPreflopStrategy {
         if (vpip > 0.45 || pfr > 0.28)
             return VillainTier.LOOSE_OR_AGGRO;
         return VillainTier.BALANCED;
+    }
+
+    /** G1–G8 → {@link DpNpcPreflopCategory}，供 {@link com.example.mgdemoplus.npc.eval.DpNpcEquityEstimator} 翻前权益桶。 */
+    public static DpNpcPreflopCategory preflopCategoryOf(List<String> holeCards) {
+        HandGroup g = groupOf(parseHole(holeCards));
+        return switch (g) {
+            case G1 -> DpNpcPreflopCategory.PREMIUM;
+            case G2 -> DpNpcPreflopCategory.STRONG;
+            case G3, G4 -> DpNpcPreflopCategory.PLAYABLE;
+            case G5 -> DpNpcPreflopCategory.SPECULATIVE;
+            case G6, G7 -> DpNpcPreflopCategory.MARGINAL;
+            case G8 -> DpNpcPreflopCategory.TRASH;
+        };
     }
 }

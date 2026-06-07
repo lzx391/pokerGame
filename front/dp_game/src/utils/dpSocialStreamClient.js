@@ -1,8 +1,9 @@
 /**
- * App-level social SSE client (mailbox notify + friend presence).
+ * App-level social SSE client (mailbox notify + friend presence + achievement unlock).
  * Persists across SPA routes while JWT is present; disconnect on logout / 401.
  */
-import { buildSocialStreamUrl } from '@/utils/dpSocialStream'
+import { buildSocialStreamUrl, parseAchievementUnlockPayload } from '@/utils/dpSocialStream'
+import { MessageBox } from 'element-ui'
 
 /** @type {import('vuex').Store<any> | null} */
 var storeRef = null
@@ -16,6 +17,7 @@ var reconnectAttempt = 0
 var activeToken = ''
 var notifyHandler = null
 var presenceHandler = null
+var achievementHandler = null
 
 function readTokenFromStorage() {
   try {
@@ -82,15 +84,42 @@ function onFriendPresence(raw) {
   }
 }
 
+function onAchievementUnlocked(raw) {
+  if (!raw) return
+  try {
+    var parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+    var payload = parseAchievementUnlockPayload(parsed)
+    if (!payload) return
+    if (process.env.NODE_ENV !== 'production') {
+      console.info('[social-sse] achievement_unlocked received', payload)
+    }
+    var message = payload.title || payload.code
+    if (payload.description) {
+      message = message + '\n' + payload.description
+    }
+    MessageBox.alert(message, '成就解锁', {
+      confirmButtonText: '知道了',
+      type: 'success',
+      customClass: 'dp-achievement-unlock-alert'
+    }).catch(function () {})
+  } catch (e) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('[social-sse] achievement_unlocked parse failed', raw, e)
+    }
+  }
+}
+
 function teardownEventSource() {
   session++
   clearReconnectTimer()
   var es = eventSource
   var onNotify = notifyHandler
   var onPresence = presenceHandler
+  var onAchievement = achievementHandler
   eventSource = null
   notifyHandler = null
   presenceHandler = null
+  achievementHandler = null
   if (es) {
     es.onopen = null
     es.onerror = null
@@ -100,6 +129,9 @@ function teardownEventSource() {
     }
     if (onPresence) {
       try { es.removeEventListener('friendPresence', onPresence) } catch (e) { /* ignore */ }
+    }
+    if (onAchievement) {
+      try { es.removeEventListener('achievement_unlocked', onAchievement) } catch (e) { /* ignore */ }
     }
     try { es.close() } catch (e) { /* ignore */ }
   }
@@ -132,9 +164,14 @@ function connectInternal(isReconnect) {
     if (session !== currentSession) return
     onFriendPresence(ev && ev.data)
   }
+  achievementHandler = function (ev) {
+    if (session !== currentSession) return
+    onAchievementUnlocked(ev && ev.data)
+  }
 
   es.addEventListener('notify', notifyHandler)
   es.addEventListener('friendPresence', presenceHandler)
+  es.addEventListener('achievement_unlocked', achievementHandler)
   es.onmessage = notifyHandler
   es.onopen = function () {
     if (session !== currentSession) return

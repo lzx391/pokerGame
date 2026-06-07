@@ -93,3 +93,17 @@ export function parseFriendPresencePayload(data) {
   var reason = data.reason != null ? String(data.reason) : ''
   return { friendUserId: id, presence: presence, reason: reason }
 }
+
+/**
+ * 解析 SSE {@code achievement_unlocked} 载荷。
+ * @param {any} data
+ * @returns {{ code: string, title: string, description: string } | null}
+ */
+export function parseAchievementUnlockPayload(data) {
+  if (!data || typeof data !== 'object') return null
+  var code = data.code != null ? String(data.code).trim() : ''
+  if (!code) return null
+  var title = data.title != null ? String(data.title).trim() : ''
+  var description = data.description != null ? String(data.description).trim() : ''
+  return { code: code, title: title, description: description }
+}

@@ -33,12 +33,70 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
             return;
         }
         detectQuadNightmare(job.archived(), job.roomSnapshotForParticipants());
+        detectTwentySevenTerminator(job.archived(), job.roomSnapshotForParticipants());
     }
 
     /**
      * 四条噩梦：仅摊牌参与者可解锁。摊牌者 = {@code holeCardsAtEnd} 中底牌非空且本局未 FOLD 的玩家。
      * 归档时弃牌者仍可能留有底牌副本，不能仅凭 map 键存在判定。
      */
+    /**
+     * 27终结者：本局净赢筹码的玩家，底牌为 2 与 7 且杂色（顺序无关）。
+     */
+    private void detectTwentySevenTerminator(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot) {
+        Map<String, Integer> netChipsChange = archived.netChipsChange;
+        Map<String, List<String>> holeCardsAtEnd = archived.holeCardsAtEnd;
+        if (netChipsChange == null || netChipsChange.isEmpty()
+                || holeCardsAtEnd == null || holeCardsAtEnd.isEmpty()) {
+            return;
+        }
+
+        Map<String, Integer> nicknameToUserId = buildNicknameToUserId(roomSnapshot);
+        for (Map.Entry<String, Integer> entry : netChipsChange.entrySet()) {
+            String nickname = entry.getKey();
+            Integer net = entry.getValue();
+            if (nickname == null || nickname.isEmpty() || net == null || net <= 0) {
+                continue;
+            }
+            List<String> holeCards = holeCardsAtEnd.get(nickname);
+            if (!isOffsuitTwoSeven(holeCards)) {
+                continue;
+            }
+            Integer userId = nicknameToUserId.get(nickname);
+            if (userId == null || userId <= 0) {
+                continue;
+            }
+            dpAchievementService.unlockIfAbsent(userId, DpAchievementService.CODE_TWENTY_SEVEN_TERMINATOR);
+        }
+    }
+
+    private static boolean isOffsuitTwoSeven(List<String> holeCards) {
+        if (holeCards == null || holeCards.size() != 2) {
+            return false;
+        }
+        String suitOfTwo = null;
+        String suitOfSeven = null;
+        for (String card : holeCards) {
+            if (card == null || !card.contains("_")) {
+                return false;
+            }
+            String[] parts = card.split("_", 2);
+            if (parts.length != 2) {
+                return false;
+            }
+            String suit = parts[0];
+            String rank = parts[1];
+            if ("2".equals(rank)) {
+                suitOfTwo = suit;
+            } else if ("7".equals(rank)) {
+                suitOfSeven = suit;
+            } else {
+                return false;
+            }
+        }
+        return suitOfTwo != null && suitOfSeven != null && !suitOfTwo.equals(suitOfSeven);
+    }
+
     private void detectQuadNightmare(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot) {
         Map<String, List<String>> holeCardsAtEnd = archived.holeCardsAtEnd;
         if (holeCardsAtEnd == null || holeCardsAtEnd.isEmpty()) {

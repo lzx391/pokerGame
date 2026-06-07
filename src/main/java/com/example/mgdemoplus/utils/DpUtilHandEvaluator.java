@@ -1,5 +1,7 @@
 package com.example.mgdemoplus.utils;
 
+import com.example.mgdemoplus.npc.eval.DpDrawDetector;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -98,67 +100,18 @@ public final class DpUtilHandEvaluator {
 
     /**
      * 判断是否存在“强同花听牌”（至少 4 张同花，且其中至少一张来自手牌）。
+     * 统一委托 {@link DpDrawDetector}。
      */
-    private static boolean hasStrongFlushDraw(List<String> holeCards, List<String> community) {
-        List<ParsedCard> all = parseCardsWithSource(holeCards, community);
-        if (all.isEmpty()) return false;
-        int[] suitCount = new int[4];
-        int[] suitHoleCount = new int[4];
-        for (ParsedCard pc : all) {
-            if (pc.suitCode < 0 || pc.suitCode > 3) continue;
-            suitCount[pc.suitCode]++;
-            if (pc.fromHole) {
-                suitHoleCount[pc.suitCode]++;
-            }
-        }
-        for (int s = 0; s < 4; s++) {
-            if (suitCount[s] >= 4 && suitHoleCount[s] >= 1) {
-                return true;
-            }
-        }
-        return false;
+    public static boolean hasStrongFlushDraw(List<String> holeCards, List<String> community) {
+        return DpDrawDetector.hasStrongFlushDraw(holeCards, community);
     }
 
     /**
-     * 判断是否存在“强顺子听牌”（近似双头顺子听牌）：在任意连续 4 个点数窗口中，
-     * 至少有 4 个不同点数出现，并且其中至少一个来自手牌。
-     *
-     * 仅抓双头顺听量级（≈8 张补牌），避免 3 点窗口误判为强听牌。
+     * 判断是否存在“强顺子听牌”（双头顺听量级，≈8 outs）。
+     * 统一委托 {@link DpDrawDetector}。
      */
-    private static boolean hasStrongStraightDraw(List<String> holeCards, List<String> community) {
-        List<ParsedCard> all = parseCardsWithSource(holeCards, community);
-        if (all.isEmpty()) return false;
-
-        // 针对 A-5 顺子，简单把 A 也视作 1 参与一次扫描
-        List<ParsedCard> extended = new ArrayList<>(all);
-        for (ParsedCard pc : all) {
-            if (pc.rank == 14) {
-                extended.add(new ParsedCard(1, pc.suitCode, pc.fromHole));
-            }
-        }
-
-        for (int start = 2; start <= 10; start++) {
-            int end = start + 3;
-            int distinctCnt = 0;
-            boolean[] seen = new boolean[15];
-            boolean hasHoleInWindow = false;
-            for (ParsedCard pc : extended) {
-                int r = pc.rank;
-                if (r < start || r > end) continue;
-                if (!seen[r]) {
-                    seen[r] = true;
-                    distinctCnt++;
-                }
-                if (pc.fromHole) {
-                    hasHoleInWindow = true;
-                }
-            }
-            // 至少 4 个不同点数落在同一 4 格窗口内 ≈ 双头顺听（8 张补牌量级）；避免 3 点“假顺听”抬档
-            if (distinctCnt >= 4 && hasHoleInWindow) {
-                return true;
-            }
-        }
-        return false;
+    public static boolean hasStrongStraightDraw(List<String> holeCards, List<String> community) {
+        return DpDrawDetector.hasStrongStraightDraw(holeCards, community);
     }
 
     /**

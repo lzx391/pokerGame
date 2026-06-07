@@ -12,6 +12,12 @@ import com.example.mgdemoplus.npc.strategy.DpNpcNitStrategy;
 import com.example.mgdemoplus.npc.strategy.DpNpcRuleDecisionParams;
 import com.example.mgdemoplus.npc.strategy.DpNpcTagStrategy;
 import com.example.mgdemoplus.npc.strategy.DpNpcUnifiedPreflopStrategy;
+import com.example.mgdemoplus.npc.eval.DpNpcEquityEstimator;
+import com.example.mgdemoplus.npc.eval.DpNpcGranularStrength;
+import com.example.mgdemoplus.npc.eval.DpNpcHandClassifier;
+import com.example.mgdemoplus.npc.eval.DpNpcHandSnapshot;
+import com.example.mgdemoplus.npc.eval.DpNpcHandTierBridge;
+import com.example.mgdemoplus.npc.eval.DpNpcPreflopCategory;
 import com.example.mgdemoplus.npc.llm.LlmNpcGameContext;
 import com.example.mgdemoplus.npc.rulethink.DpNpcRuleThinkSampler;
 import com.example.mgdemoplus.utils.DpUtilHandEvaluator;
@@ -1070,249 +1076,13 @@ public class DpNpcEngine {
         }
     }
 
-    /**
-     * 将粗粒度牌力 + 当前阶段映射为一个 0~1 的“赢率估计桶”（供规则 NPC / BOT_LLM 与底池赔率对照）。
-     * 在原有 rk 四档基础上，增加：翻前手牌结构、翻后真实成牌类别（{@link HandStrength}）校正，缓解「凡 WEAK 皆 0.25」的卡死问题。
-     */
     private static double estimateEquityBucket(SimpleStrength st, String stage,
             List<String> hole, List<String> community, HandStrength hsMade) {
-        if (st == null) {
-            return clampEquityEstimate(0.25);
-        }
-        boolean preflop = "preflop".equals(stage);
-        double base;
-        switch (st) {
-            case MONSTER:
-                base = preflop ? 0.75 : 0.85;
-                break;
-            case STRONG:
-                base = preflop ? 0.60 : 0.65;
-                break;
-            case MEDIUM:
-                base = preflop ? 0.40 : 0.45;
-                break;
-            case WEAK:
-            default:
-                base = preflop ? 0.25 : 0.20;
-                break;
-        }
-        if (preflop) {
-            base = applyPreflopHoleEquityAdjustments(base, hole);
-            return clampEquityEstimate(base);
-        }
-        if (hsMade != null) {
-            base = applyPostflopMadeHandEquityAdjustments(base, st, hsMade, hole, community);
-        }
-        // 翻后在 flop / turn 结合听牌微调：有强听牌时弱/中等牌适度抬高估计赢率
-        if ("flop".equals(stage) || "turn".equals(stage)) {
-            boolean strongDraw = hasStrongFlushDraw(hole, community) || hasOpenEndedStraightDraw(hole, community);
-            if (strongDraw) {
-                if (st == SimpleStrength.MEDIUM) {
-                    base = Math.max(base, 0.50);
-                } else if (st == SimpleStrength.WEAK) {
-                    base = Math.max(base, 0.30);
-                }
-            }
-        }
-        return clampEquityEstimate(base);
+        return DpNpcEquityEstimator.estimateLegacy(st, stage, hole, community, hsMade);
     }
 
-    private static double clampEquityEstimate(double v) {
-        if (v < 0.06) {
-            return 0.06;
-        }
-        if (v > 0.93) {
-            return 0.93;
-        }
-        return Math.round(v * 1000.0) / 1000.0;
-    }
-
-    /** 翻前：小对隐含赔率、同花连张/结构牌、AXs / 宽张等细调（不改变 rk，只调胜率桶）。 */
-    private static double applyPreflopHoleEquityAdjustments(double base, List<String> hole) {
-        if (hole == null || hole.size() < 2) {
-            return base;
-        }
-        int r1 = getRankFromCard(hole.get(0));
-        int r2 = getRankFromCard(hole.get(1));
-        if (r1 <= 0 || r2 <= 0) {
-            return base;
-        }
-        boolean suited = holeSuitsEqual(hole.get(0), hole.get(1));
-        int hi = Math.max(r1, r2);
-        int lo = Math.min(r1, r2);
-        int gap = hi - lo;
-        double b = base;
-        if (gap == 0) {
-            if (hi <= 6) {
-                b = Math.max(b, 0.37);
-            } else if (hi <= 8) {
-                b = Math.max(b, 0.39);
-            }
-            return b;
-        }
-        if (suited) {
-            if (gap <= 2 && hi >= 5 && hi <= 12 && lo >= 4) {
-                b += 0.045;
-            }
-            if (hi == 14 && lo >= 10) {
-                b += 0.04;
-            } else if (hi == 14 && lo >= 5 && lo <= 9) {
-                b += 0.03;
-            }
-        } else {
-            if (hi >= 12 && lo >= 10 && gap <= 2) {
-                b += 0.035;
-            }
-            if (hi == 14 && lo >= 11) {
-                b += 0.03;
-            }
-        }
-        return b;
-    }
-
-    private static boolean holeSuitsEqual(String c1, String c2) {
-        if (c1 == null || c2 == null || !c1.contains("_") || !c2.contains("_")) {
-            return false;
-        }
-        return Objects.equals(c1.split("_", 2)[0], c2.split("_", 2)[0]);
-    }
-
-    private static int maxRankOnBoard(List<String> community) {
-        if (community == null) {
-            return 0;
-        }
-        int m = 0;
-        for (String c : community) {
-            m = Math.max(m, getRankFromCard(c));
-        }
-        return m;
-    }
-
-    /**
-     * 翻后：按真实牌型大类 + 是否板对、是否超对/顶对等校正胜率桶（仍为估算，非蒙特卡洛）。
-     */
-    private static double applyPostflopMadeHandEquityAdjustments(double base, SimpleStrength st,
-            HandStrength hs, List<String> hole, List<String> community) {
-        if (hs == null || hole == null || community == null) {
-            return base;
-        }
-        int cat = hs.rankCategory;
-        List<Integer> rk = hs.ranks;
-        int boardHigh = maxRankOnBoard(community);
-
-        if (cat >= 7) {
-            return Math.max(base, 0.82);
-        }
-        if (cat == 6 || cat == 5) {
-            return Math.max(base, 0.68);
-        }
-        if (cat == 4) {
-            return Math.max(base, 0.52);
-        }
-        if (cat == 3) {
-            return Math.max(base, 0.44);
-        }
-        if (cat == 2 && rk != null && !rk.isEmpty()) {
-            int pr = rk.get(0);
-            if (DpUtilHandEvaluator.isPlayingBoardPairOnly(hs, hole, community)) {
-                return Math.min(base, 0.19);
-            }
-            if (pr > boardHigh) {
-                return Math.max(base, 0.62);
-            }
-            if (pr == boardHigh) {
-                return Math.max(base, 0.53);
-            }
-            if (pr >= 10) {
-                return Math.max(base, 0.37);
-            }
-            return Math.max(base, 0.28);
-        }
-        if (cat == 1 && rk != null && !rk.isEmpty()) {
-            int k0 = rk.get(0);
-            if (k0 == 14) {
-                return Math.max(base, 0.24);
-            }
-        }
-        return base;
-    }
-
-    /**
-     * 简化版：检测是否有较强的同花听牌（任一花色达到 4 张，且 hero 至少拥有其中 1 张）。
-     */
-    private static boolean hasStrongFlushDraw(List<String> hole, List<String> community) {
-        if (hole == null || community == null)
-            return false;
-        Map<String, Integer> suitCount = new HashMap<>();
-        for (String c : community) {
-            if (c == null || !c.contains("_"))
-                continue;
-            String suit = c.split("_", 2)[0];
-            suitCount.put(suit, suitCount.getOrDefault(suit, 0) + 1);
-        }
-        if (suitCount.isEmpty())
-            return false;
-        // 找到公共牌中出现最多的花色
-        String bestSuit = null;
-        int max = 0;
-        for (Map.Entry<String, Integer> e : suitCount.entrySet()) {
-            if (e.getValue() > max) {
-                max = e.getValue();
-                bestSuit = e.getKey();
-            }
-        }
-        if (bestSuit == null || max < 3) {
-            return false;
-        }
-        // 查看 hero 是否至少有一张该花色的牌
-        int heroSuitCount = 0;
-        for (String c : hole) {
-            if (c == null || !c.contains("_"))
-                continue;
-            String suit = c.split("_", 2)[0];
-            if (bestSuit.equals(suit)) {
-                heroSuitCount++;
-            }
-        }
-        return (max + heroSuitCount) >= 4 && heroSuitCount >= 1;
-    }
-
-    /**
-     * 简化版：检测是否有开放式顺子听牌（综合 hole+community，点数上存在长度为 4 的连续结构）。
-     */
-    private static boolean hasOpenEndedStraightDraw(List<String> hole, List<String> community) {
-        List<String> all = new ArrayList<>();
-        if (hole != null)
-            all.addAll(hole);
-        if (community != null)
-            all.addAll(community);
-        if (all.size() < 4)
-            return false;
-        Set<Integer> ranks = new HashSet<>();
-        for (String c : all) {
-            int r = getRankFromCard(c);
-            if (r > 0) {
-                ranks.add(r);
-            }
-        }
-        if (ranks.size() < 4)
-            return false;
-        List<Integer> list = new ArrayList<>(ranks);
-        Collections.sort(list);
-        int run = 1;
-        int maxRun = 1;
-        for (int i = 1; i < list.size(); i++) {
-            if (list.get(i) == list.get(i - 1) + 1) {
-                run++;
-                maxRun = Math.max(maxRun, run);
-                if (run >= 4) {
-                    return true;
-                }
-            } else if (list.get(i) > list.get(i - 1) + 1) {
-                run = 1;
-            }
-        }
-        return maxRun >= 4;
+    private static double estimateEquityFromSnapshot(DpNpcHandSnapshot snap, String stage, List<String> hole) {
+        return DpNpcEquityEstimator.estimate(snap, stage, hole);
     }
 
     /**
@@ -1359,6 +1129,41 @@ public class DpNpcEngine {
         double depth = Math.min(1.0, (activeVillains - 1) / 3.0);
         double fear = Math.max(0.0, Math.min(1.0, foldToPressure));
         return RuleNpcConfig.MULTIWAY_FOLD_BOOST * depth * (0.45 + 0.55 * fear);
+    }
+
+    /**
+     * 规则 NPC 细化牌力快照（12 档 + 听牌）；受 {@code dp.npc.granular-strength.enabled} 控制是否用于决策。
+     */
+    public static DpNpcHandSnapshot estimateCurrentHandSnapshot(DpRoomBO room, DpPlayer bot) {
+        if (room == null || bot == null) {
+            return DpNpcHandSnapshot.preflop(DpNpcPreflopCategory.TRASH, null);
+        }
+        List<String> hole = bot.getHoleCards();
+        List<String> community = room.getCommunityCards();
+        String stage = room.getCurrentStage() != null ? room.getCurrentStage() : "";
+        if (hole == null || hole.size() < 2) {
+            return DpNpcHandSnapshot.preflop(DpNpcPreflopCategory.TRASH, null);
+        }
+        return DpNpcHandClassifier.classify(hole, community, stage);
+    }
+
+    private static ResolvedHandStrength resolveHandStrengthForRuleNpc(DpRoomBO room, DpPlayer bot) {
+        if (DpNpcGranularStrength.isEnabled()) {
+            DpNpcHandSnapshot snap = estimateCurrentHandSnapshot(room, bot);
+            return new ResolvedHandStrength(snap, DpNpcHandTierBridge.toSimpleStrength(snap));
+        }
+        SimpleStrength st = estimateCurrentStrength(room, bot);
+        return new ResolvedHandStrength(null, st);
+    }
+
+    private static final class ResolvedHandStrength {
+        final DpNpcHandSnapshot handSnapshot;
+        final SimpleStrength strength;
+
+        ResolvedHandStrength(DpNpcHandSnapshot handSnapshot, SimpleStrength strength) {
+            this.handSnapshot = handSnapshot;
+            this.strength = strength;
+        }
     }
 
     private static SimpleStrength estimateCurrentStrength(DpRoomBO room, DpPlayer bot) {
@@ -2112,7 +1917,13 @@ public class DpNpcEngine {
                 hsForEquity = evaluateBestHand(allForEq);
             }
         }
-        double equityEst = estimateEquityBucket(strength, stage, hole, community, hsForEquity);
+        double equityEst;
+        if (DpNpcGranularStrength.isEnabled()) {
+            DpNpcHandSnapshot snap = estimateCurrentHandSnapshot(room, hero);
+            equityEst = estimateEquityFromSnapshot(snap, stage, hole);
+        } else {
+            equityEst = estimateEquityBucket(strength, stage, hole, community, hsForEquity);
+        }
 
         // 8. 筹码深度上下文
         StackContext stackCtx = analyzeStacks(room, hero);
@@ -2233,7 +2044,7 @@ public class DpNpcEngine {
             }
             return new BotAction(BotActionType.CALL_OR_CHECK, 0);
         }
-        SimpleStrength strength = estimateCurrentStrength(room, bot);
+        ResolvedHandStrength resolved = resolveHandStrengthForRuleNpc(room, bot);
         DpNpcRuleDecisionParams ruleParams = new DpNpcRuleDecisionParams(
                 room,
                 bot,
@@ -2245,7 +2056,8 @@ public class DpNpcEngine {
                 stageForNpc,
                 random,
                 boardDanger,
-                strength,
+                resolved.handSnapshot,
+                resolved.strength,
                 style.preflopTightness(),
                 style.aggression(),
                 style.bluffFrequency(),
@@ -2292,7 +2104,8 @@ public class DpNpcEngine {
             }
             return new BotAction(BotActionType.CALL_OR_CHECK, 0);
         }
-        SimpleStrength strength = estimateCurrentStrength(room, bot);
+        ResolvedHandStrength resolved = resolveHandStrengthForRuleNpc(room, bot);
+        SimpleStrength strength = resolved.strength;
         double preflopTight = style.preflopTightness();
         double aggression = style.aggression();
         double bluffFrequency = style.bluffFrequency();
@@ -2311,6 +2124,7 @@ public class DpNpcEngine {
                 stageForNpc,
                 random,
                 boardDanger,
+                resolved.handSnapshot,
                 strength,
                 preflopTight,
                 aggression,
