@@ -1,7 +1,5 @@
 package com.example.mgdemoplus.npc.eval;
 
-import com.example.mgdemoplus.utils.DpUtilHandEvaluator.SimpleStrength;
-
 import java.util.List;
 import java.util.Objects;
 
@@ -23,16 +21,6 @@ public final class DpNpcEquityEstimator {
             return estimatePreflop(snap.preflop, hole);
         }
         return estimatePostflop(snap, stage);
-    }
-
-    /** 旧四档路径回退（feature flag=false） */
-    public static double estimateLegacy(
-            SimpleStrength st,
-            String stage,
-            List<String> hole,
-            List<String> community,
-            com.example.mgdemoplus.utils.DpUtilHandEvaluator.HandStrength hsMade) {
-        return DpNpcEquityLegacy.estimate(st, stage, hole, community, hsMade);
     }
 
     public static double clampEquityEstimate(double v) {

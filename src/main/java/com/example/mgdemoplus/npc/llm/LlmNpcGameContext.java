@@ -3,9 +3,10 @@ package com.example.mgdemoplus.npc.llm;
 import com.example.mgdemoplus.common.bo.DpRoomBO;
 import com.example.mgdemoplus.common.entity.DpPlayer;
 import com.example.mgdemoplus.npc.engine.DpNpcEngine;
+import com.example.mgdemoplus.npc.eval.DpNpcCategoryLabels;
+import com.example.mgdemoplus.npc.eval.DpNpcHandSnapshot;
 import com.example.mgdemoplus.utils.DpUtilHandEvaluator;
 import com.example.mgdemoplus.utils.DpUtilHandEvaluator.HandStrength;
-import com.example.mgdemoplus.utils.DpUtilHandEvaluator.SimpleStrength;
 import com.example.mgdemoplus.utils.DpUtilSmartContext;
 
 import java.util.ArrayList;
@@ -26,7 +27,18 @@ public final class LlmNpcGameContext {
     private final String communityCardsText;
     private final String holeCardsText;
     private final String tablePosition;
-    private final String simpleStrength;
+    /** 12 档成牌英文 token；翻前为空。 */
+    private final String madeEn;
+    /** 12 档成牌中文简述；翻前为空。 */
+    private final String madeZh;
+    /** 听牌轴英文 token；河牌或无听牌时为 NONE。 */
+    private final String drawEn;
+    /** 听牌轴中文简述。 */
+    private final String drawZh;
+    /** 公牌面紧凑 token，如 WET|P|MON。 */
+    private final String boardTex;
+    /** 翻前档英文 token；翻后为空。 */
+    private final String preflopCat;
     /** 服务器从七张牌算出的最佳成牌紧凑标签（英文 token），与大模型自检结果冲突时以此为真。 */
     private final String handStrengthLine;
     private final String aggressorNickname;
@@ -59,7 +71,12 @@ public final class LlmNpcGameContext {
             String communityCardsText,
             String holeCardsText,
             String tablePosition,
-            String simpleStrength,
+            String madeEn,
+            String madeZh,
+            String drawEn,
+            String drawZh,
+            String boardTex,
+            String preflopCat,
             String handStrengthLine,
             String aggressorNickname,
             String villainRangeTier,
@@ -88,7 +105,12 @@ public final class LlmNpcGameContext {
         this.communityCardsText = communityCardsText != null ? communityCardsText : "";
         this.holeCardsText = holeCardsText != null ? holeCardsText : "";
         this.tablePosition = tablePosition != null ? tablePosition : "";
-        this.simpleStrength = simpleStrength != null ? simpleStrength : "";
+        this.madeEn = madeEn != null ? madeEn : "";
+        this.madeZh = madeZh != null ? madeZh : "";
+        this.drawEn = drawEn != null ? drawEn : "";
+        this.drawZh = drawZh != null ? drawZh : "";
+        this.boardTex = boardTex != null ? boardTex : "";
+        this.preflopCat = preflopCat != null ? preflopCat : "";
         this.handStrengthLine = handStrengthLine != null ? handStrengthLine : "";
         this.aggressorNickname = aggressorNickname != null ? aggressorNickname : "";
         this.villainRangeTier = villainRangeTier != null ? villainRangeTier : "";
@@ -116,9 +138,9 @@ public final class LlmNpcGameContext {
             DpRoomBO room,
             DpPlayer hero,
             DpUtilSmartContext ctx,
+            DpNpcHandSnapshot handSnapshot,
             String stage,
             int callAmount,
-            SimpleStrength strength,
             DpNpcEngine.TablePosition position) {
         if (ctx == null) {
             throw new IllegalArgumentException("ctx");
@@ -130,7 +152,6 @@ public final class LlmNpcGameContext {
         String heroNick = hero != null ? hero.getNickname() : "";
         int heroChips = hero != null ? hero.getChips() : 0;
         String pos = position != null ? position.name() : "";
-        String str = strength != null ? strength.name() : "";
         String hsl = resolveHandStrengthLineForLlm(room, hero, st);
 
         String aggressor = "";
@@ -162,7 +183,12 @@ public final class LlmNpcGameContext {
                 community,
                 holes,
                 pos,
-                str,
+                DpNpcCategoryLabels.madeEn(handSnapshot),
+                DpNpcCategoryLabels.madeZh(handSnapshot),
+                DpNpcCategoryLabels.drawEn(handSnapshot),
+                DpNpcCategoryLabels.drawZh(handSnapshot),
+                DpNpcCategoryLabels.boardTexCompact(handSnapshot),
+                DpNpcCategoryLabels.preflopCat(handSnapshot),
                 hsl,
                 aggressor,
                 tier,
@@ -337,8 +363,28 @@ public final class LlmNpcGameContext {
         return tablePosition;
     }
 
-    public String getSimpleStrength() {
-        return simpleStrength;
+    public String getMadeEn() {
+        return madeEn;
+    }
+
+    public String getMadeZh() {
+        return madeZh;
+    }
+
+    public String getDrawEn() {
+        return drawEn;
+    }
+
+    public String getDrawZh() {
+        return drawZh;
+    }
+
+    public String getBoardTex() {
+        return boardTex;
+    }
+
+    public String getPreflopCat() {
+        return preflopCat;
     }
 
     public String getHandStrengthLine() {
@@ -451,7 +497,12 @@ public final class LlmNpcGameContext {
                 && Objects.equals(communityCardsText, that.communityCardsText)
                 && Objects.equals(holeCardsText, that.holeCardsText)
                 && Objects.equals(tablePosition, that.tablePosition)
-                && Objects.equals(simpleStrength, that.simpleStrength)
+                && Objects.equals(madeEn, that.madeEn)
+                && Objects.equals(madeZh, that.madeZh)
+                && Objects.equals(drawEn, that.drawEn)
+                && Objects.equals(drawZh, that.drawZh)
+                && Objects.equals(boardTex, that.boardTex)
+                && Objects.equals(preflopCat, that.preflopCat)
                 && Objects.equals(handStrengthLine, that.handStrengthLine)
                 && Objects.equals(aggressorNickname, that.aggressorNickname)
                 && Objects.equals(villainRangeTier, that.villainRangeTier)
@@ -472,7 +523,12 @@ public final class LlmNpcGameContext {
                 communityCardsText,
                 holeCardsText,
                 tablePosition,
-                simpleStrength,
+                madeEn,
+                madeZh,
+                drawEn,
+                drawZh,
+                boardTex,
+                preflopCat,
                 handStrengthLine,
                 aggressorNickname,
                 villainRangeTier,

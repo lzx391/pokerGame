@@ -3,7 +3,7 @@
 | 项 | 值 |
 |---|---|
 | 方案版本 | 2026-06-07 |
-| 状态 | **规划文档** — 仅描述方案，**不含 Java 实现** |
+| 状态 | **已完成（2026-06-07）** — P0/P1 + 四档踢出 + LLM v2；本文档保留历史方案记录 |
 | 权威来源 | `DpUtilHandEvaluator`、`DpNpcEngine`、`npc/strategy/*` |
 | 非目标 | 成就系统、LLM NPC、玩家 outs/equity 工具、前端 `dpGameHandRank.js`、Flyway（除非后续单独立项） |
 

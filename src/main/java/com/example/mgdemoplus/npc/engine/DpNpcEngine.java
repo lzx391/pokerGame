@@ -12,11 +12,13 @@ import com.example.mgdemoplus.npc.strategy.DpNpcNitStrategy;
 import com.example.mgdemoplus.npc.strategy.DpNpcRuleDecisionParams;
 import com.example.mgdemoplus.npc.strategy.DpNpcTagStrategy;
 import com.example.mgdemoplus.npc.strategy.DpNpcUnifiedPreflopStrategy;
+import com.example.mgdemoplus.npc.eval.DpBoardTexture;
+import com.example.mgdemoplus.npc.eval.DpNpcDrawCategory;
 import com.example.mgdemoplus.npc.eval.DpNpcEquityEstimator;
-import com.example.mgdemoplus.npc.eval.DpNpcGranularStrength;
 import com.example.mgdemoplus.npc.eval.DpNpcHandClassifier;
 import com.example.mgdemoplus.npc.eval.DpNpcHandSnapshot;
-import com.example.mgdemoplus.npc.eval.DpNpcHandTierBridge;
+import com.example.mgdemoplus.npc.eval.DpNpcMadeHandCategory;
+import com.example.mgdemoplus.npc.eval.DpNpcPostflopFormula;
 import com.example.mgdemoplus.npc.eval.DpNpcPreflopCategory;
 import com.example.mgdemoplus.npc.llm.LlmNpcGameContext;
 import com.example.mgdemoplus.npc.rulethink.DpNpcRuleThinkSampler;
@@ -29,10 +31,7 @@ import com.example.mgdemoplus.utils.DpUtilSmartContext;
 import ch.qos.logback.classic.Logger;
 
 import static com.example.mgdemoplus.utils.DpUtilHandEvaluator.CARD_RANK_MAP;
-import static com.example.mgdemoplus.utils.DpUtilHandEvaluator.SimpleStrength;
 import static com.example.mgdemoplus.utils.DpUtilHandEvaluator.evaluateBestHand;
-import static com.example.mgdemoplus.utils.DpUtilHandEvaluator.getRankFromCard;
-import static com.example.mgdemoplus.utils.DpUtilHandEvaluator.toSimpleStrength;
 
 import java.util.*;
 
@@ -223,10 +222,10 @@ public class DpNpcEngine {
         static final double RIVER_OVERBET_PROB = P.riverOverbetProb;
         static final double RIVER_BLOCK_PROB = P.riverBlockProb;
         static final double RIVER_BLOCK_FACTOR = P.riverBlockFactor;
-        /** 翻后无人加注时，按 pot×factor 下注的基准（弱/中/强），见 {@link NpcRuleCoeffs} */
-        static final double CBET_BASE_WEAK = P.cbetBaseWeak;
-        static final double CBET_BASE_MEDIUM = P.cbetBaseMedium;
-        static final double CBET_BASE_STRONG = P.cbetBaseStrong;
+        /** 翻后无人加注时，按 pot×factor 下注的基准（弱/中/强），P1 按 12 档映射 */
+        public static final double CBET_BASE_WEAK = P.cbetBaseWeak;
+        public static final double CBET_BASE_MEDIUM = P.cbetBaseMedium;
+        public static final double CBET_BASE_STRONG = P.cbetBaseStrong;
         static final double CBET_RANDOM_MIN = P.cbetRandomMin;
         static final double CBET_RANDOM_MAX = P.cbetRandomMax;
     }
@@ -421,14 +420,13 @@ public class DpNpcEngine {
     }
 
     /**
-     * 在 flop 首次行动时为 TAG 初始化整手牌计划。
-     * 仅在当前还没有计划（npcHandPlanType 为空）时才会生成一次。
+     * 在 flop 首次行动时初始化整手牌计划（12 档 + 听牌 + 牌面风险）。
      */
     public static void initHandPlanIfNeededForPostflop(
             DpRoomBO room,
             DpPlayer bot,
             BotType type,
-            SimpleStrength strength,
+            DpNpcHandSnapshot handSnapshot,
             BoardDanger boardDanger,
             TablePosition position,
             DpUtilSmartContext ctx,
@@ -448,93 +446,20 @@ public class DpNpcEngine {
         int activeVillains = ctx.activeVillains;
         VillainRangeTier villainTier = ctx.villainTier;
         double equityEst = ctx.equityEst;
-
-        // 公共牌主导时下调自评牌力，避免把「board 很强」误当自己很强
         boolean boardDominant = isBoardDominantBestHand(room, bot);
+        DpBoardTexture tex = DpNpcPostflopFormula.textureOrDry(handSnapshot);
+        boolean wet = boardDanger == BoardDanger.WET || tex.wet;
 
-        // 基于牌力 + 牌面 + 参与人数的简单规则生成计划
-        SimpleStrength planStrength = strength;
-        if (boardDominant) {
-            if (planStrength == SimpleStrength.MONSTER)
-                planStrength = SimpleStrength.STRONG;
-            else if (planStrength == SimpleStrength.STRONG)
-                planStrength = SimpleStrength.MEDIUM;
-        }
-
-        switch (planStrength) {
-            case MONSTER:
-            case STRONG:
-                if (boardDanger == BoardDanger.DRY) {
-                    planType = HandPlanType.VALUE;
-                } else {
-                    planType = (boardDanger == BoardDanger.WET && activeVillains >= 3)
-                            ? HandPlanType.POT_CONTROL
-                            : HandPlanType.VALUE;
-                }
-                break;
-            case MEDIUM:
-                if (boardDanger == BoardDanger.WET || activeVillains >= 3) {
-                    planType = HandPlanType.POT_CONTROL;
-                } else {
-                    double thinProb = 0.4;
-                    if (type == BotType.LAG) {
-                        thinProb = 0.52;
-                    } else if (type == BotType.NIT) {
-                        thinProb = 0.22;
-                    }
-                    boolean thinValue = activeVillains <= 2 && random.nextDouble() < thinProb;
-                    planType = thinValue ? HandPlanType.VALUE : HandPlanType.POT_CONTROL;
-                }
-                break;
-            case WEAK:
-            default:
-                if (boardDanger == BoardDanger.DRY && activeVillains <= 2) {
-                    double bluffProb;
-                    if (position == TablePosition.LATE) {
-                        bluffProb = (activeVillains <= 1) ? 0.58 : 0.42;
-                    } else if (position == TablePosition.BLINDS) {
-                        bluffProb = (activeVillains <= 1) ? 0.46 : 0.32;
-                    } else {
-                        bluffProb = (villainTier == VillainRangeTier.NIT || villainTier == VillainRangeTier.TIGHT)
-                                ? 0.28
-                                : 0.18;
-                    }
-                    if (activeVillains >= 2) {
-                        bluffProb *= 0.85;
-                    }
-                    if (equityEst >= 0.30 && !boardDominant) {
-                        bluffProb = Math.min(0.72, bluffProb + 0.10);
-                    }
-                    // 类型差异：LAG 更偏诈唬；NIT/CALL 显著少诈唬；FISH 略收
-                    if (type == BotType.NIT) {
-                        bluffProb *= 0.38;
-                    } else if (type == BotType.LAG) {
-                        bluffProb = Math.min(0.82, bluffProb * 1.22);
-                    } else if (type == BotType.CALL) {
-                        bluffProb *= 0.30;
-                    } else if (type == BotType.FISH) {
-                        bluffProb *= 0.88;
-                    }
-                    double potProbeFrac = 0.22;
-                    double x = random.nextDouble();
-                    if (x < bluffProb) {
-                        planType = HandPlanType.BLUFF;
-                    } else if (x < bluffProb + potProbeFrac) {
-                        planType = HandPlanType.POT_CONTROL;
-                    } else {
-                        planType = HandPlanType.GIVE_UP;
-                    }
-                } else {
-                    planType = HandPlanType.GIVE_UP;
-                }
-                break;
-        }
+        DpNpcMadeHandCategory made = DpNpcPostflopFormula.madeOrHigh(handSnapshot);
+        DpNpcDrawCategory draw = DpNpcPostflopFormula.drawOrNone(handSnapshot);
+        planType = initHandPlanByMade(made, draw, tex, wet, type, position, villainTier,
+                activeVillains, equityEst, boardDominant, random);
 
         if (boardDominant) {
             if (planType == HandPlanType.VALUE) {
                 planType = HandPlanType.POT_CONTROL;
             }
-            if (planStrength == SimpleStrength.WEAK && planType == HandPlanType.BLUFF) {
+            if (planType == HandPlanType.BLUFF && made == DpNpcMadeHandCategory.HIGH_CARD) {
                 planType = HandPlanType.POT_CONTROL;
             }
         }
@@ -601,6 +526,99 @@ public class DpNpcEngine {
         bot.setNpcHandPlanTargetVillain(targetVillain);
     }
 
+    private static HandPlanType initHandPlanByMade(
+            DpNpcMadeHandCategory made,
+            DpNpcDrawCategory draw,
+            DpBoardTexture tex,
+            boolean wet,
+            BotType type,
+            TablePosition position,
+            VillainRangeTier villainTier,
+            int activeVillains,
+            double equityEst,
+            boolean boardDominant,
+            Random random) {
+        if (made.isAtLeast(DpNpcMadeHandCategory.FULL_HOUSE)) {
+            return HandPlanType.VALUE;
+        }
+        if (made.isAtLeast(DpNpcMadeHandCategory.TRIPS)) {
+            return (wet && activeVillains >= 3) ? HandPlanType.POT_CONTROL : HandPlanType.VALUE;
+        }
+        if (made.isAtLeast(DpNpcMadeHandCategory.TWO_PAIR)) {
+            return tex.dangerousForTwoPairPlus() || (wet && activeVillains >= 2)
+                    ? HandPlanType.POT_CONTROL
+                    : HandPlanType.VALUE;
+        }
+        if (made == DpNpcMadeHandCategory.TOP_PAIR_TOP_KICKER) {
+            if (wet || tex.dangerousForTopPair()) {
+                return activeVillains >= 3 ? HandPlanType.POT_CONTROL : HandPlanType.VALUE;
+            }
+            double thinProb = type == BotType.LAG ? 0.55 : (type == BotType.NIT ? 0.28 : 0.42);
+            return activeVillains <= 2 && random.nextDouble() < thinProb
+                    ? HandPlanType.VALUE
+                    : HandPlanType.POT_CONTROL;
+        }
+        if (made == DpNpcMadeHandCategory.TOP_PAIR_WEAK_KICKER
+                || made == DpNpcMadeHandCategory.MIDDLE_PAIR) {
+            return HandPlanType.POT_CONTROL;
+        }
+        if (made == DpNpcMadeHandCategory.BOTTOM_PAIR) {
+            return random.nextDouble() < 0.35 ? HandPlanType.GIVE_UP : HandPlanType.POT_CONTROL;
+        }
+        // HIGH_CARD + 听牌
+        if (!wet && activeVillains <= 2) {
+            double bluffProb = bluffProbForHighCard(position, villainTier, activeVillains, type);
+            if (draw.isAtLeast(DpNpcDrawCategory.OESD)) {
+                bluffProb = Math.min(0.82, bluffProb + 0.18);
+            } else if (draw == DpNpcDrawCategory.GUTSHOT) {
+                bluffProb = Math.min(0.72, bluffProb + 0.06);
+            }
+            if (equityEst >= 0.28 && !boardDominant) {
+                bluffProb = Math.min(0.78, bluffProb + 0.08);
+            }
+            double potProbeFrac = 0.22;
+            double x = random.nextDouble();
+            if (x < bluffProb) {
+                return HandPlanType.BLUFF;
+            }
+            if (x < bluffProb + potProbeFrac) {
+                return HandPlanType.POT_CONTROL;
+            }
+            return HandPlanType.GIVE_UP;
+        }
+        return HandPlanType.GIVE_UP;
+    }
+
+    private static double bluffProbForHighCard(
+            TablePosition position,
+            VillainRangeTier villainTier,
+            int activeVillains,
+            BotType type) {
+        double bluffProb;
+        if (position == TablePosition.LATE) {
+            bluffProb = (activeVillains <= 1) ? 0.58 : 0.42;
+        } else if (position == TablePosition.BLINDS) {
+            bluffProb = (activeVillains <= 1) ? 0.46 : 0.32;
+        } else {
+            bluffProb = (villainTier == VillainRangeTier.NIT || villainTier == VillainRangeTier.TIGHT)
+                    ? 0.28
+                    : 0.18;
+        }
+        if (activeVillains >= 2) {
+            bluffProb *= 0.85;
+        }
+        if (type == BotType.NIT) {
+            bluffProb *= 0.38;
+        } else if (type == BotType.LAG) {
+            bluffProb = Math.min(0.85, bluffProb * 1.25);
+        } else if (type == BotType.CALL) {
+            bluffProb *= 0.30;
+        } else if (type == BotType.FISH) {
+            bluffProb *= 0.88;
+        }
+        return bluffProb;
+    }
+
     /**
      * 判断在当前阶段是否应当因为 HandPlan 放弃主动大额进攻（例如 GIVE_UP 或已用尽 barrels）。
      */
@@ -651,7 +669,7 @@ public class DpNpcEngine {
             DpRoomBO room,
             DpPlayer bot,
             BotType type,
-            SimpleStrength st,
+            DpNpcHandSnapshot handSnapshot,
             BoardDanger boardDanger,
             DpUtilSmartContext ctx) {
         if (room == null || bot == null || ctx == null)
@@ -668,14 +686,15 @@ public class DpNpcEngine {
         if (currentPlan == null)
             return;
 
-        // 尽量避免把“公共牌主导的牌面”当成 hero 价值线来乱抬，但仍允许强听/强成时回到 value
         boolean boardDominant = isBoardDominantBestHand(room, bot);
-
         double equityEst = ctx.equityEst;
-        boolean isStrong = (st == SimpleStrength.STRONG || st == SimpleStrength.MONSTER);
 
-        // st 升级到“强牌”才触发纠正：避免弱牌把计划硬改成价值线
-        double minEq = (st == SimpleStrength.MONSTER) ? 0.60 : 0.45;
+        DpNpcMadeHandCategory made = DpNpcPostflopFormula.madeOrHigh(handSnapshot);
+        DpNpcDrawCategory draw = DpNpcPostflopFormula.drawOrNone(handSnapshot);
+        boolean isStrong = made.isAtLeast(DpNpcMadeHandCategory.TWO_PAIR)
+                || (draw.isAtLeast(DpNpcDrawCategory.OESD) && equityEst >= 0.38);
+        double minEq = made.isAtLeast(DpNpcMadeHandCategory.FULL_HOUSE) ? 0.62
+                : (made.isAtLeast(DpNpcMadeHandCategory.TRIPS) ? 0.52 : 0.42);
         if (type == BotType.LAG) {
             minEq -= 0.05;
         }
@@ -1076,15 +1095,6 @@ public class DpNpcEngine {
         }
     }
 
-    private static double estimateEquityBucket(SimpleStrength st, String stage,
-            List<String> hole, List<String> community, HandStrength hsMade) {
-        return DpNpcEquityEstimator.estimateLegacy(st, stage, hole, community, hsMade);
-    }
-
-    private static double estimateEquityFromSnapshot(DpNpcHandSnapshot snap, String stage, List<String> hole) {
-        return DpNpcEquityEstimator.estimate(snap, stage, hole);
-    }
-
     /**
      * 是否属于“公共牌主导”或等同牌力几乎全来自公面：
      * - 河牌及以后：hero 的最佳 5 张牌完全不使用任何手牌（纯公共牌成牌）。
@@ -1132,7 +1142,7 @@ public class DpNpcEngine {
     }
 
     /**
-     * 规则 NPC 细化牌力快照（12 档 + 听牌）；受 {@code dp.npc.granular-strength.enabled} 控制是否用于决策。
+     * 规则 NPC 细化牌力快照（12 档 + 听牌）。
      */
     public static DpNpcHandSnapshot estimateCurrentHandSnapshot(DpRoomBO room, DpPlayer bot) {
         if (room == null || bot == null) {
@@ -1147,43 +1157,6 @@ public class DpNpcEngine {
         return DpNpcHandClassifier.classify(hole, community, stage);
     }
 
-    private static ResolvedHandStrength resolveHandStrengthForRuleNpc(DpRoomBO room, DpPlayer bot) {
-        if (DpNpcGranularStrength.isEnabled()) {
-            DpNpcHandSnapshot snap = estimateCurrentHandSnapshot(room, bot);
-            return new ResolvedHandStrength(snap, DpNpcHandTierBridge.toSimpleStrength(snap));
-        }
-        SimpleStrength st = estimateCurrentStrength(room, bot);
-        return new ResolvedHandStrength(null, st);
-    }
-
-    private static final class ResolvedHandStrength {
-        final DpNpcHandSnapshot handSnapshot;
-        final SimpleStrength strength;
-
-        ResolvedHandStrength(DpNpcHandSnapshot handSnapshot, SimpleStrength strength) {
-            this.handSnapshot = handSnapshot;
-            this.strength = strength;
-        }
-    }
-
-    private static SimpleStrength estimateCurrentStrength(DpRoomBO room, DpPlayer bot) {
-        List<String> hole = bot.getHoleCards();
-        List<String> community = room.getCommunityCards();
-        if (hole == null || hole.size() < 2) {
-            return SimpleStrength.WEAK;
-        }
-        List<String> all = new ArrayList<>(hole);
-        if (community != null) {
-            all.addAll(community);
-        }
-        if (all.size() < 5) {
-            // 公共牌不足 3 张时，用简单 preflop 规则
-            return toSimpleStrength(null, room.getCurrentStage(), hole, community);
-        }
-        DpUtilHandEvaluator.HandStrength hs = evaluateBestHand(all);
-        return toSimpleStrength(hs, room.getCurrentStage(), hole, community);
-    }
-
     /**
      * 判断公共牌面是否“湿”（容易成大牌/花顺危险）还是“干”（较安全）:
      * - 如果未发足够公共牌（少于3张），直接判为干牌面（DRY）。
@@ -1192,53 +1165,8 @@ public class DpNpcEngine {
      * - 否则，认为是干牌面（DRY）。
      */
     private static BoardDanger evaluateBoardDanger(List<String> communityCards) {
-        // 公共牌为空或不足3张必定是干燥牌面
-        if (communityCards == null || communityCards.size() < 3) {
-            return BoardDanger.DRY;
-        }
-        Set<Integer> ranks = new HashSet<>();        // 记录已出现的点数
-        Map<String, Integer> suitCount = new HashMap<>(); // 记录每种花色的数量
-        for (String c : communityCards) {
-            if (c == null || !c.contains("_"))
-                continue;
-            String[] parts = c.split("_", 2);
-            if (parts.length != 2)
-                continue;
-            String suit = parts[0];
-            String rankStr = parts[1];
-            int r = CARD_RANK_MAP.getOrDefault(rankStr, 0);
-            if (r > 0) {
-                ranks.add(r);
-            }
-            suitCount.put(suit, suitCount.getOrDefault(suit, 0) + 1);
-        }
-        // 【同花危险】只要某种花色数量>=3，则有同花潜力视为湿牌面
-        for (Integer cnt : suitCount.values()) {
-            if (cnt >= 3) {
-                return BoardDanger.WET;
-            }
-        }
-        // 【顺子危险】只要有3张及以上不同点数，且其中有3+张是连续的也判为湿牌面
-        if (ranks.size() >= 3) {
-            List<Integer> list = new ArrayList<>(ranks);
-            Collections.sort(list);
-            int maxRun = 1;
-            int currentRun = 1;
-            for (int i = 1; i < list.size(); i++) {
-                if (list.get(i) == list.get(i - 1) + 1) {
-                    currentRun++;
-                    maxRun = Math.max(maxRun, currentRun);
-                } else if (list.get(i) > list.get(i - 1) + 1) {
-                    currentRun = 1;
-                }
-            }
-            // 只要有连续3张牌（潜在顺子结构），也视为湿牌面
-            if (maxRun >= 3) {
-                return BoardDanger.WET;
-            }
-        }
-        // 都没有则为干燥牌面
-        return BoardDanger.DRY;
+        DpBoardTexture tex = DpBoardTexture.analyze(communityCards);
+        return tex.wet ? BoardDanger.WET : BoardDanger.DRY;
     }
 
     /**
@@ -1843,7 +1771,7 @@ public class DpNpcEngine {
     public static DpUtilSmartContext buildSmartContext(
             DpRoomBO room,
             DpPlayer hero,
-            SimpleStrength strength,
+            DpNpcHandSnapshot handSnapshot,
             String stage,
             int callAmount,
             Random random) {
@@ -1906,24 +1834,13 @@ public class DpNpcEngine {
             potOdds = computePotOdds(room, hero, callAmount);
         }
 
-        // 7. 粗略赢率估计桶（翻后在可评估 5+ 张牌时用真实成牌类型校正）
+        // 7. 粗略赢率估计桶（12 档成牌 + 听牌）
         List<String> hole = hero.getHoleCards();
-        List<String> community = room.getCommunityCards();
-        HandStrength hsForEquity = null;
-        if (hole != null && community != null && !"preflop".equals(stage)) {
-            List<String> allForEq = new ArrayList<>(hole);
-            allForEq.addAll(community);
-            if (allForEq.size() >= 5) {
-                hsForEquity = evaluateBestHand(allForEq);
-            }
-        }
         double equityEst;
-        if (DpNpcGranularStrength.isEnabled()) {
-            DpNpcHandSnapshot snap = estimateCurrentHandSnapshot(room, hero);
-            equityEst = estimateEquityFromSnapshot(snap, stage, hole);
-        } else {
-            equityEst = estimateEquityBucket(strength, stage, hole, community, hsForEquity);
-        }
+        DpNpcHandSnapshot snap = handSnapshot != null
+                ? handSnapshot
+                : estimateCurrentHandSnapshot(room, hero);
+        equityEst = DpNpcEquityEstimator.estimate(snap, stage, hole);
 
         // 8. 筹码深度上下文
         StackContext stackCtx = analyzeStacks(room, hero);
@@ -1998,11 +1915,11 @@ public class DpNpcEngine {
         }
         String stage = room.getCurrentStage() != null ? room.getCurrentStage() : "";
         int callAmount = Math.max(0, room.getCurrentBetToCall() - bot.getBet());
-        SimpleStrength strength = estimateCurrentStrength(room, bot);
+        DpNpcHandSnapshot handSnapshot = estimateCurrentHandSnapshot(room, bot);
         TablePosition position = getTablePosition(room, bot);
         Random random = buildHandRandom(room, bot);
-        DpUtilSmartContext ctx = buildSmartContext(room, bot, strength, stage, callAmount, random);
-        return LlmNpcGameContext.map(room, bot, ctx, stage, callAmount, strength, position);
+        DpUtilSmartContext ctx = buildSmartContext(room, bot, handSnapshot, stage, callAmount, random);
+        return LlmNpcGameContext.map(room, bot, ctx, handSnapshot, stage, callAmount, position);
     }
 
     private static BotAction decideCustomBotAction(DpRoomBO room, DpPlayer bot) {
@@ -2044,7 +1961,7 @@ public class DpNpcEngine {
             }
             return new BotAction(BotActionType.CALL_OR_CHECK, 0);
         }
-        ResolvedHandStrength resolved = resolveHandStrengthForRuleNpc(room, bot);
+        DpNpcHandSnapshot handSnapshot = estimateCurrentHandSnapshot(room, bot);
         DpNpcRuleDecisionParams ruleParams = new DpNpcRuleDecisionParams(
                 room,
                 bot,
@@ -2056,8 +1973,7 @@ public class DpNpcEngine {
                 stageForNpc,
                 random,
                 boardDanger,
-                resolved.handSnapshot,
-                resolved.strength,
+                handSnapshot,
                 style.preflopTightness(),
                 style.aggression(),
                 style.bluffFrequency(),
@@ -2104,8 +2020,7 @@ public class DpNpcEngine {
             }
             return new BotAction(BotActionType.CALL_OR_CHECK, 0);
         }
-        ResolvedHandStrength resolved = resolveHandStrengthForRuleNpc(room, bot);
-        SimpleStrength strength = resolved.strength;
+        DpNpcHandSnapshot handSnapshot = estimateCurrentHandSnapshot(room, bot);
         double preflopTight = style.preflopTightness();
         double aggression = style.aggression();
         double bluffFrequency = style.bluffFrequency();
@@ -2124,8 +2039,7 @@ public class DpNpcEngine {
                 stageForNpc,
                 random,
                 boardDanger,
-                resolved.handSnapshot,
-                strength,
+                handSnapshot,
                 preflopTight,
                 aggression,
                 bluffFrequency,

@@ -54,7 +54,8 @@ public final class DpNpcHandClassifier {
                     false,
                     false,
                     false,
-                    false);
+                    false,
+                    DpBoardTexture.analyze(community));
         }
 
         boolean holeContributes = bestFiveUsesHole(hole, community, hs);
@@ -86,7 +87,8 @@ public final class DpNpcHandClassifier {
                 counterfeit[0],
                 holeContributes,
                 pocketSet[0],
-                overpair[0]);
+                overpair[0],
+                DpBoardTexture.analyze(community));
     }
 
     public static DpNpcPreflopCategory classifyPreflop(List<String> hole) {

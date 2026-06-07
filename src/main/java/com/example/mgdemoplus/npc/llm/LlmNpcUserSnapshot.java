@@ -16,9 +16,9 @@ public final class LlmNpcUserSnapshot {
 
     private static final Logger LOG = LoggerFactory.getLogger(LlmNpcUserSnapshot.class);
 
-    static final String VERSION_HEADER = "v1|BOT_LLM|snap\n";
+    static final String VERSION_HEADER = "v2|BOT_LLM|snap\n";
     /** 与 {@linkplain #VERSION_HEADER} 同源键表；仅标识不同，便于多轮 bot 与人类阅读区分。 */
-    static final String VERSION_HEADER_GLOBAL = "v1|BOT_LLM_GLOBAL|snap\n";
+    static final String VERSION_HEADER_GLOBAL = "v2|BOT_LLM_GLOBAL|snap\n";
 
     /**
      * 键名表：行数与值表一一对应；禁止增删行或改顺序（除非同步改值生成与文档）。
@@ -48,8 +48,12 @@ public final class LlmNpcUserSnapshot {
             hole_cards
             board
             hsl_en
-            rk_en
-            rk_zh
+            made_en
+            made_zh
+            draw_en
+            draw_zh
+            board_tex
+            preflop_cat
             aggressor_nick
             villain_style_tier_en
             credibility_en
@@ -128,8 +132,12 @@ public final class LlmNpcUserSnapshot {
         String board = c.getCommunityCardsText().isEmpty() ? "—" : escLine(c.getCommunityCardsText());
         String hole = c.getHoleCardsText().isEmpty() ? "—" : escLine(c.getHoleCardsText());
         String hsl = c.getHandStrengthLine().isEmpty() ? "—" : escLine(c.getHandStrengthLine());
-        String rkEn = nz(c.getSimpleStrength());
-        String rkZh = zhRk(rkEn);
+        String madeEn = nz(c.getMadeEn());
+        String madeZh = nz(c.getMadeZh());
+        String drawEn = nz(c.getDrawEn());
+        String drawZh = nz(c.getDrawZh());
+        String boardTex = nz(c.getBoardTex());
+        String preflopCat = nz(c.getPreflopCat());
         String agg = c.getAggressorNickname().isEmpty() ? "—" : escLine(c.getAggressorNickname());
         String tier = nz(c.getVillainRangeTier());
         String credEn = nz(c.getActionCredibility());
@@ -170,8 +178,12 @@ public final class LlmNpcUserSnapshot {
         appendLn(sb, hole);
         appendLn(sb, board);
         appendLn(sb, hsl);
-        appendLn(sb, rkEn.isEmpty() ? "—" : escLine(rkEn));
-        appendLn(sb, escLine(rkZh));
+        appendLn(sb, madeEn.isEmpty() ? "—" : escLine(madeEn));
+        appendLn(sb, madeZh.isEmpty() ? "—" : escLine(madeZh));
+        appendLn(sb, drawEn.isEmpty() ? "—" : escLine(drawEn));
+        appendLn(sb, drawZh.isEmpty() ? "—" : escLine(drawZh));
+        appendLn(sb, boardTex.isEmpty() ? "—" : escLine(boardTex));
+        appendLn(sb, preflopCat.isEmpty() ? "—" : escLine(preflopCat));
         appendLn(sb, agg);
         appendLn(sb, tier.isEmpty() ? "—" : escLine(tier));
         appendLn(sb, credEn.isEmpty() ? "—" : escLine(credEn));
@@ -207,6 +219,11 @@ public final class LlmNpcUserSnapshot {
                 Math.max(0, room.getCurrentBetToCall() - bot.getBet()),
                 bot.getChips(),
                 nz(bot.getNickname()),
+                "",
+                "",
+                "",
+                "",
+                "",
                 "",
                 "",
                 "",
@@ -403,19 +420,6 @@ public final class LlmNpcUserSnapshot {
             case "LATE" -> "后位";
             case "BLINDS" -> "盲注位";
             default -> pos;
-        };
-    }
-
-    private static String zhRk(String rk) {
-        if (rk == null || rk.isEmpty() || "—".equals(rk)) {
-            return "—";
-        }
-        return switch (rk) {
-            case "WEAK" -> "弱";
-            case "MEDIUM" -> "中";
-            case "STRONG" -> "强";
-            case "MONSTER" -> "极强";
-            default -> rk;
         };
     }
 

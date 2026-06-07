@@ -177,8 +177,6 @@ dp:
       delta-lose: ${DP_NPC_MOOD_DELTA_LOSE:-0.2}  # [B] env: DP_NPC_MOOD_DELTA_LOSE
       high-threshold: ${DP_NPC_MOOD_HIGH_THRESHOLD:0.35}  # [B] env: DP_NPC_MOOD_HIGH_THRESHOLD；仅台词分桶
       low-threshold: ${DP_NPC_MOOD_LOW_THRESHOLD:-0.35}  # [B] env: DP_NPC_MOOD_LOW_THRESHOLD；仅台词分桶
-    granular-strength:
-      enabled: ${DP_NPC_GRANULAR_STRENGTH_ENABLED:true}  # [B] env: DP_NPC_GRANULAR_STRENGTH_ENABLED；false 回退 SimpleStrength 四档
     rule-think:
       enabled: ${DP_NPC_RULE_THINK_ENABLED:true}  # [B] env: DP_NPC_RULE_THINK_ENABLED
       snap-probability: ${DP_NPC_RULE_THINK_SNAP_PROBABILITY:0.18}  # [B] env: DP_NPC_RULE_THINK_SNAP_PROBABILITY

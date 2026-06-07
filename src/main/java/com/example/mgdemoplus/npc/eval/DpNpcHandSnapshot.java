@@ -18,6 +18,8 @@ public final class DpNpcHandSnapshot {
     public final boolean pocketSet;
     /** 超对（口袋对 &gt; board high）标记，供权益微调 */
     public final boolean overpair;
+    /** 公牌面风险与干湿；翻前为 null */
+    public final DpBoardTexture boardTexture;
 
     private DpNpcHandSnapshot(
             DpNpcMadeHandCategory made,
@@ -28,7 +30,8 @@ public final class DpNpcHandSnapshot {
             boolean counterfeit,
             boolean holeContributes,
             boolean pocketSet,
-            boolean overpair) {
+            boolean overpair,
+            DpBoardTexture boardTexture) {
         this.made = made;
         this.draw = draw;
         this.preflop = preflop;
@@ -38,6 +41,7 @@ public final class DpNpcHandSnapshot {
         this.holeContributes = holeContributes;
         this.pocketSet = pocketSet;
         this.overpair = overpair;
+        this.boardTexture = boardTexture;
     }
 
     public static DpNpcHandSnapshot preflop(DpNpcPreflopCategory preflop, HandStrength handStrength) {
@@ -50,7 +54,8 @@ public final class DpNpcHandSnapshot {
                 false,
                 true,
                 false,
-                false);
+                false,
+                null);
     }
 
     public static DpNpcHandSnapshot postflop(
@@ -61,7 +66,8 @@ public final class DpNpcHandSnapshot {
             boolean counterfeit,
             boolean holeContributes,
             boolean pocketSet,
-            boolean overpair) {
+            boolean overpair,
+            DpBoardTexture boardTexture) {
         return new DpNpcHandSnapshot(
                 made,
                 draw != null ? draw : DpNpcDrawCategory.NONE,
@@ -71,6 +77,7 @@ public final class DpNpcHandSnapshot {
                 counterfeit,
                 holeContributes,
                 pocketSet,
-                overpair);
+                overpair,
+                boardTexture);
     }
 }

@@ -10,7 +10,7 @@ import java.util.stream.Collectors;
  * 提供：
  * - 7 选 5 的最佳牌型计算
  * - 牌型强度比较 HandStrength
- * - 粗粒度牌力枚举 SimpleStrength
+ * - 牌力评估 HandStrength / rankCategoryNameZh（展示轨）
  */
 public final class DpUtilHandEvaluator {
 
@@ -142,28 +142,6 @@ public final class DpUtilHandEvaluator {
     }
 
     /**
-     * 公对面仅拼踢脚时，不得因宽松听牌提档到 STRONG；踢脚皆偏弱时再降到 WEAK。
-     */
-    private static SimpleStrength capPlayingBoardPair(SimpleStrength s, HandStrength hs,
-                                                      List<String> holeCards, List<String> community) {
-        if (!isPlayingBoardPairOnly(hs, holeCards, community)) {
-            return s;
-        }
-        SimpleStrength out = s;
-        if (out == SimpleStrength.MONSTER || out == SimpleStrength.STRONG) {
-            out = SimpleStrength.MEDIUM;
-        }
-        if (hs.ranks != null && hs.ranks.size() >= 3) {
-            int k1 = hs.ranks.get(1);
-            int k2 = hs.ranks.get(2);
-            if (k1 <= 9 && k2 <= 9 && out == SimpleStrength.MEDIUM) {
-                out = SimpleStrength.WEAK;
-            }
-        }
-        return out;
-    }
-
-    /**
      * 手牌强度：先比牌型，再比 5 张牌从大到小的点数。
      */
     public static class HandStrength implements Comparable<HandStrength> {
@@ -212,16 +190,6 @@ public final class DpUtilHandEvaluator {
             v = v * 15L + r;
         }
         return v;
-    }
-
-    /**
-     * 对机器人和 UI 足够用的粗粒度牌力。
-     */
-    public enum SimpleStrength {
-        WEAK,
-        MEDIUM,
-        STRONG,
-        MONSTER
     }
 
     /**
@@ -524,80 +492,6 @@ public final class DpUtilHandEvaluator {
             return Integer.compare(rb, ra);
         });
         return cards;
-    }
-
-    /**
-     * 将详细 HandStrength 映射到简单档位。
-     */
-    public static SimpleStrength toSimpleStrength(HandStrength hs, String stage,
-                                                  List<String> holeCards,
-                                                  List<String> community) {
-        if (hs == null) {
-            // preflop 简化判断
-            if (holeCards == null || holeCards.size() < 2) {
-                return SimpleStrength.WEAK;
-            }
-            int r1 = getRankFromCard(holeCards.get(0));
-            int r2 = getRankFromCard(holeCards.get(1));
-            boolean pair = (r1 == r2);
-            int high = Math.max(r1, r2);
-            int low = Math.min(r1, r2);
-
-            if (pair && high >= 10) {
-                return SimpleStrength.STRONG;
-            }
-            if (pair && high >= 7) {
-                return SimpleStrength.MEDIUM;
-            }
-            if (high >= 11 && low >= 9) {
-                return SimpleStrength.MEDIUM;
-            }
-            return SimpleStrength.WEAK;
-        }
-
-        int cat = hs.rankCategory;
-        if ("flop".equals(stage) || "turn".equals(stage) || "river".equals(stage)) {
-            SimpleStrength out;
-            // 先按已经成牌的牌型做一个基础划分
-            if (cat >= 7) {
-                out = SimpleStrength.MONSTER;
-            } else if (cat == 6 || cat == 5) {
-                out = SimpleStrength.STRONG;
-            } else if (cat == 4 || cat == 3) {
-                out = SimpleStrength.MEDIUM;
-            } else {
-                // 剩下的就是“一对或高牌”这类相对弱的成牌，
-                // 在这里叠加“强听牌”信息，把有高 equity 的听牌提档。
-                boolean strongFlushDraw = hasStrongFlushDraw(holeCards, community);
-                boolean strongStraightDraw = hasStrongStraightDraw(holeCards, community);
-                boolean comboDraw = strongFlushDraw && strongStraightDraw;
-
-                if (comboDraw) {
-                    out = SimpleStrength.STRONG;
-                } else if (strongFlushDraw || strongStraightDraw) {
-                    if ("turn".equals(stage)) {
-                        out = SimpleStrength.STRONG;
-                    } else {
-                        out = SimpleStrength.MEDIUM;
-                    }
-                } else {
-                    out = SimpleStrength.WEAK;
-                }
-            }
-            return capPlayingBoardPair(out, hs, holeCards, community);
-        }
-
-        // 其它阶段直接按档位粗分
-        if (cat >= 7) {
-            return SimpleStrength.MONSTER;
-        }
-        if (cat == 6 || cat == 5) {
-            return SimpleStrength.STRONG;
-        }
-        if (cat == 4 || cat == 3) {
-            return SimpleStrength.MEDIUM;
-        }
-        return SimpleStrength.WEAK;
     }
 
     /**
