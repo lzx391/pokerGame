@@ -37,6 +37,12 @@
                     <span class="dp-hd__meta-item">DEALER:{{ detail.dealerNickname || '--' }}</span>
                     <span class="dp-hd__meta-sep">|</span>
                     <span class="dp-hd__meta-item">{{ formatTime(detail.endedAtMs) }}</span>
+                    <span v-if="startingStackBbValue != null" class="dp-hd__meta-sep">|</span>
+                    <span
+                      v-if="startingStackBbValue != null"
+                      class="dp-hd__badge dp-hd__badge--stack"
+                      title="SC 带入倍数"
+                    >STACK x{{ startingStackBbValue }}BB</span>
                     <button class="dp-hd__meta-close" @click="close" title="关闭">[X]</button>
                   </div>
 
@@ -50,6 +56,17 @@
                     <span class="dp-hd__board-label">BOARD:</span>
                     <span v-if="!boardCards.length" class="dp-hd__board-empty">--</span>
                     <span v-for="c in boardCards" :key="'b-' + c" class="dp-hd__card" :class="cardClass(c)">{{ cardFace(c) }}</span>
+                    <span
+                      v-if="potTotalForActiveTab != null && activeTab !== 'settlement'"
+                      class="dp-hd__hud-pot"
+                      title="该街下注轮结束时的桌池总额"
+                    >
+                      <span class="dp-hd__hud-pot-bracket">[</span>
+                      <span class="dp-hd__hud-pot-key">POT</span>
+                      <span class="dp-hd__hud-pot-colon">:</span>
+                      <span class="dp-hd__hud-pot-val">{{ potTotalForActiveTab }}</span>
+                      <span class="dp-hd__hud-pot-bracket">]</span>
+                    </span>
                   </div>
 
                   <!-- 内容滚动区 -->
@@ -83,7 +100,21 @@
                             <span v-else class="dp-hd__hole-empty">--</span>
                           </span>
                           <!-- 各轮行动 -->
-                          <span v-for="(col, ci) in roundGrid" :key="nick + '-act-' + ci" class="dp-hd__tbl-act">{{ col[nick] || '--' }}</span>
+                          <span v-for="(col, ci) in roundGridCells" :key="nick + '-act-' + ci" class="dp-hd__tbl-act">
+                            <template v-if="!(col[nick] && col[nick].length)">--</template>
+                            <template v-else>
+                              <span
+                                v-for="(part, pi) in col[nick]"
+                                :key="nick + '-act-' + ci + '-' + pi"
+                                class="dp-hd__act-line"
+                              >
+                                <span class="dp-hd__act-text">{{ part.text }}</span>
+                                <span v-if="part.chipsAfter != null" class="dp-hd__act-stk">
+                                  <span class="dp-hd__act-stk-glyph" aria-hidden="true">▪</span>[STK:{{ part.chipsAfter }}]
+                                </span>
+                              </span>
+                            </template>
+                          </span>
                           <span class="dp-hd__tbl-rank dp-hd__tbl-rank--street">{{ handRankTextForStreet(nick) || '--' }}</span>
                         </div>
                       </template>
@@ -150,11 +181,12 @@ import { getHandRank } from '@/utils/dpGameHandRank'
 import { displayHandRankName } from '@/utils/dpHandRankDisplay'
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
 import {
-  STREET_ORDER, seatNicknamesOrdered, formatActionText,
+  STREET_ORDER, seatNicknamesOrdered,
   activePlayersBeforeStreet, boardForStreet, firstFoldStage,
   finalCommunityCards, finalHandRankNameByPlayer, handRankNameByStreet,
   playerRoleTagsByNickname, shouldShowHoleCardsOnStreetTab,
-  splitRoundsByRaises, buildRoundGrid
+  splitRoundsByRaises, buildRoundGridActionCells,
+  potTotalAtStreetEndForStreet, resolveStartingStackBb
 } from '@/utils/dpHandHistoryReplay.js'
 
 var STREET_SHORT = { preflop: 'PRE', flop: 'FLOP', turn: 'TURN', river: 'RIVR', settlement: 'SETTLE' }
@@ -265,21 +297,28 @@ export default {
       return this.rowNicknames.filter(function (n) { return s.has(n) })
     },
 
-    // ---- 行动轮次网格 ----
-    roundGrid: function () {
+    // ---- 行动轮次网格（v2：行动后筹码分列 CRT 展示） ----
+    roundGridCells: function () {
       var playersArr = this.activePlayers
       if (!playersArr.length || !this.streetActions.length) return []
       var split = splitRoundsByRaises(this.streetActions)
       var cols = []
       if (split.prefix.length) {
-        var prefixCols = buildRoundGrid([split.prefix], playersArr)
+        var prefixCols = buildRoundGridActionCells([split.prefix], playersArr)
         for (var i = 0; i < prefixCols.length; i++) cols.push(prefixCols[i])
       }
       if (split.rounds.length) {
-        var roundCols = buildRoundGrid(split.rounds, playersArr)
+        var roundCols = buildRoundGridActionCells(split.rounds, playersArr)
         for (var j = 0; j < roundCols.length; j++) cols.push(roundCols[j])
       }
       return cols
+    },
+    startingStackBbValue: function () {
+      return resolveStartingStackBb(this.detail, this.payload)
+    },
+    potTotalForActiveTab: function () {
+      if (this.activeTab === 'settlement') return null
+      return potTotalAtStreetEndForStreet(this.boardsByStreet, this.activeTab)
     },
     roundColHeaders: function () {
       var split = splitRoundsByRaises(this.streetActions)
@@ -632,6 +671,42 @@ export default {
 .dp-hd__board-label { color:rgba(74,246,38,0.45);font-size:9px;flex-shrink:0 }
 .dp-hd__board-empty { color:rgba(74,246,38,0.18);font-size:9px }
 
+/* payload v2：SC 带入倍数 — 像素成就徽章 */
+.dp-hd__badge--stack {
+  display:inline-flex;align-items:center;gap:3px;
+  padding:2px 7px 3px;
+  border:2px solid rgba(74,246,38,0.55);
+  border-radius:0;
+  background:
+    repeating-linear-gradient(90deg,rgba(74,246,38,0.04) 0 2px,transparent 2px 4px),
+    rgba(8,16,8,0.85);
+  box-shadow:2px 2px 0 rgba(74,246,38,0.18),inset 0 0 10px rgba(74,246,38,0.06);
+  font-family:'Press Start 2P',monospace;font-size:6px;
+  color:#72f052;letter-spacing:0.06em;
+  text-shadow:0 0 5px rgba(114,240,82,0.35);
+  white-space:nowrap;
+}
+
+/* payload v2：街末总池 — 终端 HUD（琥珀色与主绿区分） */
+.dp-hd__hud-pot {
+  margin-left:auto;flex-shrink:0;
+  display:inline-flex;align-items:baseline;gap:0;
+  padding:2px 7px 3px;
+  border:1px solid rgba(240,160,64,0.42);
+  border-radius:0;
+  background:rgba(240,160,64,0.05);
+  box-shadow:0 0 10px rgba(240,160,64,0.1),inset 0 0 12px rgba(240,160,64,0.04);
+  font-family:'Press Start 2P',monospace;font-size:6px;line-height:1.4;
+}
+.dp-hd__hud-pot-bracket { color:rgba(240,160,64,0.35) }
+.dp-hd__hud-pot-key { color:rgba(240,160,64,0.75);letter-spacing:0.05em }
+.dp-hd__hud-pot-colon { color:rgba(240,160,64,0.55) }
+.dp-hd__hud-pot-val {
+  color:#f0c878;font-weight:bold;
+  text-shadow:0 0 4px rgba(240,200,120,0.35);
+  font-variant-numeric:tabular-nums;
+}
+
 /* ====== 滚动区 ====== */
 .dp-hd__body-scroll { flex:1;min-height:0;overflow-y:auto }
 .dp-hd__empty { color:rgba(74,246,38,0.18);font-size:10px;padding:12px 0 }
@@ -690,7 +765,22 @@ export default {
 /* 行动单元格 */
 .dp-hd__tbl-act {
   flex:1;min-width:50px;text-align:center;color:#c0e0b0;font-size:9px;
-  line-height:1.5;white-space:pre-line;padding:0 2px;
+  line-height:1.5;padding:0 2px;
+}
+.dp-hd__act-line { display:block }
+.dp-hd__act-line + .dp-hd__act-line { margin-top:3px;padding-top:3px;border-top:1px dashed rgba(74,246,38,0.08) }
+.dp-hd__act-text { display:block;color:#c0e0b0 }
+.dp-hd__act-stk {
+  display:block;margin-top:2px;
+  font-family:'Press Start 2P',monospace;font-size:5px;line-height:1.5;
+  color:rgba(102,170,255,0.88);
+  text-shadow:0 0 4px rgba(102,170,255,0.22);
+  letter-spacing:0.03em;font-variant-numeric:tabular-nums;
+}
+.dp-hd__act-stk-glyph {
+  display:inline-block;margin-right:2px;
+  font-size:6px;color:#66aaff;
+  text-shadow:0 0 3px rgba(102,170,255,0.4);
 }
 
 /* 结算 */

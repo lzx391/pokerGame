@@ -71,6 +71,10 @@
             <span class="hand-detail-page__meta-k">发牌猫</span>
             <span class="hand-detail-page__meta-v">{{ detail.dealerNickname || '—' }}</span>
           </div>
+          <div class="hand-detail-page__meta-chip" title="SC 带入倍数">
+            <span class="hand-detail-page__meta-k">带入</span>
+            <span class="hand-detail-page__meta-v">{{ startingStackBbLabel }}</span>
+          </div>
         </div>
 
         <nav class="hand-detail-page__tabs" role="tablist" aria-label="牌局阶段">
@@ -92,7 +96,14 @@
           <div class="hand-detail-page__board">
             <div class="hand-detail-page__board-head">
               <span class="hand-detail-page__board-title">公共牌</span>
-              <span class="hand-detail-page__board-hint">{{ streetHint }}</span>
+              <div class="hand-detail-page__board-meta">
+                <span class="hand-detail-page__board-hint">{{ streetHint }}</span>
+                <span
+                  v-if="potTotalForActiveTab != null"
+                  class="hand-detail-page__board-pot"
+                  title="该街下注轮结束时的桌池总额"
+                >街末总池 {{ potTotalForActiveTab }}</span>
+              </div>
             </div>
             <div class="hand-detail-page__board-felt">
               <template v-if="!communityCardsForTab.length">
@@ -284,7 +295,8 @@ import {
   boardForStreet,
   handRankNameByStreet,
   finalHandRankNameByPlayer,
-  formatActionText,
+  formatActionTextWithChips,
+  potTotalAtStreetEndForStreet,
   firstFoldStage,
   shouldShowHoleCardsOnStreetTab,
   finalCommunityCards,
@@ -440,11 +452,12 @@ export default {
       const playersArr = this.playersForStreet
       const { prefix, rounds } = splitRoundsByRaises(this.streetActions)
       const cols = []
+      const gridOpts = { includeChipsAfter: true }
       if (prefix.length) {
-        cols.push(buildRoundGrid([prefix], playersArr)[0])
+        cols.push(buildRoundGrid([prefix], playersArr, gridOpts)[0])
       }
       if (rounds.length) {
-        cols.push(...buildRoundGrid(rounds, playersArr))
+        cols.push(...buildRoundGrid(rounds, playersArr, gridOpts))
       }
       return cols
     },
@@ -479,6 +492,22 @@ export default {
         river: '本圈公开第 5 张桌面牌'
       }
       return map[this.activeTab] || ''
+    },
+    startingStackBbValue() {
+      const fromDetail = this.detail && this.detail.startingStackBb
+      const fromPayload = this.payload.startingStackBb
+      const raw = fromDetail != null ? fromDetail : fromPayload
+      if (raw == null || raw === '') return null
+      const n = Number(raw)
+      return Number.isNaN(n) ? null : n
+    },
+    startingStackBbLabel() {
+      const n = this.startingStackBbValue
+      return n != null ? n + ' BB' : '—'
+    },
+    potTotalForActiveTab() {
+      if (this.activeTab === 'settlement') return null
+      return potTotalAtStreetEndForStreet(this.boardsByStreet, this.activeTab)
     }
   },
   watch: {
@@ -589,7 +618,7 @@ export default {
         for (var i = 0; i < this.streetActions.length; i++) {
           var a = this.streetActions[i]
           if (a && a.actorNickname === nick) {
-            parts.push(formatActionText(a))
+            parts.push(formatActionTextWithChips(a))
           }
         }
         return parts.length ? parts.join('\n') : '—'
@@ -856,9 +885,30 @@ export default {
   color: var(--hd-text);
 }
 
+.hand-detail-page__board-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 14px;
+}
+
 .hand-detail-page__board-hint {
   font-size: 12px;
   color: var(--hd-muted);
+}
+
+.hand-detail-page__board-pot {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--hd-tab-active);
+  background: color-mix(in srgb, var(--hd-accent) 10%, var(--hd-surface));
+  border: 1px solid color-mix(in srgb, var(--hd-accent) 22%, transparent);
 }
 
 .hand-detail-page__board-felt {
@@ -1254,6 +1304,12 @@ export default {
 
 .hand-detail-page--embedded .hand-detail-page__board-empty {
   color: color-mix(in srgb, var(--dp-text-primary) 52%, transparent);
+}
+
+.hand-detail-page--embedded .hand-detail-page__board-pot {
+  color: var(--dp-accent, var(--hd-tab-active));
+  background: color-mix(in srgb, var(--dp-accent, var(--hd-accent)) 10%, var(--dp-panel-bg, var(--hd-surface)));
+  border-color: color-mix(in srgb, var(--dp-accent, var(--hd-accent)) 22%, transparent);
 }
 
 .hand-detail-page--embedded .hand-detail-page__empty-block {
