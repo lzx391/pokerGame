@@ -585,8 +585,8 @@ export default {
   position:relative;overflow:hidden;
   background:rgba(4,6,8,0.98);
   border-radius:4px;
-  min-height:min(380px,calc(100vh - 260px));
-  max-height:min(550px,calc(100vh - 240px));
+  min-height:min(400px,calc(100vh - 260px));
+  max-height:min(580px,calc(100vh - 240px));
   display:flex;flex-direction:column;
   box-shadow:inset 0 0 60px rgba(0,0,0,0.5),0 0 12px rgba(74,246,38,0.06);
 }
@@ -617,13 +617,13 @@ export default {
 /* ====== 内容区 ====== */
 .dp-hd__content {
   position:relative;z-index:2;flex:1;display:flex;flex-direction:column;min-height:0;
-  padding:8px 12px;
+  padding:10px 14px;
   font-family:'Courier New',ui-monospace,'PingFang SC',monospace;
   color:#4af626;
 }
 .dp-hd__status {
   flex:1;display:flex;align-items:center;justify-content:center;gap:8px;
-  font-family:'Press Start 2P',monospace;font-size:10px;color:rgba(74,246,38,0.7);
+  font-family:'Press Start 2P',monospace;font-size:12px;color:rgba(74,246,38,0.7);
   text-shadow:0 0 4px rgba(74,246,38,0.3);
 }
 .dp-hd__status-icon { animation:dp-hd-blink 0.8s step-end infinite }
@@ -632,10 +632,10 @@ export default {
 
 /* 元信息 */
 .dp-hd__meta {
-  display:flex;flex-wrap:wrap;align-items:center;gap:0 6px;width:100%;
-  padding:3px 0 6px;
+  display:flex;flex-wrap:wrap;align-items:center;gap:0 8px;width:100%;
+  padding:4px 0 7px;
   border-bottom:1px solid rgba(74,246,38,0.16);
-  font-size:9px;color:rgba(74,246,38,0.55);
+  font-size:11px;line-height:1.45;color:rgba(74,246,38,0.55);
   letter-spacing:0.03em;flex-shrink:0;
 }
 .dp-hd__meta-item { white-space:nowrap }
@@ -644,18 +644,18 @@ export default {
   margin-left:auto;flex-shrink:0;width:26px;height:20px;padding:0;
   border:1px solid rgba(74,246,38,0.3);border-radius:2px;
   background:rgba(8,12,8,0.8);color:#4af626;
-  font-family:'Courier New',monospace;font-size:11px;cursor:pointer;
+  font-family:'Courier New',monospace;font-size:13px;cursor:pointer;
   line-height:1;transition:all 0.08s;
 }
 .dp-hd__meta-close:hover { background:#4af626;color:#080a0c;border-color:#4af626 }
 
 /* Tabs */
-.dp-hd__tabs { display:flex;gap:3px;padding:6px 0;flex-shrink:0; }
+.dp-hd__tabs { display:flex;gap:4px;padding:7px 0;flex-shrink:0; }
 .dp-hd__tab {
-  flex:1;padding:5px 2px;border:1px solid rgba(74,246,38,0.16);border-radius:2px;
+  flex:1;padding:6px 3px;border:1px solid rgba(74,246,38,0.16);border-radius:2px;
   background:rgba(8,16,8,0.6);color:rgba(74,246,38,0.4);
-  font-family:'Courier New',ui-monospace,monospace;font-size:9px;cursor:pointer;
-  letter-spacing:0.05em;transition:all 0.08s;
+  font-family:'Courier New',ui-monospace,monospace;font-size:11px;cursor:pointer;
+  letter-spacing:0.05em;line-height:1.35;transition:all 0.08s;
 }
 .dp-hd__tab:hover { border-color:rgba(74,246,38,0.35);color:rgba(74,246,38,0.7) }
 .dp-hd__tab--active {
@@ -665,24 +665,24 @@ export default {
 
 /* 公共牌 */
 .dp-hd__board {
-  display:flex;align-items:center;gap:6px;padding:5px 0 6px;
-  border-bottom:1px solid rgba(74,246,38,0.08);flex-shrink:0;font-size:10px;
+  display:flex;align-items:center;gap:7px;padding:6px 0 7px;
+  border-bottom:1px solid rgba(74,246,38,0.08);flex-shrink:0;font-size:12px;
 }
-.dp-hd__board-label { color:rgba(74,246,38,0.45);font-size:9px;flex-shrink:0 }
-.dp-hd__board-empty { color:rgba(74,246,38,0.18);font-size:9px }
+.dp-hd__board-label { color:rgba(74,246,38,0.45);font-size:11px;flex-shrink:0 }
+.dp-hd__board-empty { color:rgba(74,246,38,0.18);font-size:11px }
 
 /* payload v2：SC 带入倍数 — 像素成就徽章 */
 .dp-hd__badge--stack {
   display:inline-flex;align-items:center;gap:3px;
-  padding:2px 7px 3px;
+  padding:3px 8px 4px;
   border:2px solid rgba(74,246,38,0.55);
   border-radius:0;
   background:
     repeating-linear-gradient(90deg,rgba(74,246,38,0.04) 0 2px,transparent 2px 4px),
     rgba(8,16,8,0.85);
   box-shadow:2px 2px 0 rgba(74,246,38,0.18),inset 0 0 10px rgba(74,246,38,0.06);
-  font-family:'Press Start 2P',monospace;font-size:6px;
-  color:#72f052;letter-spacing:0.06em;
+  font-family:'Press Start 2P',monospace;font-size:8px;
+  color:#72f052;letter-spacing:0.05em;
   text-shadow:0 0 5px rgba(114,240,82,0.35);
   white-space:nowrap;
 }
@@ -691,12 +691,12 @@ export default {
 .dp-hd__hud-pot {
   margin-left:auto;flex-shrink:0;
   display:inline-flex;align-items:baseline;gap:0;
-  padding:2px 7px 3px;
+  padding:3px 8px 4px;
   border:1px solid rgba(240,160,64,0.42);
   border-radius:0;
   background:rgba(240,160,64,0.05);
   box-shadow:0 0 10px rgba(240,160,64,0.1),inset 0 0 12px rgba(240,160,64,0.04);
-  font-family:'Press Start 2P',monospace;font-size:6px;line-height:1.4;
+  font-family:'Press Start 2P',monospace;font-size:8px;line-height:1.45;
 }
 .dp-hd__hud-pot-bracket { color:rgba(240,160,64,0.35) }
 .dp-hd__hud-pot-key { color:rgba(240,160,64,0.75);letter-spacing:0.05em }
@@ -709,29 +709,33 @@ export default {
 
 /* ====== 滚动区 ====== */
 .dp-hd__body-scroll { flex:1;min-height:0;overflow-y:auto }
-.dp-hd__empty { color:rgba(74,246,38,0.18);font-size:10px;padding:12px 0 }
+.dp-hd__empty { color:rgba(74,246,38,0.18);font-size:12px;padding:14px 0 }
+
+/* 牌面（仅历史详情 CRT，不影响排牌面板） */
+.dp-hd__card { width:38px;height:28px;font-size:14px }
+.dp-hd__mini-card { width:24px;height:18px;font-size:11px }
 
 /* ====== 表格 ====== */
-.dp-hd__street-section { padding:2px 0 }
+.dp-hd__street-section { padding:3px 0 }
 
 .dp-hd__tbl-head {
   display:flex;align-items:center;gap:0;
-  padding:3px 0;border-bottom:2px solid rgba(74,246,38,0.2);
-  font-family:'Press Start 2P',monospace;font-size:7px;
+  padding:4px 0;border-bottom:2px solid rgba(74,246,38,0.2);
+  font-family:'Press Start 2P',monospace;font-size:9px;line-height:1.45;
   color:rgba(74,246,38,0.5);text-shadow:0 0 3px rgba(74,246,38,0.15);
   position:sticky;top:0;background:rgba(4,6,8,0.92);z-index:1;
 }
-.dp-hd__tbl-hd--nick { width:76px;flex-shrink:0;text-align:left;padding-left:2px }
-.dp-hd__tbl-hd--holes { width:48px;flex-shrink:0;text-align:center }
-.dp-hd__tbl-hd--round { flex:1;text-align:center;min-width:50px }
-.dp-hd__tbl-hd--net { width:56px;flex-shrink:0;text-align:right }
+.dp-hd__tbl-hd--nick { width:88px;flex-shrink:0;text-align:left;padding-left:2px }
+.dp-hd__tbl-hd--holes { width:52px;flex-shrink:0;text-align:center }
+.dp-hd__tbl-hd--round { flex:1;text-align:center;min-width:54px }
+.dp-hd__tbl-hd--net { width:62px;flex-shrink:0;text-align:right }
 .dp-hd__tbl-hd--rank { flex:1;text-align:left;padding-left:4px }
-.dp-hd__tbl-hd--rank-street { width:52px;flex-shrink:0;text-align:left;padding-left:4px }
+.dp-hd__tbl-hd--rank-street { width:58px;flex-shrink:0;text-align:left;padding-left:4px }
 
 .dp-hd__tbl-row {
   display:flex;align-items:center;gap:0;
-  padding:4px 0;border-bottom:1px solid rgba(74,246,38,0.04);
-  font-size:10px;transition:background 0.06s;
+  padding:5px 0;border-bottom:1px solid rgba(74,246,38,0.04);
+  font-size:12px;line-height:1.45;transition:background 0.06s;
 }
 .dp-hd__tbl-row:hover { background:rgba(74,246,38,0.02) }
 .dp-hd__tbl-row--folded { opacity:0.4 }
@@ -740,16 +744,16 @@ export default {
 .dp-hd__tbl-row--lose { border-left:3px solid rgba(255,102,102,0.4) }
 
 .dp-hd__tbl-nick {
-  width:76px;flex-shrink:0;display:flex;flex-wrap:wrap;align-items:baseline;gap:1px 3px;
+  width:88px;flex-shrink:0;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 4px;
   padding-left:2px;overflow:hidden;
 }
 .dp-hd__tbl-nick-name {
-  color:rgba(74,246,38,0.65);font-weight:bold;font-size:9px;
+  color:rgba(74,246,38,0.65);font-weight:bold;font-size:11px;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;
 }
 .dp-hd__role-tag {
-  display:inline-block;padding:0 3px;font-size:7px;font-weight:700;border-radius:2px;
-  line-height:13px;vertical-align:middle;
+  display:inline-block;padding:0 4px;font-size:9px;font-weight:700;border-radius:2px;
+  line-height:15px;vertical-align:middle;
 }
 .dp-hd__role--dealer { color:#f0a040;background:rgba(240,160,64,0.12);border:1px solid rgba(240,160,64,0.28) }
 .dp-hd__role--sb { color:#66aaff;background:rgba(102,170,255,0.1);border:1px solid rgba(102,170,255,0.22) }
@@ -757,46 +761,46 @@ export default {
 
 /* 手牌列 */
 .dp-hd__tbl-holes {
-  width:48px;flex-shrink:0;display:flex;align-items:center;justify-content:center;gap:2px;
+  width:52px;flex-shrink:0;display:flex;align-items:center;justify-content:center;gap:2px;
 }
-.dp-hd__hole-hidden { color:rgba(74,246,38,0.18);font-size:7px }
-.dp-hd__hole-empty { color:rgba(74,246,38,0.1);font-size:8px }
+.dp-hd__hole-hidden { color:rgba(74,246,38,0.18);font-size:9px }
+.dp-hd__hole-empty { color:rgba(74,246,38,0.1);font-size:10px }
 
 /* 行动单元格 */
 .dp-hd__tbl-act {
-  flex:1;min-width:50px;text-align:center;color:#c0e0b0;font-size:9px;
-  line-height:1.5;padding:0 2px;
+  flex:1;min-width:54px;text-align:center;color:#c0e0b0;font-size:11px;
+  line-height:1.55;padding:0 3px;
 }
 .dp-hd__act-line { display:block }
 .dp-hd__act-line + .dp-hd__act-line { margin-top:3px;padding-top:3px;border-top:1px dashed rgba(74,246,38,0.08) }
 .dp-hd__act-text { display:block;color:#c0e0b0 }
 .dp-hd__act-stk {
   display:block;margin-top:2px;
-  font-family:'Press Start 2P',monospace;font-size:5px;line-height:1.5;
+  font-family:'Press Start 2P',monospace;font-size:7px;line-height:1.55;
   color:rgba(102,170,255,0.88);
   text-shadow:0 0 4px rgba(102,170,255,0.22);
-  letter-spacing:0.03em;font-variant-numeric:tabular-nums;
+  letter-spacing:0.02em;font-variant-numeric:tabular-nums;
 }
 .dp-hd__act-stk-glyph {
   display:inline-block;margin-right:2px;
-  font-size:6px;color:#66aaff;
+  font-size:8px;color:#66aaff;
   text-shadow:0 0 3px rgba(102,170,255,0.4);
 }
 
 /* 结算 */
-.dp-hd__settle { padding:2px 0 }
+.dp-hd__settle { padding:3px 0 }
 .dp-hd__settle-head {
-  color:rgba(74,246,38,0.4);font-size:9px;padding:6px 0 4px;
+  color:rgba(74,246,38,0.4);font-size:11px;padding:7px 0 5px;
   text-shadow:0 0 3px rgba(74,246,38,0.12);
 }
-.dp-hd__tbl-net { width:56px;flex-shrink:0;text-align:right;font-weight:bold;font-size:10px;color:#d0f0c0 }
+.dp-hd__tbl-net { width:62px;flex-shrink:0;text-align:right;font-weight:bold;font-size:12px;color:#d0f0c0 }
 .dp-hd__tbl-net--plus { color:#72f052;text-shadow:0 0 4px rgba(114,240,82,0.35) }
 .dp-hd__tbl-net--minus { color:#ff6666 }
-.dp-hd__tbl-rank { flex:1;padding-left:4px;color:rgba(74,246,38,0.32);font-size:9px }
-.dp-hd__tbl-rank--street { width:52px;flex-shrink:0;flex:none;font-size:8px;line-height:1.3;word-break:break-all }
+.dp-hd__tbl-rank { flex:1;padding-left:4px;color:rgba(74,246,38,0.32);font-size:11px;line-height:1.4 }
+.dp-hd__tbl-rank--street { width:58px;flex-shrink:0;flex:none;font-size:10px;line-height:1.35;word-break:break-all }
 
-.dp-hd__pots { margin-top:4px }
-.dp-hd__pot { display:flex;gap:6px;padding:2px 0;font-size:9px;color:rgba(74,246,38,0.4) }
+.dp-hd__pots { margin-top:5px }
+.dp-hd__pot { display:flex;gap:7px;padding:3px 0;font-size:11px;line-height:1.4;color:rgba(74,246,38,0.4) }
 .dp-hd__pot-label { color:rgba(74,246,38,0.35);width:36px;flex-shrink:0 }
 .dp-hd__pot-amt { color:#d0f0c0;font-weight:bold;width:45px;flex-shrink:0 }
 .dp-hd__pot-nicks { color:rgba(74,246,38,0.28);overflow:hidden;text-overflow:ellipsis;white-space:nowrap }
@@ -807,7 +811,7 @@ export default {
 .dp-hd__knob--sm { width:10px;height:10px }
 .dp-hd__led { width:7px;height:7px;border-radius:50%;background:#3a2010;box-shadow:inset 0 0 2px rgba(0,0,0,0.5);transition:background 0.2s,box-shadow 0.2s }
 .dp-hd__led--glow { background:#4af626;box-shadow:0 0 6px rgba(74,246,38,0.7),inset 0 0 2px rgba(255,255,255,0.3) }
-.dp-hd__brand { margin-left:auto;font-family:'Press Start 2P',monospace;font-size:6px;color:rgba(255,255,255,0.1);letter-spacing:0.06em }
+.dp-hd__brand { margin-left:auto;font-family:'Press Start 2P',monospace;font-size:8px;color:rgba(255,255,255,0.1);letter-spacing:0.05em }
 
 .dp-hd__feet { display:flex;gap:36px;margin-top:-2px }
 .dp-hd__feet span { width:46px;height:7px;border-radius:0 0 3px 3px;background:linear-gradient(to bottom,#1a1e24,#0d0f12);box-shadow:0 2px 4px rgba(0,0,0,0.5) }

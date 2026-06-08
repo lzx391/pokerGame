@@ -1619,6 +1619,7 @@ public class DpNpcEngine {
         long deadline = bot.getNextBotActionTime();
 
         if (deadline <= 0) {
+            //独立于决策的思考延时
             long delay = DpNpcRuleThinkSampler.sampleDelayMs(
                     buildHandRandomForRuleThink(room, bot));
             if (delay > 0) {
@@ -1982,7 +1983,13 @@ public class DpNpcEngine {
                 style.checkRaiseFear());
         return DpNpcCustomStrategy.decide(ruleParams);
     }
-
+    /**
+     * 决策核心入口
+     * @param room
+     * @param bot
+     * @param type
+     * @return
+     */
     private static BotAction decideBotAction(DpRoomBO room, DpPlayer bot, BotType type) {
         int chips = bot.getChips();
         if (chips <= 0) {

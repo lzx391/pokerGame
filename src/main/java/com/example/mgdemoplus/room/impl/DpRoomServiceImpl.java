@@ -406,6 +406,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
                 default:
                     break;
             }
+            //独立于决策，仅根据决策结果进行台词推送
             npcTableTalkService.afterNpcActionSucceeded(room, p, action);
         }
     }
