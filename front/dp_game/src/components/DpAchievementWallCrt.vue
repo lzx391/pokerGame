@@ -81,9 +81,9 @@
                           <span class="dp-awc__typed">{{ typedDesc }}</span><span v-if="typing" class="dp-awc__caret">_</span>
                         </span>
                       </div>
-                      <div v-if="selectedItem.unlocked && selectedItem.unlockedAt" class="dp-awc__detail-line">
+                      <div v-if="selectedItem.unlocked" class="dp-awc__detail-line">
                         <span class="dp-awc__detail-key">DATE:</span>
-                        <span class="dp-awc__detail-val dp-awc__detail-val--date">{{ formatUnlockedAt(selectedItem.unlockedAt) }}</span>
+                        <span class="dp-awc__detail-val dp-awc__detail-val--date">{{ displayUnlockedAt(selectedItem.unlockedAt) }}</span>
                       </div>
                       <div v-else-if="!selectedItem.unlocked" class="dp-awc__detail-hint">[ CLASSIFIED — COMPLETE OBJECTIVE TO DECRYPT ]</div>
                     </template>
@@ -126,6 +126,7 @@ import {
 } from '@/utils/dpOverlayPortal'
 import { registerDpFullscreenOverlayReparent } from '@/utils/dpFullscreenOverlayBridge'
 import { shouldSkipRetroEnterEffects } from '@/utils/dpRetroEnterGameHandoff'
+import { displayAchievementUnlockedAt } from '@/utils/dpAchievementFormat'
 
 export default {
   name: 'DpAchievementWallCrt',
@@ -394,14 +395,8 @@ export default {
         i++
       }, 24)
     },
-    formatUnlockedAt: function (raw) {
-      if (!raw) return ''
-      var d = new Date(raw)
-      if (isNaN(d.getTime())) return ''
-      var y = d.getFullYear()
-      var m = String(d.getMonth() + 1).padStart(2, '0')
-      var day = String(d.getDate()).padStart(2, '0')
-      return y + '-' + m + '-' + day
+    displayUnlockedAt: function (raw) {
+      return displayAchievementUnlockedAt(raw)
     },
     loadAchievements: async function () {
       this.loading = true
@@ -753,7 +748,7 @@ export default {
 }
 .dp-awc__detail-val--title { color: #ffff88; text-shadow: 0 0 4px rgba(255, 255, 136, 0.2); }
 .dp-awc__detail-val--desc { color: rgba(224, 240, 216, 0.88); min-height: 3.6em; }
-.dp-awc__detail-val--date { color: #72f052; }
+.dp-awc__detail-val--date { color: #72f052; font-variant-numeric: tabular-nums; }
 
 .dp-awc__typed { white-space: pre-wrap; }
 .dp-awc__caret {

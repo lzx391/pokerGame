@@ -36,56 +36,16 @@
         aria-label="选择 NPC 类型"
     >
       <template v-if="touchMode">
-        <ul class="dp-owner-npc-console__list" role="presentation">
-          <li
-              v-for="(row, idx) in allNpcRows"
-              :key="row.id"
-              role="option"
-              :aria-selected="cursorIndex === idx ? 'true' : 'false'"
-              class="dp-owner-npc-console__row"
-              :class="{ 'dp-owner-npc-console__row--selected': cursorIndex === idx }"
-              @click="onNpcRowClick(idx)"
-          >
-            <div class="dp-owner-npc-console__left">
-              <span class="dp-owner-npc-console__cursor" aria-hidden="true">&gt;</span>
-              <span class="dp-owner-npc-console__label" :style="{ color: row.labelColor }">{{ row.label }}</span>
-            </div>
-            <span v-if="row.adding" class="dp-owner-npc-console__status">BUSY</span>
-          </li>
-        </ul>
-
-        <div
-            class="dp-owner-npc-console__row dp-owner-npc-console__row--count dp-owner-npc-console__row--selected"
-            aria-label="NPC 数量"
-        >
-          <div class="dp-owner-npc-console__left">
-            <span class="dp-owner-npc-console__cursor" aria-hidden="true">&gt;</span>
-            <span class="dp-owner-npc-console__label">COUNT</span>
-          </div>
-          <div class="dp-owner-npc-console__adj">
-            <button
-                type="button"
-                class="dp-owner-npc-console__chev"
-                aria-label="减少数量"
-                :disabled="selectedNpcCount <= 1"
-                @click.stop="bumpNpcCount(-1)"
-            >
-              &lt;
-            </button>
-            <span class="dp-owner-npc-console__value" aria-live="polite">{{ selectedNpcCount }}</span>
-            <button
-                type="button"
-                class="dp-owner-npc-console__chev"
-                aria-label="增加数量"
-                :disabled="selectedNpcCount >= npcCountMax"
-                @click.stop="bumpNpcCount(1)"
-            >
-              &gt;
-            </button>
-          </div>
-        </div>
-
-        <p class="dp-owner-npc-console__hint" aria-hidden="true">tap type · tap &lt;&gt; count · confirm below</p>
+        <dp-owner-npc-console
+            :rows="allNpcRows"
+            :counts="npcCounts"
+            :selected-index="cursorIndex"
+            :count-max="npcCountMax"
+            :disabled="submitting"
+            :tip="npcTouchTip"
+            @select="onNpcRowClick"
+            @adjust-count="onNpcCountAdjust"
+        />
       </template>
 
       <template v-else>
@@ -108,7 +68,34 @@
       </template>
     </div>
 
-    <!-- NPC confirm -->
+    <!-- NPC custom profile (retro8bit touch) -->
+    <div
+        v-else-if="currentScreen === 'npc-custom-profile'"
+        class="dp-owner-hub-content__screen"
+        aria-label="自定义 NPC 参数"
+    >
+      <dp-custom-npc-console
+          ref="customNpcConsole"
+          :profile="pendingCustomProfile"
+          :pending-count="npcCounts.custom"
+          :disabled="submitting"
+          @update:profile="pendingCustomProfile = $event"
+      />
+    </div>
+
+    <!-- NPC batch confirm (retro8bit touch) -->
+    <div
+        v-else-if="currentScreen === 'npc-batch-confirm'"
+        class="dp-owner-hub-content__screen dp-owner-hub-content__screen--confirm"
+    >
+      <p class="dp-owner-hub-content__confirm-title">批量添加</p>
+      <p class="dp-owner-hub-content__confirm-body">
+        {{ npcBatchSummary }}
+      </p>
+      <p class="dp-owner-hub-content__confirm-detail">下一局生效 · 受空位限制</p>
+    </div>
+
+    <!-- NPC confirm (keyboard terminal) -->
     <div
         v-else-if="currentScreen === 'npc-confirm'"
         class="dp-owner-hub-content__screen dp-owner-hub-content__screen--confirm"
@@ -216,9 +203,29 @@
 import { mapGetters } from 'vuex'
 import { dpDisplayNickname } from '../utils/dpDisplayNickname'
 import { dpOwnerTerminalDevLog } from '../utils/dpOwnerTerminalDevLog'
+import {
+  NPC_STYLE_TAG_PRESET,
+  clampNpcStyleProfile,
+  cloneNpcStyleProfile
+} from '../constants/npcStylePresets'
+import DpOwnerNpcConsole from './DpOwnerNpcConsole.vue'
+import DpCustomNpcConsole from './DpCustomNpcConsole.vue'
+
+var DEFAULT_NPC_COUNTS = {
+  fish: 0,
+  tag: 0,
+  lag: 0,
+  nit: 0,
+  call: 0,
+  maniac: 0,
+  custom: 0,
+  llm: 0,
+  llmGlobal: 0
+}
 
 export default {
   name: 'GameOwnerHubContent',
+  components: { DpOwnerNpcConsole, DpCustomNpcConsole },
   props: {
     active: { type: Boolean, default: false },
     terminalFocused: { type: Boolean, default: false },
@@ -257,20 +264,12 @@ export default {
     return {
       menuStack: ['root'],
       cursorIndex: 0,
-      npcCounts: {
-        fish: 1,
-        tag: 1,
-        lag: 1,
-        nit: 1,
-        call: 1,
-        maniac: 1,
-        custom: 1,
-        llm: 1,
-        llmGlobal: 1
-      },
+      npcCounts: Object.assign({}, DEFAULT_NPC_COUNTS),
       kickSelectionNicknames: [],
       pendingTransferNick: '',
       pendingNpcRow: null,
+      pendingCustomProfile: cloneNpcStyleProfile(NPC_STYLE_TAG_PRESET),
+      npcTouchTip: '',
       submitting: false
     }
   },
@@ -360,8 +359,18 @@ export default {
     },
     selectedNpcCount() {
       var row = this.allNpcRows[this.cursorIndex]
-      if (!row) return 1
+      if (!row) return this.touchMode ? 0 : 1
       return this.clampCount(this.npcCounts[row.id], this.npcCountMax)
+    },
+    npcBatchSummary() {
+      var parts = []
+      for (var i = 0; i < this.allNpcRows.length; i++) {
+        var row = this.allNpcRows[i]
+        var count = this.clampCount(this.npcCounts[row.id], this.npcCountMax)
+        if (count <= 0) continue
+        parts.push(this.npcSummaryLabel(row) + '×' + count)
+      }
+      return parts.length ? parts.join('+') : '—'
     }
   },
   watch: {
@@ -418,6 +427,9 @@ export default {
       this.kickSelectionNicknames = []
       this.pendingTransferNick = ''
       this.pendingNpcRow = null
+      this.pendingCustomProfile = cloneNpcStyleProfile(NPC_STYLE_TAG_PRESET)
+      this.npcCounts = Object.assign({}, DEFAULT_NPC_COUNTS)
+      this.npcTouchTip = ''
       this.submitting = false
       this.emitHubScreenState()
     },
@@ -452,7 +464,11 @@ export default {
     },
     runTouchFooterAction(action) {
       if (action === 'npc-next') {
-        this.enterNpcConfirm()
+        this.onTouchNpcNext()
+      } else if (action === 'npc-custom-ok') {
+        this.onCustomProfileConfirm()
+      } else if (action === 'npc-batch-confirm') {
+        this.emitBatchNpcConfirm()
       } else if (action === 'npc-confirm') {
         this.emitNpcConfirm()
       } else if (action === 'transfer-next') {
@@ -469,8 +485,34 @@ export default {
     },
     clampCount(raw, max) {
       var n = parseInt(raw, 10)
-      if (isNaN(n)) n = 1
-      return Math.max(1, Math.min(max, n))
+      var floor = this.touchMode ? 0 : 1
+      if (isNaN(n)) n = floor
+      return Math.max(floor, Math.min(max, n))
+    },
+    npcSummaryLabel(row) {
+      if (row.archetype) return String(row.archetype)
+      if (row.id === 'custom') return 'CUSTOM'
+      if (row.id === 'llm') return 'LLM'
+      if (row.id === 'llmGlobal') return 'LLM_GLOBAL'
+      return String(row.id || '').toUpperCase()
+    },
+    buildBatchItems() {
+      var items = []
+      for (var i = 0; i < this.allNpcRows.length; i++) {
+        var row = this.allNpcRows[i]
+        var count = this.clampCount(this.npcCounts[row.id], this.npcCountMax)
+        if (count <= 0) continue
+        if (row.type === 'custom' || row.id === 'custom') {
+          items.push({ type: 'custom', count: count })
+        } else if (row.type === 'llm') {
+          items.push({ type: 'llm', count: count })
+        } else if (row.type === 'llmGlobal') {
+          items.push({ type: 'llmGlobal', count: count })
+        } else {
+          items.push({ type: 'rule', archetype: row.archetype, count: count })
+        }
+      }
+      return items
     },
     bumpNpcCount(delta) {
       var row = this.allNpcRows[this.cursorIndex]
@@ -480,6 +522,61 @@ export default {
         this.npcCountMax
       )
       this.$set(this.npcCounts, row.id, next)
+    },
+    onNpcCountAdjust(payload) {
+      if (!payload || !payload.id) return
+      var idx = -1
+      for (var i = 0; i < this.allNpcRows.length; i++) {
+        if (this.allNpcRows[i].id === payload.id) {
+          idx = i
+          break
+        }
+      }
+      if (idx >= 0) this.cursorIndex = idx
+      var cur = this.clampCount(this.npcCounts[payload.id], this.npcCountMax)
+      var next = this.clampCount(cur + (payload.delta || 0), this.npcCountMax)
+      this.$set(this.npcCounts, payload.id, next)
+      this.npcTouchTip = ''
+    },
+    onTouchNpcNext() {
+      var items = this.buildBatchItems()
+      if (!items.length) {
+        this.npcTouchTip = '请至少选择一种 NPC 并设置数量'
+        return
+      }
+      this.npcTouchTip = ''
+      if (this.clampCount(this.npcCounts.custom, this.npcCountMax) > 0) {
+        this.pendingCustomProfile = cloneNpcStyleProfile(NPC_STYLE_TAG_PRESET)
+        this.pushScreen('npc-custom-profile')
+        return
+      }
+      this.pushScreen('npc-batch-confirm')
+    },
+    onCustomProfileConfirm() {
+      var ref = this.$refs.customNpcConsole
+      if (ref && typeof ref.getProfile === 'function') {
+        this.pendingCustomProfile = clampNpcStyleProfile(ref.getProfile())
+      } else {
+        this.pendingCustomProfile = clampNpcStyleProfile(this.pendingCustomProfile)
+      }
+      if (this.currentScreen === 'npc-custom-profile') {
+        this.popScreen()
+      }
+      this.pushScreen('npc-batch-confirm')
+    },
+    emitBatchNpcConfirm() {
+      if (this.submitting) return
+      var items = this.buildBatchItems()
+      if (!items.length) return
+      var payload = { items: items }
+      if (this.clampCount(this.npcCounts.custom, this.npcCountMax) > 0) {
+        payload.customProfile = clampNpcStyleProfile(this.pendingCustomProfile)
+      }
+      this.submitting = true
+      dpOwnerTerminalDevLog('API emit', { action: 'confirm-batch-add-npcs', payload: payload })
+      this.$emit('confirm-batch-add-npcs', payload)
+      this.submitting = false
+      this.resetStack()
     },
     isKickSelected(nick) {
       return this.kickSelectionNicknames.indexOf(nick) >= 0
@@ -526,6 +623,8 @@ export default {
       var item = this.rootItems[this.cursorIndex]
       if (!item) return
       if (item.id === 'add-npc') {
+        this.npcCounts = Object.assign({}, DEFAULT_NPC_COUNTS)
+        this.npcTouchTip = ''
         this.pushScreen('npc-pick')
         return
       }

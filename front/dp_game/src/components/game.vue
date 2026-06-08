@@ -2535,6 +2535,126 @@ export default {
       }
     },
 
+    /**
+     * retro8bit 触控板：批量串行添加多种 NPC（count=0 已过滤）。
+     */
+    async confirmBatchAddOwnerNpcs (payload) {
+      if (!this.roomId || !payload || !payload.items || !payload.items.length) return
+      if (!this.user || !this.user.nickname) {
+        this.$message.warning('请先登录')
+        return
+      }
+
+      var items = payload.items.filter(function (it) {
+        var c = parseInt(it.count, 10)
+        return !isNaN(c) && c > 0
+      })
+      if (!items.length) {
+        this.$message.warning('请至少选择一种 NPC 并设置数量')
+        return
+      }
+
+      var okParts = []
+      var errParts = []
+
+      for (var i = 0; i < items.length; i++) {
+        var item = items[i]
+        var count = parseInt(item.count, 10)
+        if (isNaN(count) || count < 1) continue
+        if (count > 9) count = 9
+
+        try {
+          if (item.type === 'rule') {
+            var arch = String(item.archetype || 'FISH').toUpperCase().replace(/^BOT_/, '')
+            var res = await this.$http.post('/dpRoom/addRuleNpcBatch', null, {
+              params: { roomId: this.roomId, archetype: arch, count: count }
+            })
+            if (res.data === 'ok') {
+              okParts.push(arch + '×' + count)
+            } else {
+              errParts.push(arch + ': ' + res.data)
+            }
+          } else if (item.type === 'custom') {
+            var profile = payload.customProfile
+            if (!profile) {
+              errParts.push('CUSTOM: 缺少参数')
+              continue
+            }
+            var resCustom = await this.$http.post('/dpRoom/addCustomNpcBatch', {
+              roomId: this.roomId,
+              count: count,
+              requesterNickname: this.user.nickname,
+              profile: profile
+            })
+            if (resCustom.data === 'ok') {
+              okParts.push('CUSTOM×' + count)
+            } else {
+              errParts.push('CUSTOM: ' + resCustom.data)
+            }
+          } else if (item.type === 'llm') {
+            var llmOk = 0
+            var llmErr = ''
+            for (var li = 0; li < count; li++) {
+              var resLlm = await this.$http.post('/dpRoom/addLlmBot', null, {
+                params: { roomId: this.roomId }
+              })
+              if (resLlm.data === 'ok') {
+                llmOk++
+              } else {
+                llmErr = String(resLlm.data)
+                break
+              }
+            }
+            if (llmOk === count) {
+              okParts.push('LLM×' + count)
+            } else if (llmOk > 0) {
+              okParts.push('LLM×' + llmOk)
+              errParts.push('LLM: 仅成功 ' + llmOk + '/' + count + (llmErr ? ' (' + llmErr + ')' : ''))
+            } else {
+              errParts.push('LLM: ' + (llmErr || 'fail'))
+            }
+          } else if (item.type === 'llmGlobal') {
+            var gOk = 0
+            var gErr = ''
+            for (var gi = 0; gi < count; gi++) {
+              var resG = await this.$http.post('/dpRoom/addLlmGlobalBot', null, {
+                params: { roomId: this.roomId }
+              })
+              if (resG.data === 'ok') {
+                gOk++
+              } else {
+                gErr = String(resG.data)
+                break
+              }
+            }
+            if (gOk === count) {
+              okParts.push('LLM_GLOBAL×' + count)
+            } else if (gOk > 0) {
+              okParts.push('LLM_GLOBAL×' + gOk)
+              errParts.push('LLM_GLOBAL: 仅成功 ' + gOk + '/' + count + (gErr ? ' (' + gErr + ')' : ''))
+            } else {
+              errParts.push('LLM_GLOBAL: ' + (gErr || 'fail'))
+            }
+          }
+        } catch (e) {
+          var label = item.type === 'rule'
+            ? String(item.archetype || 'RULE')
+            : String(item.type || 'NPC').toUpperCase()
+          errParts.push(label + ': 网络错误')
+        }
+      }
+
+      if (okParts.length && !errParts.length) {
+        this.$message.success('已请求批量添加 ' + okParts.join('+') + '，请等待本局结束（受空位限制）。')
+      } else if (okParts.length && errParts.length) {
+        this.$message.warning('部分成功 ' + okParts.join('+') + '；失败：' + errParts.join('；'))
+      } else if (errParts.length) {
+        this.$message.error('批量添加失败：' + errParts.join('；'))
+      }
+
+      this.closeOwnerTouchPanel()
+    },
+
     onOpenMusicBox() {
       if (this.gameUiTheme === 'retro8bit') { this.showMusicPlayer = true; return }
       this.$store.commit('dpGame/SET_MODAL', { showMusicBoxModal: true })

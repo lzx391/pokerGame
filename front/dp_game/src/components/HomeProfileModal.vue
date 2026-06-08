@@ -190,7 +190,7 @@
           <button type="button" class="home-prof-btn home-prof-btn--ghost" @click="dialogVisible = false">
             关闭
           </button>
-          <button type="button" class="home-prof-btn home-prof-btn--gold" @click="enterEditMode">
+          <button type="button" class="home-prof-btn home-prof-btn--outline" @click="enterEditMode">
             编辑资料
           </button>
           <button type="button" class="home-prof-btn home-prof-btn--outline" @click.stop="openAchievementWall">

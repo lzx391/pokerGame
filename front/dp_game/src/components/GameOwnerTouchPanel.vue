@@ -22,16 +22,6 @@
           body-modifier="owner-hub"
           @close="closePanel"
       >
-        <template slot="overlay">
-          <custom-npc-style-dialog
-              v-if="showCustomNpcStyleDialog"
-              :visible="true"
-              :pending-count="customNpcPendingCount"
-              :submitting="customBotAdding"
-              @cancel="$emit('close-custom-npc')"
-              @confirm="(profile) => $emit('submit-custom-npc', profile)"
-          />
-        </template>
 
         <div
             class="dp-owner-touch__sheet"
@@ -94,6 +84,7 @@
                 :custom-bot-adding="customBotAdding"
                 :custom-bot-added-tip="customBotAddedTip"
                 @confirm-add-npcs="$emit('confirm-add-npcs', $event)"
+                @confirm-batch-add-npcs="$emit('confirm-batch-add-npcs', $event)"
                 @open-deck-preset="$emit('open-deck-preset')"
                 @transfer-owner="$emit('transfer-owner')"
                 @kick-players="$emit('kick-players', $event)"
@@ -137,7 +128,6 @@
 <script>
 import GameBottomSheet from './GameBottomSheet.vue'
 import GameOwnerHubContent from './GameOwnerHubContent.vue'
-import CustomNpcStyleDialog from './CustomNpcStyleDialog.vue'
 
 /** 与 dp-sheet 滑入时长 (--dp-motion-duration-dialog) 对齐 */
 var OWNER_TOUCH_SLIDE_MS = 300
@@ -146,7 +136,7 @@ var OWNER_TOUCH_GLITCH_MS = 450
 
 export default {
   name: 'GameOwnerTouchPanel',
-  components: { GameBottomSheet, GameOwnerHubContent, CustomNpcStyleDialog },
+  components: { GameBottomSheet, GameOwnerHubContent },
   props: {
     showEntry: { type: Boolean, default: false },
     open: { type: Boolean, default: false },
@@ -217,15 +207,16 @@ export default {
     sheetTitle: function () {
       if (this.gameUiTheme !== 'retro8bit') return '房主操作'
       var screen = this.hubScreen
-      if (screen === 'npc-pick' || screen === 'npc-confirm') return '— ADD NPC —'
+      if (screen === 'npc-pick' || screen === 'npc-batch-confirm' || screen === 'npc-custom-profile') return '— ADD NPC —'
       if (screen === 'transfer-pick' || screen === 'transfer-confirm') return '— TRANSFER —'
       if (screen === 'kick-pick' || screen === 'kick-confirm') return '— KICK —'
       return '— OWNER —'
     },
     consoleSubhead: function () {
       var screen = this.hubScreen
-      if (screen === 'npc-pick') return 'SELECT TYPE · ADJUST COUNT'
-      if (screen === 'npc-confirm') return 'CONFIRM ADD'
+      if (screen === 'npc-pick') return 'SELECT TYPE · SET COUNT'
+      if (screen === 'npc-custom-profile') return 'CUSTOM PROFILE · 6 PARAMS'
+      if (screen === 'npc-batch-confirm') return 'CONFIRM BATCH ADD'
       if (screen === 'transfer-pick') return 'PICK NEW OWNER'
       if (screen === 'transfer-confirm') return 'CONFIRM TRANSFER'
       if (screen === 'kick-pick') return 'SELECT PLAYERS'
@@ -261,8 +252,11 @@ export default {
       if (screen === 'npc-pick' && this.hubListLength > 0) {
         return { label: retro ? 'NEXT >>' : '下一步', action: 'npc-next', disabled: false }
       }
-      if (screen === 'npc-confirm') {
-        return { label: retro ? 'ADD >>' : '确认添加', action: 'npc-confirm', disabled: false }
+      if (screen === 'npc-custom-profile') {
+        return { label: retro ? 'OK >>' : '确认参数', action: 'npc-custom-ok', disabled: false }
+      }
+      if (screen === 'npc-batch-confirm') {
+        return { label: retro ? 'ADD >>' : '确认添加', action: 'npc-batch-confirm', disabled: false }
       }
       if (screen === 'transfer-pick' && this.hubListLength > 0) {
         return { label: retro ? 'NEXT >>' : '下一步', action: 'transfer-next', disabled: false }

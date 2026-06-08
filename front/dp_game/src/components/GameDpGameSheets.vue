@@ -185,6 +185,7 @@
         @close-custom-npc="vm.closeCustomNpcStyleDialog"
         @submit-custom-npc="(profile) => vm.submitCustomNpcBatch(profile)"
         @confirm-add-npcs="(p) => vm.confirmAddOwnerNpcs(p)"
+        @confirm-batch-add-npcs="(p) => vm.confirmBatchAddOwnerNpcs(p)"
         @open-deck-preset="() => vm.openDeckPresetDialog()"
         @transfer-owner="() => vm.doTransferOwner({ skipConfirm: true })"
         @kick-players="(nicks) => vm.doKickPlayers(nicks, { skipConfirm: true })"

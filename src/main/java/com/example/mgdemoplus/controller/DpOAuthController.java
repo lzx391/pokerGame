@@ -39,7 +39,7 @@ public class DpOAuthController {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @Value("${mgdemoplus.oauth.github.frontend-base-url:http://localhost:8080}")
+    @Value("${mgdemoplus.oauth.frontend-base-url:http://localhost:8080}")
     private String frontendBaseUrl;
 
     private static final long EXCHANGE_TOKEN_TTL_SECONDS = 120;

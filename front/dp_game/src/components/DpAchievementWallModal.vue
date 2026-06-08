@@ -53,8 +53,8 @@
           <span v-else class="dp-ach-wall-card__badge dp-ach-wall-card__badge--locked" aria-label="未解锁">未解锁</span>
         </div>
         <p class="dp-ach-wall-card__desc">{{ item.description }}</p>
-        <p v-if="item.unlocked && item.unlockedAt" class="dp-ach-wall-card__time">
-          {{ formatUnlockedAt(item.unlockedAt) }}
+        <p v-if="item.unlocked" class="dp-ach-wall-card__time">
+          解锁于 {{ displayUnlockedAt(item.unlockedAt) }}
         </p>
       </li>
     </ul>
@@ -78,6 +78,7 @@ import {
   dpScheduleOverlayFullscreenReparent,
   dpSyncDialogPairedVModal
 } from '@/utils/dpOverlayPortal'
+import { displayAchievementUnlockedAt } from '@/utils/dpAchievementFormat'
 
 export default {
   name: 'DpAchievementWallModal',
@@ -193,14 +194,8 @@ export default {
       this.loadError = ''
       this.loading = false
     },
-    formatUnlockedAt(raw) {
-      if (!raw) return ''
-      var d = new Date(raw)
-      if (isNaN(d.getTime())) return ''
-      var y = d.getFullYear()
-      var m = String(d.getMonth() + 1).padStart(2, '0')
-      var day = String(d.getDate()).padStart(2, '0')
-      return '解锁于 ' + y + '-' + m + '-' + day
+    displayUnlockedAt(raw) {
+      return displayAchievementUnlockedAt(raw)
     },
     async loadAchievements() {
       this.loading = true
@@ -340,6 +335,7 @@ export default {
   margin: 8px 0 0;
   font-size: 12px;
   color: rgba(212, 175, 55, 0.85);
+  font-variant-numeric: tabular-nums;
 }
 .dp-ach-wall-footer {
   display: flex;
