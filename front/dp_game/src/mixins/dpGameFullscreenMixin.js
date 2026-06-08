@@ -1,6 +1,10 @@
 /**
  * 对局根全屏、伪全屏与 Element UI 弹层挪入 gameRoot（供 game.vue 使用）。
  */
+import {
+  registerDpFullscreenOverlayReparent
+} from '@/utils/dpFullscreenOverlayBridge'
+
 export default {
   data: function () {
     return {
@@ -29,6 +33,7 @@ export default {
     document.addEventListener('webkitfullscreenchange', this._dpFsChange)
     this.syncDpFullscreenState()
     this.wrapDpMessageForFullscreenOverlays()
+    registerDpFullscreenOverlayReparent(this.scheduleReparentElementUiLayersIntoFullscreenRoot.bind(this))
     var self = this
     this.$nextTick(function () {
       self.tryEnterDpFullscreen()
@@ -36,6 +41,7 @@ export default {
     })
   },
   beforeDestroy: function () {
+    registerDpFullscreenOverlayReparent(null)
     if (this._dpFsChange) {
       document.removeEventListener('fullscreenchange', this._dpFsChange)
       document.removeEventListener('webkitfullscreenchange', this._dpFsChange)
@@ -154,6 +160,7 @@ export default {
       moveAll('.hand-rank-modal-mask--stacked')
       /* el-select / 部分下拉挂在 body，全屏时必须在 gameRoot 内才能看见 */
       moveAll('.el-select-dropdown')
+      moveAll('.dp-ach-toast-host')
       var modals = document.getElementsByClassName('v-modal')
       for (w = 0; w < modals.length; w++) {
         moveIfOutside(modals[w])

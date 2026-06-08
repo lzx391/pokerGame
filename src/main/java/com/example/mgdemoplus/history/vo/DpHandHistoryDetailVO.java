@@ -14,6 +14,7 @@ public class DpHandHistoryDetailVO {
     private Long endedAtMs;
     private Integer smallBlindChips;
     private Integer bigBlindChips;
+    private Integer startingStackBb;
     private String dealerNickname;
     private Integer mainPotBeforeSettlement;
     private Integer payloadVersion;
@@ -74,6 +75,14 @@ public class DpHandHistoryDetailVO {
 
     public void setBigBlindChips(Integer bigBlindChips) {
         this.bigBlindChips = bigBlindChips;
+    }
+
+    public Integer getStartingStackBb() {
+        return startingStackBb;
+    }
+
+    public void setStartingStackBb(Integer startingStackBb) {
+        this.startingStackBb = startingStackBb;
     }
 
     public String getDealerNickname() {

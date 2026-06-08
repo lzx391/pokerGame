@@ -46,7 +46,7 @@ public class DpHandHistoryPersistServiceImpl implements DpHandHistoryPersistServ
     //7. PotDto类：将DpNpcSharkObservedHandHistory.PotSnapshot转换为PotDto对象
 
     private static final Logger log = LoggerFactory.getLogger(DpHandHistoryPersistServiceImpl.class);
-    private static final int PAYLOAD_VERSION = 1;
+    private static final int PAYLOAD_VERSION = 2;
 
     private final DpObservedHandHistoryMapper mapper;
     private final DpObservedHandParticipantMapper participantMapper;
@@ -90,6 +90,7 @@ public class DpHandHistoryPersistServiceImpl implements DpHandHistoryPersistServ
             row.setEndedAtMs(rec.endedAtMs);
             row.setSmallBlindChips(rec.smallBlindChips);
             row.setBigBlindChips(rec.bigBlindChips);
+            row.setStartingStackBb(rec.startingStackBb);
             row.setDealerNickname(rec.dealerNickname);
             row.setMainPotBeforeSettlement(rec.mainPotTotalBeforeSettlement);
             row.setPayloadVersion(PAYLOAD_VERSION);
@@ -150,6 +151,7 @@ public class DpHandHistoryPersistServiceImpl implements DpHandHistoryPersistServ
      */
     //所谓的DTO就是数据传输对象，这里是为了将DpNpcSharkObservedHandHistory.ObservedHandRecord转换为Payload对象
     private static final class Payload {
+        public int startingStackBb;
         public List<SeatDto> seatsAtStart;
         public List<BoardDto> boardsByStreet;
         public List<ActionDto> actions;
@@ -167,6 +169,7 @@ public class DpHandHistoryPersistServiceImpl implements DpHandHistoryPersistServ
         //8. NetChipsChange对象：负责记录净盈亏
         static Payload from(DpObservedHandRecordBO rec) {
             Payload p = new Payload();
+            p.startingStackBb = rec.startingStackBb;
             p.seatsAtStart = new ArrayList<>();
             for (DpObservedSeatAtHandStartBO s : rec.seatsAtStart) {
                 SeatDto d = new SeatDto();
@@ -184,6 +187,7 @@ public class DpHandHistoryPersistServiceImpl implements DpHandHistoryPersistServ
                 if (b.handRankNameByPlayer != null && !b.handRankNameByPlayer.isEmpty()) {
                     d.handRankNameByPlayer = new LinkedHashMap<>(b.handRankNameByPlayer);
                 }
+                d.potTotalAtStreetEnd = b.potTotalAtStreetEnd;
                 p.boardsByStreet.add(d);
             }
             p.actions = new ArrayList<>();
@@ -198,6 +202,7 @@ public class DpHandHistoryPersistServiceImpl implements DpHandHistoryPersistServ
                 d.actorBetBefore = a.actorBetBefore;
                 d.raiseLevelAfter = a.raiseLevelAfter;
                 d.potBefore = a.potBefore;
+                d.actorChipsAfter = a.actorChipsAfter;
                 p.actions.add(d);
             }
             p.potsBeforeSettlement = new ArrayList<>();
@@ -224,6 +229,7 @@ public class DpHandHistoryPersistServiceImpl implements DpHandHistoryPersistServ
         public String stage;
         public List<String> communityCards;
         public Map<String, String> handRankNameByPlayer;
+        public Integer potTotalAtStreetEnd;
     }
 
     private static final class ActionDto {
@@ -236,6 +242,7 @@ public class DpHandHistoryPersistServiceImpl implements DpHandHistoryPersistServ
         public int actorBetBefore;
         public int raiseLevelAfter;
         public int potBefore;
+        public int actorChipsAfter;
     }
 
     private static final class PotDto {

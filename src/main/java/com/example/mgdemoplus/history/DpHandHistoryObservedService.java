@@ -11,6 +11,9 @@ public interface DpHandHistoryObservedService {
     void markHandReadyAfterBlinds(DpRoomBO room);
 
     void recordBoardState(DpRoomBO room);
+
+    /** 街切换时记录该街结束时的桌池总额（payload v2+）。 */
+    void recordPotAtStreetEnd(DpRoomBO room, String streetStage, int potTotal);
 /**
  * 记录盲注
  * @param room 房间

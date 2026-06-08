@@ -2582,6 +2582,7 @@ ownerFieldChanged：房主字段是否发生变化。
         List<String> deck = r.getDeck();
         switch (r.getCurrentStage()) {
             case "preflop":
+                observedHandService.recordPotAtStreetEnd(r, "preflop", r.getPot());
                 r.getCommunityCards().add(deck.remove(0));
                 r.getCommunityCards().add(deck.remove(0));
                 r.getCommunityCards().add(deck.remove(0));
@@ -2590,18 +2591,21 @@ ownerFieldChanged：房主字段是否发生变化。
                 observedHandService.recordBoardState(r);
                 break;
             case "flop":
+                observedHandService.recordPotAtStreetEnd(r, "flop", r.getPot());
                 r.getCommunityCards().add(deck.remove(0));
                 r.setCurrentStage("turn");
                 observedHandService.recordBoardState(r);
                 // System.out.println("设置turn阶段");
                 break;
             case "turn":
+                observedHandService.recordPotAtStreetEnd(r, "turn", r.getPot());
                 r.getCommunityCards().add(deck.remove(0));
                 r.setCurrentStage("river");
                 observedHandService.recordBoardState(r);
                 // System.out.println("设置river阶段");
                 break;
             case "river":
+                observedHandService.recordPotAtStreetEnd(r, "river", r.getPot());
                 r.setCurrentStage("showdown");
                 // System.out.println("设置showdown阶段");
                 calculatePots(r); // 进入摊牌时计算主池/边池

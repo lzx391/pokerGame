@@ -65,6 +65,7 @@
     </div>
 
     <dp-crt-fullscreen-overlay ref="authCrtOverlay" />
+    <dp-achievement-toast-host />
   </div>
 </template>
 
@@ -77,10 +78,11 @@ import { bindAuthCrtOverlay } from '@/utils/dpAuthEnterLobby'
 import { bindRetroEnterGameCrtOverlay } from '@/utils/dpRetroEnterGameHandoff'
 import DpAuthStage from '@/components/DpAuthStage.vue'
 import DpCrtFullscreenOverlay from '@/components/DpCrtFullscreenOverlay.vue'
+import DpAchievementToastHost from '@/components/DpAchievementToastHost.vue'
 
 export default {
   name: 'App',
-  components: { DpAuthStage, DpCrtFullscreenOverlay },
+  components: { DpAuthStage, DpCrtFullscreenOverlay, DpAchievementToastHost },
   data() {
     return {
       appAuthTitle: CAT_COPY.appAuthTitle,

@@ -149,6 +149,7 @@ public class DpHandHistoryServiceImpl implements DpHandHistoryService {
         dto.setEndedAtMs(row.getEndedAtMs());
         dto.setSmallBlindChips(row.getSmallBlindChips());
         dto.setBigBlindChips(row.getBigBlindChips());
+        dto.setStartingStackBb(row.getStartingStackBb());
         dto.setDealerNickname(row.getDealerNickname());
         dto.setMainPotBeforeSettlement(row.getMainPotBeforeSettlement());
         dto.setPayloadVersion(row.getPayloadVersion());

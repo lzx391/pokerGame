@@ -48,8 +48,19 @@
 | V4 | `dp_user_stats` 等统计 |
 | V5/V6 | 单房净赢/单局倍数 |
 | V7 | `dp_leaderboard_weekly`（周榜 REST，见 `DpLeaderboardController`） |
+| V18 | `dp_observed_hand_history.starting_stack_bb`；`payload_version=2` 新增 `actorChipsAfter`、`potTotalAtStreetEnd`、`startingStackBb` |
 
-**勿修改**已应用的旧迁移脚本；新表用 `V8__*.sql`。
+**勿修改**已应用的旧迁移脚本；新表用递增 `V{序号}__*.sql`。
+
+### payload v2 字段（`payload_version=2`）
+
+| 位置 | 字段 | 说明 |
+|------|------|------|
+| 根 | `startingStackBb` | 建房带入倍数（BB） |
+| `actions[]` | `actorChipsAfter` | 行动后行动者剩余筹码 |
+| `boardsByStreet[]` | `potTotalAtStreetEnd` | 该街下注轮结束时的桌池总额 |
+
+v1 数据只读兼容，不回填；成就检测等新逻辑应判断 `payload_version >= 2`。
 
 ---
 

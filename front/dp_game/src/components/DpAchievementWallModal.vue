@@ -116,6 +116,9 @@ export default {
         return '成就墙'
       }
       return '我的成就墙'
+    },
+    achievementRevision() {
+      return this.$store.state.dpAchievement.revision
     }
   },
   watch: {
@@ -132,6 +135,11 @@ export default {
       } else {
         this.detachPortal()
       }
+    },
+    achievementRevision() {
+      if (!this.visible) return
+      if (this.userId != null && this.userId > 0) return
+      this.loadAchievements()
     }
   },
   beforeDestroy() {

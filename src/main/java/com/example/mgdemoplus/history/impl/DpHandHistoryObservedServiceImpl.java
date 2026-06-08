@@ -154,11 +154,30 @@ public final class DpHandHistoryObservedServiceImpl implements DpHandHistoryObse
         b.boardsByStreet.add(new DpObservedStreetBoardBO(st, cc));
     }
 
+    @Override
+    public void recordPotAtStreetEnd(DpRoomBO room, String streetStage, int potTotal) {
+        if (!isEnabledForRoom(room)) return;
+        if (streetStage == null || streetStage.isEmpty()) return;
+        Key k = new Key(room.getRoomId(), room.getCurrentHandSeed());
+        HandBuilder b = BUILDERS.get(k);
+        if (b == null) return;
+        for (int i = b.boardsByStreet.size() - 1; i >= 0; i--) {
+            DpObservedStreetBoardBO board = b.boardsByStreet.get(i);
+            if (board == null || !streetStage.equals(board.stage)) {
+                continue;
+            }
+            b.boardsByStreet.set(i, new DpObservedStreetBoardBO(
+                    board.stage, board.communityCards, board.handRankNameByPlayer, potTotal));
+            return;
+        }
+    }
+
    public  void recordBlind(DpRoomBO room, String nickname, boolean isSb, int amount, int potBefore) {
         if (!isEnabledForRoom(room)) return;
         DpObservedHandActionType t = isSb ? DpObservedHandActionType.POST_BLIND_SB : DpObservedHandActionType.POST_BLIND_BB;
+        int chipsAfter = chipsForNickname(room, nickname);
         append(room, new DpObservedHandActionRecordBO(System.currentTimeMillis(), "preflop", nickname, t, amount,
-                0, 0, room.getRaiseLevel(), potBefore));
+                0, 0, room.getRaiseLevel(), potBefore, chipsAfter));
     }
 
   public   void recordFold(DpRoomBO room, DpPlayer actor, int potBefore) {
@@ -166,7 +185,7 @@ public final class DpHandHistoryObservedServiceImpl implements DpHandHistoryObse
         if (actor == null) return;
         append(room, new DpObservedHandActionRecordBO(System.currentTimeMillis(), room.getCurrentStage(),
                 actor.getNickname(), DpObservedHandActionType.FOLD, 0,
-                room.getCurrentBetToCall(), actor.getBet(), room.getRaiseLevel(), potBefore));
+                room.getCurrentBetToCall(), actor.getBet(), room.getRaiseLevel(), potBefore, actor.getChips()));
     }
 
    public  void recordBetLikeAction(DpRoomBO room, DpPlayer actor, int amount,
@@ -186,7 +205,7 @@ public final class DpHandHistoryObservedServiceImpl implements DpHandHistoryObse
         }
         append(room, new DpObservedHandActionRecordBO(System.currentTimeMillis(), room.getCurrentStage(),
                 actor.getNickname(), t, amount, betToCallBefore, actorBetBefore,
-                room.getRaiseLevel(), potBefore));
+                room.getRaiseLevel(), potBefore, actor.getChips()));
     }
 
     /** 在筹码分配前调用：复制主池与边池结构 */
@@ -289,6 +308,7 @@ public final class DpHandHistoryObservedServiceImpl implements DpHandHistoryObse
                 ended,
                 room.getSmallBlindChips(),
                 room.getBigBlindChips(),
+                room.getStartingStackBb(),
                 b.dealerNickname,
                 b.seatsAtStart,
                 boardsWithRanks,
@@ -352,9 +372,25 @@ public final class DpHandHistoryObservedServiceImpl implements DpHandHistoryObse
                 continue;
             }
             Map<String, String> ranks = handRankNamesForStreet(board, holes, seatNicknames);
-            out.add(new DpObservedStreetBoardBO(board.stage, board.communityCards, ranks));
+            out.add(new DpObservedStreetBoardBO(board.stage, board.communityCards, ranks, board.potTotalAtStreetEnd));
         }
         return out;
+    }
+
+    private static int chipsForNickname(DpRoomBO room, String nickname) {
+        if (room == null || nickname == null) {
+            return 0;
+        }
+        List<DpPlayer> ps = room.getPlayers();
+        if (ps == null) {
+            return 0;
+        }
+        for (DpPlayer p : ps) {
+            if (p != null && nickname.equals(p.getNickname())) {
+                return p.getChips();
+            }
+        }
+        return 0;
     }
 
     private static Map<String, String> handRankNamesForStreet(

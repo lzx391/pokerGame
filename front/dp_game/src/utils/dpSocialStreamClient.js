@@ -16,6 +16,7 @@ var reconnectAttempt = 0
 var activeToken = ''
 var notifyHandler = null
 var presenceHandler = null
+var achievementHandler = null
 
 function readTokenFromStorage() {
   try {
@@ -82,15 +83,32 @@ function onFriendPresence(raw) {
   }
 }
 
+function onAchievementUnlock(raw) {
+  if (!storeRef || !raw) return
+  try {
+    var parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+    if (process.env.NODE_ENV !== 'production') {
+      console.info('[achievement-sse] unlocked', parsed)
+    }
+    storeRef.dispatch('dpAchievement/handleAchievementUnlock', parsed)
+  } catch (e) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('[achievement-sse] parse failed', raw, e)
+    }
+  }
+}
+
 function teardownEventSource() {
   session++
   clearReconnectTimer()
   var es = eventSource
   var onNotify = notifyHandler
   var onPresence = presenceHandler
+  var onAchievement = achievementHandler
   eventSource = null
   notifyHandler = null
   presenceHandler = null
+  achievementHandler = null
   if (es) {
     es.onopen = null
     es.onerror = null
@@ -100,6 +118,9 @@ function teardownEventSource() {
     }
     if (onPresence) {
       try { es.removeEventListener('friendPresence', onPresence) } catch (e) { /* ignore */ }
+    }
+    if (onAchievement) {
+      try { es.removeEventListener('achievement_unlocked', onAchievement) } catch (e) { /* ignore */ }
     }
     try { es.close() } catch (e) { /* ignore */ }
   }
@@ -132,9 +153,14 @@ function connectInternal(isReconnect) {
     if (session !== currentSession) return
     onFriendPresence(ev && ev.data)
   }
+  achievementHandler = function (ev) {
+    if (session !== currentSession) return
+    onAchievementUnlock(ev && ev.data)
+  }
 
   es.addEventListener('notify', notifyHandler)
   es.addEventListener('friendPresence', presenceHandler)
+  es.addEventListener('achievement_unlocked', achievementHandler)
   es.onmessage = notifyHandler
   es.onopen = function () {
     if (session !== currentSession) return
