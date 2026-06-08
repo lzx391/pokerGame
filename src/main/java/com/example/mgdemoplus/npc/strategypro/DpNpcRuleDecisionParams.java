@@ -1,4 +1,4 @@
-package com.example.mgdemoplus.npc.strategy;
+package com.example.mgdemoplus.npc.strategypro;
 
 import com.example.mgdemoplus.common.bo.DpRoomBO;
 import com.example.mgdemoplus.common.entity.DpPlayer;

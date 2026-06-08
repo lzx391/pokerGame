@@ -3,15 +3,9 @@ package com.example.mgdemoplus.npc.engine;
 import com.example.mgdemoplus.common.bo.DpRoomBO;
 import com.example.mgdemoplus.common.entity.DpPlayer;
 import com.example.mgdemoplus.common.entity.DpPlayerStats;
-import com.example.mgdemoplus.npc.strategy.DpNpcCallStrategy;
-import com.example.mgdemoplus.npc.strategy.DpNpcCustomStrategy;
-import com.example.mgdemoplus.npc.strategy.DpNpcFishStrategy;
-import com.example.mgdemoplus.npc.strategy.DpNpcLagStrategy;
-import com.example.mgdemoplus.npc.strategy.DpNpcManiacStrategy;
-import com.example.mgdemoplus.npc.strategy.DpNpcNitStrategy;
-import com.example.mgdemoplus.npc.strategy.DpNpcRuleDecisionParams;
-import com.example.mgdemoplus.npc.strategy.DpNpcTagStrategy;
-import com.example.mgdemoplus.npc.strategy.DpNpcUnifiedPreflopStrategy;
+import com.example.mgdemoplus.npc.strategypro.DpNpcRuleDecisionParams;
+import com.example.mgdemoplus.npc.strategypro.facade.DpNpcDecisionContext;
+import com.example.mgdemoplus.npc.strategypro.facade.DpNpcStrategyProvider;
 import com.example.mgdemoplus.npc.eval.DpBoardTexture;
 import com.example.mgdemoplus.npc.eval.DpNpcDrawCategory;
 import com.example.mgdemoplus.npc.eval.DpNpcEquityEstimator;
@@ -228,6 +222,8 @@ public class DpNpcEngine {
         public static final double CBET_BASE_STRONG = P.cbetBaseStrong;
         static final double CBET_RANDOM_MIN = P.cbetRandomMin;
         static final double CBET_RANDOM_MAX = P.cbetRandomMax;
+        /** Wave 2b：L1 硬约束总开关；{@code false} 时回滚坚果/免费看牌/playingTheBoard 守卫 */
+        public static final boolean HARD_CONSTRAINTS_ENABLED = true;
     }
 
     /** 规则 NPC 昵称前缀 + {@code _<uuid>}；一桌可多实例。 */
@@ -678,7 +674,7 @@ public class DpNpcEngine {
         if (!"turn".equals(stage) && !"river".equals(stage))
             return;
         if (type != BotType.TAG && type != BotType.NIT && type != BotType.LAG
-                && type != BotType.FISH && type != BotType.CALL) {
+                && type != BotType.FISH && type != BotType.CALL && type != BotType.MANIAC) {
             return;
         }
 
@@ -690,6 +686,15 @@ public class DpNpcEngine {
         double equityEst = ctx.equityEst;
 
         DpNpcMadeHandCategory made = DpNpcPostflopFormula.madeOrHigh(handSnapshot);
+
+        // L1：TRIPS+ 残留 GIVE_UP 计划强制切回 VALUE（MANIAC 等激进行为型）
+        if (made.isAtLeast(DpNpcMadeHandCategory.TRIPS) && currentPlan == HandPlanType.GIVE_UP) {
+            int newMaxBarrels = "turn".equals(stage) ? 2 : 1;
+            bot.setNpcHandPlanType(HandPlanType.VALUE.name());
+            bot.setNpcHandPlanMaxBarrels(newMaxBarrels);
+            bot.setNpcHandPlanAggression(type == BotType.MANIAC ? 0.9 : 0.8);
+            return;
+        }
         DpNpcDrawCategory draw = DpNpcPostflopFormula.drawOrNone(handSnapshot);
         boolean isStrong = made.isAtLeast(DpNpcMadeHandCategory.TWO_PAIR)
                 || (draw.isAtLeast(DpNpcDrawCategory.OESD) && equityEst >= 0.38);
@@ -782,7 +787,7 @@ public class DpNpcEngine {
      * <li>{@code checkRaiseFear} → {@code foldToPressure}</li>
      * </ul>
      */
-    private static final class StyleProfile {
+    public static final class StyleProfile {
         final double vpip;
         final double pfr;
         final double cbetFreq;
@@ -806,6 +811,22 @@ public class DpNpcEngine {
             if (v > 1.0)
                 return 1.0;
             return v;
+        }
+
+        public double getVpip() {
+            return vpip;
+        }
+
+        public double getPfr() {
+            return pfr;
+        }
+
+        public double getCallStation() {
+            return callStation;
+        }
+
+        public double getFoldToPressure() {
+            return foldToPressure;
         }
 
         /** @deprecated 语义兼容：≈ {@code 1 - vpip} */
@@ -1843,6 +1864,11 @@ public class DpNpcEngine {
                 : estimateCurrentHandSnapshot(room, hero);
         equityEst = DpNpcEquityEstimator.estimate(snap, stage, hole);
 
+        // 7b. L1：公牌平分坚果权益修正（须在 activeVillains 统计前用临时值，统计后再精调）
+        int activeVillainsPre = countActiveVillains(room, hero);
+        equityEst = com.example.mgdemoplus.npc.strategypro.l1.DpNpcHardConstraints
+                .adjustEquityForPlayingTheBoard(snap, equityEst, activeVillainsPre);
+
         // 8. 筹码深度上下文
         StackContext stackCtx = analyzeStacks(room, hero);
 
@@ -1945,23 +1971,6 @@ public class DpNpcEngine {
         String stageForNpc = room.getCurrentStage() != null ? room.getCurrentStage() : "";
         Random random = buildHandRandom(room, bot);
         BoardDanger boardDanger = evaluateBoardDanger(room.getCommunityCards());
-        if ("preflop".equals(stageForNpc)) {
-            BotAction preUnified = DpNpcUnifiedPreflopStrategy.decide(
-                    room,
-                    bot,
-                    callAmount,
-                    callRatio,
-                    style.vpip,
-                    style.pfr,
-                    style.callStation,
-                    style.foldToPressure,
-                    random,
-                    null);
-            if (preUnified != null) {
-                return preUnified;
-            }
-            return new BotAction(BotActionType.CALL_OR_CHECK, 0);
-        }
         DpNpcHandSnapshot handSnapshot = estimateCurrentHandSnapshot(room, bot);
         DpNpcRuleDecisionParams ruleParams = new DpNpcRuleDecisionParams(
                 room,
@@ -1981,7 +1990,12 @@ public class DpNpcEngine {
                 style.callStation,
                 style.stealBlindFrequency(),
                 style.checkRaiseFear());
-        return DpNpcCustomStrategy.decide(ruleParams);
+        DpNpcDecisionContext ctx = DpNpcDecisionContext.ofCustom(ruleParams, style);
+        if ("preflop".equals(stageForNpc)) {
+            BotAction pre = DpNpcStrategyProvider.get().decidePreflop(ctx);
+            return pre != null ? pre : new BotAction(BotActionType.CALL_OR_CHECK, 0);
+        }
+        return DpNpcStrategyProvider.get().decidePostflop(ctx);
     }
     /**
      * 决策核心入口
@@ -2009,24 +2023,6 @@ public class DpNpcEngine {
         if (style == null) {// 如果没有对应风格默认紧凶
             style = STYLE_PROFILE_MAP.get(NpcStyle.TAG);
         }
-        // 翻前仅 {@link DpNpcUnifiedPreflopStrategy}（G1–G8 + rangeLevel）；不再由各 BotType 策略单独处理翻前。
-        if ("preflop".equals(stageForNpc)) {
-            BotAction preUnified = DpNpcUnifiedPreflopStrategy.decide(
-                    room,
-                    bot,
-                    callAmount,
-                    callRatio,
-                    style.vpip,
-                    style.pfr,
-                    style.callStation,
-                    style.foldToPressure,
-                    random,
-                    type);
-            if (preUnified != null) {
-                return preUnified;
-            }
-            return new BotAction(BotActionType.CALL_OR_CHECK, 0);
-        }
         DpNpcHandSnapshot handSnapshot = estimateCurrentHandSnapshot(room, bot);
         double preflopTight = style.preflopTightness();
         double aggression = style.aggression();
@@ -2034,7 +2030,6 @@ public class DpNpcEngine {
         double callStation = style.callStation;
         double stealBlindFrequency = style.stealBlindFrequency();
         double checkRaiseFear = style.checkRaiseFear();
-        /// 整合好上面全部参数，进入具体类型的决策
         DpNpcRuleDecisionParams ruleParams = new DpNpcRuleDecisionParams(
                 room,
                 bot,
@@ -2053,21 +2048,11 @@ public class DpNpcEngine {
                 callStation,
                 stealBlindFrequency,
                 checkRaiseFear);
-        switch (type) {
-            case FISH:
-                return DpNpcFishStrategy.decide(ruleParams);
-            case CALL:
-                return DpNpcCallStrategy.decide(ruleParams);
-            case LAG:
-                return DpNpcLagStrategy.decide(ruleParams);
-            case MANIAC:
-                return DpNpcManiacStrategy.decide(ruleParams);
-            case TAG:
-                return DpNpcTagStrategy.decide(ruleParams);
-            case NIT:
-                return DpNpcNitStrategy.decide(ruleParams);
-            default:
-                return new BotAction(BotActionType.CALL_OR_CHECK, 0);
+        DpNpcDecisionContext ctx = DpNpcDecisionContext.ofPreset(ruleParams, style, type);
+        if ("preflop".equals(stageForNpc)) {
+            BotAction pre = DpNpcStrategyProvider.get().decidePreflop(ctx);
+            return pre != null ? pre : new BotAction(BotActionType.CALL_OR_CHECK, 0);
         }
+        return DpNpcStrategyProvider.get().decidePostflop(ctx);
     }
 }

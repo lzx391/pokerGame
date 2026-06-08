@@ -1,116 +1,89 @@
-package com.example.mgdemoplus.npc.strategy;
+package com.example.mgdemoplus.npc.strategypro.preflop;
 
 import com.example.mgdemoplus.common.bo.DpRoomBO;
 import com.example.mgdemoplus.common.entity.DpPlayer;
 import com.example.mgdemoplus.common.entity.DpPlayerStats;
 import com.example.mgdemoplus.npc.engine.DpNpcEngine;
 import com.example.mgdemoplus.npc.eval.DpNpcPreflopCategory;
+import com.example.mgdemoplus.npc.eval.DpNpcPreflopHandGrouper;
+import com.example.mgdemoplus.npc.eval.DpNpcPreflopHandGrouper.HandGroup;
+import com.example.mgdemoplus.npc.eval.DpNpcPreflopHandGrouper.HoleInfo;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 
 /**
- * 规则 NPC 共用翻前：底层仍用 G1–G8 的 {@link #groupOf} 对手牌分类；开局、面对 open/3bet 的「在不在范围里」
- * 由 <b>13×13 固定查表</b> 实现：{@code rangeLevel(1~8)} × {@link DpNpcEngine.TablePosition}（4 类）× 各局面一张表，
- * 单元格 1=可（沿用旧阈值语义）、0=否；<b>对子占对角</b>，<b>下三角</b>（行&gt;列）为<strong>杂色</strong>，
- * <b>上三角</b>（行&lt;列）为<strong>同色</strong>（高牌点在下标较大的一侧）。
- * {@code rangeLevel} 由 vpip、人数、有效筹码深度、callStation、foldToPressure 驱动；3bet/4bet 侵略性由 pfr 缩放；
- * {@link DpNpcEngine.BotType} 做小幅档位加成（MANIAC +2、LAG/FISH/CALL +1、NIT −2）。
+ * ?? NPC ????????? G1?G8 ? {@link #groupOf} ??????????? open/3bet ?????????
+ * ? <b>13?13 ????</b> ???{@code rangeLevel(1~8)} ? {@link DpNpcEngine.TablePosition}?4 ??? ???????
+ * ??? 1=???????????0=??<b>?????</b>?<b>???</b>??&gt;???<strong>??</strong>?
+ * <b>???</b>??&lt;???<strong>??</strong>??????????????
+ * {@code rangeLevel} ? vpip???????????callStation?foldToPressure ???3bet/4bet ???? pfr ???
+ * {@link DpNpcEngine.BotType} ????????MANIAC +2?LAG/FISH/CALL +1?NIT ?2??
  *
  * <p>
- * <b>位置只进一档</b>：离散 {@link DpNpcEngine.TablePosition} 只决定查哪一维位置表（与 {@code rangeLevel} 一起选矩阵切片）；
- * 开局加注倍数、3bet/4bet 体量与再加注概率<strong>不按座位二次缩放</strong>，避免与阈值表双重叠加。
+ * <b>??????</b>??? {@link DpNpcEngine.TablePosition} ???????????? {@code rangeLevel} ?????????
+ * ???????3bet/4bet ????????<strong>????????</strong>????????????
  *
  * <p>
- * <b>有效位置</b>：与 {@link com.example.mgdemoplus.room.impl.DpRoomServiceImpl} 一致，翻前首位行动者为 {@code (dealerIndex + 3) % N}（UTG），
- * 顺时针直至大盲结束一圈。只统计本手仍未弃牌且未离桌的玩家，得到英雄在该顺序里的次序 {@code rank}（1=仍存活中最先须表态的一侧），
- * {@code lateFactor = (rank - 1) / (active - 1)} ∈ [0,1]：越接近 1 表示在<strong>本轮仍存活玩家</strong>中越靠后行动（通常更有位置优势）。
- * 再映射到 {@link DpNpcEngine.TablePosition} 供阈值表使用（非盲注席按三分位；小盲/大盲仍走 BLINDS）。
+ * <b>????</b>?? {@link com.example.mgdemoplus.room.impl.DpRoomServiceImpl} ??????????? {@code (dealerIndex + 3) % N}?UTG??
+ * ????????????????????????????????????????? {@code rank}?1=??????????????
+ * {@code lateFactor = (rank - 1) / (active - 1)} ? [0,1]???? 1 ???<strong>???????</strong>?????????????????
+ * ???? {@link DpNpcEngine.TablePosition} ??????????????????/???? BLINDS??
  * </p>
  */
 public final class DpNpcUnifiedPreflopStrategy {
     private DpNpcUnifiedPreflopStrategy() {
     }
 
-    private static final Map<String, Integer> RANK = new HashMap<>();
-
-    static {
-        RANK.put("2", 2);
-        RANK.put("3", 3);
-        RANK.put("4", 4);
-        RANK.put("5", 5);
-        RANK.put("6", 6);
-        RANK.put("7", 7);
-        RANK.put("8", 8);
-        RANK.put("9", 9);
-        RANK.put("10", 10);
-        RANK.put("J", 11);
-        RANK.put("Q", 12);
-        RANK.put("K", 13);
-        RANK.put("A", 14);
-    }
-
-    enum HandGroup {
-        G1, // AA/KK/QQ/JJ/AK
-        G2, // TT/AQ/AJ/KQ（偏强）
-        G3, // 99-88/AT/KJ/QJ（偏可打）
-        G4, // 77-66/A9s-A5s/KT/QT/JT/部分同花大牌
-        G5, // 55-22/同花连张/同花一隔
-        G6, // 宽松的同花 Axs/同花 Kxs/部分 broadway offsuit
-        G7, // 部分边缘可偷牌（主要用于后位/短人局）
-        G8, // 其它（基本不建议入池）
-    }
 
     enum PreflopSpot {
-        UNOPENED, // 还没人加注（callAmount==0 且 raiseLevel==0/1）
-        FACING_OPEN, // 面对 open（raiseLevel==1）
-        FACING_3BET, // 你 open 后被 3bet（raiseLevel==2）
-        FACING_4BET, // 面对 4bet+（raiseLevel>=3）
+        UNOPENED, // ??????callAmount==0 ? raiseLevel==0/1?
+        FACING_OPEN, // ?? open?raiseLevel==1?
+        FACING_3BET, // ? open ?? 3bet?raiseLevel==2?
+        FACING_4BET, // ?? 4bet+?raiseLevel>=3?
         UNKNOWN
     }
 
-    /** 牌点 2…A 映射到矩阵下标 0…12。 */
+    /** ?? 2?A ??????? 0?12? */
     private static final int RANK_DIM = 13;
 
-    /** 与 {@link DpNpcEngine.TablePosition#ordinal()} 一致：EARLY, MIDDLE, LATE, BLINDS。 */
+    /** ? {@link DpNpcEngine.TablePosition#ordinal()} ???EARLY, MIDDLE, LATE, BLINDS? */
     private static final int POS_DIM = 4;
 
-    /** {@code rangeLevel 1~8} → 矩阵下标 {@code 0~7}。 */
+    /** {@code rangeLevel 1~8} ? ???? {@code 0~7}? */
     private static final int LEVEL_DIM = 8;
 
     /**
-     * 无人加注：是否允许 open（原 {@code RangeThreshold.openMaxGroup}）。
-     * {@code openAllow[posOrdinal][rangeLevel-1][row][col]}。
+     * ????????? open?? {@code RangeThreshold.openMaxGroup}??
+     * {@code openAllow[posOrdinal][rangeLevel-1][row][col]}?
      */
     private static final byte[][][][] openAllow = new byte[POS_DIM][LEVEL_DIM][RANK_DIM][RANK_DIM];
 
-    /** 面对 open：是否跟注延续（原 {@code vsOpenContinueMaxGroup}）。 */
+    /** ?? open????????? {@code vsOpenContinueMaxGroup}?? */
     private static final byte[][][][] vsOpenContinueAllow = new byte[POS_DIM][LEVEL_DIM][RANK_DIM][RANK_DIM];
 
-    /** 面对 open：价值 3bet 资格（原 {@code vsOpen3BetValueMaxGroup}）。 */
+    /** ?? open??? 3bet ???? {@code vsOpen3BetValueMaxGroup}?? */
     private static final byte[][][][] vsOpen3BetValueAllow = new byte[POS_DIM][LEVEL_DIM][RANK_DIM][RANK_DIM];
 
-    /** 面对 3bet：是否延续（原 {@code vs3BetContinueMaxGroup}）。 */
+    /** ?? 3bet??????? {@code vs3BetContinueMaxGroup}?? */
     private static final byte[][][][] vs3BetContinueAllow = new byte[POS_DIM][LEVEL_DIM][RANK_DIM][RANK_DIM];
 
-    /** 面对 3bet：价值 4bet 资格（原 {@code vs3Bet4BetValueMaxGroup}）。 */
+    /** ?? 3bet??? 4bet ???? {@code vs3Bet4BetValueMaxGroup}?? */
     private static final byte[][][][] vs3Bet4BetValueAllow = new byte[POS_DIM][LEVEL_DIM][RANK_DIM][RANK_DIM];
 
-    /** 面对 4bet+：pot-odds 便宜时「强到 G4 及以上」跟进（与原 {@code HandGroup.G4} 上限一致）。 */
+    /** ?? 4bet+?pot-odds ?????? G4 ????????? {@code HandGroup.G4} ?????? */
     private static final byte[][] facing4BetPotOddsCallAllow = new byte[RANK_DIM][RANK_DIM];
 
-    /** 面对 4bet+：Jam 阈值 G2 及以下（最强档，与原一致）。 */
+    /** ?? 4bet+?Jam ?? G2 ?????????????? */
     private static final byte[][] facing4BetJamAllow = new byte[RANK_DIM][RANK_DIM];
 
-    /** 面对 4bet+：中段处理分支（恰好 G3）。 */
+    /** ?? 4bet+?????????? G3?? */
     private static final byte[][] facing4BetMidG3Allow = new byte[RANK_DIM][RANK_DIM];
 
     /**
-     * 先通过竞争者数、码量、风格算出粗范围（{@code rangeLevel}），再结合位置与各局面<strong>矩阵切片</strong>决定是否入池；
-     * 诈唬候选仍用手牌分组 G4/G5、G3/G4。
+     * ???????????????????{@code rangeLevel}???????????<strong>????</strong>???????
+     * ?????????? G4/G5?G3/G4?
      */
     public static DpNpcEngine.BotAction decide(
             DpRoomBO room,
@@ -135,7 +108,7 @@ public final class DpNpcUnifiedPreflopStrategy {
             return null;
         }
 
-        HoleInfo hole = parseHole(hero.getHoleCards());//判断点数和合法性和是否同花
+        HoleInfo hole = DpNpcPreflopHandGrouper.parseHole(hero.getHoleCards());//?????????????
         if (!hole.valid) {
             return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
         }
@@ -148,13 +121,13 @@ public final class DpNpcUnifiedPreflopStrategy {
         VillainTier tier = estimateVillainTier(aggressorStats);
 
         double heroStackBB = hero.getChips() * 1.0 / bb;
-        double effStackBB = heroStackBB;//算最小有效筹码bb数
+        double effStackBB = heroStackBB;//???????bb?
         if (aggressor != null) {
             effStackBB = Math.min(hero.getChips(), aggressor.getChips()) * 1.0 / bb;
         }
 
-        int raiseLevel = room.getRaiseLevel();//加注层级
-        PreflopSpot spot = spotBy(raiseLevel, callAmount);//后续动作更新局面包
+        int raiseLevel = room.getRaiseLevel();//????
+        PreflopSpot spot = spotBy(raiseLevel, callAmount);//?????????
 
         double lateFactor = computePreflopLateFactor(room, hero);
         DpNpcEngine.TablePosition position = pseudoTablePosition(lateFactor, hero.getBlind());
@@ -162,35 +135,36 @@ public final class DpNpcUnifiedPreflopStrategy {
         int rangeLevel = computeRangeLevel(activePlayers, effStackBB, vpip, callStation, foldToPressure);
         rangeLevel += rangeLevelBonus(botType);
         rangeLevel = clampInt(rangeLevel, 1, 8);
-        // 位置 + rangeLevel → 矩阵切片；开局加注额、3bet/4bet 概率与倍数不再单独按座位二次调节
+        // ?? + rangeLevel ? ???????????3bet/4bet ????????????????
         int posIdx = position.ordinal();
         int levelIdx = rangeLevel - 1;
+        int defendLevelIdx = defendMatrixLevelIdx(rangeLevel, botType, callAmount, bb);
 
-        HandGroup g = groupOf(hole);
+        HandGroup g = DpNpcPreflopHandGrouper.groupOf(hole);
 
-        // === 终局规则：到 4bet 往后收敛到 all-in / call / fold ===
+        // === ?????? 4bet ????? all-in / call / fold ===
         if (spot == PreflopSpot.FACING_4BET) {
             return decideFacing4Bet(hero, bb, sb, callAmount, callRatio, effStackBB, hole, tier, random);
         }
 
-        // === 无人加注：open / limp-check / fold ===
+        // === ?????open / limp-check / fold ===
         if (spot == PreflopSpot.UNOPENED) {
             return decideUnopened(hero, bb, sb, activePlayers, effStackBB, hole, openAllow[posIdx][levelIdx], random);
         }
 
-        // === 面对 open：call / 3bet / fold ===
+        // === ?? open?call / 3bet / fold ===
         if (spot == PreflopSpot.FACING_OPEN) {
             return decideFacingOpen(room, hero, bb, sb, callAmount, effStackBB, hole, g,
-                    vsOpenContinueAllow[posIdx][levelIdx], vsOpen3BetValueAllow[posIdx][levelIdx], tier, pfr, random);
+                    vsOpenContinueAllow[posIdx][defendLevelIdx], vsOpen3BetValueAllow[posIdx][levelIdx], tier, pfr, random);
         }
 
-        // === 你 open 后被 3bet：call / 4bet / fold ===
+        // === ? open ?? 3bet?call / 4bet / fold ===
         if (spot == PreflopSpot.FACING_3BET) {
             return decideFacing3Bet(room, hero, bb, sb, callAmount, callRatio, effStackBB, hole, g,
                     vs3BetContinueAllow[posIdx][levelIdx], vs3Bet4BetValueAllow[posIdx][levelIdx], tier, pfr, random);
         }
 
-        // fallback：默认跟/过牌（尽量不断线）
+        // fallback????/?????????
         return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
     }
 
@@ -216,6 +190,35 @@ public final class DpNpcUnifiedPreflopStrategy {
         return 0;
     }
 
+    /**
+     * ?? open ????? defend ???? open ?? {@link #rangeLevelBonus} ????
+     * FISH/CALL ???LAG/MANIAC ?????TAG ???NIT ???
+     * ?? min-raise???? ? 1BB?? +1 ???? pot odds ???? defend ???
+     */
+    private static int defendLevelBonus(DpNpcEngine.BotType t) {
+        if (t == null) {
+            return 0;
+        }
+        if (t == DpNpcEngine.BotType.FISH || t == DpNpcEngine.BotType.CALL) {
+            return 2;
+        }
+        if (t == DpNpcEngine.BotType.LAG || t == DpNpcEngine.BotType.MANIAC) {
+            return 1;
+        }
+        if (t == DpNpcEngine.BotType.NIT) {
+            return -1;
+        }
+        return 0;
+    }
+
+    private static int defendMatrixLevelIdx(int rangeLevel, DpNpcEngine.BotType botType, int callAmount, int bb) {
+        int defendLevel = clampInt(rangeLevel + defendLevelBonus(botType), 1, 8);
+        if (callAmount > 0 && bb > 0 && callAmount <= 2 * bb) {
+            defendLevel = clampInt(defendLevel + 1, 1, 8);
+        }
+        return defendLevel - 1;
+    }
+
     private static double pfrAggressionScale(double pfr) {
         double p = pfr;
         if (p < 0.0) {
@@ -237,13 +240,12 @@ public final class DpNpcUnifiedPreflopStrategy {
             Random random) {
         boolean canOpen = matrixAllows(openSlice, hole);
         if (!canOpen) {
-            // 盲注位：很多时候可以直接过牌免费看翻牌
+            // ???????????????????
             return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
         }
 
-        int openSizeBB = baseOpenSizeBB(activePlayers, effStackBB, random);
-        int raiseAmount = Math.min(hero.getChips(), openSizeBB * bb);
-        raiseAmount = roundToSB(raiseAmount, sb, hero.getChips());
+        double openSizeBB = baseOpenSizeBB(activePlayers, effStackBB, random);
+        int raiseAmount = openRaiseChips(openSizeBB, bb, sb, hero.getChips());
         if (raiseAmount <= 0) {
             return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
         }
@@ -302,19 +304,19 @@ public final class DpNpcUnifiedPreflopStrategy {
             VillainTier tier,
             double pfr,
             Random random) {
-        // continue range：比面对 open 更紧
+        // continue range???? open ??
         boolean canContinue = matrixAllows(vs3BetContinueSlice, hole);
         if (!canContinue) {
             return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.FOLD, 0);
         }
 
-        // 价值 4bet：顶级强牌
+        // ?? 4bet?????
         boolean value4bet = matrixAllows(vs3Bet4BetValueSlice, hole);
         boolean bluff4bet = is4BetBluffCandidate(g) && tier == VillainTier.LOOSE_OR_AGGRO && effStackBB >= 18;
 
-        // 面对较大 3bet（成本高）时减少花活
+        // ???? 3bet??????????
         if (callRatio >= 0.35 && !value4bet) {
-            // 深码可偶尔平跟看翻牌，否则多弃
+            // ???????????????
             if (effStackBB >= 35 && random.nextDouble() < 0.22) {
                 return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
             }
@@ -333,7 +335,7 @@ public final class DpNpcUnifiedPreflopStrategy {
             int villainBetToCall = room.getCurrentBetToCall();
             int raiseAmount = compute4BetAmount(hero, villainBetToCall, callAmount, bb, sb, effStackBB, random);
             if (raiseAmount > callAmount) {
-                // 短码/有效筹码很浅：价值牌更倾向直接打光
+                // ??/?????????????????
                 if (value4bet && effStackBB <= 16 && random.nextDouble() < 0.65) {
                     return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.ALL_IN, hero.getChips());
                 }
@@ -354,9 +356,9 @@ public final class DpNpcUnifiedPreflopStrategy {
             HoleInfo hole,
             VillainTier tier,
             Random random) {
-        // 便宜跟注保护：底池很大而跟注很便宜时，避免被小幅 5bet 反复剥削
+        // ???????????????????????? 5bet ????
         double potOdds;
-        int denom = hero.getBet() + hero.getChips() + callAmount; // 粗略：用 hero 总量做分母的保守估计
+        int denom = hero.getBet() + hero.getChips() + callAmount; // ???? hero ??????????
         if (callAmount <= 0 || denom <= 0)
             potOdds = 1.0;
         else
@@ -373,7 +375,7 @@ public final class DpNpcUnifiedPreflopStrategy {
 
         boolean jamValue = matrixAllows(facing4BetJamAllow, hole);
         if (jamValue) {
-            // 对松凶玩家稍微更愿意打光；对紧玩家给一点平跟空间（更像真人）
+            // ??????????????????????????????
             double jamProb = (tier == VillainTier.TIGHT_OR_NIT) ? 0.70 : 0.82;
             if (effStackBB >= 45)
                 jamProb -= 0.12;
@@ -384,7 +386,7 @@ public final class DpNpcUnifiedPreflopStrategy {
             return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
         }
 
-        // 中强牌：更多平跟/弃牌
+        // ????????/??
         if (matrixAllows(facing4BetMidG3Allow, hole)) {
             double foldP = 0.35 + 0.25 * Math.min(1.0, callRatio);
             if (tier == VillainTier.TIGHT_OR_NIT)
@@ -409,9 +411,9 @@ public final class DpNpcUnifiedPreflopStrategy {
             Random random) {
         if (villainBetToCall < bb)
             villainBetToCall = bb;
-        // 原 IP≈3×、OOP≈4×；位置已进阈值表，此处用折中倍数避免重复按座调节
+        // ? IP?3??OOP?4?????????????????????????
         double mult = 3.5;
-        // 深码更偏向稍小，避免过早把锅抬太大；浅码更偏向更大制造弃牌率
+        // ??????????????????????????????
         if (effStackBB >= 50)
             mult -= 0.2;
         if (effStackBB <= 18)
@@ -460,37 +462,74 @@ public final class DpNpcUnifiedPreflopStrategy {
         return roundToSB(raiseAmount, sb, hero.getChips());
     }
 
-    /** 开局加注倍数（以大盲计）；松紧已由开局范围矩阵 {@link #openAllow} 体现，此处仅用人数 / 深度微调体量。 */
-    private static int baseOpenSizeBB(
+    /** ??????????????????????? {@link #openAllow} ????????? / ??????? */
+    private static double baseOpenSizeBB(
             int activePlayers,
             double effStackBB,
             Random random) {
-        int base = 3;
-        if (activePlayers <= 3)
-            base = Math.max(2, base - 1);
-        if (effStackBB <= 18)
-            base = Math.max(2, base - 1);
-        if (effStackBB >= 60)
-            base = Math.min(4, base + 1);
+        double base = 2.8;
+        if (activePlayers <= 3) {
+            base -= 0.35;
+        }
+        if (effStackBB <= 18) {
+            base -= 0.35;
+        }
+        if (effStackBB >= 60) {
+            base += 0.45;
+        }
+        base += random.nextDouble() * 1.4 - 0.7;
+        return clampDouble(base, 2.0, 4.0);
+    }
 
-        double jitter = random.nextDouble() * 0.4 - 0.2;
-        if (jitter > 0.20)
-            base += 1;
-        if (jitter < -0.20)
-            base = Math.max(2, base - 1);
-        return clampInt(base, 2, 4);
+    private static int openRaiseChips(double openSizeBB, int bb, int sb, int max) {
+        if (openSizeBB <= 0 || bb <= 0 || max <= 0) {
+            return 0;
+        }
+        int target = (int) Math.round(openSizeBB * bb);
+        return roundRaiseToBlind(target, bb, sb, max);
+    }
+
+    private static int roundRaiseToBlind(int amount, int bb, int sb, int max) {
+        if (amount <= 0) {
+            return 0;
+        }
+        int increment = raiseChipIncrement(bb, sb);
+        if (increment <= 0) {
+            return Math.min(amount, max);
+        }
+        int units = Math.max(1, (int) Math.round(amount * 1.0 / increment));
+        int v = units * increment;
+        if (v > max) {
+            units = Math.max(1, max / increment);
+            v = units * increment;
+        }
+        return v;
+    }
+
+    private static int raiseChipIncrement(int bb, int sb) {
+        if (bb <= 0) {
+            return Math.max(1, sb);
+        }
+        if (sb > 0 && bb % sb == 0 && bb / sb == 2) {
+            return bb / 2;
+        }
+        if (sb > 0) {
+            return sb;
+        }
+        return bb;
     }
 
     private static int roundToSB(int amount, int sb, int max) {
-        if (amount <= 0)
-            return 0;
-        if (sb <= 0)
-            return Math.min(amount, max);
-        int units = Math.max(1, Math.round(amount * 1.0f / sb));
-        int v = units * sb;
+        int bb = sb > 0 ? sb * 2 : 0;
+        return roundRaiseToBlind(amount, bb, sb, max);
+    }
+
+    private static double clampDouble(double v, double min, double max) {
+        if (v < min) {
+            return min;
+        }
         if (v > max) {
-            units = Math.max(1, max / sb);
-            v = units * sb;
+            return max;
         }
         return v;
     }
@@ -508,16 +547,16 @@ public final class DpNpcUnifiedPreflopStrategy {
     }
 
     /**
-     * 翻前「有效位置」标量：仍在局的玩家按 UTG→BB **座位几何顺序**排队（与当前是 open / 3bet / 4bet 无关），
-     * 英雄在该列表中越靠后 {@code rank} 越大，{@code lateFactor = (rank-1)/(active-1)} 越接近 1。
+     * ?????????????????? UTG?BB **??????**??????? open / 3bet / 4bet ????
+     * ?????????? {@code rank} ???{@code lateFactor = (rank-1)/(active-1)} ??? 1?
      *
      * <p>
-     * <b>与多注（3B、4B…）的关系</b>：每次轮到机器人决策都会<strong>用当前弃牌状态重算</strong>；
-     * 有人弃牌后 {@code active} 变小，仍在局的人的 {@code rank / lateFactor} 可能变化——这叫「兼容」多注局面下的动态人数，
-     * 但<strong>不读</strong> {@code raiseLevel}、谁在加注、本轮还剩谁未表态等细项，属于<strong>粗粒度几何 proxy</strong>。
+     * <b>????3B?4B?????</b>????????????<strong>?????????</strong>?
+     * ????? {@code active} ????????? {@code rank / lateFactor} ???????????????????????
+     * ?<strong>??</strong> {@code raiseLevel}????????????????????<strong>????? proxy</strong>?
      * </p>
      * <p>
-     * 更细的 squeeze / 关闭行动位等若以后要建模，再单独加因子即可。
+     * ??? squeeze / ??????????????????????
      * </p>
      */
     static double computePreflopLateFactor(DpRoomBO room, DpPlayer hero) {
@@ -537,7 +576,7 @@ public final class DpNpcUnifiedPreflopStrategy {
         if (dealer < 0) {
             return 0.5;
         }
-        // 与发牌逻辑一致：翻前从大盲下家（UTG）开始
+        // ????????????????UTG???
         int utg = (dealer + 3) % n;
         List<Integer> activeSeatOrder = new ArrayList<>();
         for (int step = 0; step < n; step++) {
@@ -570,7 +609,7 @@ public final class DpNpcUnifiedPreflopStrategy {
     }
 
     /**
-     * 连续 {@code lateFactor} → 阈值表用的离散桶；盲注仍单独一类（含 HU 时 BTN/SB）。
+     * ?? {@code lateFactor} ? ?????????????????? HU ? BTN/SB??
      */
     private static DpNpcEngine.TablePosition pseudoTablePosition(double lateFactor, int blind) {
         if (blind == 1 || blind == 2) {
@@ -591,22 +630,22 @@ public final class DpNpcUnifiedPreflopStrategy {
             double vpip,
             double callStation,
             double foldToPressure) {
-        // 1~8：数字越大越松；位置松紧主要由 thresholdsFor(pseudoPosition(lateFactor)) 承担，此处不再按座位粗分。
+        // 1~8??????????????? thresholdsFor(pseudoPosition(lateFactor)) ?????????????
         int base = 4;
 
-        // 人数：人少范围变大
+        // ?????????
         if (activePlayers <= 3)
             base += 2;
         else if (activePlayers <= 5)
             base += 1;
 
-        // 有效码深：深码更愿意带入“可玩牌形状”
+        // ???????????????????
         if (effStackBB >= 50)
             base += 1;
         if (effStackBB <= 16)
             base -= 1;
 
-        // vpip 越高越松（典型约 0.15~0.60）
+        // vpip ???????? 0.15~0.60?
         base += (int) Math.round((vpip - 0.30) * 5.0);
         base += (int) Math.round(callStation * 1.0);
         base -= (int) Math.round(foldToPressure * 0.8);
@@ -635,8 +674,8 @@ public final class DpNpcUnifiedPreflopStrategy {
     }
 
     private static RangeThreshold thresholdsFor(DpNpcEngine.TablePosition pos, int rangeLevel) {
-        // 这里用“阈值表”实现：rangeLevel 越大允许的 HandGroup 越差（更松）
-        // 先做一个稳定可调的版本：早位更紧，后位更松；盲注介于中后位之间。
+        // ???????????rangeLevel ????? HandGroup ??????
+        // ????????????????????????????????
         HandGroup open;
         if (pos == DpNpcEngine.TablePosition.EARLY)
             open = mapLevelToGroup(rangeLevel - 2);
@@ -647,16 +686,17 @@ public final class DpNpcUnifiedPreflopStrategy {
         else
             open = mapLevelToGroup(rangeLevel - 1);
 
-        // 面对 open：比「自己 open」紧 1 档即可；非后位原先用 rangeLevel-2 过紧
-        HandGroup vsOpenContinue = mapLevelToGroup(rangeLevel - 1);
+        HandGroup vsOpenContinue;
+        if (pos == DpNpcEngine.TablePosition.EARLY) {
+            vsOpenContinue = mapLevelToGroup(rangeLevel - 1);
+        } else if (pos == DpNpcEngine.TablePosition.LATE) {
+            vsOpenContinue = mapLevelToGroup(rangeLevel + 1);
+        } else {
+            vsOpenContinue = mapLevelToGroup(rangeLevel);
+        }
         HandGroup vsOpen3BetValue = mapLevelToGroup(rangeLevel - 4);
         HandGroup vs3BetContinue = mapLevelToGroup(rangeLevel - 4);
         HandGroup vs3Bet4BetValue = mapLevelToGroup(rangeLevel - 6);
-
-        // 后位可再宽半档：用满档 rangeLevel 映射到略宽的一组
-        if (pos == DpNpcEngine.TablePosition.LATE) {
-            vsOpenContinue = mapLevelToGroup(rangeLevel);
-        }
         if (pos == DpNpcEngine.TablePosition.EARLY) {
             vsOpen3BetValue = mapLevelToGroup(rangeLevel - 5);
         }
@@ -707,144 +747,17 @@ public final class DpNpcUnifiedPreflopStrategy {
         return v;
     }
 
-    private static final class HoleInfo {
-        final boolean valid;
-        final int r1;
-        final int r2;
-        final boolean suited;
-
-        HoleInfo(boolean valid, int r1, int r2, boolean suited) {
-            this.valid = valid;
-            this.r1 = r1;
-            this.r2 = r2;
-            this.suited = suited;
-        }
-    }
-
-    private static HoleInfo parseHole(List<String> holeCards) {
-        if (holeCards == null || holeCards.size() < 2) {
-            return new HoleInfo(false, 0, 0, false);
-        }
-        Card a = parseCard(holeCards.get(0));
-        Card b = parseCard(holeCards.get(1));
-        if (!a.valid || !b.valid) {
-            return new HoleInfo(false, 0, 0, false);
-        }
-        return new HoleInfo(true, a.rank, b.rank, a.suit.equals(b.suit));
-    }
-
-    private static final class Card {
-        final boolean valid;
-        final String suit;
-        final int rank;
-
-        Card(boolean valid, String suit, int rank) {
-            this.valid = valid;
-            this.suit = suit;
-            this.rank = rank;
-        }
-    }
-
-    private static Card parseCard(String c) {
-        if (c == null || !c.contains("_"))
-            return new Card(false, "", 0);
-        String[] parts = c.split("_", 2);
-        if (parts.length != 2)
-            return new Card(false, "", 0);
-        String suit = parts[0];
-        String rankStr = parts[1];
-        int r = RANK.getOrDefault(rankStr, 0);
-        if (r <= 0)
-            return new Card(false, "", 0);
-        return new Card(true, suit, r);
-    }
-
-    /**
-     * 德州扑克起手牌分组（预分组），用于简化后续决策逻辑。
-     * 依据两张牌是否对子、是否同花、是否A高、是否大牌等经验规则将手牌划分为八组（HandGroup.G1-G8）。
-     * 可根据具体策略/业务需求进行微调。
-     */
-    private static HandGroup groupOf(HoleInfo h) {
-        int a = Math.max(h.r1, h.r2);
-        int b = Math.min(h.r1, h.r2);
-        boolean pair = a == b;
-        if (pair) {
-            if (a >= 11)
-                return HandGroup.G1; // JJ+
-            if (a == 10)
-                return HandGroup.G2; // TT
-            if (a == 9 || a == 8)
-                return HandGroup.G3; // 99/88
-            if (a == 7 || a == 6)
-                return HandGroup.G4; // 77/66
-            return HandGroup.G5; // 55-
-        }
-
-        boolean suited = h.suited;
-        boolean hasAce = (a == 14);
-        boolean broadwayA = (a >= 10);
-        boolean broadwayB = (b >= 10);
-        int gap = a - b;
-
-        // AK / AQ / AJ
-        if (hasAce && b >= 11) {
-            if (a == 14 && b == 13)
-                return HandGroup.G1; // AK
-            if (b == 12)
-                return HandGroup.G2; // AQ
-            return suited ? HandGroup.G2 : HandGroup.G3; // AJ
-        }
-
-        // AT/A9s-A5s：作为“形状牌”在深码/后位更常出现
-        if (hasAce && suited && b >= 5 && b <= 10) {
-            if (b >= 9)
-                return HandGroup.G4;
-            return HandGroup.G5;
-        }
-
-        // 同花大牌
-        if (suited && broadwayA && broadwayB) {
-            if (a >= 13 && b >= 10)
-                return HandGroup.G2; // KTs+ / QTs / JTs 近似
-            return HandGroup.G3;
-        }
-
-        // offsuit 大牌：KQ/QJ/JT 等
-        if (!suited && broadwayA && broadwayB) {
-            if (a >= 13 && b >= 11)
-                return HandGroup.G3; // KQ/KJ
-            if (a >= 12 && b >= 11)
-                return HandGroup.G4; // QJ
-            return HandGroup.G6; // JT/TT?（TT 已处理）
-        }
-
-        // 同花连张 / 一隔
-        if (suited) {
-            if (gap == 1 && a >= 6)
-                return HandGroup.G5;
-            if (gap == 2 && a >= 9)
-                return HandGroup.G6;
-        }
-
-        // 其它杂牌：作为后位偷牌候选
-        if (suited && a >= 11)
-            return HandGroup.G6;
-        if (suited && a >= 9)
-            return HandGroup.G7;
-
-        return HandGroup.G8;
-    }
 
     private static int rankToIndex(int rank) {
         return rank - 2;
     }
 
     /**
-     * 13×13 范围表查表：下标 = 牌点 − 2（2→0 … A→12）。
+     * 13?13 ???????? = ?? ? 2?2?0 ? A?12??
      * <ul>
-     * <li>对子：对角 {@code [i][i]}</li>
-     * <li>杂色（非同花）：{@code i > j}，高牌点 {@code i+2}、低牌点 {@code j+2}</li>
-     * <li>同色：{@code i < j}，高牌点 {@code j+2}、低牌点 {@code i+2}</li>
+     * <li>????? {@code [i][i]}</li>
+     * <li>????????{@code i > j}???? {@code i+2}???? {@code j+2}</li>
+     * <li>???{@code i < j}???? {@code j+2}???? {@code i+2}</li>
      * </ul>
      */
     private static boolean matrixAllows(byte[][] m, HoleInfo h) {
@@ -870,15 +783,15 @@ public final class DpNpcUnifiedPreflopStrategy {
     private static HandGroup handGroupAtMatrixCell(int row, int col) {
         if (row == col) {
             int r = row + 2;
-            return groupOf(new HoleInfo(true, r, r, false));
+            return DpNpcPreflopHandGrouper.groupOf(new HoleInfo(true, r, r, false));
         }
         if (row > col) {
-            return groupOf(new HoleInfo(true, row + 2, col + 2, false));
+            return DpNpcPreflopHandGrouper.groupOf(new HoleInfo(true, row + 2, col + 2, false));
         }
-        return groupOf(new HoleInfo(true, col + 2, row + 2, true));
+        return DpNpcPreflopHandGrouper.groupOf(new HoleInfo(true, col + 2, row + 2, true));
     }
 
-    /** @param exact 为 {@code true} 时仅当 {@code group == maxAllowed} 置 1（面对 4bet 的「恰 G3」分支）。 */
+    /** @param exact ? {@code true} ??? {@code group == maxAllowed} ? 1??? 4bet ??? G3????? */
     private static void fillRangeSlice(byte[][] m, HandGroup maxAllowed, boolean exact) {
         for (int i = 0; i < RANK_DIM; i++) {
             for (int j = 0; j < RANK_DIM; j++) {
@@ -920,7 +833,7 @@ public final class DpNpcUnifiedPreflopStrategy {
         return n;
     }
 
-    private static DpPlayer findAggressor(DpRoomBO room, DpPlayer hero) {//找到当前圈最高bet且非hero的玩家
+    private static DpPlayer findAggressor(DpRoomBO room, DpPlayer hero) {//???????bet??hero???
         if (room == null || room.getPlayers() == null)
             return null;
         DpPlayer ag = null;
@@ -958,16 +871,8 @@ public final class DpNpcUnifiedPreflopStrategy {
         return VillainTier.BALANCED;
     }
 
-    /** G1–G8 → {@link DpNpcPreflopCategory}，供 {@link com.example.mgdemoplus.npc.eval.DpNpcEquityEstimator} 翻前权益桶。 */
+    /** G1?G8 ? {@link DpNpcPreflopCategory}?? {@link com.example.mgdemoplus.npc.eval.DpNpcEquityEstimator} ?????? */
     public static DpNpcPreflopCategory preflopCategoryOf(List<String> holeCards) {
-        HandGroup g = groupOf(parseHole(holeCards));
-        return switch (g) {
-            case G1 -> DpNpcPreflopCategory.PREMIUM;
-            case G2 -> DpNpcPreflopCategory.STRONG;
-            case G3, G4 -> DpNpcPreflopCategory.PLAYABLE;
-            case G5 -> DpNpcPreflopCategory.SPECULATIVE;
-            case G6, G7 -> DpNpcPreflopCategory.MARGINAL;
-            case G8 -> DpNpcPreflopCategory.TRASH;
-        };
+        return DpNpcPreflopHandGrouper.preflopCategoryOf(holeCards);
     }
 }

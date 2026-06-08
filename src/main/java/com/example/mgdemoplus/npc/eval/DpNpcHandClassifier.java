@@ -1,6 +1,5 @@
 package com.example.mgdemoplus.npc.eval;
 
-import com.example.mgdemoplus.npc.strategy.DpNpcUnifiedPreflopStrategy;
 import com.example.mgdemoplus.utils.DpUtilHandEvaluator.HandStrength;
 
 import java.util.ArrayList;
@@ -92,7 +91,7 @@ public final class DpNpcHandClassifier {
     }
 
     public static DpNpcPreflopCategory classifyPreflop(List<String> hole) {
-        return DpNpcUnifiedPreflopStrategy.preflopCategoryOf(hole);
+        return DpNpcPreflopHandGrouper.preflopCategoryOf(hole);
     }
 
     private static DpNpcMadeHandCategory mapMadeCategory(

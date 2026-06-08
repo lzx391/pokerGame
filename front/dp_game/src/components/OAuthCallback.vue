@@ -1,7 +1,7 @@
 <template>
   <div class="oauth-callback">
     <div v-if="loading" class="oauth-callback__status">
-      <p>正在验证 GitHub 授权…</p>
+      <p>正在验证授权…</p>
     </div>
     <div v-else-if="error" class="oauth-callback__status oauth-callback__status--error">
       <p>{{ error }}</p>

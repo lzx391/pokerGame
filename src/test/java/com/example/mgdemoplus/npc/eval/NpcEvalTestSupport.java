@@ -4,21 +4,21 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-final class NpcEvalTestSupport {
+public final class NpcEvalTestSupport {
 
     private NpcEvalTestSupport() {
     }
 
-    static List<String> hole(String... cardGroups) {
+    public static List<String> hole(String... cardGroups) {
         return parseCardList(cardGroups);
     }
 
-    static List<String> board(String... cardGroups) {
+    public static List<String> board(String... cardGroups) {
         return parseCardList(cardGroups);
     }
 
     /** 单参内用 {@code _} 分隔多张牌，如 {@code "2h_3h"}、{@code "6s_Ah_Kd_5c"} */
-    static List<String> parseCardList(String... cardGroups) {
+    public static List<String> parseCardList(String... cardGroups) {
         return Arrays.stream(cardGroups)
                 .flatMap(group -> Arrays.stream(group.split("_")))
                 .filter(s -> !s.isBlank())
@@ -27,7 +27,7 @@ final class NpcEvalTestSupport {
     }
 
     /** 方案 §7 记法：{@code 2h}（rank+suit 紧凑）→ {@code hearts_2} */
-    static String parseCompactOrFullCard(String token) {
+    public static String parseCompactOrFullCard(String token) {
         if (token == null || token.isBlank()) {
             throw new IllegalArgumentException("empty card token");
         }

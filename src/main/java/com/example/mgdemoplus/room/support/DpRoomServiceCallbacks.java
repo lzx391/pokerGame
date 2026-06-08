@@ -63,7 +63,12 @@ public interface DpRoomServiceCallbacks {
     void handleReadyTimeout(DpRoomBO room);
 
     void presenceTryMarkIdleFullyLeft(String nickname, Integer hintedUserId, DpRoomBO roomHint, String trigger);
-
+/**
+ * 决策和发言
+ * @param room
+ * @param p
+ * @param action
+ */
     void npcAction(DpRoomBO room, DpPlayer p, DpNpcEngine.BotAction action);
 
     void settleHumanOnLeaveSeat(DpRoomBO room, DpPlayer player);
