@@ -209,9 +209,8 @@
   );
 }
 
-/* Match card: contain glitch compositing within card bounds */
-.dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--matching,
-.home-quick-card--matching {
+/* Match card: contain glitch compositing within card bounds (retro8bit only) */
+.dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--matching {
   isolation: isolate;
   contain: paint;
 }

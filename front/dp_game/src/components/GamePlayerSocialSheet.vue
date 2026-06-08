@@ -230,7 +230,14 @@
     </div>
   </transition>
 
+  <dp-achievement-wall-crt
+    v-if="useRetroAchievementWall"
+    :visible.sync="achievementWallVisible"
+    :user-id="achievementWallTargetUserId"
+    :subject-name="displayName"
+  />
   <dp-achievement-wall-modal
+    v-else
     :visible.sync="achievementWallVisible"
     :user-id="achievementWallTargetUserId"
     :subject-name="displayName"
@@ -241,11 +248,12 @@
 <script>
 import DpUserAvatar from '@/components/DpUserAvatar.vue'
 import DpAchievementWallModal from '@/components/DpAchievementWallModal.vue'
+import DpAchievementWallCrt from '@/components/DpAchievementWallCrt.vue'
+import { mapState } from 'vuex'
 import dpProfileGrayGlitchMixin, {
   DP_PROF_GLITCH_BURST_MS,
   DP_PROF_GLITCH_REVEAL_MS
 } from '@/mixins/dpProfileGrayGlitchMixin'
-import { mapState } from 'vuex'
 import { dpDisplayNickname } from '../utils/dpDisplayNickname'
 import { dpResultSuccess, dpResultData, dpResultMessage, dpAxiosErrorMessage } from '../utils/dpApiResult'
 import { dpSocialApi } from '@/api/api.dpSocial'
@@ -260,7 +268,7 @@ var HONOR_SCRAMBLE_TICK_MS = 48
 
 export default {
   name: 'GamePlayerSocialSheet',
-  components: { DpUserAvatar, DpAchievementWallModal },
+  components: { DpUserAvatar, DpAchievementWallModal, DpAchievementWallCrt },
   mixins: [dpProfileGrayGlitchMixin],
   inject: {
     dpGameView: { default: null }
@@ -289,6 +297,7 @@ export default {
   },
   computed: {
     ...mapState('dpMailbox', ['friends']),
+    ...mapState('dpGame', ['gameUiTheme']),
     displayName() {
       if (!this.target || !this.target.nickname) return ''
       return dpDisplayNickname(this.target)
@@ -369,6 +378,9 @@ export default {
       var uid = Number(this.target.userId)
       if (!uid || uid <= 0 || isNaN(uid)) return null
       return uid
+    },
+    useRetroAchievementWall() {
+      return this.gameUiTheme === 'retro8bit'
     }
   },
   watch: {

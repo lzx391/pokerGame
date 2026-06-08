@@ -326,7 +326,13 @@
     </div>
   </el-dialog>
 
+  <dp-achievement-wall-crt
+    v-if="useRetroAchievementWall"
+    :visible.sync="achievementWallVisible"
+    :user-id="null"
+  />
   <dp-achievement-wall-modal
+    v-else
     :visible.sync="achievementWallVisible"
     :user-id="null"
   />
@@ -336,6 +342,8 @@
 <script>
 import DpUserAvatar from '@/components/DpUserAvatar.vue'
 import DpAchievementWallModal from '@/components/DpAchievementWallModal.vue'
+import DpAchievementWallCrt from '@/components/DpAchievementWallCrt.vue'
+import { mapState } from 'vuex'
 import dpProfileGrayGlitchMixin, {
   DP_PROF_GLITCH_BURST_MS,
   DP_PROF_GLITCH_REVEAL_MS
@@ -351,7 +359,7 @@ var HONOR_SCRAMBLE_TICK_MS = 48
 
 export default {
   name: 'HomeProfileModal',
-  components: { DpUserAvatar, DpAchievementWallModal },
+  components: { DpUserAvatar, DpAchievementWallModal, DpAchievementWallCrt },
   mixins: [dpProfileGrayGlitchMixin],
   props: {
     visible: {
@@ -433,6 +441,10 @@ export default {
         '--dp-prof-burst-ms': DP_PROF_GLITCH_BURST_MS + 'ms',
         '--dp-prof-reveal-ms': DP_PROF_GLITCH_REVEAL_MS + 'ms'
       }
+    },
+    ...mapState('dpGame', ['gameUiTheme']),
+    useRetroAchievementWall() {
+      return this.gameUiTheme === 'retro8bit'
     }
   },
   watch: {

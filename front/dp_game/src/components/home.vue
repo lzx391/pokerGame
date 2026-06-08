@@ -76,16 +76,16 @@
             type="button"
             class="home-quick-card home-quick-card--primary"
             :class="{
-              'home-quick-card--match-alert': quickMatchAlertBlink,
-              'home-quick-card--matching': quickMatchAlertBlink
+              'home-quick-card--match-alert': quickMatchRetroAlert,
+              'home-quick-card--matching': quickMatchRetroAlert
             }"
             :disabled="quickMatchLoading && !quickMatchPolling"
             @click="onQuickMatchButtonClick"
           >
             <quick-match-pixel-critters
-              v-if="quickMatchAlertBlink"
-              :active="quickMatchAlertBlink"
-              :retro="gameUiTheme === 'retro8bit'"
+              v-if="quickMatchRetroAlert"
+              :active="quickMatchRetroAlert"
+              :retro="true"
               :eco-mode="ecoMode"
             />
             <span
@@ -96,12 +96,12 @@
             </span>
             <span
               class="home-quick-card__label"
-              :class="{ 'home-quick-card__label--qm-cancel': quickMatchPolling }"
-            >{{ quickMatchPolling ? 'Cancel' : quickMatchLoading ? '匹配中…' : '快速匹配' }}</span>
+              :class="{ 'home-quick-card__label--qm-cancel': quickMatchRetroAlert && quickMatchPolling }"
+            >{{ quickMatchLabel }}</span>
             <span
               class="home-quick-card__desc"
-              :class="{ 'home-quick-card__desc--qm-finding': quickMatchPolling }"
-            >{{ quickMatchPolling ? 'finding...' : quickMatchLoading ? '连接匹配通道…' : '即刻加入对局' }}</span>
+              :class="{ 'home-quick-card__desc--qm-finding': quickMatchRetroAlert && quickMatchPolling }"
+            >{{ quickMatchDesc }}</span>
           </button>
 
           <!-- 创建房间 -->
@@ -892,6 +892,23 @@ export default {
     /** retro8bit：快速匹配连接中 / 排队中 — 与邮箱、好友未读同款卡片 blink */
     quickMatchAlertBlink() {
       return this.quickMatchPolling || this.quickMatchLoading
+    },
+    quickMatchRetroAlert() {
+      return this.gameUiTheme === 'retro8bit' && this.quickMatchAlertBlink
+    },
+    quickMatchLabel() {
+      if (this.quickMatchPolling) {
+        return this.gameUiTheme === 'retro8bit' ? 'Cancel' : '取消匹配'
+      }
+      if (this.quickMatchLoading) return '匹配中…'
+      return '快速匹配'
+    },
+    quickMatchDesc() {
+      if (this.quickMatchPolling) {
+        return this.gameUiTheme === 'retro8bit' ? 'finding...' : '正在寻找对局…'
+      }
+      if (this.quickMatchLoading) return '连接匹配通道…'
+      return '即刻加入对局'
     },
     friendsDrawerTitle() {
       return this.gameUiTheme === 'retro8bit' ? '— FRIENDS —' : '好友列表'

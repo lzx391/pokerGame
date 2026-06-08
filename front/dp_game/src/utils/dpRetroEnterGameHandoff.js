@@ -30,6 +30,7 @@ export function isCreateRoomCrtHandoffActive() {
   return isRetroEnterGameHandoffActive()
 }
 
+/** 非 Vue 上下文（路由交接等）读取 body 主题；组件内请用 store gameUiTheme */
 export function isRetro8bitTheme() {
   if (typeof document === 'undefined') return false
   return document.body.getAttribute('data-dp-game-theme') === 'retro8bit'

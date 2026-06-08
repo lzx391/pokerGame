@@ -3,7 +3,8 @@
  * Avatar: loading transition — glitch starts immediately on open, reveals when image loads.
  * Medals: optional timed burst (avatar-only flow uses startProfAvatarGlitch / revealProfAvatar).
  */
-import { isRetro8bitTheme, shouldSkipRetroEnterEffects } from '@/utils/dpRetroEnterGameHandoff'
+import { mapState } from 'vuex'
+import { shouldSkipRetroEnterEffects } from '@/utils/dpRetroEnterGameHandoff'
 
 export var DP_PROF_GLITCH_BURST_MS = 300
 export var DP_PROF_GLITCH_REVEAL_MS = 520
@@ -34,8 +35,9 @@ export default {
     }
   },
   computed: {
+    ...mapState('dpGame', ['gameUiTheme']),
     retroProfFx() {
-      return isRetro8bitTheme() && !shouldSkipProfileGrayGlitch()
+      return this.gameUiTheme === 'retro8bit' && !shouldSkipProfileGrayGlitch()
     }
   },
   beforeDestroy() {
