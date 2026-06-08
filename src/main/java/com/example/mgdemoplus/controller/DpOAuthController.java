@@ -104,7 +104,7 @@ public class DpOAuthController {
         loginData.put("userId", result.getUserId());
         loginData.put("isNewUser", result.isNewUser());
         loginData.put("needSetupNickname", result.isNeedSetupNickname());
-
+        //成功后跳转
         redirectToFrontend(response, "login", null, loginData);
     }
 
@@ -129,11 +129,24 @@ public class DpOAuthController {
             return ResultUtil.error().data("message", "数据解析失败");
         }
     }
-
+/**
+ * 失败调用传入null
+ * @param response
+ * @param mode
+ * @param error
+ * @throws IOException
+ */
     private void redirectToFrontend(HttpServletResponse response, String mode, String error) throws IOException {
         redirectToFrontend(response, mode, error, null);
     }
-
+/**
+ * 这个是成功后的跳转，如果失败了，会把data输入成null
+ * @param response
+ * @param mode
+ * @param error
+ * @param data
+ * @throws IOException
+ */
     private void redirectToFrontend(HttpServletResponse response, String mode, String error,
                                      Map<String, Object> data) throws IOException {
         String oid = null;

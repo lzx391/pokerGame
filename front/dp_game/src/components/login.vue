@@ -1,45 +1,141 @@
 <template>
-  <div class="login-box">
-    <h1 class="login-box__title">登录</h1>
-    <p class="login-box__hint">使用已注册的昵称与密码进入猫咪牌局大厅</p>
+  <div
+    class="login-box"
+    :class="{
+      'login-box--retro8bit': isRetro8bit
+    }"
+  >
+    <div
+      class="login-box__main"
+      :class="{ 'login-box__main--dimmed': isRetro8bit && retroOAuthSceneVisible }"
+    >
+      <h1 class="login-box__title">登录</h1>
+      <p class="login-box__hint">使用已注册的昵称与密码进入猫咪牌局大厅</p>
 
-    <form class="login-form" @submit.prevent="login">
-      <div class="form-item">
-        <label for="login-nickname">昵称</label>
-        <input
-          id="login-nickname"
-          v-model="nickname"
-          type="text"
-          placeholder="请输入昵称"
-          autocomplete="username"
-        >
-      </div>
+      <form class="login-form" @submit.prevent="login">
+        <div class="form-item">
+          <label for="login-nickname">昵称</label>
+          <input
+            id="login-nickname"
+            v-model="nickname"
+            type="text"
+            placeholder="请输入昵称"
+            autocomplete="username"
+            :disabled="isRetro8bit && retroOAuthBusy"
+          >
+        </div>
 
-      <div class="form-item">
-        <label for="login-password">密码</label>
-        <input
-          id="login-password"
-          v-model="password"
-          type="password"
-          placeholder="请输入密码"
-          autocomplete="current-password"
-        >
-      </div>
+        <div class="form-item">
+          <label for="login-password">密码</label>
+          <input
+            id="login-password"
+            v-model="password"
+            type="password"
+            placeholder="请输入密码"
+            autocomplete="current-password"
+            :disabled="isRetro8bit && retroOAuthBusy"
+          >
+        </div>
 
-      <div class="login-actions" :class="{ 'login-actions--retro8bit': isRetro8bit }">
-        <button type="submit" class="login-btn">
-          登录
-        </button>
-        <button
-          v-if="isRetro8bit"
-          type="button"
-          class="github-login-btn github-login-btn--pixel"
-          @click="loginWithGitHub"
+        <div class="login-actions" :class="{ 'login-actions--retro8bit': isRetro8bit }">
+          <button
+            type="submit"
+            class="login-btn"
+            :disabled="isRetro8bit && retroOAuthBusy"
+          >
+            登录
+          </button>
+          <button
+            v-if="isRetro8bit"
+            type="button"
+            class="login-retro-alt-btn retro-pixel-btn"
+            :disabled="retroOAuthBusy"
+            @click="openRetroOAuth"
+          >
+            其他方式登录
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div
+      v-if="isRetro8bit && retroOAuthSceneVisible"
+      ref="retroOAuthOverlay"
+      class="login-retro-oauth-overlay"
+      :class="{
+        'login-retro-oauth-overlay--open': retroOAuthPhase === 'ready',
+        'login-retro-oauth-overlay--busy': retroOAuthBusy
+      }"
+    >
+      <div
+        class="login-retro-oauth-overlay__dim"
+        aria-hidden="true"
+        @click="backRetroOAuth"
+      />
+
+      <div
+        class="login-retro-oauth-sheet"
+        :class="retroOAuthSheetPhaseClass"
+        role="dialog"
+        aria-label="第三方登录"
+        aria-modal="true"
+      >
+        <div
+          class="login-retro-oauth-sheet__shell"
+          @animationend="onOAuthSheetAnimEnd"
         >
-          GITHUB登录
-        </button>
+          <div class="login-retro-oauth-sheet__edge" aria-hidden="true" />
+          <div class="login-retro-oauth-sheet__scanlines" aria-hidden="true" />
+          <div class="login-retro-oauth-sheet__vignette" aria-hidden="true" />
+
+          <div
+            v-show="retroOAuthUseGlitch && retroOAuthPhase === 'snow'"
+            class="login-retro-oauth-sheet__snow"
+            :class="{ 'login-retro-oauth-sheet__snow--active': retroOAuthPhase === 'snow' }"
+            aria-hidden="true"
+          >
+            <span class="login-retro-oauth-sheet__snow-noise" />
+            <span class="login-retro-oauth-sheet__snow-bars" />
+          </div>
+          <div
+            v-show="retroOAuthUseGlitch && retroOAuthPhase === 'reveal-flash'"
+            class="login-retro-oauth-sheet__flash"
+            aria-hidden="true"
+          />
+
+          <div
+            ref="retroOAuthPanelInner"
+            class="login-retro-oauth-sheet__inner"
+            :class="{ 'login-retro-oauth-sheet__inner--ready': retroOAuthContentReady }"
+            tabindex="-1"
+          >
+            <h2 class="login-retro-oauth__title">&gt; OAUTH_LINK</h2>
+            <p class="login-retro-oauth__hint">选择授权平台继续</p>
+            <ul
+              class="login-retro-oauth__menu"
+              role="menu"
+              aria-label="第三方登录选项"
+            >
+              <li
+                v-for="(item, idx) in retroOAuthMenuItems"
+                :key="item.id"
+                role="menuitem"
+                class="login-retro-oauth__row"
+                :class="{ 'login-retro-oauth__row--selected': oauthMenuIndex === idx }"
+                :aria-selected="oauthMenuIndex === idx ? 'true' : 'false'"
+                @click="onRetroOAuthRowClick(idx)"
+              >
+                <div class="login-retro-oauth__row-left">
+                  <span class="login-retro-oauth__row-cursor" aria-hidden="true">{{ oauthMenuIndex === idx ? '>' : ' ' }}</span>
+                  <span class="login-retro-oauth__row-label">{{ item.label }}</span>
+                </div>
+              </li>
+            </ul>
+            <p class="login-retro-oauth__kbd-hint" aria-hidden="true">↑↓ select · ENTER confirm · ESC back</p>
+          </div>
+        </div>
       </div>
-    </form>
+    </div>
 
     <template v-if="!isRetro8bit">
       <div class="oauth-divider">
@@ -69,6 +165,14 @@ import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
 import { dpResultSuccess, dpResultData, dpResultMessage } from '@/utils/dpApiResult'
 import { flagCatTutorialAfterLogin } from '@/constants/dpCatThemeCopy'
 import { enterLobbyAfterAuth } from '@/utils/dpAuthEnterLobby'
+import { dpPortalOverlayToBody, dpRestoreOverlayFromPortal } from '@/utils/dpOverlayPortal'
+
+/** @typedef {'idle' | 'preparing' | 'slide-in' | 'snow' | 'reveal-flash' | 'ready' | 'retract'} RetroOAuthPhase */
+
+const RETRO_OAUTH_SLIDE_MS = 280
+const RETRO_OAUTH_SLIDE_MS_ECO = 80
+const RETRO_OAUTH_GLITCH_MS = 280
+const RETRO_OAUTH_FLASH_MS = 100
 
 export default {
   inject: {
@@ -77,14 +181,75 @@ export default {
   data() {
     return {
       nickname: '',
-      password: ''
+      password: '',
+      /** @type {RetroOAuthPhase} */
+      retroOAuthPhase: 'idle',
+      oauthMenuIndex: 0,
+      retroOAuthTimers: [],
+      _retroOAuthPortalAnchor: null,
+      _retroOAuthKeyBound: null
     }
   },
   computed: {
-    ...mapState('dpGame', ['gameUiTheme']),
+    ...mapState('dpGame', ['gameUiTheme', 'ecoMode']),
     isRetro8bit() {
       return this.gameUiTheme === 'retro8bit'
+    },
+    prefersReducedMotion() {
+      if (typeof window === 'undefined' || !window.matchMedia) return false
+      return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    },
+    retroOAuthSlideMs() {
+      if (this.ecoMode || this.prefersReducedMotion) return RETRO_OAUTH_SLIDE_MS_ECO
+      return RETRO_OAUTH_SLIDE_MS
+    },
+    retroOAuthUseGlitch() {
+      return !this.ecoMode && !this.prefersReducedMotion
+    },
+    retroOAuthSceneVisible() {
+      return this.retroOAuthPhase !== 'idle'
+    },
+    retroOAuthOpen() {
+      return this.retroOAuthPhase === 'ready'
+    },
+    retroOAuthBusy() {
+      return this.retroOAuthPhase === 'preparing'
+        || this.retroOAuthPhase === 'slide-in'
+        || this.retroOAuthPhase === 'snow'
+        || this.retroOAuthPhase === 'reveal-flash'
+        || this.retroOAuthPhase === 'retract'
+    },
+    retroOAuthContentReady() {
+      return this.retroOAuthPhase === 'ready'
+        || this.retroOAuthPhase === 'reveal-flash'
+        || (!this.retroOAuthUseGlitch
+          && this.retroOAuthSceneVisible
+          && this.retroOAuthPhase !== 'retract')
+    },
+    retroOAuthSheetPhaseClass() {
+      return {
+        'login-retro-oauth-sheet--slide-in': this.retroOAuthPhase === 'slide-in',
+        'login-retro-oauth-sheet--snow': this.retroOAuthPhase === 'snow',
+        'login-retro-oauth-sheet--reveal-flash': this.retroOAuthPhase === 'reveal-flash',
+        'login-retro-oauth-sheet--ready': this.retroOAuthPhase === 'ready',
+        'login-retro-oauth-sheet--retract': this.retroOAuthPhase === 'retract',
+        'login-retro-oauth-sheet--instant': !this.retroOAuthUseGlitch
+          && this.retroOAuthSceneVisible
+          && this.retroOAuthPhase !== 'retract'
+      }
+    },
+    retroOAuthMenuItems() {
+      return [
+        { id: 'github', label: 'GITHUB' },
+        { id: 'gitee', label: 'GITEE' },
+        { id: 'back', label: '< BACK' }
+      ]
     }
+  },
+  beforeDestroy() {
+    this.clearRetroOAuthTimers()
+    this.unmountRetroOAuthKeydown()
+    this.teardownRetroOAuthPortal()
   },
   async created() {
     if (this.$route.path !== '/login') {
@@ -117,7 +282,174 @@ export default {
         this.$message.error({ message: message, duration: 3000 })
       }
     },
+    clearRetroOAuthTimers() {
+      this.retroOAuthTimers.forEach((id) => clearTimeout(id))
+      this.retroOAuthTimers = []
+    },
+    scheduleRetroOAuthTimer(fn, ms) {
+      const id = setTimeout(fn, ms)
+      this.retroOAuthTimers.push(id)
+      return id
+    },
+    armRetroOAuthFallback(phase) {
+      this.scheduleRetroOAuthTimer(() => {
+        if (phase === 'slide-in') this.advanceFromOAuthSlideIn()
+        else if (phase === 'retract') this.teardownOAuthPanel()
+      }, this.retroOAuthSlideMs + 40)
+    },
+    setOAuthPhase(next) {
+      if (this.retroOAuthPhase === next) return
+      this.retroOAuthPhase = next
+      this.syncRetroOAuthBodyClass()
+    },
+    portalRetroOAuthOverlay() {
+      var el = this.$refs.retroOAuthOverlay
+      if (!el) return
+      if (!this._retroOAuthPortalAnchor) {
+        this._retroOAuthPortalAnchor = { parent: null, next: null }
+      }
+      dpPortalOverlayToBody(el, this._retroOAuthPortalAnchor)
+      this.syncRetroOAuthBodyClass()
+    },
+    teardownRetroOAuthPortal() {
+      var el = this.$refs.retroOAuthOverlay
+      dpRestoreOverlayFromPortal(el, this._retroOAuthPortalAnchor)
+      this._retroOAuthPortalAnchor = null
+      this.syncRetroOAuthBodyClass(true)
+    },
+    syncRetroOAuthBodyClass(forceRemove) {
+      if (typeof document === 'undefined') return
+      if (!forceRemove && this.retroOAuthSceneVisible) {
+        document.body.classList.add('login-retro-oauth-active')
+        return
+      }
+      document.body.classList.remove('login-retro-oauth-active')
+    },
+    mountRetroOAuthKeydown() {
+      if (this._retroOAuthKeyBound) return
+      this._retroOAuthKeyBound = this.onRetroOAuthKeydown.bind(this)
+      window.addEventListener('keydown', this._retroOAuthKeyBound)
+    },
+    unmountRetroOAuthKeydown() {
+      if (!this._retroOAuthKeyBound) return
+      window.removeEventListener('keydown', this._retroOAuthKeyBound)
+      this._retroOAuthKeyBound = null
+    },
+    onRetroOAuthKeydown(e) {
+      if (this.retroOAuthPhase !== 'ready') return
+      var key = e.key
+      var len = this.retroOAuthMenuItems.length
+      if (key === 'Escape') {
+        e.preventDefault()
+        this.backRetroOAuth()
+        return
+      }
+      if (key === 'ArrowUp' && len > 0) {
+        e.preventDefault()
+        this.oauthMenuIndex = (this.oauthMenuIndex - 1 + len) % len
+        return
+      }
+      if (key === 'ArrowDown' && len > 0) {
+        e.preventDefault()
+        this.oauthMenuIndex = (this.oauthMenuIndex + 1) % len
+        return
+      }
+      if (key === 'Enter') {
+        e.preventDefault()
+        this.activateRetroOAuthMenuItem()
+      }
+    },
+    activateRetroOAuthMenuItem() {
+      var item = this.retroOAuthMenuItems[this.oauthMenuIndex]
+      if (!item) return
+      if (item.id === 'github') this.loginWithGitHub()
+      else if (item.id === 'gitee') this.loginWithGitee()
+      else if (item.id === 'back') this.backRetroOAuth()
+    },
+    onRetroOAuthRowClick(idx) {
+      if (this.retroOAuthBusy || !this.retroOAuthOpen) return
+      this.oauthMenuIndex = idx
+      this.activateRetroOAuthMenuItem()
+    },
+    focusRetroOAuthPanel() {
+      var el = this.$refs.retroOAuthPanelInner
+      if (el && typeof el.focus === 'function') el.focus()
+    },
+    openRetroOAuth() {
+      if (!this.isRetro8bit || this.retroOAuthSceneVisible) return
+      this.clearRetroOAuthTimers()
+      this.unmountRetroOAuthKeydown()
+      this.oauthMenuIndex = 0
+      this.setOAuthPhase('preparing')
+      var self = this
+      this.$nextTick(function () {
+        self.portalRetroOAuthOverlay()
+        self.$nextTick(function () {
+          if (!self.retroOAuthUseGlitch) {
+            self.clearRetroOAuthTimers()
+            self.setOAuthPhase('ready')
+            self.mountRetroOAuthKeydown()
+            self.$nextTick(function () { self.focusRetroOAuthPanel() })
+            return
+          }
+          self.setOAuthPhase('slide-in')
+          self.armRetroOAuthFallback('slide-in')
+        })
+      })
+    },
+    backRetroOAuth() {
+      if (!this.isRetro8bit || this.retroOAuthPhase !== 'ready') return
+      this.clearRetroOAuthTimers()
+      this.unmountRetroOAuthKeydown()
+      if (this.retroOAuthUseGlitch) {
+        this.setOAuthPhase('retract')
+        this.armRetroOAuthFallback('retract')
+        return
+      }
+      this.teardownOAuthPanel()
+    },
+    advanceFromOAuthSlideIn() {
+      if (this.retroOAuthPhase !== 'slide-in') return
+      this.clearRetroOAuthTimers()
+      if (!this.retroOAuthUseGlitch) {
+        this.setOAuthPhase('ready')
+        this.mountRetroOAuthKeydown()
+        this.$nextTick(() => this.focusRetroOAuthPanel())
+        return
+      }
+      this.setOAuthPhase('snow')
+      this.scheduleRetroOAuthTimer(() => this.advanceFromOAuthSnow(), RETRO_OAUTH_GLITCH_MS)
+    },
+    advanceFromOAuthSnow() {
+      if (this.retroOAuthPhase !== 'snow') return
+      this.setOAuthPhase('reveal-flash')
+      this.scheduleRetroOAuthTimer(() => this.advanceFromOAuthFlash(), RETRO_OAUTH_FLASH_MS)
+    },
+    advanceFromOAuthFlash() {
+      if (this.retroOAuthPhase !== 'reveal-flash') return
+      this.setOAuthPhase('ready')
+      this.mountRetroOAuthKeydown()
+      this.$nextTick(() => this.focusRetroOAuthPanel())
+    },
+    teardownOAuthPanel() {
+      this.clearRetroOAuthTimers()
+      this.unmountRetroOAuthKeydown()
+      this.setOAuthPhase('idle')
+      this.teardownRetroOAuthPortal()
+    },
+    onOAuthSheetAnimEnd(e) {
+      if (e.target !== e.currentTarget) return
+      var name = e.animationName || ''
+      if (this.retroOAuthPhase === 'slide-in' && name.indexOf('login-oauth-sheet-slide-in') !== -1) {
+        this.advanceFromOAuthSlideIn()
+        return
+      }
+      if (this.retroOAuthPhase === 'retract' && name.indexOf('login-oauth-sheet-slide-out') !== -1) {
+        this.teardownOAuthPanel()
+      }
+    },
     login() {
+      if (this.isRetro8bit && this.retroOAuthBusy) return
       if (this.dpAuthStage && (!this.dpAuthStage.contentInteractive || this.dpAuthStage.showErrorFace)) {
         return
       }
@@ -157,6 +489,7 @@ export default {
         })
     },
     loginWithGitHub() {
+      if (this.isRetro8bit && this.retroOAuthBusy) return
       this.$http.get('/oauth/github/authorize-url')
         .then((res) => {
           const d = res.data
@@ -173,6 +506,7 @@ export default {
         })
     },
     loginWithGitee() {
+      if (this.isRetro8bit && this.retroOAuthBusy) return
       this.$http.get('/oauth/gitee/authorize-url')
         .then((res) => {
           const d = res.data
@@ -202,6 +536,15 @@ export default {
   max-width: 340px;
   margin: 0 auto;
   text-align: center;
+}
+.login-box__main {
+  position: relative;
+  z-index: 1;
+  transition: opacity 0.18s ease-out;
+}
+.login-box__main--dimmed {
+  opacity: 0.42;
+  pointer-events: none;
 }
 .login-box__title {
   margin: 0 0 8px;
@@ -243,7 +586,7 @@ export default {
   margin: 18px auto 0;
 }
 .login-actions--retro8bit .login-btn,
-.login-actions--retro8bit .github-login-btn--pixel {
+.login-actions--retro8bit .login-retro-alt-btn {
   flex: 1 1 0;
   min-width: 0;
   width: auto;
