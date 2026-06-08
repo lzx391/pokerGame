@@ -64,7 +64,14 @@ public class DpOAuthController {
             return ResultUtil.error().data("message", e.getMessage());
         }
     }
-
+/**
+ * 拿着授权的code和state给后端取信息
+ * @param provider
+ * @param code
+ * @param state
+ * @param response
+ * @throws IOException
+ */
     @GetMapping("/{provider}/callback")
     public void oauthCallback(@PathVariable String provider,
                               @RequestParam String code,
@@ -86,7 +93,7 @@ public class DpOAuthController {
             redirectToFrontend(response, "error", result.getMessage());
             return;
         }
-
+        //登录成功的话，生成jti，签发token，存入redis
         String jti = UUID.randomUUID().toString();
         String token = jwtTokenService.generateToken(result.getNickname(), jti);
         dpRedisLoginCacheService.setLoginJti(result.getNickname(), jti);

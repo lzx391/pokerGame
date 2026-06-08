@@ -73,13 +73,17 @@ public class DpOAuthService {
         this.objectMapper = objectMapper;
         this.providerRegistry = providerRegistry;
     }
-
+/**
+ * 拼接提供商，回调地址，存state防止CSRF攻击
+ * @param providerId
+ * @return
+ */
     public String buildAuthorizeUrl(String providerId) {
         DpOAuthProvider provider = providerRegistry.require(providerId);
         if (!provider.enabled()) {
             throw new IllegalStateException("OAuth 提供商未启用: " + providerId);
         }
-
+//防止CSRF攻击的，state在后端这里有备份，这样攻击者携带的state无效，就会报错。
         String state = UUID.randomUUID().toString();
         storeState(state, Map.of("mode", "login", "provider", providerId));
         return provider.buildAuthorizeUrl(state);
@@ -94,7 +98,13 @@ public class DpOAuthService {
             throw new IllegalStateException("授权状态保存失败");
         }
     }
-
+/**
+ * 这里是用拿到的code去取信息
+ * @param providerId
+ * @param code
+ * @param receivedState
+ * @return
+ */
     public OAuthCallbackResult handleCallback(String providerId, String code, String receivedState) {
         DpOAuthProvider provider = providerRegistry.require(providerId);
         if (!provider.enabled()) {
@@ -125,9 +135,9 @@ public class DpOAuthService {
 
     private OAuthCallbackResult handleLoginMode(String providerId, OAuthUserProfile profile) {
         String openId = profile.getOpenId();
-
+//看是否已经注册过
         DpSocialAuth existing = socialAuthMapper.selectByProviderAndOpenId(providerId, openId);
-        if (existing != null) {
+        if (existing != null) {//如果已经注册过，则直接登录
             DpUser user = dpUserMapper.selectById(existing.getUserId());
             if (user == null) {
                 return OAuthCallbackResult.fail("用户数据异常，请联系管理员");
@@ -135,10 +145,10 @@ public class DpOAuthService {
             return OAuthCallbackResult.loginSuccess(user.getNickname(), user.getId(), false, false);
         }
 
-        String defaultNickname = openId;
+        String defaultNickname = openId;//如果未注册过，则生成默认昵称
         boolean needSetup = false;
 
-        if (defaultNickname.length() > 10) {
+        if (defaultNickname.length() > 10) {//如果昵称长度大于10，则截取前10位
             defaultNickname = defaultNickname.substring(0, 10);
         }
         if (defaultNickname.matches("\\d+") || sensitiveWordService.containsSensitive(defaultNickname)) {
@@ -150,12 +160,12 @@ public class DpOAuthService {
             defaultNickname = "player_" + UUID.randomUUID().toString().replace("-", "").substring(0, 6);
             needSetup = true;
         }
-
+        //注册用户，密码为空
         DpUser newUser = new DpUser();
         newUser.setNickname(defaultNickname);
         newUser.setPassword(null);
         dpUserMapper.registerUser(newUser);
-
+        //注册成功后，将用户信息存入dp_social_auth表
         DpSocialAuth auth = new DpSocialAuth();
         auth.setUserId(newUser.getId());
         auth.setProvider(providerId);

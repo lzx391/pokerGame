@@ -10,7 +10,11 @@ import java.util.stream.Collectors;
 
 @Component
 public class DpOAuthProviderRegistry {
-
+/**
+ * 这里的细节是接口是统一的，但是实现可以是不同的，然后通过Map存储，根据providerId获取具体的实现类型的对象
+ * 举个例子，比如Map<String,Animal>是存动物的，Animal是接口，然后有Cat和Dog实现了这个接口
+ * 然后当输入的K是cat时，return的实际上是 Cat cat,当输入的K是dog时，return的实际上是 Dog dog
+ */
     private final Map<String, DpOAuthProvider> providers;
 
     public DpOAuthProviderRegistry(List<DpOAuthProvider> providerList) {

@@ -64,7 +64,9 @@ public class DpGitHubOAuthProvider implements DpOAuthProvider {
                 + "&state=" + state
                 + "&scope=read:user";
     }
-
+/**
+ * 调用接口取token
+ */
     @Override
     public OAuthTokenResponse exchangeCode(String code) {
         try {
@@ -97,6 +99,11 @@ public class DpGitHubOAuthProvider implements DpOAuthProvider {
         }
     }
 
+    /**
+     * 调用接口取用户信息
+     * @param accessToken
+     * @return
+     */
     @Override
     public OAuthUserProfile fetchUserProfile(String accessToken) {
         try {
