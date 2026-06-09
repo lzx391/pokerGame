@@ -144,7 +144,7 @@ public final class DpNpcUnifiedPreflopStrategy {
 
         // === ?????? 4bet ????? all-in / call / fold ===
         if (spot == PreflopSpot.FACING_4BET) {
-            return decideFacing4Bet(hero, bb, sb, callAmount, callRatio, effStackBB, hole, tier, random);
+            return decideFacing4Bet(hero, bb, sb, callAmount, callRatio, effStackBB, hole, tier, botType, random);
         }
 
         // === ?????open / limp-check / fold ===
@@ -355,6 +355,7 @@ public final class DpNpcUnifiedPreflopStrategy {
             double effStackBB,
             HoleInfo hole,
             VillainTier tier,
+            DpNpcEngine.BotType botType,
             Random random) {
         // ???????????????????????? 5bet ????
         double potOdds;
@@ -379,6 +380,10 @@ public final class DpNpcUnifiedPreflopStrategy {
             double jamProb = (tier == VillainTier.TIGHT_OR_NIT) ? 0.70 : 0.82;
             if (effStackBB >= 45)
                 jamProb -= 0.12;
+            if (effStackBB >= 35)
+                jamProb += 0.15;
+            if (botType == DpNpcEngine.BotType.MANIAC)
+                jamProb += 0.10;
             jamProb = clamp01(jamProb);
             if (random.nextDouble() < jamProb) {
                 return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.ALL_IN, hero.getChips());

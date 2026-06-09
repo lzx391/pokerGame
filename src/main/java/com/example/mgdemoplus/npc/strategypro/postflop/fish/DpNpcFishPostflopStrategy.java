@@ -14,6 +14,9 @@ import com.example.mgdemoplus.npc.eval.DpNpcMadeHandCategory;
 import com.example.mgdemoplus.npc.eval.DpNpcPostflopFormula;
 import com.example.mgdemoplus.npc.strategypro.DpNpcRuleDecisionParams;
 import com.example.mgdemoplus.npc.strategypro.l1.DpNpcHardConstraints;
+import com.example.mgdemoplus.npc.strategypro.l4.DpNpcHeroCall;
+import com.example.mgdemoplus.npc.strategypro.l4.DpNpcRaiseEscalation;
+import com.example.mgdemoplus.npc.strategypro.l4.DpNpcRaiseEscalation.EscalationResult;
 import com.example.mgdemoplus.utils.DpUtilSmartContext;
 
 /**
@@ -119,6 +122,10 @@ public final class DpNpcFishPostflopStrategy {
             baseFold = Math.min(1.0, baseFold + 0.10);
         }
 
+        if (DpNpcHeroCall.shouldHeroCall(p, stage, callAmount, made, draw, ctx)) {
+            return null;
+        }
+
         double foldProb = Math.min(1.0, Math.max(0.0, baseFold * (1.0 - 0.62 * p.callStation)));
         foldProb = DpNpcHardConstraints.capFoldProb(
                 foldProb,
@@ -178,16 +185,9 @@ public final class DpNpcFishPostflopStrategy {
         int bb = p.room.getBigBlindChips();
         int extraMin = DpNpcPostflopFormula.raiseExtraMinBb(made);
         int extraMax = DpNpcPostflopFormula.raiseExtraMaxBb(made, stage);
-        int extraBB = extraMin + p.random.nextInt(Math.max(1, extraMax - extraMin + 1));
-        int target = callAmount + extraBB * bb;
-        if (!"river".equals(stage)
-                && made.ordinal() <= DpNpcMadeHandCategory.TOP_PAIR_WEAK_KICKER.ordinal()
-                && made.ordinal() >= DpNpcMadeHandCategory.MIDDLE_PAIR.ordinal()) {
-            target = (int) Math.round(target * 0.75);
-        }
-        int raiseAmount = Math.min(p.chips, target);
-        raiseAmount = snapRaiseToSb(p, callAmount, raiseAmount, made, bb);
-
+        EscalationResult esc = DpNpcRaiseEscalation.computeFacingBetRaise(
+                p.room, callAmount, p.chips, made, stage, p.type, extraMin, extraMax, p.random);
+        int raiseAmount = esc.raiseAmount;
         if (raiseAmount <= callAmount) {
             return new BotAction(BotActionType.CALL_OR_CHECK, 0);
         }

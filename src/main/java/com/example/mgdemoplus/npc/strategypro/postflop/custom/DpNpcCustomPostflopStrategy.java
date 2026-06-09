@@ -14,6 +14,9 @@ import com.example.mgdemoplus.npc.eval.DpNpcMadeHandCategory;
 import com.example.mgdemoplus.npc.eval.DpNpcPostflopFormula;
 import com.example.mgdemoplus.npc.strategypro.DpNpcRuleDecisionParams;
 import com.example.mgdemoplus.npc.strategypro.l1.DpNpcHardConstraints;
+import com.example.mgdemoplus.npc.strategypro.l4.DpNpcHeroCall;
+import com.example.mgdemoplus.npc.strategypro.l4.DpNpcRaiseEscalation;
+import com.example.mgdemoplus.npc.strategypro.l4.DpNpcRaiseEscalation.EscalationResult;
 import com.example.mgdemoplus.utils.DpUtilSmartContext;
 
 /**
@@ -340,6 +343,10 @@ public final class DpNpcCustomPostflopStrategy {
             foldProb = Math.min(1.0, foldProb + (0.12 + 0.10 * axis.foldToPressure) * axis.foldToPressure);
         }
 
+        if (DpNpcHeroCall.shouldHeroCall(p, p.room.getCurrentStage(), callAmount, made, draw, ctx)) {
+            return null;
+        }
+
         if (foldProb > 0 && p.random.nextDouble() < foldProb) {
             return new BotAction(BotActionType.FOLD, 0);
         }
@@ -393,12 +400,14 @@ public final class DpNpcCustomPostflopStrategy {
             return new BotAction(BotActionType.CALL_OR_CHECK, 0);
         }
 
-        int pot = Math.max(p.room.getPot(), p.room.getBigBlindChips());
-        double sizeMul = 0.68 + 0.34 * axis.cbetFreq + 0.28 * axis.pfr;
-        int raise = (int) Math.round((callAmount + pot * 0.40) * sizeMul);
-        raise = Math.max(callAmount + p.room.getBigBlindChips(), raise);
-        raise = snapRaiseToSb(p, callAmount, raise, made);
-
+        int extraMin = DpNpcPostflopFormula.raiseExtraMinBb(made);
+        int extraMax = Math.max(extraMin, DpNpcPostflopFormula.raiseExtraMaxBb(made, stage));
+        EscalationResult esc = DpNpcRaiseEscalation.computeFacingBetRaise(
+                p.room, callAmount, p.chips, made, stage, p.type, extraMin, extraMax, p.random);
+        if (esc.suggestJam && p.random.nextDouble() < 0.40 + 0.25 * axis.pfr) {
+            return new BotAction(BotActionType.ALL_IN, p.chips);
+        }
+        int raise = esc.raiseAmount;
         if (raise >= p.chips) {
             return new BotAction(BotActionType.ALL_IN, p.chips);
         }

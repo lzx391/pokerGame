@@ -15,6 +15,9 @@ import com.example.mgdemoplus.npc.eval.DpNpcMadeHandCategory;
 import com.example.mgdemoplus.npc.eval.DpNpcPostflopFormula;
 import com.example.mgdemoplus.npc.strategypro.DpNpcRuleDecisionParams;
 import com.example.mgdemoplus.npc.strategypro.l1.DpNpcHardConstraints;
+import com.example.mgdemoplus.npc.strategypro.l4.DpNpcHeroCall;
+import com.example.mgdemoplus.npc.strategypro.l4.DpNpcRaiseEscalation;
+import com.example.mgdemoplus.npc.strategypro.l4.DpNpcRaiseEscalation.EscalationResult;
 import com.example.mgdemoplus.utils.DpUtilSmartContext;
 
 /**
@@ -83,10 +86,9 @@ public final class DpNpcManiacPostflopStrategy {
         if (bd == BoardDanger.WET) {
             factor *= 0.82;
         }
-        if (ctx.stackCtx != null
-                && ctx.stackCtx.avgStackBB >= RuleNpcConfig.DEEP_TABLE_AVG_BB
-                && !made.isAtLeast(DpNpcMadeHandCategory.TWO_PAIR)) {
-            factor *= 0.88;
+        if (ctx.stackCtx != null) {
+            factor = DpNpcRaiseEscalation.adjustDeepStackCommitFactor(
+                    factor, made, ctx.stackCtx.avgStackBB);
         }
         factor *= 1.0;
         double spr = DpNpcEngine.computeHeroPotSpr(p.room, p.bot);
@@ -178,6 +180,10 @@ public final class DpNpcManiacPostflopStrategy {
                 callAmount,
                 ctx.equityEst,
                 false);
+        if (DpNpcHeroCall.shouldHeroCall(
+                p, p.room.getCurrentStage(), callAmount, made, draw, ctx)) {
+            return null;
+        }
         if (foldProb > 0 && p.random.nextDouble() < foldProb) {
             if (DpNpcHardConstraints.mustNotFold(
                     made,
@@ -248,6 +254,12 @@ public final class DpNpcManiacPostflopStrategy {
             double commitThreshold) {
         double r = p.random.nextDouble();
         double spr = DpNpcEngine.computeHeroPotSpr(p.room, p.bot);
+        int raiseLevel = p.room.getRaiseLevel();
+
+        if (raiseLevel >= 2
+                && r < DpNpcRaiseEscalation.maniacReRaiseJamProb(raiseLevel, made)) {
+            return new BotAction(BotActionType.ALL_IN, p.chips);
+        }
 
         if (spr < 2.5 && r < 0.62) {
             return new BotAction(BotActionType.ALL_IN, p.chips);
@@ -271,10 +283,14 @@ public final class DpNpcManiacPostflopStrategy {
             DpUtilSmartContext ctx,
             DpNpcMadeHandCategory made,
             double commitThreshold) {
-        int minMulti = facingMinMulti(made);
-        int maxMulti = facingMaxMulti(made);
-        int multiplier = minMulti + p.random.nextInt(Math.max(1, maxMulti - minMulti + 1));
-        int raiseAmount = Math.min(p.chips, callAmount + p.room.getBigBlindChips() * multiplier);
+        int extraMin = Math.max(2, facingMinMulti(made));
+        int extraMax = Math.max(extraMin, facingMaxMulti(made));
+        EscalationResult esc = DpNpcRaiseEscalation.computeFacingBetRaise(
+                p.room, callAmount, p.chips, made, stage, p.type, extraMin, extraMax, p.random);
+        if (esc.suggestJam && p.random.nextDouble() < 0.65) {
+            return new BotAction(BotActionType.ALL_IN, p.chips);
+        }
+        int raiseAmount = esc.raiseAmount;
         if (raiseAmount <= 0) {
             return new BotAction(BotActionType.CALL_OR_CHECK, 0);
         }

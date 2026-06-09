@@ -529,6 +529,27 @@ DpNpcUnifiedPreflopStrategy
 
 ---
 
+### 5.4b Wave L4：频繁小加注修复 + 概率弱牌抓诈（hero call）
+
+| 项 | 内容 |
+|----|------|
+| 改动文件 | 新建 `strategypro/l4/DpNpcRaiseEscalation`、`DpNpcHeroCall`；TAG/LAG/NIT/FISH/MANIAC/CUSTOM postflop facing bet raise 统一走 escalation；各型 `tryFoldFacingBet` 接入 hero call；`DpNpcUnifiedPreflopStrategy.decideFacing4Bet` 深码 jam 加成 |
+| 工作内容 | ① 读 `raiseLevel`/`lastRaiseIncrement` 递增加注尺度，禁止连续同增量 ② 深码 TRIPS+ commit 不叠加边际惩罚 ③ 河牌弱牌概率 hero call（含 `bluffCatchMore`）④ MANIAC re-raise jam 路径 |
+| 验收 | 同街 3 次 re-raise 后第 3 次增量 > 第 1 次；MANIAC raiseLevel≥2 facing bet 有 jam；L1 坚果保护不变 |
+| 依赖 | Wave 3g |
+
+#### Wave L4 验收勾选（2026-06-09）
+
+- [x] 新建 `strategypro/l4/DpNpcRaiseEscalation`（读 raiseLevel、反重复增量、深码 commit 修正、MANIAC jam 概率）
+- [x] 新建 `strategypro/l4/DpNpcHeroCall`（河牌优先、≤0.55 pot 小中注、bluffCatchMore/可信度加分）
+- [x] TAG/LAG/NIT/FISH/MANIAC/CUSTOM facing bet raise 统一调 escalation helper
+- [x] TAG/NIT/LAG/FISH/MANIAC/CUSTOM `tryFoldFacingBet` 掷 fold 骰前接入 hero call（CALL 型除外）
+- [x] `decideFacing4Bet`：effStackBB≥35 jamProb +15%，MANIAC 再 +10%
+- [x] `DpNpcL4RaiseEscalationTest`、`DpNpcL4HeroCallTest` 各 ≥3 场景
+- [x] `mvn test -Dtest=com.example.mgdemoplus.npc.**` 全绿
+
+---
+
 ### 5.5 Wave 4：MC equity 接入 DpPokerMath（可选）
 
 | 项 | 内容 |
