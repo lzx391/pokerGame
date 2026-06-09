@@ -5,6 +5,7 @@ import com.example.mgdemoplus.achievement.DpDetectAchievement;
 import com.example.mgdemoplus.common.bo.DpRoomBO;
 import com.example.mgdemoplus.common.entity.DpPlayer;
 import com.example.mgdemoplus.history.bo.DpObservedHandActionRecordBO;
+import com.example.mgdemoplus.history.bo.DpObservedSeatAtHandStartBO;
 import com.example.mgdemoplus.history.bo.DpObservedHandRecordBO;
 import com.example.mgdemoplus.history.bo.DpObservedStreetBoardBO;
 import com.example.mgdemoplus.history.types.DpObservedHandActionType;
@@ -44,6 +45,7 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
         detectDrawInsulator(job.archived(), job.roomSnapshotForParticipants());
         detectNaturalDisaster(job.archived(), job.roomSnapshotForParticipants());
         detectSoulReader(job.archived(), job.roomSnapshotForParticipants());
+        detectSweepAll(job.archived(), job.roomSnapshotForParticipants());
     }
 
     /**
@@ -415,6 +417,80 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
                 dpAchievementService.unlockIfAbsent(userId, DpAchievementService.CODE_NATURAL_DISASTER);
             }
         }
+    }
+
+    /**
+     * 横扫一切：至少两名摊牌参与者；赢家净赢筹码 &gt; 0；其余摊牌对手终局筹码均为 0。
+     */
+    private void detectSweepAll(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot) {
+        Map<String, Integer> netChipsChange = archived.netChipsChange;
+        Map<String, List<String>> holeCardsAtEnd = archived.holeCardsAtEnd;
+        if (netChipsChange == null || netChipsChange.isEmpty()
+                || holeCardsAtEnd == null || holeCardsAtEnd.isEmpty()) {
+            return;
+        }
+
+        Set<String> folded = collectFoldedNicknames(archived.actions);
+        List<String> showdownParticipants = new ArrayList<>();
+        for (Map.Entry<String, List<String>> entry : holeCardsAtEnd.entrySet()) {
+            if (isShowdownParticipant(entry.getKey(), entry.getValue(), folded)) {
+                showdownParticipants.add(entry.getKey());
+            }
+        }
+        if (showdownParticipants.size() < 2) {
+            return;
+        }
+
+        Map<String, Integer> nicknameToUserId = buildNicknameToUserId(roomSnapshot);
+        for (Map.Entry<String, Integer> entry : netChipsChange.entrySet()) {
+            String hero = entry.getKey();
+            Integer net = entry.getValue();
+            if (hero == null || hero.isEmpty() || net == null || net <= 0) {
+                continue;
+            }
+            if (!isShowdownParticipant(hero, holeCardsAtEnd.get(hero), folded)) {
+                continue;
+            }
+            Integer userId = nicknameToUserId.get(hero);
+            if (userId == null || userId <= 0) {
+                continue;
+            }
+            if (!allOtherShowdownOpponentsBusted(hero, showdownParticipants, archived)) {
+                continue;
+            }
+            dpAchievementService.unlockIfAbsent(userId, DpAchievementService.CODE_SWEEP_ALL);
+        }
+    }
+
+    private static boolean allOtherShowdownOpponentsBusted(String hero,
+                                                           List<String> showdownParticipants,
+                                                           DpObservedHandRecordBO archived) {
+        for (String opp : showdownParticipants) {
+            if (opp == null || opp.equals(hero)) {
+                continue;
+            }
+            int chips = resolveChipsAtEnd(archived, opp);
+            if (chips != 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static int resolveChipsAtEnd(DpObservedHandRecordBO archived, String nickname) {
+        if (archived.chipsAtEnd != null && archived.chipsAtEnd.containsKey(nickname)) {
+            Integer v = archived.chipsAtEnd.get(nickname);
+            return v != null ? v : 0;
+        }
+        Integer net = archived.netChipsChange != null ? archived.netChipsChange.get(nickname) : null;
+        if (archived.seatsAtStart != null) {
+            for (DpObservedSeatAtHandStartBO seat : archived.seatsAtStart) {
+                if (seat != null && nickname.equals(seat.nickname)) {
+                    return seat.chipsAfterBlinds + (net != null ? net : 0);
+                }
+            }
+        }
+        return net != null ? net : 0;
     }
 
     /**

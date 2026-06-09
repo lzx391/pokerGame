@@ -26,6 +26,8 @@ public final class DpObservedHandRecordBO {
     public final int mainPotTotalBeforeSettlement;
     public final Map<String, List<String>> holeCardsAtEnd;
     public final Map<String, Integer> netChipsChange;
+    /** 一手结束时的桌上筹码（payload v3+）。 */
+    public final Map<String, Integer> chipsAtEnd;
 
     public DpObservedHandRecordBO(String roomId, long handSeed, long startedAtMs, long endedAtMs,
                                    int smallBlindChips, int bigBlindChips, String dealerNickname,
@@ -38,7 +40,7 @@ public final class DpObservedHandRecordBO {
                                    Map<String, Integer> netChipsChange) {
         this(roomId, handSeed, startedAtMs, endedAtMs, smallBlindChips, bigBlindChips, 0, dealerNickname,
                 seatsAtStart, boardsByStreet, actions, potsBeforeSettlement, mainPotTotalBeforeSettlement,
-                holeCardsAtEnd, netChipsChange);
+                holeCardsAtEnd, netChipsChange, Map.of());
     }
 
     public DpObservedHandRecordBO(String roomId, long handSeed, long startedAtMs, long endedAtMs,
@@ -51,6 +53,22 @@ public final class DpObservedHandRecordBO {
                                    int mainPotTotalBeforeSettlement,
                                    Map<String, List<String>> holeCardsAtEnd,
                                    Map<String, Integer> netChipsChange) {
+        this(roomId, handSeed, startedAtMs, endedAtMs, smallBlindChips, bigBlindChips, startingStackBb,
+                dealerNickname, seatsAtStart, boardsByStreet, actions, potsBeforeSettlement,
+                mainPotTotalBeforeSettlement, holeCardsAtEnd, netChipsChange, Map.of());
+    }
+
+    public DpObservedHandRecordBO(String roomId, long handSeed, long startedAtMs, long endedAtMs,
+                                   int smallBlindChips, int bigBlindChips, int startingStackBb,
+                                   String dealerNickname,
+                                   List<DpObservedSeatAtHandStartBO> seatsAtStart,
+                                   List<DpObservedStreetBoardBO> boardsByStreet,
+                                   List<DpObservedHandActionRecordBO> actions,
+                                   List<DpObservedPotSnapshotBO> potsBeforeSettlement,
+                                   int mainPotTotalBeforeSettlement,
+                                   Map<String, List<String>> holeCardsAtEnd,
+                                   Map<String, Integer> netChipsChange,
+                                   Map<String, Integer> chipsAtEnd) {
         this.roomId = roomId == null ? "" : roomId;
         this.handSeed = handSeed;
         this.startedAtMs = startedAtMs;
@@ -66,5 +84,6 @@ public final class DpObservedHandRecordBO {
         this.mainPotTotalBeforeSettlement = mainPotTotalBeforeSettlement;
         this.holeCardsAtEnd = Map.copyOf(holeCardsAtEnd);
         this.netChipsChange = Map.copyOf(netChipsChange);
+        this.chipsAtEnd = chipsAtEnd == null ? Map.of() : Map.copyOf(chipsAtEnd);
     }
 }

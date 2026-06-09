@@ -243,6 +243,31 @@ export function handRankNameByStreet(boardsByStreet, street) {
   return map && typeof map === 'object' ? map : {}
 }
 
+/** payload v3：终局筹码；缺失时可用 seatsAtStart + netChipsChange 估算。 */
+export function resolveChipsAtEnd(payload, nickname, seatsAtStart) {
+  if (!nickname) return null
+  const p = payload && typeof payload === 'object' ? payload : {}
+  const endMap = p.chipsAtEnd
+  if (endMap && typeof endMap === 'object' && Object.prototype.hasOwnProperty.call(endMap, nickname)) {
+    const v = endMap[nickname]
+    if (v == null || v === '') return null
+    const n = Number(v)
+    return Number.isNaN(n) ? null : n
+  }
+  const net = p.netChipsChange && typeof p.netChipsChange === 'object' ? p.netChipsChange[nickname] : null
+  const seats = Array.isArray(seatsAtStart) ? seatsAtStart : (Array.isArray(p.seatsAtStart) ? p.seatsAtStart : [])
+  for (let i = 0; i < seats.length; i++) {
+    const s = seats[i]
+    if (s && s.nickname === nickname) {
+      const base = s.chipsAfterBlinds != null ? Number(s.chipsAfterBlinds) : 0
+      const delta = net != null ? Number(net) : 0
+      if (Number.isNaN(base) || Number.isNaN(delta)) return null
+      return base + delta
+    }
+  }
+  return null
+}
+
 /** 河牌圈牌型（结算页用） */
 export function finalHandRankNameByPlayer(boardsByStreet) {
   const river = handRankNameByStreet(boardsByStreet, 'river')

@@ -426,14 +426,22 @@ public class DpGameRoomPushService {
                 }
                 //定制化的json数据
                 String nick = (String) s.getAttributes().get("viewerNickname");
+                Integer viewerUserId = (Integer) s.getAttributes().get("viewerUserId");
                 String json;
                 if (live == null) {
                     json = ROOM_CLOSED;
                     //如果房间不存在，推送房间关闭消息
-                } else if (nick != null && !nick.trim().isEmpty()
-                        && !roomService.isNicknameInRoom(live, nick.trim())) {
-                    //如果昵称不在房间里，推送房间关闭消息
-                    json = ROOM_CLOSED;
+                } else if (nick != null && !nick.trim().isEmpty()) {
+                    String effectiveNick;
+                    synchronized (live) {
+                        effectiveNick = roomService.resolveRoomActorNickname(live, nick.trim(), viewerUserId);
+                    }
+                    if (effectiveNick == null || !roomService.isNicknameInRoom(live, effectiveNick)) {
+                        json = ROOM_CLOSED;
+                    } else {
+                        DpRoomBO view = roomService.snapshotForViewerFromLive(live, effectiveNick);
+                        json = objectMapper.writeValueAsString(view);
+                    }
                 } else {//对每个订阅者推送json数据
                     DpRoomBO view = roomService.snapshotForViewerFromLive(live, nick);
                     json = objectMapper.writeValueAsString(view);

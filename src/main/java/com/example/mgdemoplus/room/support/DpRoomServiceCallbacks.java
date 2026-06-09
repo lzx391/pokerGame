@@ -77,6 +77,10 @@ public interface DpRoomServiceCallbacks {
 
     boolean isNicknameInRoom(DpRoomBO room, String nickname);
 
+    boolean isViewerInRoom(DpRoomBO room, String nickname, Integer userId);
+
+    String resolveRoomActorNickname(DpRoomBO room, String canonicalNickname, Integer userId);
+
     void presenceMarkIdleAllHumansOnRoomSnapshot(DpRoomBO r, String trigger);
 
     int clampRaiseAmountForLegal(DpRoomBO room, DpPlayer p, int amount);

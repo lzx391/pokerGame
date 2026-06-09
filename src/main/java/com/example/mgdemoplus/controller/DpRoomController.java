@@ -92,10 +92,38 @@ public class DpRoomController {
         return payload;
     }
 
+    private String requireJwtNicknameMatchingParam(String nickname) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String jwtNickname = auth != null ? auth.getName() : null;
+        if (jwtNickname == null || nickname == null || !jwtNickname.equals(nickname)) {
+            return null;
+        }
+        return jwtNickname;
+    }
+
+    private Integer resolveCurrentUserId(String nickname) {
+        DpUser u = dpUserMapper.selectByNickname(nickname);
+        return u != null ? u.getId() : null;
+    }
+
     @GetMapping("/getNowRoom")
     public DpRoomBO getNowRoom(@RequestParam String roomId,
-                             @RequestParam(required = false) String nickname) {
-        return dpRoomService.getRoomSnapshotForViewer(roomId, nickname);
+                             @RequestParam(required = false) String nickname,
+                             @RequestParam(required = false) Integer userId) {
+        Integer effectiveUserId = userId;
+        if (nickname != null && !nickname.isEmpty()) {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String jwtNickname = auth != null ? auth.getName() : null;
+            if (jwtNickname != null && !jwtNickname.equals("anonymousUser")) {
+                if (!jwtNickname.equals(nickname)) {
+                    return null;
+                }
+                if (effectiveUserId == null) {
+                    effectiveUserId = resolveCurrentUserId(jwtNickname);
+                }
+            }
+        }
+        return dpRoomService.getRoomSnapshotForViewer(roomId, nickname, effectiveUserId);
     }
 
     @PostMapping("/joinRoom")
@@ -156,8 +184,14 @@ public class DpRoomController {
  * 该房间内玩家是否能准备成功的接口
  * */
     @PostMapping("/toggleReady")
-    public String toggleReady(@RequestParam String roomId, @RequestParam String nickname) {
-        return dpRoomService.toggleReady(roomId, nickname) ? "ok" : "fail";
+    public String toggleReady(@RequestParam String roomId,
+                              @RequestParam String nickname,
+                              @RequestParam(required = false) Integer userId) {
+        if (requireJwtNicknameMatchingParam(nickname) == null) {
+            return "fail";
+        }
+        Integer uid = userId != null ? userId : resolveCurrentUserId(nickname);
+        return dpRoomService.toggleReady(roomId, nickname, uid) ? "ok" : "fail";
     }
 
     @PostMapping("/exitRoom")
@@ -226,8 +260,14 @@ public class DpRoomController {
         return ok;
     }
     @PostMapping("/heartbeat")
-    public void heartbeat(@RequestParam String roomId, @RequestParam String nickname) {
-        dpRoomService.heartbeat(roomId, nickname);
+    public void heartbeat(@RequestParam String roomId,
+                          @RequestParam String nickname,
+                          @RequestParam(required = false) Integer userId) {
+        if (requireJwtNicknameMatchingParam(nickname) == null) {
+            return;
+        }
+        Integer uid = userId != null ? userId : resolveCurrentUserId(nickname);
+        dpRoomService.heartbeat(roomId, nickname, uid);
     }
 
     /**
@@ -236,7 +276,11 @@ public class DpRoomController {
     @PostMapping("/readyNextHand")
     public String readyNextHand(@RequestParam String roomId, @RequestParam String nickname,
                                 @RequestParam(required = false) Integer userId) {
-        return dpRoomService.readyNextHand(roomId, nickname, userId) ? "ok" : "人数已满";
+        if (requireJwtNicknameMatchingParam(nickname) == null) {
+            return "fail";
+        }
+        Integer uid = userId != null ? userId : resolveCurrentUserId(nickname);
+        return dpRoomService.readyNextHand(roomId, nickname, uid) ? "ok" : "人数已满";
     }
 
     /**

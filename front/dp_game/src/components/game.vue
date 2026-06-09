@@ -317,6 +317,14 @@ export default {
       var n = u && u.userId != null && u.userId !== '' ? Number(u.userId) : 0
       return isNaN(n) || n <= 0 ? 0 : n
     },
+    roomApiParams() {
+      if (!this.user || !this.user.nickname) return { roomId: this.roomId }
+      var p = { roomId: this.roomId, nickname: this.user.nickname }
+      if (this.user.userId != null && this.user.userId !== '') {
+        p.userId = this.user.userId
+      }
+      return p
+    },
     actionTimerThinkTotalSec() {
       var v = Number(this.$store.state.dpGame.thinkTimeSeconds)
       return isFinite(v) && v >= 1 ? Math.floor(v) : 30
@@ -1159,7 +1167,7 @@ export default {
     sendHeartbeat() {
       if (!this.user) return
       this.$http.post('/dpRoom/heartbeat', null, {
-        params: {roomId: this.roomId, nickname: this.user.nickname}
+        params: this.roomApiParams
       }).catch(function (e) {
         console.error('心跳失败', e)
       })
@@ -1269,6 +1277,8 @@ export default {
       var path = process.env.NODE_ENV === 'development' ? '/dp-ws/dp-game' : '/ws/dp-game'
       var url = self.gameWsBaseUrl() + path + '?roomId=' + encodeURIComponent(self.roomId)
         + '&nickname=' + encodeURIComponent(self.user.nickname)
+        + (self.user.userId != null && self.user.userId !== ''
+          ? '&userId=' + encodeURIComponent(String(self.user.userId)) : '')
       try {
         var ws = new WebSocket(url)
         self.gameWs = ws
@@ -1718,7 +1728,7 @@ export default {
       this.$store.commit('dpGame/SET_LOADING', true)
       try {
         var res = await this.$http.get('/dpRoom/getNowRoom', {
-          params: {roomId: this.roomId, nickname: this.user ? this.user.nickname : ''}
+          params: this.roomApiParams
         })
         var room = res.data
         if (!room) {
@@ -1741,7 +1751,7 @@ export default {
       var wasReady = this.myReady
       try {
         var res = await this.$http.post('/dpRoom/toggleReady', null, {
-          params: { roomId: this.roomId, nickname: this.user.nickname }
+          params: this.roomApiParams
         })
         if (res.data === 'ok') {
           this.$store.commit('dpGame/PATCH_MY_PLAYER_READY', !wasReady)
@@ -2799,10 +2809,7 @@ export default {
     async readyNextHand() {
       if (!this.user) return { ok: false, message: '未登录' }
       try {
-        var rp = { roomId: this.roomId, nickname: this.user.nickname }
-        if (this.user.userId != null && this.user.userId !== '') {
-          rp.userId = this.user.userId
-        }
+        var rp = this.roomApiParams
         if (this.nextHandReady) {
           var cancelRes = await this.$http.post('/dpRoom/cancelReadyNextHand', null, {
             params: rp

@@ -245,6 +245,40 @@ class DpDetectAchievementImplTest {
     }
 
     @Test
+    @DisplayName("摊牌清零对手解锁 sweep_all")
+    void unlocksSweepAllWhenShowdownOpponentsBusted() {
+        List<String> board = List.of("hearts_2", "diamonds_3", "clubs_4", "spades_5", "hearts_6");
+        Map<String, Integer> chipsAtEnd = Map.of(WINNER_NICK, 600, VILLAIN_NICK, 0);
+        detector.detect(sweepJob(
+                Map.of(WINNER_NICK, List.of("hearts_A", "diamonds_A"),
+                        VILLAIN_NICK, List.of("clubs_7", "spades_2")),
+                Map.of(WINNER_NICK, 300, VILLAIN_NICK, -300),
+                chipsAtEnd,
+                board,
+                List.of(),
+                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)));
+
+        verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_SWEEP_ALL);
+    }
+
+    @Test
+    @DisplayName("对手仍有筹码不解锁 sweep_all")
+    void skipsSweepAllWhenOpponentHasChipsLeft() {
+        List<String> board = List.of("hearts_2", "diamonds_3", "clubs_4", "spades_5", "hearts_6");
+        Map<String, Integer> chipsAtEnd = Map.of(WINNER_NICK, 400, VILLAIN_NICK, 50);
+        detector.detect(sweepJob(
+                Map.of(WINNER_NICK, List.of("hearts_A", "diamonds_A"),
+                        VILLAIN_NICK, List.of("clubs_7", "spades_2")),
+                Map.of(WINNER_NICK, 120, VILLAIN_NICK, -120),
+                chipsAtEnd,
+                board,
+                List.of(),
+                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)));
+
+        verify(achievementService, never()).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_SWEEP_ALL);
+    }
+
+    @Test
     @DisplayName("BOT 赢家不写入成就")
     void skipsBotWinner() {
         DpRoomBO room = new DpRoomBO();
@@ -264,11 +298,29 @@ class DpDetectAchievementImplTest {
     private static DpSettlePersistJob job(Map<String, List<String>> holes,
                                           Map<String, Integer> net,
                                           DpRoomBO room) {
-        return fullJob(holes, net, List.of(), List.of(), room);
+        return fullJob(holes, net, Map.of(), List.of(), List.of(), room);
+    }
+
+    private static DpSettlePersistJob sweepJob(Map<String, List<String>> holes,
+                                               Map<String, Integer> net,
+                                               Map<String, Integer> chipsAtEnd,
+                                               List<String> board,
+                                               List<DpObservedHandActionRecordBO> actions,
+                                               DpRoomBO room) {
+        return fullJob(holes, net, chipsAtEnd, board, actions, room);
     }
 
     private static DpSettlePersistJob fullJob(Map<String, List<String>> holes,
                                               Map<String, Integer> net,
+                                              List<String> board,
+                                              List<DpObservedHandActionRecordBO> actions,
+                                              DpRoomBO room) {
+        return fullJob(holes, net, Map.of(), board, actions, room);
+    }
+
+    private static DpSettlePersistJob fullJob(Map<String, List<String>> holes,
+                                              Map<String, Integer> net,
+                                              Map<String, Integer> chipsAtEnd,
                                               List<String> board,
                                               List<DpObservedHandActionRecordBO> actions,
                                               DpRoomBO room) {
@@ -289,6 +341,7 @@ class DpDetectAchievementImplTest {
                 1L,
                 10,
                 20,
+                0,
                 "dealer",
                 List.of(),
                 boards,
@@ -296,7 +349,8 @@ class DpDetectAchievementImplTest {
                 List.of(),
                 100,
                 holes,
-                net);
+                net,
+                chipsAtEnd);
         return new DpSettlePersistJob("room-1", archived, room, List.of(), List.of());
     }
 

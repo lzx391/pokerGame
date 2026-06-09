@@ -215,6 +215,7 @@
                 <tr>
                   <th scope="col">玩家</th>
                   <th scope="col">鱼干输赢</th>
+                  <th scope="col">终局筹码</th>
                   <th scope="col">底牌</th>
                   <th scope="col">牌型</th>
                 </tr>
@@ -233,6 +234,7 @@
                     </div>
                   </td>
                   <td :class="['hand-detail-table__net', netClass(row.net)]">{{ row.net }}</td>
+                  <td class="hand-detail-table__net">{{ row.chipsAtEnd != null ? row.chipsAtEnd : '—' }}</td>
                   <td class="hand-detail-table__holes-cell">
                     <span v-if="row.folded && !row.isSelf" class="hand-detail-page__folded-label">已盖牌</span>
                     <div v-else-if="row.cards.length" class="hand-detail-page__card-row hand-detail-page__card-row--holes">
@@ -300,7 +302,8 @@ import {
   firstFoldStage,
   shouldShowHoleCardsOnStreetTab,
   finalCommunityCards,
-  playerRoleTagsByNickname
+  playerRoleTagsByNickname,
+  resolveChipsAtEnd
 } from '@/utils/dpHandHistoryReplay.js'
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
 import { CAT_COPY, dpPotDisplayLabel } from '@/constants/dpCatThemeCopy'
@@ -428,7 +431,7 @@ export default {
           const raw = map[row.nick]
           cards = Array.isArray(raw) ? raw : []
         }
-        return { ...row, folded, isSelf, cards }
+        return { ...row, folded, isSelf, cards, chipsAtEnd: resolveChipsAtEnd(this.payload, row.nick, this.seatsAtStart) }
       })
     },
     playersForStreet() {

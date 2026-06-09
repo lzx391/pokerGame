@@ -95,6 +95,34 @@ class DpHandHistoryPayloadV2Test {
     }
 
     @Test
+    void persistService_writesPayloadVersion3WithChipsAtEnd() throws Exception {
+        DpRoomBO room = sampleRoom();
+        observedService.beginHand(room);
+        observedService.markHandReadyAfterBlinds(room);
+        observedService.recordPotAtStreetEnd(room, "preflop", 15);
+        room.getPlayers().get(0).setChips(490);
+        room.getPlayers().get(1).setChips(0);
+        observedService.recordBetLikeAction(room, room.getPlayers().get(0), 10, 10, 5, 15, false, false);
+        DpObservedHandRecordBO rec = observedService.finalizeHand(room);
+
+        assertThat(rec.chipsAtEnd).containsEntry("Alice", 490).containsEntry("Bob", 0);
+
+        persistService.save(rec, room);
+
+        ArgumentCaptor<DpObservedHandHistory> captor = ArgumentCaptor.forClass(DpObservedHandHistory.class);
+        org.mockito.Mockito.verify(historyMapper).insert(captor.capture());
+        DpObservedHandHistory row = captor.getValue();
+
+        assertThat(row.getPayloadVersion()).isEqualTo(3);
+
+        Map<String, Object> payload = objectMapper.readValue(
+                row.getPayloadJson(), new TypeReference<>() {});
+        @SuppressWarnings("unchecked")
+        Map<String, Integer> chipsAtEnd = (Map<String, Integer>) payload.get("chipsAtEnd");
+        assertThat(chipsAtEnd).containsEntry("Alice", 490).containsEntry("Bob", 0);
+    }
+
+    @Test
     void persistService_writesPayloadVersion2WithNewFields() throws Exception {
         DpRoomBO room = sampleRoom();
         observedService.beginHand(room);
@@ -110,7 +138,7 @@ class DpHandHistoryPayloadV2Test {
         org.mockito.Mockito.verify(historyMapper).insert(captor.capture());
         DpObservedHandHistory row = captor.getValue();
 
-        assertThat(row.getPayloadVersion()).isEqualTo(2);
+        assertThat(row.getPayloadVersion()).isEqualTo(3);
         assertThat(row.getStartingStackBb()).isEqualTo(50);
 
         Map<String, Object> payload = objectMapper.readValue(

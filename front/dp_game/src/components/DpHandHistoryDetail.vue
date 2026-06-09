@@ -126,7 +126,8 @@
                       <div class="dp-hd__tbl-head">
                         <span class="dp-hd__tbl-hd dp-hd__tbl-hd--nick">PLAYER</span>
                         <span class="dp-hd__tbl-hd dp-hd__tbl-hd--holes">HOLE</span>
-                        <span class="dp-hd__tbl-hd dp-hd__tbl-hd--net">CHIPS</span>
+                        <span class="dp-hd__tbl-hd dp-hd__tbl-hd--net">NET</span>
+                        <span class="dp-hd__tbl-hd dp-hd__tbl-hd--end">END</span>
                         <span class="dp-hd__tbl-hd dp-hd__tbl-hd--rank">HAND</span>
                       </div>
                       <div v-for="row in settleRowsWithCards" :key="'sr-' + row.nick" class="dp-hd__tbl-row" :class="{ 'dp-hd__tbl-row--win': row.net > 0, 'dp-hd__tbl-row--lose': row.net < 0, 'dp-hd__tbl-row--folded': row.folded, 'dp-hd__tbl-row--self': row.isSelf }">
@@ -144,6 +145,14 @@
                           <span v-else class="dp-hd__hole-empty">--</span>
                         </span>
                         <span class="dp-hd__tbl-net" :class="{ 'dp-hd__tbl-net--plus': row.net > 0, 'dp-hd__tbl-net--minus': row.net < 0 }">{{ row.net > 0 ? '+' + row.net : row.net }}</span>
+                        <span class="dp-hd__tbl-end">
+                          <template v-if="row.chipsAtEnd != null">
+                            <span class="dp-hd__act-stk">
+                              <span class="dp-hd__act-stk-glyph" aria-hidden="true">▪</span>[STK:{{ row.chipsAtEnd }}]
+                            </span>
+                          </template>
+                          <template v-else>--</template>
+                        </span>
                         <span class="dp-hd__tbl-rank">{{ row.rankText || '--' }}</span>
                       </div>
                       <!-- 底池 -->
@@ -186,7 +195,7 @@ import {
   finalCommunityCards, finalHandRankNameByPlayer, handRankNameByStreet,
   playerRoleTagsByNickname, shouldShowHoleCardsOnStreetTab,
   splitRoundsByRaises, buildRoundGridActionCells,
-  potTotalAtStreetEndForStreet, resolveStartingStackBb
+  potTotalAtStreetEndForStreet, resolveStartingStackBb, resolveChipsAtEnd
 } from '@/utils/dpHandHistoryReplay.js'
 
 var STREET_SHORT = { preflop: 'PRE', flop: 'FLOP', turn: 'TURN', river: 'RIVR', settlement: 'SETTLE' }
@@ -358,7 +367,7 @@ export default {
           cards = Array.isArray(holes[nick]) ? holes[nick] : []
         }
         var rankText = self.handRankTextForSettlement(nick, folded, isSelf, cards, community, rankMap)
-        return { nick: nick, net: nv, folded: folded, isSelf: isSelf, cards: cards, rankText: rankText }
+        return { nick: nick, net: nv, folded: folded, isSelf: isSelf, cards: cards, rankText: rankText, chipsAtEnd: resolveChipsAtEnd(self.payload, nick, self.seatsAtStart) }
       })
     },
     pots: function () { return Array.isArray(this.payload.potsBeforeSettlement) ? this.payload.potsBeforeSettlement : [] }
@@ -728,8 +737,9 @@ export default {
 .dp-hd__tbl-hd--nick { width:88px;flex-shrink:0;text-align:left;padding-left:2px }
 .dp-hd__tbl-hd--holes { width:52px;flex-shrink:0;text-align:center }
 .dp-hd__tbl-hd--round { flex:1;text-align:center;min-width:54px }
-.dp-hd__tbl-hd--net { width:62px;flex-shrink:0;text-align:right }
-.dp-hd__tbl-hd--rank { flex:1;text-align:left;padding-left:4px }
+.dp-hd__tbl-hd--net { width:56px;flex-shrink:0;text-align:right;padding-right:6px }
+.dp-hd__tbl-hd--end { width:92px;flex-shrink:0;text-align:center;padding:0 4px }
+.dp-hd__tbl-hd--rank { flex:1;text-align:left;padding-left:6px;min-width:48px }
 .dp-hd__tbl-hd--rank-street { width:58px;flex-shrink:0;text-align:left;padding-left:4px }
 
 .dp-hd__tbl-row {
@@ -789,14 +799,25 @@ export default {
 
 /* 结算 */
 .dp-hd__settle { padding:3px 0 }
+.dp-hd__settle .dp-hd__tbl-head,
+.dp-hd__settle .dp-hd__tbl-row { gap:8px }
 .dp-hd__settle-head {
   color:rgba(74,246,38,0.4);font-size:11px;padding:7px 0 5px;
   text-shadow:0 0 3px rgba(74,246,38,0.12);
 }
-.dp-hd__tbl-net { width:62px;flex-shrink:0;text-align:right;font-weight:bold;font-size:12px;color:#d0f0c0 }
+.dp-hd__tbl-net {
+  width:56px;flex-shrink:0;text-align:right;padding-right:6px;
+  font-weight:bold;font-size:12px;color:#d0f0c0;
+  font-variant-numeric:tabular-nums;
+}
 .dp-hd__tbl-net--plus { color:#72f052;text-shadow:0 0 4px rgba(114,240,82,0.35) }
 .dp-hd__tbl-net--minus { color:#ff6666 }
-.dp-hd__tbl-rank { flex:1;padding-left:4px;color:rgba(74,246,38,0.32);font-size:11px;line-height:1.4 }
+.dp-hd__tbl-end {
+  width:92px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  padding:0 4px;text-align:center;
+}
+.dp-hd__tbl-end .dp-hd__act-stk { display:inline-block;margin-top:0 }
+.dp-hd__tbl-rank { flex:1;padding-left:6px;color:rgba(74,246,38,0.32);font-size:11px;line-height:1.4;min-width:48px }
 .dp-hd__tbl-rank--street { width:58px;flex-shrink:0;flex:none;font-size:10px;line-height:1.35;word-break:break-all }
 
 .dp-hd__pots { margin-top:5px }

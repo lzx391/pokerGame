@@ -1225,11 +1225,116 @@ ownerFieldChanged：房主字段是否发生变化。
         return wait != null && wait.contains(n);
     }
 
+    @Override
+    public boolean isViewerInRoom(DpRoomBO room, String nickname, Integer userId) {
+        if (isNicknameInRoom(room, nickname)) {
+            return true;
+        }
+        if (userId == null || userId <= 0) {
+            return false;
+        }
+        return findSeatNicknameByUserId(room, userId) != null;
+    }
+
+    @Override
+    public String resolveRoomActorNickname(DpRoomBO room, String canonicalNickname, Integer userId) {
+        if (room == null || canonicalNickname == null) {
+            return null;
+        }
+        String canonical = canonicalNickname.trim();
+        if (canonical.isEmpty()) {
+            return null;
+        }
+        if (isNicknameInRoom(room, canonical)) {
+            return canonical;
+        }
+        if (userId == null || userId <= 0) {
+            return null;
+        }
+        String seatNick = findSeatNicknameByUserId(room, userId);
+        if (seatNick == null) {
+            return null;
+        }
+        syncNicknameInRoomAssumeLocked(room, seatNick, canonical);
+        return canonical;
+    }
+
+    private static String findSeatNicknameByUserId(DpRoomBO room, int userId) {
+        List<DpPlayer> players = room.getPlayers();
+        if (players != null) {
+            for (DpPlayer p : players) {
+                if (p != null && p.getDpUserId() != null && p.getDpUserId() == userId) {
+                    return p.getNickname();
+                }
+            }
+        }
+        String registered = room.findRegisteredNicknameByUserId(userId);
+        if (registered != null && !registered.isEmpty()) {
+            List<String> specs = room.getSpectators();
+            if (specs != null && specs.contains(registered)) {
+                return registered;
+            }
+            List<String> wait = room.getWaitNextHand();
+            if (wait != null && wait.contains(registered)) {
+                return registered;
+            }
+        }
+        return null;
+    }
+
     /**
-     * 对外接口与 WebSocket 推送使用：在完整房间状态上按观看者身份隐藏他人底牌及相关推导字段，不修改内存中的房间实体。
-     *
-     * @param viewerNickname 当前连接者的昵称；null 或空则视为未认领身份，不展示任何玩家的真实底牌。
+     * 将房内旧昵称同步为 JWT/资料中的当前昵称（改昵称后仍在桌时使用）。
+     * 调用方须已持有 {@code synchronized(room)}。
      */
+    private static void syncNicknameInRoomAssumeLocked(DpRoomBO room, String oldNick, String newNick) {
+        if (room == null || oldNick == null || newNick == null || oldNick.equals(newNick)) {
+            return;
+        }
+        List<DpPlayer> players = room.getPlayers();
+        if (players != null) {
+            for (DpPlayer p : players) {
+                if (p != null && oldNick.equals(p.getNickname())) {
+                    p.setNickname(newNick);
+                }
+            }
+        }
+        if (oldNick.equals(room.getOwner())) {
+            room.setOwner(newNick);
+        }
+        replaceNicknameInList(room.getSpectators(), oldNick, newNick);
+        replaceNicknameInList(room.getWaitNextHand(), oldNick, newNick);
+        renameMapKey(room.getCarryInChips(), oldNick, newNick);
+        renameMapKey(room.getWinStreakByNickname(), oldNick, newNick);
+        renameMapKey(room.getPlayerStatsMap(), oldNick, newNick);
+        Integer uid = room.getRegisteredDpUserId(oldNick);
+        if (uid != null) {
+            room.putRegisteredDpUserId(newNick, uid);
+        }
+    }
+
+    private static void replaceNicknameInList(List<String> list, String oldNick, String newNick) {
+        if (list == null) {
+            return;
+        }
+        for (int i = 0; i < list.size(); i++) {
+            if (oldNick.equals(list.get(i))) {
+                list.set(i, newNick);
+            }
+        }
+    }
+
+    private static <V> void renameMapKey(Map<String, V> map, String oldNick, String newNick) {
+        if (map == null || !map.containsKey(oldNick)) {
+            return;
+        }
+        V value = map.remove(oldNick);
+        map.put(newNick, value);
+    }
+
+    public DpRoomBO getRoomSnapshotForViewer(String roomId, String viewerNickname) {
+        return getRoomSnapshotForViewer(roomId, viewerNickname, null);
+    }
+
     /**
      * 房内最近聊天（内存）；观看者须在房内。
      *
@@ -1238,11 +1343,10 @@ ownerFieldChanged：房主字段是否发生变化。
     public ResultUtil listRecentRoomChat(String roomId, String viewerNickname, int limit) {
         return snapshotSupport.listRecentRoomChat(roomId, viewerNickname, limit);
     }
-/**
- * 裁剪json给不同视角的人看
- */
-    public DpRoomBO getRoomSnapshotForViewer(String roomId, String viewerNickname) {
-        return snapshotSupport.getRoomSnapshotForViewer(roomId, viewerNickname);
+
+    @Override
+    public DpRoomBO getRoomSnapshotForViewer(String roomId, String viewerNickname, Integer viewerUserId) {
+        return snapshotSupport.getRoomSnapshotForViewer(roomId, viewerNickname, viewerUserId);
     }
 
     public DpRoomBO snapshotForViewerFromLive(DpRoomBO live, String viewerNickname) {
@@ -1491,14 +1595,24 @@ ownerFieldChanged：房主字段是否发生变化。
         DpRoomBO r = roomMap.get(roomId);
         if (r == null)
             return false;
-        for (DpPlayer p : r.getPlayers()) {
-            if (p != null && !p.isLeftThisHand() && nickname.equals(p.getNickname())) {
-                return true;
+        synchronized (r) {
+            String actor = resolveRoomActorNickname(r, nickname, userId);
+            if (actor == null) {
+                return false;
+            }
+            for (DpPlayer p : r.getPlayers()) {
+                if (p != null && !p.isLeftThisHand() && actor.equals(p.getNickname())) {
+                    return true;
+                }
             }
         }
         boolean ok;
         synchronized (r) {
-            ok = applyReadyNextHandWhileLocked(r, nickname, userId);
+            String actor = resolveRoomActorNickname(r, nickname, userId);
+            if (actor == null) {
+                return false;
+            }
+            ok = applyReadyNextHandWhileLocked(r, actor, userId);
         }
         if (ok) {
             //仅更新房间索引，不更新大厅索引，因为大厅索引显示的是正在游戏的人数，不是算上等待者一起的人数
@@ -1733,12 +1847,20 @@ ownerFieldChanged：房主字段是否发生变化。
     }
 
     public boolean toggleReady(String roomId, String nickname) {
+        return toggleReady(roomId, nickname, null);
+    }
+
+    public boolean toggleReady(String roomId, String nickname, Integer userId) {
         DpRoomBO r = roomMap.get(roomId);
         if (r == null)
             return false;
         boolean ok;
         synchronized (r) {
-            ok = toggleReadyAssumeLocked(r, nickname);
+            String actor = resolveRoomActorNickname(r, nickname, userId);
+            if (actor == null) {
+                return false;
+            }
+            ok = toggleReadyAssumeLocked(r, actor);
         }
         return ok;
     }
@@ -3382,19 +3504,27 @@ ownerFieldChanged：房主字段是否发生变化。
     // ========== 心跳 ==========
 
     public void heartbeat(String roomId, String nickname) {
+        heartbeat(roomId, nickname, null);
+    }
+
+    public void heartbeat(String roomId, String nickname, Integer userId) {
         DpRoomBO r = roomMap.get(roomId);
         if (r == null)
             return;
         synchronized (r) {
+            String actor = resolveRoomActorNickname(r, nickname, userId);
+            if (actor == null) {
+                return;
+            }
             long now = System.currentTimeMillis();
             for (DpPlayer p : r.getPlayers()) {
-                if (p.getNickname().equals(nickname)) {
+                if (p.getNickname().equals(actor)) {
                     p.setLastHeartBeat(now);
                 }
             }
             List<String> specs = r.getSpectators();
-            if (specs != null && specs.contains(nickname)) {
-                r.touchSpectatorPresence(nickname, now);
+            if (specs != null && specs.contains(actor)) {
+                r.touchSpectatorPresence(actor, now);
             }
         }
     }

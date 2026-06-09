@@ -25,7 +25,13 @@ public interface DpRoomService {
  */
     DpRoomBO getRoomSnapshotForViewer(String roomId, String viewerNickname);
 
+    DpRoomBO getRoomSnapshotForViewer(String roomId, String viewerNickname, Integer viewerUserId);
+
     DpRoomBO snapshotForViewerFromLive(DpRoomBO live, String viewerNickname);
+
+    boolean isViewerInRoom(DpRoomBO room, String nickname, Integer userId);
+
+    String resolveRoomActorNickname(DpRoomBO room, String canonicalNickname, Integer userId);
 
     DpRoomBO getAllRooms(String roomId);
 
@@ -57,6 +63,8 @@ public interface DpRoomService {
 
     boolean toggleReady(String roomId, String nickname);
 
+    boolean toggleReady(String roomId, String nickname, Integer userId);
+
     boolean exitRoom(String roomId, String nickname);
 
     boolean startGame(String roomId, String ownerNickname);
@@ -72,6 +80,8 @@ public interface DpRoomService {
     KickPlayersBatchResult kickPlayersBatch(String roomId, String nicknamesCsv);
 
     void heartbeat(String roomId, String nickname);
+
+    void heartbeat(String roomId, String nickname, Integer userId);
 
     boolean rebuy(String roomId, String nickname);
 

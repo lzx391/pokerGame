@@ -174,6 +174,19 @@ public class DpRoomBO {
     private final ConcurrentHashMap<String, Integer> registeredDpUserIdByNickname = new ConcurrentHashMap<>();
 
     /**
+     * 按已登记的 userId 反查昵称（仅内存登记，不含 dp_user 表）。
+     */
+    public String findRegisteredNicknameByUserId(int userId) {
+        for (Map.Entry<String, Integer> entry : registeredDpUserIdByNickname.entrySet()) {
+            Integer uid = entry.getValue();
+            if (uid != null && uid == userId) {
+                return entry.getKey();
+            }
+        }
+        return null;
+    }
+
+    /**
      * 本桌机器人昵称共用递增序号（各档位与大模型 BOT 占位均占用）；房间内唯一，重启房间后归零。
      * 初始 0，首次分配从 1 起。
      */

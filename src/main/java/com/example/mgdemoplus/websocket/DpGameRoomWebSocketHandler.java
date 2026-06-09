@@ -48,6 +48,10 @@ public class DpGameRoomWebSocketHandler extends TextWebSocketHandler {
         if (nickname != null && !nickname.isEmpty()) {
             session.getAttributes().put("viewerNickname", nickname);
         }
+        Integer userId = resolveUserId(session);
+        if (userId != null) {
+            session.getAttributes().put("viewerUserId", userId);
+        }
         //已学习，调用websocket的pushService.register(roomId, session)注册房间订阅者
         pushService.register(roomId, session);
         //已学习，调用websocket的pushService.sendInitialSnapshot(session, roomId)发送初始房间数据给订阅者
@@ -122,5 +126,23 @@ public class DpGameRoomWebSocketHandler extends TextWebSocketHandler {
             return null;
         }
         return n.get(0).trim();
+    }
+
+    private static Integer resolveUserId(WebSocketSession session) {
+        URI uri = session.getUri();
+        if (uri == null) {
+            return null;
+        }
+        Map<String, List<String>> params = UriComponentsBuilder.fromUri(uri).build().getQueryParams();
+        List<String> ids = params.get("userId");
+        if (ids == null || ids.isEmpty()) {
+            return null;
+        }
+        try {
+            int uid = Integer.parseInt(ids.get(0).trim());
+            return uid > 0 ? uid : null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }

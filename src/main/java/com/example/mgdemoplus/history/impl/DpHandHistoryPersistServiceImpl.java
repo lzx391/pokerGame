@@ -46,7 +46,7 @@ public class DpHandHistoryPersistServiceImpl implements DpHandHistoryPersistServ
     //7. PotDto类：将DpNpcSharkObservedHandHistory.PotSnapshot转换为PotDto对象
 
     private static final Logger log = LoggerFactory.getLogger(DpHandHistoryPersistServiceImpl.class);
-    private static final int PAYLOAD_VERSION = 2;
+    private static final int PAYLOAD_VERSION = 3;
 
     private final DpObservedHandHistoryMapper mapper;
     private final DpObservedHandParticipantMapper participantMapper;
@@ -158,6 +158,7 @@ public class DpHandHistoryPersistServiceImpl implements DpHandHistoryPersistServ
         public List<PotDto> potsBeforeSettlement;
         public Map<String, List<String>> holeCardsAtEnd;
         public Map<String, Integer> netChipsChange;
+        public Map<String, Integer> chipsAtEnd;
         //已学习，本模块代码精讲如下：
         //1. from方法：将DpNpcSharkObservedHandHistory.ObservedHandRecord转换为Payload对象
         //2. Payload对象：负责记录座位，公共牌，行动，池，洞牌，净盈亏
@@ -214,6 +215,7 @@ public class DpHandHistoryPersistServiceImpl implements DpHandHistoryPersistServ
             }
             p.holeCardsAtEnd = new LinkedHashMap<>(rec.holeCardsAtEnd);
             p.netChipsChange = new LinkedHashMap<>(rec.netChipsChange);
+            p.chipsAtEnd = new LinkedHashMap<>(rec.chipsAtEnd);
             return p;
         }
     }

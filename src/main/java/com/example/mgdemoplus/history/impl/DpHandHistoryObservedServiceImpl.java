@@ -268,6 +268,7 @@ public final class DpHandHistoryObservedServiceImpl implements DpHandHistoryObse
         long ended = System.currentTimeMillis();
         Map<String, List<String>> holes = new HashMap<>();
         Map<String, Integer> net = new HashMap<>();
+        Map<String, Integer> chipsEnd = new HashMap<>();
         List<DpPlayer> ps = room.getPlayers();
         if (ps != null) {
             for (DpPlayer p : ps) {
@@ -280,6 +281,7 @@ public final class DpHandHistoryObservedServiceImpl implements DpHandHistoryObse
                 } else {
                     holes.put(name, List.of());
                 }
+                chipsEnd.put(name, p.getChips());
                 // 基准须为「下盲注前」筹码：chipsAfterBlinds 已是扣盲后，若直接作差会把已交的盲注从盈亏里漏掉
                 //（例如仅输掉大盲时显示 0 而非 -BB）。beforeHand = afterBlinds + 本手已下盲注额。
                 int afterBlinds = b.chipsAfterBlinds.getOrDefault(name, p.getChips());
@@ -316,7 +318,8 @@ public final class DpHandHistoryObservedServiceImpl implements DpHandHistoryObse
                 b.potsBeforeSettlement,
                 effectiveMainPotTotal,
                 holes,
-                net
+                net,
+                chipsEnd
         );
         return rec;
     }

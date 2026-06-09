@@ -13,6 +13,7 @@ public interface DpAchievementService {
     String CODE_DRAW_INSULATOR = "draw_insulator";
     String CODE_NATURAL_DISASTER = "natural_disaster";
     String CODE_SOUL_READER = "soul_reader";
+    String CODE_SWEEP_ALL = "sweep_all";
 
     List<DpAchievementWallItemVO> buildWallForUser(int userId);
 

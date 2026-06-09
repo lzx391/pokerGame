@@ -18,7 +18,7 @@ public class DpHandHistoryDetailVO {
     private String dealerNickname;
     private Integer mainPotBeforeSettlement;
     private Integer payloadVersion;
-    /** seatsAtStart、boardsByStreet、actions、potsBeforeSettlement、holeCardsAtEnd、netChipsChange */
+    /** seatsAtStart、boardsByStreet、actions、potsBeforeSettlement、holeCardsAtEnd、netChipsChange、chipsAtEnd */
     private Map<String, Object> payload;
 
     public Long getHandHistoryId() {
