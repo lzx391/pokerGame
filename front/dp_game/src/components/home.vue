@@ -728,6 +728,15 @@
 
     <dp-crt-boot-sequence v-if="gameUiTheme === 'retro8bit'" ref="lobbyEnterBoot" />
 
+    <lobby-room-password-gate
+      v-if="gameUiTheme === 'retro8bit'"
+      :visible.sync="lobbyPasswordGateVisible"
+      :room-id="lobbyPasswordGateRoomId"
+      :nickname="user && user.nickname ? user.nickname : ''"
+      :user-id="user && user.userId != null ? user.userId : null"
+      @joined="onLobbyPasswordGateJoined"
+    />
+
     <game-hand-history-modal
       :visible="opponentHandHistoryOpen"
       list-mode="withOpponent"
@@ -772,6 +781,7 @@ import { enterGameFromLobby as enterGameFromLobbyWithBoot } from '@/utils/dpLobb
 import DpCrtBootSequence from '@/components/DpCrtBootSequence.vue'
 import DpMailboxConsole from '@/components/DpMailboxConsole.vue'
 import QuickMatchPixelCritters from '@/components/QuickMatchPixelCritters.vue'
+import LobbyRoomPasswordGate from '@/components/LobbyRoomPasswordGate.vue'
 import { prefetchAvatarUrls } from '@/utils/dpAvatarPrefetch'
 import { avatarCacheBustFromUpdatedAt } from '@/utils/dpAvatarUrl'
 import { DP_Z_LAYER } from '@/utils/dpModalZIndex'
@@ -788,7 +798,8 @@ export default {
     DpFluidityToggle,
     DpCrtBootSequence,
     DpMailboxConsole,
-    QuickMatchPixelCritters
+    QuickMatchPixelCritters,
+    LobbyRoomPasswordGate
   },
   mixins: [dpLobbyThemeMixin],
   data() {
@@ -844,6 +855,8 @@ export default {
       opponentHandHistoryOpen: false,
       opponentHandHistoryUserId: null,
       opponentHandHistoryDisplayName: '',
+      lobbyPasswordGateVisible: false,
+      lobbyPasswordGateRoomId: '',
       DP_Z_LAYER
     }
   },
@@ -1573,18 +1586,38 @@ export default {
     async joinRoom(roomDto) {
       await this.exitQuickMatchBeforeRoomAction()
       const roomId = typeof roomDto === 'string' ? roomDto : roomDto.roomId
-      let roomPassword = ''
       if (roomDto && roomDto.passwordProtected) {
-        roomPassword = window.prompt('请输入房间密码') || ''
+        if (this.gameUiTheme === 'retro8bit') {
+          this.lobbyPasswordGateRoomId = roomId
+          this.lobbyPasswordGateVisible = true
+          return
+        }
+        const roomPassword = window.prompt('请输入房间密码') || ''
         if (!roomPassword.trim()) { alert('需要输入密码才能加入'); return }
+        await this.doJoinRoom(roomId, roomPassword.trim())
+        return
       }
-      const params = { roomId, nickname: this.user.nickname }
-      if (roomPassword) { params.roomPassword = roomPassword.trim() }
-      if (this.user.userId != null && this.user.userId !== '') { params.userId = this.user.userId }
-      const res = await this.$http.post('/dpRoom/joinRoom2', null, { params })
-      const body = res.data
-      if (!dpResultSuccess(body)) { alert(dpResultMessage(body)); return }
+      await this.doJoinRoom(roomId)
+    },
+    async onLobbyPasswordGateJoined(roomId) {
       await this.enterGameFromLobby(roomId, 'join')
+    },
+    async doJoinRoom(roomId, roomPassword) {
+      const params = { roomId, nickname: this.user.nickname }
+      if (roomPassword) { params.roomPassword = roomPassword }
+      if (this.user.userId != null && this.user.userId !== '') { params.userId = this.user.userId }
+      try {
+        const res = await this.$http.post('/dpRoom/joinRoom2', null, { params })
+        const body = res.data
+        if (!dpResultSuccess(body)) {
+          this.$message.error(dpResultMessage(body) || '加入房间失败')
+          return
+        }
+        await this.enterGameFromLobby(roomId, 'join')
+      } catch (e) {
+        console.error('doJoinRoom', e)
+        this.$message.error('网络错误，请稍后重试')
+      }
     },
     /**
      * @param {string} roomId
