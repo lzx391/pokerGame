@@ -1,34 +1,27 @@
 package com.example.mgdemoplus.oauth.provider.github;
 
 import com.example.mgdemoplus.oauth.client.DpOAuth2TokenExchangeService;
-import com.example.mgdemoplus.oauth.dto.OAuthHostUserInfo;
+import com.example.mgdemoplus.oauth.client.DpOAuth2UserProfileLoader;
 import com.example.mgdemoplus.oauth.dto.OAuthTokenResponse;
 import com.example.mgdemoplus.oauth.dto.OAuthUserProfile;
 import com.example.mgdemoplus.oauth.provider.DpOAuthProvider;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
 @Component
 public class DpGitHubOAuthProvider implements DpOAuthProvider {
 
-    private static final Logger log = LoggerFactory.getLogger(DpGitHubOAuthProvider.class);
     private static final String PROVIDER_ID = "github";
 
     private final DpOAuth2TokenExchangeService tokenExchangeService;
-    private final ObjectMapper objectMapper;
-    private final RestClient restClient;
+    private final DpOAuth2UserProfileLoader profileLoader;
 
     public DpGitHubOAuthProvider(
             DpOAuth2TokenExchangeService tokenExchangeService,
-            ObjectMapper objectMapper) {
+            DpOAuth2UserProfileLoader profileLoader) {
         this.tokenExchangeService = tokenExchangeService;
-        this.objectMapper = objectMapper;
-        this.restClient = RestClient.builder().build();
+        this.profileLoader = profileLoader;
     }
 
     @Override
@@ -65,32 +58,7 @@ public class DpGitHubOAuthProvider implements DpOAuthProvider {
 
     @Override
     public OAuthUserProfile fetchUserProfile(OAuthTokenResponse tokenResponse) {
-        if (tokenResponse == null || !tokenResponse.isSuccess()) {
-            return null;
-        }
-        String accessToken = tokenResponse.getAccessToken();
-        ClientRegistration registration = requireRegistration();
-        String userInfoUri = registration.getProviderDetails().getUserInfoEndpoint().getUri();
-        try {
-            String respBody = restClient.get()
-                    .uri(userInfoUri)
-                    .header("Authorization", "Bearer " + accessToken)
-                    .header("Accept", "application/vnd.github+json")
-                    .header("User-Agent", "MGDemoPlus-OAuth")
-                    .header("X-GitHub-Api-Version", "2022-11-28")
-                    .retrieve()
-                    .body(String.class);
-
-            OAuthHostUserInfo ghUser = objectMapper.readValue(respBody, OAuthHostUserInfo.class);
-            if (ghUser == null || ghUser.getLogin() == null || ghUser.getLogin().isBlank()) {
-                log.error("github user fetch missing login body={}", respBody);
-                return null;
-            }
-            return new OAuthUserProfile(ghUser.getLogin(), ghUser.getAvatarUrl(), ghUser.getName());
-        } catch (Exception e) {
-            log.error("github user fetch failed", e);
-            return null;
-        }
+        return profileLoader.loadProfile(PROVIDER_ID, tokenResponse);
     }
 
     private ClientRegistration requireRegistration() {
