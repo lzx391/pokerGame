@@ -1,9 +1,52 @@
 # OAuth 迁移评估：手搓实现 → Spring Security OAuth2 Client
 
-> **文档性质**：技术债评估 / 迁移方案（**非实施承诺**）  
-> **状态**：评估稿（2026-06-09）  
-> **范围**：GitHub + Gitee 第三方登录；不涉及改密、账号绑定 UI 扩展  
-> **约束**：本文档仅作决策参考；执行迁移时另开实施 PR；**本文档阶段不改代码**
+> **文档性质**：技术债评估 / 迁移方案  
+> **状态**：**已实施 MVP+**（2026-06-09）— GitHub + Gitee + 钉钉 token 层  
+> **范围**：GitHub + Gitee + 钉钉第三方登录；不涉及改密、账号绑定 UI 扩展  
+> **约束**：未启用 Spring OAuth2 Login；Controller 契约与 JWT+oid 流程保持不变
+
+---
+
+## 11. 实施记录（2026-06-09）
+
+### 11.1 已完成
+
+| 项 | 说明 |
+|----|------|
+| 依赖 | `pom.xml` 增加 `spring-boot-starter-oauth2-client` |
+| 配置 | `application.yml` → `spring.security.oauth2.client.registration` + `provider`（github/gitee/ding，env 变量不变） |
+| 统一 token 交换 | 新建 `oauth/client/DpOAuth2TokenExchangeService`（GitHub/Gitee 用 `RestClientAuthorizationCodeTokenResponseClient`） |
+| 钉钉定制 | 新建 `oauth/client/DingOAuth2AccessTokenResponseClient`（JSON POST userAccessToken；unionId/openId 入 additionalParameters） |
+| Provider 瘦身 | `DpGitHubOAuthProvider` / `DpGiteeOAuthProvider` / `DpDingOAuthProvider` 删除手搓 HttpClient token 交换；profile 仍各 Provider 映射 |
+| 不变 | `DpOAuthController`、`DpOAuthService`、Redis state、oid 交换、`DpSocialAuth`、`JwtSecurityConstants` `/oauth/**` |
+| 单测 | `mvn test -Dtest=*OAuth*` 全绿（含新增 `DpOAuth2TokenExchangeServiceTest`） |
+
+### 11.2 架构分工（实施后）
+
+| 组件 | 职责 |
+|------|------|
+| **Spring OAuth2 Client** | `ClientRegistration` 集中配置；authorization_code → access_token（GitHub/Gitee 标准；钉钉 custom client） |
+| **DpOAuthProvider** | authorize URL 拼装；token→profile 映射 → `OAuthUserProfile`（openId 契约不变） |
+| **DpOAuthService** | Redis state CSRF；登录/注册；`DpSocialAuth` 绑定 |
+| **DpOAuthController** | REST 契约；callback 302；JWT 签发 + Redis jti + oid 一次性交换 |
+| **JwtTokenService** | 项目认证 JWT（非 Session） |
+
+### 11.3 钉钉后续 / 运维 Checklist
+
+钉钉 token 交换已走统一抽象，但 **profile 仍依赖钉钉开放平台权限**：
+
+- [ ] 应用开通 **Contact.User.Read**（通讯录个人信息读权限）
+- [ ] OAuth2  scope 含 `openid` + `Contact.User.Read`（已在 registration 配置）
+- [ ] `DING_REDIRECT_URI` 与钉钉控制台回调地址**完全一致**
+- [ ] `FRONTEND_BASE_URL` 与浏览器访问主机一致（dev 8080 代理到 8088）
+- [ ] 若 `contact/users/me` 仍 403：登录可降级为 unionId/openId（token bundle fallback），但无头像/昵称
+
+### 11.4 未做（P2，按需）
+
+- 启用 `oauth2Login()` / 改 callback 为 `/login/oauth2/code/{id}`
+- 前端改跳 `/oauth2/authorization/{id}`
+- `buildAuthorizeUrl` 改读 Spring `OAuth2AuthorizationRequest` 生成器
+- 删除 `mgdemoplus.oauth.{github,gitee,ding}.client-*` 冗余配置键（现 credentials 以 `spring.security.oauth2.client` 为准）
 
 ---
 

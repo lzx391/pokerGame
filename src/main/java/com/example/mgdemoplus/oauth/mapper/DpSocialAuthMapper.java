@@ -14,7 +14,4 @@ public interface DpSocialAuthMapper {
 
     @Insert("INSERT INTO dp_user_social_auth (user_id, provider, open_id) VALUES (#{userId}, #{provider}, #{openId})")
     int insert(DpSocialAuth auth);
-
-    @Select("SELECT COUNT(*) FROM dp_user_social_auth WHERE user_id = #{userId}")
-    int countByUserId(@Param("userId") int userId);
 }

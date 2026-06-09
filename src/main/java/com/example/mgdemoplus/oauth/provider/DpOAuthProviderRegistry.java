@@ -16,7 +16,10 @@ public class DpOAuthProviderRegistry {
  * 然后当输入的K是cat时，return的实际上是 Cat cat,当输入的K是dog时，return的实际上是 Dog dog
  */
     private final Map<String, DpOAuthProvider> providers;
-
+/**
+ * 知识点，没有显示注册，是靠Bean扫到实现接口的类并打包成list并注入到构造器的map中
+ * @param providerList
+ */
     public DpOAuthProviderRegistry(List<DpOAuthProvider> providerList) {
         Map<String, DpOAuthProvider> map = new LinkedHashMap<>();
         for (DpOAuthProvider provider : providerList) {

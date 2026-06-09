@@ -23,5 +23,5 @@ public interface DpOAuthProvider {
      * @param accessToken
      * @return
      */
-    OAuthUserProfile fetchUserProfile(String accessToken);
+    OAuthUserProfile fetchUserProfile(OAuthTokenResponse tokenResponse);
 }

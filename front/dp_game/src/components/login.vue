@@ -154,6 +154,9 @@
         <button type="button" class="gitee-login-btn" @click="loginWithGitee">
           Gitee 登录
         </button>
+        <button type="button" class="dingding-login-btn" @click="loginWithDingding">
+          钉钉登录
+        </button>
       </div>
     </template>
   </div>
@@ -242,6 +245,7 @@ export default {
       return [
         { id: 'github', label: 'GITHUB' },
         { id: 'gitee', label: 'GITEE' },
+        { id: 'ding', label: 'DINGTALK // LOGIN' },
         { id: 'back', label: '< BACK' }
       ]
     }
@@ -364,6 +368,7 @@ export default {
       if (!item) return
       if (item.id === 'github') this.loginWithGitHub()
       else if (item.id === 'gitee') this.loginWithGitee()
+      else if (item.id === 'ding') this.loginWithDingding()
       else if (item.id === 'back') this.backRetroOAuth()
     },
     onRetroOAuthRowClick(idx) {
@@ -521,6 +526,23 @@ export default {
           console.error('获取 Gitee 授权链接失败', err)
           this.showAuthError('获取 Gitee 授权链接失败')
         })
+    },
+    loginWithDingding() {
+      if (this.isRetro8bit && this.retroOAuthBusy) return
+      this.$http.get('/oauth/ding/authorize-url')
+        .then((res) => {
+          const d = res.data
+          if (dpResultSuccess(d)) {
+            const payload = dpResultData(d) || {}
+            window.location.href = payload.url
+          } else {
+            this.showAuthError(dpResultMessage(d) || '获取钉钉授权链接失败')
+          }
+        })
+        .catch((err) => {
+          console.error('获取钉钉授权链接失败', err)
+          this.showAuthError('获取钉钉授权链接失败')
+        })
     }
   }
 }
@@ -669,5 +691,24 @@ export default {
 }
 .gitee-login-btn:hover {
   background: #d42a30;
+}
+.dingding-login-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 280px;
+  height: 42px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  background: #0089ff;
+  border: 1px solid #0070d9;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.dingding-login-btn:hover {
+  background: #1a96ff;
 }
 </style>

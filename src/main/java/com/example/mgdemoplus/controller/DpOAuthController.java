@@ -8,6 +8,8 @@ import com.example.mgdemoplus.security.JwtTokenService;
 import com.example.mgdemoplus.user.cache.DpRedisLoginCacheService;
 import com.example.mgdemoplus.utils.ResultUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -25,6 +27,8 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/oauth")
 public class DpOAuthController {
+
+    private static final Logger log = LoggerFactory.getLogger(DpOAuthController.class);
 
     @Autowired
     private DpOAuthService dpOAuthService;
@@ -74,21 +78,31 @@ public class DpOAuthController {
  */
     @GetMapping("/{provider}/callback")
     public void oauthCallback(@PathVariable String provider,
-                              @RequestParam String code,
+                              @RequestParam(required = false) String code,
+                              @RequestParam(required = false) String authCode,
                               @RequestParam(required = false) String state,
+                              @RequestParam(required = false) String error,
                               HttpServletResponse response) throws IOException {
-        if (code == null || code.isBlank()) {
+        if (error != null && !error.isBlank()) {
+            log.warn("oauth callback provider={} denied by upstream error={}", provider, error);
+            redirectToFrontend(response, "error", "授权被拒绝: " + error);
+            return;
+        }
+        String resolvedCode = resolveAuthorizationCode(code, authCode);
+        if (resolvedCode == null) {
+            log.warn("oauth callback provider={} missing code/authCode query params", provider);
             redirectToFrontend(response, "error", "缺少授权码");
             return;
         }
-
+        log.info("oauth callback provider={} received authorization code (via {})",
+                provider, code != null && !code.isBlank() ? "code" : "authCode");
         DpOAuthProvider oauthProvider = providerRegistry.get(provider);
         if (oauthProvider == null) {
             redirectToFrontend(response, "error", "未知 OAuth 提供商");
             return;
         }
 
-        OAuthCallbackResult result = dpOAuthService.handleCallback(provider, code, state);
+        OAuthCallbackResult result = dpOAuthService.handleCallback(provider, resolvedCode, state);
         if (!result.isSuccess()) {
             redirectToFrontend(response, "error", result.getMessage());
             return;
@@ -170,5 +184,16 @@ public class DpOAuthController {
         }
 
         response.sendRedirect(url.toString());
+    }
+
+    /** 钉钉 OAuth2 回调使用 {@code authCode}；GitHub/Gitee 使用标准 {@code code}。 */
+    public static String resolveAuthorizationCode(String code, String authCode) {
+        if (code != null && !code.isBlank()) {
+            return code;
+        }
+        if (authCode != null && !authCode.isBlank()) {
+            return authCode;
+        }
+        return null;
     }
 }

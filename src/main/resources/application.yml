@@ -52,6 +52,43 @@ spring:
   mvc:
     async:
       request-timeout: -1  # [D]
+  # OAuth2 Client：仅用于 code→token；authorize/callback/JWT 仍走 DpOAuthController
+  security:
+    oauth2:
+      client:
+        registration:
+          github:
+            provider: github
+            client-id: ${GITHUB_CLIENT_ID:}
+            client-secret: ${GITHUB_CLIENT_SECRET:}
+            redirect-uri: ${GITHUB_REDIRECT_URI:}
+            scope: read:user
+          gitee:
+            provider: gitee
+            client-id: ${GITE_CLIENT_ID:}
+            client-secret: ${GITE_CLIENT_SECRET:}
+            redirect-uri: ${GITE_REDIRECT_URI:}
+            authorization-grant-type: authorization_code
+            scope: user_info
+          ding:
+            provider: ding
+            client-id: ${DING_CLIENT_ID:}
+            client-secret: ${DING_CLIENT_SECRET:}
+            redirect-uri: ${DING_REDIRECT_URI:}
+            authorization-grant-type: authorization_code
+            scope:
+              - openid
+              - Contact.User.Read
+        provider:
+          gitee:
+            authorization-uri: https://gitee.com/oauth/authorize
+            token-uri: https://gitee.com/oauth/token
+            user-info-uri: https://gitee.com/api/v5/user
+            user-name-attribute: login
+          ding:
+            authorization-uri: https://login.dingtalk.com/oauth2/auth
+            token-uri: https://api.dingtalk.com/v1.0/oauth2/userAccessToken
+            user-name-attribute: unionId
 
 # -----------------------------------------------------------------------------
 # mgdemoplus — 业务配置（A / B / C / D）
@@ -66,17 +103,9 @@ mgdemoplus:
     expiration:
       time: 259200000  # [D] 约 3 天
 
-  # --- A: GitHub OAuth 登录/注册 ---
+  # --- A/C: OAuth 登录（凭证见 spring.security.oauth2.client.registration；此处仅前端回跳基址）---
   oauth:
-    frontend-base-url: ${FRONTEND_BASE_URL:}  # [C] 授权成功后 302 跳转至前端
-    github:
-      client-id: ${GITHUB_CLIENT_ID:}  # [A] env: GITHUB_CLIENT_ID
-      client-secret: ${GITHUB_CLIENT_SECRET:}  # [A] env: GITHUB_CLIENT_SECRET
-      redirect-uri: ${GITHUB_REDIRECT_URI:}  # [C] GitHub OAuth App 回调（前端端口，dev-server 代理到后端）
-    gitee:
-      client-id: ${GITE_CLIENT_ID:}  # [A] env: GITE_CLIENT_ID
-      client-secret: ${GITE_CLIENT_SECRET:}  # [A] env: GITE_CLIENT_SECRET
-      redirect-uri: ${GITE_REDIRECT_URI:}  # [C] Gitee OAuth App 回调（前端端口，dev-server 代理到后端）
+    frontend-base-url: ${FRONTEND_BASE_URL:}  # [C] 授权成功后 302 跳转至前端（dev 默认 http://localhost:8080）
   # --- B: Redis 缓存 TTL ---
   cache:
     music-list-ttl-seconds: ${MGDEMOPLUS_CACHE_MUSIC_LIST_TTL_SECONDS:300}  # [B] env: MGDEMOPLUS_CACHE_MUSIC_LIST_TTL_SECONDS

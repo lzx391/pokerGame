@@ -122,11 +122,13 @@ public class DpOAuthService {
 
         OAuthTokenResponse tokenResponse = provider.exchangeCode(code);
         if (!tokenResponse.isSuccess()) {
+            log.warn("oauth callback token exchange failed provider={}", providerId);
             return OAuthCallbackResult.fail(provider.displayName() + " 授权失败");
         }
 
-        OAuthUserProfile profile = provider.fetchUserProfile(tokenResponse.getAccessToken());
+        OAuthUserProfile profile = provider.fetchUserProfile(tokenResponse);
         if (profile == null || profile.getOpenId() == null || profile.getOpenId().isBlank()) {
+            log.warn("oauth callback profile fetch failed provider={} openIdMissing=true", providerId);
             return OAuthCallbackResult.fail("获取 " + provider.displayName() + " 用户信息失败");
         }
 
@@ -145,19 +147,25 @@ public class DpOAuthService {
             return OAuthCallbackResult.loginSuccess(user.getNickname(), user.getId(), false, false);
         }
 
-        String defaultNickname = openId;//如果未注册过，则生成默认昵称
+        String defaultNickname = profile.getDisplayName();
+        if (defaultNickname != null) {
+            defaultNickname = defaultNickname.trim();
+        }
+        if (defaultNickname == null || defaultNickname.isBlank()) {
+            defaultNickname = openId;
+        }
         boolean needSetup = false;
 
         if (defaultNickname.length() > 10) {//如果昵称长度大于10，则截取前10位
             defaultNickname = defaultNickname.substring(0, 10);
         }
         if (defaultNickname.matches("\\d+") || sensitiveWordService.containsSensitive(defaultNickname)) {
-            defaultNickname = "player_" + UUID.randomUUID().toString().replace("-", "").substring(0, 6);
+            defaultNickname = randomFallbackNickname();
             needSetup = true;
         }
         DpUser taken = dpUserMapper.selectByNickname(defaultNickname);
         if (taken != null) {
-            defaultNickname = "player_" + UUID.randomUUID().toString().replace("-", "").substring(0, 6);
+            defaultNickname = randomFallbackNickname();
             needSetup = true;
         }
         //注册用户，密码为空
@@ -194,7 +202,9 @@ public class DpOAuthService {
             String storedFilename = userId + ".png";
             String webPath = "/images/" + storedFilename;
 
+            // 这里是下载网络公开的图片
             URL url = URI.create(avatarUrl).toURL();
+    
             try (InputStream in = url.openStream()) {
                 Files.copy(in, new File(folder, storedFilename).toPath(), StandardCopyOption.REPLACE_EXISTING);
             }
@@ -227,5 +237,10 @@ public class DpOAuthService {
 
     private String getAndDeleteState(String key) {
         return stringRedisTemplate.execute(GET_AND_DELETE_SCRIPT, List.of(key));
+    }
+
+    /** dp_user.nickname 为 varchar(10)，回退昵称必须 ≤10 字符。 */
+    private static String randomFallbackNickname() {
+        return "p" + UUID.randomUUID().toString().replace("-", "").substring(0, 9);
     }
 }

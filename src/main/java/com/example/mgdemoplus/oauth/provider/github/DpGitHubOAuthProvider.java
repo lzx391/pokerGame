@@ -1,20 +1,17 @@
 package com.example.mgdemoplus.oauth.provider.github;
 
+import com.example.mgdemoplus.oauth.client.DpOAuth2TokenExchangeService;
+import com.example.mgdemoplus.oauth.dto.OAuthHostUserInfo;
 import com.example.mgdemoplus.oauth.dto.OAuthTokenResponse;
 import com.example.mgdemoplus.oauth.dto.OAuthUserProfile;
 import com.example.mgdemoplus.oauth.provider.DpOAuthProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.stereotype.Component;
-
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
-import java.util.Map;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @Component
 public class DpGitHubOAuthProvider implements DpOAuthProvider {
@@ -22,22 +19,16 @@ public class DpGitHubOAuthProvider implements DpOAuthProvider {
     private static final Logger log = LoggerFactory.getLogger(DpGitHubOAuthProvider.class);
     private static final String PROVIDER_ID = "github";
 
-    private final String clientId;
-    private final String clientSecret;
-    private final String redirectUri;
+    private final DpOAuth2TokenExchangeService tokenExchangeService;
     private final ObjectMapper objectMapper;
-    private final HttpClient httpClient;
+    private final RestClient restClient;
 
     public DpGitHubOAuthProvider(
-            @Value("${mgdemoplus.oauth.github.client-id:}") String clientId,
-            @Value("${mgdemoplus.oauth.github.client-secret:}") String clientSecret,
-            @Value("${mgdemoplus.oauth.github.redirect-uri:}") String redirectUri,
+            DpOAuth2TokenExchangeService tokenExchangeService,
             ObjectMapper objectMapper) {
-        this.clientId = clientId;
-        this.clientSecret = clientSecret;
-        this.redirectUri = redirectUri;
+        this.tokenExchangeService = tokenExchangeService;
         this.objectMapper = objectMapper;
-        this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+        this.restClient = RestClient.builder().build();
     }
 
     @Override
@@ -52,78 +43,45 @@ public class DpGitHubOAuthProvider implements DpOAuthProvider {
 
     @Override
     public boolean enabled() {
-        return clientId != null && !clientId.isBlank()
-                && clientSecret != null && !clientSecret.isBlank();
+        return tokenExchangeService.isRegistrationEnabled(PROVIDER_ID);
     }
 
     @Override
     public String buildAuthorizeUrl(String state) {
-        return "https://github.com/login/oauth/authorize"
-                + "?client_id=" + clientId
-                + "&redirect_uri=" + redirectUri
-                + "&state=" + state
-                + "&scope=read:user";
+        ClientRegistration registration = requireRegistration();
+        return UriComponentsBuilder.fromUriString(registration.getProviderDetails().getAuthorizationUri())
+                .queryParam("client_id", registration.getClientId())
+                .queryParam("redirect_uri", registration.getRedirectUri())
+                .queryParam("state", state)
+                .queryParam("scope", String.join(",", registration.getScopes()))
+                .build(true)
+                .toUriString();
     }
-/**
- * 调用接口取token
- */
+
     @Override
     public OAuthTokenResponse exchangeCode(String code) {
-        try {
-            String body = "client_id=" + clientId
-                    + "&client_secret=" + clientSecret
-                    + "&code=" + code
-                    + "&redirect_uri=" + redirectUri;
-
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://github.com/login/oauth/access_token"))
-                    .header("Accept", "application/json")
-                    .header("Content-Type", "application/x-www-form-urlencoded")
-                    .POST(HttpRequest.BodyPublishers.ofString(body))
-                    .timeout(Duration.ofSeconds(10))
-                    .build();
-
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            String respBody = response.body();
-            log.info("github token exchange status={} body={}", response.statusCode(), respBody);
-            @SuppressWarnings("unchecked")
-            Map<String, Object> map = objectMapper.readValue(respBody, Map.class);
-            String accessToken = (String) map.get("access_token");
-            if (accessToken == null) {
-                log.error("github token exchange returned error: {}", respBody);
-            }
-            return new OAuthTokenResponse(accessToken);
-        } catch (Exception e) {
-            log.error("github token exchange failed", e);
-            return new OAuthTokenResponse(null);
-        }
+        return tokenExchangeService.exchangeAuthorizationCode(PROVIDER_ID, code);
     }
 
-    /**
-     * 调用接口取用户信息
-     * @param accessToken
-     * @return
-     */
     @Override
-    public OAuthUserProfile fetchUserProfile(String accessToken) {
+    public OAuthUserProfile fetchUserProfile(OAuthTokenResponse tokenResponse) {
+        if (tokenResponse == null || !tokenResponse.isSuccess()) {
+            return null;
+        }
+        String accessToken = tokenResponse.getAccessToken();
+        ClientRegistration registration = requireRegistration();
+        String userInfoUri = registration.getProviderDetails().getUserInfoEndpoint().getUri();
         try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.github.com/user"))
+            String respBody = restClient.get()
+                    .uri(userInfoUri)
                     .header("Authorization", "Bearer " + accessToken)
                     .header("Accept", "application/vnd.github+json")
                     .header("User-Agent", "MGDemoPlus-OAuth")
                     .header("X-GitHub-Api-Version", "2022-11-28")
-                    .GET()
-                    .timeout(Duration.ofSeconds(10))
-                    .build();
+                    .retrieve()
+                    .body(String.class);
 
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            String respBody = response.body();
-            if (response.statusCode() != 200) {
-                log.error("github user fetch status={} body={}", response.statusCode(), respBody);
-                return null;
-            }
-            GitHubUserInfo ghUser = objectMapper.readValue(respBody, GitHubUserInfo.class);
+            OAuthHostUserInfo ghUser = objectMapper.readValue(respBody, OAuthHostUserInfo.class);
             if (ghUser == null || ghUser.getLogin() == null || ghUser.getLogin().isBlank()) {
                 log.error("github user fetch missing login body={}", respBody);
                 return null;
@@ -133,5 +91,13 @@ public class DpGitHubOAuthProvider implements DpOAuthProvider {
             log.error("github user fetch failed", e);
             return null;
         }
+    }
+
+    private ClientRegistration requireRegistration() {
+        ClientRegistration registration = tokenExchangeService.findRegistration(PROVIDER_ID);
+        if (registration == null) {
+            throw new IllegalStateException("GitHub OAuth registration not configured");
+        }
+        return registration;
     }
 }
