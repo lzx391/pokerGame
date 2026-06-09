@@ -213,7 +213,7 @@ import {
   communityFlipCompleteMsForTheme,
   communityFlipDelayMsForTheme
 } from '../constants/dpGameDealTiming'
-import { shouldRetroShowdownTvSequence, resolveCardDisplayStage, resolveShowdownHandLeaders, isRetroBettingStage, isSettlePresentationFrozen, captureBettingEconomySnapshot, resolvePlayerEconomyDisplay, resolveFrozenTablePot, resolveFrozenCurrentBetToCall, resolveFrozenChipLeaderNicknames } from '../utils/dpRetroShowdownReveal'
+import { shouldRetroShowdownTvSequence, resolveCardDisplayStage, resolveShowdownHandLeaders, isRetroBettingStage, isRetroRevealStage, isSettlePresentationFrozen, shouldDeferRetroNpcSeatChat, captureBettingEconomySnapshot, resolvePlayerEconomyDisplay, resolveFrozenTablePot, resolveFrozenCurrentBetToCall, resolveFrozenChipLeaderNicknames } from '../utils/dpRetroShowdownReveal'
 import { dpGameStageDisplay } from '../constants/dpCatThemeCopy'
 
 export default {
@@ -905,6 +905,7 @@ export default {
       }
       if (newVal === 'preflop') {
         this.clearRetroShowdownTvPending()
+        this._deferredSeatChats = []
         return
       }
       if (
@@ -974,6 +975,7 @@ export default {
     /** 离开 retro8bit 前统一关闭特效/面板，再 nextTick×2 + rAF 切主题，避免 v-if 与 overlay 竞态 */
     teardownRetro8bitUi() {
       this.clearRetroShowdownTvPending()
+      this._deferredSeatChats = []
       this.$store.commit('dpGame/SET_HERO_HAND_HOLOGRAM', false)
       this.$store.commit('dpGame/CLOSE_OWNER_HUB')
       this.$store.commit('dpGame/SET_MOBILE_SHEETS', {
@@ -1532,13 +1534,45 @@ export default {
       dpSeatEnterDevLog('done', { nick: nick })
     },
 
+    currentActingNicknameForSeatChat: function () {
+      if (!this.actionCountdownShouldRun()) return null
+      var list = this.players
+      var i = this.actIndex
+      if (i < 0 || !list || i >= list.length) return null
+      var p = list[i]
+      return p && p.nickname ? p.nickname : null
+    },
+
+    maybeBeginRetroShowdownTvForDeferredNpcChat: function () {
+      if (this.gameUiTheme !== 'retro8bit' || this.retroShowdownTvPending) return
+      if (!isRetroBettingStage(this.stage) && !isRetroRevealStage(this.stage)) return
+      if (!this.retroShowdownFromStage) {
+        this.retroShowdownFromStage = isRetroBettingStage(this.stage) ? this.stage : 'river'
+      }
+      this.beginRetroShowdownTvSequence()
+    },
+
     pushRoomChatFromServer(data) {
       var nick = (data.nickname || '').trim()
       var text = (data.text != null ? String(data.text) : '').trim()
       if (!nick || !text) return
-      if (this.settlePresentationFrozen) {
+      var deferNpcRetro = this.gameUiTheme === 'retro8bit' && isDpBotNickname(nick)
+        && shouldDeferRetroNpcSeatChat({
+          isNpc: true,
+          stage: this.stage,
+          tvPending: this.retroShowdownTvPending,
+          presentationFrozen: this.settlePresentationFrozen,
+          playing: this.playing,
+          actionCountdownActive: this.actionCountdownShouldRun(),
+          actingNickname: this.currentActingNicknameForSeatChat(),
+          chatNickname: nick
+        })
+      if (this.settlePresentationFrozen || deferNpcRetro) {
         if (!this._deferredSeatChats) this._deferredSeatChats = []
         this._deferredSeatChats.push(data)
+        if (deferNpcRetro) {
+          this.maybeBeginRetroShowdownTvForDeferredNpcChat()
+        }
         return
       }
       this.applySeatChatFromServer(data, nick, text)

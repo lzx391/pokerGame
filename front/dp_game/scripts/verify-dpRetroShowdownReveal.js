@@ -62,4 +62,38 @@ assert.strictEqual(isSettlePresentationFrozen(true, 'settled'), true)
 assert.strictEqual(isSettlePresentationFrozen(false, 'settled'), false)
 assert.strictEqual(resolvePlayerEconomyDisplay({ nickname: 'A', chips: 900, bet: 0 }, snap, true).chips, 500)
 
+function shouldDeferRetroNpcSeatChat(ctx) {
+  if (!ctx || !ctx.isNpc) return false
+  if (ctx.presentationFrozen || ctx.tvPending) return true
+  if (isRetroRevealStage(ctx.stage)) return true
+  if (!ctx.playing || !isRetroBettingStage(ctx.stage)) return false
+  var acting = (ctx.actingNickname || '').trim()
+  var chatNick = (ctx.chatNickname || '').trim()
+  if (ctx.actionCountdownActive && acting && chatNick === acting) return false
+  if (!ctx.actionCountdownActive) return true
+  if (acting && chatNick !== acting) return true
+  return false
+}
+
+assert.strictEqual(shouldDeferRetroNpcSeatChat({
+  isNpc: true, stage: 'settled', tvPending: true, presentationFrozen: true,
+  playing: true, actionCountdownActive: false, actingNickname: null, chatNickname: 'BOT_Tag'
+}), true)
+assert.strictEqual(shouldDeferRetroNpcSeatChat({
+  isNpc: true, stage: 'river', tvPending: false, presentationFrozen: false,
+  playing: true, actionCountdownActive: true, actingNickname: 'BOT_Tag', chatNickname: 'BOT_Tag'
+}), false)
+assert.strictEqual(shouldDeferRetroNpcSeatChat({
+  isNpc: true, stage: 'river', tvPending: false, presentationFrozen: false,
+  playing: true, actionCountdownActive: true, actingNickname: 'BOT_Tag', chatNickname: 'BOT_Fish'
+}), true)
+assert.strictEqual(shouldDeferRetroNpcSeatChat({
+  isNpc: true, stage: 'river', tvPending: false, presentationFrozen: false,
+  playing: true, actionCountdownActive: false, actingNickname: null, chatNickname: 'BOT_Fish'
+}), true)
+assert.strictEqual(shouldDeferRetroNpcSeatChat({
+  isNpc: false, stage: 'settled', tvPending: true, presentationFrozen: true,
+  playing: true, actionCountdownActive: false, actingNickname: null, chatNickname: 'Alice'
+}), false)
+
 console.log('verify-dpRetroShowdownReveal: ok')

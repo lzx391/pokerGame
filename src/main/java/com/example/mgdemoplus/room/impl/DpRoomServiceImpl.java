@@ -3310,6 +3310,10 @@ ownerFieldChanged：房主字段是否发生变化。
         for (DpPlayer p : r.getPlayers()) {
             p.setReady(false);
         }
+        // 先推送 settled 快照，再发 settle 话术，
+        // 因为前端只拦截settled来的信息，而settled是靠定时器推的，桌边话是要立即推的，所以抢跑了
+        // 所以需要补发settled先行，然后给后来的桌边话冻住
+        gameRoomPushService.broadcastIfSubscribed(r.getRoomId());
         npcTableTalkService.afterHandSettled(r, streakWinnerNicknames);
         // checkAndStartNextHandAfterSettle(r);
     }

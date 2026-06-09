@@ -134,3 +134,40 @@ export function resolveFrozenChipLeaderNicknames(liveLeaders, snapshot, frozen) 
   if (!frozen || !snapshot) return liveLeaders || []
   return snapshot.chipLeaderNicknames || []
 }
+
+/**
+ * retro8bit：摊牌/结算窗口内是否延后 NPC 座位气泡（河牌行动中当前行动者台词仍即时）。
+ * settle chat WebSocket 常先于 room 心跳，此时 stage 仍为下注街，需结合行动倒计时与发言者判断。
+ *
+ * @param {object} ctx
+ * @param {boolean} ctx.isNpc
+ * @param {string} ctx.stage
+ * @param {boolean} ctx.tvPending
+ * @param {boolean} ctx.presentationFrozen
+ * @param {boolean} ctx.playing
+ * @param {boolean} ctx.actionCountdownActive actionCountdownShouldRun()
+ * @param {string|null|undefined} ctx.actingNickname 当前 actIndex 玩家昵称
+ * @param {string} ctx.chatNickname
+ */
+export function shouldDeferRetroNpcSeatChat(ctx) {
+  if (!ctx || !ctx.isNpc) return false
+  if (ctx.presentationFrozen || ctx.tvPending) return true
+  if (isRetroRevealStage(ctx.stage)) return true
+  if (!ctx.playing || !isRetroBettingStage(ctx.stage)) return false
+
+  var acting = (ctx.actingNickname || '').trim()
+  var chatNick = (ctx.chatNickname || '').trim()
+
+  // 下注街行动中：当前行动者台词即时展示
+  if (ctx.actionCountdownActive && acting && chatNick === acting) {
+    return false
+  }
+
+  // 无行动倒计时：本手可能已结束，摊牌话术延后
+  if (!ctx.actionCountdownActive) return true
+
+  // 有倒计时但发言者非当前行动者：多为 settle 话术抢跑（stage 仍为 river）
+  if (acting && chatNick !== acting) return true
+
+  return false
+}
