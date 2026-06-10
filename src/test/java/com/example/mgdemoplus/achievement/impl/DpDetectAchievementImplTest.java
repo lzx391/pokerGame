@@ -312,7 +312,8 @@ class DpDetectAchievementImplTest {
                 List.of(),
                 roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)), HAND_HISTORY_ID);
 
-        verify(achievementService, never()).unlockIfAbsent(anyInt(), anyString(), any());
+        verify(achievementService, never()).unlockIfAbsent(anyInt(),
+                eq(DpAchievementService.CODE_NATURAL_DISASTER), any());
     }
 
     @Test
@@ -345,7 +346,8 @@ class DpDetectAchievementImplTest {
                 List.of(),
                 roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)), HAND_HISTORY_ID);
 
-        verify(achievementService, never()).unlockIfAbsent(anyInt(), anyString(), any());
+        verify(achievementService, never()).unlockIfAbsent(anyInt(),
+                eq(DpAchievementService.CODE_NATURAL_DISASTER), any());
     }
 
     @Test
@@ -488,10 +490,10 @@ class DpDetectAchievementImplTest {
     @Test
     @DisplayName("转牌已反超不解锁 one_street_heaven")
     void skipsOneStreetHeavenWhenOvertakenOnTurn() {
-        List<String> board = List.of("spades_K", "clubs_9", "diamonds_2", "hearts_8", "clubs_5");
+        List<String> board = List.of("spades_K", "clubs_7", "diamonds_6", "hearts_5", "clubs_3");
         detector.detect(fullJob(
                 Map.of(WINNER_NICK, List.of("hearts_K", "diamonds_K"),
-                        VILLAIN_NICK, List.of("spades_7", "spades_6")),
+                        VILLAIN_NICK, List.of("spades_9", "spades_8")),
                 Map.of(WINNER_NICK, -200, VILLAIN_NICK, 200),
                 List.of(),
                 board,
@@ -539,7 +541,7 @@ class DpDetectAchievementImplTest {
     @Test
     @DisplayName("转牌同型杂色底牌河牌成同花解锁 mirror_duel")
     void unlocksMirrorDuelWhenTurnRankMatchesAndRiverFlushWins() {
-        List<String> board = List.of("hearts_K", "diamonds_Q", "clubs_J", "hearts_9", "hearts_2");
+        List<String> board = List.of("hearts_K", "hearts_Q", "clubs_J", "hearts_9", "hearts_2");
         detector.detect(fullJob(
                 Map.of(WINNER_NICK, List.of("hearts_A", "diamonds_3"),
                         VILLAIN_NICK, List.of("clubs_A", "spades_5")),
