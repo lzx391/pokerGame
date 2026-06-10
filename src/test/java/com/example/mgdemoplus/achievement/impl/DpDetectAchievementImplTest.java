@@ -250,8 +250,24 @@ class DpDetectAchievementImplTest {
     }
 
     @Test
-    @DisplayName("翻牌两对领先被转河连追成顺解锁 natural_disaster")
-    void unlocksNaturalDisasterWhenTurnRiverStraightComeback() {
+    @DisplayName("转牌单张成顺、河牌无提升不解锁 natural_disaster")
+    void skipsNaturalDisasterWhenTurnAloneOvertakes() {
+        List<String> board = List.of("spades_K", "diamonds_9", "clubs_2", "hearts_5", "spades_3");
+        detector.detect(fullJob(
+                Map.of(WINNER_NICK, List.of("hearts_K", "spades_4"),
+                        VILLAIN_NICK, List.of("hearts_8", "diamonds_7")),
+                Map.of(WINNER_NICK, -200, VILLAIN_NICK, 200),
+                List.of(),
+                board,
+                List.of(),
+                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)), HAND_HISTORY_ID);
+
+        verify(achievementService, never()).unlockIfAbsent(anyInt(), anyString(), any());
+    }
+
+    @Test
+    @DisplayName("转河两张均参与成顺才解锁 natural_disaster（7-6/K92/85）")
+    void unlocksNaturalDisasterWhenTurnAndRiverBothInStraight() {
         List<String> board = List.of("spades_K", "diamonds_9", "clubs_2", "hearts_8", "diamonds_5");
         detector.detect(fullJob(
                 Map.of(WINNER_NICK, List.of("diamonds_K", "hearts_9"),
@@ -267,12 +283,29 @@ class DpDetectAchievementImplTest {
     }
 
     @Test
-    @DisplayName("转牌单张反超不解锁 natural_disaster")
-    void skipsNaturalDisasterWhenTurnAloneOvertakes() {
-        List<String> board = List.of("spades_K", "diamonds_9", "clubs_2", "hearts_7", "diamonds_3");
+    @DisplayName("翻牌成花领先被转河连追成葫芦解锁 natural_disaster（B73 flop795）")
+    void unlocksNaturalDisasterWhenTurnRiverFullHouseComeback() {
+        List<String> board = List.of("hearts_7", "hearts_9", "hearts_5", "diamonds_7", "clubs_3");
         detector.detect(fullJob(
-                Map.of(WINNER_NICK, List.of("diamonds_K", "hearts_9"),
-                        VILLAIN_NICK, List.of("hearts_6", "hearts_5")),
+                Map.of(WINNER_NICK, List.of("hearts_A", "hearts_2"),
+                        VILLAIN_NICK, List.of("clubs_7", "diamonds_3")),
+                Map.of(WINNER_NICK, -200, VILLAIN_NICK, 200),
+                List.of(),
+                board,
+                List.of(),
+                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)), HAND_HISTORY_ID);
+
+        verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_NATURAL_DISASTER,
+                HAND_HISTORY_ID);
+    }
+
+    @Test
+    @DisplayName("翻后已 4-to-flush 河牌单张成花不解锁 natural_disaster（hand 7605）")
+    void skipsNaturalDisasterWhenFlopAlreadyFourToFlush() {
+        List<String> board = List.of("diamonds_7", "diamonds_3", "spades_5", "clubs_2", "diamonds_K");
+        detector.detect(fullJob(
+                Map.of(WINNER_NICK, List.of("hearts_5", "clubs_3"),
+                        VILLAIN_NICK, List.of("diamonds_8", "diamonds_Q")),
                 Map.of(WINNER_NICK, -200, VILLAIN_NICK, 200),
                 List.of(),
                 board,
@@ -280,6 +313,23 @@ class DpDetectAchievementImplTest {
                 roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)), HAND_HISTORY_ID);
 
         verify(achievementService, never()).unlockIfAbsent(anyInt(), anyString(), any());
+    }
+
+    @Test
+    @DisplayName("翻牌两对领先被转河连追成花解锁 natural_disaster")
+    void unlocksNaturalDisasterWhenTurnRiverFlushComeback() {
+        List<String> board = List.of("clubs_K", "hearts_9", "diamonds_2", "diamonds_5", "diamonds_A");
+        detector.detect(fullJob(
+                Map.of(WINNER_NICK, List.of("spades_K", "hearts_9"),
+                        VILLAIN_NICK, List.of("diamonds_6", "diamonds_7")),
+                Map.of(WINNER_NICK, -200, VILLAIN_NICK, 200),
+                List.of(),
+                board,
+                List.of(),
+                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)), HAND_HISTORY_ID);
+
+        verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_NATURAL_DISASTER,
+                HAND_HISTORY_ID);
     }
 
     @Test

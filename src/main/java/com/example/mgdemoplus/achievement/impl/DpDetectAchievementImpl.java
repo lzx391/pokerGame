@@ -357,8 +357,9 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
     }
 
     /**
-     * 天灾：翻牌后受害者两对及以上领先，对手翻后仅高牌；转、河连续两张补齐成顺/成花或更强并最终反超。
-     * 受害者（摊牌输家）解锁。仅真人。
+     * 天灾：受害者（摊牌输家）翻后两对及以上领先，某对手翻后仅高牌或一对；转牌仍不输；河牌被该对手反超。
+     * 连追：翻后对手未成强听牌（排除 4-to-flush、8-out 顺听等）；转、河各补一张且均参与终局成牌（顺/花/葫芦等）。
+     * 成花时转牌与河牌须同为成花花色，且翻后未成 4-to-flush。仅真人。
      */
     private void detectNaturalDisaster(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot, Long handHistoryId) {
         Map<String, Integer> netChipsChange = archived.netChipsChange;
@@ -416,13 +417,13 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
                 if (oppFlop == null || oppTurn == null || oppRiver == null) {
                     continue;
                 }
-                if (heroFlop.rankCategory < 3 || oppFlop.rankCategory != 1) {
+                if (heroFlop.rankCategory < 3 || oppFlop.rankCategory >= 3) {
                     continue;
                 }
                 if (heroTurn.compareTo(oppTurn) < 0 || oppRiver.compareTo(heroRiver) <= 0) {
                     continue;
                 }
-                if (!isConsecutiveTurnRiverComeback(oppHole, flop, turn, oppFlop, oppTurn, oppRiver)) {
+                if (!isConsecutiveTurnRiverComeback(oppHole, flop, turn, river, oppFlop, oppTurn, oppRiver)) {
                     continue;
                 }
                 disaster = true;
@@ -435,34 +436,135 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
     }
 
     /**
-     * 转、河连追：转牌须带来牌力或有效听牌进展，河牌须再提升且终局成顺及以上。
+     * 转、河连追：翻后未成强听牌；转、河各补一张且均参与终局成顺/成花/葫芦或更强。
+     * 成花：翻后未成 4-to-flush，转牌与河牌须同为成花花色且各补一张完成同花。
+     * 成顺/葫芦等：转、河牌均出现在河牌终局最佳五张中，且去掉任一张都无法保持终局牌力。
      */
     private static boolean isConsecutiveTurnRiverComeback(List<String> oppHole,
                                                           List<String> flop,
                                                           List<String> turn,
+                                                          List<String> river,
                                                           DpUtilHandEvaluator.HandStrength oppFlop,
                                                           DpUtilHandEvaluator.HandStrength oppTurn,
                                                           DpUtilHandEvaluator.HandStrength oppRiver) {
-        if (oppFlop == null || oppTurn == null || oppRiver == null || turn.size() < 4) {
+        if (oppFlop == null || oppTurn == null || oppRiver == null
+                || flop.size() < 3 || turn.size() < 4 || river.size() < 5) {
             return false;
         }
         if (oppRiver.rankCategory < 5) {
             return false;
         }
-        boolean turnContributed = oppTurn.compareTo(oppFlop) > 0
-                || hasMeaningfulDrawAfterTurn(oppHole, turn, oppFlop);
-        boolean riverContributed = oppRiver.compareTo(oppTurn) > 0;
-        return turnContributed && riverContributed;
+        if (hasStrongDrawAfterFlop(oppHole, flop, oppFlop)) {
+            return false;
+        }
+        if (oppRiver.rankCategory == 6) {
+            return isFlushTurnRiverChase(oppHole, flop, turn, river, oppTurn, oppRiver);
+        }
+        String turnCard = turn.get(3);
+        String riverCard = river.get(4);
+        if (!bothStreetCardsInBestFive(oppHole, river, turnCard, riverCard)) {
+            return false;
+        }
+        return oppFlop.compareTo(oppRiver) < 0
+                && oppTurn.compareTo(oppRiver) < 0;
     }
 
-    private static boolean hasMeaningfulDrawAfterTurn(List<String> hole,
-                                                      List<String> turnBoard,
-                                                      DpUtilHandEvaluator.HandStrength strengthOnFlop) {
+    /** 转、河两张公共牌均出现在对手河牌终局最佳五张中。 */
+    private static boolean bothStreetCardsInBestFive(List<String> hole,
+                                                     List<String> riverBoard,
+                                                     String turnCard,
+                                                     String riverCard) {
+        List<String> bestFive = DpUtilHandEvaluator.getBestHandCards(concatCards(hole, riverBoard));
+        return bestFive != null
+                && bestFive.contains(turnCard)
+                && bestFive.contains(riverCard);
+    }
+
+    /** 翻后已具备强听牌（4-to-flush、8-out 顺听、花顺双抽）则不算天灾连追。 */
+    private static boolean hasStrongDrawAfterFlop(List<String> hole,
+                                                  List<String> flop,
+                                                  DpUtilHandEvaluator.HandStrength strengthOnFlop) {
         if (strengthOnFlop != null && strengthOnFlop.rankCategory >= 5) {
             return false;
         }
-        DpUtilHandEvaluator.HandStrength hsOnTurn = evalHand(hole, turnBoard);
-        return DpDrawDetector.detect(hsOnTurn, hole, turnBoard, "turn") != DpNpcDrawCategory.NONE;
+        DpNpcDrawCategory draw = DpDrawDetector.detect(strengthOnFlop, hole, flop, "flop");
+        return draw == DpNpcDrawCategory.FLUSH_DRAW
+                || draw == DpNpcDrawCategory.OESD
+                || draw == DpNpcDrawCategory.COMBO_DRAW;
+    }
+
+    /**
+     * 成花连追：翻后同花花色 &lt; 4；转、河各发一张该花色，河牌才成同花。
+     */
+    private static boolean isFlushTurnRiverChase(List<String> oppHole,
+                                                 List<String> flop,
+                                                 List<String> turn,
+                                                 List<String> river,
+                                                 DpUtilHandEvaluator.HandStrength oppTurn,
+                                                 DpUtilHandEvaluator.HandStrength oppRiver) {
+        if (oppRiver.rankCategory < 6 || oppTurn.rankCategory >= 6) {
+            return false;
+        }
+        int flushSuit = resolveFlushSuit(oppHole, river);
+        if (flushSuit < 0) {
+            return false;
+        }
+        int flopSuitCount = countSuitInCards(concatCards(oppHole, flop), flushSuit);
+        if (flopSuitCount >= 4) {
+            return false;
+        }
+        String turnCard = turn.get(3);
+        String riverCard = river.get(4);
+        if (suitCode(turnCard) != flushSuit || suitCode(riverCard) != flushSuit) {
+            return false;
+        }
+        int turnSuitCount = countSuitInCards(concatCards(oppHole, turn), flushSuit);
+        int riverSuitCount = countSuitInCards(concatCards(oppHole, river), flushSuit);
+        return turnSuitCount == flopSuitCount + 1
+                && riverSuitCount == turnSuitCount + 1
+                && riverSuitCount >= 5;
+    }
+
+    private static int resolveFlushSuit(List<String> hole, List<String> fullBoard) {
+        int[] counts = new int[4];
+        for (String card : concatCards(hole, fullBoard)) {
+            int suit = suitCode(card);
+            if (suit >= 0 && suit < 4) {
+                counts[suit]++;
+            }
+        }
+        for (int suit = 0; suit < 4; suit++) {
+            if (counts[suit] >= 5) {
+                return suit;
+            }
+        }
+        return -1;
+    }
+
+    private static int countSuitInCards(List<String> cards, int suit) {
+        if (cards == null) {
+            return 0;
+        }
+        int count = 0;
+        for (String card : cards) {
+            if (suitCode(card) == suit) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static int suitCode(String card) {
+        if (card == null || !card.contains("_")) {
+            return -1;
+        }
+        return switch (card.split("_", 2)[0]) {
+            case "hearts" -> 0;
+            case "diamonds" -> 1;
+            case "clubs" -> 2;
+            case "spades" -> 3;
+            default -> -1;
+        };
     }
 
     /**
