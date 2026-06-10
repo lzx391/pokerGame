@@ -1,4 +1,5 @@
 <template>
+  <div class="dp-awc-root">
   <transition name="dp-awc-root">
     <div
       v-if="visible"
@@ -124,6 +125,14 @@
       </div>
     </div>
   </transition>
+
+  <dp-hand-history-detail
+    v-if="replayHandHistoryId != null"
+    context="achievement-overlay"
+    :hand-history-id="replayHandHistoryId"
+    @closed="replayHandHistoryId = null"
+  />
+  </div>
 </template>
 
 <script>
@@ -139,9 +148,11 @@ import {
 import { registerDpFullscreenOverlayReparent, unregisterDpFullscreenOverlayReparent } from '@/utils/dpFullscreenOverlayBridge'
 import { shouldSkipRetroEnterEffects } from '@/utils/dpRetroEnterGameHandoff'
 import { displayAchievementUnlockedAt, canShowAchievementReplay } from '@/utils/dpAchievementFormat'
+import DpHandHistoryDetail from '@/components/DpHandHistoryDetail.vue'
 
 export default {
   name: 'DpAchievementWallCrt',
+  components: { DpHandHistoryDetail },
   inject: {
     dpGameView: { default: null }
   },
@@ -158,6 +169,7 @@ export default {
       loading: false,
       loadError: '',
       items: [],
+      replayHandHistoryId: null,
       cursor: 0,
       typedDesc: '',
       typing: false,
@@ -218,6 +230,7 @@ export default {
         this.overlayZIndex = dpNextZIndex('achievement')
         this.startOpen()
       } else {
+        this.replayHandHistoryId = null
         this.doClose()
       }
     },
@@ -321,6 +334,7 @@ export default {
     doClose: function () {
       this.clearTimers()
       this.detachKeyListener()
+      this.replayHandHistoryId = null
       this.phase = 'idle'
       this.items = []
       this.loadError = ''
@@ -427,7 +441,7 @@ export default {
         dpScheduleOverlayFullscreenReparent(this.dpGameView)
         return
       }
-      this.$router.push('/hand-history/detail/' + encodeURIComponent(String(handHistoryId)))
+      this.replayHandHistoryId = handHistoryId
     },
     loadAchievements: async function () {
       this.loading = true

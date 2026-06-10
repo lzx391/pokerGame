@@ -1,4 +1,5 @@
 <template>
+  <div class="dp-ach-wall-root">
   <el-dialog
     :visible.sync="dialogVisible"
     width="min(92vw, 480px)"
@@ -73,6 +74,24 @@
       </button>
     </div>
   </el-dialog>
+
+  <transition name="dp-ach-replay">
+    <div
+      v-if="replayHandHistoryId != null"
+      class="dp-ach-replay-overlay"
+      :style="{ zIndex: replayZIndex }"
+      @click.self="closeReplay"
+    >
+      <div class="dp-ach-replay-panel" @click.stop>
+        <hand-history-detail
+          :hand-history-id="replayHandHistoryId"
+          embedded
+          @back="closeReplay"
+        />
+      </div>
+    </div>
+  </transition>
+  </div>
 </template>
 
 <script>
@@ -87,9 +106,11 @@ import {
   dpSyncDialogPairedVModal
 } from '@/utils/dpOverlayPortal'
 import { displayAchievementUnlockedAt, canShowAchievementReplay } from '@/utils/dpAchievementFormat'
+import HandHistoryDetail from '@/components/HandHistoryDetail.vue'
 
 export default {
   name: 'DpAchievementWallModal',
+  components: { HandHistoryDetail },
   inject: {
     dpGameView: { default: null }
   },
@@ -105,6 +126,8 @@ export default {
       loading: false,
       loadError: '',
       items: [],
+      replayHandHistoryId: null,
+      replayZIndex: dpLayerZIndex('handHistory'),
       _portalAnchor: null
     }
   },
@@ -142,6 +165,7 @@ export default {
           dpScheduleOverlayFullscreenReparent(self.dpGameView)
         })
       } else {
+        this.replayHandHistoryId = null
         this.detachPortal()
       }
     },
@@ -208,6 +232,9 @@ export default {
     canShowReplay(item) {
       return canShowAchievementReplay(item)
     },
+    closeReplay() {
+      this.replayHandHistoryId = null
+    },
     openHandHistoryReplay(handHistoryId) {
       if (handHistoryId == null || handHistoryId === '') return
       if (this.dpGameView && typeof this.dpGameView.openHandHistoryDetail === 'function') {
@@ -215,7 +242,8 @@ export default {
         dpScheduleOverlayFullscreenReparent(this.dpGameView)
         return
       }
-      this.$router.push('/hand-history/detail/' + encodeURIComponent(String(handHistoryId)))
+      this.replayZIndex = dpNextZIndex('handHistory')
+      this.replayHandHistoryId = handHistoryId
     },
     async loadAchievements() {
       this.loading = true
@@ -387,5 +415,32 @@ export default {
   border: 1px solid var(--dp-border-soft, rgba(255, 255, 255, 0.15));
   background: transparent;
   color: var(--dp-text-muted, #c8cdd6);
+}
+
+.dp-ach-replay-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: max(12px, env(safe-area-inset-top, 12px)) 12px 24px;
+  background: rgba(0, 0, 0, 0.55);
+  overflow-y: auto;
+  pointer-events: auto;
+}
+.dp-ach-replay-panel {
+  width: min(920px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+}
+.dp-ach-replay-enter-active,
+.dp-ach-replay-leave-active {
+  transition: opacity 0.15s ease;
+}
+.dp-ach-replay-enter,
+.dp-ach-replay-leave-to {
+  opacity: 0;
 }
 </style>

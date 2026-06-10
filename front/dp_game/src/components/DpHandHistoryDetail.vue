@@ -206,11 +206,13 @@ export default {
   inject: { dpGameView: { default: null } },
   props: {
     handHistoryId: { type: [String, Number], default: null },
-    /** game-overlay: in-game CRT panel; lobby-page: /hand-history/detail route */
+    /** game-overlay: in-game CRT panel; lobby-page: /hand-history/detail route; achievement-overlay: 成就墙内嵌回放 */
     context: {
       type: String,
       default: 'game-overlay',
-      validator: function (v) { return v === 'game-overlay' || v === 'lobby-page' }
+      validator: function (v) {
+        return v === 'game-overlay' || v === 'lobby-page' || v === 'achievement-overlay'
+      }
     }
   },
   data: function () {
@@ -231,16 +233,18 @@ export default {
   computed: {
     ...mapState('dpGame', ['gameUiTheme', 'ecoMode']),
     isLobbyPage: function () { return this.context === 'lobby-page' },
-    vm: function () { return this.isLobbyPage ? null : this.dpGameView },
+    isAchievementOverlay: function () { return this.context === 'achievement-overlay' },
+    usesLocalSession: function () { return this.isLobbyPage || this.isAchievementOverlay },
+    vm: function () { return this.usesLocalSession ? null : this.dpGameView },
     rootVisible: function () {
       return this.isLobbyPage ? this.lobbyReady : this.visible
     },
     showCrt: function () {
-      var retro = this.isLobbyPage
+      var retro = this.usesLocalSession
         ? this.gameUiTheme === 'retro8bit'
         : (this.vm && this.vm.gameUiTheme === 'retro8bit')
       if (!retro) return false
-      var vw = this.isLobbyPage ? this.viewportWidth : (this.vm && this.vm.viewportWidth)
+      var vw = this.usesLocalSession ? this.viewportWidth : (this.vm && this.vm.viewportWidth)
       return vw > 600 && !this.ecoMode && !this.prefersReducedMotion
     },
     tvAnimClass: function () {
@@ -393,7 +397,18 @@ export default {
       this.bootstrapLobbyPage()
       return
     }
+    if (this.isAchievementOverlay) {
+      this.syncMotionPrefs()
+      this._onResize = function () { self.viewportWidth = window.innerWidth }
+      window.addEventListener('resize', this._onResize)
+    }
     try { var raw = localStorage.getItem('userInfo'); self.user = raw ? JSON.parse(raw) : null } catch (e) { self.user = null }
+    if (!this.isLobbyPage && this.handHistoryId != null) {
+      this.visible = true
+      this.activeTab = 'preflop'
+      this.fetchDetail()
+      this.startCrtSequence()
+    }
   },
   beforeDestroy: function () {
     this.clearTimers()
@@ -513,8 +528,8 @@ export default {
       return displayHandRankName(getHandRank(holeList, community) || '')
     },
     fetchDetail: function () {
-      var user = this.isLobbyPage ? this.user : (this.vm && this.vm.user)
-      var http = this.isLobbyPage ? this.$http : (this.vm && this.vm.$http)
+      var user = this.usesLocalSession ? this.user : (this.vm && this.vm.user)
+      var http = this.usesLocalSession ? this.$http : (this.vm && this.vm.$http)
       if (!user || !http) { this.loadError = 'NO USER'; return }
       var id = Number(this.handHistoryId)
       if (isNaN(id) || id <= 0) { this.loadError = 'BAD ID'; return }
