@@ -26,15 +26,11 @@ public class DpOAuth2TokenExchangeService {
     private static final String EXTERNAL_STATE = "dp-oauth-state-managed-externally";
 
     private final ClientRegistrationRepository clientRegistrationRepository;
-    private final OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> defaultAccessTokenResponseClient;
-    private final OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> dingAccessTokenResponseClient;
+    private final OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> accessTokenResponseClient;
 
-    public DpOAuth2TokenExchangeService(
-            ClientRegistrationRepository clientRegistrationRepository,
-            OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> dingAccessTokenResponseClient) {
+    public DpOAuth2TokenExchangeService(ClientRegistrationRepository clientRegistrationRepository) {
         this.clientRegistrationRepository = clientRegistrationRepository;
-        this.defaultAccessTokenResponseClient = new RestClientAuthorizationCodeTokenResponseClient();
-        this.dingAccessTokenResponseClient = dingAccessTokenResponseClient;
+        this.accessTokenResponseClient = new RestClientAuthorizationCodeTokenResponseClient();
     }
 
     public boolean isRegistrationEnabled(String registrationId) {
@@ -92,7 +88,7 @@ public class DpOAuth2TokenExchangeService {
             OAuth2AuthorizationCodeGrantRequest grantRequest =
                     new OAuth2AuthorizationCodeGrantRequest(registration, authorizationExchange);
 
-            OAuth2AccessTokenResponse tokenResponse = resolveTokenClient(registrationId).getTokenResponse(grantRequest);
+            OAuth2AccessTokenResponse tokenResponse = accessTokenResponseClient.getTokenResponse(grantRequest);
             log.info("oauth2 token exchange ok registrationId={}", registrationId);
             return tokenResponse;
         } catch (OAuth2AuthorizationException e) {
@@ -104,10 +100,4 @@ public class DpOAuth2TokenExchangeService {
         }
     }
 
-    private OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> resolveTokenClient(String registrationId) {
-        if ("ding".equals(registrationId)) {
-            return dingAccessTokenResponseClient;
-        }
-        return defaultAccessTokenResponseClient;
-    }
 }

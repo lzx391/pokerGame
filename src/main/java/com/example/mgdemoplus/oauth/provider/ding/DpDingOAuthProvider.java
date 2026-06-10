@@ -1,41 +1,43 @@
 package com.example.mgdemoplus.oauth.provider.ding;
 
-import java.util.Map;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.oauth2.client.registration.ClientRegistration;
-import org.springframework.security.oauth2.core.endpoint.OAuth2AccessTokenResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.util.UriComponentsBuilder;
 
-import com.example.mgdemoplus.oauth.client.DingOAuth2AccessTokenResponseClient;
-import com.example.mgdemoplus.oauth.client.DingOAuthClientUtil;
-import com.example.mgdemoplus.oauth.client.DpOAuth2TokenExchangeService;
 import com.example.mgdemoplus.oauth.dto.OAuthTokenResponse;
 import com.example.mgdemoplus.oauth.dto.OAuthUserProfile;
 import com.example.mgdemoplus.oauth.provider.DpOAuthProvider;
-import com.fasterxml.jackson.databind.ObjectMapper;
+
+import me.zhyd.oauth.config.AuthConfig;
+import me.zhyd.oauth.exception.AuthException;
+import me.zhyd.oauth.model.AuthCallback;
+import me.zhyd.oauth.model.AuthToken;
+import me.zhyd.oauth.model.AuthUser;
 
 /**
- * 钉钉 OAuth2 登录 Provider（Spring OAuth2 Client 换 token + contact/users/me 取 profile）。
+ * 钉钉 OAuth2 登录 Provider（JustAuth {@code AuthDingTalkV2Request}；state 仍由 {@code DpOAuthService} 自管）。
  */
 @Component
 public class DpDingOAuthProvider implements DpOAuthProvider {
 
     private static final Logger log = LoggerFactory.getLogger(DpDingOAuthProvider.class);
     private static final String PROVIDER_ID = "ding";
-    private static final String CONTACT_USERS_ME_URL = "https://api.dingtalk.com/v1.0/contact/users/me";
+    private static final List<String> SCOPES = List.of("openid", "Contact.User.Read");
 
-    private final DpOAuth2TokenExchangeService tokenExchangeService;
-    private final ObjectMapper objectMapper;
-    private final RestClient restClient;
+    private final String clientId;
+    private final String clientSecret;
+    private final String redirectUri;
 
-    public DpDingOAuthProvider(DpOAuth2TokenExchangeService tokenExchangeService, ObjectMapper objectMapper) {
-        this.tokenExchangeService = tokenExchangeService;
-        this.objectMapper = objectMapper;
-        this.restClient = RestClient.builder().build();
+    public DpDingOAuthProvider(
+            @Value("${spring.security.oauth2.client.registration.ding.client-id:}") String clientId,
+            @Value("${spring.security.oauth2.client.registration.ding.client-secret:}") String clientSecret,
+            @Value("${spring.security.oauth2.client.registration.ding.redirect-uri:}") String redirectUri) {
+        this.clientId = clientId;
+        this.clientSecret = clientSecret;
+        this.redirectUri = redirectUri;
     }
 
     @Override
@@ -50,36 +52,36 @@ public class DpDingOAuthProvider implements DpOAuthProvider {
 
     @Override
     public boolean enabled() {
-        return tokenExchangeService.isRegistrationEnabled(PROVIDER_ID);
+        return hasText(clientId) && hasText(clientSecret);
     }
 
     @Override
     public String buildAuthorizeUrl(String state) {
-        ClientRegistration registration = requireRegistration();
-        return UriComponentsBuilder.fromUriString(registration.getProviderDetails().getAuthorizationUri())
-                .queryParam("client_id", registration.getClientId())
-                .queryParam("response_type", "code")
-                .queryParam("scope", String.join(" ", registration.getScopes()))
-                .queryParam("state", state)
-                .queryParam("redirect_uri", registration.getRedirectUri())
-                .queryParam("prompt", "consent")
-                .build()
-                .encode()
-                .toUriString();
+        requireEnabled();
+        return authRequest().authorize(state);
     }
 
     @Override
     public OAuthTokenResponse exchangeCode(String code) {
-        OAuth2AccessTokenResponse tokenResponse = tokenExchangeService.exchangeAuthorizationCodeRaw(PROVIDER_ID, code);
-        if (tokenResponse == null || tokenResponse.getAccessToken() == null) {
-            log.error("dingding OAuth2 userAccessToken failed");
+        if (!enabled()) {
+            log.error("dingding OAuth not configured");
             return new OAuthTokenResponse(null);
         }
-        String accessToken = tokenResponse.getAccessToken().getTokenValue();
-        Map<String, Object> additional = tokenResponse.getAdditionalParameters();
-        String unionId = stringParam(additional, "unionId");
-        String openId = stringParam(additional, "openId");
-        return new OAuthTokenResponse(accessToken, unionId, openId);
+        try {
+            AuthCallback callback = AuthCallback.builder().code(code).build();
+            AuthToken token = authRequest().exchangeToken(callback);
+            if (token == null || !hasText(token.getAccessToken())) {
+                log.error("dingding JustAuth userAccessToken failed");
+                return new OAuthTokenResponse(null);
+            }
+            return new OAuthTokenResponse(token.getAccessToken(), token.getUnionId(), token.getOpenId());
+        } catch (AuthException e) {
+            log.error("dingding JustAuth token exchange failed: {}", e.getMessage());
+            return new OAuthTokenResponse(null);
+        } catch (Exception e) {
+            log.error("dingding JustAuth token exchange failed", e);
+            return new OAuthTokenResponse(null);
+        }
     }
 
     @Override
@@ -88,7 +90,7 @@ public class DpDingOAuthProvider implements DpOAuthProvider {
             return null;
         }
 
-        OAuthUserProfile contactProfile = fetchContactProfile(tokenResponse.getAccessToken());
+        OAuthUserProfile contactProfile = fetchJustAuthProfile(tokenResponse);
         if (contactProfile != null && hasOpenId(contactProfile)) {
             return contactProfile;
         }
@@ -109,26 +111,61 @@ public class DpDingOAuthProvider implements DpOAuthProvider {
         return contactProfile;
     }
 
-    private OAuthUserProfile fetchContactProfile(String accessToken) {
+    private OAuthUserProfile fetchJustAuthProfile(OAuthTokenResponse tokenResponse) {
         try {
-            String respBody = restClient.get()
-                    .uri(CONTACT_USERS_ME_URL)
-                    .header("x-acs-dingtalk-access-token", accessToken)
-                    .header("Content-Type", "application/json")
-                    .retrieve()
-                    .body(String.class);
-
-            DingContactUserInfo contactUser = objectMapper.readValue(respBody, DingContactUserInfo.class);
-            OAuthUserProfile profile = toOAuthUserProfile(contactUser);
+            AuthToken authToken = AuthToken.builder()
+                    .accessToken(tokenResponse.getAccessToken())
+                    .unionId(tokenResponse.getUnionId())
+                    .openId(tokenResponse.getOpenId())
+                    .build();
+            AuthUser user = authRequest().loadUser(authToken);
+            OAuthUserProfile profile = toOAuthUserProfile(user);
             if (profile == null) {
-                log.warn("dingding contact/users/me returned no openId/unionId body={}",
-                        DingOAuthClientUtil.sanitizeBody(respBody));
+                log.warn("dingding JustAuth userInfo returned no openId/unionId");
             }
             return profile;
+        } catch (AuthException e) {
+            log.warn("dingding JustAuth userInfo failed: {} (check Contact.User.Read scope)", e.getMessage());
+            return null;
         } catch (Exception e) {
-            log.warn("dingding contact/users/me failed: {} (check Contact.User.Read scope)", e.getMessage());
+            log.warn("dingding JustAuth userInfo failed: {} (check Contact.User.Read scope)", e.getMessage());
             return null;
         }
+    }
+
+    private DpJustAuthDingTalkBridge authRequest() {
+        AuthConfig config = AuthConfig.builder()
+                .clientId(clientId)
+                .clientSecret(clientSecret)
+                .redirectUri(redirectUri)
+                .scopes(SCOPES)
+                .ignoreCheckState(true)
+                .build();
+        return new DpJustAuthDingTalkBridge(config);
+    }
+
+    private void requireEnabled() {
+        if (!enabled()) {
+            throw new IllegalStateException("Ding OAuth registration not configured");
+        }
+    }
+
+    static OAuthUserProfile toOAuthUserProfile(AuthUser user) {
+        if (user == null) {
+            return null;
+        }
+        String unionId = user.getToken() != null ? user.getToken().getUnionId() : null;
+        String openId = user.getToken() != null ? user.getToken().getOpenId() : null;
+        String identity = preferredOpenId(unionId, user.getUuid(), openId);
+        if (identity == null) {
+            return null;
+        }
+        String avatarUrl = user.getAvatar();
+        if (avatarUrl != null && avatarUrl.isBlank()) {
+            avatarUrl = null;
+        }
+        String displayName = firstNonBlank(user.getNickname(), user.getUsername());
+        return new OAuthUserProfile(identity, avatarUrl, displayName);
     }
 
     public static OAuthUserProfile profileFromTokenMetadata(OAuthTokenResponse tokenResponse) {
@@ -159,8 +196,8 @@ public class DpDingOAuthProvider implements DpOAuthProvider {
         return profile != null && profile.getOpenId() != null && !profile.getOpenId().isBlank();
     }
 
-    static String preferredOpenId(String unionId, String openId) {
-        return firstNonBlank(unionId, openId);
+    static String preferredOpenId(String... values) {
+        return firstNonBlank(values);
     }
 
     static String maskIdentity(String identity) {
@@ -168,6 +205,10 @@ public class DpDingOAuthProvider implements DpOAuthProvider {
             return "***";
         }
         return identity.substring(0, 4) + "****" + identity.substring(identity.length() - 4);
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     private static String firstNonBlank(String... values) {
@@ -182,49 +223,8 @@ public class DpDingOAuthProvider implements DpOAuthProvider {
         return null;
     }
 
-    private static String stringParam(Map<String, Object> params, String key) {
-        if (params == null) {
-            return null;
-        }
-        Object value = params.get(key);
-        if (value == null) {
-            return null;
-        }
-        String text = value.toString();
-        return text.isBlank() ? null : text;
-    }
-
-    public static OAuthUserProfile toOAuthUserProfile(DingContactUserInfo contactUser) {
-        if (contactUser == null) {
-            return null;
-        }
-        String openId = contactUser.getUnionId();
-        if (openId == null || openId.isBlank()) {
-            openId = contactUser.getOpenId();
-        }
-        if (openId == null || openId.isBlank()) {
-            return null;
-        }
-        String avatarUrl = contactUser.getAvatarUrl();
-        if (avatarUrl != null && avatarUrl.isBlank()) {
-            avatarUrl = null;
-        }
-        return new OAuthUserProfile(openId, avatarUrl, contactUser.getNick());
-    }
-
-    private ClientRegistration requireRegistration() {
-        ClientRegistration registration = tokenExchangeService.findRegistration(PROVIDER_ID);
-        if (registration == null) {
-            throw new IllegalStateException("Ding OAuth registration not configured");
-        }
-        return registration;
-    }
-
     /** 测试用：手工构造 Provider（不经过 Spring 容器）。 */
-    public static DpDingOAuthProvider forTest(ClientRegistration registration, ObjectMapper objectMapper) {
-        DpOAuth2TokenExchangeService tokenService = new DpOAuth2TokenExchangeService(
-                id -> registration,
-                new DingOAuth2AccessTokenResponseClient(objectMapper));
-        return new DpDingOAuthProvider(tokenService, objectMapper);
+    public static DpDingOAuthProvider forTest(String clientId, String clientSecret, String redirectUri) {
+        return new DpDingOAuthProvider(clientId, clientSecret, redirectUri);
     }
 }

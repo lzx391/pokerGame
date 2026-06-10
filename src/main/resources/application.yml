@@ -70,6 +70,7 @@ spring:
             redirect-uri: ${GITE_REDIRECT_URI:}
             authorization-grant-type: authorization_code
             scope: user_info
+          # 钉钉凭证仍绑定此处 env；authorize/token/profile 由 JustAuth AuthDingTalkV2Request 处理（见 DpDingOAuthProvider）
           ding:
             provider: ding
             client-id: ${DING_CLIENT_ID:}
@@ -103,7 +104,7 @@ mgdemoplus:
     expiration:
       time: 259200000  # [D] 约 3 天
 
-  # --- A/C: OAuth 登录（凭证见 spring.security.oauth2.client.registration；此处仅前端回跳基址）---
+  # --- A/C: OAuth 登录（GitHub/Gitee 凭证见 spring.security.oauth2.client.registration；钉钉同键名但走 JustAuth）---
   oauth:
     frontend-base-url: ${FRONTEND_BASE_URL:}  # [C] 授权成功后 302 跳转至前端（dev 默认 http://localhost:8080）
   # --- B: Redis 缓存 TTL ---

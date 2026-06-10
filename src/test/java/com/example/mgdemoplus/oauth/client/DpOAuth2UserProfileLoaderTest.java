@@ -62,10 +62,7 @@ class DpOAuth2UserProfileLoaderTest {
                         .tokenUri("https://gitee.com/oauth/token")
                         .userInfoUri("https://gitee.com/api/v5/user")
                         .userNameAttributeName("login")
-                        .build(),
-                req -> {
-                    throw new UnsupportedOperationException("ding not used");
-                });
+                        .build());
 
         DpOAuth2UserProfileLoader loader = new DpOAuth2UserProfileLoader(tokenService, userService);
 
@@ -77,11 +74,7 @@ class DpOAuth2UserProfileLoaderTest {
 
     @Test
     void loadProfile_returnsNullForFailedToken() {
-        DpOAuth2TokenExchangeService tokenService = new DpOAuth2TokenExchangeService(
-                id -> null,
-                req -> {
-                    throw new UnsupportedOperationException("ding not used");
-                });
+        DpOAuth2TokenExchangeService tokenService = new DpOAuth2TokenExchangeService(id -> null);
         DpOAuth2UserProfileLoader loader = new DpOAuth2UserProfileLoader(tokenService);
 
         assertThat(loader.loadProfile("github", new OAuthTokenResponse(null))).isNull();
