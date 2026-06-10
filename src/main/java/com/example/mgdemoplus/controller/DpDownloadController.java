@@ -1,13 +1,18 @@
 package com.example.mgdemoplus.controller;
 
 import com.example.mgdemoplus.download.DpDownloadService;
+import com.example.mgdemoplus.download.dto.DpDownloadDeleteRequest;
+import com.example.mgdemoplus.download.dto.DpDownloadVerifyAdminPasswordRequest;
 import com.example.mgdemoplus.download.entity.DpDownloadAsset;
+import com.example.mgdemoplus.room.support.DpExperimentalDeckPresetPasswordGuard;
+import com.example.mgdemoplus.utils.ResultUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -24,6 +29,7 @@ import java.util.UUID;
 
 /**
  * 下载中心：上传写入磁盘 other 目录 + {@code dp_download_asset}；列表与静态文件下载 permitAll。
+ * 上传/下架需 JWT + 与实验排牌相同的管理密码。
  */
 @RestController
 @RequestMapping("/dpDownload")
@@ -33,6 +39,9 @@ public class DpDownloadController {
 
     @Autowired
     private DpDownloadService dpDownloadService;
+
+    @Autowired
+    private DpExperimentalDeckPresetPasswordGuard experimentalDeckPresetPasswordGuard;
 
     @Value("${mgdemoplus.files.file-location:file:P:/javaworkspace/DPGameFiles/other/}")
     private String filesFileLocation;
@@ -78,12 +87,27 @@ public class DpDownloadController {
         return base.isEmpty() ? "未命名" : base;
     }
 
+    private static String gateMessage(ResultUtil gate) {
+        if (gate == null) {
+            return "管理密码校验失败";
+        }
+        if (gate.getData() != null && gate.getData().get("message") != null) {
+            return String.valueOf(gate.getData().get("message"));
+        }
+        return gate.getMessage() != null ? gate.getMessage() : "管理密码校验失败";
+    }
+
     @PostMapping("/upload")
     public ResponseEntity<?> upload(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "displayName", required = false) String displayName,
             @RequestParam(value = "sortOrder", required = false) Integer sortOrder,
-            @RequestParam(value = "userId", required = false) Integer userId) throws IOException {
+            @RequestParam(value = "userId", required = false) Integer userId,
+            @RequestParam(value = "adminPassword", required = false) String adminPassword) throws IOException {
+        ResultUtil gate = experimentalDeckPresetPasswordGuard.gate(adminPassword);
+        if (gate != null) {
+            return ResponseEntity.badRequest().body(Map.of("error", gateMessage(gate)));
+        }
         if (file == null || file.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "请选择文件"));
         }
@@ -122,6 +146,36 @@ public class DpDownloadController {
         ok.put("displayName", title);
         ok.put("sortOrder", order);
         return ResponseEntity.ok(ok);
+    }
+
+    @PostMapping("/delete")
+    public ResultUtil delete(@RequestBody DpDownloadDeleteRequest req) {
+        if (req == null || req.getId() == null) {
+            return ResultUtil.error().data("message", "缺少资源 ID");
+        }
+        ResultUtil gate = experimentalDeckPresetPasswordGuard.gate(req.getAdminPassword());
+        if (gate != null) {
+            return gate;
+        }
+        DpDownloadAsset existing = dpDownloadService.findById(req.getId());
+        if (existing == null || !Boolean.TRUE.equals(existing.getEnabled())) {
+            return ResultUtil.error().data("message", "资源不存在或已下架");
+        }
+        int updated = dpDownloadService.disableById(req.getId());
+        if (updated <= 0) {
+            return ResultUtil.error().data("message", "下架失败");
+        }
+        return ResultUtil.ok().data("message", "已下架");
+    }
+
+    @PostMapping("/verifyAdminPassword")
+    public ResultUtil verifyAdminPassword(@RequestBody DpDownloadVerifyAdminPasswordRequest req) {
+        String password = req != null ? req.getAdminPassword() : null;
+        ResultUtil gate = experimentalDeckPresetPasswordGuard.gate(password);
+        if (gate != null) {
+            return gate;
+        }
+        return ResultUtil.ok().data("message", "管理密码验证通过");
     }
 
     @GetMapping("/list")
