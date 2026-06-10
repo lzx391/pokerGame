@@ -584,12 +584,8 @@ body[data-dp-game-theme='retro8bit'] .dp-social-sheet--retro8bit .dp-social-list
 }
 
 body[data-dp-game-theme='retro8bit'] .dp-social-sheet--retro8bit .dp-social-list__primary {
-  font-family: var(--dp-font-pixel, 'Press Start 2P', monospace);
-  font-size: 10px;
-  line-height: 1.6;
-  letter-spacing: 0.04em;
+  /* Nickname font: dp-nick-font--pixel | dp-nick-font--terminal (dp-nickname-font.css) */
   color: var(--dp-phosphor, #72f052);
-  text-shadow: 0 0 4px rgba(74, 246, 38, 0.35);
 }
 
 body[data-dp-game-theme='retro8bit'] .dp-social-sheet--retro8bit .dp-friend-row--presence-idle .dp-social-list__presence {

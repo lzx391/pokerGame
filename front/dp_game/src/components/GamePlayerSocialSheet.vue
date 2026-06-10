@@ -79,7 +79,10 @@
               <span class="game-prof-avatar-frame__corner game-prof-avatar-frame__corner--br" aria-hidden="true"></span>
             </div>
             <div class="game-prof-identity__meta">
-              <h2 class="game-prof-name">{{ displayName }}</h2>
+              <h2
+                class="game-prof-name"
+                :class="profileNicknameFontClass"
+              >{{ displayName }}</h2>
               <button
                 v-if="target && target.userId != null && target.userId !== ''"
                 type="button"
@@ -261,6 +264,7 @@ import { formatNetWinMultiplier, formatRoomNetMultiplier } from '../utils/dpRoom
 import { avatarCacheBustFromUpdatedAt, avatarFileSrc } from '@/utils/dpAvatarUrl'
 import { copySocialId as copySocialIdToClipboard } from '@/utils/dpCopySocialId'
 import { dpScheduleOverlayFullscreenReparent } from '@/utils/dpOverlayPortal'
+import { getNicknameFontClass } from '@/utils/dpNicknameFont'
 
 var HONOR_GLITCH_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%&*'
 var HONOR_SCRAMBLE_MS = 320
@@ -301,6 +305,13 @@ export default {
     displayName() {
       if (!this.target || !this.target.nickname) return ''
       return dpDisplayNickname(this.target)
+    },
+    profileNicknameFontClass() {
+      if (this.gameUiTheme !== 'retro8bit') return ''
+      var raw = (this.target && this.target.nickname && String(this.target.nickname).trim())
+        ? this.target.nickname
+        : this.displayName
+      return getNicknameFontClass(raw)
     },
     honorAvatarUrl() {
       return this.honor && this.honor.avatarUrl ? this.honor.avatarUrl : ''

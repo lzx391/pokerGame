@@ -96,7 +96,10 @@
               <span class="home-prof-avatar-frame__corner home-prof-avatar-frame__corner--br" aria-hidden="true"></span>
             </div>
             <div class="home-prof-identity__meta">
-              <h2 class="home-prof-name">{{ form.nickname || '未设置昵称' }}</h2>
+              <h2
+                class="home-prof-name"
+                :class="profileNicknameFontClass"
+              >{{ form.nickname || '未设置昵称' }}</h2>
               <p class="home-prof-id">ID: {{ form.id }}</p>
               <el-upload
                 class="home-prof-avatar-upload"
@@ -352,6 +355,7 @@ import { dpResultSuccess, dpResultData, dpResultMessage } from '@/utils/dpApiRes
 import { formatNetWinMultiplier, formatRoomNetMultiplier } from '@/utils/dpRoomNetMultiplier'
 import { avatarCacheBustFromUpdatedAt, avatarFileSrc } from '@/utils/dpAvatarUrl'
 import { dpLayerZIndex } from '@/utils/dpModalZIndex'
+import { getNicknameFontClass } from '@/utils/dpNicknameFont'
 
 var HONOR_GLITCH_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%&*'
 var HONOR_SCRAMBLE_MS = 320
@@ -445,6 +449,13 @@ export default {
     ...mapState('dpGame', ['gameUiTheme']),
     useRetroAchievementWall() {
       return this.gameUiTheme === 'retro8bit'
+    },
+    profileNicknameFontClass() {
+      if (this.gameUiTheme !== 'retro8bit') return ''
+      var raw = this.form.nickname && String(this.form.nickname).trim()
+        ? this.form.nickname
+        : '未设置昵称'
+      return getNicknameFontClass(raw)
     }
   },
   watch: {

@@ -17,6 +17,7 @@ import DpThemePicker from './components/DpThemePicker.vue'
 Vue.component('DpThemePicker', DpThemePicker)
 /* 主题变量需先于 lobby-shell（body 背景用 var(--dp-game-bg)） */
 import './styles/dp-game-themes.css'
+import './styles/dp-nickname-font.css'
 import './styles/dp-depth-tokens.css'
 /* 尽早加载：大厅 #app.app--lobby 与 .dp-game-root 布局 */
 import './styles/dp-lobby-shell.css'

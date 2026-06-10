@@ -1,0 +1,67 @@
+/**
+ * retro8bit nickname font routing (see dpNicknameFont.js).
+ * Components bind dp-nick-font--pixel | dp-nick-font--terminal on nickname nodes when theme is retro8bit.
+ */
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-nick-font--pixel,
+body[data-dp-game-theme='retro8bit'] .dp-nick-font--pixel {
+  font-family: var(--dp-font-pixel, 'Press Start 2P', monospace);
+  letter-spacing: 0.05em;
+  line-height: 1.45;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+}
+
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-nick-font--terminal,
+body[data-dp-game-theme='retro8bit'] .dp-nick-font--terminal {
+  font-family: var(--dp-font-ui, monospace);
+  letter-spacing: 0.03em;
+  line-height: 1.25;
+  text-rendering: auto;
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+}
+
+/* Profile cards: override global retro8bit h2 pixel default when nickname is CJK-only */
+.dp-game-root[data-dp-game-theme='retro8bit'] h2.home-prof-name.dp-nick-font--terminal,
+.dp-game-root[data-dp-game-theme='retro8bit'] h2.game-prof-name.dp-nick-font--terminal,
+body[data-dp-game-theme='retro8bit'] h2.home-prof-name.dp-nick-font--terminal,
+body[data-dp-game-theme='retro8bit'] h2.game-prof-name.dp-nick-font--terminal {
+  font-family: var(--dp-font-ui, monospace);
+  letter-spacing: 0.03em;
+  line-height: 1.25;
+  text-rendering: auto;
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+}
+
+/* Friends list: pixel styling only when class is present (not all primaries) */
+body[data-dp-game-theme='retro8bit'] .dp-social-sheet--retro8bit .dp-social-list__primary .dp-nick-font--pixel,
+body[data-dp-game-theme='retro8bit'] .dp-social-sheet--retro8bit .dp-social-list__primary .dp-nick-font--terminal {
+  text-shadow: 0 0 4px rgba(74, 246, 38, 0.35);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-social-sheet--retro8bit .dp-social-list__primary .dp-nick-font--pixel {
+  font-size: 10px;
+  line-height: 1.6;
+  letter-spacing: 0.04em;
+  color: var(--dp-phosphor, #72f052);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-social-sheet--retro8bit .dp-social-list__primary .dp-nick-font--terminal {
+  font-size: 13px;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+  color: var(--dp-phosphor, #72f052);
+}
+
+/* Leaderboard nick column: terminal inherits table UI stack */
+.dp-game-root[data-dp-game-theme='retro8bit'] .lb-table__nick-text.dp-nick-font--terminal {
+  font-family: var(--dp-font-ui, monospace);
+  letter-spacing: 0.02em;
+  line-height: 1.35;
+  text-rendering: auto;
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+}

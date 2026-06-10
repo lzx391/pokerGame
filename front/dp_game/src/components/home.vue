@@ -462,7 +462,7 @@
               />
               <div class="dp-social-list__text">
               <div class="dp-social-list__primary dp-social-list__primary--dm">
-                <span>{{ friendPrimaryName(f) }}</span>
+                <span :class="nicknameFontClass(f && f.nickname)">{{ friendPrimaryName(f) }}</span>
                 <span
                   v-if="friendUnreadFor(f.userId)"
                   class="dp-social-list__dm-dot"
@@ -756,6 +756,7 @@ import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
 import { dpFriendPresenceRowClass, dpFriendPresenceStatusText, dpFriendPresenceBucket } from '@/utils/dpFriendPresence'
 import { dpSocialDisplayNickname } from '@/utils/dpSocialDisplayName'
+import { getNicknameFontClass } from '@/utils/dpNicknameFont'
 import { dpResultSuccess, dpResultData, dpResultMessage, dpAxiosErrorMessage } from '@/utils/dpApiResult'
 import { dpSocialApi } from '@/api/api.dpSocial'
 import { copySocialId as copySocialIdToClipboard } from '@/utils/dpCopySocialId'
@@ -1028,6 +1029,10 @@ export default {
     },
     friendPrimaryName(f) {
       return dpSocialDisplayNickname(f && f.nickname, f && f.userId, '未知好友')
+    },
+    nicknameFontClass(nickname) {
+      if (this.gameUiTheme !== 'retro8bit') return ''
+      return getNicknameFontClass(nickname)
     },
     friendPresenceRowClass(f) {
       return dpFriendPresenceRowClass(f)

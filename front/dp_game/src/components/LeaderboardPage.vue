@@ -168,7 +168,7 @@
                       />
                       <span
                         class="lb-table__nick-text"
-                        :class="{ 'lb-table__pixel-en': retroLbFx, 'lb-table__nick-text--plain': !isPodiumRank(row.rank) }"
+                        :class="leaderboardNickFontClass(row.nickname, row.rank)"
                       >{{ displayNickname(row.nickname) }}</span>
                     </button>
                   </td>
@@ -234,6 +234,7 @@ import { dpSocialApi } from '@/api/api.dpSocial'
 import { dpResultSuccess, dpResultData, dpResultMessage, dpAxiosErrorMessage } from '@/utils/dpApiResult'
 import { avatarCacheBustFromUpdatedAt } from '@/utils/dpAvatarUrl'
 import { dpDisplayNickname, isDpBotNickname } from '@/utils/dpDisplayNickname'
+import { shouldUsePixelFont } from '@/utils/dpNicknameFont'
 
 var TAB_CACHE_MS = 30000
 var SCAN_ROW_STAGGER_MS = 48
@@ -419,6 +420,19 @@ export default {
     displayNickname(nickname) {
       var text = dpDisplayNickname(nickname)
       return text || (this.retroLbFx ? 'UNKNOWN' : '—')
+    },
+    leaderboardNickFontClass(nickname, rank) {
+      var classes = {}
+      if (!this.isPodiumRank(rank)) {
+        classes['lb-table__nick-text--plain'] = true
+      }
+      if (this.gameUiTheme !== 'retro8bit') return classes
+      if (shouldUsePixelFont(nickname)) {
+        classes['lb-table__pixel-en'] = true
+      } else {
+        classes['dp-nick-font--terminal'] = true
+      }
+      return classes
     },
     formatRankLabel(rank) {
       if (!this.retroLbFx) return rank

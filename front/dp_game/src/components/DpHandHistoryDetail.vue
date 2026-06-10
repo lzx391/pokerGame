@@ -42,7 +42,7 @@
                       v-if="startingStackBbValue != null"
                       class="dp-hd__badge dp-hd__badge--stack"
                       title="SC 带入倍数"
-                    >STACK x{{ startingStackBbValue }}BB</span>
+                    >STACK x{{ startingStackBbValue }}BC</span>
                     <button class="dp-hd__meta-close" @click="close" title="关闭">[X]</button>
                   </div>
 
