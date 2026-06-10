@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vue-cli-service serve",
     "build": "vue-cli-service build",
+    "build:electron": "node scripts/build-electron.js",
     "test:retro-reveal": "node scripts/verify-dpRetroShowdownReveal.js"
   },
   "dependencies": {
