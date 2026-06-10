@@ -17,5 +17,5 @@ public interface DpAchievementService {
 
     List<DpAchievementWallItemVO> buildWallForUser(int userId);
 
-    void unlockIfAbsent(int userId, String achievementCode);
+    void unlockIfAbsent(int userId, String achievementCode, Long handHistoryId);
 }

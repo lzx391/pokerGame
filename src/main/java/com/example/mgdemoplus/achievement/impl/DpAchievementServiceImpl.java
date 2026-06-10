@@ -33,7 +33,7 @@ public class DpAchievementServiceImpl implements DpAchievementService {
     }
 
     @Override
-    public void unlockIfAbsent(int userId, String achievementCode) {
+    public void unlockIfAbsent(int userId, String achievementCode, Long handHistoryId) {
         if (userId <= 0 || achievementCode == null || achievementCode.isBlank()) {
             return;
         }
@@ -45,7 +45,7 @@ public class DpAchievementServiceImpl implements DpAchievementService {
         if (unlocked != null && unlocked == 1) {
             return;
         }
-        dpUserAchievementMapper.tryUnlock(userId, def.getId());
+        dpUserAchievementMapper.tryUnlock(userId, def.getId(), handHistoryId);
         achievementNotifyPublisher.notifyUnlocked(userId, def);
     }
 }

@@ -10,6 +10,8 @@ public class DpAchievementWallItemVO {
     private int sortOrder;
     private boolean unlocked;
     private LocalDateTime unlockedAt;
+    /** 已解锁且首次解锁牌谱存在时非空，供成就墙「查看回放」 */
+    private Long handHistoryId;
 
     public int getId() {
         return id;
@@ -65,5 +67,13 @@ public class DpAchievementWallItemVO {
 
     public void setUnlockedAt(LocalDateTime unlockedAt) {
         this.unlockedAt = unlockedAt;
+    }
+
+    public Long getHandHistoryId() {
+        return handHistoryId;
+    }
+
+    public void setHandHistoryId(Long handHistoryId) {
+        this.handHistoryId = handHistoryId;
     }
 }

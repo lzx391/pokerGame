@@ -37,18 +37,18 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
     private DpAchievementService dpAchievementService;
 
     @Override
-    public void detect(DpSettlePersistJob job) {
+    public void detect(DpSettlePersistJob job, Long handHistoryId) {
         if (job == null || job.archived() == null) {
             return;
         }
-        detectQuadNightmare(job.archived(), job.roomSnapshotForParticipants());
-        detectTwentySevenTerminator(job.archived(), job.roomSnapshotForParticipants());
-        detectThroneUsurper(job.archived(), job.roomSnapshotForParticipants());
-        detectTableClear(job.archived(), job.roomSnapshotForParticipants());
-        detectDrawInsulator(job.archived(), job.roomSnapshotForParticipants());
-        detectNaturalDisaster(job.archived(), job.roomSnapshotForParticipants());
-        detectSoulReader(job.archived(), job.roomSnapshotForParticipants());
-        detectSweepAll(job.archived(), job.roomSnapshotForParticipants());
+        detectQuadNightmare(job.archived(), job.roomSnapshotForParticipants(), handHistoryId);
+        detectTwentySevenTerminator(job.archived(), job.roomSnapshotForParticipants(), handHistoryId);
+        detectThroneUsurper(job.archived(), job.roomSnapshotForParticipants(), handHistoryId);
+        detectTableClear(job.archived(), job.roomSnapshotForParticipants(), handHistoryId);
+        detectDrawInsulator(job.archived(), job.roomSnapshotForParticipants(), handHistoryId);
+        detectNaturalDisaster(job.archived(), job.roomSnapshotForParticipants(), handHistoryId);
+        detectSoulReader(job.archived(), job.roomSnapshotForParticipants(), handHistoryId);
+        detectSweepAll(job.archived(), job.roomSnapshotForParticipants(), handHistoryId);
     }
 
     /**
@@ -58,7 +58,8 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
     /**
      * 27终结者：6 人及以上场次，本局净赢筹码的玩家，底牌为 2 与 7 且杂色（顺序无关）。
      */
-    private void detectTwentySevenTerminator(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot) {
+    private void detectTwentySevenTerminator(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot,
+                                             Long handHistoryId) {
         Map<String, Integer> netChipsChange = archived.netChipsChange;
         Map<String, List<String>> holeCardsAtEnd = archived.holeCardsAtEnd;
         if (netChipsChange == null || netChipsChange.isEmpty()
@@ -84,7 +85,7 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
             if (userId == null || userId <= 0) {
                 continue;
             }
-            dpAchievementService.unlockIfAbsent(userId, DpAchievementService.CODE_TWENTY_SEVEN_TERMINATOR);
+            dpAchievementService.unlockIfAbsent(userId, DpAchievementService.CODE_TWENTY_SEVEN_TERMINATOR, handHistoryId);
         }
     }
 
@@ -115,7 +116,7 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
         return suitOfTwo != null && suitOfSeven != null && !suitOfTwo.equals(suitOfSeven);
     }
 
-    private void detectQuadNightmare(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot) {
+    private void detectQuadNightmare(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot, Long handHistoryId) {
         Map<String, List<String>> holeCardsAtEnd = archived.holeCardsAtEnd;
         if (holeCardsAtEnd == null || holeCardsAtEnd.isEmpty()) {
             return;
@@ -165,7 +166,7 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
             if (userId == null || userId <= 0) {
                 continue;
             }
-            dpAchievementService.unlockIfAbsent(userId, DpAchievementService.CODE_QUAD_NIGHTMARE);
+            dpAchievementService.unlockIfAbsent(userId, DpAchievementService.CODE_QUAD_NIGHTMARE, handHistoryId);
         }
     }
 
@@ -216,7 +217,7 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
     /**
      * 王座更迭：摊牌赢家以火箭（straight flush，含皇家）击败另一名摊牌火箭对手。仅真人玩家。
      */
-    private void detectThroneUsurper(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot) {
+    private void detectThroneUsurper(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot, Long handHistoryId) {
         Map<String, Integer> netChipsChange = archived.netChipsChange;
         Map<String, List<String>> holeCardsAtEnd = archived.holeCardsAtEnd;
         if (netChipsChange == null || netChipsChange.isEmpty()
@@ -278,14 +279,14 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
             if (userId == null || userId <= 0) {
                 continue;
             }
-            dpAchievementService.unlockIfAbsent(userId, DpAchievementService.CODE_THRONE_USURPER);
+            dpAchievementService.unlockIfAbsent(userId, DpAchievementService.CODE_THRONE_USURPER, handHistoryId);
         }
     }
 
     /**
      * 牌桌消消乐：6 人及以上场次，净赢且本手无摊牌（所有对手均已弃牌）。仅真人。
      */
-    private void detectTableClear(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot) {
+    private void detectTableClear(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot, Long handHistoryId) {
         Map<String, Integer> netChipsChange = archived.netChipsChange;
         if (netChipsChange == null || netChipsChange.size() < 2) {
             return;
@@ -311,14 +312,14 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
             if (!allOpponentsFolded(hero, netChipsChange, folded, holeCardsAtEnd)) {
                 continue;
             }
-            dpAchievementService.unlockIfAbsent(userId, DpAchievementService.CODE_TABLE_CLEAR);
+            dpAchievementService.unlockIfAbsent(userId, DpAchievementService.CODE_TABLE_CLEAR, handHistoryId);
         }
     }
 
     /**
      * 听牌绝缘体：翻牌或转牌曾花顺双抽，河牌未成顺/同花或更强。不要求赢牌。仅真人。
      */
-    private void detectDrawInsulator(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot) {
+    private void detectDrawInsulator(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot, Long handHistoryId) {
         Map<String, List<String>> holeCardsAtEnd = archived.holeCardsAtEnd;
         if (holeCardsAtEnd == null || holeCardsAtEnd.isEmpty()) {
             return;
@@ -351,7 +352,7 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
             if (riverHs == null || riverHs.rankCategory >= 5) {
                 continue;
             }
-            dpAchievementService.unlockIfAbsent(userId, DpAchievementService.CODE_DRAW_INSULATOR);
+            dpAchievementService.unlockIfAbsent(userId, DpAchievementService.CODE_DRAW_INSULATOR, handHistoryId);
         }
     }
 
@@ -359,7 +360,7 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
      * 天灾：翻牌后受害者两对及以上领先，对手翻后仅高牌；转、河连续两张补齐成顺/成花或更强并最终反超。
      * 受害者（摊牌输家）解锁。仅真人。
      */
-    private void detectNaturalDisaster(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot) {
+    private void detectNaturalDisaster(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot, Long handHistoryId) {
         Map<String, Integer> netChipsChange = archived.netChipsChange;
         Map<String, List<String>> holeCardsAtEnd = archived.holeCardsAtEnd;
         if (netChipsChange == null || holeCardsAtEnd == null) {
@@ -428,7 +429,7 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
                 break;
             }
             if (disaster) {
-                dpAchievementService.unlockIfAbsent(userId, DpAchievementService.CODE_NATURAL_DISASTER);
+                dpAchievementService.unlockIfAbsent(userId, DpAchievementService.CODE_NATURAL_DISASTER, handHistoryId);
             }
         }
     }
@@ -467,7 +468,7 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
     /**
      * 横扫一切：至少两名摊牌参与者；赢家净赢筹码 &gt; 0；其余<strong>摊牌参与者</strong>终局筹码均为 0（不含已弃牌者）。
      */
-    private void detectSweepAll(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot) {
+    private void detectSweepAll(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot, Long handHistoryId) {
         Map<String, Integer> netChipsChange = archived.netChipsChange;
         Map<String, List<String>> holeCardsAtEnd = archived.holeCardsAtEnd;
         if (netChipsChange == null || netChipsChange.isEmpty()
@@ -503,7 +504,7 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
             if (!allOtherShowdownOpponentsBusted(hero, showdownParticipants, archived)) {
                 continue;
             }
-            dpAchievementService.unlockIfAbsent(userId, DpAchievementService.CODE_SWEEP_ALL);
+            dpAchievementService.unlockIfAbsent(userId, DpAchievementService.CODE_SWEEP_ALL, handHistoryId);
         }
     }
 
@@ -541,7 +542,7 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
     /**
      * 灵魂阅读者：本手净赢家且摊牌最强，成牌为高牌或底对，击败转/河有进攻动作的诈唬对手。仅真人。
      */
-    private void detectSoulReader(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot) {
+    private void detectSoulReader(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot, Long handHistoryId) {
         Map<String, Integer> netChipsChange = archived.netChipsChange;
         Map<String, List<String>> holeCardsAtEnd = archived.holeCardsAtEnd;
         if (netChipsChange == null || holeCardsAtEnd == null) {
@@ -602,7 +603,7 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
                 }
             }
             if (beatsAllShowdownOpponents && sawAggressiveBluffer) {
-                dpAchievementService.unlockIfAbsent(userId, DpAchievementService.CODE_SOUL_READER);
+                dpAchievementService.unlockIfAbsent(userId, DpAchievementService.CODE_SOUL_READER, handHistoryId);
             }
         }
     }

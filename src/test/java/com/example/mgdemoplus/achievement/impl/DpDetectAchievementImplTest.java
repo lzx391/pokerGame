@@ -19,6 +19,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -31,6 +35,7 @@ class DpDetectAchievementImplTest {
     private static final String WINNER_NICK = "hero";
     private static final String VILLAIN_NICK = "villain";
     private static final String THIRD_NICK = "third";
+    private static final Long HAND_HISTORY_ID = 100L;
 
     private DpAchievementService achievementService;
     private DpDetectAchievementImpl detector;
@@ -51,9 +56,10 @@ class DpDetectAchievementImplTest {
                 Map.of(WINNER_NICK, List.of("hearts_2", "spades_7")),
                 Map.of(WINNER_NICK, 120, VILLAIN_NICK, -120),
                 seats(6, WINNER_NICK, VILLAIN_NICK),
-                roomWithHuman(WINNER_NICK, WINNER_UID)));
+                roomWithHuman(WINNER_NICK, WINNER_UID)), HAND_HISTORY_ID);
 
-        verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_TWENTY_SEVEN_TERMINATOR);
+        verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_TWENTY_SEVEN_TERMINATOR,
+                HAND_HISTORY_ID);
     }
 
     @Test
@@ -63,9 +69,10 @@ class DpDetectAchievementImplTest {
                 Map.of(WINNER_NICK, List.of("clubs_7", "diamonds_2")),
                 Map.of(WINNER_NICK, 50),
                 seats(6, WINNER_NICK),
-                roomWithHuman(WINNER_NICK, WINNER_UID)));
+                roomWithHuman(WINNER_NICK, WINNER_UID)), HAND_HISTORY_ID);
 
-        verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_TWENTY_SEVEN_TERMINATOR);
+        verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_TWENTY_SEVEN_TERMINATOR,
+                HAND_HISTORY_ID);
     }
 
     @Test
@@ -75,9 +82,10 @@ class DpDetectAchievementImplTest {
                 Map.of(WINNER_NICK, List.of("hearts_2", "spades_7")),
                 Map.of(WINNER_NICK, 120, VILLAIN_NICK, -120),
                 seats(2, WINNER_NICK, VILLAIN_NICK),
-                roomWithHuman(WINNER_NICK, WINNER_UID)));
+                roomWithHuman(WINNER_NICK, WINNER_UID)), HAND_HISTORY_ID);
 
-        verify(achievementService, never()).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_TWENTY_SEVEN_TERMINATOR);
+        verify(achievementService, never()).unlockIfAbsent(eq(WINNER_UID),
+                eq(DpAchievementService.CODE_TWENTY_SEVEN_TERMINATOR), any());
     }
 
     @Test
@@ -87,9 +95,10 @@ class DpDetectAchievementImplTest {
                 Map.of(WINNER_NICK, List.of("hearts_2", "hearts_7")),
                 Map.of(WINNER_NICK, 50),
                 seats(6, WINNER_NICK),
-                roomWithHuman(WINNER_NICK, WINNER_UID)));
+                roomWithHuman(WINNER_NICK, WINNER_UID)), HAND_HISTORY_ID);
 
-        verify(achievementService, never()).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_TWENTY_SEVEN_TERMINATOR);
+        verify(achievementService, never()).unlockIfAbsent(eq(WINNER_UID),
+                eq(DpAchievementService.CODE_TWENTY_SEVEN_TERMINATOR), any());
     }
 
     @Test
@@ -99,17 +108,19 @@ class DpDetectAchievementImplTest {
                 Map.of(WINNER_NICK, List.of("hearts_2", "spades_7")),
                 Map.of(WINNER_NICK, 0, VILLAIN_NICK, 0),
                 seats(6, WINNER_NICK, VILLAIN_NICK),
-                roomWithHuman(WINNER_NICK, WINNER_UID)));
+                roomWithHuman(WINNER_NICK, WINNER_UID)), HAND_HISTORY_ID);
 
-        verify(achievementService, never()).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_TWENTY_SEVEN_TERMINATOR);
+        verify(achievementService, never()).unlockIfAbsent(eq(WINNER_UID),
+                eq(DpAchievementService.CODE_TWENTY_SEVEN_TERMINATOR), any());
 
         detector.detect(job(
                 Map.of(WINNER_NICK, List.of("hearts_2", "spades_7")),
                 Map.of(WINNER_NICK, -80, VILLAIN_NICK, 80),
                 seats(6, WINNER_NICK, VILLAIN_NICK),
-                roomWithHuman(WINNER_NICK, WINNER_UID)));
+                roomWithHuman(WINNER_NICK, WINNER_UID)), HAND_HISTORY_ID);
 
-        verify(achievementService, never()).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_TWENTY_SEVEN_TERMINATOR);
+        verify(achievementService, never()).unlockIfAbsent(eq(WINNER_UID),
+                eq(DpAchievementService.CODE_TWENTY_SEVEN_TERMINATOR), any());
     }
 
     @Test
@@ -123,9 +134,10 @@ class DpDetectAchievementImplTest {
                 List.of(),
                 board,
                 List.of(),
-                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)));
+                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)), HAND_HISTORY_ID);
 
-        verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_THRONE_USURPER);
+        verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_THRONE_USURPER,
+                HAND_HISTORY_ID);
     }
 
     @Test
@@ -139,9 +151,9 @@ class DpDetectAchievementImplTest {
                 List.of(),
                 board,
                 List.of(),
-                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)));
+                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)), HAND_HISTORY_ID);
 
-        verify(achievementService, never()).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_THRONE_USURPER);
+        verify(achievementService, never()).unlockIfAbsent(anyInt(), anyString(), any());
     }
 
     @Test
@@ -167,9 +179,10 @@ class DpDetectAchievementImplTest {
                 seats(6, WINNER_NICK),
                 List.of(),
                 actions,
-                roomWithHuman(WINNER_NICK, WINNER_UID)));
+                roomWithHuman(WINNER_NICK, WINNER_UID)), HAND_HISTORY_ID);
 
-        verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_TABLE_CLEAR);
+        verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_TABLE_CLEAR,
+                HAND_HISTORY_ID);
     }
 
     @Test
@@ -184,9 +197,9 @@ class DpDetectAchievementImplTest {
                 seats(2, WINNER_NICK, VILLAIN_NICK),
                 List.of(),
                 actions,
-                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)));
+                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)), HAND_HISTORY_ID);
 
-        verify(achievementService, never()).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_TABLE_CLEAR);
+        verify(achievementService, never()).unlockIfAbsent(anyInt(), anyString(), any());
     }
 
     @Test
@@ -200,9 +213,9 @@ class DpDetectAchievementImplTest {
                 seats(6, WINNER_NICK, VILLAIN_NICK),
                 board,
                 List.of(),
-                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)));
+                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)), HAND_HISTORY_ID);
 
-        verify(achievementService, never()).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_TABLE_CLEAR);
+        verify(achievementService, never()).unlockIfAbsent(anyInt(), anyString(), any());
     }
 
     @Test
@@ -215,9 +228,10 @@ class DpDetectAchievementImplTest {
                 List.of(),
                 board,
                 List.of(),
-                roomWithHuman(WINNER_NICK, WINNER_UID)));
+                roomWithHuman(WINNER_NICK, WINNER_UID)), HAND_HISTORY_ID);
 
-        verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_DRAW_INSULATOR);
+        verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_DRAW_INSULATOR,
+                HAND_HISTORY_ID);
     }
 
     @Test
@@ -230,9 +244,9 @@ class DpDetectAchievementImplTest {
                 List.of(),
                 board,
                 List.of(),
-                roomWithHuman(WINNER_NICK, WINNER_UID)));
+                roomWithHuman(WINNER_NICK, WINNER_UID)), HAND_HISTORY_ID);
 
-        verify(achievementService, never()).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_DRAW_INSULATOR);
+        verify(achievementService, never()).unlockIfAbsent(anyInt(), anyString(), any());
     }
 
     @Test
@@ -246,9 +260,10 @@ class DpDetectAchievementImplTest {
                 List.of(),
                 board,
                 List.of(),
-                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)));
+                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)), HAND_HISTORY_ID);
 
-        verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_NATURAL_DISASTER);
+        verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_NATURAL_DISASTER,
+                HAND_HISTORY_ID);
     }
 
     @Test
@@ -262,9 +277,9 @@ class DpDetectAchievementImplTest {
                 List.of(),
                 board,
                 List.of(),
-                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)));
+                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)), HAND_HISTORY_ID);
 
-        verify(achievementService, never()).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_NATURAL_DISASTER);
+        verify(achievementService, never()).unlockIfAbsent(anyInt(), anyString(), any());
     }
 
     @Test
@@ -278,9 +293,9 @@ class DpDetectAchievementImplTest {
                 List.of(),
                 board,
                 List.of(),
-                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)));
+                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)), HAND_HISTORY_ID);
 
-        verify(achievementService, never()).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_NATURAL_DISASTER);
+        verify(achievementService, never()).unlockIfAbsent(anyInt(), anyString(), any());
     }
 
     @Test
@@ -296,9 +311,10 @@ class DpDetectAchievementImplTest {
                 List.of(),
                 board,
                 actions,
-                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)));
+                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)), HAND_HISTORY_ID);
 
-        verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_SOUL_READER);
+        verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_SOUL_READER,
+                HAND_HISTORY_ID);
     }
 
     @Test
@@ -315,9 +331,10 @@ class DpDetectAchievementImplTest {
                 List.of(),
                 board,
                 actions,
-                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID, THIRD_NICK, THIRD_UID)));
+                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID, THIRD_NICK, THIRD_UID)),
+                HAND_HISTORY_ID);
 
-        verify(achievementService, never()).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_SOUL_READER);
+        verify(achievementService, never()).unlockIfAbsent(anyInt(), anyString(), any());
     }
 
     @Test
@@ -333,9 +350,9 @@ class DpDetectAchievementImplTest {
                 List.of(),
                 board,
                 actions,
-                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)));
+                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)), HAND_HISTORY_ID);
 
-        verify(achievementService, never()).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_SOUL_READER);
+        verify(achievementService, never()).unlockIfAbsent(anyInt(), anyString(), any());
     }
 
     @Test
@@ -351,9 +368,10 @@ class DpDetectAchievementImplTest {
                 List.of(),
                 board,
                 List.of(),
-                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)));
+                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)), HAND_HISTORY_ID);
 
-        verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_SWEEP_ALL);
+        verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_SWEEP_ALL,
+                HAND_HISTORY_ID);
     }
 
     @Test
@@ -369,9 +387,9 @@ class DpDetectAchievementImplTest {
                 List.of(),
                 board,
                 List.of(),
-                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)));
+                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)), HAND_HISTORY_ID);
 
-        verify(achievementService, never()).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_SWEEP_ALL);
+        verify(achievementService, never()).unlockIfAbsent(anyInt(), anyString(), any());
     }
 
     @Test
@@ -393,9 +411,11 @@ class DpDetectAchievementImplTest {
                 List.of(),
                 board,
                 actions,
-                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID, THIRD_NICK, THIRD_UID)));
+                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID, THIRD_NICK, THIRD_UID)),
+                HAND_HISTORY_ID);
 
-        verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_SWEEP_ALL);
+        verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_SWEEP_ALL,
+                HAND_HISTORY_ID);
     }
 
     @Test
@@ -411,9 +431,10 @@ class DpDetectAchievementImplTest {
                 Map.of("BOT_FISH_1", List.of("hearts_2", "spades_7")),
                 Map.of("BOT_FISH_1", 200),
                 seats(6, "BOT_FISH_1"),
-                room));
+                room), HAND_HISTORY_ID);
 
-        verify(achievementService, never()).unlockIfAbsent(999, DpAchievementService.CODE_TWENTY_SEVEN_TERMINATOR);
+        verify(achievementService, never()).unlockIfAbsent(eq(999),
+                eq(DpAchievementService.CODE_TWENTY_SEVEN_TERMINATOR), any());
     }
 
     private static DpSettlePersistJob job(Map<String, List<String>> holes,

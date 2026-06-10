@@ -15,10 +15,14 @@ public interface DpUserAchievementMapper {
     /**
      * 首次解锁：已解锁(1)时不重复写 unlocked_at。
      */
-    @Insert("INSERT INTO dp_user_achievement (user_id, achievement_id, unlocked, unlocked_at) "
-            + "VALUES (#{userId}, #{achievementId}, 1, NOW()) "
+    @Insert("INSERT INTO dp_user_achievement (user_id, achievement_id, unlocked, unlocked_at, hand_history_id) "
+            + "VALUES (#{userId}, #{achievementId}, 1, NOW(), #{handHistoryId}) "
             + "ON DUPLICATE KEY UPDATE "
             + "unlocked = IF(dp_user_achievement.unlocked = 0, 1, dp_user_achievement.unlocked), "
-            + "unlocked_at = IF(dp_user_achievement.unlocked = 0, NOW(), dp_user_achievement.unlocked_at)")
-    int tryUnlock(@Param("userId") int userId, @Param("achievementId") int achievementId);
+            + "unlocked_at = IF(dp_user_achievement.unlocked = 0, NOW(), dp_user_achievement.unlocked_at), "
+            + "hand_history_id = IF(dp_user_achievement.unlocked = 0 AND #{handHistoryId} IS NOT NULL, "
+            + "#{handHistoryId}, dp_user_achievement.hand_history_id)")
+    int tryUnlock(@Param("userId") int userId,
+                  @Param("achievementId") int achievementId,
+                  @Param("handHistoryId") Long handHistoryId);
 }

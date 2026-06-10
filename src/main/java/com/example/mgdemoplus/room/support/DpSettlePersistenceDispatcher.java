@@ -105,10 +105,9 @@ public class DpSettlePersistenceDispatcher {
  */
     private boolean persistOnce(DpSettlePersistJob job, boolean fromAsyncWorker) {
         try {
-            //检测成就
-            dpDetectAchievement.detect(job);
-            //持久化牌谱
-            observedHandPersistService.save(job.archived(), job.roomSnapshotForParticipants());
+            Long handHistoryId = observedHandPersistService.save(
+                    job.archived(), job.roomSnapshotForParticipants());
+            dpDetectAchievement.detect(job, handHistoryId);
             //更新牌力荣誉
             applyStatsIncrements(job.statsIncrements());
             //更新连赢记录

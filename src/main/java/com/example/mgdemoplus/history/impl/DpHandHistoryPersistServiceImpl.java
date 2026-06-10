@@ -73,9 +73,9 @@ public class DpHandHistoryPersistServiceImpl implements DpHandHistoryPersistServ
      * @param room 结算当刻的房间（用于参与者与 dp_user 关联）；可为 null 则只写牌谱主表。
      */
     @Override
-    public void save(DpObservedHandRecordBO rec, DpRoomBO room) {
+    public Long save(DpObservedHandRecordBO rec, DpRoomBO room) {
         if (rec == null) {
-            return;
+            return null;
         }
         try {
             //将DpNpcSharkObservedHandHistory.ObservedHandRecord转换为Payload对象
@@ -101,9 +101,11 @@ public class DpHandHistoryPersistServiceImpl implements DpHandHistoryPersistServ
             if (handId != null && room != null) {
                 insertParticipants(rec, handId, room);
             }
+            return handId;
         } catch (Exception e) {
             log.warn("dp_observed_hand_history insert failed roomId={} handSeed={}: {}",
                     rec.roomId, rec.handSeed, e.getMessage());
+            return null;
         }
     }
 
