@@ -24,7 +24,7 @@
 import { mapState } from 'vuex'
 import DpAchievementToast from '@/components/DpAchievementToast.vue'
 import { dpGetOverlayPortalRoot } from '@/utils/dpOverlayPortal'
-import { registerDpFullscreenOverlayReparent } from '@/utils/dpFullscreenOverlayBridge'
+import { registerDpFullscreenOverlayReparent, unregisterDpFullscreenOverlayReparent } from '@/utils/dpFullscreenOverlayBridge'
 
 var DISMISS_MS = 4200
 var LEAVE_MS = 420
@@ -56,14 +56,16 @@ export default {
     }
   },
   mounted: function () {
+    this._fsReparent = this.reparentHost.bind(this)
     this.reparentHost()
-    registerDpFullscreenOverlayReparent(this.reparentHost)
+    registerDpFullscreenOverlayReparent(this._fsReparent)
     this._onFsChange = this.reparentHost.bind(this)
     document.addEventListener('fullscreenchange', this._onFsChange)
     document.addEventListener('webkitfullscreenchange', this._onFsChange)
   },
   beforeDestroy: function () {
-    registerDpFullscreenOverlayReparent(null)
+    unregisterDpFullscreenOverlayReparent(this._fsReparent)
+    this._fsReparent = null
     if (this._onFsChange) {
       document.removeEventListener('fullscreenchange', this._onFsChange)
       document.removeEventListener('webkitfullscreenchange', this._onFsChange)

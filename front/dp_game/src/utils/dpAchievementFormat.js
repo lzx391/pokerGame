@@ -25,3 +25,14 @@ export function displayAchievementUnlockedAt(raw) {
   var formatted = formatAchievementUnlockedAt(raw)
   return formatted || '\u2014'
 }
+
+/**
+ * 成就墙「查看回放」：仅已解锁且 API 返回 handHistoryId 时展示。
+ * @param {{ unlocked?: boolean, handHistoryId?: string|number|null }|null|undefined} item
+ * @returns {boolean}
+ */
+export function canShowAchievementReplay(item) {
+  if (!item || !item.unlocked) return false
+  var id = item.handHistoryId
+  return id != null && id !== ''
+}

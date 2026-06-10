@@ -56,6 +56,14 @@
         <p v-if="item.unlocked" class="dp-ach-wall-card__time">
           解锁于 {{ displayUnlockedAt(item.unlockedAt) }}
         </p>
+        <button
+          v-if="canShowReplay(item)"
+          type="button"
+          class="dp-ach-wall-card__replay"
+          @click.stop="openHandHistoryReplay(item.handHistoryId)"
+        >
+          查看回放
+        </button>
       </li>
     </ul>
 
@@ -78,7 +86,7 @@ import {
   dpScheduleOverlayFullscreenReparent,
   dpSyncDialogPairedVModal
 } from '@/utils/dpOverlayPortal'
-import { displayAchievementUnlockedAt } from '@/utils/dpAchievementFormat'
+import { displayAchievementUnlockedAt, canShowAchievementReplay } from '@/utils/dpAchievementFormat'
 
 export default {
   name: 'DpAchievementWallModal',
@@ -196,6 +204,18 @@ export default {
     },
     displayUnlockedAt(raw) {
       return displayAchievementUnlockedAt(raw)
+    },
+    canShowReplay(item) {
+      return canShowAchievementReplay(item)
+    },
+    openHandHistoryReplay(handHistoryId) {
+      if (handHistoryId == null || handHistoryId === '') return
+      if (this.dpGameView && typeof this.dpGameView.openHandHistoryDetail === 'function') {
+        this.dpGameView.openHandHistoryDetail(handHistoryId)
+        dpScheduleOverlayFullscreenReparent(this.dpGameView)
+        return
+      }
+      this.$router.push('/hand-history/detail/' + encodeURIComponent(String(handHistoryId)))
     },
     async loadAchievements() {
       this.loading = true
@@ -336,6 +356,21 @@ export default {
   font-size: 12px;
   color: rgba(212, 175, 55, 0.85);
   font-variant-numeric: tabular-nums;
+}
+.dp-ach-wall-card__replay {
+  margin-top: 10px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  background: rgba(212, 175, 55, 0.1);
+  color: var(--dp-accent-gold, #d4af37);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.dp-ach-wall-card__replay:hover {
+  background: rgba(212, 175, 55, 0.18);
+  border-color: rgba(212, 175, 55, 0.55);
 }
 .dp-ach-wall-footer {
   display: flex;

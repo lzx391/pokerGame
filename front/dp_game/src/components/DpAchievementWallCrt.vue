@@ -85,6 +85,17 @@
                         <span class="dp-awc__detail-key">DATE:</span>
                         <span class="dp-awc__detail-val dp-awc__detail-val--date">{{ displayUnlockedAt(selectedItem.unlockedAt) }}</span>
                       </div>
+                      <div v-if="canShowReplay(selectedItem)" class="dp-awc__detail-replay">
+                        <button
+                          type="button"
+                          class="dp-awc__replay-btn"
+                          @click.stop="openHandHistoryReplay(selectedItem.handHistoryId)"
+                        >
+                          <span class="dp-awc__replay-btn-icon" aria-hidden="true">▶</span>
+                          <span class="dp-awc__replay-btn-label">REPLAY TAPE</span>
+                          <span class="dp-awc__replay-btn-slot" aria-hidden="true">[REC]</span>
+                        </button>
+                      </div>
                       <div v-else-if="!selectedItem.unlocked" class="dp-awc__detail-hint">[ CLASSIFIED — COMPLETE OBJECTIVE TO DECRYPT ]</div>
                     </template>
                     <div v-else class="dp-awc__detail-empty">SELECT A TROPHY</div>
@@ -94,6 +105,7 @@
                 <div v-if="!loading && items.length" class="dp-awc__footer">
                   <span>W/S nav</span>
                   <span>Enter select</span>
+                  <span v-if="canShowReplay(selectedItem)">R replay</span>
                   <span>Esc close</span>
                 </div>
               </div>
@@ -124,9 +136,9 @@ import {
   dpRestoreOverlayFromPortal,
   dpScheduleOverlayFullscreenReparent
 } from '@/utils/dpOverlayPortal'
-import { registerDpFullscreenOverlayReparent } from '@/utils/dpFullscreenOverlayBridge'
+import { registerDpFullscreenOverlayReparent, unregisterDpFullscreenOverlayReparent } from '@/utils/dpFullscreenOverlayBridge'
 import { shouldSkipRetroEnterEffects } from '@/utils/dpRetroEnterGameHandoff'
-import { displayAchievementUnlockedAt } from '@/utils/dpAchievementFormat'
+import { displayAchievementUnlockedAt, canShowAchievementReplay } from '@/utils/dpAchievementFormat'
 
 export default {
   name: 'DpAchievementWallCrt',
@@ -226,8 +238,9 @@ export default {
   },
   mounted: function () {
     this.syncMotionPrefs()
+    this._fsReparent = this.reparentRoot.bind(this)
     this.reparentRoot()
-    registerDpFullscreenOverlayReparent(this.reparentRoot)
+    registerDpFullscreenOverlayReparent(this._fsReparent)
     this._onFsChange = this.reparentRoot.bind(this)
     document.addEventListener('fullscreenchange', this._onFsChange)
     document.addEventListener('webkitfullscreenchange', this._onFsChange)
@@ -236,7 +249,8 @@ export default {
     if (this.visible) this.startOpen()
   },
   beforeDestroy: function () {
-    registerDpFullscreenOverlayReparent(null)
+    unregisterDpFullscreenOverlayReparent(this._fsReparent)
+    this._fsReparent = null
     this.clearTimers()
     this.detachKeyListener()
     this.detachPortal()
@@ -357,6 +371,11 @@ export default {
         this.startTypewriter()
         return true
       }
+      if ((e.key === 'r' || e.key === 'R') && this.canShowReplay(this.selectedItem)) {
+        e.preventDefault()
+        this.openHandHistoryReplay(this.selectedItem.handHistoryId)
+        return true
+      }
       return false
     },
     scrollCursorIntoView: function () {
@@ -397,6 +416,18 @@ export default {
     },
     displayUnlockedAt: function (raw) {
       return displayAchievementUnlockedAt(raw)
+    },
+    canShowReplay: function (item) {
+      return canShowAchievementReplay(item)
+    },
+    openHandHistoryReplay: function (handHistoryId) {
+      if (handHistoryId == null || handHistoryId === '') return
+      if (this.dpGameView && typeof this.dpGameView.openHandHistoryDetail === 'function') {
+        this.dpGameView.openHandHistoryDetail(handHistoryId)
+        dpScheduleOverlayFullscreenReparent(this.dpGameView)
+        return
+      }
+      this.$router.push('/hand-history/detail/' + encodeURIComponent(String(handHistoryId)))
     },
     loadAchievements: async function () {
       this.loading = true
@@ -761,6 +792,71 @@ export default {
   font-size: 10px;
   color: rgba(74, 246, 38, 0.35);
   letter-spacing: 0.03em;
+}
+
+.dp-awc__detail-replay {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(240, 160, 64, 0.18);
+}
+
+.dp-awc__replay-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 2px solid rgba(74, 246, 38, 0.45);
+  border-radius: 0;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(8, 12, 8, 0.95) 0 3px,
+      rgba(12, 18, 10, 0.95) 3px 6px
+    );
+  box-shadow:
+    inset 0 0 0 1px rgba(74, 246, 38, 0.12),
+    0 0 8px rgba(74, 246, 38, 0.08);
+  color: #4af626;
+  font-family: 'Press Start 2P', 'Courier New', ui-monospace, monospace;
+  font-size: 8px;
+  line-height: 1.4;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  text-shadow: 0 0 4px rgba(74, 246, 38, 0.35);
+  transition: background 0.08s, border-color 0.08s, color 0.08s, box-shadow 0.08s;
+}
+.dp-awc__replay-btn:hover {
+  border-color: #72f052;
+  background: rgba(74, 246, 38, 0.12);
+  color: #72f052;
+  box-shadow:
+    inset 0 0 0 1px rgba(114, 240, 82, 0.25),
+    0 0 12px rgba(74, 246, 38, 0.22);
+}
+.dp-awc__replay-btn:active {
+  transform: translateY(1px);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+.dp-awc__replay-btn-icon {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: #ffff88;
+  text-shadow: 0 0 6px rgba(255, 255, 136, 0.45);
+}
+.dp-awc__replay-btn-label {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+.dp-awc__replay-btn-slot {
+  flex-shrink: 0;
+  padding: 2px 5px;
+  border: 1px solid rgba(240, 160, 64, 0.45);
+  background: rgba(240, 160, 64, 0.08);
+  color: rgba(240, 160, 64, 0.85);
+  font-size: 7px;
+  letter-spacing: 0.08em;
 }
 
 .dp-awc__detail-empty {
