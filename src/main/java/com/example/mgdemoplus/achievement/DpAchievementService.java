@@ -14,6 +14,9 @@ public interface DpAchievementService {
     String CODE_NATURAL_DISASTER = "natural_disaster";
     String CODE_SOUL_READER = "soul_reader";
     String CODE_SWEEP_ALL = "sweep_all";
+    String CODE_ONE_STREET_HEAVEN = "one_street_heaven";
+    String CODE_FINAL_ORACLE = "final_oracle";
+    String CODE_MIRROR_DUEL = "mirror_duel";
 
     List<DpAchievementWallItemVO> buildWallForUser(int userId);
 

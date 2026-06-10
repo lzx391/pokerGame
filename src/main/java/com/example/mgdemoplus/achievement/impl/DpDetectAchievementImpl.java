@@ -49,6 +49,9 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
         detectNaturalDisaster(job.archived(), job.roomSnapshotForParticipants(), handHistoryId);
         detectSoulReader(job.archived(), job.roomSnapshotForParticipants(), handHistoryId);
         detectSweepAll(job.archived(), job.roomSnapshotForParticipants(), handHistoryId);
+        detectOneStreetHeaven(job.archived(), job.roomSnapshotForParticipants(), handHistoryId);
+        detectFinalOracle(job.archived(), job.roomSnapshotForParticipants(), handHistoryId);
+        detectMirrorDuel(job.archived(), job.roomSnapshotForParticipants(), handHistoryId);
     }
 
     /**
@@ -806,6 +809,317 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
             return List.copyOf(finalBoard.subList(0, cardCount));
         }
         return finalBoard;
+    }
+
+    /**
+     * 一街天堂：受害者（摊牌输家）翻后严格领先，转牌仍不输，河牌被单张反超。仅真人。
+     */
+    private void detectOneStreetHeaven(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot, Long handHistoryId) {
+        Map<String, Integer> netChipsChange = archived.netChipsChange;
+        Map<String, List<String>> holeCardsAtEnd = archived.holeCardsAtEnd;
+        if (netChipsChange == null || holeCardsAtEnd == null) {
+            return;
+        }
+
+        List<String> flop = resolveCommunityUpTo(archived.boardsByStreet, 3);
+        List<String> turn = resolveCommunityUpTo(archived.boardsByStreet, 4);
+        List<String> river = resolveFinalCommunity(archived.boardsByStreet);
+        if (flop.size() < 3 || turn.size() < 4 || river.size() < 5) {
+            return;
+        }
+
+        Set<String> folded = collectFoldedNicknames(archived.actions);
+        Map<String, Integer> nicknameToUserId = buildNicknameToUserId(roomSnapshot);
+
+        for (Map.Entry<String, Integer> entry : netChipsChange.entrySet()) {
+            String hero = entry.getKey();
+            Integer heroNet = entry.getValue();
+            if (hero == null || hero.isEmpty() || heroNet == null || heroNet >= 0) {
+                continue;
+            }
+            List<String> heroHole = holeCardsAtEnd.get(hero);
+            if (!isShowdownParticipant(hero, heroHole, folded)) {
+                continue;
+            }
+            Integer userId = nicknameToUserId.get(hero);
+            if (userId == null || userId <= 0) {
+                continue;
+            }
+
+            DpUtilHandEvaluator.HandStrength heroFlop = evalHand(heroHole, flop);
+            DpUtilHandEvaluator.HandStrength heroTurn = evalHand(heroHole, turn);
+            DpUtilHandEvaluator.HandStrength heroRiver = evalHand(heroHole, river);
+            if (heroFlop == null || heroTurn == null || heroRiver == null) {
+                continue;
+            }
+            if (!isStrictlyStrongestAmongShowdown(hero, heroFlop, holeCardsAtEnd, folded, flop)) {
+                continue;
+            }
+            if (!stillLeadingOrTiedAtTurn(hero, heroTurn, holeCardsAtEnd, folded, turn)) {
+                continue;
+            }
+            if (!riverSingleCardOvertake(hero, heroTurn, heroRiver, holeCardsAtEnd, folded, turn, river)) {
+                continue;
+            }
+            dpAchievementService.unlockIfAbsent(userId, DpAchievementService.CODE_ONE_STREET_HEAVEN, handHistoryId);
+        }
+    }
+
+    /**
+     * 决赛神谕：净赢摊牌赢家，转牌弱于至少一名摊牌对手，终局最强赢池。仅真人。
+     */
+    private void detectFinalOracle(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot, Long handHistoryId) {
+        Map<String, Integer> netChipsChange = archived.netChipsChange;
+        Map<String, List<String>> holeCardsAtEnd = archived.holeCardsAtEnd;
+        if (netChipsChange == null || holeCardsAtEnd == null) {
+            return;
+        }
+
+        List<String> turn = resolveCommunityUpTo(archived.boardsByStreet, 4);
+        List<String> river = resolveFinalCommunity(archived.boardsByStreet);
+        if (turn.size() < 4 || river.size() < 5) {
+            return;
+        }
+
+        Set<String> folded = collectFoldedNicknames(archived.actions);
+        Map<String, Integer> nicknameToUserId = buildNicknameToUserId(roomSnapshot);
+
+        for (Map.Entry<String, Integer> entry : netChipsChange.entrySet()) {
+            String hero = entry.getKey();
+            Integer net = entry.getValue();
+            if (hero == null || hero.isEmpty() || net == null || net <= 0) {
+                continue;
+            }
+            List<String> heroHole = holeCardsAtEnd.get(hero);
+            if (!isShowdownParticipant(hero, heroHole, folded)) {
+                continue;
+            }
+            Integer userId = nicknameToUserId.get(hero);
+            if (userId == null || userId <= 0) {
+                continue;
+            }
+
+            DpUtilHandEvaluator.HandStrength heroTurn = evalHand(heroHole, turn);
+            DpUtilHandEvaluator.HandStrength heroRiver = evalHand(heroHole, river);
+            if (heroTurn == null || heroRiver == null) {
+                continue;
+            }
+            if (!wasStrictlyBehindAtTurn(hero, heroTurn, holeCardsAtEnd, folded, turn)) {
+                continue;
+            }
+            if (!isStrictlyStrongestAmongShowdown(hero, heroRiver, holeCardsAtEnd, folded, river)) {
+                continue;
+            }
+            dpAchievementService.unlockIfAbsent(userId, DpAchievementService.CODE_FINAL_ORACLE, handHistoryId);
+        }
+    }
+
+    /**
+     * 镜像对决：杂色底牌赢家河牌成同花，转牌与另一名杂色摊牌对手 handRankName 相同。仅真人赢家。
+     */
+    private void detectMirrorDuel(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot, Long handHistoryId) {
+        Map<String, Integer> netChipsChange = archived.netChipsChange;
+        Map<String, List<String>> holeCardsAtEnd = archived.holeCardsAtEnd;
+        if (netChipsChange == null || holeCardsAtEnd == null) {
+            return;
+        }
+
+        List<String> turn = resolveCommunityUpTo(archived.boardsByStreet, 4);
+        List<String> river = resolveFinalCommunity(archived.boardsByStreet);
+        if (turn.size() < 4 || river.size() < 5) {
+            return;
+        }
+
+        Set<String> folded = collectFoldedNicknames(archived.actions);
+        Map<String, Integer> nicknameToUserId = buildNicknameToUserId(roomSnapshot);
+        int showdownCount = countShowdownParticipants(holeCardsAtEnd, folded);
+        if (showdownCount < 2) {
+            return;
+        }
+
+        for (Map.Entry<String, Integer> entry : netChipsChange.entrySet()) {
+            String hero = entry.getKey();
+            Integer net = entry.getValue();
+            if (hero == null || hero.isEmpty() || net == null || net <= 0) {
+                continue;
+            }
+            List<String> heroHole = holeCardsAtEnd.get(hero);
+            if (!isShowdownParticipant(hero, heroHole, folded) || !isOffsuitHole(heroHole)) {
+                continue;
+            }
+            Integer userId = nicknameToUserId.get(hero);
+            if (userId == null || userId <= 0) {
+                continue;
+            }
+
+            DpUtilHandEvaluator.HandStrength heroTurn = evalHand(heroHole, turn);
+            DpUtilHandEvaluator.HandStrength heroRiver = evalHand(heroHole, river);
+            if (heroTurn == null || heroRiver == null) {
+                continue;
+            }
+            if (heroTurn.rankCategory >= 6 || heroRiver.rankCategory != 6) {
+                continue;
+            }
+            String heroTurnRankName = resolveHandRankNameOnTurn(hero, archived, heroHole, turn);
+            if (heroTurnRankName == null || heroTurnRankName.isEmpty()) {
+                continue;
+            }
+
+            boolean mirrorOpponent = false;
+            for (Map.Entry<String, List<String>> oppEntry : holeCardsAtEnd.entrySet()) {
+                String opp = oppEntry.getKey();
+                if (opp == null || opp.equals(hero)) {
+                    continue;
+                }
+                List<String> oppHole = oppEntry.getValue();
+                if (!isShowdownParticipant(opp, oppHole, folded) || !isOffsuitHole(oppHole)) {
+                    continue;
+                }
+                String oppTurnRankName = resolveHandRankNameOnTurn(opp, archived, oppHole, turn);
+                if (heroTurnRankName.equals(oppTurnRankName)) {
+                    mirrorOpponent = true;
+                    break;
+                }
+            }
+            if (mirrorOpponent) {
+                dpAchievementService.unlockIfAbsent(userId, DpAchievementService.CODE_MIRROR_DUEL, handHistoryId);
+            }
+        }
+    }
+
+    private static boolean isStrictlyStrongestAmongShowdown(String hero,
+                                                             DpUtilHandEvaluator.HandStrength heroStrength,
+                                                             Map<String, List<String>> holeCardsAtEnd,
+                                                             Set<String> folded,
+                                                             List<String> community) {
+        for (Map.Entry<String, List<String>> entry : holeCardsAtEnd.entrySet()) {
+            String opp = entry.getKey();
+            if (opp == null || opp.equals(hero)) {
+                continue;
+            }
+            if (!isShowdownParticipant(opp, entry.getValue(), folded)) {
+                continue;
+            }
+            DpUtilHandEvaluator.HandStrength oppStrength = evalHand(entry.getValue(), community);
+            if (oppStrength == null || heroStrength.compareTo(oppStrength) <= 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean stillLeadingOrTiedAtTurn(String hero,
+                                                    DpUtilHandEvaluator.HandStrength heroTurn,
+                                                    Map<String, List<String>> holeCardsAtEnd,
+                                                    Set<String> folded,
+                                                    List<String> turn) {
+        for (Map.Entry<String, List<String>> entry : holeCardsAtEnd.entrySet()) {
+            String opp = entry.getKey();
+            if (opp == null || opp.equals(hero)) {
+                continue;
+            }
+            if (!isShowdownParticipant(opp, entry.getValue(), folded)) {
+                continue;
+            }
+            DpUtilHandEvaluator.HandStrength oppTurn = evalHand(entry.getValue(), turn);
+            if (oppTurn == null || heroTurn.compareTo(oppTurn) < 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean riverSingleCardOvertake(String hero,
+                                                   DpUtilHandEvaluator.HandStrength heroTurn,
+                                                   DpUtilHandEvaluator.HandStrength heroRiver,
+                                                   Map<String, List<String>> holeCardsAtEnd,
+                                                   Set<String> folded,
+                                                   List<String> turn,
+                                                   List<String> river) {
+        for (Map.Entry<String, List<String>> entry : holeCardsAtEnd.entrySet()) {
+            String opp = entry.getKey();
+            if (opp == null || opp.equals(hero)) {
+                continue;
+            }
+            if (!isShowdownParticipant(opp, entry.getValue(), folded)) {
+                continue;
+            }
+            DpUtilHandEvaluator.HandStrength oppTurn = evalHand(entry.getValue(), turn);
+            DpUtilHandEvaluator.HandStrength oppRiver = evalHand(entry.getValue(), river);
+            if (oppTurn == null || oppRiver == null) {
+                continue;
+            }
+            if (oppTurn.compareTo(heroTurn) <= 0 && oppRiver.compareTo(heroRiver) > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean wasStrictlyBehindAtTurn(String hero,
+                                                   DpUtilHandEvaluator.HandStrength heroTurn,
+                                                   Map<String, List<String>> holeCardsAtEnd,
+                                                   Set<String> folded,
+                                                   List<String> turn) {
+        for (Map.Entry<String, List<String>> entry : holeCardsAtEnd.entrySet()) {
+            String opp = entry.getKey();
+            if (opp == null || opp.equals(hero)) {
+                continue;
+            }
+            if (!isShowdownParticipant(opp, entry.getValue(), folded)) {
+                continue;
+            }
+            DpUtilHandEvaluator.HandStrength oppTurn = evalHand(entry.getValue(), turn);
+            if (oppTurn != null && heroTurn.compareTo(oppTurn) < 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static int countShowdownParticipants(Map<String, List<String>> holeCardsAtEnd, Set<String> folded) {
+        int count = 0;
+        for (Map.Entry<String, List<String>> entry : holeCardsAtEnd.entrySet()) {
+            if (isShowdownParticipant(entry.getKey(), entry.getValue(), folded)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static boolean isOffsuitHole(List<String> holeCards) {
+        if (holeCards == null || holeCards.size() != 2) {
+            return false;
+        }
+        int suit0 = suitCode(holeCards.get(0));
+        int suit1 = suitCode(holeCards.get(1));
+        return suit0 >= 0 && suit1 >= 0 && suit0 != suit1;
+    }
+
+    private static String resolveHandRankNameOnTurn(String nickname,
+                                                    DpObservedHandRecordBO archived,
+                                                    List<String> hole,
+                                                    List<String> turnBoard) {
+        if (archived.boardsByStreet != null) {
+            for (DpObservedStreetBoardBO board : archived.boardsByStreet) {
+                if (board == null || !"turn".equals(board.stage)) {
+                    continue;
+                }
+                Map<String, String> ranks = board.handRankNameByPlayer;
+                if (ranks != null && ranks.containsKey(nickname)) {
+                    String name = ranks.get(nickname);
+                    if (name != null && !name.isEmpty()) {
+                        return name;
+                    }
+                }
+                break;
+            }
+        }
+        DpUtilHandEvaluator.HandStrength hs = evalHand(hole, turnBoard);
+        if (hs == null) {
+            return null;
+        }
+        return DpUtilHandEvaluator.rankCategoryNameZh(hs.rankCategory);
     }
 
     private static Map<String, Integer> buildNicknameToUserId(DpRoomBO roomSnapshot) {

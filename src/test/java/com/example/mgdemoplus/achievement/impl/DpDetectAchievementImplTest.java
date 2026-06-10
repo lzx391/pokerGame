@@ -469,6 +469,108 @@ class DpDetectAchievementImplTest {
     }
 
     @Test
+    @DisplayName("翻后领先转牌不输河牌单张反超解锁 one_street_heaven")
+    void unlocksOneStreetHeavenWhenRiverSingleCardOvertakes() {
+        List<String> board = List.of("clubs_Q", "diamonds_5", "hearts_2", "clubs_4", "spades_6");
+        detector.detect(fullJob(
+                Map.of(WINNER_NICK, List.of("hearts_Q", "diamonds_J"),
+                        VILLAIN_NICK, List.of("spades_8", "spades_7")),
+                Map.of(WINNER_NICK, -200, VILLAIN_NICK, 200),
+                List.of(),
+                board,
+                List.of(),
+                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)), HAND_HISTORY_ID);
+
+        verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_ONE_STREET_HEAVEN,
+                HAND_HISTORY_ID);
+    }
+
+    @Test
+    @DisplayName("转牌已反超不解锁 one_street_heaven")
+    void skipsOneStreetHeavenWhenOvertakenOnTurn() {
+        List<String> board = List.of("spades_K", "clubs_9", "diamonds_2", "hearts_8", "clubs_5");
+        detector.detect(fullJob(
+                Map.of(WINNER_NICK, List.of("hearts_K", "diamonds_K"),
+                        VILLAIN_NICK, List.of("spades_7", "spades_6")),
+                Map.of(WINNER_NICK, -200, VILLAIN_NICK, 200),
+                List.of(),
+                board,
+                List.of(),
+                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)), HAND_HISTORY_ID);
+
+        verify(achievementService, never()).unlockIfAbsent(anyInt(),
+                eq(DpAchievementService.CODE_ONE_STREET_HEAVEN), any());
+    }
+
+    @Test
+    @DisplayName("转牌落后终局最强赢池解锁 final_oracle")
+    void unlocksFinalOracleWhenBehindOnTurnButWinsShowdown() {
+        List<String> board = List.of("hearts_K", "diamonds_Q", "clubs_J", "hearts_9", "hearts_10");
+        detector.detect(fullJob(
+                Map.of(WINNER_NICK, List.of("hearts_A", "diamonds_2"),
+                        VILLAIN_NICK, List.of("spades_K", "spades_Q")),
+                Map.of(WINNER_NICK, 200, VILLAIN_NICK, -200),
+                List.of(),
+                board,
+                List.of(),
+                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)), HAND_HISTORY_ID);
+
+        verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_FINAL_ORACLE,
+                HAND_HISTORY_ID);
+    }
+
+    @Test
+    @DisplayName("转牌已领先不解锁 final_oracle")
+    void skipsFinalOracleWhenAlreadyAheadOnTurn() {
+        List<String> board = List.of("spades_A", "clubs_7", "diamonds_2", "hearts_5", "clubs_3");
+        detector.detect(fullJob(
+                Map.of(WINNER_NICK, List.of("hearts_A", "diamonds_K"),
+                        VILLAIN_NICK, List.of("spades_Q", "spades_J")),
+                Map.of(WINNER_NICK, 200, VILLAIN_NICK, -200),
+                List.of(),
+                board,
+                List.of(),
+                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)), HAND_HISTORY_ID);
+
+        verify(achievementService, never()).unlockIfAbsent(anyInt(),
+                eq(DpAchievementService.CODE_FINAL_ORACLE), any());
+    }
+
+    @Test
+    @DisplayName("转牌同型杂色底牌河牌成同花解锁 mirror_duel")
+    void unlocksMirrorDuelWhenTurnRankMatchesAndRiverFlushWins() {
+        List<String> board = List.of("hearts_K", "diamonds_Q", "clubs_J", "hearts_9", "hearts_2");
+        detector.detect(fullJob(
+                Map.of(WINNER_NICK, List.of("hearts_A", "diamonds_3"),
+                        VILLAIN_NICK, List.of("clubs_A", "spades_5")),
+                Map.of(WINNER_NICK, 200, VILLAIN_NICK, -200),
+                List.of(),
+                board,
+                List.of(),
+                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)), HAND_HISTORY_ID);
+
+        verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_MIRROR_DUEL,
+                HAND_HISTORY_ID);
+    }
+
+    @Test
+    @DisplayName("同花底牌不解锁 mirror_duel")
+    void skipsMirrorDuelWhenWinnerHoleIsSuited() {
+        List<String> board = List.of("hearts_K", "diamonds_Q", "clubs_J", "hearts_9", "hearts_2");
+        detector.detect(fullJob(
+                Map.of(WINNER_NICK, List.of("hearts_A", "hearts_3"),
+                        VILLAIN_NICK, List.of("clubs_A", "spades_5")),
+                Map.of(WINNER_NICK, 200, VILLAIN_NICK, -200),
+                List.of(),
+                board,
+                List.of(),
+                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)), HAND_HISTORY_ID);
+
+        verify(achievementService, never()).unlockIfAbsent(anyInt(),
+                eq(DpAchievementService.CODE_MIRROR_DUEL), any());
+    }
+
+    @Test
     @DisplayName("BOT 赢家不写入成就")
     void skipsBotWinner() {
         DpRoomBO room = new DpRoomBO();
