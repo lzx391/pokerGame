@@ -30,6 +30,9 @@ import java.util.Set;
 @Service
 public class DpDetectAchievementImpl implements DpDetectAchievement {
 
+    /** 6 人桌及以上成就：本手参与人数口径为 {@link DpObservedHandRecordBO#seatsAtStart} 人数（盲注后、行动前在桌座位）。 */
+    private static final int MIN_PARTICIPANTS_FOR_SIX_MAX = 6;
+
     @Autowired
     private DpAchievementService dpAchievementService;
 
@@ -53,13 +56,16 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
      * 归档时弃牌者仍可能留有底牌副本，不能仅凭 map 键存在判定。
      */
     /**
-     * 27终结者：本局净赢筹码的玩家，底牌为 2 与 7 且杂色（顺序无关）。
+     * 27终结者：6 人及以上场次，本局净赢筹码的玩家，底牌为 2 与 7 且杂色（顺序无关）。
      */
     private void detectTwentySevenTerminator(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot) {
         Map<String, Integer> netChipsChange = archived.netChipsChange;
         Map<String, List<String>> holeCardsAtEnd = archived.holeCardsAtEnd;
         if (netChipsChange == null || netChipsChange.isEmpty()
                 || holeCardsAtEnd == null || holeCardsAtEnd.isEmpty()) {
+            return;
+        }
+        if (!hasMinParticipants(archived, MIN_PARTICIPANTS_FOR_SIX_MAX)) {
             return;
         }
 
@@ -208,7 +214,7 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
     }
 
     /**
-     * 王座更迭：摊牌赢家以同花顺（含皇家）击败另一名摊牌同花顺对手。仅真人玩家。
+     * 王座更迭：摊牌赢家以火箭（straight flush，含皇家）击败另一名摊牌火箭对手。仅真人玩家。
      */
     private void detectThroneUsurper(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot) {
         Map<String, Integer> netChipsChange = archived.netChipsChange;
@@ -277,11 +283,14 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
     }
 
     /**
-     * 牌桌消消乐：净赢且本手无摊牌（所有对手均已弃牌），且本局参与者多于一人。仅真人。
+     * 牌桌消消乐：6 人及以上场次，净赢且本手无摊牌（所有对手均已弃牌）。仅真人。
      */
     private void detectTableClear(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot) {
         Map<String, Integer> netChipsChange = archived.netChipsChange;
         if (netChipsChange == null || netChipsChange.size() < 2) {
+            return;
+        }
+        if (!hasMinParticipants(archived, MIN_PARTICIPANTS_FOR_SIX_MAX)) {
             return;
         }
 
@@ -347,8 +356,8 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
     }
 
     /**
-     * 天灾：翻牌后领先，转牌后仍不输，河牌被摊牌对手反超并输池。受害者（输家）解锁。仅真人。
-     * 依赖双方摊牌底牌；数据不足时不触发。
+     * 天灾：翻牌后受害者两对及以上领先，对手翻后仅高牌；转、河连续两张补齐成顺/成花或更强并最终反超。
+     * 受害者（摊牌输家）解锁。仅真人。
      */
     private void detectNaturalDisaster(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot) {
         Map<String, Integer> netChipsChange = archived.netChipsChange;
@@ -406,12 +415,17 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
                 if (oppFlop == null || oppTurn == null || oppRiver == null) {
                     continue;
                 }
-                if (heroFlop.compareTo(oppFlop) > 0
-                        && heroTurn.compareTo(oppTurn) >= 0
-                        && oppRiver.compareTo(heroRiver) > 0) {
-                    disaster = true;
-                    break;
+                if (heroFlop.rankCategory < 3 || oppFlop.rankCategory != 1) {
+                    continue;
                 }
+                if (heroTurn.compareTo(oppTurn) < 0 || oppRiver.compareTo(heroRiver) <= 0) {
+                    continue;
+                }
+                if (!isConsecutiveTurnRiverComeback(oppHole, flop, turn, oppFlop, oppTurn, oppRiver)) {
+                    continue;
+                }
+                disaster = true;
+                break;
             }
             if (disaster) {
                 dpAchievementService.unlockIfAbsent(userId, DpAchievementService.CODE_NATURAL_DISASTER);
@@ -420,7 +434,38 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
     }
 
     /**
-     * 横扫一切：至少两名摊牌参与者；赢家净赢筹码 &gt; 0；其余摊牌对手终局筹码均为 0。
+     * 转、河连追：转牌须带来牌力或有效听牌进展，河牌须再提升且终局成顺及以上。
+     */
+    private static boolean isConsecutiveTurnRiverComeback(List<String> oppHole,
+                                                          List<String> flop,
+                                                          List<String> turn,
+                                                          DpUtilHandEvaluator.HandStrength oppFlop,
+                                                          DpUtilHandEvaluator.HandStrength oppTurn,
+                                                          DpUtilHandEvaluator.HandStrength oppRiver) {
+        if (oppFlop == null || oppTurn == null || oppRiver == null || turn.size() < 4) {
+            return false;
+        }
+        if (oppRiver.rankCategory < 5) {
+            return false;
+        }
+        boolean turnContributed = oppTurn.compareTo(oppFlop) > 0
+                || hasMeaningfulDrawAfterTurn(oppHole, turn, oppFlop);
+        boolean riverContributed = oppRiver.compareTo(oppTurn) > 0;
+        return turnContributed && riverContributed;
+    }
+
+    private static boolean hasMeaningfulDrawAfterTurn(List<String> hole,
+                                                      List<String> turnBoard,
+                                                      DpUtilHandEvaluator.HandStrength strengthOnFlop) {
+        if (strengthOnFlop != null && strengthOnFlop.rankCategory >= 5) {
+            return false;
+        }
+        DpUtilHandEvaluator.HandStrength hsOnTurn = evalHand(hole, turnBoard);
+        return DpDrawDetector.detect(hsOnTurn, hole, turnBoard, "turn") != DpNpcDrawCategory.NONE;
+    }
+
+    /**
+     * 横扫一切：至少两名摊牌参与者；赢家净赢筹码 &gt; 0；其余<strong>摊牌参与者</strong>终局筹码均为 0（不含已弃牌者）。
      */
     private void detectSweepAll(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot) {
         Map<String, Integer> netChipsChange = archived.netChipsChange;
@@ -494,7 +539,7 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
     }
 
     /**
-     * 灵魂阅读者：摊牌净赢，成牌为高牌或底对，对手转/河有下注且摊牌牌力弱于 hero。仅真人。
+     * 灵魂阅读者：本手净赢家且摊牌最强，成牌为高牌或底对，击败转/河有进攻动作的诈唬对手。仅真人。
      */
     private void detectSoulReader(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot) {
         Map<String, Integer> netChipsChange = archived.netChipsChange;
@@ -536,7 +581,8 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
                 continue;
             }
 
-            boolean soulRead = false;
+            boolean sawAggressiveBluffer = false;
+            boolean beatsAllShowdownOpponents = true;
             for (Map.Entry<String, List<String>> oppEntry : holeCardsAtEnd.entrySet()) {
                 String opp = oppEntry.getKey();
                 if (opp == null || opp.equals(hero)) {
@@ -546,19 +592,39 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
                 if (!isShowdownParticipant(opp, oppHole, folded)) {
                     continue;
                 }
-                if (!hasAggressivePostflopAction(opp, archived.actions, "turn", "river")) {
-                    continue;
-                }
                 DpUtilHandEvaluator.HandStrength oppHs = evalHand(oppHole, river);
-                if (oppHs != null && heroHs.compareTo(oppHs) > 0) {
-                    soulRead = true;
+                if (oppHs == null || heroHs.compareTo(oppHs) <= 0) {
+                    beatsAllShowdownOpponents = false;
                     break;
                 }
+                if (hasAggressivePostflopAction(opp, archived.actions, "turn", "river")) {
+                    sawAggressiveBluffer = true;
+                }
             }
-            if (soulRead) {
+            if (beatsAllShowdownOpponents && sawAggressiveBluffer) {
                 dpAchievementService.unlockIfAbsent(userId, DpAchievementService.CODE_SOUL_READER);
             }
         }
+    }
+
+    /**
+     * 本手参与人数：优先 {@code seatsAtStart}（盲注后在桌座位），否则回退结算/底牌 map 键数。
+     */
+    private static int resolveHandParticipantCount(DpObservedHandRecordBO archived) {
+        if (archived.seatsAtStart != null && !archived.seatsAtStart.isEmpty()) {
+            return archived.seatsAtStart.size();
+        }
+        if (archived.netChipsChange != null && !archived.netChipsChange.isEmpty()) {
+            return archived.netChipsChange.size();
+        }
+        if (archived.holeCardsAtEnd != null) {
+            return archived.holeCardsAtEnd.size();
+        }
+        return 0;
+    }
+
+    private static boolean hasMinParticipants(DpObservedHandRecordBO archived, int min) {
+        return resolveHandParticipantCount(archived) >= min;
     }
 
     private static boolean hadComboDrawOnFlopOrTurn(List<String> hole, List<String> flop, List<String> turn) {

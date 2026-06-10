@@ -5,6 +5,7 @@ import com.example.mgdemoplus.common.bo.DpRoomBO;
 import com.example.mgdemoplus.common.entity.DpPlayer;
 import com.example.mgdemoplus.history.bo.DpObservedHandActionRecordBO;
 import com.example.mgdemoplus.history.bo.DpObservedHandRecordBO;
+import com.example.mgdemoplus.history.bo.DpObservedSeatAtHandStartBO;
 import com.example.mgdemoplus.history.bo.DpObservedStreetBoardBO;
 import com.example.mgdemoplus.history.types.DpObservedHandActionType;
 import com.example.mgdemoplus.room.support.DpSettlePersistJob;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -25,8 +27,10 @@ class DpDetectAchievementImplTest {
 
     private static final int WINNER_UID = 1001;
     private static final int VILLAIN_UID = 1002;
+    private static final int THIRD_UID = 1003;
     private static final String WINNER_NICK = "hero";
     private static final String VILLAIN_NICK = "villain";
+    private static final String THIRD_NICK = "third";
 
     private DpAchievementService achievementService;
     private DpDetectAchievementImpl detector;
@@ -41,11 +45,12 @@ class DpDetectAchievementImplTest {
     }
 
     @Test
-    @DisplayName("27杂色赢家解锁 twenty_seven_terminator")
-    void unlocksWhenWinnerHasOffsuitTwoSeven() {
+    @DisplayName("27杂色赢家在6人桌解锁 twenty_seven_terminator")
+    void unlocksWhenWinnerHasOffsuitTwoSevenOnSixMax() {
         detector.detect(job(
                 Map.of(WINNER_NICK, List.of("hearts_2", "spades_7")),
-                Map.of(WINNER_NICK, 120, "villain", -120),
+                Map.of(WINNER_NICK, 120, VILLAIN_NICK, -120),
+                seats(6, WINNER_NICK, VILLAIN_NICK),
                 roomWithHuman(WINNER_NICK, WINNER_UID)));
 
         verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_TWENTY_SEVEN_TERMINATOR);
@@ -57,9 +62,22 @@ class DpDetectAchievementImplTest {
         detector.detect(job(
                 Map.of(WINNER_NICK, List.of("clubs_7", "diamonds_2")),
                 Map.of(WINNER_NICK, 50),
+                seats(6, WINNER_NICK),
                 roomWithHuman(WINNER_NICK, WINNER_UID)));
 
         verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_TWENTY_SEVEN_TERMINATOR);
+    }
+
+    @Test
+    @DisplayName("少于6人不解锁 twenty_seven_terminator")
+    void skipsTwentySevenTerminatorBelowSixPlayers() {
+        detector.detect(job(
+                Map.of(WINNER_NICK, List.of("hearts_2", "spades_7")),
+                Map.of(WINNER_NICK, 120, VILLAIN_NICK, -120),
+                seats(2, WINNER_NICK, VILLAIN_NICK),
+                roomWithHuman(WINNER_NICK, WINNER_UID)));
+
+        verify(achievementService, never()).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_TWENTY_SEVEN_TERMINATOR);
     }
 
     @Test
@@ -68,6 +86,7 @@ class DpDetectAchievementImplTest {
         detector.detect(job(
                 Map.of(WINNER_NICK, List.of("hearts_2", "hearts_7")),
                 Map.of(WINNER_NICK, 50),
+                seats(6, WINNER_NICK),
                 roomWithHuman(WINNER_NICK, WINNER_UID)));
 
         verify(achievementService, never()).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_TWENTY_SEVEN_TERMINATOR);
@@ -78,27 +97,30 @@ class DpDetectAchievementImplTest {
     void skipsLoserOrNonPositiveNet() {
         detector.detect(job(
                 Map.of(WINNER_NICK, List.of("hearts_2", "spades_7")),
-                Map.of(WINNER_NICK, 0, "villain", 0),
+                Map.of(WINNER_NICK, 0, VILLAIN_NICK, 0),
+                seats(6, WINNER_NICK, VILLAIN_NICK),
                 roomWithHuman(WINNER_NICK, WINNER_UID)));
 
         verify(achievementService, never()).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_TWENTY_SEVEN_TERMINATOR);
 
         detector.detect(job(
                 Map.of(WINNER_NICK, List.of("hearts_2", "spades_7")),
-                Map.of(WINNER_NICK, -80, "villain", 80),
+                Map.of(WINNER_NICK, -80, VILLAIN_NICK, 80),
+                seats(6, WINNER_NICK, VILLAIN_NICK),
                 roomWithHuman(WINNER_NICK, WINNER_UID)));
 
         verify(achievementService, never()).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_TWENTY_SEVEN_TERMINATOR);
     }
 
     @Test
-    @DisplayName("皇家同花顺击败较低同花顺解锁 throne_usurper")
+    @DisplayName("皇家火箭击败较低火箭解锁 throne_usurper")
     void unlocksThroneUsurperWhenHigherStraightFlushWins() {
         List<String> board = List.of("spades_Q", "spades_J", "spades_10", "hearts_2", "clubs_3");
         detector.detect(fullJob(
                 Map.of(WINNER_NICK, List.of("spades_A", "spades_K"),
                         VILLAIN_NICK, List.of("spades_9", "spades_8")),
                 Map.of(WINNER_NICK, 500, VILLAIN_NICK, -500),
+                List.of(),
                 board,
                 List.of(),
                 roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)));
@@ -107,13 +129,14 @@ class DpDetectAchievementImplTest {
     }
 
     @Test
-    @DisplayName("仅一方同花顺不解锁 throne_usurper")
+    @DisplayName("仅一方火箭不解锁 throne_usurper")
     void skipsThroneUsurperWithoutOpponentStraightFlush() {
         List<String> board = List.of("spades_Q", "spades_J", "spades_10", "hearts_2", "clubs_3");
         detector.detect(fullJob(
                 Map.of(WINNER_NICK, List.of("spades_A", "spades_K"),
                         VILLAIN_NICK, List.of("hearts_A", "diamonds_K")),
                 Map.of(WINNER_NICK, 500, VILLAIN_NICK, -500),
+                List.of(),
                 board,
                 List.of(),
                 roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)));
@@ -122,19 +145,48 @@ class DpDetectAchievementImplTest {
     }
 
     @Test
-    @DisplayName("全员弃牌赢池解锁 table_clear")
-    void unlocksTableClearWhenAllOpponentsFold() {
+    @DisplayName("6人桌全员弃牌赢池解锁 table_clear")
+    void unlocksTableClearWhenAllOpponentsFoldOnSixMax() {
+        List<DpObservedHandActionRecordBO> actions = new ArrayList<>();
+        for (int i = 1; i < 6; i++) {
+            actions.add(action("preflop", "seat_" + i, DpObservedHandActionType.FOLD));
+        }
+        Map<String, List<String>> holes = new LinkedHashMap<>();
+        holes.put(WINNER_NICK, List.of("hearts_A", "diamonds_K"));
+        for (int i = 1; i < 6; i++) {
+            holes.put("seat_" + i, List.of("clubs_7", "spades_2"));
+        }
+        Map<String, Integer> net = new LinkedHashMap<>();
+        net.put(WINNER_NICK, 80);
+        for (int i = 1; i < 6; i++) {
+            net.put("seat_" + i, -16);
+        }
+        detector.detect(fullJob(
+                holes,
+                net,
+                seats(6, WINNER_NICK),
+                List.of(),
+                actions,
+                roomWithHuman(WINNER_NICK, WINNER_UID)));
+
+        verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_TABLE_CLEAR);
+    }
+
+    @Test
+    @DisplayName("少于6人不解锁 table_clear")
+    void skipsTableClearBelowSixPlayers() {
         List<DpObservedHandActionRecordBO> actions = List.of(
                 action("preflop", VILLAIN_NICK, DpObservedHandActionType.FOLD));
         detector.detect(fullJob(
                 Map.of(WINNER_NICK, List.of("hearts_A", "diamonds_K"),
                         VILLAIN_NICK, List.of("clubs_7", "spades_2")),
                 Map.of(WINNER_NICK, 80, VILLAIN_NICK, -80),
+                seats(2, WINNER_NICK, VILLAIN_NICK),
                 List.of(),
                 actions,
                 roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)));
 
-        verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_TABLE_CLEAR);
+        verify(achievementService, never()).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_TABLE_CLEAR);
     }
 
     @Test
@@ -145,6 +197,7 @@ class DpDetectAchievementImplTest {
                 Map.of(WINNER_NICK, List.of("hearts_A", "diamonds_A"),
                         VILLAIN_NICK, List.of("clubs_7", "spades_2")),
                 Map.of(WINNER_NICK, 120, VILLAIN_NICK, -120),
+                seats(6, WINNER_NICK, VILLAIN_NICK),
                 board,
                 List.of(),
                 roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)));
@@ -159,6 +212,7 @@ class DpDetectAchievementImplTest {
         detector.detect(fullJob(
                 Map.of(WINNER_NICK, List.of("hearts_J", "hearts_10")),
                 Map.of(WINNER_NICK, -40, VILLAIN_NICK, 40),
+                List.of(),
                 board,
                 List.of(),
                 roomWithHuman(WINNER_NICK, WINNER_UID)));
@@ -173,6 +227,7 @@ class DpDetectAchievementImplTest {
         detector.detect(fullJob(
                 Map.of(WINNER_NICK, List.of("hearts_J", "hearts_10")),
                 Map.of(WINNER_NICK, 60),
+                List.of(),
                 board,
                 List.of(),
                 roomWithHuman(WINNER_NICK, WINNER_UID)));
@@ -181,13 +236,14 @@ class DpDetectAchievementImplTest {
     }
 
     @Test
-    @DisplayName("翻牌领先被转河反超解锁 natural_disaster")
-    void unlocksNaturalDisasterWhenTurnRiverComeback() {
-        List<String> board = List.of("hearts_K", "diamonds_9", "clubs_2", "hearts_8", "hearts_5");
+    @DisplayName("翻牌两对领先被转河连追成顺解锁 natural_disaster")
+    void unlocksNaturalDisasterWhenTurnRiverStraightComeback() {
+        List<String> board = List.of("spades_K", "diamonds_9", "clubs_2", "hearts_8", "diamonds_5");
         detector.detect(fullJob(
-                Map.of(WINNER_NICK, List.of("diamonds_A", "clubs_A"),
+                Map.of(WINNER_NICK, List.of("diamonds_K", "hearts_9"),
                         VILLAIN_NICK, List.of("hearts_7", "hearts_6")),
                 Map.of(WINNER_NICK, -200, VILLAIN_NICK, 200),
+                List.of(),
                 board,
                 List.of(),
                 roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)));
@@ -196,13 +252,30 @@ class DpDetectAchievementImplTest {
     }
 
     @Test
-    @DisplayName("翻牌未领先不解锁 natural_disaster")
-    void skipsNaturalDisasterWhenNotLeadingOnFlop() {
-        List<String> board = List.of("diamonds_7", "clubs_6", "spades_2", "hearts_8", "hearts_5");
+    @DisplayName("转牌单张反超不解锁 natural_disaster")
+    void skipsNaturalDisasterWhenTurnAloneOvertakes() {
+        List<String> board = List.of("spades_K", "diamonds_9", "clubs_2", "hearts_7", "diamonds_3");
+        detector.detect(fullJob(
+                Map.of(WINNER_NICK, List.of("diamonds_K", "hearts_9"),
+                        VILLAIN_NICK, List.of("hearts_6", "hearts_5")),
+                Map.of(WINNER_NICK, -200, VILLAIN_NICK, 200),
+                List.of(),
+                board,
+                List.of(),
+                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)));
+
+        verify(achievementService, never()).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_NATURAL_DISASTER);
+    }
+
+    @Test
+    @DisplayName("翻牌未达两对不解锁 natural_disaster")
+    void skipsNaturalDisasterWhenVictimNotTwoPairOnFlop() {
+        List<String> board = List.of("hearts_K", "diamonds_9", "clubs_2", "hearts_8", "hearts_5");
         detector.detect(fullJob(
                 Map.of(WINNER_NICK, List.of("diamonds_A", "clubs_A"),
                         VILLAIN_NICK, List.of("hearts_7", "hearts_6")),
                 Map.of(WINNER_NICK, -200, VILLAIN_NICK, 200),
+                List.of(),
                 board,
                 List.of(),
                 roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)));
@@ -220,11 +293,31 @@ class DpDetectAchievementImplTest {
                 Map.of(WINNER_NICK, List.of("clubs_J", "diamonds_2"),
                         VILLAIN_NICK, List.of("spades_A", "clubs_7")),
                 Map.of(WINNER_NICK, 150, VILLAIN_NICK, -150),
+                List.of(),
                 board,
                 actions,
                 roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)));
 
         verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_SOUL_READER);
+    }
+
+    @Test
+    @DisplayName("三人摊牌击败诈唬但输给第三人不算 soul_reader")
+    void skipsSoulReaderWhenNotShowdownWinner() {
+        List<String> board = List.of("spades_K", "hearts_9", "diamonds_5", "clubs_3", "hearts_2");
+        List<DpObservedHandActionRecordBO> actions = List.of(
+                action("river", VILLAIN_NICK, DpObservedHandActionType.BET));
+        detector.detect(fullJob(
+                Map.of(WINNER_NICK, List.of("clubs_J", "diamonds_2"),
+                        VILLAIN_NICK, List.of("spades_A", "clubs_7"),
+                        THIRD_NICK, List.of("diamonds_K", "clubs_K")),
+                Map.of(WINNER_NICK, 50, VILLAIN_NICK, -150, THIRD_NICK, 100),
+                List.of(),
+                board,
+                actions,
+                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID, THIRD_NICK, THIRD_UID)));
+
+        verify(achievementService, never()).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_SOUL_READER);
     }
 
     @Test
@@ -237,6 +330,7 @@ class DpDetectAchievementImplTest {
                 Map.of(WINNER_NICK, List.of("clubs_K", "diamonds_K"),
                         VILLAIN_NICK, List.of("spades_A", "clubs_7")),
                 Map.of(WINNER_NICK, 150, VILLAIN_NICK, -150),
+                List.of(),
                 board,
                 actions,
                 roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)));
@@ -254,6 +348,7 @@ class DpDetectAchievementImplTest {
                         VILLAIN_NICK, List.of("clubs_7", "spades_2")),
                 Map.of(WINNER_NICK, 300, VILLAIN_NICK, -300),
                 chipsAtEnd,
+                List.of(),
                 board,
                 List.of(),
                 roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)));
@@ -271,11 +366,36 @@ class DpDetectAchievementImplTest {
                         VILLAIN_NICK, List.of("clubs_7", "spades_2")),
                 Map.of(WINNER_NICK, 120, VILLAIN_NICK, -120),
                 chipsAtEnd,
+                List.of(),
                 board,
                 List.of(),
                 roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)));
 
         verify(achievementService, never()).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_SWEEP_ALL);
+    }
+
+    @Test
+    @DisplayName("已弃牌者仍有筹码不影响 sweep_all")
+    void unlocksSweepAllWhenFoldedPlayerStillHasChips() {
+        List<String> board = List.of("hearts_2", "diamonds_3", "clubs_4", "spades_5", "hearts_6");
+        Map<String, Integer> chipsAtEnd = Map.of(
+                WINNER_NICK, 600,
+                VILLAIN_NICK, 0,
+                THIRD_NICK, 200);
+        List<DpObservedHandActionRecordBO> actions = List.of(
+                action("preflop", THIRD_NICK, DpObservedHandActionType.FOLD));
+        detector.detect(sweepJob(
+                Map.of(WINNER_NICK, List.of("hearts_A", "diamonds_A"),
+                        VILLAIN_NICK, List.of("clubs_7", "spades_2"),
+                        THIRD_NICK, List.of("spades_Q", "diamonds_Q")),
+                Map.of(WINNER_NICK, 300, VILLAIN_NICK, -300, THIRD_NICK, 0),
+                chipsAtEnd,
+                List.of(),
+                board,
+                actions,
+                roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID, THIRD_NICK, THIRD_UID)));
+
+        verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_SWEEP_ALL);
     }
 
     @Test
@@ -290,6 +410,7 @@ class DpDetectAchievementImplTest {
         detector.detect(job(
                 Map.of("BOT_FISH_1", List.of("hearts_2", "spades_7")),
                 Map.of("BOT_FISH_1", 200),
+                seats(6, "BOT_FISH_1"),
                 room));
 
         verify(achievementService, never()).unlockIfAbsent(999, DpAchievementService.CODE_TWENTY_SEVEN_TERMINATOR);
@@ -297,29 +418,33 @@ class DpDetectAchievementImplTest {
 
     private static DpSettlePersistJob job(Map<String, List<String>> holes,
                                           Map<String, Integer> net,
+                                          List<DpObservedSeatAtHandStartBO> seats,
                                           DpRoomBO room) {
-        return fullJob(holes, net, Map.of(), List.of(), List.of(), room);
+        return fullJob(holes, net, seats, Map.of(), List.of(), List.of(), room);
     }
 
     private static DpSettlePersistJob sweepJob(Map<String, List<String>> holes,
                                                Map<String, Integer> net,
                                                Map<String, Integer> chipsAtEnd,
+                                               List<DpObservedSeatAtHandStartBO> seats,
                                                List<String> board,
                                                List<DpObservedHandActionRecordBO> actions,
                                                DpRoomBO room) {
-        return fullJob(holes, net, chipsAtEnd, board, actions, room);
+        return fullJob(holes, net, seats, chipsAtEnd, board, actions, room);
     }
 
     private static DpSettlePersistJob fullJob(Map<String, List<String>> holes,
                                               Map<String, Integer> net,
+                                              List<DpObservedSeatAtHandStartBO> seats,
                                               List<String> board,
                                               List<DpObservedHandActionRecordBO> actions,
                                               DpRoomBO room) {
-        return fullJob(holes, net, Map.of(), board, actions, room);
+        return fullJob(holes, net, seats, Map.of(), board, actions, room);
     }
 
     private static DpSettlePersistJob fullJob(Map<String, List<String>> holes,
                                               Map<String, Integer> net,
+                                              List<DpObservedSeatAtHandStartBO> seats,
                                               Map<String, Integer> chipsAtEnd,
                                               List<String> board,
                                               List<DpObservedHandActionRecordBO> actions,
@@ -343,7 +468,7 @@ class DpDetectAchievementImplTest {
                 20,
                 0,
                 "dealer",
-                List.of(),
+                seats,
                 boards,
                 actions,
                 List.of(),
@@ -352,6 +477,15 @@ class DpDetectAchievementImplTest {
                 net,
                 chipsAtEnd);
         return new DpSettlePersistJob("room-1", archived, room, List.of(), List.of());
+    }
+
+    private static List<DpObservedSeatAtHandStartBO> seats(int count, String... named) {
+        List<DpObservedSeatAtHandStartBO> list = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            String nick = i < named.length ? named[i] : "seat_" + i;
+            list.add(new DpObservedSeatAtHandStartBO(i, nick, 0, 1000));
+        }
+        return list;
     }
 
     private static DpObservedHandActionRecordBO action(String stage,
@@ -370,14 +504,26 @@ class DpDetectAchievementImplTest {
     }
 
     private static DpRoomBO roomWithHumans(String nick1, int uid1, String nick2, int uid2) {
+        return roomWithHumans(nick1, uid1, nick2, uid2, null, 0);
+    }
+
+    private static DpRoomBO roomWithHumans(String nick1, int uid1, String nick2, int uid2,
+                                           String nick3, int uid3) {
         DpRoomBO room = new DpRoomBO();
-        DpPlayer p1 = new DpPlayer();
-        p1.setNickname(nick1);
-        p1.setDpUserId(uid1);
-        DpPlayer p2 = new DpPlayer();
-        p2.setNickname(nick2);
-        p2.setDpUserId(uid2);
-        room.setPlayers(List.of(p1, p2));
+        List<DpPlayer> players = new ArrayList<>();
+        players.add(player(nick1, uid1));
+        players.add(player(nick2, uid2));
+        if (nick3 != null) {
+            players.add(player(nick3, uid3));
+        }
+        room.setPlayers(players);
         return room;
+    }
+
+    private static DpPlayer player(String nickname, int userId) {
+        DpPlayer p = new DpPlayer();
+        p.setNickname(nickname);
+        p.setDpUserId(userId);
+        return p;
     }
 }
