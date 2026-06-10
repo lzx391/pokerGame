@@ -49,7 +49,6 @@ export async function dpCreateRoomAndStart({
     var cap = Math.round(Number(config.maxSeatCount) || 9)
     cap = Math.min(9, Math.max(2, cap))
     var params = {
-      nickname: user.nickname,
       smallBlindChips: sc,
       bigBlindChips: sc * 2,
       startingStackBb: Math.max(5, Number(config.startingStackBb) || 50),
@@ -58,9 +57,6 @@ export async function dpCreateRoomAndStart({
     }
     if (config.roomPassword) {
       params.roomPassword = config.roomPassword
-    }
-    if (user.userId != null && user.userId !== '') {
-      params.userId = user.userId
     }
 
     var res = await http.post('/dpRoom/createRoom', null, { params: params })
@@ -71,10 +67,7 @@ export async function dpCreateRoomAndStart({
     }
 
     var startRes = await http.post('/dpRoom/startGame', null, {
-      params: {
-        roomId: roomId,
-        ownerNickname: user.nickname
-      }
+      params: { roomId: roomId }
     })
     if (startRes.data !== 'ok') {
       notify('房间已创建但开局未成功，请从大厅进入该房间重试')

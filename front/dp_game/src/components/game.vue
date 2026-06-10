@@ -318,12 +318,7 @@ export default {
       return isNaN(n) || n <= 0 ? 0 : n
     },
     roomApiParams() {
-      if (!this.user || !this.user.nickname) return { roomId: this.roomId }
-      var p = { roomId: this.roomId, nickname: this.user.nickname }
-      if (this.user.userId != null && this.user.userId !== '') {
-        p.userId = this.user.userId
-      }
-      return p
+      return { roomId: this.roomId }
     },
     actionTimerThinkTotalSec() {
       var v = Number(this.$store.state.dpGame.thinkTimeSeconds)
@@ -1275,10 +1270,9 @@ export default {
 
       // 开发服：走 /dp-ws → vue 代理转成后端 /ws（避免与 webpack HMR 的 /ws 冲突）
       var path = process.env.NODE_ENV === 'development' ? '/dp-ws/dp-game' : '/ws/dp-game'
+      var tok = self.user && self.user.token ? String(self.user.token) : ''
       var url = self.gameWsBaseUrl() + path + '?roomId=' + encodeURIComponent(self.roomId)
-        + '&nickname=' + encodeURIComponent(self.user.nickname)
-        + (self.user.userId != null && self.user.userId !== ''
-          ? '&userId=' + encodeURIComponent(String(self.user.userId)) : '')
+        + (tok ? '&token=' + encodeURIComponent(tok) : '')
       try {
         var ws = new WebSocket(url)
         self.gameWs = ws
@@ -1452,7 +1446,6 @@ export default {
       }
       var body = {
         _ws: 'roomMusicSync',
-        nickname: this.user.nickname,
         action: action,
         trackId: payload.trackId != null ? payload.trackId : 0,
         webPath: webPath,
@@ -1675,7 +1668,6 @@ export default {
       try {
         this.gameWs.send(JSON.stringify({
           _ws: 'chatSend',
-          nickname: this.user.nickname,
           text: t
         }))
         this.$store.commit('dpGame/SET_CHAT_DRAFT', '')
@@ -1774,7 +1766,7 @@ export default {
     async rebuy() {
       try {
         var res = await this.$http.post('/dpRoom/rebuy', null, {
-          params: {roomId: this.roomId, nickname: this.user.nickname}
+          params: { roomId: this.roomId }
         })
         if (res.data !== 'ok') {
           this.$message.error('补满失败：' + res.data)
@@ -1818,7 +1810,7 @@ export default {
     async submitBet(amount) {
       try {
         var res = await this.$http.post('/dpRoom/bet', null, {
-          params: {roomId: this.roomId, nickname: this.user.nickname, bet: amount}
+          params: { roomId: this.roomId, bet: amount }
         })
         if (res.data !== 'ok') this.$message.error('投入失败，请检查数额')
         this.$store.commit('dpGame/SET_RAISE_AMOUNT', 0)
@@ -1832,7 +1824,7 @@ export default {
     async doFold() {
       try {
         var res = await this.$http.post('/dpRoom/fold', null, {
-          params: {roomId: this.roomId, nickname: this.user.nickname}
+          params: { roomId: this.roomId }
         })
         if (res.data !== 'ok') this.$message.error('盖牌失败')
         await this.loadGame()
@@ -2205,7 +2197,6 @@ export default {
         var res = await this.$http.get('/dpRoom/nextHandDeckPrefixStatus', {
           params: {
             roomId: this.roomId,
-            requesterNickname: this.user.nickname,
             experimentalPassword: pwd
           }
         })
@@ -2262,7 +2253,6 @@ export default {
       try {
         var res = await this.$http.post('/dpRoom/setNextHandDeckPrefix', {
           roomId: this.roomId,
-          requesterNickname: this.user.nickname,
           experimentalPassword: pwd,
           cards: cards || []
         })
@@ -2312,7 +2302,6 @@ export default {
         var res = await this.$http.post('/dpRoom/transferOwner', null, {
           params: {
             roomId: this.roomId,
-            fromNickname: this.user.nickname,
             toNickname: this.ownerActionTarget
           }
         })
@@ -2433,7 +2422,6 @@ export default {
         var res = await this.$http.post('/dpRoom/addCustomNpcBatch', {
           roomId: this.roomId,
           count: count,
-          requesterNickname: this.user.nickname,
           profile: profile
         })
         var msg
@@ -2627,7 +2615,6 @@ export default {
             var resCustom = await this.$http.post('/dpRoom/addCustomNpcBatch', {
               roomId: this.roomId,
               count: count,
-              requesterNickname: this.user.nickname,
               profile: profile
             })
             if (resCustom.data === 'ok') {
@@ -2797,7 +2784,7 @@ export default {
       this.beginIntentionalLeave()
       try {
         await this.$http.post('/dpRoom/exitRoom', null, {
-          params: {roomId: this.roomId, nickname: this.user.nickname}
+          params: { roomId: this.roomId }
         })
       } catch (err) {
         console.error('退出失败', err)

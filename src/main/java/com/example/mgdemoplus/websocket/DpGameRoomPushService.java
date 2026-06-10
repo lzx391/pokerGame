@@ -200,7 +200,7 @@ public class DpGameRoomPushService {
             return;
         }
         String roomId = (String) ridObj;
-        String nickname = root.path("nickname").asText("").trim();
+        String nickname = resolveSessionViewerNickname(session, root);
         String text = root.path("text").asText("");
         text = text.replace('\r', ' ').replace('\n', ' ').trim();
         if (nickname.isEmpty() || text.isEmpty()) {
@@ -253,7 +253,7 @@ public class DpGameRoomPushService {
             return;
         }
         String roomId = (String) ridObj;
-        String nickname = root.path("nickname").asText("").trim();
+        String nickname = resolveSessionViewerNickname(session, root);
         String action = root.path("action").asText("").trim().toLowerCase(Locale.ROOT);
         if (nickname.isEmpty()) {
             return;
@@ -381,7 +381,8 @@ public class DpGameRoomPushService {
     public void sendInitialSnapshot(WebSocketSession session, String roomId) {
         try {
             String nick = (String) session.getAttributes().get("viewerNickname");
-            DpRoomBO r = roomService.getRoomSnapshotForViewer(roomId, nick);
+            Integer viewerUserId = (Integer) session.getAttributes().get("viewerUserId");
+            DpRoomBO r = roomService.getRoomSnapshotForViewer(roomId, nick, viewerUserId);
             if (r == null) {
                 synchronized (session) {
                     session.sendMessage(new TextMessage(ROOM_CLOSED));
@@ -521,6 +522,18 @@ public class DpGameRoomPushService {
     }
 
     // =========== 校验与工具方法（按首次引用内联到对应模块） ===========
+
+    /** 优先握手时写入的 {@code viewerNickname}；兼容旧客户端 body.nickname。 */
+    private static String resolveSessionViewerNickname(WebSocketSession session, JsonNode root) {
+        Object vn = session.getAttributes().get("viewerNickname");
+        if (vn instanceof String s && !s.isEmpty()) {
+            return s.trim();
+        }
+        if (root != null) {
+            return root.path("nickname").asText("").trim();
+        }
+        return "";
+    }
 
     private static boolean isSafeMusicWebPath(String path) {
         if (path == null || path.isEmpty()) {

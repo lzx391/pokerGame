@@ -6,7 +6,6 @@ import java.util.List;
 /** {@code POST /dpRoom/setNextHandDeckPrefix} 请求体。 */
 public class SetNextHandDeckPrefixRequest {
     private String roomId;
-    private String requesterNickname;
     /** 实验排牌访问密码（与 {@code EXPERIMENTAL_DECK_PRESET_PASSWORD} 一致）。 */
     private String experimentalPassword;
     private List<String> cards = new ArrayList<>();
@@ -17,14 +16,6 @@ public class SetNextHandDeckPrefixRequest {
 
     public void setRoomId(String roomId) {
         this.roomId = roomId;
-    }
-
-    public String getRequesterNickname() {
-        return requesterNickname;
-    }
-
-    public void setRequesterNickname(String requesterNickname) {
-        this.requesterNickname = requesterNickname;
     }
 
     public String getExperimentalPassword() {

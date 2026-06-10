@@ -1,16 +1,14 @@
 package com.example.mgdemoplus.controller;
 
 import com.example.mgdemoplus.common.entity.DpUser;
-import com.example.mgdemoplus.common.mapper.DpUserMapper;
 import com.example.mgdemoplus.presence.DpSitePresenceService;
+import com.example.mgdemoplus.security.DpCurrentUserSupport;
 import com.example.mgdemoplus.social.impl.DpFriendChatService;
 import com.example.mgdemoplus.social.impl.DpFriendSocialService;
 import com.example.mgdemoplus.utils.ResultUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -43,30 +41,12 @@ public class DpFriendMailboxController {
     @Autowired
     private DpSitePresenceService dpSitePresenceService;
     @Autowired
-    private DpUserMapper dpUserMapper;
-
-    private DpUser requireCurrentUser(ResultUtil fallback) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated()
-                || "anonymousUser".equals(String.valueOf(auth.getPrincipal()))) {
-            fallback.setSuccess(false);
-            fallback.setMessage("未登录或登录已失效");
-            return null;
-        }
-        String nickname = auth.getName();
-        DpUser u = dpUserMapper.selectByNickname(nickname);
-        if (u == null) {
-            fallback.setSuccess(false);
-            fallback.setMessage("用户不存在或未同步");
-            return null;
-        }
-        return u;
-    }
+    private DpCurrentUserSupport currentUserSupport;
 
     @PostMapping("/friends/requests")
     public ResultUtil sendFriendRequest(@RequestBody Map<String, Object> body) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -78,7 +58,7 @@ public class DpFriendMailboxController {
     @GetMapping("/friends/requests/pending")
     public ResultUtil pendingFriendInbound() {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -88,7 +68,7 @@ public class DpFriendMailboxController {
     @PostMapping("/friends/requests/{id}/accept")
     public ResultUtil acceptFriend(@PathVariable("id") long id) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -98,7 +78,7 @@ public class DpFriendMailboxController {
     @PostMapping("/friends/requests/{id}/reject")
     public ResultUtil rejectFriend(@PathVariable("id") long id) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -114,7 +94,7 @@ public class DpFriendMailboxController {
             @RequestParam(defaultValue = "20") int pageSize,
             @RequestParam(required = false) String q) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -128,7 +108,7 @@ public class DpFriendMailboxController {
     @GetMapping("/users/lookup")
     public ResultUtil lookupUserForFriendAdd(@RequestParam("q") String q) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -152,7 +132,7 @@ public class DpFriendMailboxController {
     @PostMapping("/presence/site-heartbeat")
     public ResultUtil sitePresenceHeartbeat() {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -170,7 +150,7 @@ public class DpFriendMailboxController {
     @PostMapping("/friends/follow-room")
     public ResultUtil followFriendToRoom(@RequestBody Map<String, Object> body) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -186,7 +166,7 @@ public class DpFriendMailboxController {
     public ResultUtil sendFriendMessage(
             @PathVariable("peerUserId") int peerUserId, @RequestBody Map<String, Object> body) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -201,7 +181,7 @@ public class DpFriendMailboxController {
             @RequestParam(required = false) Long beforeId,
             @RequestParam(required = false) Integer limit) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -212,7 +192,7 @@ public class DpFriendMailboxController {
     public ResultUtil markFriendMessagesRead(
             @PathVariable("peerUserId") int peerUserId, @RequestBody Map<String, Object> body) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -224,7 +204,7 @@ public class DpFriendMailboxController {
     @GetMapping("/friends/chat-unread-summary")
     public ResultUtil friendChatUnreadSummary() {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -234,7 +214,7 @@ public class DpFriendMailboxController {
     @DeleteMapping("/friends/{friendUserId}")
     public ResultUtil removeFriend(@PathVariable("friendUserId") int friendUserId) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -244,7 +224,7 @@ public class DpFriendMailboxController {
     @PostMapping("/room-invites")
     public ResultUtil createRoomInvite(@RequestBody Map<String, Object> body) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -272,7 +252,7 @@ public class DpFriendMailboxController {
     @GetMapping("/mailbox")
     public ResultUtil mailbox() {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -282,7 +262,7 @@ public class DpFriendMailboxController {
     @GetMapping("/mailbox/unread-count")
     public ResultUtil unreadMailbox() {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -292,7 +272,7 @@ public class DpFriendMailboxController {
     @PostMapping("/room-invites/{id}/accept")
     public ResultUtil acceptInvite(@PathVariable("id") long id) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -302,7 +282,7 @@ public class DpFriendMailboxController {
     @PostMapping("/room-invites/{id}/reject")
     public ResultUtil rejectInvite(@PathVariable("id") long id) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -316,7 +296,7 @@ public class DpFriendMailboxController {
     @GetMapping("/friends/{friendUserId}/spectate-room")
     public ResultUtil friendSpectateRoom(@PathVariable("friendUserId") int friendUserId) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -329,7 +309,7 @@ public class DpFriendMailboxController {
     @PostMapping("/room-follow/spectate")
     public ResultUtil followFriendSpectate(@RequestBody Map<String, Object> body) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }

@@ -22,11 +22,14 @@
 
 ## 2. 业务侧取当前用户
 
+统一使用 `DpCurrentUserSupport`（`resolveNicknameOptional` / `requireUser` / `requireUserId` 等），避免各 Controller 重复解析。
+
 ```java
-SecurityContextHolder.getContext().getAuthentication().getName(); // 昵称
+@Autowired DpCurrentUserSupport currentUserSupport;
+String nick = currentUserSupport.requireNickname();
 ```
 
-`DpRoomController` 的 `joinRoom2` / `quickMatch2` 等会校验 **JWT subject 与请求参数 `nickname` 一致**。口令校验仅在登录时一次，见 [DpUserPassword.md](./DpUserPassword.md)（**bcrypt**，非 MD5）。
+房间 REST 与牌谱接口的操作者身份 **仅从 JWT 解析**，不再信任请求参数中的 `nickname` / `userId`。口令校验仅在登录时一次，见 [DpUserPassword.md](./DpUserPassword.md)（**bcrypt**，非 MD5）。
 
 ---
 
@@ -37,7 +40,7 @@ SecurityContextHolder.getContext().getAuthentication().getName(); // 昵称
 | 路径 | 说明 |
 |------|------|
 | `/dpUser/loginProfile`、`/dpUser/registerUser` | 登录/注册 |
-| `/ws/**` | WebSocket 握手不强制 JWT；**快匹**在 `DpQuickMatchWebSocketHandler` 内校验 `token`+`nickname` |
+| `/ws/**` | WebSocket 握手不强制 JWT；**对局/快匹**在 Handler 内通过 `DpWebSocketAuthSupport.verifyTokenFromQuery(?token=)` 校验 |
 | `/dpRoom/getNowRoom`、`/dpRoom/getAllRooms2` | 房间快照/内存 id 列表（旁观、分享链接） |
 | `/dp/presence/site-heartbeat/config` | 站点心跳公开参数 |
 | `/dpMusic/list` | 曲库列表 |

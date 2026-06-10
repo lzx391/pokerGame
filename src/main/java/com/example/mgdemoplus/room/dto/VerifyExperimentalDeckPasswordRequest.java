@@ -3,7 +3,6 @@ package com.example.mgdemoplus.room.dto;
 /** {@code POST /dpRoom/verifyExperimentalDeckPassword} 请求体。 */
 public class VerifyExperimentalDeckPasswordRequest {
     private String roomId;
-    private String requesterNickname;
     private String experimentalPassword;
 
     public String getRoomId() {
@@ -12,14 +11,6 @@ public class VerifyExperimentalDeckPasswordRequest {
 
     public void setRoomId(String roomId) {
         this.roomId = roomId;
-    }
-
-    public String getRequesterNickname() {
-        return requesterNickname;
-    }
-
-    public void setRequesterNickname(String requesterNickname) {
-        this.requesterNickname = requesterNickname;
     }
 
     public String getExperimentalPassword() {

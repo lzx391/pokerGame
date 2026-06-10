@@ -267,7 +267,6 @@ export default {
       this.loading = true; this.loadError = ''
       var self = this
       var params = {
-        userId: Number(user.userId),
         page: this.currentPage,
         pageSize: this.pageSize
       }

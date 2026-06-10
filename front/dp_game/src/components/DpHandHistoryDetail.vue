@@ -520,7 +520,7 @@ export default {
       if (isNaN(id) || id <= 0) { this.loadError = 'BAD ID'; return }
       this.loading = true; this.loadError = ''
       var self = this
-      http.get('/dpHandHistory/detail', { params: { handHistoryId: id, userId: Number(user.userId) } }).then(function (res) {
+      http.get('/dpHandHistory/detail', { params: { handHistoryId: id } }).then(function (res) {
         self.detail = res.data || null
         if (!self.detail) self.loadError = 'NO DATA'
       }).catch(function (e) {

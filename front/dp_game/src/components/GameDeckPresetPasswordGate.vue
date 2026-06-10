@@ -78,7 +78,6 @@ export default {
   props: {
     visible: { type: Boolean, default: false },
     roomId: { type: String, default: '' },
-    requesterNickname: { type: String, default: '' },
     gameUiTheme: { type: String, default: 'default' }
   },
   data: function () {
@@ -135,7 +134,7 @@ export default {
         this.errorMessage = this.isRetro8bit ? 'PASSWORD REQUIRED' : '请输入访问密码'
         return
       }
-      if (!this.roomId || !this.requesterNickname) {
+      if (!this.roomId) {
         this.errorMessage = this.isRetro8bit ? 'ROOM CONTEXT LOST' : '房间信息缺失，请刷新后重试'
         return
       }
@@ -144,7 +143,6 @@ export default {
       try {
         var res = await this.$http.post('/dpRoom/verifyExperimentalDeckPassword', {
           roomId: this.roomId,
-          requesterNickname: this.requesterNickname,
           experimentalPassword: pwd
         })
         var body = res.data

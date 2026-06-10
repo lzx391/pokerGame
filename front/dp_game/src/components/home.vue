@@ -996,7 +996,7 @@ export default {
     this.quickMatchPolling = false
     this.quickMatchLoading = false
     this.disconnectQuickMatchWs()
-    postQuickMatchCancel2(this.$http, this.user)
+    postQuickMatchCancel2(this.$http)
   },
   methods: {
     avatarCacheBustFromUpdatedAt,
@@ -1465,7 +1465,7 @@ export default {
         try { old.close() } catch (e) { /* ignore */ }
       }
       var path = process.env.NODE_ENV === 'development' ? '/dp-ws/dp-quick-match' : '/ws/dp-quick-match'
-      var url = this.quickMatchWsBaseUrl() + path + '?nickname=' + encodeURIComponent(this.user.nickname) + '&token=' + encodeURIComponent(String(this.user.token))
+      var url = this.quickMatchWsBaseUrl() + path + '?token=' + encodeURIComponent(String(this.user.token))
       var ws
       try { ws = new WebSocket(url) } catch (e) { this.scheduleQuickMatchWsReconnect(sessionAtOpen); return }
       this.quickMatchWs = ws
@@ -1484,7 +1484,7 @@ export default {
         self.quickMatchWsNoReconnect = false
         var sessionAtOpen = ++self.quickMatchWsSession
         var path = process.env.NODE_ENV === 'development' ? '/dp-ws/dp-quick-match' : '/ws/dp-quick-match'
-        var url = self.quickMatchWsBaseUrl() + path + '?nickname=' + encodeURIComponent(self.user.nickname) + '&token=' + encodeURIComponent(tok)
+        var url = self.quickMatchWsBaseUrl() + path + '?token=' + encodeURIComponent(tok)
         var ws
         try { ws = new WebSocket(url) } catch (e) { reject(e); return }
         self.quickMatchWs = ws
@@ -1521,9 +1521,7 @@ export default {
       this.quickMatchLoading = true
       try { await this.connectQuickMatchWs() } catch (e) { console.error('quickMatch ws', e); alert('匹配通道连接失败，请稍后重试'); this.quickMatchLoading = false; return }
       try {
-        const params = { nickname: this.user.nickname }
-        if (this.user.userId != null && this.user.userId !== '') { params.userId = this.user.userId }
-        const res = await this.$http.post('/dpRoom/quickMatch2', null, { params })
+        const res = await this.$http.post('/dpRoom/quickMatch2', null, { params: {} })
         const body = res.data
         if (!dpResultSuccess(body)) { this.disconnectQuickMatchWs(); alert(dpResultMessage(body)); return }
         const data = dpResultData(body) || {}
@@ -1537,7 +1535,7 @@ export default {
       } catch (e) { console.error('quickMatch', e); this.disconnectQuickMatchWs(); alert('网络错误，请稍后重试') }
       finally { if (!this.quickMatchPolling) { this.quickMatchLoading = false } }
     },
-    cancelQuickMatchRemote() { return postQuickMatchCancel2(this.$http, this.user) },
+    cancelQuickMatchRemote() { return postQuickMatchCancel2(this.$http) },
     filtersActiveFromForm() {
       if ((this.filters.roomId || '').length > 0) return true
       if (this.filters.password !== 'any') return true
@@ -1603,9 +1601,8 @@ export default {
       await this.enterGameFromLobby(roomId, 'join')
     },
     async doJoinRoom(roomId, roomPassword) {
-      const params = { roomId, nickname: this.user.nickname }
+      const params = { roomId }
       if (roomPassword) { params.roomPassword = roomPassword }
-      if (this.user.userId != null && this.user.userId !== '') { params.userId = this.user.userId }
       try {
         const res = await this.$http.post('/dpRoom/joinRoom2', null, { params })
         const body = res.data

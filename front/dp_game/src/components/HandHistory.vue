@@ -249,7 +249,6 @@ export default {
       this.loadError = ''
       try {
         var params = {
-          userId: Number(this.user.userId),
           page: p,
           pageSize: this.pageSize
         }

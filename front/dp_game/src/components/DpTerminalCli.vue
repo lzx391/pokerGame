@@ -641,7 +641,7 @@ export default {
       if (!vm.gameWs || vm.gameWs.readyState !== 1) { this.addEntry('err', raw, '[ERR] 未连接房间推送'); return }
       if (text.length > 200) { this.addEntry('err', raw, '[ERR] 单条最多 200 字'); return }
       try {
-        vm.gameWs.send(JSON.stringify({ _ws: 'chatSend', nickname: vm.user.nickname, text: text }))
+        vm.gameWs.send(JSON.stringify({ _ws: 'chatSend', text: text }))
         this.addEntry('ok', raw, undefined)
         this.appendOut('[OK] 已发送: ' + text)
       } catch (e) {

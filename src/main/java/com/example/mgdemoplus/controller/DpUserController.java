@@ -2,6 +2,7 @@ package com.example.mgdemoplus.controller;
 
 import com.example.mgdemoplus.common.entity.DpUser;
 import com.example.mgdemoplus.common.mapper.DpUserMapper;
+import com.example.mgdemoplus.security.DpCurrentUserSupport;
 import com.example.mgdemoplus.security.JwtTokenService;
 import com.example.mgdemoplus.user.cache.DpRedisLoginCacheService;
 import com.example.mgdemoplus.user.DpUserService;
@@ -14,8 +15,6 @@ import com.example.mgdemoplus.user.dto.DpUserProfileView;
 import com.example.mgdemoplus.utils.ResultUtil;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -51,6 +50,8 @@ public class DpUserController {
     DpAchievementService dpAchievementService;
     @Autowired
     ObjectMapper objectMapper;
+    @Autowired
+    DpCurrentUserSupport currentUserSupport;
 
     @PostMapping("/registerUser")
     public ResultUtil registerUser(@RequestBody DpUser dpUser) {
@@ -94,7 +95,7 @@ public class DpUserController {
      */
     @GetMapping("/profile")
     public ResultUtil getProfile() {
-        DpUser current = requireCurrentUser();
+        DpUser current = currentUserSupport.requireUser();
         if (current == null) {
             return ResultUtil.error().data("message", "未登录或登录已失效");
         }
@@ -120,7 +121,7 @@ public class DpUserController {
      */
     @PutMapping("/profile")
     public ResultUtil updateProfile(@RequestBody JsonNode body) {
-        DpUser current = requireCurrentUser();
+        DpUser current = currentUserSupport.requireUser();
         if (current == null) {
             return ResultUtil.error().data("message", "未登录或登录已失效");
         }
@@ -159,7 +160,7 @@ public class DpUserController {
      */
     @PutMapping("/password")
     public ResultUtil updatePassword(@RequestBody DpUserPasswordUpdateRequest request) {
-        DpUser current = requireCurrentUser();
+        DpUser current = currentUserSupport.requireUser();
         if (current == null) {
             return ResultUtil.error().data("message", "未登录或登录已失效");
         }
@@ -175,7 +176,7 @@ public class DpUserController {
      */
     @PostMapping("/avatar")
     public ResultUtil uploadAvatar(@RequestParam("file") MultipartFile file) {
-        DpUser current = requireCurrentUser();
+        DpUser current = currentUserSupport.requireUser();
         if (current == null) {
             return ResultUtil.error().data("message", "未登录或登录已失效");
         }
@@ -194,7 +195,7 @@ public class DpUserController {
      */
     @GetMapping("/achievements")
     public ResultUtil getMyAchievements() {
-        DpUser current = requireCurrentUser();
+        DpUser current = currentUserSupport.requireUser();
         if (current == null) {
             return ResultUtil.error().data("message", "未登录或登录已失效");
         }
@@ -222,15 +223,4 @@ public class DpUserController {
         return node != null && !node.isNull() && node.isTextual() && !node.asText().isBlank();
     }
 
-    /**
-     * 解析当前登录用户
-     */
-    private DpUser requireCurrentUser() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated()
-                || "anonymousUser".equals(String.valueOf(auth.getPrincipal()))) {
-            return null;
-        }
-        return dpUserMapper.selectByNickname(auth.getName());
-    }
 }

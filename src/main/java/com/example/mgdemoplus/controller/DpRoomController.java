@@ -4,7 +4,6 @@ import com.example.mgdemoplus.common.bo.DpRoomBO;
 import com.example.mgdemoplus.lobby.bo.DpRoomLobbySearchParamBO;
 import com.example.mgdemoplus.common.entity.DpRoom;
 import com.example.mgdemoplus.common.entity.DpUser;
-import com.example.mgdemoplus.common.mapper.DpUserMapper;
 import com.example.mgdemoplus.lobby.DpRoomHallService;
 import com.example.mgdemoplus.npc.CustomNpcStyleSnapshot;
 import com.example.mgdemoplus.room.DpRoomService;
@@ -12,11 +11,10 @@ import com.example.mgdemoplus.room.KickPlayersBatchResult;
 import com.example.mgdemoplus.room.dto.AddCustomNpcBatchRequest;
 import com.example.mgdemoplus.room.dto.SetNextHandDeckPrefixRequest;
 import com.example.mgdemoplus.room.dto.VerifyExperimentalDeckPasswordRequest;
+import com.example.mgdemoplus.security.DpCurrentUserSupport;
 import com.example.mgdemoplus.utils.ResultUtil;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,36 +33,20 @@ public class DpRoomController {
     @Autowired
     private DpRoomHallService dpRoomHallService;
     @Autowired
-    private DpUserMapper dpUserMapper;
-
-    // 注意：不要在 Controller 里再建 roomMap，所有数据操作都走 Service
-
-    private DpUser requireCurrentUser(ResultUtil fallback) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated()
-                || "anonymousUser".equals(String.valueOf(auth.getPrincipal()))) {
-            fallback.setSuccess(false);
-            fallback.setMessage("未登录或登录已失效");
-            return null;
-        }
-        DpUser u = dpUserMapper.selectByNickname(auth.getName());
-        if (u == null) {
-            fallback.setSuccess(false);
-            fallback.setMessage("用户不存在或未同步");
-            return null;
-        }
-        return u;
-    }
+    private DpCurrentUserSupport currentUserSupport;
 
     @PostMapping("/createRoom")
-    public DpRoomBO createRoom(@RequestParam String nickname,
-                             @RequestParam(required = false) Integer userId,
+    public DpRoomBO createRoom(
                              @RequestParam(required = false, defaultValue = "5") int smallBlindChips,
                              @RequestParam(required = false, defaultValue = "10") int bigBlindChips,
                              @RequestParam(required = false, defaultValue = "50") int startingStackBb,
                              @RequestParam(required = false, defaultValue = "9") int maxSeatCount,
                              @RequestParam(required = false, defaultValue = "30") int thinkTimeSeconds,
                              @RequestParam(required = false) String roomPassword) {
+        DpUser me = currentUserSupport.requireUser();
+        if (me == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "未登录或登录已失效");
+        }
         if (maxSeatCount < DpRoomBO.MIN_SEAT_COUNT
                 || maxSeatCount > DpRoomBO.MAX_SEAT_COUNT) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "人数上限需在 2～9 之间");
@@ -72,7 +54,7 @@ public class DpRoomController {
         if (!DpRoomBO.isThinkTimeSecondsInRange(thinkTimeSeconds)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "行动思考时间需在 15～180 秒之间");
         }
-        return dpRoomService.createRoom(nickname, userId, smallBlindChips, bigBlindChips, startingStackBb,
+        return dpRoomService.createRoom(me.getNickname(), me.getId(), smallBlindChips, bigBlindChips, startingStackBb,
                 roomPassword, maxSeatCount, thinkTimeSeconds);
     }
 
@@ -81,7 +63,7 @@ public class DpRoomController {
             @PathVariable String roomId,
             @RequestParam(required = false, defaultValue = "50") int limit) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -92,62 +74,26 @@ public class DpRoomController {
         return payload;
     }
 
-    private String requireJwtNicknameMatchingParam(String nickname) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String jwtNickname = auth != null ? auth.getName() : null;
-        if (jwtNickname == null || nickname == null || !jwtNickname.equals(nickname)) {
-            return null;
-        }
-        return jwtNickname;
-    }
-
-    private Integer resolveCurrentUserId(String nickname) {
-        DpUser u = dpUserMapper.selectByNickname(nickname);
-        return u != null ? u.getId() : null;
-    }
-
     @GetMapping("/getNowRoom")
-    public DpRoomBO getNowRoom(@RequestParam String roomId,
-                             @RequestParam(required = false) String nickname,
-                             @RequestParam(required = false) Integer userId) {
-        Integer effectiveUserId = userId;
-        if (nickname != null && !nickname.isEmpty()) {
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            String jwtNickname = auth != null ? auth.getName() : null;
-            if (jwtNickname != null && !jwtNickname.equals("anonymousUser")) {
-                if (!jwtNickname.equals(nickname)) {
-                    return null;
-                }
-                if (effectiveUserId == null) {
-                    effectiveUserId = resolveCurrentUserId(jwtNickname);
-                }
-            }
-        }
-        return dpRoomService.getRoomSnapshotForViewer(roomId, nickname, effectiveUserId);
+    public DpRoomBO getNowRoom(@RequestParam String roomId) {
+        String viewerNick = currentUserSupport.resolveViewerNicknameOr(null);
+        Integer viewerUserId = currentUserSupport.requireUserId();
+        return dpRoomService.getRoomSnapshotForViewer(roomId, viewerNick, viewerUserId);
     }
 
-    @PostMapping("/joinRoom")
-    public String joinRoom(@RequestParam String roomId, @RequestParam String nickname,
-                           @RequestParam(required = false) Integer userId,
-                           @RequestParam(required = false) String roomPassword) {
-        return dpRoomService.joinRoom(roomId, nickname, userId, roomPassword);
-    }
     /**
-     * 与 {@link #joinRoom} 业务相同；鉴权由全局 {@link com.example.mgdemoplus.security.JwtAuthenticationFilter} 完成，
-     * 此处仅校验 JWT subject（昵称）与参数 {@code nickname} 一致。
+     * 与 {@link #joinRoom2} 业务相同；鉴权由全局 {@link com.example.mgdemoplus.security.JwtAuthenticationFilter} 完成，
+     * 操作者身份从 JWT 解析。
      */
     @PostMapping("/joinRoom2")
     public ResultUtil joinRoom2(@RequestParam String roomId,
-                                @RequestParam String nickname,
-                                @RequestParam(required = false) Integer userId,
                                 @RequestParam(required = false) String roomPassword) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String jwtNickname = auth != null ? auth.getName() : null;
-        if (jwtNickname == null || !jwtNickname.equals(nickname)) {
-            return ResultUtil.error().data("message", "token 与当前昵称不一致");
+        DpUser me = currentUserSupport.requireUser();
+        if (me == null) {
+            return ResultUtil.error().data("message", "未登录或登录已失效");
         }
 
-        String outcome = dpRoomService.joinRoom(roomId, nickname, userId, roomPassword);
+        String outcome = dpRoomService.joinRoom(roomId, me.getNickname(), me.getId(), roomPassword);
         if ("ok".equals(outcome) || "游戏已开始".equals(outcome)) {
             return ResultUtil.ok().data("message", outcome);
         }
@@ -159,79 +105,86 @@ public class DpRoomController {
      * 排队中由 {@code /ws/dp-quick-match} 推送状态；离开队列可 {@link #quickMatchCancel2}。
      */
     @PostMapping("/quickMatch2")
-    public ResultUtil quickMatch2(@RequestParam String nickname,
-                                   @RequestParam(required = false) Integer userId) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String jwtNickname = auth != null ? auth.getName() : null;
-        if (jwtNickname == null || !jwtNickname.equals(nickname)) {
-            return ResultUtil.error().data("message", "token 与当前昵称不一致");
+    public ResultUtil quickMatch2() {
+        DpUser me = currentUserSupport.requireUser();
+        if (me == null) {
+            return ResultUtil.error().data("message", "未登录或登录已失效");
         }
-        return dpRoomService.quickMatchJoinQueueOrImmediate(nickname, userId);
+        return dpRoomService.quickMatchJoinQueueOrImmediate(me.getNickname(), me.getId());
     }
 
     /** 取消默认快匹排队（无需在匹配成功后的房间再调）。 */
     @PostMapping("/quickMatchCancel2")
-    public ResultUtil quickMatchCancel2(@RequestParam String nickname) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String jwtNickname = auth != null ? auth.getName() : null;
-        if (jwtNickname == null || !jwtNickname.equals(nickname)) {
-            return ResultUtil.error().data("message", "token 与当前昵称不一致");
+    public ResultUtil quickMatchCancel2() {
+        DpUser me = currentUserSupport.requireUser();
+        if (me == null) {
+            return ResultUtil.error().data("message", "未登录或登录已失效");
         }
-        boolean removed = dpRoomService.cancelDefaultQuickMatchWait(nickname);
+        boolean removed = dpRoomService.cancelDefaultQuickMatchWait(me.getNickname());
         return ResultUtil.ok().data("cancelled", removed);
     }
 /**
  * 该房间内玩家是否能准备成功的接口
  * */
     @PostMapping("/toggleReady")
-    public String toggleReady(@RequestParam String roomId,
-                              @RequestParam String nickname,
-                              @RequestParam(required = false) Integer userId) {
-        if (requireJwtNicknameMatchingParam(nickname) == null) {
+    public String toggleReady(@RequestParam String roomId) {
+        DpUser me = currentUserSupport.requireUser();
+        if (me == null) {
             return "fail";
         }
-        Integer uid = userId != null ? userId : resolveCurrentUserId(nickname);
-        return dpRoomService.toggleReady(roomId, nickname, uid) ? "ok" : "fail";
+        return dpRoomService.toggleReady(roomId, me.getNickname(), me.getId()) ? "ok" : "fail";
     }
 
     @PostMapping("/exitRoom")
-    public String exitRoom(@RequestParam String roomId, @RequestParam String nickname) {
+    public String exitRoom(@RequestParam String roomId) {
+        String nickname = currentUserSupport.requireNickname();
+        if (nickname == null) {
+            return "fail";
+        }
         return dpRoomService.exitRoom(roomId, nickname) ? "ok" : "fail";
     }
 
     @PostMapping("/startGame")
-    public String startGame(@RequestParam String roomId, @RequestParam String ownerNickname) {
+    public String startGame(@RequestParam String roomId) {
+        String ownerNickname = currentUserSupport.requireNickname();
+        if (ownerNickname == null) {
+            return "fail";
+        }
         return dpRoomService.startGame(roomId, ownerNickname) ? "ok" : "fail";
     }
 
     @PostMapping("/newHand")
-    public String newHand(@RequestParam String roomId, @RequestParam String ownerNickname) {
+    public String newHand(@RequestParam String roomId) {
+        if (currentUserSupport.requireNickname() == null) {
+            return "fail";
+        }
         return dpRoomService.newHand(roomId) ? "ok" : "fail";
     }
 
     @PostMapping("/bet")
-    public String bet(@RequestParam String roomId, @RequestParam String nickname, @RequestParam int bet) {
+    public String bet(@RequestParam String roomId, @RequestParam int bet) {
+        String nickname = currentUserSupport.requireNickname();
+        if (nickname == null) {
+            return "fail";
+        }
         return dpRoomService.bet(roomId, nickname, bet) ? "ok" : "fail";
     }
 
     @PostMapping("/fold")
-    public String fold(@RequestParam String roomId, @RequestParam String nickname) {
+    public String fold(@RequestParam String roomId) {
+        String nickname = currentUserSupport.requireNickname();
+        if (nickname == null) {
+            return "fail";
+        }
         return dpRoomService.fold(roomId, nickname) ? "ok" : "fail";
     }
 
-//    @PostMapping("/nextStage")
-//    public String nextStage(@RequestParam String roomId, @RequestParam String ownerNickname) {
-//        return dpRoomService.nextStage(roomId) ? "ok" : "fail";
-//    }
-
-    // 按池结算：参数格式 "0:Alice;1:Bob,Charlie"
-//    @PostMapping("/judgeWin")
-//    public String judgeWin(@RequestParam String roomId, @RequestParam String potWinners) {
-//        return dpRoomService.judgeWin(roomId, potWinners) ? "ok" : "fail";
-//    }
     @PostMapping("/kickPlayer")
-    public String kickPlayer(@RequestParam String roomId,@RequestParam String nickname){
-       return dpRoomService.kickPlayer(roomId,nickname) ? "ok":"fail";
+    public String kickPlayer(@RequestParam String roomId, @RequestParam String nickname) {
+        if (currentUserSupport.requireNickname() == null) {
+            return "fail";
+        }
+       return dpRoomService.kickPlayer(roomId, nickname) ? "ok" : "fail";
     }
 
     /**
@@ -239,6 +192,9 @@ public class DpRoomController {
      */
     @PostMapping("/kickPlayersBatch")
     public ResultUtil kickPlayersBatch(@RequestParam String roomId, @RequestParam String nicknames) {
+        if (currentUserSupport.requireNickname() == null) {
+            return ResultUtil.error().data("message", "未登录或登录已失效");
+        }
         KickPlayersBatchResult batch = dpRoomService.kickPlayersBatch(roomId, nicknames);
         if (batch.getAttempted() == 0) {
             return ResultUtil.error().data("message", "未包含有效玩家昵称");
@@ -259,44 +215,49 @@ public class DpRoomController {
         }
         return ok;
     }
+
     @PostMapping("/heartbeat")
-    public void heartbeat(@RequestParam String roomId,
-                          @RequestParam String nickname,
-                          @RequestParam(required = false) Integer userId) {
-        if (requireJwtNicknameMatchingParam(nickname) == null) {
+    public void heartbeat(@RequestParam String roomId) {
+        DpUser me = currentUserSupport.requireUser();
+        if (me == null) {
             return;
         }
-        Integer uid = userId != null ? userId : resolveCurrentUserId(nickname);
-        dpRoomService.heartbeat(roomId, nickname, uid);
+        dpRoomService.heartbeat(roomId, me.getNickname(), me.getId());
     }
 
     /**
      * 观战玩家：标记在下一局加入对局
      */
     @PostMapping("/readyNextHand")
-    public String readyNextHand(@RequestParam String roomId, @RequestParam String nickname,
-                                @RequestParam(required = false) Integer userId) {
-        if (requireJwtNicknameMatchingParam(nickname) == null) {
+    public String readyNextHand(@RequestParam String roomId) {
+        DpUser me = currentUserSupport.requireUser();
+        if (me == null) {
             return "fail";
         }
-        Integer uid = userId != null ? userId : resolveCurrentUserId(nickname);
-        return dpRoomService.readyNextHand(roomId, nickname, uid) ? "ok" : "人数已满";
+        return dpRoomService.readyNextHand(roomId, me.getNickname(), me.getId()) ? "ok" : "人数已满";
     }
 
     /**
      * 观战玩家：取消下一局加入，从候补列表移除。
      */
     @PostMapping("/cancelReadyNextHand")
-    public String cancelReadyNextHand(@RequestParam String roomId, @RequestParam String nickname,
-                                      @RequestParam(required = false) Integer userId) {
-        return dpRoomService.cancelReadyNextHand(roomId, nickname, userId) ? "ok" : "fail";
+    public String cancelReadyNextHand(@RequestParam String roomId) {
+        DpUser me = currentUserSupport.requireUser();
+        if (me == null) {
+            return "fail";
+        }
+        return dpRoomService.cancelReadyNextHand(roomId, me.getNickname(), me.getId()) ? "ok" : "fail";
     }
 
     /**
      * 结算后筹码为 0 的玩家补码到初始筹码。
      */
     @PostMapping("/rebuy")
-    public String rebuy(@RequestParam String roomId, @RequestParam String nickname) {
+    public String rebuy(@RequestParam String roomId) {
+        String nickname = currentUserSupport.requireNickname();
+        if (nickname == null) {
+            return "fail";
+        }
         return dpRoomService.rebuy(roomId, nickname) ? "ok" : "fail";
     }
 
@@ -305,6 +266,9 @@ public class DpRoomController {
      */
     @PostMapping("/addDemoBot")
     public String addDemoBot(@RequestParam String roomId) {
+        if (currentUserSupport.requireNickname() == null) {
+            return "fail";
+        }
         return dpRoomService.addDemoBotToNextHand(roomId) ? "ok" : "fail";
     }
 
@@ -313,6 +277,9 @@ public class DpRoomController {
      */
     @PostMapping("/addManiacBot")
     public String addManiacBot(@RequestParam String roomId) {
+        if (currentUserSupport.requireNickname() == null) {
+            return "fail";
+        }
         return dpRoomService.addManiacBotToNextHand(roomId) ? "ok" : "fail";
     }
 
@@ -321,6 +288,9 @@ public class DpRoomController {
      */
     @PostMapping("/addSharkBot")
     public String addSharkBot(@RequestParam String roomId) {
+        if (currentUserSupport.requireNickname() == null) {
+            return "fail";
+        }
         return dpRoomService.addSharkBotToNextHand(roomId) ? "ok" : "fail";
     }
 
@@ -329,24 +299,36 @@ public class DpRoomController {
      */
     @PostMapping("/addTagBot")
     public String addTagBot(@RequestParam String roomId) {
+        if (currentUserSupport.requireNickname() == null) {
+            return "fail";
+        }
         return dpRoomService.addTagBotToNextHand(roomId) ? "ok" : "fail";
     }
 
     /** 松凶 {@code BOT_LAG_<房间序号>} */
     @PostMapping("/addLagBot")
     public String addLagBot(@RequestParam String roomId) {
+        if (currentUserSupport.requireNickname() == null) {
+            return "fail";
+        }
         return dpRoomService.addLagBotToNextHand(roomId) ? "ok" : "fail";
     }
 
     /** 紧弱 Nit {@code BOT_NIT_<房间序号>} */
     @PostMapping("/addNitBot")
     public String addNitBot(@RequestParam String roomId) {
+        if (currentUserSupport.requireNickname() == null) {
+            return "fail";
+        }
         return dpRoomService.addNitBotToNextHand(roomId) ? "ok" : "fail";
     }
 
     /** 跟注站 {@code BOT_CALL_<房间序号>} */
     @PostMapping("/addCallStationBot")
     public String addCallStationBot(@RequestParam String roomId) {
+        if (currentUserSupport.requireNickname() == null) {
+            return "fail";
+        }
         return dpRoomService.addCallStationBotToNextHand(roomId) ? "ok" : "fail";
     }
 
@@ -357,6 +339,9 @@ public class DpRoomController {
     public String addRuleNpcBatch(@RequestParam String roomId,
             @RequestParam String archetype,
             @RequestParam(defaultValue = "1") int count) {
+        if (currentUserSupport.requireNickname() == null) {
+            return "fail";
+        }
         return dpRoomService.addRuleNpcBatchToNextHand(roomId, archetype, count) ? "ok" : "fail";
     }
 
@@ -365,6 +350,10 @@ public class DpRoomController {
      */
     @PostMapping("/addCustomNpcBatch")
     public String addCustomNpcBatch(@RequestBody AddCustomNpcBatchRequest req) {
+        DpUser me = currentUserSupport.requireUser();
+        if (me == null) {
+            return "fail";
+        }
         if (req == null || req.getRoomId() == null || req.getRoomId().isEmpty()) {
             return "fail";
         }
@@ -374,7 +363,7 @@ public class DpRoomController {
         }
         return dpRoomService.addCustomNpcBatchToNextHand(
                 req.getRoomId(),
-                req.getRequesterNickname(),
+                me.getNickname(),
                 req.getCount(),
                 profile) ? "ok" : "fail";
     }
@@ -384,12 +373,18 @@ public class DpRoomController {
      */
     @PostMapping("/addLlmBot")
     public String addLlmBot(@RequestParam String roomId) {
+        if (currentUserSupport.requireNickname() == null) {
+            return "fail";
+        }
         return dpRoomService.addLlmBotToNextHand(roomId) ? "ok" : "fail";
     }
 
     /** 全局叙事版大模型 NPC：{@code BOT_LLM_GLOBAL_<序号>}。 */
     @PostMapping("/addLlmGlobalBot")
     public String addLlmGlobalBot(@RequestParam String roomId) {
+        if (currentUserSupport.requireNickname() == null) {
+            return "fail";
+        }
         return dpRoomService.addGlobalLlmBotToNextHand(roomId) ? "ok" : "fail";
     }
 
@@ -398,8 +393,11 @@ public class DpRoomController {
      */
     @PostMapping("/transferOwner")
     public String transferOwner(@RequestParam String roomId,
-                                @RequestParam String fromNickname,
                                 @RequestParam String toNickname) {
+        String fromNickname = currentUserSupport.requireNickname();
+        if (fromNickname == null) {
+            return "fail";
+        }
         return dpRoomService.transferOwner(roomId, fromNickname, toNickname) ? "ok" : "fail";
     }
 
@@ -408,12 +406,16 @@ public class DpRoomController {
      */
     @PostMapping("/verifyExperimentalDeckPassword")
     public ResultUtil verifyExperimentalDeckPassword(@RequestBody VerifyExperimentalDeckPasswordRequest req) {
+        DpUser me = currentUserSupport.requireUser();
+        if (me == null) {
+            return ResultUtil.error().data("message", "未登录或登录已失效");
+        }
         if (req == null || req.getRoomId() == null || req.getRoomId().isEmpty()) {
             return ResultUtil.error().data("message", "roomId 不能为空");
         }
         return dpRoomService.verifyExperimentalDeckPassword(
                 req.getRoomId(),
-                req.getRequesterNickname(),
+                me.getNickname(),
                 req.getExperimentalPassword());
     }
 
@@ -422,12 +424,16 @@ public class DpRoomController {
      */
     @PostMapping("/setNextHandDeckPrefix")
     public ResultUtil setNextHandDeckPrefix(@RequestBody SetNextHandDeckPrefixRequest req) {
+        DpUser me = currentUserSupport.requireUser();
+        if (me == null) {
+            return ResultUtil.error().data("message", "未登录或登录已失效");
+        }
         if (req == null || req.getRoomId() == null || req.getRoomId().isEmpty()) {
             return ResultUtil.error().data("message", "roomId 不能为空");
         }
         return dpRoomService.setNextHandDeckPrefix(
                 req.getRoomId(),
-                req.getRequesterNickname(),
+                me.getNickname(),
                 req.getCards(),
                 req.getExperimentalPassword());
     }
@@ -437,9 +443,12 @@ public class DpRoomController {
      */
     @GetMapping("/nextHandDeckPrefixStatus")
     public ResultUtil nextHandDeckPrefixStatus(@RequestParam String roomId,
-                                               @RequestParam String requesterNickname,
                                                @RequestParam String experimentalPassword) {
-        return dpRoomService.getNextHandDeckPrefixStatus(roomId, requesterNickname, experimentalPassword);
+        DpUser me = currentUserSupport.requireUser();
+        if (me == null) {
+            return ResultUtil.error().data("message", "未登录或登录已失效");
+        }
+        return dpRoomService.getNextHandDeckPrefixStatus(roomId, me.getNickname(), experimentalPassword);
     }
 
     @GetMapping("/getAllRooms2")

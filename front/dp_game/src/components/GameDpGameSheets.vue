@@ -270,7 +270,6 @@
     <game-deck-preset-password-gate
         :visible.sync="vm.showDeckPresetPasswordGate"
         :room-id="vm.roomId"
-        :requester-nickname="vm.user && vm.user.nickname"
         :game-ui-theme="vm.gameUiTheme"
         @verified="(pwd) => vm.onDeckPresetPasswordVerified(pwd)"
     />

@@ -642,7 +642,6 @@ export default {
       try {
         var params = {
           handHistoryId: id,
-          userId: Number(this.user.userId)
         }
         var res = await this.$http.get('/dpHandHistory/detail', { params: params })
         this.detail = res.data || null

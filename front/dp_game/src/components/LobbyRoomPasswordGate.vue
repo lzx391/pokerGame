@@ -160,11 +160,7 @@ export default {
       try {
         var params = {
           roomId: this.roomId,
-          nickname: this.nickname,
           roomPassword: pwd
-        }
-        if (this.userId != null && this.userId !== '') {
-          params.userId = this.userId
         }
         var res = await this.$http.post('/dpRoom/joinRoom2', null, { params: params })
         var body = res.data

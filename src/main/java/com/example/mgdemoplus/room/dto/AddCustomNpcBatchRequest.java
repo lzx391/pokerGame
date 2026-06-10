@@ -8,7 +8,6 @@ import com.example.mgdemoplus.npc.CustomNpcStyleProfileDto;
 public class AddCustomNpcBatchRequest {
     private String roomId;
     private int count;
-    private String requesterNickname;
     private CustomNpcStyleProfileDto profile;
 
     public String getRoomId() {
@@ -25,14 +24,6 @@ public class AddCustomNpcBatchRequest {
 
     public void setCount(int count) {
         this.count = count;
-    }
-
-    public String getRequesterNickname() {
-        return requesterNickname;
-    }
-
-    public void setRequesterNickname(String requesterNickname) {
-        this.requesterNickname = requesterNickname;
     }
 
     public CustomNpcStyleProfileDto getProfile() {
