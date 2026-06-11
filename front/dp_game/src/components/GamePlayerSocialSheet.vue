@@ -238,12 +238,14 @@
     :visible.sync="achievementWallVisible"
     :user-id="achievementWallTargetUserId"
     :subject-name="displayName"
+    :subject-nickname="achievementWallSubjectNickname"
   />
   <dp-achievement-wall-modal
     v-else
     :visible.sync="achievementWallVisible"
     :user-id="achievementWallTargetUserId"
     :subject-name="displayName"
+    :subject-nickname="achievementWallSubjectNickname"
   />
   </div>
 </template>
@@ -389,6 +391,10 @@ export default {
       var uid = Number(this.target.userId)
       if (!uid || uid <= 0 || isNaN(uid)) return null
       return uid
+    },
+    achievementWallSubjectNickname() {
+      if (!this.target || !this.target.nickname) return ''
+      return String(this.target.nickname).trim()
     },
     useRetroAchievementWall() {
       return this.gameUiTheme === 'retro8bit'

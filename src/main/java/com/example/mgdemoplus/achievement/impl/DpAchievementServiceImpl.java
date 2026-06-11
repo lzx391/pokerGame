@@ -10,6 +10,7 @@ import com.example.mgdemoplus.common.mapper.DpUserMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -45,7 +46,7 @@ public class DpAchievementServiceImpl implements DpAchievementService {
         if (unlocked != null && unlocked == 1) {
             return;
         }
-        dpUserAchievementMapper.tryUnlock(userId, def.getId(), handHistoryId);
+        dpUserAchievementMapper.tryUnlock(userId, def.getId(), handHistoryId, LocalDateTime.now());
         achievementNotifyPublisher.notifyUnlocked(userId, def);
     }
 }

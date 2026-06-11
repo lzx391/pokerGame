@@ -16,7 +16,12 @@
         </div>
       </div>
     </header>
-    <dp-hand-history-detail context="lobby-page" :hand-history-id="handHistoryId" />
+    <dp-hand-history-detail
+      context="lobby-page"
+      :hand-history-id="handHistoryId"
+      :achievement-subject-user-id="achievementSubjectUserId"
+      :achievement-subject-nickname="achievementSubjectNickname"
+    />
   </div>
   <div
     v-else
@@ -319,7 +324,11 @@ export default {
       required: true
     },
     /** 为 true 时「返回列表」交给父组件（如对局内弹层），不跳转路由 */
-    embedded: { type: Boolean, default: false }
+    embedded: { type: Boolean, default: false },
+    /** 成就墙回放：牌谱主体玩家 userId；有值时走 checkUserAchievementDetail */
+    achievementSubjectUserId: { type: Number, default: null },
+    /** 成就墙回放：主体玩家昵称，用于洞牌/本人视角 UI */
+    achievementSubjectNickname: { type: String, default: '' }
   },
   data() {
     return {
@@ -333,6 +342,13 @@ export default {
     }
   },
   computed: {
+    replayViewerNickname() {
+      if (this.achievementSubjectUserId != null && this.achievementSubjectUserId > 0) {
+        var sub = this.achievementSubjectNickname && String(this.achievementSubjectNickname).trim()
+        if (sub) return sub
+      }
+      return (this.user && this.user.nickname) || ''
+    },
     useRetroDetail() {
       return !this.embedded && this.gameUiTheme === 'retro8bit'
     },
@@ -369,7 +385,7 @@ export default {
       if (tab === 'settlement') return out
       const holes = this.payload.holeCardsAtEnd
       const map = holes && typeof holes === 'object' ? holes : {}
-      const viewer = this.user && this.user.nickname
+      const viewer = this.replayViewerNickname
       for (const nick of this.rowNicknames) {
         const isSelf = viewer && nick === viewer
         if (isSelf) {
@@ -417,7 +433,7 @@ export default {
     settlementRowsWithCards() {
       const holes = this.payload.holeCardsAtEnd
       const map = holes && typeof holes === 'object' ? holes : {}
-      const viewer = this.user && this.user.nickname
+      const viewer = this.replayViewerNickname
       return this.settlementNetRows.map((row) => {
         const folded = this.foldedNicknames.has(row.nick)
         const isSelf = viewer && row.nick === viewer
@@ -516,6 +532,9 @@ export default {
   watch: {
     handHistoryId() {
       this.fetchDetail()
+    },
+    achievementSubjectUserId() {
+      this.fetchDetail()
     }
   },
   async created() {
@@ -584,7 +603,7 @@ export default {
     },
     handRankTextForStreet(nick) {
       if (!nick || this.activeTab === 'settlement') return ''
-      const viewer = this.user && this.user.nickname
+      const viewer = this.replayViewerNickname
       const isSelf = viewer && nick === viewer
       const holesCell = this.holeCardsByNickForStreet[nick]
       if (!isSelf && holesCell === null) return ''
@@ -640,10 +659,14 @@ export default {
       this.loading = true
       this.loadError = ''
       try {
-        var params = {
-          handHistoryId: id,
+        var params = { handHistoryId: id }
+        var url = '/dpHandHistory/detail'
+        var subjectUid = Number(this.achievementSubjectUserId)
+        if (!isNaN(subjectUid) && subjectUid > 0) {
+          url = '/dpHandHistory/checkUserAchievementDetail'
+          params.userId = subjectUid
         }
-        var res = await this.$http.get('/dpHandHistory/detail', { params: params })
+        var res = await this.$http.get(url, { params: params })
         this.detail = res.data || null
         if (!this.detail) {
           this.loadError = '未找到数据'

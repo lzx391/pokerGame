@@ -130,7 +130,9 @@
     v-if="replayHandHistoryId != null"
     context="achievement-overlay"
     :hand-history-id="replayHandHistoryId"
-    @closed="replayHandHistoryId = null"
+    :achievement-subject-user-id="replaySubjectUserId"
+    :achievement-subject-nickname="replaySubjectNickname"
+    @closed="closeReplay"
   />
   </div>
 </template>
@@ -160,7 +162,9 @@ export default {
     visible: { type: Boolean, default: false },
     /** null = 当前登录用户；数字 = 查看他人 */
     userId: { type: Number, default: null },
-    subjectName: { type: String, default: '' }
+    subjectName: { type: String, default: '' },
+    /** 他人成就墙：主体玩家原始昵称（牌谱视角） */
+    subjectNickname: { type: String, default: '' }
   },
   data: function () {
     return {
@@ -170,6 +174,8 @@ export default {
       loadError: '',
       items: [],
       replayHandHistoryId: null,
+      replaySubjectUserId: null,
+      replaySubjectNickname: '',
       cursor: 0,
       typedDesc: '',
       typing: false,
@@ -231,6 +237,8 @@ export default {
         this.startOpen()
       } else {
         this.replayHandHistoryId = null
+        this.replaySubjectUserId = null
+        this.replaySubjectNickname = ''
         this.doClose()
       }
     },
@@ -335,6 +343,8 @@ export default {
       this.clearTimers()
       this.detachKeyListener()
       this.replayHandHistoryId = null
+      this.replaySubjectUserId = null
+      this.replaySubjectNickname = ''
       this.phase = 'idle'
       this.items = []
       this.loadError = ''
@@ -434,13 +444,22 @@ export default {
     canShowReplay: function (item) {
       return canShowAchievementReplay(item)
     },
+    closeReplay: function () {
+      this.replayHandHistoryId = null
+      this.replaySubjectUserId = null
+      this.replaySubjectNickname = ''
+    },
     openHandHistoryReplay: function (handHistoryId) {
       if (handHistoryId == null || handHistoryId === '') return
+      var subjectUid = (this.userId != null && this.userId > 0) ? this.userId : null
+      var subjectNick = subjectUid ? (this.subjectNickname || '') : ''
       if (this.dpGameView && typeof this.dpGameView.openHandHistoryDetail === 'function') {
-        this.dpGameView.openHandHistoryDetail(handHistoryId)
+        this.dpGameView.openHandHistoryDetail(handHistoryId, subjectUid, subjectNick)
         dpScheduleOverlayFullscreenReparent(this.dpGameView)
         return
       }
+      this.replaySubjectUserId = subjectUid
+      this.replaySubjectNickname = subjectNick
       this.replayHandHistoryId = handHistoryId
     },
     loadAchievements: async function () {

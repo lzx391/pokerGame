@@ -85,6 +85,8 @@
       <div class="dp-ach-replay-panel" @click.stop>
         <hand-history-detail
           :hand-history-id="replayHandHistoryId"
+          :achievement-subject-user-id="replaySubjectUserId"
+          :achievement-subject-nickname="replaySubjectNickname"
           embedded
           @back="closeReplay"
         />
@@ -118,7 +120,9 @@ export default {
     visible: { type: Boolean, default: false },
     /** null = 当前登录用户；数字 = 查看他人 */
     userId: { type: Number, default: null },
-    subjectName: { type: String, default: '' }
+    subjectName: { type: String, default: '' },
+    /** 他人成就墙：主体玩家原始昵称（牌谱视角） */
+    subjectNickname: { type: String, default: '' }
   },
   data() {
     return {
@@ -127,6 +131,8 @@ export default {
       loadError: '',
       items: [],
       replayHandHistoryId: null,
+      replaySubjectUserId: null,
+      replaySubjectNickname: '',
       replayZIndex: dpLayerZIndex('handHistory'),
       _portalAnchor: null
     }
@@ -166,6 +172,8 @@ export default {
         })
       } else {
         this.replayHandHistoryId = null
+        this.replaySubjectUserId = null
+        this.replaySubjectNickname = ''
         this.detachPortal()
       }
     },
@@ -234,15 +242,21 @@ export default {
     },
     closeReplay() {
       this.replayHandHistoryId = null
+      this.replaySubjectUserId = null
+      this.replaySubjectNickname = ''
     },
     openHandHistoryReplay(handHistoryId) {
       if (handHistoryId == null || handHistoryId === '') return
+      var subjectUid = (this.userId != null && this.userId > 0) ? this.userId : null
+      var subjectNick = subjectUid ? (this.subjectNickname || '') : ''
       if (this.dpGameView && typeof this.dpGameView.openHandHistoryDetail === 'function') {
-        this.dpGameView.openHandHistoryDetail(handHistoryId)
+        this.dpGameView.openHandHistoryDetail(handHistoryId, subjectUid, subjectNick)
         dpScheduleOverlayFullscreenReparent(this.dpGameView)
         return
       }
       this.replayZIndex = dpNextZIndex('handHistory')
+      this.replaySubjectUserId = subjectUid
+      this.replaySubjectNickname = subjectNick
       this.replayHandHistoryId = handHistoryId
     },
     async loadAchievements() {

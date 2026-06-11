@@ -55,7 +55,21 @@ public class DpHandHistoryController {
         }
         return ResponseEntity.ok(dto);
     }
-
+    /**
+     * 检查任意玩家的历史成就详情
+     * @param handHistoryId
+     * @param userId
+     * @return
+     */
+    @GetMapping("/checkUserAchievementDetail")
+    public ResponseEntity<DpHandHistoryDetailVO> checkUserAchievementDetail(@RequestParam long handHistoryId,@RequestParam Integer userId
+    ) {
+        DpHandHistoryDetailVO dto = handHistoryService.getDetail(handHistoryId, userId);
+        if (dto == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(dto);
+    }
     @GetMapping("/checkUserAndOtherPlayerHandHistoryList")
     public DpHandHistoryPageVO checkUserAndOtherPlayerHandHistoryList(
             @RequestParam Integer otherUserId,

@@ -146,7 +146,14 @@
         :other-user-id="opponentHandHistoryOtherUserId"
         :opponent-display-name="opponentHandHistoryDisplayName"
     />
-    <dp-hand-history-detail ref="handHistoryDetail" v-if="gameUiTheme === 'retro8bit'" :hand-history-id="handHistoryDetailId" @closed="handHistoryDetailId = null" />
+    <dp-hand-history-detail
+      ref="handHistoryDetail"
+      v-if="gameUiTheme === 'retro8bit'"
+      :hand-history-id="handHistoryDetailId"
+      :achievement-subject-user-id="handHistoryDetailSubjectUserId"
+      :achievement-subject-nickname="handHistoryDetailSubjectNickname"
+      @closed="onHandHistoryDetailClosed"
+    />
 
     <dp-retro-ambient-overlay
         v-if="showRetroDesktopFx"
@@ -276,6 +283,8 @@ export default {
       showHandHistoryPanel: false,
       showOpponentHandHistoryPanel: false,
       handHistoryDetailId: null,
+      handHistoryDetailSubjectUserId: null,
+      handHistoryDetailSubjectNickname: '',
       viewportWidth: typeof window !== 'undefined' ? window.innerWidth : 1024,
       prefersReducedMotion: false,
       _hologramResizeTimer: null,
@@ -764,7 +773,7 @@ export default {
         if (!isInput) {
           if (this.handHistoryDetailId != null) {
             e.preventDefault()
-            this.handHistoryDetailId = null; return
+            this.onHandHistoryDetailClosed(); return
           }
           if (this.showMusicPlayer) {
             e.preventDefault()
@@ -790,7 +799,7 @@ export default {
         // 如果对局详情开着，先关掉
         if (this.handHistoryDetailId != null) {
           e.preventDefault()
-          this.handHistoryDetailId = null
+          this.onHandHistoryDetailClosed()
           return
         }
         // 如果音乐盒开着，先关音乐盒
@@ -2701,8 +2710,21 @@ export default {
       }
       return this.$refs.handHistoryViewer
     },
-    openHandHistoryDetail(handHistoryId) {
+    openHandHistoryDetail(handHistoryId, achievementSubjectUserId, achievementSubjectNickname) {
       this.handHistoryDetailId = handHistoryId
+      var subjectUid = Number(achievementSubjectUserId)
+      if (!isNaN(subjectUid) && subjectUid > 0) {
+        this.handHistoryDetailSubjectUserId = subjectUid
+        this.handHistoryDetailSubjectNickname = achievementSubjectNickname ? String(achievementSubjectNickname) : ''
+      } else {
+        this.handHistoryDetailSubjectUserId = null
+        this.handHistoryDetailSubjectNickname = ''
+      }
+    },
+    onHandHistoryDetailClosed() {
+      this.handHistoryDetailId = null
+      this.handHistoryDetailSubjectUserId = null
+      this.handHistoryDetailSubjectNickname = ''
     },
     chatPanelUsesMobileDock() {
       return this.viewportWidth <= 600

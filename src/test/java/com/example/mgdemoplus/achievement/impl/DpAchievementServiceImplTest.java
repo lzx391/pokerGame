@@ -15,11 +15,15 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.List;
+
+import org.mockito.ArgumentCaptor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -62,7 +66,10 @@ class DpAchievementServiceImplTest {
 
         service.unlockIfAbsent(USER_ID, "table_clear", HAND_HISTORY_ID);
 
-        verify(dpUserAchievementMapper).tryUnlock(USER_ID, ACHIEVEMENT_ID, HAND_HISTORY_ID);
+        ArgumentCaptor<LocalDateTime> unlockedAtCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
+        verify(dpUserAchievementMapper).tryUnlock(
+                eq(USER_ID), eq(ACHIEVEMENT_ID), eq(HAND_HISTORY_ID), unlockedAtCaptor.capture());
+        assertThat(unlockedAtCaptor.getValue()).isNotNull();
         verify(achievementNotifyPublisher).notifyUnlocked(USER_ID, achievementDef);
     }
 
@@ -74,7 +81,7 @@ class DpAchievementServiceImplTest {
 
         service.unlockIfAbsent(USER_ID, "table_clear", 9999L);
 
-        verify(dpUserAchievementMapper, never()).tryUnlock(anyInt(), anyInt(), any());
+        verify(dpUserAchievementMapper, never()).tryUnlock(anyInt(), anyInt(), any(), any());
         verify(achievementNotifyPublisher, never()).notifyUnlocked(anyInt(), any());
     }
 

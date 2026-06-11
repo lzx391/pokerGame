@@ -213,7 +213,11 @@ export default {
       validator: function (v) {
         return v === 'game-overlay' || v === 'lobby-page' || v === 'achievement-overlay'
       }
-    }
+    },
+    /** 成就墙回放：牌谱主体玩家 userId；有值时走 checkUserAchievementDetail */
+    achievementSubjectUserId: { type: Number, default: null },
+    /** 成就墙回放：主体玩家昵称，用于洞牌/本人视角 UI */
+    achievementSubjectNickname: { type: String, default: '' }
   },
   data: function () {
     return {
@@ -232,6 +236,13 @@ export default {
   },
   computed: {
     ...mapState('dpGame', ['gameUiTheme', 'ecoMode']),
+    replayViewerNickname: function () {
+      if (this.achievementSubjectUserId != null && this.achievementSubjectUserId > 0) {
+        var sub = this.achievementSubjectNickname && String(this.achievementSubjectNickname).trim()
+        if (sub) return sub
+      }
+      return (this.user && this.user.nickname) || ''
+    },
     isLobbyPage: function () { return this.context === 'lobby-page' },
     isAchievementOverlay: function () { return this.context === 'achievement-overlay' },
     usesLocalSession: function () { return this.isLobbyPage || this.isAchievementOverlay },
@@ -280,7 +291,7 @@ export default {
       var self = this
       var tab = this.activeTab
       var out = {}
-      var viewer = this.user && this.user.nickname
+      var viewer = this.replayViewerNickname
       if (tab === 'settlement') return out
       for (var i = 0; i < this.rowNicknames.length; i++) {
         var nick = this.rowNicknames[i]
@@ -358,7 +369,7 @@ export default {
       var self = this
       var community = finalCommunityCards(this.boardsByStreet)
       var rankMap = finalHandRankNameByPlayer(self.boardsByStreet)
-      var viewer = this.user && this.user.nickname
+      var viewer = this.replayViewerNickname
       var holes = this.holeCardsAtEnd
       return this.rowNicknames.filter(function (n) { return Object.prototype.hasOwnProperty.call(net, n) }).map(function (nick) {
         var nv = net[nick]
@@ -384,6 +395,11 @@ export default {
       }
       if (v != null) { this.visible = true; this.activeTab = 'preflop'; this.fetchDetail(); this.startCrtSequence() }
       else if (this.visible) { this.close() }
+    },
+    achievementSubjectUserId: function () {
+      if (this.handHistoryId == null) return
+      if (this.isLobbyPage && !this.lobbyReady) return
+      this.fetchDetail()
     }
   },
   created: function () {
@@ -481,7 +497,7 @@ export default {
     cardClass: function (c) { return getCardClass(c) },
     cardFace: function (c) { return getCardDisplay(c) },
     miniCardClass: function (c) { return getCardClass(c).replace('card-base', '').trim() },
-    isSelfNick: function (n) { return this.user && this.user.nickname === n },
+    isSelfNick: function (n) { return this.replayViewerNickname && this.replayViewerNickname === n },
     roleClass: function (t) {
       if (t === '发牌' || t === '发牌猫') return 'dp-hd__role--dealer'
       if (t === '底1' || t === 'SC') return 'dp-hd__role--sb'
@@ -501,7 +517,7 @@ export default {
     potLabel: function (i) { return i === 0 ? 'MAIN' : 'SIDE' + i },
     handRankTextForStreet: function (nick) {
       if (!nick || this.activeTab === 'settlement') return ''
-      var viewer = this.user && this.user.nickname
+      var viewer = this.replayViewerNickname
       var isSelf = viewer && nick === viewer
       var holesCell = this.holeCardsByStreet[nick]
       if (!isSelf && holesCell === null) return ''
@@ -535,7 +551,14 @@ export default {
       if (isNaN(id) || id <= 0) { this.loadError = 'BAD ID'; return }
       this.loading = true; this.loadError = ''
       var self = this
-      http.get('/dpHandHistory/detail', { params: { handHistoryId: id } }).then(function (res) {
+      var params = { handHistoryId: id }
+      var url = '/dpHandHistory/detail'
+      var subjectUid = Number(this.achievementSubjectUserId)
+      if (!isNaN(subjectUid) && subjectUid > 0) {
+        url = '/dpHandHistory/checkUserAchievementDetail'
+        params.userId = subjectUid
+      }
+      http.get(url, { params: params }).then(function (res) {
         self.detail = res.data || null
         if (!self.detail) self.loadError = 'NO DATA'
       }).catch(function (e) {

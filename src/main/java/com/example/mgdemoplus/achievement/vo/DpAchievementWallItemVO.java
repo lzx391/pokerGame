@@ -1,5 +1,9 @@
 package com.example.mgdemoplus.achievement.vo;
 
+import com.example.mgdemoplus.utils.DpDateTimeSupport;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.time.LocalDateTime;
 
 public class DpAchievementWallItemVO {
@@ -61,12 +65,19 @@ public class DpAchievementWallItemVO {
         this.unlocked = unlocked;
     }
 
+    @JsonIgnore
     public LocalDateTime getUnlockedAt() {
         return unlockedAt;
     }
 
     public void setUnlockedAt(LocalDateTime unlockedAt) {
         this.unlockedAt = unlockedAt;
+    }
+
+    /** API 与牌谱 {@code endedAtMs} 一致：epoch 毫秒，前端 {@code new Date(ms)} 按本地时区展示。 */
+    @JsonProperty("unlockedAt")
+    public Long getUnlockedAtEpochMs() {
+        return DpDateTimeSupport.toEpochMilli(unlockedAt);
     }
 
     public Long getHandHistoryId() {
