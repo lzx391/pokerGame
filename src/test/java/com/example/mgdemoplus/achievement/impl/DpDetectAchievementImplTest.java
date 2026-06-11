@@ -408,8 +408,8 @@ class DpDetectAchievementImplTest {
     }
 
     @Test
-    @DisplayName("摊牌清零对手解锁 sweep_all")
-    void unlocksSweepAllWhenShowdownOpponentsBusted() {
+    @DisplayName("仅 1 名摊牌对手清零不解锁 sweep_all")
+    void skipsSweepAllWhenOnlyOneShowdownOpponentBusted() {
         List<String> board = List.of("hearts_2", "diamonds_3", "clubs_4", "spades_5", "hearts_6");
         Map<String, Integer> chipsAtEnd = Map.of(WINNER_NICK, 600, VILLAIN_NICK, 0);
         detector.detect(sweepJob(
@@ -421,6 +421,31 @@ class DpDetectAchievementImplTest {
                 board,
                 List.of(),
                 roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID)), HAND_HISTORY_ID);
+
+        verify(achievementService, never()).unlockIfAbsent(anyInt(),
+                eq(DpAchievementService.CODE_SWEEP_ALL), any());
+    }
+
+
+    @Test
+    @DisplayName("5 名摊牌对手清零解锁 sweep_all")
+    void unlocksSweepAllWhenFiveShowdownOpponentsBusted() {
+        List<String> board = List.of("hearts_2", "diamonds_3", "clubs_4", "spades_5", "hearts_6");
+        String[] oppNicks = {"opp1", "opp2", "opp3", "opp4", "opp5"};
+        Map<String, List<String>> holes = new LinkedHashMap<>();
+        Map<String, Integer> net = new LinkedHashMap<>();
+        Map<String, Integer> chipsAtEnd = new LinkedHashMap<>();
+        holes.put(WINNER_NICK, List.of("hearts_A", "diamonds_A"));
+        net.put(WINNER_NICK, 500);
+        chipsAtEnd.put(WINNER_NICK, 2500);
+        for (String opp : oppNicks) {
+            holes.put(opp, List.of("clubs_7", "spades_2"));
+            net.put(opp, -100);
+            chipsAtEnd.put(opp, 0);
+        }
+        detector.detect(sweepJob(holes, net, chipsAtEnd, List.of(), board, List.of(),
+                roomWithPlayers(WINNER_NICK, WINNER_UID, oppNicks, new int[]{2001, 2002, 2003, 2004, 2005})),
+                HAND_HISTORY_ID);
 
         verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_SWEEP_ALL,
                 HAND_HISTORY_ID);
@@ -445,8 +470,8 @@ class DpDetectAchievementImplTest {
     }
 
     @Test
-    @DisplayName("已弃牌者仍有筹码不影响 sweep_all")
-    void unlocksSweepAllWhenFoldedPlayerStillHasChips() {
+    @DisplayName("已弃牌者仍有筹码且摊牌对手不足 5 不解锁 sweep_all")
+    void skipsSweepAllWhenFoldedPlayerStillHasChipsAndNotEnoughShowdownOpponents() {
         List<String> board = List.of("hearts_2", "diamonds_3", "clubs_4", "spades_5", "hearts_6");
         Map<String, Integer> chipsAtEnd = Map.of(
                 WINNER_NICK, 600,
@@ -466,8 +491,8 @@ class DpDetectAchievementImplTest {
                 roomWithHumans(WINNER_NICK, WINNER_UID, VILLAIN_NICK, VILLAIN_UID, THIRD_NICK, THIRD_UID)),
                 HAND_HISTORY_ID);
 
-        verify(achievementService).unlockIfAbsent(WINNER_UID, DpAchievementService.CODE_SWEEP_ALL,
-                HAND_HISTORY_ID);
+        verify(achievementService, never()).unlockIfAbsent(anyInt(),
+                eq(DpAchievementService.CODE_SWEEP_ALL), any());
     }
 
     @Test
@@ -700,5 +725,16 @@ class DpDetectAchievementImplTest {
         p.setNickname(nickname);
         p.setDpUserId(userId);
         return p;
+    }
+
+    private static DpRoomBO roomWithPlayers(String heroNick, int heroUid, String[] oppNicks, int[] oppUids) {
+        DpRoomBO room = new DpRoomBO();
+        List<DpPlayer> players = new ArrayList<>();
+        players.add(player(heroNick, heroUid));
+        for (int i = 0; i < oppNicks.length; i++) {
+            players.add(player(oppNicks[i], oppUids[i]));
+        }
+        room.setPlayers(players);
+        return room;
     }
 }

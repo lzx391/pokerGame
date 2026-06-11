@@ -33,6 +33,9 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
     /** 6 人桌及以上成就：本手参与人数口径为 {@link DpObservedHandRecordBO#seatsAtStart} 人数（盲注后、行动前在桌座位）。 */
     private static final int MIN_PARTICIPANTS_FOR_SIX_MAX = 6;
 
+    /** 横扫一切：须清零的摊牌对手数须超过至少4人。 */
+    private static final int MIN_BUSTED_SHOWDOWN_OPPONENTS_FOR_SWEEP_ALL = 4;
+
     @Autowired
     private DpAchievementService dpAchievementService;
 
@@ -571,7 +574,7 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
     }
 
     /**
-     * 横扫一切：至少两名摊牌参与者；赢家净赢筹码 &gt; 0；其余<strong>摊牌参与者</strong>终局筹码均为 0（不含已弃牌者）。
+     * 横扫一切：至少 5 名摊牌对手被清零；赢家净赢筹码 &gt; 0；其余<strong>摊牌参与者</strong>终局筹码均为 0（不含已弃牌者）。
      */
     private void detectSweepAll(DpObservedHandRecordBO archived, DpRoomBO roomSnapshot, Long handHistoryId) {
         Map<String, Integer> netChipsChange = archived.netChipsChange;
@@ -609,6 +612,10 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
             if (!allOtherShowdownOpponentsBusted(hero, showdownParticipants, archived)) {
                 continue;
             }
+            if (countOtherShowdownParticipants(hero, showdownParticipants)
+                    < MIN_BUSTED_SHOWDOWN_OPPONENTS_FOR_SWEEP_ALL) {
+                continue;
+            }
             dpAchievementService.unlockIfAbsent(userId, DpAchievementService.CODE_SWEEP_ALL, handHistoryId);
         }
     }
@@ -626,6 +633,16 @@ public class DpDetectAchievementImpl implements DpDetectAchievement {
             }
         }
         return true;
+    }
+
+    private static int countOtherShowdownParticipants(String hero, List<String> showdownParticipants) {
+        int count = 0;
+        for (String opp : showdownParticipants) {
+            if (opp != null && !opp.equals(hero)) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private static int resolveChipsAtEnd(DpObservedHandRecordBO archived, String nickname) {
