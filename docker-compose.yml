@@ -34,6 +34,20 @@ services:
       retries: 30
       start_period: 20s
 
+  minio:
+    image: minio/minio:latest
+    mem_limit: 256m
+    cpus: "0.3"
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+
   redis:
     image: redis:7-alpine
     mem_limit: 64m
@@ -161,5 +175,6 @@ services:
 volumes:
   mysql_data:
   redis_data:
+  minio_data:
   mgdemo_uploads:
   grafana_data:

@@ -14,17 +14,21 @@ import com.example.mgdemoplus.user.dto.DpUserProfileView;
 import com.example.mgdemoplus.leaderboard.impl.DpLeaderboardWeeklyReadService;
 import com.example.mgdemoplus.user.mapper.DpUserStatsMapper;
 import com.example.mgdemoplus.utils.CryptoUtil;
+import com.example.mgdemoplus.storage.DpAvatarStorageSupport;
+import com.example.mgdemoplus.storage.DpObjectStorage;
+import com.example.mgdemoplus.storage.DpWebPathSupport;
 import com.example.mgdemoplus.utils.DpAvatarThumbnailSupport;
 import com.example.mgdemoplus.utils.DpDateTimeSupport;
 import com.example.mgdemoplus.utils.DpImageFileSupport;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 
 @Service
@@ -37,9 +41,10 @@ public class DpUserServiceImpl implements DpUserService {
     DpSensitiveWordService sensitiveWordService;
     @Autowired
     DpLeaderboardWeeklyReadService dpLeaderboardWeeklyReadService;
-
-    @Value("${mgdemoplus.images.file-location:file:P:/javaworkspace/DPGameFiles/images/}")
-    private String imagesFileLocation;
+    @Autowired
+    DpObjectStorage objectStorage;
+    @Autowired
+    DpAvatarStorageSupport avatarStorageSupport;
 
     private static final long MAX_AVATAR_BYTES = 2L * 1024 * 1024;
 
@@ -307,31 +312,41 @@ public class DpUserServiceImpl implements DpUserService {
             return DpAvatarUploadResult.fail("用户不存在");
         }
 
-        String dir = DpImageFileSupport.toPhysicalDir(imagesFileLocation);
-        File folder = new File(dir);
-        if (!folder.exists() && !folder.mkdirs()) {
-            return DpAvatarUploadResult.fail("无法创建图片目录");
-        }
-//获取旧的头像url
         String oldUrl = stored.getAvatarUrl();
-        //删除旧的头像文件
-        DpImageFileSupport.deleteWebPathFile(imagesFileLocation, oldUrl);
-        //删除旧的头像文件和粗略头像文件
-        DpImageFileSupport.deleteUserAvatarFiles(imagesFileLocation, stored.getId());
-        //获取新的头像文件名
+        avatarStorageSupport.deleteWebPathFile(oldUrl);
+        avatarStorageSupport.deleteUserAvatarFiles(stored.getId());
+
         String storedFilename = stored.getId() + ext;
-        String webPath = "/images/" + storedFilename;
-        File savedOriginal = new File(dir, storedFilename);
+        String webPath = DpWebPathSupport.IMAGES_PREFIX + storedFilename;
+        Path tempOriginal = null;
         try {
-            file.transferTo(savedOriginal);
+            tempOriginal = Files.createTempFile("avatar-" + stored.getId() + "-", ext);
+            file.transferTo(tempOriginal);
+            String contentType = DpWebPathSupport.guessContentType(webPath);
+            objectStorage.put(webPath, Files.newInputStream(tempOriginal), Files.size(tempOriginal), contentType);
+            DpAvatarThumbnailSupport.generateThumbnailBytes(tempOriginal.toFile()).ifPresent(thumbBytes -> {
+                try {
+                    String thumbPath = DpImageFileSupport.avatarThumbWebPath(stored.getId());
+                    objectStorage.put(thumbPath, new ByteArrayInputStream(thumbBytes), thumbBytes.length, "image/webp");
+                } catch (IOException e) {
+                    // 缩略图失败不阻断主流程
+                }
+            });
         } catch (IOException e) {
             return DpAvatarUploadResult.fail("保存文件失败");
+        } finally {
+            if (tempOriginal != null) {
+                try {
+                    Files.deleteIfExists(tempOriginal);
+                } catch (IOException ignored) {
+                    // cleanup best-effort
+                }
+            }
         }
-        DpAvatarThumbnailSupport.writeThumbnailIfPossible(folder, stored.getId(), savedOriginal);
 
         LocalDateTime avatarUpdatedAt = LocalDateTime.now();
         if (dpUserMapper.updateAvatarUrl(stored.getId(), webPath, avatarUpdatedAt) != 1) {
-            DpImageFileSupport.deleteWebPathFile(imagesFileLocation, webPath);
+            avatarStorageSupport.deleteWebPathFile(webPath);
             return DpAvatarUploadResult.fail("更新资料失败");
         }
 

@@ -88,6 +88,10 @@ public final class DpImageFileSupport {
         return name;
     }
 
+    /**
+     * @deprecated 请使用 {@link com.example.mgdemoplus.storage.DpAvatarStorageSupport#deleteWebPathFile(String)}。
+     */
+    @Deprecated
     public static void deleteWebPathFile(String imagesFileLocation, String webPath) {
         String filename = filenameFromWebPath(webPath);
         if (filename == null) {
@@ -100,7 +104,11 @@ public final class DpImageFileSupport {
         }
     }
 
-    /** 删除该用户所有 {@code {userId}.*} 头像原图及 {@code {userId}_sm.webp}。 */
+    /**
+     * 删除该用户所有 {@code {userId}.*} 头像原图及 {@code {userId}_sm.webp}。
+     * @deprecated 请使用 {@link com.example.mgdemoplus.storage.DpAvatarStorageSupport#deleteUserAvatarFiles(int)}。
+     */
+    @Deprecated
     public static void deleteUserAvatarFiles(String imagesFileLocation, int userId) {
         File dir = new File(toPhysicalDir(imagesFileLocation));
         if (!dir.isDirectory()) {

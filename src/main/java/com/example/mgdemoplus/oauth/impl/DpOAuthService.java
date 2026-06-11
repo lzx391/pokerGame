@@ -10,21 +10,24 @@ import com.example.mgdemoplus.oauth.entity.DpSocialAuth;
 import com.example.mgdemoplus.oauth.mapper.DpSocialAuthMapper;
 import com.example.mgdemoplus.oauth.provider.DpOAuthProvider;
 import com.example.mgdemoplus.oauth.provider.DpOAuthProviderRegistry;
+import com.example.mgdemoplus.storage.DpAvatarStorageSupport;
+import com.example.mgdemoplus.storage.DpObjectStorage;
+import com.example.mgdemoplus.storage.DpWebPathSupport;
 import com.example.mgdemoplus.utils.DpAvatarThumbnailSupport;
 import com.example.mgdemoplus.utils.DpImageFileSupport;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
-import java.io.File;
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -49,7 +52,8 @@ public class DpOAuthService {
                     """,
             String.class);
 
-    private final String imagesFileLocation;
+    private final DpObjectStorage objectStorage;
+    private final DpAvatarStorageSupport avatarStorageSupport;
     private final DpSocialAuthMapper socialAuthMapper;
     private final DpUserMapper dpUserMapper;
     private final DpSensitiveWordService sensitiveWordService;
@@ -58,14 +62,16 @@ public class DpOAuthService {
     private final DpOAuthProviderRegistry providerRegistry;
 
     public DpOAuthService(
-            @Value("${mgdemoplus.images.file-location:file:P:/javaworkspace/DPGameFiles/images/}") String imagesFileLocation,
+            DpObjectStorage objectStorage,
+            DpAvatarStorageSupport avatarStorageSupport,
             DpSocialAuthMapper socialAuthMapper,
             DpUserMapper dpUserMapper,
             DpSensitiveWordService sensitiveWordService,
             StringRedisTemplate stringRedisTemplate,
             ObjectMapper objectMapper,
             DpOAuthProviderRegistry providerRegistry) {
-        this.imagesFileLocation = imagesFileLocation;
+        this.objectStorage = objectStorage;
+        this.avatarStorageSupport = avatarStorageSupport;
         this.socialAuthMapper = socialAuthMapper;
         this.dpUserMapper = dpUserMapper;
         this.sensitiveWordService = sensitiveWordService;
@@ -192,24 +198,29 @@ public class DpOAuthService {
 
     private String downloadAndStoreAvatar(int userId, String avatarUrl) {
         try {
-            String dir = DpImageFileSupport.toPhysicalDir(imagesFileLocation);
-            File folder = new File(dir);
-            if (!folder.exists() && !folder.mkdirs()) {
-                return null;
-            }
-            DpImageFileSupport.deleteUserAvatarFiles(imagesFileLocation, userId);
+            avatarStorageSupport.deleteUserAvatarFiles(userId);
 
             String storedFilename = userId + ".png";
-            String webPath = "/images/" + storedFilename;
+            String webPath = DpWebPathSupport.IMAGES_PREFIX + storedFilename;
 
-            // 这里是下载网络公开的图片
             URL url = URI.create(avatarUrl).toURL();
-    
+            Path tempOriginal = Files.createTempFile("oauth-avatar-" + userId + "-", ".png");
             try (InputStream in = url.openStream()) {
-                Files.copy(in, new File(folder, storedFilename).toPath(), StandardCopyOption.REPLACE_EXISTING);
+                Files.copy(in, tempOriginal, StandardCopyOption.REPLACE_EXISTING);
             }
-
-            DpAvatarThumbnailSupport.writeThumbnailIfPossible(folder, userId, new File(folder, storedFilename));
+            try {
+                objectStorage.put(webPath, Files.newInputStream(tempOriginal), Files.size(tempOriginal), "image/png");
+                DpAvatarThumbnailSupport.generateThumbnailBytes(tempOriginal.toFile()).ifPresent(thumbBytes -> {
+                    try {
+                        String thumbPath = DpImageFileSupport.avatarThumbWebPath(userId);
+                        objectStorage.put(thumbPath, new ByteArrayInputStream(thumbBytes), thumbBytes.length, "image/webp");
+                    } catch (Exception ignored) {
+                        // 缩略图失败不阻断
+                    }
+                });
+            } finally {
+                Files.deleteIfExists(tempOriginal);
+            }
             return webPath;
         } catch (Exception e) {
             log.error("avatar download failed userId={} url={}", userId, avatarUrl, e);

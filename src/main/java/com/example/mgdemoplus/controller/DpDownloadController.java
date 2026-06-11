@@ -5,9 +5,10 @@ import com.example.mgdemoplus.download.dto.DpDownloadDeleteRequest;
 import com.example.mgdemoplus.download.dto.DpDownloadVerifyAdminPasswordRequest;
 import com.example.mgdemoplus.download.entity.DpDownloadAsset;
 import com.example.mgdemoplus.room.support.DpExperimentalDeckPresetPasswordGuard;
+import com.example.mgdemoplus.storage.DpObjectStorage;
+import com.example.mgdemoplus.storage.DpWebPathSupport;
 import com.example.mgdemoplus.utils.ResultUtil;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,7 +19,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
@@ -42,23 +42,8 @@ public class DpDownloadController {
 
     @Autowired
     private DpExperimentalDeckPresetPasswordGuard experimentalDeckPresetPasswordGuard;
-
-    @Value("${mgdemoplus.files.file-location:file:P:/javaworkspace/DPGameFiles/other/}")
-    private String filesFileLocation;
-
-    private static String toPhysicalDir(String fileLocation) {
-        if (fileLocation == null || fileLocation.isBlank()) {
-            return "P:/javaworkspace/DPGameFiles/other/";
-        }
-        String s = fileLocation.trim();
-        if (s.startsWith("file:")) {
-            s = s.substring(5);
-        }
-        if (!s.endsWith("/") && !s.endsWith("\\")) {
-            s = s + "/";
-        }
-        return s;
-    }
+    @Autowired
+    private DpObjectStorage objectStorage;
 
     private static String extensionOf(String originalFilename) {
         if (originalFilename == null || originalFilename.isEmpty()) {
@@ -116,16 +101,13 @@ public class DpDownloadController {
             return ResponseEntity.badRequest().body(Map.of("error", "仅支持 exe、apk、msi、zip"));
         }
 
-        String dir = toPhysicalDir(filesFileLocation);
-        File folder = new File(dir);
-        if (!folder.exists() && !folder.mkdirs()) {
-            return ResponseEntity.internalServerError().body(Map.of("error", "无法创建下载文件目录"));
-        }
-
         String storedFilename = UUID.randomUUID() + ext;
-        file.transferTo(new File(dir + storedFilename));
-
-        String webPath = "/files/" + storedFilename;
+        String webPath = DpWebPathSupport.FILES_PREFIX + storedFilename;
+        try {
+            objectStorage.put(webPath, file.getInputStream(), file.getSize(), DpWebPathSupport.guessContentType(webPath));
+        } catch (IOException e) {
+            return ResponseEntity.internalServerError().body(Map.of("error", "保存文件失败"));
+        }
         String title = StringUtils.hasText(displayName)
                 ? displayName.trim()
                 : stripExtension(file.getOriginalFilename());

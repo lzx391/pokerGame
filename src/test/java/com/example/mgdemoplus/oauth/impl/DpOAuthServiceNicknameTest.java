@@ -9,6 +9,8 @@ import com.example.mgdemoplus.oauth.dto.OAuthUserProfile;
 import com.example.mgdemoplus.oauth.mapper.DpSocialAuthMapper;
 import com.example.mgdemoplus.oauth.provider.DpOAuthProvider;
 import com.example.mgdemoplus.oauth.provider.DpOAuthProviderRegistry;
+import com.example.mgdemoplus.storage.DpAvatarStorageSupport;
+import com.example.mgdemoplus.storage.DpObjectStorage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,6 +41,10 @@ class DpOAuthServiceNicknameTest {
     private StringRedisTemplate stringRedisTemplate;
     @Mock
     private DpOAuthProvider provider;
+    @Mock
+    private DpObjectStorage objectStorage;
+    @Mock
+    private DpAvatarStorageSupport avatarStorageSupport;
 
     private DpOAuthService service;
 
@@ -48,7 +54,8 @@ class DpOAuthServiceNicknameTest {
         when(provider.enabled()).thenReturn(true);
         DpOAuthProviderRegistry registry = new DpOAuthProviderRegistry(List.of(provider));
         service = new DpOAuthService(
-                "file:/tmp/",
+                objectStorage,
+                avatarStorageSupport,
                 socialAuthMapper,
                 dpUserMapper,
                 sensitiveWordService,
