@@ -135,7 +135,7 @@ import '../styles/dp-game-shell.css'
 import '../styles/dp-game-eco-mode.css'
 import '../styles/dp-game-guide.css'
 import { dpGameStageDisplay } from '../constants/dpCatThemeCopy'
-import { GUIDE_UI_STEPS, GUIDE_UI_COMPLETE_STEP } from '../constants/guideUiSteps'
+import { getGuideSteps, getGuideCompleteStep } from '../constants/guideUiSteps'
 import ButtonGuideSpotlight from './ButtonGuideSpotlight.vue'
 import GameTopBar from './GameTopBar.vue'
 import GameRoundTable from './GameRoundTable.vue'
@@ -344,13 +344,14 @@ export default {
       return Number(this.myBet) || 0
     },
     guideSteps: function () {
-      return GUIDE_UI_STEPS.concat([GUIDE_UI_COMPLETE_STEP])
+      var highlight = getGuideSteps(this.gameUiTheme)
+      return highlight.concat([getGuideCompleteStep(this.gameUiTheme)])
     },
     currentStep: function () {
-      return this.guideSteps[this.guideStep] || GUIDE_UI_COMPLETE_STEP
+      return this.guideSteps[this.guideStep] || getGuideCompleteStep(this.gameUiTheme)
     },
     lastHighlightStepIndex: function () {
-      return GUIDE_UI_STEPS.length - 1
+      return getGuideSteps(this.gameUiTheme).length - 1
     },
     guideSpotlightPad: function () {
       var step = this.currentStep
@@ -368,6 +369,9 @@ export default {
     }
   },
   watch: {
+    gameUiTheme: function () {
+      this.$nextTick(this.updateSpotlight)
+    },
     guideStep: function () {
       this.applyStepSideEffects()
       this.$nextTick(this.updateSpotlight)

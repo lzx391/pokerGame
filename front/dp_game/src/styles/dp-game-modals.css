@@ -625,6 +625,62 @@ body[data-dp-game-theme='retro8bit'] .hand-rank-modal--play-guide {
   border: 2px solid var(--dp-terminal-border-active, rgba(74, 246, 38, 0.34));
 }
 
+body[data-dp-game-theme='retro8bit'] .hand-rank-modal--play-guide .dp-play-guide__tabs {
+  border-radius: 0;
+  padding: 0;
+  gap: 0;
+  background: #06080a;
+  border: 1px solid rgba(74, 246, 38, 0.22);
+}
+
+body[data-dp-game-theme='retro8bit'] .hand-rank-modal--play-guide .dp-play-guide__tab {
+  border-radius: 0;
+  font-family: var(--dp-font-ui, monospace);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--dp-text-secondary, rgba(74, 246, 38, 0.65));
+  background: transparent;
+  box-shadow: none;
+}
+
+body[data-dp-game-theme='retro8bit'] .hand-rank-modal--play-guide .dp-play-guide__tab.is-active {
+  color: var(--dp-accent, #4af626);
+  background: #0a1a0a;
+  box-shadow: inset 0 -2px 0 var(--dp-accent, #4af626);
+}
+
+body[data-dp-game-theme='retro8bit'] .hand-rank-modal--play-guide .dp-play-guide__body {
+  color: var(--dp-text-secondary, rgba(74, 246, 38, 0.78));
+}
+
+body[data-dp-game-theme='retro8bit'] .hand-rank-modal--play-guide .dp-play-guide__ranks-hint {
+  font-family: var(--dp-font-ui, monospace);
+  color: var(--dp-text-muted, rgba(74, 246, 38, 0.55));
+}
+
+body[data-dp-game-theme='retro8bit'] .hand-rank-modal--play-guide .dp-play-guide__first-run {
+  border-top-color: rgba(74, 246, 38, 0.22);
+  font-family: var(--dp-font-ui, monospace);
+}
+
+body[data-dp-game-theme='retro8bit'] .hand-rank-modal--play-guide .dp-play-guide__check {
+  color: var(--dp-text-secondary, rgba(74, 246, 38, 0.78));
+}
+
+body[data-dp-game-theme='retro8bit'] .hand-rank-modal--play-guide .dp-play-guide__ok {
+  border-radius: 0;
+  font-family: var(--dp-font-ui, monospace);
+  letter-spacing: 0.04em;
+  background: var(--dp-accent, #4af626);
+  color: #080a0c;
+  border: 1px solid var(--dp-accent, #4af626);
+}
+
+body[data-dp-game-theme='retro8bit'] .hand-rank-modal--play-guide .dp-play-guide__ok:hover {
+  filter: brightness(1.08);
+}
+
 /* 音乐盒弹窗 */
 body[data-dp-game-theme='retro8bit'] .hand-rank-modal--music-box {
   border-radius: 0;
