@@ -79,6 +79,14 @@ public class ResultUtil {
         return result;
     }
 
+    public static ResultUtil numericNickname() {
+        ResultUtil result = new ResultUtil();
+        result.setSuccess(false);
+        result.setCode(ResultCode.NUMERIC_NICKNAME);
+        result.setMessage("昵称不能为纯数字");
+        return result;
+    }
+
     public static ResultUtil sensitiveUsername() {
         ResultUtil result = new ResultUtil();
         result.setSuccess(false);

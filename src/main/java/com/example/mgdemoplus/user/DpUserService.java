@@ -2,6 +2,7 @@ package com.example.mgdemoplus.user;
 
 import com.example.mgdemoplus.common.entity.DpUser;
 import com.example.mgdemoplus.user.dto.DpAvatarUploadResult;
+import com.example.mgdemoplus.user.dto.DpUserPasswordUpdateRequest;
 import com.example.mgdemoplus.user.dto.DpUserProfileUpdateRequest;
 import com.example.mgdemoplus.user.dto.DpUserProfileUpdateResult;
 import com.example.mgdemoplus.user.dto.DpUserProfileView;
@@ -19,9 +20,14 @@ public interface DpUserService {
     DpUser loginUserOrNull(String nickname, String password);
 
     /**
-     * 修改昵称和/或密码；须校验当前密码。昵称变更时由调用方刷新 JWT。
+     * 修改昵称等非敏感资料；昵称变更时由调用方刷新 JWT。
      */
     DpUserProfileUpdateResult updateProfile(DpUser current, DpUserProfileUpdateRequest request);
+
+    /**
+     * 修改或首次设置登录密码；不换 JWT。
+     */
+    String updatePassword(DpUser current, DpUserPasswordUpdateRequest request);
 
     /**
      * 根据 userId 查询公开荣誉战绩（局内其他玩家可查看）。

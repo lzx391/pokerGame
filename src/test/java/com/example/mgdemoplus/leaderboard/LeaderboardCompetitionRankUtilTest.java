@@ -26,6 +26,22 @@ class LeaderboardCompetitionRankUtilTest {
         assertThat(items.get(2).getRank()).isEqualTo(3);
     }
 
+    @Test
+    void applyCompetitionRanks_topThreeCutoffIncludesRankThree() {
+        List<WeeklyLeaderboardItemVO> items = new ArrayList<>();
+        items.add(item(30));
+        items.add(item(20));
+        items.add(item(10));
+        items.add(item(5));
+
+        LeaderboardCompetitionRankUtil.applyCompetitionRanks(
+                items, WeeklyLeaderboardItemVO::getMultiplier, WeeklyLeaderboardItemVO::setRank);
+
+        long topThree = items.stream().filter(i -> i.getRank() <= 3).count();
+        assertThat(topThree).isEqualTo(3);
+        assertThat(items.get(3).getRank()).isEqualTo(4);
+    }
+
     private static WeeklyLeaderboardItemVO item(double multiplier) {
         WeeklyLeaderboardItemVO vo = new WeeklyLeaderboardItemVO();
         vo.setMultiplier(BigDecimal.valueOf(multiplier));

@@ -1,8 +1,81 @@
 /**
- * 路由转场：仅标准档 GPU 友好（opacity + translateY）；节能/flag off 瞬时。
+ * 路由转场：方案 B — slide-from-right / zoom-fade-in / fade；节能/flag off 瞬时。
  */
 
-/* ---------- enter-game（进对局） ---------- */
+/* ---------- slide-from-right（大厅 → 创建页） ---------- */
+body[data-dp-fluidity='standard'] .dp-route-slide-from-right-enter-active {
+  transition:
+    opacity 0.26s ease-out,
+    transform 0.26s ease-out;
+  will-change: opacity, transform;
+}
+
+body[data-dp-fluidity='standard'] .dp-route-slide-from-right-leave-active {
+  transition: opacity 0.15s ease-out;
+  will-change: opacity;
+}
+
+body[data-dp-fluidity='standard'] .dp-route-slide-from-right-enter {
+  opacity: 0;
+  transform: translateX(24px);
+}
+
+body[data-dp-fluidity='standard'] .dp-route-slide-from-right-enter-to {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+body[data-dp-fluidity='standard'] .dp-route-slide-from-right-leave-to {
+  opacity: 0;
+}
+
+/* ---------- zoom-fade-in（创建页 → 对局） ---------- */
+body[data-dp-fluidity='standard'] .dp-route-zoom-fade-in-enter-active {
+  transition:
+    opacity 0.28s ease-out,
+    transform 0.28s ease-out;
+  will-change: opacity, transform;
+}
+
+body[data-dp-fluidity='standard'] .dp-route-zoom-fade-in-leave-active {
+  transition: opacity 0.15s ease-out;
+  will-change: opacity;
+}
+
+body[data-dp-fluidity='standard'] .dp-route-zoom-fade-in-enter {
+  opacity: 0;
+  transform: scale(0.96);
+}
+
+body[data-dp-fluidity='standard'] .dp-route-zoom-fade-in-enter-to {
+  opacity: 1;
+  transform: scale(1);
+}
+
+body[data-dp-fluidity='standard'] .dp-route-zoom-fade-in-leave-to {
+  opacity: 0;
+}
+
+/* ---------- fade（大厅子页等短过渡） ---------- */
+body[data-dp-fluidity='standard'] .dp-route-fade-enter-active {
+  transition: opacity 0.24s ease-out;
+  will-change: opacity;
+}
+
+body[data-dp-fluidity='standard'] .dp-route-fade-leave-active {
+  transition: opacity 0.15s ease-out;
+  will-change: opacity;
+}
+
+body[data-dp-fluidity='standard'] .dp-route-fade-enter {
+  opacity: 0;
+}
+
+body[data-dp-fluidity='standard'] .dp-route-fade-leave-to {
+  opacity: 0;
+}
+
+/* ---------- enter-game（保留：其它进桌路径兼容） ---------- */
 body[data-dp-fluidity='standard'] .dp-route-enter-game-enter-active,
 body[data-dp-fluidity='standard'] .dp-route-enter-game-leave-active {
   transition:
@@ -46,44 +119,48 @@ body[data-dp-fluidity='standard'] .dp-route-leave-game-leave-to {
   opacity: 0;
 }
 
-/* ---------- lobby 短过渡 ---------- */
-body[data-dp-fluidity='standard'] .dp-route-lobby-enter-active,
-body[data-dp-fluidity='standard'] .dp-route-lobby-leave-active {
-  transition: opacity var(--dp-motion-duration-route-min, 0.12s) ease;
-  will-change: opacity;
-}
-
-body[data-dp-fluidity='standard'] .dp-route-lobby-enter {
-  opacity: 0;
-}
-
-body[data-dp-fluidity='standard'] .dp-route-lobby-leave-to {
-  opacity: 0;
-}
-
 /* ---------- 无动画 / 节能 / flag off ---------- */
 .dp-route-none-enter-active,
 .dp-route-none-leave-active,
+body[data-dp-fluidity='eco'] .dp-route-slide-from-right-enter-active,
+body[data-dp-fluidity='eco'] .dp-route-slide-from-right-leave-active,
+body[data-dp-fluidity='eco'] .dp-route-zoom-fade-in-enter-active,
+body[data-dp-fluidity='eco'] .dp-route-zoom-fade-in-leave-active,
+body[data-dp-fluidity='eco'] .dp-route-fade-enter-active,
+body[data-dp-fluidity='eco'] .dp-route-fade-leave-active,
 body[data-dp-fluidity='eco'] .dp-route-enter-game-enter-active,
 body[data-dp-fluidity='eco'] .dp-route-enter-game-leave-active,
 body[data-dp-fluidity='eco'] .dp-route-leave-game-enter-active,
 body[data-dp-fluidity='eco'] .dp-route-leave-game-leave-active,
-body[data-dp-fluidity='eco'] .dp-route-lobby-enter-active,
-body[data-dp-fluidity='eco'] .dp-route-lobby-leave-active,
+body[data-dp-route-transition='off'] .dp-route-slide-from-right-enter-active,
+body[data-dp-route-transition='off'] .dp-route-slide-from-right-leave-active,
+body[data-dp-route-transition='off'] .dp-route-zoom-fade-in-enter-active,
+body[data-dp-route-transition='off'] .dp-route-zoom-fade-in-leave-active,
+body[data-dp-route-transition='off'] .dp-route-fade-enter-active,
+body[data-dp-route-transition='off'] .dp-route-fade-leave-active,
 body[data-dp-route-transition='off'] .dp-route-enter-game-enter-active,
 body[data-dp-route-transition='off'] .dp-route-enter-game-leave-active,
 body[data-dp-route-transition='off'] .dp-route-leave-game-enter-active,
-body[data-dp-route-transition='off'] .dp-route-leave-game-leave-active,
-body[data-dp-route-transition='off'] .dp-route-lobby-enter-active,
-body[data-dp-route-transition='off'] .dp-route-lobby-leave-active {
+body[data-dp-route-transition='off'] .dp-route-leave-game-leave-active {
   transition: none !important;
   animation: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
+  body[data-dp-fluidity='standard'] .dp-route-slide-from-right-enter-active,
+  body[data-dp-fluidity='standard'] .dp-route-slide-from-right-leave-active,
+  body[data-dp-fluidity='standard'] .dp-route-zoom-fade-in-enter-active,
+  body[data-dp-fluidity='standard'] .dp-route-zoom-fade-in-leave-active,
+  body[data-dp-fluidity='standard'] .dp-route-fade-enter-active,
+  body[data-dp-fluidity='standard'] .dp-route-fade-leave-active,
   body[data-dp-fluidity='standard'] .dp-route-enter-game-enter-active,
   body[data-dp-fluidity='standard'] .dp-route-leave-game-leave-active {
     transition-duration: 0.08s !important;
+  }
+
+  body[data-dp-fluidity='standard'] .dp-route-slide-from-right-enter,
+  body[data-dp-fluidity='standard'] .dp-route-zoom-fade-in-enter {
+    transform: none !important;
   }
 }
 
@@ -93,4 +170,9 @@ body[data-dp-game-theme] .full-page--route-shell {
   background-image: var(--dp-game-bg-image, none);
   min-height: 100%;
   min-height: 100dvh;
+}
+
+.full-page--route-shell > * {
+  width: 100%;
+  min-height: inherit;
 }

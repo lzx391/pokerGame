@@ -19,7 +19,7 @@
           ×
         </button>
       </div>
-      <div class="dp-custom-npc-panel__body">
+      <div class="dp-custom-npc-panel__body dp-retro-scrollbar">
         <p class="custom-npc-style-dialog__intro">
           本批将加入 <strong>{{ pendingCount }}</strong> 个 BOT_CUSTOM，共用下面这一套参数（默认与 TAG 猫相同）。上桌后不可改，要试新参数请踢掉再重新添加。
         </p>
@@ -34,14 +34,16 @@
               <span class="custom-npc-style-dialog__label-hint">{{ field.hint }}</span>
             </div>
             <div class="custom-npc-style-dialog__row">
-              <el-slider
-                v-model="draft[field.key]"
+              <input
+                type="range"
+                class="dp-retro-range custom-npc-style-dialog__range"
                 :min="0"
                 :max="1"
                 :step="0.01"
-                :show-tooltip="true"
-                :format-tooltip="formatSliderTooltip"
-              />
+                :value="draft[field.key]"
+                :aria-label="field.label"
+                @input="onRangeInput(field.key, $event.target.value)"
+              >
               <el-input-number
                 v-model="draft[field.key]"
                 :min="0"
@@ -104,8 +106,11 @@ export default {
     }
   },
   methods: {
-    formatSliderTooltip (val) {
-      return (Math.round(Number(val) * 100) / 100).toFixed(2)
+    onRangeInput (key, raw) {
+      var n = parseFloat(raw)
+      if (isNaN(n)) return
+      n = Math.min(1, Math.max(0, Math.round(n * 100) / 100))
+      this.$set(this.draft, key, n)
     },
     onCancel () {
       this.$emit('cancel')
@@ -252,7 +257,7 @@ export default {
   gap: 12px;
 }
 
-.custom-npc-style-dialog__row >>> .el-slider {
+.custom-npc-style-dialog__range {
   flex: 1;
   min-width: 0;
 }
@@ -260,5 +265,54 @@ export default {
 .custom-npc-style-dialog__num {
   width: 108px;
   flex-shrink: 0;
+}
+</style>
+
+<!-- 非 scoped：::-webkit-scrollbar 必须全局命中 .dp-custom-npc-panel__body（真实 overflow 容器） -->
+<style>
+body[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body {
+  scrollbar-width: thin;
+  scrollbar-color: var(--dp-accent, #4af626) var(--dp-terminal-bg, #080a0c);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-button,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-track,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-track {
+  background: var(--dp-terminal-bg, #080a0c);
+  border-left: 2px solid rgba(74, 246, 38, 0.12);
+  box-shadow: inset 2px 0 0 rgba(0, 0, 0, 0.55);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-thumb,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-thumb {
+  border: 2px solid #000;
+  border-radius: 0;
+  background: var(--dp-accent, #4af626);
+  box-shadow:
+    inset 0 0 0 1px rgba(114, 240, 82, 0.45),
+    0 0 6px rgba(74, 246, 38, 0.35);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-thumb:hover,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-thumb:hover {
+  background: var(--dp-text-secondary, #72f052);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-corner,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-custom-npc-panel__body::-webkit-scrollbar-corner {
+  background: var(--dp-terminal-bg, #080a0c);
 }
 </style>

@@ -8,4 +8,8 @@ public interface DpDownloadService {
     int insert(DpDownloadAsset row);
 
     List<DpDownloadAsset> listEnabled();
+
+    DpDownloadAsset findById(Long id);
+
+    int disableById(Long id);
 }

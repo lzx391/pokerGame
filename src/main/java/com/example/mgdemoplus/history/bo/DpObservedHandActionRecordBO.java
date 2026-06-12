@@ -15,10 +15,18 @@ public final class DpObservedHandActionRecordBO {
     public final int actorBetBefore;
     public final int raiseLevelAfter;
     public final int potBefore;
+    /** 行动后行动者剩余筹码（payload v2+）。 */
+    public final int actorChipsAfter;
 
     public DpObservedHandActionRecordBO(long tsMs, String stage, String actorNickname, DpObservedHandActionType type,
                                          int amount, int betToCallBefore, int actorBetBefore,
                                          int raiseLevelAfter, int potBefore) {
+        this(tsMs, stage, actorNickname, type, amount, betToCallBefore, actorBetBefore, raiseLevelAfter, potBefore, 0);
+    }
+
+    public DpObservedHandActionRecordBO(long tsMs, String stage, String actorNickname, DpObservedHandActionType type,
+                                         int amount, int betToCallBefore, int actorBetBefore,
+                                         int raiseLevelAfter, int potBefore, int actorChipsAfter) {
         this.tsMs = tsMs;
         this.stage = stage == null ? "" : stage;
         this.actorNickname = actorNickname == null ? "" : actorNickname;
@@ -28,5 +36,6 @@ public final class DpObservedHandActionRecordBO {
         this.actorBetBefore = actorBetBefore;
         this.raiseLevelAfter = raiseLevelAfter;
         this.potBefore = potBefore;
+        this.actorChipsAfter = actorChipsAfter;
     }
 }

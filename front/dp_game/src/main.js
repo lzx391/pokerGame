@@ -7,19 +7,28 @@ import { syncDpBodyGameTheme } from './utils/dpBodyGameTheme'
 import { syncDpBodyFluidity } from './utils/dpBodyFluidity'
 import { syncDpBodyRouteTransitionFlag } from './utils/dpRouteTransitionFlag'
 import { syncDpSiteHeartbeat } from './utils/dpSiteHeartbeat'
+import {
+  initDpSocialStreamClient,
+  syncDpSocialStreamConnection,
+  disconnectDpSocialStream
+} from './utils/dpSocialStreamClient'
 import DpThemePicker from './components/DpThemePicker.vue'
 
 Vue.component('DpThemePicker', DpThemePicker)
 /* 主题变量需先于 lobby-shell（body 背景用 var(--dp-game-bg)） */
 import './styles/dp-game-themes.css'
+import './styles/dp-nickname-font.css'
 import './styles/dp-depth-tokens.css'
 /* 尽早加载：大厅 #app.app--lobby 与 .dp-game-root 布局 */
 import './styles/dp-lobby-shell.css'
 import './styles/dp-auth-shell.css'
 import './styles/dp-motion-tokens.css'
+import './styles/dp-profile-gray-glitch.css'
 import './styles/dp-route-transition.css'
 import './styles/dp-interactive-hover.css'
+import './styles/dp-crt-card-chips.css'
 import './styles/dp-game-modals.css'
+import './styles/dp-overlay-layers.css'
 import './styles/dp-game-responsive-type.css'
 import './styles/dp-game-layout-tiers.css'
 import './styles/dp-game-element-ui.css'
@@ -33,6 +42,7 @@ import {
   FormItem,
   Input,
   InputNumber,
+  Pagination,
   Message,
   MessageBox,
   Slider,
@@ -41,6 +51,8 @@ import {
   Tooltip,
   Upload
 } from 'element-ui'
+import Loading from 'element-ui/lib/loading'
+import 'element-ui/lib/theme-chalk/loading.css'
 import 'element-ui/lib/theme-chalk/icon.css'
 
 Vue.config.productionTip = false
@@ -53,11 +65,13 @@ Vue.use(Form)
 Vue.use(FormItem)
 Vue.use(Input)
 Vue.use(InputNumber)
+Vue.use(Pagination)
 Vue.use(Slider)
 Vue.use(Table)
 Vue.use(TableColumn)
 Vue.use(Tooltip)
 Vue.use(Upload)
+Vue.use(Loading.directive)
 
 Vue.prototype.$message = Message
 Vue.prototype.$confirm = MessageBox.confirm
@@ -71,7 +85,7 @@ axios.defaults.baseURL =
 
 axios.interceptors.request.use(function (config) {
   var url = config.url || ''
-  if (url.indexOf('/dpUser/loginProfile') !== -1 || url.indexOf('/dpUser/registerUser') !== -1) {
+  if (url.indexOf('/dpUser/loginProfile') !== -1 || url.indexOf('/dpUser/registerUser') !== -1 || url.indexOf('/oauth/') !== -1) {
     return config
   }
   try {
@@ -105,6 +119,7 @@ axios.interceptors.response.use(
         } catch (e) {
           /* ignore */
         }
+        disconnectDpSocialStream()
         var data = error.response && error.response.data
         var msg = (data && (data.message || data.msg)) || '未登录或登录已失效，请重新登录'
         Message.error(msg)
@@ -122,23 +137,24 @@ axios.interceptors.response.use(
 
 Vue.prototype.$http =axios
 
+initDpSocialStreamClient(store, axios)
+
 router.afterEach(function () {
   syncDpBodyGameTheme(store, router)
   syncDpBodyFluidity(store)
   syncDpBodyRouteTransitionFlag()
   syncDpSiteHeartbeat(axios, router)
+  syncDpSocialStreamConnection()
 })
 router.onReady(function () {
   syncDpBodyGameTheme(store, router)
   syncDpBodyFluidity(store)
   syncDpBodyRouteTransitionFlag()
   syncDpSiteHeartbeat(axios, router)
+  syncDpSocialStreamConnection()
 })
 store.subscribe(function (mutation) {
-  if (
-    mutation.type === 'dpGame/SET_GAME_UI_THEME' ||
-    mutation.type === 'dpGame/SET_CUSTOM_THEME'
-  ) {
+  if (mutation.type === 'dpGame/SET_GAME_UI_THEME') {
     syncDpBodyGameTheme(store, router)
   }
   if (mutation.type === 'dpGame/SET_ECO_MODE') {

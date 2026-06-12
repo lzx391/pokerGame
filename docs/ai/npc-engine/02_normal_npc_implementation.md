@@ -13,10 +13,20 @@
 1. **`callAmount`**：`max(0, currentBetToCall - bot.bet)`。
 2. **`callRatio`**：跟注额相对剩余筹码比例（用于大压力场景）。
 3. **`position`**：`getTablePosition` → `EARLY` / `MIDDLE` / `LATE` / `BLINDS`。
-4. **`strength`**：`estimateCurrentStrength` 直接作为决策用牌力档（无难度噪声）。
-5. **`boardDanger`**：`evaluateBoardDanger(communityCards)` → `DRY` / `WET`。
+4. **`handSnapshot`**：`estimateCurrentHandSnapshot` → 翻后 **12 档 `made`** + **听牌 `draw`** + **`DpBoardTexture` 牌面风险**；翻前为 `preflop` 档。规则 NPC 与 LLM NPC 均读此字段。
+5. **`boardDanger`**：`DpBoardTexture.analyze` 综合湿/干 → `DRY` / `WET`（兼容旧枚举）。
 6. **`mood`**：默认 **`NPC_MOOD_ENABLED == false`** 时恒视为 0；为 true 时读 `DpPlayer.getMood()`，结算可增减，影响概率与思考延迟。
 7. **`StyleProfile`**：由 `getStyleByBotType(type)` 取 `NpcStyle`，再查 `STYLE_PROFILE_MAP`。分支里会用到 `preflopTightness`、`aggression`、`bluffFrequency`、`callStation`、`stealBlindFrequency`、`checkRaiseFear` 等字段。
+
+### 牌面风险字段（`DpBoardTexture`）
+
+| 字段 | 含义 |
+|------|------|
+| `paired` / `doublePaired` | 公对 / 双公对 |
+| `monotone` / `fourFlush` | 同花 flop / 四同花面 |
+| `straightPossible` | 顺子面可能（3+ 连续点数） |
+| `highCardBoard` / `lowCardBoard` | 高牌面 / 低牌面 |
+| `wet` | 综合湿面（供 `dangerousForTopPair` / `dangerousForTwoPairPlus`） |
 
 ---
 

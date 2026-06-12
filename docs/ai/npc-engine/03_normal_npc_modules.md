@@ -13,8 +13,8 @@
 | `isBotPlayer` / `getBotTypeByNickname` | 规则前缀 + 遗留昵称（`BOT_Shark`→TAG） |
 | `decideActionIfReady` | 行动位校验；`dp.npc.rule-think` 两阶段 `nextBotActionTime`；再 `decideBotAction` / `decideCustomBotAction` |
 | `decideBotAction` | 翻前 **仅** `DpNpcUnifiedPreflopStrategy`；翻后 `switch(BotType)` |
-| `estimateCurrentStrength` | `DpUtilHandEvaluator` → `SimpleStrength` |
-| `buildSmartContext` | TAG / MANIAC 等翻后使用 |
+| `estimateCurrentHandSnapshot` | 12 档 `made` + `draw` + `boardTexture` |
+| `buildSmartContext` | TAG / MANIAC 等翻后使用（基于 `handSnapshot` 算 `equityEst`） |
 | `STYLE_PROFILE_MAP` | `NpcStyle` → `StyleProfile` 数值旋钮 |
 
 全局常量：`NPC_MOOD_ENABLED`（默认 **false**）；`NPC_HAND_SEED_FOR_DECISIONS`（默认 **true**）。概率软噪声通路已移除。
@@ -33,14 +33,28 @@
 
 ---
 
-## 3.3 `DpUtilHandEvaluator` / `DpUtilSmartContext`
+## 3.3 `npc/eval` 包（P0/P1 决策轨）
 
-- **牌力**：`HandStrength`（比牌）与 `SimpleStrength` 四档（WEAK/MEDIUM/STRONG/MONSTER）。
-- **SmartContext**：对手 tier、赔率桶、`stackCtx`、multi-way 等；Fish 翻后较少依赖完整包。
+| 类 | 职责 |
+|------|------|
+| `DpNpcHandClassifier` | 翻后 12 档 `made` + 听牌 `draw` |
+| `DpBoardTexture` | 公对/湿面/四同花/顺子面等牌面风险 |
+| `DpNpcHandSnapshot` | 不可变快照（含 `boardTexture`） |
+| `DpNpcEquityEstimator` | `made` + `draw` → `equityEst` |
+| `DpNpcPostflopFormula` | Strategy 共用公式（cbet/弃跟加/半诈唬） |
+| `DpNpcCategoryLabels` | LLM 局面包 v2 中英文标签 |
+
+展示轨仍用 `DpUtilHandEvaluator.HandStrength`；规则 NPC 与 LLM 决策轨统一 12 档。
+
+## 3.4 `DpUtilHandEvaluator` / `DpUtilSmartContext`
+
+- **展示**：`HandStrength` + `rankCategoryNameZh`（不变）。
+- **决策轨**：读 `handSnapshot.made/draw/boardTexture`；LLM user 快照 v2 输出 `made_en/draw_en/board_tex/preflop_cat` + `hsl_en`。
+- **SmartContext**：对手 tier、赔率桶、`stackCtx`、multi-way 等。
 
 ---
 
-## 3.4 `DpPlayer` 与统计
+## 3.5 `DpPlayer` 与统计
 
 | 字段 | 用途 |
 |------|------|
@@ -51,12 +65,12 @@
 
 ---
 
-## 3.5 房间侧
+## 3.6 房间侧
 
 `DpRoomHeartbeatScheduler`（1s）→ `DpRoomServiceImpl` 行动超时 / NPC → `npcAction` 落地。详见 [01_overview_and_entry.md](01_overview_and_entry.md)。
 
 ---
 
-## 3.6 桌边话（可选）
+## 3.7 桌边话（可选）
 
 `dp.npc.table-talk` + `DpNpcTableTalkService` / `DpNpcLinePoolLoader`：规则 Bot 与 LLM 的 `table_talk` 字段可触发局内推送（与决策延时独立）。

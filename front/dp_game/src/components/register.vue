@@ -1,41 +1,47 @@
 <template>
   <div class="register-form">
     <h2 class="register-form__title">用户注册</h2>
-    <p class="register-form__hint">注册后即可用昵称登录并进入房间</p>
+    <p class="register-form__hint">注册后即可用昵称登录并进入房间。昵称不能为纯数字。</p>
 
-    <div class="form-item">
-      <label for="reg-nickname">昵称</label>
-      <input
-        id="reg-nickname"
-        v-model="form.nickname"
-        type="text"
-        placeholder="请设置登录昵称"
-        autocomplete="off"
-      >
-    </div>
+    <form class="register-form__body" @submit.prevent="handleRegister">
+      <div class="form-item">
+        <label for="reg-nickname">昵称</label>
+        <input
+          id="reg-nickname"
+          v-model="form.nickname"
+          type="text"
+          placeholder="请设置登录昵称（不能为纯数字）"
+          autocomplete="off"
+        >
+      </div>
 
-    <div class="form-item">
-      <label for="reg-password">密码</label>
-      <input
-        id="reg-password"
-        v-model="form.password"
-        type="password"
-        placeholder="请设置登录密码"
-        autocomplete="new-password"
-      >
-    </div>
+      <div class="form-item">
+        <label for="reg-password">密码</label>
+        <input
+          id="reg-password"
+          v-model="form.password"
+          type="password"
+          placeholder="请设置登录密码"
+          autocomplete="new-password"
+        >
+      </div>
 
-    <button type="button" class="register-btn" @click="handleRegister">
-      注册
-    </button>
+      <button type="submit" class="register-btn">
+        注册
+      </button>
+    </form>
   </div>
 </template>
 
 <script>
 import { dpResultSuccess, dpResultData, dpResultMessage } from '@/utils/dpApiResult'
 import { flagCatTutorialAfterLogin } from '@/constants/dpCatThemeCopy'
+import { enterLobbyAfterAuth } from '@/utils/dpAuthEnterLobby'
 
 export default {
+  inject: {
+    dpAuthStage: { default: null }
+  },
   data() {
     return {
       form: {
@@ -45,18 +51,38 @@ export default {
     }
   },
   methods: {
+    showAuthError(message) {
+      if (this.dpAuthStage && typeof this.dpAuthStage.showAuthError === 'function') {
+        this.dpAuthStage.showAuthError(message)
+        return
+      }
+      if (this.$message) {
+        this.$message.error({ message: message, duration: 3000 })
+      }
+    },
     handleRegister() {
-      if (!this.form.nickname.trim()) {
-        alert('请输入昵称！')
+      if (this.dpAuthStage && (!this.dpAuthStage.contentInteractive || this.dpAuthStage.showErrorFace)) {
+        return
+      }
+      var nickname = this.form.nickname.trim()
+      if (!nickname) {
+        this.showAuthError('请输入昵称！')
+        return
+      }
+      if (/^\d+$/.test(nickname)) {
+        this.showAuthError('昵称不能为纯数字')
         return
       }
       if (!this.form.password) {
-        alert('请输入密码！')
+        this.showAuthError('请输入密码！')
         return
       }
 
       this.$http
-        .post('/dpUser/registerUser', this.form)
+        .post('/dpUser/registerUser', {
+          nickname: nickname,
+          password: this.form.password
+        })
         .then((res) => {
           console.log('注册结果：', res.data)
           var d = res.data
@@ -64,7 +90,6 @@ export default {
             var inner = dpResultData(d) || {}
             var msg = inner.message != null ? String(inner.message) : '注册成功'
             flagCatTutorialAfterLogin()
-            alert(msg + '，正在进入大厅')
             var row = {
               nickname: inner.nickname != null ? String(inner.nickname) : this.form.nickname.trim(),
               password: this.form.password,
@@ -72,14 +97,16 @@ export default {
             }
             if (inner.token) row.token = String(inner.token)
             localStorage.setItem('userInfo', JSON.stringify(row))
-            this.$router.push('/home')
+            enterLobbyAfterAuth(this.$router, this, {
+              message: msg + '，正在进入大厅'
+            })
           } else {
-            alert(dpResultMessage(d))
+            this.showAuthError(dpResultMessage(d))
           }
         })
         .catch((err) => {
           console.error('注册请求异常：', err)
-          alert('网络异常，请稍后再试！')
+          this.showAuthError('网络异常，请稍后再试！')
         })
     }
   }
@@ -87,6 +114,10 @@ export default {
 </script>
 
 <style scoped>
+.register-form__body {
+  margin: 0;
+  padding: 0;
+}
 .register-form {
   width: 100%;
   max-width: 360px;

@@ -10,7 +10,6 @@
     :data-dp-layout-tier="layoutTier"
     :data-dp-orientation="layoutOrientation"
     :data-dp-game-theme="effectiveThemeForCss"
-    :style="customThemeInlineStyle"
     :data-dp-eco-mode="ecoMode ? 'true' : 'false'"
     :data-dp-stage="stage"
   >
@@ -19,6 +18,7 @@
         <game-top-bar
           ref="topBar"
           :room-id="mock.roomId"
+          :stage="stage"
           :stage-label="stageLabel"
           :pot="pot"
           :current-bet-to-call="currentBetToCall"
@@ -30,8 +30,6 @@
           :show-spectator-prepare="false"
           :next-hand-ready="mock.nextHandReady"
           :game-ui-theme="gameUiTheme"
-          :custom-theme-base="customThemeBase"
-          :custom-theme-overrides="customThemeOverrides"
           :eco-mode="ecoMode"
           :theme-options="gameThemeOptions"
           exit-label="退出教程"
@@ -41,8 +39,6 @@
           :hero-economy-secondary-value="topBarHeroEconomySecondaryValue"
           :hero-carry-in-chips="mock.myCarryInChips"
           @update:gameUiTheme="$store.commit('dpGame/SET_GAME_UI_THEME', $event)"
-          @update:customThemeBase="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
-          @update:customThemeOverrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
           @update:ecoMode="$store.commit('dpGame/SET_ECO_MODE', $event)"
           @show-play-guide="onGuidePlayGuide"
           @show-spectators="noopGuideTip('观众席列表')"
@@ -52,6 +48,8 @@
           @open-music-box="noopGuideTip('音乐盒')"
           @open-owner-hub="noopGuideTip('房主操作')"
           @open-invite-friend="noopGuideTip('邀请好友')"
+          @open-friend-chat="noopGuideTip('好友私信')"
+          :friend-chat-unread-total="0"
           @exit="exitToLobby"
           @ready-next-hand="noopGuideTip('下一局报名')"
         />
@@ -137,7 +135,7 @@ import '../styles/dp-game-shell.css'
 import '../styles/dp-game-eco-mode.css'
 import '../styles/dp-game-guide.css'
 import { dpGameStageDisplay } from '../constants/dpCatThemeCopy'
-import { GUIDE_UI_STEPS, GUIDE_UI_COMPLETE_STEP } from '../constants/guideUiSteps'
+import { getGuideSteps, getGuideCompleteStep } from '../constants/guideUiSteps'
 import ButtonGuideSpotlight from './ButtonGuideSpotlight.vue'
 import GameTopBar from './GameTopBar.vue'
 import GameRoundTable from './GameRoundTable.vue'
@@ -185,15 +183,13 @@ export default {
   computed: {
     ...mapState('dpGame', [
       'gameUiTheme',
-      'customThemeBase',
-      'customThemeOverrides',
       'ecoMode',
       'gameThemeOptions',
       'chatInputDraft',
       'raiseAmount',
       'showMobileActionSheet'
     ]),
-    ...mapGetters('dpGame', ['effectiveThemeForCss', 'customThemeInlineStyle']),
+    ...mapGetters('dpGame', ['effectiveThemeForCss']),
     heroNickname: function () {
       return this.mock.heroNickname || GUIDE_HERO_NICKNAME
     },
@@ -348,13 +344,14 @@ export default {
       return Number(this.myBet) || 0
     },
     guideSteps: function () {
-      return GUIDE_UI_STEPS.concat([GUIDE_UI_COMPLETE_STEP])
+      var highlight = getGuideSteps(this.gameUiTheme)
+      return highlight.concat([getGuideCompleteStep(this.gameUiTheme)])
     },
     currentStep: function () {
-      return this.guideSteps[this.guideStep] || GUIDE_UI_COMPLETE_STEP
+      return this.guideSteps[this.guideStep] || getGuideCompleteStep(this.gameUiTheme)
     },
     lastHighlightStepIndex: function () {
-      return GUIDE_UI_STEPS.length - 1
+      return getGuideSteps(this.gameUiTheme).length - 1
     },
     guideSpotlightPad: function () {
       var step = this.currentStep
@@ -372,6 +369,9 @@ export default {
     }
   },
   watch: {
+    gameUiTheme: function () {
+      this.$nextTick(this.updateSpotlight)
+    },
     guideStep: function () {
       this.applyStepSideEffects()
       this.$nextTick(this.updateSpotlight)

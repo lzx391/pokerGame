@@ -12,11 +12,11 @@ public interface DpObservedHandHistoryMapper {
     @Insert("""
             INSERT INTO dp_observed_hand_history (
                 room_id, hand_seed, started_at_ms, ended_at_ms,
-                small_blind_chips, big_blind_chips, dealer_nickname,
+                small_blind_chips, big_blind_chips, starting_stack_bb, dealer_nickname,
                 main_pot_before_settlement, payload_version, payload_json
             ) VALUES (
                 #{roomId}, #{handSeed}, #{startedAtMs}, #{endedAtMs},
-                #{smallBlindChips}, #{bigBlindChips}, #{dealerNickname},
+                #{smallBlindChips}, #{bigBlindChips}, #{startingStackBb}, #{dealerNickname},
                 #{mainPotBeforeSettlement}, #{payloadVersion}, #{payloadJson}
             )
             """)
@@ -28,6 +28,7 @@ public interface DpObservedHandHistoryMapper {
             SELECT id, room_id AS roomId, hand_seed AS handSeed,
                    started_at_ms AS startedAtMs, ended_at_ms AS endedAtMs,
                    small_blind_chips AS smallBlindChips, big_blind_chips AS bigBlindChips,
+                   starting_stack_bb AS startingStackBb,
                    dealer_nickname AS dealerNickname,
                    main_pot_before_settlement AS mainPotBeforeSettlement,
                    payload_version AS payloadVersion, payload_json AS payloadJson

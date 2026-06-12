@@ -29,7 +29,11 @@ public final class DpImageFileSupport {
     public static String avatarThumbWebPath(int userId) {
         return "/images/" + avatarThumbFilename(userId);
     }
-
+/**
+ * 合法物理路径
+ * @param fileLocation
+ * @return
+ */
     public static String toPhysicalDir(String fileLocation) {
         if (fileLocation == null || fileLocation.isBlank()) {
             return "P:/javaworkspace/DPGameFiles/images/";
@@ -43,7 +47,11 @@ public final class DpImageFileSupport {
         }
         return s;
     }
-
+/**
+ * 获取文件扩展名
+ * @param originalFilename
+ * @return
+ */
     public static String extensionOf(String originalFilename) {
         if (originalFilename == null || originalFilename.isBlank()) {
             return "";
@@ -80,6 +88,10 @@ public final class DpImageFileSupport {
         return name;
     }
 
+    /**
+     * @deprecated 请使用 {@link com.example.mgdemoplus.storage.DpAvatarStorageSupport#deleteWebPathFile(String)}。
+     */
+    @Deprecated
     public static void deleteWebPathFile(String imagesFileLocation, String webPath) {
         String filename = filenameFromWebPath(webPath);
         if (filename == null) {
@@ -92,7 +104,11 @@ public final class DpImageFileSupport {
         }
     }
 
-    /** 删除该用户所有 {@code {userId}.*} 头像原图及 {@code {userId}_sm.webp}。 */
+    /**
+     * 删除该用户所有 {@code {userId}.*} 头像原图及 {@code {userId}_sm.webp}。
+     * @deprecated 请使用 {@link com.example.mgdemoplus.storage.DpAvatarStorageSupport#deleteUserAvatarFiles(int)}。
+     */
+    @Deprecated
     public static void deleteUserAvatarFiles(String imagesFileLocation, int userId) {
         File dir = new File(toPhysicalDir(imagesFileLocation));
         if (!dir.isDirectory()) {

@@ -1,8 +1,27 @@
 <template>
   <div
+    v-if="useRetroViewer"
+    class="dp-game-root dp-hh-lobby-route"
+    :data-dp-game-theme="effectiveThemeForCss"
+  >
+    <header class="dp-hh-lobby-route__header">
+      <div class="dp-hh-lobby-route__header-actions">
+        <div class="dp-game-theme-row dp-hh-lobby-route__theme-row">
+          <span class="dp-game-theme-row__label">界面主题</span>
+          <dp-theme-picker
+            :game-ui-theme="gameUiTheme"
+            :theme-options="gameThemeOptions"
+            @input-theme="onLobbyThemeChange($event)"
+          />
+        </div>
+      </div>
+    </header>
+    <dp-hand-history-viewer context="lobby-page" />
+  </div>
+  <div
+    v-else
     :class="{ 'dp-game-root': !embedded }"
     :data-dp-game-theme="embedded ? undefined : effectiveThemeForCss"
-    :style="embedded ? {} : customThemeInlineStyle"
   >
   <div class="hand-history-page hand-history-page--dp">
     <div class="hand-history-page__header">
@@ -13,11 +32,7 @@
             <dp-theme-picker
               :game-ui-theme="gameUiTheme"
               :theme-options="gameThemeOptions"
-              :custom-theme-base="customThemeBase"
-              :custom-theme-overrides="customThemeOverrides"
               @input-theme="onLobbyThemeChange($event)"
-              @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
-              @custom-overrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
             />
         </div>
         <button type="button" class="hand-history-page__back" @click="goBack">
@@ -106,9 +121,11 @@ import '@/styles/dp-lobby-shell.css'
 import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
 import { CAT_COPY } from '@/constants/dpCatThemeCopy'
+import DpHandHistoryViewer from '@/components/DpHandHistoryViewer.vue'
 
 export default {
   name: 'HandHistory',
+  components: { DpHandHistoryViewer },
   mixins: [dpLobbyThemeMixin],
   props: {
     /** 嵌入对局弹层：不整页跳转，通过事件关闭 / 打开详情 */
@@ -137,6 +154,9 @@ export default {
     }
   },
   computed: {
+    useRetroViewer() {
+      return !this.embedded && this.gameUiTheme === 'retro8bit'
+    },
     totalPages() {
       if (this.total <= 0) return 1
       return Math.max(1, Math.ceil(this.total / this.pageSize))
@@ -147,6 +167,7 @@ export default {
     }
   },
   async created() {
+    if (this.useRetroViewer) return
     try {
       const raw = localStorage.getItem('userInfo')
       this.user = raw ? JSON.parse(raw) : null
@@ -228,7 +249,6 @@ export default {
       this.loadError = ''
       try {
         var params = {
-          userId: Number(this.user.userId),
           page: p,
           pageSize: this.pageSize
         }
@@ -477,5 +497,24 @@ export default {
 .hand-history-page--dp .hand-history-table__detail-btn:hover {
   border-color: var(--dp-accent, #409eff);
   background: var(--dp-subpanel-bg, #ecf5ff);
+}
+
+.dp-hh-lobby-route {
+  max-width: min(960px, 100%);
+  margin: 0 auto;
+}
+.dp-hh-lobby-route__header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: clamp(8px, 2vw, 14px);
+}
+.dp-hh-lobby-route__header-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+.dp-hh-lobby-route__theme-row {
+  justify-content: flex-end;
 }
 </style>

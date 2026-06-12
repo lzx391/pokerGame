@@ -1,6 +1,13 @@
 <template>
-  <transition name="dp-overlay">
-  <div v-if="visible" class="hand-rank-modal-mask" @click="$emit('close')">
+  <transition :name="overlayTransitionName" @after-leave="onOverlayAfterLeave">
+  <div
+      v-if="visible"
+      ref="mask"
+      class="hand-rank-modal-mask"
+      :class="{ 'hand-rank-modal-mask--stacked': useStackedOverlay }"
+      :style="maskStyle"
+      @click="$emit('close')"
+  >
     <div
         class="hand-rank-modal hand-rank-modal--hand-history"
         :data-dp-game-theme="gameUiTheme"
@@ -45,10 +52,20 @@
 <script>
 import HandHistory from './HandHistory.vue'
 import HandHistoryDetail from './HandHistoryDetail.vue'
+import {
+  dpGetOverlayPortalRoot,
+  dpOpenBodyOverlayZIndex,
+  dpPortalOverlayToBody,
+  dpRestoreOverlayFromPortal,
+  dpScheduleOverlayFullscreenReparent
+} from '@/utils/dpOverlayPortal'
 
 export default {
   name: 'GameHandHistoryModal',
   components: { HandHistory, HandHistoryDetail },
+  inject: {
+    dpGameView: { default: null }
+  },
   props: {
     visible: { type: Boolean, default: false },
     /** 与对局页 `game.vue` 的 `gameUiTheme` 一致，供弹层内列表/详情跟随当前界面主题 */
@@ -63,15 +80,33 @@ export default {
     },
     otherUserId: { type: Number, default: null },
     /** 列表态弹层标题用，须与卡片/dpDisplayNickname 一致 */
-    opponentDisplayName: { type: String, default: '' }
+    opponentDisplayName: { type: String, default: '' },
+    /**
+     * 叠在玩家资料等高层之上时挂 body 并抬 z-index。
+     * 默认：withOpponent 模式自动开启。
+     */
+    stacked: { type: Boolean, default: null }
   },
   data() {
     return {
       view: 'list',
-      detailId: null
+      detailId: null,
+      portalZIndex: null,
+      _portalAnchor: null
     }
   },
   computed: {
+    useStackedOverlay() {
+      if (this.stacked != null) return this.stacked
+      return this.listMode === 'withOpponent'
+    },
+    overlayTransitionName() {
+      return this.useStackedOverlay ? 'dp-overlay-none' : 'dp-overlay'
+    },
+    maskStyle() {
+      if (!this.useStackedOverlay || this.portalZIndex == null) return null
+      return { zIndex: this.portalZIndex }
+    },
     modalTitle() {
       if (this.view === 'detail') return '牌谱详情'
       if (
@@ -88,10 +123,59 @@ export default {
       if (v) {
         this.view = 'list'
         this.detailId = null
+        if (this.useStackedOverlay) {
+          this.portalZIndex = dpOpenBodyOverlayZIndex('handHistory')
+          var self = this
+          this.$nextTick(function () {
+            self.attachPortal()
+          })
+        }
       }
     }
   },
+  mounted() {
+    if (this.visible && this.useStackedOverlay) {
+      if (this.portalZIndex == null) {
+        this.portalZIndex = dpOpenBodyOverlayZIndex('handHistory')
+      }
+      this.attachPortal()
+    }
+  },
+  beforeDestroy() {
+    this.detachPortal()
+  },
   methods: {
+    attachPortal() {
+      var self = this
+      var attempt = function () {
+        var el = self.$refs.mask
+        if (!el) return false
+        if (!self._portalAnchor) {
+          self._portalAnchor = { parent: null, next: null }
+        }
+        dpPortalOverlayToBody(el, self._portalAnchor, dpGetOverlayPortalRoot())
+        dpScheduleOverlayFullscreenReparent(self.dpGameView)
+        return true
+      }
+      if (attempt()) return
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(function () {
+          if (!attempt()) setTimeout(attempt, 0)
+        })
+      } else {
+        setTimeout(attempt, 0)
+      }
+    },
+    detachPortal() {
+      dpRestoreOverlayFromPortal(this.$refs.mask, this._portalAnchor)
+      this._portalAnchor = null
+    },
+    onOverlayAfterLeave() {
+      if (this.useStackedOverlay) {
+        this.detachPortal()
+        this.portalZIndex = null
+      }
+    },
     onViewDetail(id) {
       this.detailId = id
       this.view = 'detail'

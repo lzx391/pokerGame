@@ -1,5 +1,8 @@
 /**
  * 牌谱回放：按街拆分行动轮次、行动文案（与 dp_observed_hand_history.payload_json 对齐）。
+ *
+ * 洞牌展示：后端 GET /dpHandHistory/detail 已对洞牌等字段脱敏；
+ * shouldShowHoleCardsOnStreetTab 等仅作前端 UI 兜底，与接口裁切可能重复，未删除以便负责人评估。
  */
 
 import { DP_GAME_STAGE_LABELS } from '../constants/dpCatThemeCopy'
@@ -132,10 +135,72 @@ export function formatActionText(a) {
   }
 }
 
+function parseActorChipsAfter(a) {
+  if (!a) return null
+  const chips = a.actorChipsAfter
+  if (chips == null || chips === '' || Number.isNaN(Number(chips))) return null
+  return Number(chips)
+}
+
+/** payload v2：行动后剩余筹码；缺失时仅返回行动文案（v1 兼容）。 */
+export function formatActionTextWithChips(a) {
+  const base = formatActionText(a)
+  if (base === '—' || !a) return base
+  const chips = parseActorChipsAfter(a)
+  if (chips == null) return base
+  return base + ' · 余' + chips
+}
+
+/** payload v2：行动文案 + 行动后筹码（retro8bit 详情页分列渲染）。 */
+export function actionCellParts(a) {
+  return {
+    text: formatActionText(a),
+    chipsAfter: parseActorChipsAfter(a)
+  }
+}
+
+/** payload v2：SC 带入倍数；detail / payload 均可；缺失返回 null（v1 兼容）。 */
+export function resolveStartingStackBb(detail, payload) {
+  const p = payload && typeof payload === 'object' ? payload : {}
+  const fromDetail = detail && detail.startingStackBb
+  const fromPayload = p.startingStackBb
+  const raw = fromDetail != null ? fromDetail : fromPayload
+  if (raw == null || raw === '') return null
+  const n = Number(raw)
+  return Number.isNaN(n) ? null : n
+}
+
+/**
+ * retro8bit 详情：按圈返回 { text, chipsAfter }[]，便于 CRT 样式分列展示。
+ */
+export function buildRoundGridActionCells(rounds, nicknamesOrdered) {
+  const cols = []
+  const list = Array.isArray(rounds) ? rounds : []
+  for (let r = 0; r < list.length; r++) {
+    const byPlayer = {}
+    for (const n of nicknamesOrdered) byPlayer[n] = []
+    for (const a of list[r]) {
+      const n = a.actorNickname
+      if (!byPlayer[n]) byPlayer[n] = []
+      byPlayer[n].push(actionCellParts(a))
+    }
+    const cells = {}
+    for (const n of nicknamesOrdered) {
+      const parts = byPlayer[n] || []
+      cells[n] = parts.length ? parts : null
+    }
+    cols.push(cells)
+  }
+  return cols
+}
+
 /**
  * 按玩家聚合某一圈内的行动（通常一行）。
+ * @param {{ includeChipsAfter?: boolean }} [options] payload v2 时在行动文案后附「余筹码」
  */
-export function buildRoundGrid(rounds, nicknamesOrdered) {
+export function buildRoundGrid(rounds, nicknamesOrdered, options) {
+  const opts = options && typeof options === 'object' ? options : {}
+  const formatFn = opts.includeChipsAfter ? formatActionTextWithChips : formatActionText
   const cols = []
   for (let r = 0; r < rounds.length; r++) {
     const byPlayer = {}
@@ -143,7 +208,7 @@ export function buildRoundGrid(rounds, nicknamesOrdered) {
     for (const a of rounds[r]) {
       const n = a.actorNickname
       if (!byPlayer[n]) byPlayer[n] = []
-      byPlayer[n].push(formatActionText(a))
+      byPlayer[n].push(formatFn(a))
     }
     const cells = {}
     for (const n of nicknamesOrdered) {
@@ -161,12 +226,46 @@ export function boardForStreet(boardsByStreet, street) {
   return b && Array.isArray(b.communityCards) ? b.communityCards : []
 }
 
+/** payload v2：该街下注轮结束时的桌池总额；缺失返回 null（v1 兼容）。 */
+export function potTotalAtStreetEndForStreet(boardsByStreet, street) {
+  if (!Array.isArray(boardsByStreet) || !street) return null
+  const b = boardsByStreet.find((x) => x && x.stage === street)
+  if (!b || b.potTotalAtStreetEnd == null || b.potTotalAtStreetEnd === '') return null
+  const n = Number(b.potTotalAtStreetEnd)
+  return Number.isNaN(n) ? null : n
+}
+
 /** 该街快照中的牌型展示文案（payload.boardsByStreet[].handRankNameByPlayer） */
 export function handRankNameByStreet(boardsByStreet, street) {
   if (!Array.isArray(boardsByStreet) || !street) return {}
   const b = boardsByStreet.find((x) => x && x.stage === street)
   const map = b && b.handRankNameByPlayer
   return map && typeof map === 'object' ? map : {}
+}
+
+/** payload v3：终局筹码；缺失时可用 seatsAtStart + netChipsChange 估算。 */
+export function resolveChipsAtEnd(payload, nickname, seatsAtStart) {
+  if (!nickname) return null
+  const p = payload && typeof payload === 'object' ? payload : {}
+  const endMap = p.chipsAtEnd
+  if (endMap && typeof endMap === 'object' && Object.prototype.hasOwnProperty.call(endMap, nickname)) {
+    const v = endMap[nickname]
+    if (v == null || v === '') return null
+    const n = Number(v)
+    return Number.isNaN(n) ? null : n
+  }
+  const net = p.netChipsChange && typeof p.netChipsChange === 'object' ? p.netChipsChange[nickname] : null
+  const seats = Array.isArray(seatsAtStart) ? seatsAtStart : (Array.isArray(p.seatsAtStart) ? p.seatsAtStart : [])
+  for (let i = 0; i < seats.length; i++) {
+    const s = seats[i]
+    if (s && s.nickname === nickname) {
+      const base = s.chipsAfterBlinds != null ? Number(s.chipsAfterBlinds) : 0
+      const delta = net != null ? Number(net) : 0
+      if (Number.isNaN(base) || Number.isNaN(delta)) return null
+      return base + delta
+    }
+  }
+  return null
 }
 
 /** 河牌圈牌型（结算页用） */

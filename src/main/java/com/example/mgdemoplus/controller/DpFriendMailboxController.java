@@ -1,16 +1,14 @@
 package com.example.mgdemoplus.controller;
 
 import com.example.mgdemoplus.common.entity.DpUser;
-import com.example.mgdemoplus.common.mapper.DpUserMapper;
 import com.example.mgdemoplus.presence.DpSitePresenceService;
+import com.example.mgdemoplus.security.DpCurrentUserSupport;
 import com.example.mgdemoplus.social.impl.DpFriendChatService;
 import com.example.mgdemoplus.social.impl.DpFriendSocialService;
 import com.example.mgdemoplus.utils.ResultUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,8 +21,12 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 /**
- * 好友双向申请 / 局内成员进房邀请（邮箱 MVP）。全部需 JWT；当前用户仅从 token 昵称解析 dp_user.id，
- * 与请求体 {@code toUserId} / {@code inviteeUserId} 分离以避免越权。
+ * 好友双向申请 / 私信 / 局内成员进房邀请（邮箱 MVP）。全部需 JWT；当前用户仅从 token 昵称解析
+ * {@code dp_user.id}，与请求体 {@code toUserId} / {@code inviteeUserId} 分离以避免越权。
+ * <p>{@code GET /dp/friends}：分页好友列表（默认 page=1、pageSize=20，最大 100），可选 {@code q}
+ * 筛选（纯数字→好友 userId；否则昵称包含、不区分大小写），按最近私信时间降序（无消息则按成为好友时间）。</p>
+ * <p>{@code GET /dp/users/lookup?q=}：加好友前精确查人；纯数字且 &gt;0 时同时按 id 与昵称全等查询，
+ * 返回 {@code items} 数组（每项含公开资料 {@code user} 与 {@code addStatus}）。</p>
  */
 @RestController
 @RequestMapping("/dp")
@@ -39,30 +41,12 @@ public class DpFriendMailboxController {
     @Autowired
     private DpSitePresenceService dpSitePresenceService;
     @Autowired
-    private DpUserMapper dpUserMapper;
-
-    private DpUser requireCurrentUser(ResultUtil fallback) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated()
-                || "anonymousUser".equals(String.valueOf(auth.getPrincipal()))) {
-            fallback.setSuccess(false);
-            fallback.setMessage("未登录或登录已失效");
-            return null;
-        }
-        String nickname = auth.getName();
-        DpUser u = dpUserMapper.selectByNickname(nickname);
-        if (u == null) {
-            fallback.setSuccess(false);
-            fallback.setMessage("用户不存在或未同步");
-            return null;
-        }
-        return u;
-    }
+    private DpCurrentUserSupport currentUserSupport;
 
     @PostMapping("/friends/requests")
     public ResultUtil sendFriendRequest(@RequestBody Map<String, Object> body) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -74,7 +58,7 @@ public class DpFriendMailboxController {
     @GetMapping("/friends/requests/pending")
     public ResultUtil pendingFriendInbound() {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -84,7 +68,7 @@ public class DpFriendMailboxController {
     @PostMapping("/friends/requests/{id}/accept")
     public ResultUtil acceptFriend(@PathVariable("id") long id) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -94,21 +78,41 @@ public class DpFriendMailboxController {
     @PostMapping("/friends/requests/{id}/reject")
     public ResultUtil rejectFriend(@PathVariable("id") long id) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
         return dpFriendSocialService.rejectFriendRequest(me.getId(), id);
     }
 
+    /**
+     * 好友列表（分页）。响应 {@code data.friends}、{@code data.total}、{@code data.page}、{@code data.pageSize}。
+     */
     @GetMapping("/friends")
-    public ResultUtil friends() {
+    public ResultUtil friends(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize,
+            @RequestParam(required = false) String q) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
-        return dpFriendSocialService.listFriends(me.getId());
+        return dpFriendSocialService.listFriends(me.getId(), page, pageSize, q);
+    }
+
+    /**
+     * 加好友精确查人：{@code q} 为纯数字且 0&lt;id≤{@link Integer#MAX_VALUE} 时仅 {@link DpUserMapper#selectById}；
+     * 否则仅昵称全等。成功时 {@code data.user} 与 {@code data.addStatus}。
+     */
+    @GetMapping("/users/lookup")
+    public ResultUtil lookupUserForFriendAdd(@RequestParam("q") String q) {
+        ResultUtil err = ResultUtil.error();
+        DpUser me = currentUserSupport.requireUser(err);
+        if (me == null) {
+            return err.data("message", err.getMessage());
+        }
+        return dpFriendSocialService.lookupUserForFriendAdd(me.getId(), q);
     }
 
     /**
@@ -128,7 +132,7 @@ public class DpFriendMailboxController {
     @PostMapping("/presence/site-heartbeat")
     public ResultUtil sitePresenceHeartbeat() {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -146,7 +150,7 @@ public class DpFriendMailboxController {
     @PostMapping("/friends/follow-room")
     public ResultUtil followFriendToRoom(@RequestBody Map<String, Object> body) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -162,7 +166,7 @@ public class DpFriendMailboxController {
     public ResultUtil sendFriendMessage(
             @PathVariable("peerUserId") int peerUserId, @RequestBody Map<String, Object> body) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -177,7 +181,7 @@ public class DpFriendMailboxController {
             @RequestParam(required = false) Long beforeId,
             @RequestParam(required = false) Integer limit) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -188,7 +192,7 @@ public class DpFriendMailboxController {
     public ResultUtil markFriendMessagesRead(
             @PathVariable("peerUserId") int peerUserId, @RequestBody Map<String, Object> body) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -200,7 +204,7 @@ public class DpFriendMailboxController {
     @GetMapping("/friends/chat-unread-summary")
     public ResultUtil friendChatUnreadSummary() {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -210,7 +214,7 @@ public class DpFriendMailboxController {
     @DeleteMapping("/friends/{friendUserId}")
     public ResultUtil removeFriend(@PathVariable("friendUserId") int friendUserId) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -220,7 +224,7 @@ public class DpFriendMailboxController {
     @PostMapping("/room-invites")
     public ResultUtil createRoomInvite(@RequestBody Map<String, Object> body) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -248,7 +252,7 @@ public class DpFriendMailboxController {
     @GetMapping("/mailbox")
     public ResultUtil mailbox() {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -258,7 +262,7 @@ public class DpFriendMailboxController {
     @GetMapping("/mailbox/unread-count")
     public ResultUtil unreadMailbox() {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -268,7 +272,7 @@ public class DpFriendMailboxController {
     @PostMapping("/room-invites/{id}/accept")
     public ResultUtil acceptInvite(@PathVariable("id") long id) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -278,7 +282,7 @@ public class DpFriendMailboxController {
     @PostMapping("/room-invites/{id}/reject")
     public ResultUtil rejectInvite(@PathVariable("id") long id) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -292,7 +296,7 @@ public class DpFriendMailboxController {
     @GetMapping("/friends/{friendUserId}/spectate-room")
     public ResultUtil friendSpectateRoom(@PathVariable("friendUserId") int friendUserId) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }
@@ -305,7 +309,7 @@ public class DpFriendMailboxController {
     @PostMapping("/room-follow/spectate")
     public ResultUtil followFriendSpectate(@RequestBody Map<String, Object> body) {
         ResultUtil err = ResultUtil.error();
-        DpUser me = requireCurrentUser(err);
+        DpUser me = currentUserSupport.requireUser(err);
         if (me == null) {
             return err.data("message", err.getMessage());
         }

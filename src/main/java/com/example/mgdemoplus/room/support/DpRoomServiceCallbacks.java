@@ -25,7 +25,8 @@ public interface DpRoomServiceCallbacks {
             int bigBlindChips,
             int startingStackBb,
             String roomPassword,
-            int maxSeatCount);
+            int maxSeatCount,
+            int thinkTimeSeconds);
 
     boolean startGame(String roomId, String ownerNickname);
 
@@ -38,6 +39,8 @@ public interface DpRoomServiceCallbacks {
     void refreshJoinableQuickMatchIndexRoom(String roomId, long nowMs);
 
     void presenceMarkInGameHuman(DpRoomBO r, String nickname, Integer requestedUserId, String trigger);
+
+    void presenceMarkIdleHuman(int dpUserId, String trigger);
 
     boolean exitRoom(String roomId, String nickname);
 
@@ -60,12 +63,23 @@ public interface DpRoomServiceCallbacks {
     void handleReadyTimeout(DpRoomBO room);
 
     void presenceTryMarkIdleFullyLeft(String nickname, Integer hintedUserId, DpRoomBO roomHint, String trigger);
-
+/**
+ * 决策和发言
+ * @param room
+ * @param p
+ * @param action
+ */
     void npcAction(DpRoomBO room, DpPlayer p, DpNpcEngine.BotAction action);
+
+    void settleHumanOnLeaveSeat(DpRoomBO room, DpPlayer player);
 
     DpRoomBO getAllRooms(String roomId);
 
     boolean isNicknameInRoom(DpRoomBO room, String nickname);
+
+    boolean isViewerInRoom(DpRoomBO room, String nickname, Integer userId);
+
+    String resolveRoomActorNickname(DpRoomBO room, String canonicalNickname, Integer userId);
 
     void presenceMarkIdleAllHumansOnRoomSnapshot(DpRoomBO r, String trigger);
 

@@ -2,10 +2,12 @@ package com.example.mgdemoplus.controller;
 
 import com.example.mgdemoplus.common.entity.DpUser;
 import com.example.mgdemoplus.common.mapper.DpUserMapper;
+import com.example.mgdemoplus.security.DpCurrentUserSupport;
 import com.example.mgdemoplus.security.JwtTokenService;
 import com.example.mgdemoplus.user.cache.DpRedisLoginCacheService;
 import com.example.mgdemoplus.user.DpUserService;
 import com.example.mgdemoplus.user.impl.DpUserServiceImpl;
+import com.example.mgdemoplus.user.dto.DpUserPasswordUpdateRequest;
 import com.example.mgdemoplus.user.dto.DpUserProfileUpdateRequest;
 import com.example.mgdemoplus.user.dto.DpUserProfileUpdateResult;
 import com.example.mgdemoplus.user.dto.DpPlayerHonorView;
@@ -13,8 +15,6 @@ import com.example.mgdemoplus.user.dto.DpUserProfileView;
 import com.example.mgdemoplus.utils.ResultUtil;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,8 +25,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import com.example.mgdemoplus.achievement.DpAchievementService;
+import com.example.mgdemoplus.achievement.vo.DpAchievementWallItemVO;
 import com.example.mgdemoplus.user.dto.DpAvatarUploadResult;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -40,6 +46,12 @@ public class DpUserController {
     DpRedisLoginCacheService dpRedisLoginCacheService;
     @Autowired
     JwtTokenService jwtTokenService;
+    @Autowired
+    DpAchievementService dpAchievementService;
+    @Autowired
+    ObjectMapper objectMapper;
+    @Autowired
+    DpCurrentUserSupport currentUserSupport;
 
     @PostMapping("/registerUser")
     public ResultUtil registerUser(@RequestBody DpUser dpUser) {
@@ -59,6 +71,9 @@ public class DpUserController {
         }
         if (code == DpUserServiceImpl.REGISTER_INVALID_NICKNAME) {
             return ResultUtil.invalidNickname();
+        }
+        if (code == DpUserServiceImpl.REGISTER_NUMERIC_NICKNAME) {
+            return ResultUtil.numericNickname();
         }
         return ResultUtil.repeatUsername();
     }
@@ -80,7 +95,7 @@ public class DpUserController {
      */
     @GetMapping("/profile")
     public ResultUtil getProfile() {
-        DpUser current = requireCurrentUser();
+        DpUser current = currentUserSupport.requireUser();
         if (current == null) {
             return ResultUtil.error().data("message", "未登录或登录已失效");
         }
@@ -101,13 +116,23 @@ public class DpUserController {
     }
 
     /**
-     * 修改昵称和/或密码。保存时须校验当前密码；改昵称后签发新 token（JWT subject 为昵称）。
+     * 修改非敏感资料（当前仅昵称）。改密请使用 {@code PUT /dpUser/password}。
+     * 改昵称成功后签发新 token 并迁移 Redis jti。
      */
     @PutMapping("/profile")
-    public ResultUtil updateProfile(@RequestBody DpUserProfileUpdateRequest request) {
-        DpUser current = requireCurrentUser();
+    public ResultUtil updateProfile(@RequestBody JsonNode body) {
+        DpUser current = currentUserSupport.requireUser();
         if (current == null) {
             return ResultUtil.error().data("message", "未登录或登录已失效");
+        }
+        if (hasNonBlankJsonField(body, "newPassword") || hasNonBlankJsonField(body, "oldPassword")) {
+            return ResultUtil.error().data("message", DpUserServiceImpl.MSG_USE_PASSWORD_ENDPOINT);
+        }
+        DpUserProfileUpdateRequest request;
+        try {
+            request = objectMapper.treeToValue(body, DpUserProfileUpdateRequest.class);
+        } catch (Exception e) {
+            return ResultUtil.error().data("message", "参数无效");
         }
         String oldNickname = current.getNickname();
         DpUserProfileUpdateResult outcome = dpUserService.updateProfile(current, request);
@@ -131,11 +156,27 @@ public class DpUserController {
     }
 
     /**
+     * 修改或首次设置登录密码。已设密用户须 oldPassword；OAuth 无密码用户仅 newPassword。不换 JWT。
+     */
+    @PutMapping("/password")
+    public ResultUtil updatePassword(@RequestBody DpUserPasswordUpdateRequest request) {
+        DpUser current = currentUserSupport.requireUser();
+        if (current == null) {
+            return ResultUtil.error().data("message", "未登录或登录已失效");
+        }
+        String message = dpUserService.updatePassword(current, request);
+        if (!"保存成功".equals(message)) {
+            return ResultUtil.error().data("message", message);
+        }
+        return ResultUtil.ok().data("message", message);
+    }
+
+    /**
      * 上传头像：身份仅从 JWT 解析，禁止客户端指定 userId。
      */
     @PostMapping("/avatar")
     public ResultUtil uploadAvatar(@RequestParam("file") MultipartFile file) {
-        DpUser current = requireCurrentUser();
+        DpUser current = currentUserSupport.requireUser();
         if (current == null) {
             return ResultUtil.error().data("message", "未登录或登录已失效");
         }
@@ -150,14 +191,36 @@ public class DpUserController {
     }
 
     /**
-     * 解析当前登录用户
+     * 当前登录用户成就墙（全部成就 + 本人解锁状态）。
      */
-    private DpUser requireCurrentUser() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated()
-                || "anonymousUser".equals(String.valueOf(auth.getPrincipal()))) {
-            return null;
+    @GetMapping("/achievements")
+    public ResultUtil getMyAchievements() {
+        DpUser current = currentUserSupport.requireUser();
+        if (current == null) {
+            return ResultUtil.error().data("message", "未登录或登录已失效");
         }
-        return dpUserMapper.selectByNickname(auth.getName());
+        List<DpAchievementWallItemVO> items = dpAchievementService.buildWallForUser(current.getId());
+        return ResultUtil.ok().data("achievements", items);
     }
+
+    /**
+     * 指定用户公开成就墙（登录即可查看）。
+     */
+    @GetMapping("/achievements/{userId}")
+    public ResultUtil getUserAchievements(@PathVariable int userId) {
+        List<DpAchievementWallItemVO> items = dpAchievementService.buildWallForUser(userId);
+        if (items == null) {
+            return ResultUtil.error().data("message", "用户不存在");
+        }
+        return ResultUtil.ok().data("achievements", items);
+    }
+
+    private static boolean hasNonBlankJsonField(JsonNode body, String field) {
+        if (body == null || !body.has(field)) {
+            return false;
+        }
+        JsonNode node = body.get(field);
+        return node != null && !node.isNull() && node.isTextual() && !node.asText().isBlank();
+    }
+
 }

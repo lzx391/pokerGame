@@ -1,5 +1,6 @@
 package com.example.mgdemoplus.room.support;
 
+import com.example.mgdemoplus.achievement.DpDetectAchievement;
 import com.example.mgdemoplus.common.bo.DpRoomBO;
 import com.example.mgdemoplus.history.DpHandHistoryPersistService;
 import com.example.mgdemoplus.history.bo.DpObservedHandRecordBO;
@@ -31,17 +32,21 @@ public class DpSettlePersistenceDispatcher {
     private final Executor executor;
     private final boolean asyncEnabled;
 
+    private final DpDetectAchievement dpDetectAchievement;
+
     public DpSettlePersistenceDispatcher(
             DpHandHistoryPersistService observedHandPersistService,
             DpUserStatsMapper dpUserStatsMapper,
             DpLeaderboardWeeklyWriteService dpLeaderboardWeeklyWriteService,
             @Qualifier("dpSettlePersistExecutor") Executor executor,
-            @Value("${mgdemoplus.settle-persist.async-enabled:true}") boolean asyncEnabled) {
+            @Value("${mgdemoplus.settle-persist.async-enabled:true}") boolean asyncEnabled,
+            DpDetectAchievement dpDetectAchievement) {
         this.observedHandPersistService = observedHandPersistService;
         this.dpUserStatsMapper = dpUserStatsMapper;
         this.dpLeaderboardWeeklyWriteService = dpLeaderboardWeeklyWriteService;
         this.executor = executor;
         this.asyncEnabled = asyncEnabled;
+        this.dpDetectAchievement = dpDetectAchievement;
     }
 
     public boolean isAsyncEnabled() {
@@ -92,11 +97,21 @@ public class DpSettlePersistenceDispatcher {
             log.error("settle persist failed after retry roomId={} handSeed={}", job.roomId(), job.archived().handSeed);
         }
     }
-
+/**
+ * 是否成功持久化
+ * @param job
+ * @param fromAsyncWorker
+ * @return
+ */
     private boolean persistOnce(DpSettlePersistJob job, boolean fromAsyncWorker) {
         try {
-            observedHandPersistService.save(job.archived(), job.roomSnapshotForParticipants());
+            Long handHistoryId = observedHandPersistService.save(
+                    job.archived(), job.roomSnapshotForParticipants());
+            dpDetectAchievement.detect(job, handHistoryId);
+            //更新牌力荣誉
             applyStatsIncrements(job.statsIncrements());
+            //更新连赢记录
+            applyStreakFlushes(job.streakFlushes());
             return true;
         } catch (Exception e) {
             if (fromAsyncWorker) {
@@ -107,6 +122,18 @@ public class DpSettlePersistenceDispatcher {
                         e.toString());
             }
             return false;
+        }
+    }
+
+    private void applyStreakFlushes(List<DpMaxWinStreakFlush> flushes) {
+        if (flushes == null || flushes.isEmpty()) {
+            return;
+        }
+        for (DpMaxWinStreakFlush flush : flushes) {
+            if (flush == null || flush.streak() <= 0) {
+                continue;
+            }
+            dpUserStatsMapper.tryUpdateMaxWinStreak(flush.userId(), flush.streak());
         }
     }
 

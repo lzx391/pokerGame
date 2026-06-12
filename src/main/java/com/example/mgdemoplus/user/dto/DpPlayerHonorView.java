@@ -1,5 +1,6 @@
 package com.example.mgdemoplus.user.dto;
 
+import com.example.mgdemoplus.leaderboard.vo.DpWeeklyLeaderboardPlacementView;
 import java.math.BigDecimal;
 
 /**
@@ -21,6 +22,15 @@ public class DpPlayerHonorView {
     private BigDecimal largestPotWon;
     private BigDecimal largestRoomNet;
     private int totalHandsPlayed;
+    /** 周榜前三累计次数 */
+    private int leaderboardTopCount;
+    /** 生涯最高连胜手数 */
+    private int maxWinStreak;
+
+    /** 本周手牌倍数周榜（board=hand） */
+    private DpWeeklyLeaderboardPlacementView leaderboardWeeklyHand;
+    /** 本周房间净赢倍数周榜（board=room） */
+    private DpWeeklyLeaderboardPlacementView leaderboardWeeklyRoom;
 
     public int getUserId() {
         return userId;
@@ -100,5 +110,37 @@ public class DpPlayerHonorView {
 
     public void setTotalHandsPlayed(int totalHandsPlayed) {
         this.totalHandsPlayed = totalHandsPlayed;
+    }
+
+    public int getLeaderboardTopCount() {
+        return leaderboardTopCount;
+    }
+
+    public void setLeaderboardTopCount(int leaderboardTopCount) {
+        this.leaderboardTopCount = leaderboardTopCount;
+    }
+
+    public int getMaxWinStreak() {
+        return maxWinStreak;
+    }
+
+    public void setMaxWinStreak(int maxWinStreak) {
+        this.maxWinStreak = maxWinStreak;
+    }
+
+    public DpWeeklyLeaderboardPlacementView getLeaderboardWeeklyHand() {
+        return leaderboardWeeklyHand;
+    }
+
+    public void setLeaderboardWeeklyHand(DpWeeklyLeaderboardPlacementView leaderboardWeeklyHand) {
+        this.leaderboardWeeklyHand = leaderboardWeeklyHand;
+    }
+
+    public DpWeeklyLeaderboardPlacementView getLeaderboardWeeklyRoom() {
+        return leaderboardWeeklyRoom;
+    }
+
+    public void setLeaderboardWeeklyRoom(DpWeeklyLeaderboardPlacementView leaderboardWeeklyRoom) {
+        this.leaderboardWeeklyRoom = leaderboardWeeklyRoom;
     }
 }

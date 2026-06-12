@@ -1,5 +1,6 @@
 /**
- * 行动 30s 与结算准备倒计时（行动区圆环用 timeLeft；结算准备用 readyTimeLeft → GameSettledPrepareBar）。
+ * 行动思考倒计时（圆环 timeLeft，总长来自房间 thinkTimeSeconds + lastActionTime）；
+ * 结算准备倒计时仍硬 30s（readyTimeLeft → GameSettledPrepareBar）。
  */
 export default {
   data: function () {
@@ -12,6 +13,23 @@ export default {
     }
   },
   methods: {
+    actionThinkTimeTotalSec: function () {
+      var s = this.$store.state.dpGame
+      var v = Number(s.thinkTimeSeconds)
+      if (!isFinite(v) || v < 1) return 30
+      return Math.floor(v)
+    },
+    computeActionRemainingSec: function () {
+      var s = this.$store.state.dpGame
+      var total = this.actionThinkTimeTotalSec()
+      var last = Number(s.lastActionTime)
+      if (!isFinite(last) || last <= 0) return total
+      var deadline = last + total * 1000
+      var remaining = Math.ceil((deadline - Date.now()) / 1000)
+      if (remaining < 0) remaining = 0
+      if (remaining > total) remaining = total
+      return remaining
+    },
     actionCountdownShouldRun: function () {
       var s = this.$store.state.dpGame
       if (!s.playing) return false
@@ -35,13 +53,22 @@ export default {
         return
       }
       var key = this.actionCountdownSessionKey()
-      if (this._actionCountdownKey === key) return
+      var remaining = this.computeActionRemainingSec()
+      if (this._actionCountdownKey === key) {
+        this.timeLeft = remaining
+        if (remaining > 0 && !this.actionTimer) {
+          this.startCountdownTick()
+        }
+        if (remaining <= 0) {
+          this.stopCountdown()
+        }
+        return
+      }
       this._actionCountdownKey = key
       this.startCountdown()
     },
-    startCountdown: function () {
-      this.stopCountdown()
-      this.timeLeft = 30
+    startCountdownTick: function () {
+      if (this.actionTimer) return
       var self = this
       this.actionTimer = setInterval(function () {
         if (self.timeLeft > 0) {
@@ -50,6 +77,12 @@ export default {
           self.stopCountdown()
         }
       }, 1000)
+    },
+    startCountdown: function () {
+      this.stopCountdown()
+      this.timeLeft = this.computeActionRemainingSec()
+      if (this.timeLeft <= 0) return
+      this.startCountdownTick()
     },
     stopCountdown: function () {
       if (this.actionTimer) {

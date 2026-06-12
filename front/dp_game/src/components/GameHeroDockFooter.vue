@@ -1,7 +1,7 @@
 <template>
   <div>
     <div
-        v-if="vm.heroDockRow || vm.isMyTurn || vm.inSettledStage || vm.isOwner"
+        v-if="vm.heroDockRow || vm.isMyTurn || vm.uiInSettledStage"
         class="dp-game-hero-action-row dp-game-hero-action-row--hide-narrow"
         aria-label="本人手牌与操作"
     >
@@ -43,7 +43,7 @@
               type="button"
               class="dp-game-hero-action-row__owner-btn dp-game-hero-action-row__owner-btn--hand"
               data-dp-hero-deal-target
-              @click="$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileHandSheet: true })"
+              @click.stop="vm.onHeroViewHandClick('desktop-action-row')"
           >
             查看手牌
           </button>
@@ -52,14 +52,17 @@
       <div
           v-if="vm.heroDockRow && vm.showBottomHeroDock"
           class="dp-game-hero-dock"
-          :class="{ 'dp-game-hero-dock--hand-reveal': vm.stage === 'showdown' || vm.stage === 'settled' }"
+          :class="{
+            'dp-game-hero-dock--hand-reveal':
+              vm.cardDisplayStage === 'showdown' || vm.cardDisplayStage === 'settled'
+          }"
       >
         <game-player-card
             :player="vm.heroDockRow.player"
             :seat-index="vm.heroDockRow.seatIndex"
             :box-style="vm.getPlayerBoxStyle(vm.heroDockRow.player, vm.heroDockRow.seatIndex)"
             :act-index="vm.actIndex"
-            :stage="vm.stage"
+            :stage="vm.cardDisplayStage"
             :community-cards="vm.communityCards"
             :community-cards-flip-complete="vm.communityCardsFlipComplete"
             :is-owner="vm.isOwner"
@@ -70,7 +73,11 @@
             :hole-deal-player-count="vm.holeDealPlayerCountForAnim"
             :rival-mini="false"
             :hero-hand-dock="true"
-            :showdown-hand-leaders="vm.showdownHandLeaderNicknames"
+            :showdown-hand-leaders="vm.tableShowdownHandLeaderNicknames"
+            :display-chips="vm.playerEconomyForDisplay(vm.heroDockRow.player).chips"
+            :display-bet="vm.playerEconomyForDisplay(vm.heroDockRow.player).bet"
+            :actual-stage="vm.stage"
+            :retro-showdown-tv-pending="vm.retroShowdownTvPending"
             :seat-chat-text="vm.seatChatTextFor(vm.heroDockRow.player.nickname)"
             @card-click="vm.onPlayerCardClick"
         />
@@ -83,10 +90,10 @@
           }"
       >
         <game-settled-prepare-bar
-            v-if="vm.inSettledStage"
+            v-if="vm.uiInSettledStage"
             :my-ready="vm.myReady"
             :ready-time-left="vm.readyTimeLeft"
-            :my-chips="vm.myChips"
+            :my-chips="vm.displayMyChips"
             :big-blind="vm.bigBlind"
             @toggle-ready="vm.toggleReady"
             @rebuy="vm.rebuy"
@@ -103,7 +110,7 @@
             :min-total-to-raise="vm.minTotalToRaise"
             :last-raise-increment="vm.lastRaiseIncrementEffective"
             :pot="vm.pot"
-            :my-chips="vm.myChips"
+            :my-chips="vm.displayMyChips"
             :raise-amount="vm.raiseAmount"
             @update:raiseAmount="$store.commit('dpGame/SET_RAISE_AMOUNT', $event)"
             @call="vm.doCall"
@@ -122,7 +129,7 @@
 
     <!-- 窄屏 / 全屏：聊天 + 离座/手牌/行动 同一横排靠左 -->
     <div
-        v-if="vm.heroDockRow || vm.isMyTurn || vm.inSettledStage || vm.isOwner"
+        v-if="vm.heroDockRow || vm.isMyTurn || vm.uiInSettledStage"
         class="dp-game-mobile-hero-bar"
         aria-label="手牌与行动"
     >
@@ -166,7 +173,7 @@
                   type="button"
                   class="dp-game-mobile-hero-bar__btn dp-game-mobile-hero-bar__btn--toolbar"
                   data-dp-hero-deal-target
-                  @click="$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileHandSheet: true })"
+                  @click.stop="vm.onHeroViewHandClick('mobile-hero-bar')"
               >
                 查看手牌
               </button>
@@ -182,7 +189,7 @@
                 行动（{{ vm.timeLeft }}s）
               </button>
               <button
-                  v-if="vm.inSettledStage"
+                  v-if="vm.uiInSettledStage"
                   type="button"
                   class="dp-game-mobile-hero-bar__btn dp-game-mobile-hero-bar__btn--toolbar dp-game-mobile-hero-bar__btn--action"
                   :class="{ 'dp-game-mobile-hero-bar__btn--urgent': vm.readyTimeLeft <= 8 }"
@@ -208,7 +215,7 @@
               行动（{{ vm.timeLeft }}s）
             </button>
             <button
-                v-if="vm.inSettledStage"
+                v-if="vm.uiInSettledStage"
                 type="button"
                 class="dp-game-mobile-hero-bar__btn dp-game-mobile-hero-bar__btn--toolbar dp-game-mobile-hero-bar__btn--action"
                 :class="{ 'dp-game-mobile-hero-bar__btn--urgent': vm.readyTimeLeft <= 8 }"

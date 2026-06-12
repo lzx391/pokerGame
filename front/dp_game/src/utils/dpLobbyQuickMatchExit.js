@@ -19,5 +19,5 @@ export async function exitLobbyQuickMatchSilently(http, user, hooks) {
   if (hooks && typeof hooks.disconnectQuickMatchWs === 'function') {
     hooks.disconnectQuickMatchWs()
   }
-  await postQuickMatchCancel2(http, user)
+  await postQuickMatchCancel2(http)
 }

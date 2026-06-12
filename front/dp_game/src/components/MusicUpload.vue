@@ -2,7 +2,6 @@
   <div
     class="dp-game-root"
     :data-dp-game-theme="effectiveThemeForCss"
-    :style="customThemeInlineStyle"
   >
     <div class="dp-lobby-inner dp-lobby-inner--wide music-upload">
       <div class="music-upload__toolbar">
@@ -11,11 +10,7 @@
             <dp-theme-picker
               :game-ui-theme="gameUiTheme"
               :theme-options="gameThemeOptions"
-              :custom-theme-base="customThemeBase"
-              :custom-theme-overrides="customThemeOverrides"
               @input-theme="onLobbyThemeChange($event)"
-              @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
-              @custom-overrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
             />
         </div>
       </div>
@@ -91,7 +86,7 @@
         <el-table :data="tracks" stripe border style="width: 100%">
           <el-table-column prop="id" label="ID" width="72" />
           <el-table-column prop="displayName" label="展示名" min-width="140" />
-          <el-table-column prop="webPath" label="访问路径" min-width="200" show-overflow-tooltip />
+          <!-- <el-table-column prop="webPath" label="访问路径" min-width="200" show-overflow-tooltip /> -->
           <el-table-column prop="sortOrder" label="排序" width="80" />
           <el-table-column label="试听" width="280">
             <template slot-scope="scope">

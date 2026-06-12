@@ -59,6 +59,8 @@ export default new Router({
     },
     {
       path: '/create-room',
+      name: 'create-room',
+      meta: { transition: 'slide-from-right' },
       component: () => import(/* webpackChunkName: "route-create-room" */ '@/components/CreateRoom.vue')
     },
     {
@@ -76,11 +78,12 @@ export default new Router({
     },
     {
       path: '/room/:roomId',
-      component: () => import(/* webpackChunkName: "route-room" */ '@/components/room.vue')
+      redirect: (to) => ({ path: '/game/' + to.params.roomId })
     },
     {
       path: '/game/:roomId',
-      meta: { transition: 'dp-route-enter-game' },
+      name: 'game',
+      meta: { transition: 'zoom-fade-in' },
       component: () =>
         import(
           /* webpackChunkName: "route-game" */
@@ -99,6 +102,10 @@ export default new Router({
     {
       path: '/download-center',
       component: () => import(/* webpackChunkName: "route-download-center" */ '@/components/DownloadCenter.vue')
+    },
+    {
+      path: '/oauth/callback',
+      component: () => import(/* webpackChunkName: "route-oauth-callback" */ '@/components/OAuthCallback.vue')
     }
   ]
 })

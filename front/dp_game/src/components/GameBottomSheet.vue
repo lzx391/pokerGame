@@ -9,9 +9,19 @@
     <div
         ref="guideSheetPanel"
         class="dp-game-sheet"
-        :class="{ 'dp-game-sheet--wide': wide }"
+        :class="{
+          'dp-game-sheet--wide': wide,
+          'dp-game-sheet--owner-hub': bodyModifier === 'owner-hub'
+        }"
         @click.stop
     >
+      <div
+          v-if="$slots['sheet-overlay']"
+          class="dp-game-sheet__fx"
+          aria-hidden="true"
+      >
+        <slot name="sheet-overlay"></slot>
+      </div>
       <div class="dp-game-sheet__head">
         <span class="dp-game-sheet__title">{{ title }}</span>
         <button

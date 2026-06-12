@@ -2,7 +2,6 @@
   <div
     class="dp-game-root"
     :data-dp-game-theme="effectiveThemeForCss"
-    :style="customThemeInlineStyle"
   >
     <div class="dp-lobby-inner dp-lobby-inner--wide download-center">
       <div class="download-center__toolbar">
@@ -11,11 +10,7 @@
           <dp-theme-picker
             :game-ui-theme="gameUiTheme"
             :theme-options="gameThemeOptions"
-            :custom-theme-base="customThemeBase"
-            :custom-theme-overrides="customThemeOverrides"
             @input-theme="onLobbyThemeChange($event)"
-            @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
-            @custom-overrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
           />
         </div>
       </div>
@@ -31,7 +26,7 @@
       </p>
 
       <div v-if="!isLoggedIn" class="download-center__hint download-center__hint--warn">
-        未登录仅可浏览与下载；上传安装包请先登录。
+        未登录仅可浏览与下载；上传或下架安装包请先登录。
       </div>
 
       <div v-if="isLoggedIn" class="dp-lobby-panel download-center__panel">
@@ -77,7 +72,16 @@
       <p v-else-if="listError" class="download-center__hint download-center__hint--err">{{ listError }}</p>
       <div v-else-if="useCompactList" class="download-center__cards dp-lobby-panel">
         <article v-for="a in assets" :key="a.id" class="download-center__card">
-          <div class="download-center__card-title">{{ a.displayName || '（未命名）' }}</div>
+          <div class="download-center__card-head">
+            <el-button
+              v-if="isLoggedIn"
+              type="text"
+              class="download-center__delete-btn"
+              :loading="deletingId === a.id"
+              @click="confirmDelete(a)"
+            >下架</el-button>
+            <div class="download-center__card-title">{{ a.displayName || '（未命名）' }}</div>
+          </div>
           <div class="download-center__card-meta">ID {{ a.id }} · 排序 {{ a.sortOrder != null ? a.sortOrder : '—' }}</div>
           <div class="download-center__card-path" :title="a.webPath">{{ a.webPath }}</div>
           <a
@@ -90,9 +94,18 @@
       </div>
       <div v-else class="download-center__table-wrap dp-lobby-panel">
         <el-table :data="assets" stripe border style="width: 100%">
+          <el-table-column v-if="isLoggedIn" label="" width="72">
+            <template slot-scope="scope">
+              <el-button
+                type="text"
+                class="download-center__delete-btn"
+                :loading="deletingId === scope.row.id"
+                @click="confirmDelete(scope.row)"
+              >下架</el-button>
+            </template>
+          </el-table-column>
           <el-table-column prop="id" label="ID" width="72" />
           <el-table-column prop="displayName" label="展示名" min-width="140" />
-          <el-table-column prop="webPath" label="访问路径" min-width="200" show-overflow-tooltip />
           <el-table-column prop="sortOrder" label="排序" width="80" />
           <el-table-column label="操作" width="120">
             <template slot-scope="scope">
@@ -106,6 +119,27 @@
           </el-table-column>
         </el-table>
       </div>
+
+      <download-admin-password-gate
+        :visible.sync="gateVisible"
+        :game-ui-theme="gameUiTheme"
+        @verified="onAdminVerified"
+        @dismiss="onAdminGateDismissed"
+      />
+
+      <dp-retro-confirm-dialog
+        v-if="isRetro8bit"
+        :visible.sync="retroConfirmVisible"
+        :title="retroConfirmTitle"
+        :prompt="retroConfirmPrompt"
+        :message="retroConfirmMessage"
+        :logs="retroConfirmLogs"
+        :confirm-label="retroConfirmConfirmLabel"
+        :cancel-label="retroConfirmCancelLabel"
+        :danger="retroConfirmDanger"
+        @confirm="onRetroConfirmOk"
+        @cancel="onRetroConfirmCancel"
+      />
     </div>
   </div>
 </template>
@@ -116,9 +150,18 @@ import '@/styles/dp-lobby-shell.css'
 import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import { CAT_COPY } from '@/constants/dpCatThemeCopy'
 import { downloadFileSrc } from '@/utils/dpDownloadFileUrl'
+import {
+  dpDownloadAdminSessionPassword,
+  isDownloadAdminUnlocked,
+  setDownloadAdminSessionUnlock
+} from '@/utils/dpDownloadAdminUnlock'
+import { dpAxiosErrorMessage, dpResultMessage, dpResultSuccess } from '@/utils/dpApiResult'
+import DownloadAdminPasswordGate from '@/components/DownloadAdminPasswordGate.vue'
+import DpRetroConfirmDialog from '@/components/DpRetroConfirmDialog.vue'
 
 export default {
   name: 'DownloadCenter',
+  components: { DownloadAdminPasswordGate, DpRetroConfirmDialog },
   mixins: [dpLobbyThemeMixin],
   data() {
     return {
@@ -128,15 +171,31 @@ export default {
       sortOrder: 0,
       pendingFile: null,
       uploading: false,
+      deletingId: null,
       assets: [],
       listLoading: true,
       listError: '',
-      useCompactList: false
+      useCompactList: false,
+      gateVisible: false,
+      pendingAction: null,
+      retroConfirmVisible: false,
+      retroConfirmTitle: '',
+      retroConfirmPrompt: '',
+      retroConfirmMessage: '',
+      retroConfirmLogs: [],
+      retroConfirmConfirmLabel: 'EXECUTE',
+      retroConfirmCancelLabel: 'ABORT',
+      retroConfirmDanger: false,
+      retroConfirmResolve: null,
+      retroConfirmReject: null
     }
   },
   computed: {
     isLoggedIn() {
       return !!(this.user && this.user.userId != null && this.user.userId !== '')
+    },
+    isRetro8bit() {
+      return this.gameUiTheme === 'retro8bit'
     }
   },
   created() {
@@ -197,6 +256,27 @@ export default {
     onExceed() {
       this.$message.warning('请先上传当前文件或刷新页面再选')
     },
+    onAdminVerified(password) {
+      setDownloadAdminSessionUnlock(password)
+      var action = this.pendingAction
+      this.pendingAction = null
+      if (typeof action === 'function') {
+        action(password)
+      }
+    },
+    onAdminGateDismissed() {
+      this.pendingAction = null
+    },
+    ensureAdminPassword(onReady) {
+      if (isDownloadAdminUnlocked()) {
+        onReady(dpDownloadAdminSessionPassword())
+        return
+      }
+      this.pendingAction = onReady
+      this.$nextTick(() => {
+        this.gateVisible = true
+      })
+    },
     async loadList() {
       this.listLoading = true
       this.listError = ''
@@ -220,6 +300,11 @@ export default {
         this.$message.warning('请先选择安装包文件')
         return
       }
+      this.ensureAdminPassword((adminPassword) => {
+        this.performUpload(adminPassword)
+      })
+    },
+    async performUpload(adminPassword) {
       const fd = new FormData()
       fd.append('file', this.pendingFile)
       if (this.displayName && String(this.displayName).trim()) {
@@ -227,6 +312,7 @@ export default {
       }
       fd.append('sortOrder', String(this.sortOrder != null ? this.sortOrder : 0))
       fd.append('userId', String(this.user.userId))
+      fd.append('adminPassword', String(adminPassword || ''))
       this.uploading = true
       try {
         await this.$http.post('/dpDownload/upload', fd)
@@ -241,10 +327,102 @@ export default {
         if (e.response && e.response.data) {
           if (typeof e.response.data === 'string') msg = e.response.data
           else if (e.response.data.error) msg = e.response.data.error
+          else msg = dpResultMessage(e.response.data) || msg
         }
         this.$message.error(msg)
       } finally {
         this.uploading = false
+      }
+    },
+    dpConfirm(options) {
+      var opts = options || {}
+      if (!this.isRetro8bit) {
+        return this.$confirm(opts.message, opts.title, {
+          type: opts.type || 'warning',
+          confirmButtonText: opts.confirmButtonText || '确认',
+          cancelButtonText: opts.cancelButtonText || '取消'
+        })
+      }
+      var self = this
+      return new Promise(function (resolve, reject) {
+        self.retroConfirmTitle = opts.retroTitle || '> CONFIRM // ACTION'
+        self.retroConfirmPrompt = opts.retroPrompt || '[WARN] CONFIRM:'
+        self.retroConfirmMessage = opts.retroMessage || opts.message || ''
+        self.retroConfirmLogs = Array.isArray(opts.retroLogs) ? opts.retroLogs : []
+        self.retroConfirmConfirmLabel = opts.retroConfirmLabel || 'EXECUTE'
+        self.retroConfirmCancelLabel = opts.retroCancelLabel || 'ABORT'
+        self.retroConfirmDanger = !!opts.danger
+        self.retroConfirmResolve = resolve
+        self.retroConfirmReject = reject
+        self.$nextTick(function () {
+          self.retroConfirmVisible = true
+        })
+      })
+    },
+    onRetroConfirmOk() {
+      if (this.retroConfirmResolve) {
+        this.retroConfirmResolve()
+      }
+      this.clearRetroConfirmHandlers()
+    },
+    onRetroConfirmCancel() {
+      if (this.retroConfirmReject) {
+        this.retroConfirmReject('cancel')
+      }
+      this.clearRetroConfirmHandlers()
+    },
+    clearRetroConfirmHandlers() {
+      this.retroConfirmResolve = null
+      this.retroConfirmReject = null
+    },
+    confirmDelete(row) {
+      if (!this.isLoggedIn) {
+        this.$message.warning('请先登录后再下架')
+        return
+      }
+      this.ensureAdminPassword(async (adminPassword) => {
+        var label = (row && row.displayName) ? String(row.displayName).trim() : ('ID ' + row.id)
+        try {
+          await this.dpConfirm({
+            title: '下架安装包',
+            message: '确定下架「' + label + '」？下架后将从列表隐藏，文件仍保留在服务器。',
+            confirmButtonText: '下架',
+            cancelButtonText: '取消',
+            type: 'warning',
+            retroTitle: '> DOWNLOAD // DELETE',
+            retroPrompt: '[ADMIN] REMOVE ASSET:',
+            retroMessage: 'CONFIRM SOFT-DELETE? FILE RETAINED ON SERVER.',
+            retroLogs: [
+              '> target: ' + label,
+              '> id: ' + row.id
+            ],
+            retroConfirmLabel: 'EXECUTE',
+            retroCancelLabel: 'ABORT',
+            danger: true
+          })
+        } catch (e) {
+          return
+        }
+        await this.performDelete(row, adminPassword)
+      })
+    },
+    async performDelete(row, adminPassword) {
+      this.deletingId = row.id
+      try {
+        var res = await this.$http.post('/dpDownload/delete', {
+          id: row.id,
+          adminPassword: String(adminPassword || '')
+        })
+        if (!dpResultSuccess(res.data)) {
+          this.$message.error(dpResultMessage(res.data) || '下架失败')
+          return
+        }
+        this.$message.success('已下架')
+        await this.loadList()
+      } catch (e) {
+        this.$message.error(dpAxiosErrorMessage(e, '下架失败'))
+      } finally {
+        this.deletingId = null
       }
     }
   }
@@ -328,11 +506,17 @@ export default {
 .download-center__card:last-child {
   border-bottom: none;
 }
+.download-center__card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
 .download-center__card-title {
   font-size: 15px;
   font-weight: 600;
   color: var(--dp-text-primary);
   word-break: break-word;
+  flex: 1;
 }
 .download-center__card-meta {
   font-size: 12px;
@@ -358,6 +542,11 @@ export default {
 }
 .download-center__dl-link:hover {
   text-decoration: underline;
+}
+.download-center__delete-btn {
+  color: var(--dp-danger) !important;
+  padding-left: 0;
+  padding-right: 0;
 }
 .download-center__home-link {
   color: var(--dp-accent) !important;

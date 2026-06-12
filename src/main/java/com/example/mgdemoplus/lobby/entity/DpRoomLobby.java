@@ -41,6 +41,10 @@ public class DpRoomLobby {
     @TableField("max_seat_count")
     private Integer maxSeatCount;
 
+    /** 真人每步行动思考上限（秒），与内存房间 {@code thinkTimeSeconds} 一致 */
+    @TableField("think_time_seconds")
+    private Integer thinkTimeSeconds;
+
     @TableField("created_at")
     private LocalDateTime createdAt;
 
@@ -114,6 +118,14 @@ public class DpRoomLobby {
 
     public void setMaxSeatCount(Integer maxSeatCount) {
         this.maxSeatCount = maxSeatCount;
+    }
+
+    public Integer getThinkTimeSeconds() {
+        return thinkTimeSeconds;
+    }
+
+    public void setThinkTimeSeconds(Integer thinkTimeSeconds) {
+        this.thinkTimeSeconds = thinkTimeSeconds;
     }
 
     public LocalDateTime getCreatedAt() {

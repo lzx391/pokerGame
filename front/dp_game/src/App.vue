@@ -4,32 +4,49 @@
     :class="{
       'app--lobby': isLobbyRoute,
       'app--dp-game': isGameRoute,
-      'app--auth': isAuthPage
+      'app--auth': isAuthPage,
+      'app--auth-retro8bit': isAuthPage && isRetro8bitAuth,
+      'app--auth-classic': isAuthPage && isClassicAuth
     }"
   >
-    <!-- 登录 / 注册 页面：带有导航和盒子布局 -->
-    <div v-if="isAuthPage" class="app-container">
-      <div class="dp-game-theme-row app-auth-theme-bar">
-        <span class="dp-game-theme-row__label">界面主题</span>
-        <dp-theme-picker
-          :game-ui-theme="gameUiTheme"
-          :theme-options="gameThemeOptions"
-          :custom-theme-base="customThemeBase"
-          :custom-theme-overrides="customThemeOverrides"
+    <!-- 登录 / 注册 -->
+    <template v-if="isAuthPage">
+      <!-- retro8bit：电视机柜 CRT 舞台 -->
+      <div
+        v-if="isRetro8bitAuth"
+        :key="'auth-' + gameUiTheme"
+        class="app-container app-container--auth"
+      >
+        <dp-auth-stage
+          :app-auth-title="appAuthTitle"
           @input-theme="onAuthThemeChange($event)"
-          @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
-          @custom-overrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
         />
       </div>
-      <h1 class="app-title">{{ appAuthTitle }}</h1>
-      <div class="nav-bar">
-        <router-link to="/login" class="nav-link">登录</router-link>
-        <router-link to="/register" class="nav-link">注册</router-link>
+
+      <!-- 其余主题（含 halloween）：普通卡片表单 -->
+      <div
+        v-else
+        :key="'auth-' + gameUiTheme"
+        class="app-container"
+      >
+        <div class="dp-game-theme-row app-auth-theme-bar">
+          <span class="dp-game-theme-row__label">界面主题</span>
+          <dp-theme-picker
+            :game-ui-theme="gameUiTheme"
+            :theme-options="gameThemeOptions"
+            @input-theme="onAuthThemeChange($event)"
+          />
+        </div>
+        <h1 class="app-title">{{ appAuthTitle }}</h1>
+        <div class="nav-bar">
+          <router-link to="/login" class="nav-link">登录</router-link>
+          <router-link to="/register" class="nav-link">注册</router-link>
+        </div>
+        <div class="content-box">
+          <router-view></router-view>
+        </div>
       </div>
-      <div class="content-box">
-        <router-view></router-view>
-      </div>
-    </div>
+    </template>
 
     <!-- 其他路由：全屏展示，不显示登录 / 注册按钮 -->
     <div
@@ -46,6 +63,9 @@
         <router-view :key="routeViewKey"></router-view>
       </transition>
     </div>
+
+    <dp-crt-fullscreen-overlay ref="authCrtOverlay" />
+    <dp-achievement-toast-host />
   </div>
 </template>
 
@@ -54,9 +74,15 @@ import { mapState } from 'vuex'
 import { CAT_COPY } from '@/constants/dpCatThemeCopy'
 import { resolveRouteTransitionName } from '@/utils/dpRouteTransition'
 import { isRouteTransitionEnabled } from '@/utils/dpRouteTransitionFlag'
+import { bindAuthCrtOverlay } from '@/utils/dpAuthEnterLobby'
+import { bindRetroEnterGameCrtOverlay } from '@/utils/dpRetroEnterGameHandoff'
+import DpAuthStage from '@/components/DpAuthStage.vue'
+import DpCrtFullscreenOverlay from '@/components/DpCrtFullscreenOverlay.vue'
+import DpAchievementToastHost from '@/components/DpAchievementToastHost.vue'
 
 export default {
   name: 'App',
+  components: { DpAuthStage, DpCrtFullscreenOverlay, DpAchievementToastHost },
   data() {
     return {
       appAuthTitle: CAT_COPY.appAuthTitle,
@@ -67,13 +93,17 @@ export default {
     ...mapState('dpGame', [
       'gameUiTheme',
       'gameThemeOptions',
-      'customThemeBase',
-      'customThemeOverrides',
       'ecoMode'
     ]),
     isAuthPage() {
       const path = this.$route.path
       return path === '/login' || path === '/register' || path === '/'
+    },
+    isRetro8bitAuth() {
+      return this.gameUiTheme === 'retro8bit'
+    },
+    isClassicAuth() {
+      return !this.isRetro8bitAuth
     },
     /** 大厅与主题子页：#app 不铺灰底，由 .dp-game-root / body[data-dp-game-theme] 铺色 */
     /** 与 dpBodyGameTheme.isLobbyRoute 真源一致（含 /create-room，验收 A12） */
@@ -85,8 +115,7 @@ export default {
         p.startsWith('/hand-history') ||
         p === '/leaderboard' ||
         p === '/music-upload' ||
-        p === '/download-center' ||
-        p.startsWith('/room/')
+        p === '/download-center'
       )
     },
     /** 对局页：铺满视口、与 .dp-game-root 组成 flex 链，减少底部露灰/白边 */
@@ -104,6 +133,20 @@ export default {
       if (this.ecoMode || !isRouteTransitionEnabled()) return false
       return this.routeTransitionName !== 'dp-route-none'
     }
+  },
+  mounted() {
+    var overlay = this.$refs.authCrtOverlay
+    if (overlay) {
+      var playOverlay = function (timing, onNavigate) {
+        overlay.play(timing, onNavigate)
+      }
+      bindAuthCrtOverlay({ play: playOverlay })
+      bindRetroEnterGameCrtOverlay({ play: playOverlay })
+    }
+  },
+  beforeDestroy() {
+    bindAuthCrtOverlay(null)
+    bindRetroEnterGameCrtOverlay(null)
   },
   watch: {
     $route: function (to, from) {

@@ -11,6 +11,7 @@ public class DpObservedHandHistory {
     private Long endedAtMs;//结束时间
     private Integer smallBlindChips;//小盲注
     private Integer bigBlindChips;//大盲注
+    private Integer startingStackBb;//带入倍数（BB）
     private String dealerNickname;//庄家昵称
     private Integer mainPotBeforeSettlement;//结算前主池
     private Integer payloadVersion;//负载版本
@@ -70,6 +71,14 @@ public class DpObservedHandHistory {
 
     public void setBigBlindChips(Integer bigBlindChips) {
         this.bigBlindChips = bigBlindChips;
+    }
+
+    public Integer getStartingStackBb() {
+        return startingStackBb;
+    }
+
+    public void setStartingStackBb(Integer startingStackBb) {
+        this.startingStackBb = startingStackBb;
     }
 
     public String getDealerNickname() {

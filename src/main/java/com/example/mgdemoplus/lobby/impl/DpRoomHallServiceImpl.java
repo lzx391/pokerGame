@@ -287,6 +287,9 @@ public class DpRoomHallServiceImpl implements DpRoomHallService {
         dto.setPasswordProtected(Boolean.TRUE.equals(row.getPasswordProtected()));
         int cap = row.getMaxSeatCount() != null ? row.getMaxSeatCount() : DpRoomBO.DEFAULT_MAX_SEAT_COUNT;
         dto.setMaxSeatCount(cap);
+        dto.setThinkTimeSeconds(row.getThinkTimeSeconds() != null
+                ? row.getThinkTimeSeconds()
+                : DpRoomBO.DEFAULT_THINK_TIME_SECONDS);
         return dto;
     }
 
@@ -388,6 +391,7 @@ public class DpRoomHallServiceImpl implements DpRoomHallService {
         dto.setStartingStackBb(room.getStartingStackBb());
         dto.setPasswordProtected(room.isPasswordProtected());
         dto.setMaxSeatCount(room.getMaxSeatCount());
+        dto.setThinkTimeSeconds(room.getThinkTimeSeconds());
         return dto;
     }
 }

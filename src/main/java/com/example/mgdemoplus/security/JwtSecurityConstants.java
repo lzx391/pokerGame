@@ -12,6 +12,7 @@ public final class JwtSecurityConstants {
     public static final String[] PERMIT_ALL = {
             "/dpUser/loginProfile",
             "/dpUser/registerUser",
+            "/oauth/**",
             "/error",
             "/ws/**",
             "/images/**",
@@ -20,6 +21,7 @@ public final class JwtSecurityConstants {
             "/",
             "/index.html",
             "/favicon.ico",
+            "/img/**",
             "/fonts/**",
             // 大厅列表、房间快照轮询：未登录可访问（分享链接、旁观）；其余 /dpRoom/** 需 JWT
             "/dpRoom/getNowRoom",

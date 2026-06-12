@@ -6,6 +6,7 @@ import com.example.mgdemoplus.history.mapper.DpHandHistoryQueryMapper;
 import com.example.mgdemoplus.history.mapper.DpObservedHandHistoryMapper;
 import com.example.mgdemoplus.common.mapper.DpUserMapper;
 import com.example.mgdemoplus.history.DpHandHistoryService;
+import com.example.mgdemoplus.history.support.DpHandHistoryPayloadSanitizer;
 import com.example.mgdemoplus.history.vo.DpHandHistoryDetailVO;
 import com.example.mgdemoplus.history.vo.DpHandHistoryListItemVO;
 import com.example.mgdemoplus.history.vo.DpHandHistoryPageVO;
@@ -114,7 +115,8 @@ public class DpHandHistoryServiceImpl implements DpHandHistoryService {
         if (userId == null) {
             return null;
         }
-        if (dpUserMapper.selectById(userId) == null) {
+        DpUser viewer = dpUserMapper.selectById(userId);
+        if (viewer == null) {
             return null;
         }
         if (queryMapper.countParticipantForHand(handHistoryId, userId) == 0) {
@@ -137,6 +139,8 @@ public class DpHandHistoryServiceImpl implements DpHandHistoryService {
             return null;
         }
 
+        payload = DpHandHistoryPayloadSanitizer.sanitize(payload, viewer.getNickname());
+
         DpHandHistoryDetailVO dto = new DpHandHistoryDetailVO();
         dto.setHandHistoryId(row.getId());
         dto.setRoomId(row.getRoomId());
@@ -145,6 +149,7 @@ public class DpHandHistoryServiceImpl implements DpHandHistoryService {
         dto.setEndedAtMs(row.getEndedAtMs());
         dto.setSmallBlindChips(row.getSmallBlindChips());
         dto.setBigBlindChips(row.getBigBlindChips());
+        dto.setStartingStackBb(row.getStartingStackBb());
         dto.setDealerNickname(row.getDealerNickname());
         dto.setMainPotBeforeSettlement(row.getMainPotBeforeSettlement());
         dto.setPayloadVersion(row.getPayloadVersion());

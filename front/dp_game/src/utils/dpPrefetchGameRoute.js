@@ -15,7 +15,7 @@ export function prefetchGameChunk() {
   return gameChunkPromise
 }
 
-function prefetchWithTimeout() {
+export function prefetchWithTimeout() {
   return Promise.race([
     prefetchGameChunk().catch(function () {
       /* chunk 失败仍允许导航 */

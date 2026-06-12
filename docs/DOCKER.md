@@ -166,3 +166,5 @@ docker compose up -d mysql redis
 build的时候，dockerignore说的不算，只有Dockerfile里写入的才真正打包到镜像里，当你看docker-compose.hub.yml文件时会发现每个服务前有 image：`redis` 用官方镜像；`mysql` 用官方 **`mysql:8.0`**；`app`/`nginx` 用 Hub 自建镜像。**表结构打在 `dpgame` JAR 的 `db/migration` 里，由 Flyway 在运行时应用。**
 
 总结一下就是Dockerfile只是项目代码，不全，没有redis；mysql 用官方镜像空库；nginx 需自定义配置故单独镜像；Flyway 随应用镜像升级。
+# 遇到的坑
+本地dev开发中

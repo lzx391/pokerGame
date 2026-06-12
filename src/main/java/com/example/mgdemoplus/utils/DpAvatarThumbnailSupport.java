@@ -12,10 +12,12 @@ import javax.imageio.stream.ImageOutputStream;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.util.Optional;
 import java.util.Iterator;
 import java.util.Locale;
 
@@ -110,6 +112,52 @@ public final class DpAvatarThumbnailSupport {
             g.dispose();
         }
         return dst;
+    }
+
+    /**
+     * 从已落盘原图生成缩略图字节；失败返回 empty。
+     */
+    public static Optional<byte[]> generateThumbnailBytes(File sourceFile) {
+        if (sourceFile == null || !sourceFile.isFile()) {
+            return Optional.empty();
+        }
+        try {
+            BufferedImage src = readImage(sourceFile);
+            if (src == null) {
+                log.warn("avatar thumb skip: cannot decode file={}", sourceFile.getName());
+                return Optional.empty();
+            }
+            BufferedImage scaled = scaleToFit(src, THUMB_MAX_EDGE);
+            return Optional.of(writeWebpToBytes(scaled));
+        } catch (IOException e) {
+            log.warn("avatar thumb bytes failed file={}: {}", sourceFile.getName(), e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    private static byte[] writeWebpToBytes(BufferedImage image) throws IOException {
+        Iterator<ImageWriter> writers = ImageIO.getImageWritersByMIMEType("image/webp");
+        if (!writers.hasNext()) {
+            throw new IOException("no ImageIO WebP writer (add webp-imageio to classpath)");
+        }
+        ImageWriter writer = writers.next();
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (ImageOutputStream ios = ImageIO.createImageOutputStream(baos)) {
+            writer.setOutput(ios);
+            ImageWriteParam param = writer.getDefaultWriteParam();
+            if (param.canWriteCompressed()) {
+                param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+                String[] types = param.getCompressionTypes();
+                if (types != null && types.length > 0) {
+                    param.setCompressionType(types[0]);
+                }
+                param.setCompressionQuality(WEBP_QUALITY);
+            }
+            writer.write(null, new javax.imageio.IIOImage(image, null, null), param);
+        } finally {
+            writer.dispose();
+        }
+        return baos.toByteArray();
     }
 
     private static void writeWebp(BufferedImage image, File dest) throws IOException {

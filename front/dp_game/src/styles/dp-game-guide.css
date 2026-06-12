@@ -142,3 +142,92 @@
   color: var(--dp-text-muted, #8c8c8c);
   margin-top: 12px;
 }
+
+/* —— retro8bit：CRT 终端风引导气泡（/guide 与 body 主题同步后生效） —— */
+body[data-dp-game-theme='retro8bit'] .dp-button-guide-overlay__shade,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-button-guide-overlay__shade {
+  background: rgba(0, 0, 0, 0.72);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-button-guide-overlay__hole,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-button-guide-overlay__hole {
+  border-radius: 0;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.72);
+  outline: 1px solid rgba(74, 246, 38, 0.45);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-button-guide-overlay__bubble,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-button-guide-overlay__bubble {
+  border-radius: 0;
+  padding: 12px 14px;
+  background: var(--dp-terminal-bg, #0e1012);
+  color: var(--dp-text-primary, #4af626);
+  border: 2px solid var(--dp-terminal-border-active, rgba(74, 246, 38, 0.34));
+  box-shadow: 0 0 0 1px #000, 4px 4px 0 rgba(0, 0, 0, 0.5);
+  font-family: var(--dp-font-ui, monospace);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-button-guide-overlay__title,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-button-guide-overlay__title {
+  font-family: var(--dp-font-pixel, monospace);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--dp-accent, #4af626);
+  text-shadow: 0 0 6px rgba(74, 246, 38, 0.45);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-button-guide-overlay__body,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-button-guide-overlay__body {
+  color: var(--dp-text-secondary, rgba(74, 246, 38, 0.78));
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-button-guide-overlay__step-tag,
+body[data-dp-game-theme='retro8bit'] .dp-button-guide-overlay__tap-hint,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-button-guide-overlay__step-tag,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-button-guide-overlay__tap-hint {
+  font-family: var(--dp-font-ui, monospace);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--dp-text-muted, rgba(74, 246, 38, 0.5));
+  text-transform: uppercase;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-button-guide-overlay__complete,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-button-guide-overlay__complete {
+  background: rgba(0, 0, 0, 0.72);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-button-guide-overlay__complete-card,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-button-guide-overlay__complete-card {
+  border-radius: 0;
+  background: var(--dp-terminal-bg, #0e1012);
+  border: 2px solid var(--dp-terminal-border-active, rgba(74, 246, 38, 0.34));
+  box-shadow: 0 0 0 1px #000, 4px 4px 0 rgba(0, 0, 0, 0.5);
+  font-family: var(--dp-font-ui, monospace);
+  text-align: left;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-button-guide-overlay__complete-card h2,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-button-guide-overlay__complete-card h2 {
+  font-family: var(--dp-font-pixel, monospace);
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  color: var(--dp-accent, #4af626);
+  text-shadow: 0 0 6px rgba(74, 246, 38, 0.45);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-button-guide-overlay__complete-card p,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-button-guide-overlay__complete-card p {
+  color: var(--dp-text-secondary, rgba(74, 246, 38, 0.78));
+  font-size: 12px;
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-guide-page__hint,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-guide-page__hint {
+  font-family: var(--dp-font-ui, monospace);
+  color: var(--dp-text-muted, rgba(74, 246, 38, 0.55));
+  font-size: 11px;
+}

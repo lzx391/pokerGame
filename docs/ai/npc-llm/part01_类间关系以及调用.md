@@ -14,7 +14,7 @@
 |----|--------|------|
 | `DpNpcEngine` | `npc.engine` | 识别 LLM 昵称；`buildLlmNpcGameSnapshot`；**不**处理 LLM 的 `decideActionIfReady` |
 | `DpLlmNpcDecisionService` | `npc.llm` | 异步方舟请求、快照校验、JSON 解析、`normalizeAndClamp`、兜底 |
-| `LlmNpcUserSnapshot` | `npc.llm` | 固定键表 + `----` + 值行的 user 正文（`v1\|BOT_LLM\|snap` / `GLOBAL` 头） |
+| `LlmNpcUserSnapshot` | `npc.llm` | 固定键表 + `----` + 值行的 user 正文（`v2\|BOT_LLM\|snap` / `GLOBAL` 头；含 `made_en/draw_en/board_tex/preflop_cat`，无四档 `rk_*`） |
 | `LlmNpcGameContext` | `npc.llm` | 快照字段 DTO（由引擎上下文填充） |
 | `LlmNpcGlobalHandConversationStore` | `npc.llm` | `BOT_LLM_GLOBAL` 每手多轮 messages 存档 |
 | `OpenAiCompatibleChatClient` | `llm` | HTTP Chat Completions（方舟兼容） |

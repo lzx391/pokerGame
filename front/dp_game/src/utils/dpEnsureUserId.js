@@ -22,14 +22,14 @@ export async function ensureDpUserIdInStorage(http) {
   } catch (e) {
     return null
   }
-  if (!user || !user.nickname || !user.password) return null
+  if (!user || !user.nickname) return null
 
   var existing = user.userId
   if (existing != null && existing !== '') {
     var n = Number(existing)
     if (!isNaN(n) && n > 0) {
       user.userId = n
-      if (!user.token) {
+      if (!user.token && user.password) {
         try {
           var resTok = await http.get('/dpUser/loginProfile', {
             params: { nickname: user.nickname, password: user.password }
@@ -51,6 +51,7 @@ export async function ensureDpUserIdInStorage(http) {
   }
 
   try {
+    if (!user.password) return user
     var res = await http.get('/dpUser/loginProfile', {
       params: { nickname: user.nickname, password: user.password }
     })

@@ -11,6 +11,7 @@
  */
 
 .dp-game-root {
+  position: relative;
   box-sizing: border-box;
   font-family: var(--dp-font-ui);
   padding: 10px;
@@ -180,6 +181,12 @@
 /*
  * data-dp-layout-tier：主面板内边距（与 JS layoutTier 同名；若产品收敛为「桌面/移动」两档，可删 tablet 规则并把 phone/tablet 变量合并）
  */
+.dp-game-root[data-dp-layout-tier='desktop'] {
+  --dp-game-table-fit-margin-top: 12px;
+  --dp-game-main-fit-pad-top-extra: 12px;
+  --dp-game-table-fit-pad-top: clamp(28px, 5vmin, 72px);
+}
+
 .dp-game-root[data-dp-layout-tier='tablet'] {
   --dp-game-main-fit-pad-x: 10px;
 }
@@ -309,6 +316,7 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  position: relative;
   width: 100%;
   height: 100%;
   height: 100dvh;
@@ -589,6 +597,16 @@
   padding-top: var(--dp-table-layout-pad-top);
   padding-bottom: 8px;
 }
+
+/* Table felt + retro glitch/monster + CRT border — one layer below cards/pot/seats */
+.dp-game-table__surface {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: visible;
+}
+
 .dp-game-table__felt {
   position: absolute;
   z-index: 0;
@@ -627,7 +645,8 @@
   display: block;
 }
 
-.dp-game-table__seat-rays line {
+.dp-game-table__seat-rays line,
+.dp-game-table__seat-rays polyline {
   stroke: color-mix(in srgb, var(--dp-accent) 38%, transparent);
   stroke-width: 1px;
   vector-effect: non-scaling-stroke;
@@ -885,46 +904,21 @@
   pointer-events: none;
 }
 
-/* 桌面弃牌堆锚点：弃牌动画飞向此处（与庄位发牌分离） */
+/* 桌面弃牌堆锚点：弃牌/发牌动画飞向此处；仅保留尺寸供 getBoundingClientRect，不显示牌堆图标 */
 .dp-game-muck-pile {
   flex-shrink: 0;
   width: 38px;
   height: 30px;
-  border-radius: 5px;
   position: relative;
-  opacity: 0.88;
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--dp-text-primary) 18%, transparent),
-    0 2px 8px rgba(0, 0, 0, 0.28);
-  background: linear-gradient(
-    145deg,
-    color-mix(in srgb, var(--dp-panel-bg) 55%, var(--dp-muck-tint)) 0%,
-    color-mix(in srgb, var(--dp-panel-bg) 40%, var(--dp-muck-tint-deep)) 100%
-  );
+  opacity: 0;
+  visibility: hidden;
+  background: none;
+  box-shadow: none;
 }
 
 .dp-game-muck-pile::before,
 .dp-game-muck-pile::after {
-  content: '';
-  position: absolute;
-  width: 22px;
-  height: 30px;
-  border-radius: 4px;
-  border: 1px solid rgba(0, 0, 0, 0.35);
-  background: var(--dp-muck-mini-card);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
-}
-
-.dp-game-muck-pile::before {
-  left: 2px;
-  top: 0;
-  transform: rotate(-8deg);
-}
-
-.dp-game-muck-pile::after {
-  right: 2px;
-  top: 1px;
-  transform: rotate(6deg);
+  content: none;
 }
 
 /* 弃牌堆绕庄位：绝对定位在 dp-game-table__layout 内，与中央公共牌区分开 */
@@ -1023,7 +1017,8 @@
 
 .dp-game-root--layout-fs .dp-game-hero-action-row--hide-narrow,
 .dp-game-root:fullscreen .dp-game-hero-action-row--hide-narrow,
-.dp-game-root:-webkit-full-screen .dp-game-hero-action-row--hide-narrow {
+.dp-game-root:-webkit-full-screen .dp-game-hero-action-row--hide-narrow,
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='desktop'] .dp-game-hero-action-row--hide-narrow {
   display: none !important;
 }
 
@@ -1062,7 +1057,8 @@
 
 .dp-game-root--layout-fs .dp-game-mobile-hero-bar,
 .dp-game-root:fullscreen .dp-game-mobile-hero-bar,
-.dp-game-root:-webkit-full-screen .dp-game-mobile-hero-bar {
+.dp-game-root:-webkit-full-screen .dp-game-mobile-hero-bar,
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='desktop'] .dp-game-mobile-hero-bar {
   display: flex;
   flex-direction: column;
   flex-wrap: nowrap;
@@ -1196,6 +1192,2328 @@
   width: min(280px, 72vw);
   margin: 0;
   z-index: 24;
+}
+
+/* retro8bit 宽视口：聊天历史翻板 + 心电图（仅消息区，输入栏不变） */
+@media (min-width: 601px) {
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__board-scene {
+    position: absolute;
+    left: 0;
+    right: auto;
+    bottom: calc(100% + 6px);
+    width: min(280px, 72vw);
+    margin: 0;
+    z-index: 28;
+    perspective: 640px;
+    transform-style: preserve-3d;
+    pointer-events: none;
+  }
+
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__board {
+    position: relative;
+    transform-origin: 50% 100%;
+    transform: rotateX(90deg);
+    backface-visibility: hidden;
+    border-radius: 8px;
+    border: 1px solid var(--dp-panel-border);
+    background: var(--dp-panel-bg);
+    box-shadow: var(--dp-panel-shadow);
+    pointer-events: auto;
+    overflow: hidden;
+  }
+
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__board .dp-game-room-chat-panel__list-wrap {
+    position: static;
+    width: 100%;
+    margin: 0;
+    z-index: auto;
+  }
+
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__board .dp-game-room-chat-panel__list {
+    opacity: 0;
+    background: transparent;
+    border-radius: 0;
+  }
+
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__board--flipping-up {
+    animation: dp-retro-chat-flip-up 450ms ease-out forwards;
+  }
+
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__board--ecg-sweep,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__board--revealed {
+    transform: rotateX(0deg);
+  }
+
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__board--revealed .dp-game-room-chat-panel__list {
+    opacity: 1;
+    transition: opacity 320ms ease-out;
+  }
+
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__board--collapsing-down {
+    animation: dp-retro-chat-flip-down 320ms ease-in forwards;
+  }
+
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__ecg {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    top: 50%;
+    z-index: 2;
+    height: 24px;
+    margin-top: -12px;
+    color: var(--dp-accent, #4af626);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__board--ecg-sweep .dp-game-room-chat-panel__ecg {
+    opacity: 1;
+    animation: dp-retro-chat-ecg-fade 400ms ease-out forwards;
+  }
+
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__ecg-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__ecg-line {
+    stroke-dasharray: 220;
+    stroke-dashoffset: 220;
+  }
+
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__board--ecg-sweep .dp-game-room-chat-panel__ecg-line {
+    animation: dp-retro-chat-ecg-sweep 400ms ease-out forwards;
+  }
+
+  /* ---- retro8bit 聊天消息终端风格 ---- */
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__board .dp-game-room-chat-panel__list {
+    padding: 8px 10px;
+    font-family: 'Courier New', ui-monospace, 'PingFang SC', monospace;
+    font-size: 11px;
+    line-height: 1.5;
+    color: #4af626;
+    background: rgba(0, 0, 0, 0.5);
+  }
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__row {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    margin-bottom: 2px;
+    padding: 1px 4px;
+  }
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__nick {
+    flex-shrink: 0;
+    color: #72f052;
+    font-weight: bold;
+    font-size: 10px;
+  }
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__text {
+    color: #b8e8a8;
+    word-break: break-word;
+  }
+
+  /* 聊天输入栏终端风格 */
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat__bar {
+    border-color: rgba(74, 246, 38, 0.25);
+  }
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat__input {
+    font-family: 'Courier New', ui-monospace, 'PingFang SC', monospace;
+    font-size: 12px;
+    color: #4af626;
+    background: rgba(4, 6, 8, 0.9);
+    border-color: rgba(74, 246, 38, 0.2);
+    caret-color: #4af626;
+  }
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat__input::placeholder {
+    color: rgba(74, 246, 38, 0.25);
+  }
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat__input:focus {
+    border-color: #4af626;
+    box-shadow: 0 0 8px rgba(74, 246, 38, 0.15);
+  }
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat__send {
+    font-family: 'Courier New', ui-monospace, monospace;
+    font-size: 11px;
+    border-color: rgba(74, 246, 38, 0.3);
+    color: #4af626;
+    background: rgba(8, 16, 8, 0.8);
+    letter-spacing: 0.04em;
+  }
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat__send:hover {
+    background: #4af626;
+    color: #080a0c;
+    border-color: #4af626;
+  }
+
+  /* chat toggle — 信号监视器风格 */
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__toggle {
+    font-family: 'Courier New', ui-monospace, 'PingFang SC', monospace;
+    font-size: 10px;
+    border: 1px solid rgba(74, 246, 38, 0.22);
+    border-radius: 0;
+    background: rgba(4, 6, 8, 0.85);
+    color: rgba(74, 246, 38, 0.6);
+    letter-spacing: 0.04em;
+    position: relative;
+  }
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__toggle-label::before {
+    content: '> ';
+    color: rgba(74, 246, 38, 0.35);
+  }
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__toggle:hover {
+    border-color: #4af626;
+    color: #4af626;
+    background: rgba(8, 18, 8, 0.9);
+    box-shadow: 0 0 8px rgba(74, 246, 38, 0.08);
+  }
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__preview {
+    font-family: 'Courier New', ui-monospace, monospace;
+    color: rgba(74, 246, 38, 0.25);
+    font-style: italic;
+  }
+  /* 新消息时 toggle 闪烁 */
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-footer-chat-cluster .dp-game-room-chat-panel--dock .dp-game-room-chat-panel__toggle--new-msg {
+    animation: dp-retro-chat-toggle-pulse 0.5s ease-out;
+    border-color: rgba(74, 246, 38, 0.5);
+  }
+  @keyframes dp-retro-chat-toggle-pulse {
+    0% { box-shadow: 0 0 0 rgba(74,246,38,0.4); }
+    50% { box-shadow: 0 0 16px rgba(74,246,38,0.2); }
+    100% { box-shadow: 0 0 0 rgba(74,246,38,0); }
+  }
+
+}
+
+@keyframes dp-retro-chat-msg-in {
+  from { opacity: 0; transform: translateY(-8px) }
+  to { opacity: 1; transform: translateY(0) }
+}
+
+@keyframes dp-retro-chat-flip-up {
+  from {
+    transform: rotateX(90deg);
+  }
+  to {
+    transform: rotateX(0deg);
+  }
+}
+
+@keyframes dp-retro-chat-flip-down {
+  from {
+    transform: rotateX(0deg);
+  }
+  to {
+    transform: rotateX(90deg);
+  }
+}
+
+@keyframes dp-retro-chat-ecg-sweep {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes dp-retro-chat-ecg-fade {
+  0%,
+  72% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* retro8bit 宽视口：手牌全息投影 v2 — 光束展开 + 虚像浮现（>600px；挂载 body 或 gameRoot 全屏层） */
+@media (min-width: 601px) {
+  /* 手牌全息：留在 Vue 树内，相对 .dp-game-root 铺满（勿 appendChild 到 gameRoot，避免切主题 patch 卡死） */
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram {
+    position: absolute;
+    inset: 0;
+    z-index: 2100;
+    pointer-events: none;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram {
+    position: fixed;
+    inset: 0;
+    z-index: 1020;
+    pointer-events: none;
+  }
+
+  /* 投影场景：perspective + 锚点定位 */
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__scene {
+    position: absolute;
+    transform: translateX(-50%);
+    perspective: 900px;
+    pointer-events: none;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__scene {
+    position: fixed;
+    transform: translateX(-50%);
+    perspective: 900px;
+    pointer-events: none;
+  }
+
+  /* 光锥体积：主视觉容器 */
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__volume,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__volume {
+    position: relative;
+    transform-origin: 50% 100%;
+    transform: rotateX(-10deg);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--projecting .dp-game-hero-hand-hologram__volume,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--projecting .dp-game-hero-hand-hologram__volume {
+    animation: dp-retro-hand-hologram-beam-expand 280ms ease-out forwards;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--materializing .dp-game-hero-hand-hologram__volume,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--materializing .dp-game-hero-hand-hologram__volume,
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--flash .dp-game-hero-hand-hologram__volume,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--flash .dp-game-hero-hand-hologram__volume,
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--revealed .dp-game-hero-hand-hologram__volume,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--revealed .dp-game-hero-hand-hologram__volume {
+    opacity: 1;
+    transform: rotateX(-10deg) scaleY(1) scaleX(1);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--collapsing .dp-game-hero-hand-hologram__volume,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--collapsing .dp-game-hero-hand-hologram__volume {
+    animation: dp-retro-hand-hologram-beam-collapse 240ms ease-in forwards;
+  }
+
+  /* 光束层：核心锥形 */
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__beam-core,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__beam-core {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(
+        to top,
+        color-mix(in srgb, var(--dp-accent, #4af626) 72%, transparent) 0%,
+        color-mix(in srgb, var(--dp-accent, #4af626) 28%, transparent) 48%,
+        transparent 100%
+      );
+    /* 倒三角：底窄（按钮原点）→ 顶宽（向上投射） */
+    clip-path: polygon(44% 100%, 56% 100%, 84% 0%, 16% 0%);
+    filter: drop-shadow(0 0 10px color-mix(in srgb, var(--dp-accent, #4af626) 50%, transparent));
+  }
+
+  /* 光束层：外晕 */
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__beam-glow,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__beam-glow {
+    position: absolute;
+    inset: -8% -18% 0;
+    pointer-events: none;
+    background:
+      linear-gradient(
+        to top,
+        color-mix(in srgb, var(--dp-accent, #4af626) 35%, transparent) 0%,
+        color-mix(in srgb, var(--dp-accent, #4af626) 12%, transparent) 38%,
+        transparent 100%
+      );
+    clip-path: polygon(38% 100%, 62% 100%, 92% 0%, 8% 0%);
+    filter: blur(6px);
+    opacity: 0.85;
+  }
+
+  /* 光束层：细颗粒 shimmer */
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__beam-dust,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__beam-dust {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.35;
+    background:
+      repeating-linear-gradient(
+        90deg,
+        transparent 0,
+        transparent 3px,
+        color-mix(in srgb, var(--dp-accent, #4af626) 18%, transparent) 3px,
+        color-mix(in srgb, var(--dp-accent, #4af626) 18%, transparent) 4px
+      );
+    clip-path: polygon(44% 100%, 56% 100%, 84% 0%, 16% 0%);
+    mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.65) 0%, rgba(0, 0, 0, 0.2) 55%, transparent 100%);
+  }
+
+  /* 虚像区：透明，无边框（光锥上半部宽区） */
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__projection,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__projection {
+    position: absolute;
+    left: 50%;
+    bottom: 42%;
+    transform: translateX(-50%);
+    width: min(340px, 88vw);
+    min-height: 128px;
+    box-sizing: border-box;
+    background: color-mix(in srgb, var(--dp-accent, #4af626) 4%, transparent);
+    pointer-events: auto;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__ghost-title,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__ghost-title {
+    position: absolute;
+    top: -18px;
+    left: 0;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--dp-text-primary, #4af626);
+    opacity: 0.45;
+    letter-spacing: 0.04em;
+    pointer-events: none;
+    transition: opacity 2s ease 0.5s;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--revealed .dp-game-hero-hand-hologram__ghost-title,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--revealed .dp-game-hero-hand-hologram__ghost-title {
+    opacity: 0;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__close,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__close {
+    position: absolute;
+    top: -12px;
+    right: -6px;
+    z-index: 4;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: none;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--dp-accent, #4af626) 6%, transparent);
+    color: var(--dp-text-secondary, #72f052);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__close:hover,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__close:hover {
+    color: var(--dp-accent, #4af626);
+    background: color-mix(in srgb, var(--dp-accent, #4af626) 14%, transparent);
+  }
+
+  /* 扫描线 sweep：仅覆盖 content 区域 */
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__scan-sweep,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__scan-sweep {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0;
+    transform-origin: top;
+    transform: scaleY(0);
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 2px,
+      rgba(0, 0, 0, 0.28) 2px,
+      rgba(0, 0, 0, 0.28) 4px
+    );
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--materializing .dp-game-hero-hand-hologram__scan-sweep,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--materializing .dp-game-hero-hand-hologram__scan-sweep {
+    animation: dp-retro-hand-hologram-scan-sweep 400ms ease-out forwards;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__flash,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__flash {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    opacity: 0;
+    background: color-mix(in srgb, var(--dp-accent, #4af626) 18%, transparent);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--flash .dp-game-hero-hand-hologram__flash,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--flash .dp-game-hero-hand-hologram__flash {
+    animation: dp-retro-hand-hologram-content-flicker 100ms steps(2, end) forwards;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__content,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__content {
+    position: relative;
+    z-index: 2;
+    min-height: 128px;
+    padding: 4px 6px 8px;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--materializing .dp-game-hero-hand-hologram__content,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--materializing .dp-game-hero-hand-hologram__content {
+    animation: dp-retro-hand-hologram-content-scan 400ms ease-out forwards;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--projecting .dp-game-hero-hand-hologram__content,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--projecting .dp-game-hero-hand-hologram__content {
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--revealed .dp-game-hero-hand-hologram__content,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--revealed .dp-game-hero-hand-hologram__content,
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--flash .dp-game-hero-hand-hologram__content,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--flash .dp-game-hero-hand-hologram__content {
+    opacity: 1;
+    transform: translateY(0);
+    filter: none;
+    visibility: visible;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--collapsing .dp-game-hero-hand-hologram__content,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--collapsing .dp-game-hero-hand-hologram__content {
+    opacity: 0;
+    transition: opacity 120ms ease-in;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__content .dp-game-hero-dock--in-sheet,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__content .dp-game-hero-dock--in-sheet {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+
+  /* eco / PRM instant 路径 */
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__beam-core,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__beam-core,
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__beam-glow,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__beam-glow,
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__beam-dust,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__beam-dust,
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__scan-sweep,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__scan-sweep {
+    display: none;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__volume,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__volume {
+    opacity: 1;
+    transform: rotateX(-10deg) scaleY(1) scaleX(1);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__projection,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__projection {
+    background: transparent;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__content,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--instant .dp-game-hero-hand-hologram__content {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  /* 全息光束粒子尘埃（上浮光点） */
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__beam-glow::after,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram__beam-glow::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.6;
+    background-image:
+      radial-gradient(circle 1px at 30% 80%, rgba(74,246,38,0.9) 0%, transparent 100%),
+      radial-gradient(circle 1.5px at 55% 60%, rgba(114,240,82,0.8) 0%, transparent 100%),
+      radial-gradient(circle 1px at 45% 40%, rgba(74,246,38,0.7) 0%, transparent 100%),
+      radial-gradient(circle 1px at 65% 25%, rgba(74,246,38,0.9) 0%, transparent 100%),
+      radial-gradient(circle 1.5px at 35% 15%, rgba(114,240,82,0.7) 0%, transparent 100%),
+      radial-gradient(circle 1px at 50% 5%, rgba(74,246,38,0.8) 0%, transparent 100%);
+    background-size: 100% 120%;
+    animation: dp-retro-holo-particles-float 2.4s linear infinite;
+  }
+
+  @keyframes dp-retro-holo-particles-float {
+    from { background-position: 0 100%, 0 100%, 0 100%, 0 100%, 0 100%, 0 100%; }
+    to { background-position: 0 0, 0 0, 0 0, 0 0, 0 0, 0 0; }
+  }
+
+  /* 投影区扫描线旋转边框 */
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--revealed .dp-game-hero-hand-hologram__content::before,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--revealed .dp-game-hero-hand-hologram__content::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    z-index: -1;
+    border: 1px solid rgba(74,246,38,0.12);
+    animation: dp-retro-holo-border-scan 3s linear infinite;
+    pointer-events: none;
+  }
+
+  @keyframes dp-retro-holo-border-scan {
+    0%   { clip-path: inset(0 98% 0 0); }
+    25%  { clip-path: inset(0 0 98% 0); }
+    50%  { clip-path: inset(0 0 0 98%); }
+    75%  { clip-path: inset(98% 0 0 0); }
+    100% { clip-path: inset(0 98% 0 0); }
+  }
+
+  /* 关闭时粒子散开 */
+  body[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--collapsing .dp-game-hero-hand-hologram__beam-glow::after,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-hero-hand-hologram--collapsing .dp-game-hero-hand-hologram__beam-glow::after {
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+
+  /* retro8bit 宽视口：邀请好友左上显示板 */
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel {
+    position: absolute;
+    inset: 0;
+    z-index: 1018;
+    pointer-events: none;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 1018;
+    pointer-events: none;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__shell {
+    position: absolute;
+    left: max(12px, env(safe-area-inset-left, 0px));
+    width: min(380px, calc(100vw - 24px));
+    height: min(420px, calc(100vh - 80px));
+    min-height: 240px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    pointer-events: auto;
+    border: 2px solid var(--dp-accent, #5fd068);
+    border-radius: 4px;
+    background: var(--dp-panel-bg, rgba(8, 14, 10, 0.94));
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--dp-accent) 35%, transparent),
+      0 12px 32px rgba(0, 0, 0, 0.45),
+      inset 0 0 24px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--slide-in .dp-invite-friend-panel__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--slide-in .dp-invite-friend-panel__shell {
+    animation: dp-invite-friend-panel-slide-in 280ms ease-out forwards;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--retract .dp-invite-friend-panel__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--retract .dp-invite-friend-panel__shell {
+    animation: dp-invite-friend-panel-retract 220ms ease-in forwards;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--instant .dp-invite-friend-panel__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--instant .dp-invite-friend-panel__shell {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--ready .dp-invite-friend-panel__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--ready .dp-invite-friend-panel__shell,
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--snow .dp-invite-friend-panel__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--snow .dp-invite-friend-panel__shell,
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--reveal-flash .dp-invite-friend-panel__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--reveal-flash .dp-invite-friend-panel__shell {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__head,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__head {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid color-mix(in srgb, var(--dp-accent) 40%, transparent);
+    background: color-mix(in srgb, var(--dp-panel-bg) 88%, var(--dp-accent) 12%);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__title,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__title {
+    font-size: 14px;
+    color: var(--dp-accent, #5fd068);
+    text-shadow: 0 0 8px color-mix(in srgb, var(--dp-accent) 45%, transparent);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__close,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__close {
+    width: 36px;
+    height: 36px;
+    margin: 0;
+    padding: 0;
+    border: 1px solid color-mix(in srgb, var(--dp-accent) 35%, transparent);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--dp-accent, #5fd068);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__close:hover,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__close:hover {
+    background: color-mix(in srgb, var(--dp-accent) 12%, transparent);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__body,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__body {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__scanlines,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__scanlines {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    opacity: 0.16;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 2px,
+      rgba(0, 0, 0, 0.18) 2px,
+      rgba(0, 0, 0, 0.18) 3px
+    );
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    opacity: 0;
+    pointer-events: none;
+    overflow: hidden;
+    transition: opacity 0.12s ease;
+    /* Phosphor-green CRT base (retro8bit auth snow, game accent) */
+    background: color-mix(
+      in srgb,
+      var(--dp-auth-snow-base, #0a1808) 82%,
+      color-mix(in srgb, var(--dp-accent, #4af626) 18%, var(--dp-auth-snow-base-alt, #1a3018))
+    );
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow--active,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow--active {
+    opacity: 0.94;
+    inset: -5% 0;
+    animation: dp-invite-friend-panel-snow-jitter-y 0.07s steps(2) infinite;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow-noise,
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow-bars,
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow-bright,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow-noise,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow-bars,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow-bright {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow-noise,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow-noise {
+    opacity: 0.9;
+    background-color: transparent;
+    background-image:
+      repeating-radial-gradient(
+        circle at 12% 18%,
+        color-mix(in srgb, var(--dp-accent, #4af626) 72%, transparent) 0 0.45px,
+        transparent 0.55px
+      ),
+      repeating-radial-gradient(
+        circle at 78% 62%,
+        color-mix(in srgb, var(--dp-accent, #4af626) 48%, #1a3018) 0 0.4px,
+        transparent 0.5px
+      ),
+      repeating-radial-gradient(
+        circle at 44% 81%,
+        color-mix(in srgb, var(--dp-accent, #4af626) 38%, transparent) 0 0.35px,
+        transparent 0.45px
+      ),
+      repeating-linear-gradient(
+        92deg,
+        color-mix(in srgb, var(--dp-accent, #4af626) 14%, transparent) 0,
+        color-mix(in srgb, var(--dp-accent, #4af626) 14%, transparent) 1px,
+        transparent 1px,
+        transparent 2px
+      );
+    background-size: 3px 3px, 4px 4px, 2px 2px, 5px 100%;
+    animation: dp-invite-friend-panel-noise-flicker 0.05s steps(3) infinite;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow-bars,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow-bars {
+    opacity: 0.78;
+    mix-blend-mode: plus-lighter;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.22) 0,
+      rgba(0, 0, 0, 0.22) 1px,
+      color-mix(in srgb, var(--dp-accent, #4af626) 22%, transparent) 1px,
+      color-mix(in srgb, var(--dp-accent, #4af626) 22%, transparent) 2px,
+      color-mix(in srgb, var(--dp-accent, #4af626) 42%, transparent) 2px,
+      color-mix(in srgb, var(--dp-accent, #4af626) 42%, transparent) 3px,
+      transparent 3px,
+      transparent 6px
+    );
+    background-size: 100% 6px;
+    animation: dp-invite-friend-panel-roll-bars 0.28s linear infinite;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow--active .dp-invite-friend-panel__snow-bright,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow--active .dp-invite-friend-panel__snow-bright {
+    inset: auto 0 -35%;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow-bright,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__snow-bright {
+    inset: auto 0 -35%;
+    height: 22%;
+    opacity: 0;
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      color-mix(in srgb, var(--dp-accent, #4af626) 28%, transparent) 28%,
+      color-mix(in srgb, var(--dp-accent, #4af626) 58%, transparent) 50%,
+      color-mix(in srgb, var(--dp-accent, #4af626) 28%, transparent) 72%,
+      transparent 100%
+    );
+    animation: dp-invite-friend-panel-bright-bar 1.05s linear infinite;
+    mix-blend-mode: plus-lighter;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__flash,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__flash {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+    background: color-mix(in srgb, var(--dp-accent, #4af626) 68%, transparent);
+    box-shadow: inset 0 0 48px color-mix(in srgb, var(--dp-accent, #4af626) 35%, transparent);
+    animation: dp-invite-friend-panel-flash 100ms ease-out forwards;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__content,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__content {
+    position: relative;
+    z-index: 3;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 10px 12px 12px;
+    overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__content--ready,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__content--ready {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__content .dp-invite-friend-content,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__content .dp-invite-friend-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__content .dp-invite-friend-content__list,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel__content .dp-invite-friend-content__list {
+    max-height: none;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--instant .dp-invite-friend-panel__content,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-invite-friend-panel--instant .dp-invite-friend-panel__content {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  /* retro8bit 宽视口：好友私信左上 CRT 面板 */
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel {
+    position: absolute;
+    inset: 0;
+    z-index: 1017;
+    pointer-events: none;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 1017;
+    pointer-events: none;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__shell {
+    position: absolute;
+    left: max(12px, env(safe-area-inset-left, 0px));
+    width: min(380px, calc(100vw - 24px));
+    height: min(420px, calc(100vh - 80px));
+    min-height: 240px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    pointer-events: auto;
+    border: 2px solid var(--dp-accent, #5fd068);
+    border-radius: 0;
+    background: var(--dp-terminal-bg, rgba(8, 14, 10, 0.96));
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--dp-accent) 35%, transparent),
+      0 12px 32px rgba(0, 0, 0, 0.45),
+      inset 0 0 24px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+    transform: translateX(-105%);
+    opacity: 0;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel--slide-in .dp-friend-chat-panel__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel--slide-in .dp-friend-chat-panel__shell {
+    animation: dp-friend-chat-panel-slide-in 0.28s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel--retract .dp-friend-chat-panel__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel--retract .dp-friend-chat-panel__shell {
+    animation: dp-friend-chat-panel-retract 0.22s ease-in forwards;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel--instant .dp-friend-chat-panel__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel--instant .dp-friend-chat-panel__shell {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel--ready .dp-friend-chat-panel__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel--ready .dp-friend-chat-panel__shell,
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel--snow .dp-friend-chat-panel__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel--snow .dp-friend-chat-panel__shell,
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel--reveal-flash .dp-friend-chat-panel__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel--reveal-flash .dp-friend-chat-panel__shell {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__head,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__head {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid color-mix(in srgb, var(--dp-accent) 40%, transparent);
+    background: color-mix(in srgb, var(--dp-panel-bg) 88%, var(--dp-accent) 12%);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__title,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__title {
+    font-family: var(--dp-font-ui);
+    font-size: 14px;
+    letter-spacing: 0.08em;
+    color: var(--dp-accent, #5fd068);
+    text-shadow: var(--dp-terminal-glow-text);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__close,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__close {
+    width: 36px;
+    height: 36px;
+    margin: 0;
+    padding: 0;
+    border: 1px solid color-mix(in srgb, var(--dp-accent) 35%, transparent);
+    border-radius: 0;
+    background: transparent;
+    color: var(--dp-accent, #5fd068);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__close:hover,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__close:hover {
+    background: color-mix(in srgb, var(--dp-accent) 18%, transparent);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__body,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__body {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__scanlines,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__scanlines {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    opacity: 0.12;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.35) 2px,
+      rgba(0, 0, 0, 0.35) 4px
+    );
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__snow,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__snow {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    opacity: 0;
+    pointer-events: none;
+    overflow: hidden;
+    transition: opacity 0.12s ease;
+    background: color-mix(
+      in srgb,
+      var(--dp-auth-snow-base, #0a1808) 82%,
+      color-mix(in srgb, var(--dp-accent, #4af626) 18%, var(--dp-auth-snow-base-alt, #1a3018))
+    );
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__snow--active,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__snow--active {
+    opacity: 0.94;
+    inset: -5% 0;
+    animation: dp-friend-chat-panel-snow-jitter 0.07s steps(2) infinite;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__snow-noise,
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__snow-bars,
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__snow-bright,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__snow-noise,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__snow-bars,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__snow-bright {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__snow-noise,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__snow-noise {
+    opacity: 0.9;
+    background-color: transparent;
+    background-image:
+      repeating-radial-gradient(
+        circle at 12% 18%,
+        color-mix(in srgb, var(--dp-accent, #4af626) 72%, transparent) 0 0.45px,
+        transparent 0.55px
+      ),
+      repeating-radial-gradient(
+        circle at 78% 62%,
+        color-mix(in srgb, var(--dp-accent, #4af626) 48%, #1a3018) 0 0.4px,
+        transparent 0.5px
+      ),
+      repeating-radial-gradient(
+        circle at 44% 81%,
+        color-mix(in srgb, var(--dp-accent, #4af626) 38%, transparent) 0 0.35px,
+        transparent 0.45px
+      ),
+      repeating-linear-gradient(
+        92deg,
+        color-mix(in srgb, var(--dp-accent, #4af626) 14%, transparent) 0,
+        color-mix(in srgb, var(--dp-accent, #4af626) 14%, transparent) 1px,
+        transparent 1px,
+        transparent 2px
+      );
+    background-size: 3px 3px, 4px 4px, 2px 2px, 5px 100%;
+    animation: dp-friend-chat-panel-noise-flicker 0.05s steps(3) infinite;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__snow-bars,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__snow-bars {
+    opacity: 0.78;
+    mix-blend-mode: plus-lighter;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.22) 0,
+      rgba(0, 0, 0, 0.22) 1px,
+      color-mix(in srgb, var(--dp-accent, #4af626) 22%, transparent) 1px,
+      color-mix(in srgb, var(--dp-accent, #4af626) 22%, transparent) 2px,
+      color-mix(in srgb, var(--dp-accent, #4af626) 42%, transparent) 2px,
+      color-mix(in srgb, var(--dp-accent, #4af626) 42%, transparent) 3px,
+      transparent 3px,
+      transparent 6px
+    );
+    background-size: 100% 6px;
+    animation: dp-friend-chat-panel-roll-bars 0.28s linear infinite;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__snow--active .dp-friend-chat-panel__snow-bright,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__snow--active .dp-friend-chat-panel__snow-bright {
+    inset: auto 0 -35%;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__snow-bright,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__snow-bright {
+    inset: auto 0 -35%;
+    height: 22%;
+    opacity: 0;
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      color-mix(in srgb, var(--dp-accent, #4af626) 28%, transparent) 28%,
+      color-mix(in srgb, var(--dp-accent, #4af626) 58%, transparent) 50%,
+      color-mix(in srgb, var(--dp-accent, #4af626) 28%, transparent) 72%,
+      transparent 100%
+    );
+    animation: dp-friend-chat-panel-bright-bar 1.05s linear infinite;
+    mix-blend-mode: plus-lighter;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__flash,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__flash {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+    background: color-mix(in srgb, var(--dp-accent, #4af626) 68%, transparent);
+    box-shadow: inset 0 0 48px color-mix(in srgb, var(--dp-accent, #4af626) 35%, transparent);
+    animation: dp-friend-chat-panel-flash 100ms ease-out forwards;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content {
+    position: relative;
+    z-index: 3;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 8px 10px 10px;
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content--ready,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content--ready {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content .dp-friend-chat-picker,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content .dp-friend-chat-picker {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content .dp-friend-chat-picker__hint,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content .dp-friend-chat-picker__hint {
+    font-family: var(--dp-font-ui);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: color-mix(in srgb, var(--dp-accent) 72%, var(--dp-text-muted));
+    text-transform: uppercase;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content .dp-friend-chat-picker__list,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content .dp-friend-chat-picker__list {
+    max-height: none;
+    flex: 1 1 auto;
+    min-height: 0;
+    border-radius: 0;
+    border: 1px solid var(--dp-terminal-border-active);
+    background: color-mix(in srgb, var(--dp-terminal-bg) 92%, #000);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content .dp-friend-chat-picker__row,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content .dp-friend-chat-picker__row {
+    border-bottom: 1px solid color-mix(in srgb, var(--dp-accent) 22%, transparent);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content .dp-friend-chat-picker__name,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content .dp-friend-chat-picker__name {
+    font-family: var(--dp-font-ui);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: var(--dp-accent, #5fd068);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content .dp-friend-chat-picker__dm-btn,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content .dp-friend-chat-picker__dm-btn {
+    border-radius: 0;
+    font-family: var(--dp-font-ui);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border: 1px solid var(--dp-accent);
+    background: transparent;
+    color: var(--dp-accent);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content .dp-friend-chat-picker__dm-btn:hover,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-friend-chat-panel__content .dp-friend-chat-picker__dm-btn:hover {
+    background: var(--dp-accent);
+    color: #080a0c;
+  }
+
+  /* retro8bit 宽视口：房主终端右上显示板 */
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal {
+    position: absolute;
+    inset: 0;
+    z-index: 1020;
+    pointer-events: none;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal {
+    position: fixed;
+    inset: 0;
+    z-index: 1020;
+    pointer-events: none;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__shell {
+    position: absolute;
+    right: max(12px, env(safe-area-inset-right, 0px));
+    width: min(400px, calc(100vw - 24px));
+    height: min(480px, calc(100vh - 80px));
+    min-height: 240px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    pointer-events: auto;
+    border: 2px solid var(--dp-accent, #5fd068);
+    border-radius: 4px;
+    background: var(--dp-panel-bg, rgba(8, 14, 10, 0.94));
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--dp-accent) 35%, transparent),
+      0 12px 32px rgba(0, 0, 0, 0.45),
+      inset 0 0 24px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal--slide-in .dp-owner-terminal__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal--slide-in .dp-owner-terminal__shell {
+    animation: dp-owner-terminal-slide-in 280ms ease-out forwards;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal--retract .dp-owner-terminal__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal--retract .dp-owner-terminal__shell {
+    animation: dp-owner-terminal-retract 220ms ease-in forwards;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal--instant .dp-owner-terminal__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal--instant .dp-owner-terminal__shell {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal--ready .dp-owner-terminal__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal--ready .dp-owner-terminal__shell,
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal--snow .dp-owner-terminal__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal--snow .dp-owner-terminal__shell,
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal--reveal-flash .dp-owner-terminal__shell,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal--reveal-flash .dp-owner-terminal__shell {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__head,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__head {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid color-mix(in srgb, var(--dp-accent) 40%, transparent);
+    background: color-mix(in srgb, var(--dp-panel-bg) 88%, var(--dp-accent) 12%);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__title,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__title {
+    font-size: 16px;
+    color: var(--dp-accent, #5fd068);
+    text-shadow: 0 0 8px color-mix(in srgb, var(--dp-accent) 45%, transparent);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__close,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__close {
+    width: 36px;
+    height: 36px;
+    margin: 0;
+    padding: 0;
+    border: 1px solid color-mix(in srgb, var(--dp-accent) 35%, transparent);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--dp-accent, #5fd068);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__close:hover,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__close:hover {
+    background: color-mix(in srgb, var(--dp-accent) 12%, transparent);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__body,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__body {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    outline: none;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__body--focused,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__body--focused {
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--dp-accent) 55%, transparent);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__scanlines,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__scanlines {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    opacity: 0.16;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 2px,
+      rgba(0, 0, 0, 0.18) 2px,
+      rgba(0, 0, 0, 0.18) 3px
+    );
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    opacity: 0;
+    pointer-events: none;
+    overflow: hidden;
+    transition: opacity 0.12s ease;
+    background: color-mix(
+      in srgb,
+      var(--dp-auth-snow-base, #0a1808) 78%,
+      color-mix(in srgb, var(--dp-accent, #4af626) 22%, var(--dp-auth-snow-base-alt, #1a3018))
+    );
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow--active,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow--active {
+    opacity: 0.96;
+    inset: -5% 0;
+    animation: dp-owner-terminal-snow-jitter-y 0.07s steps(2) infinite;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow-noise,
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow-bars,
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow-bright,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow-noise,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow-bars,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow-bright {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow-noise,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow-noise {
+    opacity: 0.92;
+    background-color: transparent;
+    background-image:
+      repeating-radial-gradient(
+        circle at 12% 18%,
+        color-mix(in srgb, var(--dp-accent, #4af626) 78%, transparent) 0 0.45px,
+        transparent 0.55px
+      ),
+      repeating-radial-gradient(
+        circle at 78% 62%,
+        color-mix(in srgb, var(--dp-accent, #4af626) 52%, #1a3018) 0 0.4px,
+        transparent 0.5px
+      ),
+      repeating-linear-gradient(
+        92deg,
+        color-mix(in srgb, var(--dp-accent, #4af626) 18%, transparent) 0,
+        color-mix(in srgb, var(--dp-accent, #4af626) 18%, transparent) 1px,
+        transparent 1px,
+        transparent 2px
+      );
+    background-size: 3px 3px, 4px 4px, 5px 100%;
+    animation: dp-owner-terminal-noise-flicker 0.05s steps(3) infinite;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow-bars,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow-bars {
+    opacity: 0.82;
+    mix-blend-mode: plus-lighter;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.22) 0,
+      rgba(0, 0, 0, 0.22) 1px,
+      color-mix(in srgb, var(--dp-accent, #4af626) 28%, transparent) 1px,
+      color-mix(in srgb, var(--dp-accent, #4af626) 28%, transparent) 2px,
+      color-mix(in srgb, var(--dp-accent, #4af626) 48%, transparent) 2px,
+      color-mix(in srgb, var(--dp-accent, #4af626) 48%, transparent) 3px,
+      transparent 3px,
+      transparent 6px
+    );
+    background-size: 100% 6px;
+    animation: dp-owner-terminal-roll-bars 0.28s linear infinite;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow--active .dp-owner-terminal__snow-bright,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow--active .dp-owner-terminal__snow-bright {
+    inset: auto 0 -35%;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow-bright,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__snow-bright {
+    inset: auto 0 -35%;
+    height: 22%;
+    opacity: 0;
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      color-mix(in srgb, var(--dp-accent, #4af626) 32%, transparent) 28%,
+      color-mix(in srgb, var(--dp-accent, #4af626) 62%, transparent) 50%,
+      color-mix(in srgb, var(--dp-accent, #4af626) 32%, transparent) 72%,
+      transparent 100%
+    );
+    animation: dp-owner-terminal-bright-bar 1.05s linear infinite;
+    mix-blend-mode: plus-lighter;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__flash,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__flash {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+    background: color-mix(in srgb, var(--dp-accent, #4af626) 72%, transparent);
+    box-shadow: inset 0 0 48px color-mix(in srgb, var(--dp-accent, #4af626) 38%, transparent);
+    animation: dp-owner-terminal-flash 100ms ease-out forwards;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__content,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__content {
+    position: relative;
+    z-index: 3;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 10px 12px 12px;
+    overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__content--ready,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__content--ready {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal--instant .dp-owner-terminal__content,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal--instant .dp-owner-terminal__content {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__screen,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__screen {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__row,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 8px 10px;
+    margin: 0;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--dp-text-primary, #e8f5e9);
+    font-family: var(--dp-font-ui, inherit);
+    font-size: 15px;
+    line-height: 1.45;
+    text-align: left;
+    cursor: pointer;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__row:hover,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__row:hover {
+    background: color-mix(in srgb, var(--dp-accent) 8%, transparent);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__row--active,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__row--active {
+    box-shadow: inset 0 0 0 2px var(--dp-accent, #5fd068);
+    background: color-mix(in srgb, var(--dp-accent) 12%, transparent);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__row--checked,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__row--checked {
+    background: color-mix(in srgb, var(--dp-accent) 6%, transparent);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__row-cursor,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__row-cursor {
+    flex-shrink: 0;
+    width: 1em;
+    color: var(--dp-accent, #5fd068);
+    font-family: var(--dp-font-pixel, monospace);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-terminal__row-label,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-terminal__row-label {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__hint,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__hint {
+    margin: 0 0 8px;
+    font-size: 13px;
+    color: var(--dp-text-muted, #8c8c8c);
+    line-height: 1.45;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__empty,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__empty {
+    margin: 8px 0;
+    font-size: 14px;
+    color: var(--dp-text-muted, #8c8c8c);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__count,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__count {
+    flex-shrink: 0;
+    font-family: var(--dp-font-pixel, monospace);
+    color: var(--dp-accent, #5fd068);
+    font-size: 14px;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__status,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__status {
+    flex-shrink: 0;
+    font-size: 13px;
+    color: var(--dp-text-muted, #8c8c8c);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__check,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__check {
+    flex-shrink: 0;
+    font-family: var(--dp-font-pixel, monospace);
+    color: var(--dp-accent, #5fd068);
+    font-size: 13px;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__kick-summary,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__kick-summary {
+    margin: 8px 0 0;
+    font-size: 13px;
+    color: var(--dp-text-secondary, #b8c9ba);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__screen--confirm,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__screen--confirm {
+    justify-content: center;
+    padding: 12px 4px;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__confirm-title,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__confirm-title {
+    margin: 0 0 12px;
+    font-family: var(--dp-font-pixel, monospace);
+    font-size: 16px;
+    color: var(--dp-accent, #5fd068);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__confirm-title--danger,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__confirm-title--danger {
+    color: var(--dp-danger, #ff4d4f);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__confirm-body,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__confirm-body {
+    margin: 0 0 8px;
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--dp-text-primary, #e8f5e9);
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__confirm-detail,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__confirm-detail {
+    margin: 0 0 12px;
+    font-size: 14px;
+    color: var(--dp-text-secondary, #b8c9ba);
+    word-break: break-word;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__screen[role='menu'] .dp-owner-terminal__row-label,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content__screen[role='menu'] .dp-owner-terminal__row-label {
+    font-family: var(--dp-font-pixel, monospace);
+    font-size: 15px;
+    letter-spacing: 0.04em;
+  }
+
+  body[data-dp-game-theme='retro8bit'] .dp-owner-hub-content--inactive,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .dp-owner-hub-content--inactive {
+    pointer-events: none;
+  }
+}
+
+/* ====== retro8bit 端末风格 Round 2：牌桌 + 玩家座牌 + 公共牌区 ====== */
+
+/* --- 牌桌毛毡：终端显示器风格（铺满 layout，clip-path % 与 SVG/座位同源）--- */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__felt {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  transform: none;
+  border: none;
+  border-radius: 0;
+  clip-path: var(--dp-table-polygon);
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 3px,
+      rgba(74, 246, 38, 0.025) 3px,
+      rgba(74, 246, 38, 0.025) 4px
+    ),
+    radial-gradient(
+      circle at 50% 50%,
+      rgba(74, 246, 38, 0.06) 0%,
+      #0a0c0e 100%
+    );
+  box-shadow: none;
+  /* Polygon edge frame: DpRetroTableFx SVG border (tablet+); felt keeps depth shadow only */
+  filter: drop-shadow(0 6px 28px rgba(0, 0, 0, 0.6));
+}
+
+/* 牌桌桌面 grid 网格纹理 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__felt::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.35;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      transparent 8px,
+      rgba(74, 246, 38, 0.04) 8px,
+      rgba(74, 246, 38, 0.04) 9px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 8px,
+      rgba(74, 246, 38, 0.04) 8px,
+      rgba(74, 246, 38, 0.04) 9px
+    );
+}
+
+/* --- 座位射线（retro8bit 为直线，端点按正多边形几何）--- */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-rays line,
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-rays polyline {
+  stroke: rgba(74, 246, 38, 0.12);
+  stroke-linecap: butt;
+  stroke-linejoin: miter;
+  transition: stroke 0.15s, stroke-width 0.15s;
+}
+/* 行动玩家射线 — 高亮绿替代计时器（含 line 元素选择器，压过默认 seat-rays line 规则） */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-rays line.dp-game-table__seat-ray--active,
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-rays polyline.dp-game-table__seat-ray--active {
+  stroke: #39ff14;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 6px #39ff14) drop-shadow(0 0 16px rgba(57, 255, 20, 0.7)) drop-shadow(0 0 32px rgba(57, 255, 20, 0.4));
+}
+/* 充裕阶段（剩余 > 20s）— 呼吸发光，非常亮 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-rays line.dp-game-table__seat-ray--active.dp-game-table__seat-ray--active-breathe,
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-rays polyline.dp-game-table__seat-ray--active.dp-game-table__seat-ray--active-breathe {
+  animation: dp-retro-ray-breathe 1.75s ease-in-out infinite;
+}
+@keyframes dp-retro-ray-breathe {
+  0%, 100% {
+    opacity: 0.42;
+    filter: drop-shadow(0 0 3px #39ff14) drop-shadow(0 0 8px rgba(57, 255, 20, 0.35));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 6px #39ff14) drop-shadow(0 0 16px rgba(57, 255, 20, 0.7)) drop-shadow(0 0 32px rgba(57, 255, 20, 0.4));
+  }
+}
+/* urgency=warning (< 10s) — 高亮绿 亮/灭 硬闪 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-rays line.dp-game-table__seat-ray--active[data-urgency="warning"],
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-rays polyline.dp-game-table__seat-ray--active[data-urgency="warning"] {
+  animation: dp-retro-ray-blink-green 0.45s steps(2, start) infinite;
+}
+@keyframes dp-retro-ray-blink-green {
+  0%   { opacity: 1; visibility: visible; }
+  100% { opacity: 0; visibility: hidden; }
+}
+/* urgency=danger (< 5s) — 红色 亮/灭 急速硬闪 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-rays line.dp-game-table__seat-ray--active[data-urgency="danger"],
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__seat-rays polyline.dp-game-table__seat-ray--active[data-urgency="danger"] {
+  stroke: #ff1a1a;
+  filter: drop-shadow(0 0 6px #ff1a1a) drop-shadow(0 0 16px rgba(255, 26, 26, 0.7)) drop-shadow(0 0 32px rgba(255, 26, 26, 0.4));
+  animation: dp-retro-ray-blink-red 0.25s steps(2, start) infinite;
+}
+@keyframes dp-retro-ray-blink-red {
+  0%   { opacity: 1; visibility: visible; }
+  100% { opacity: 0; visibility: hidden; }
+}
+
+/* 行动玩家座牌 — 静态高亮绿边框 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card--acting {
+  box-shadow: 0 0 10px #39ff14, 0 0 0 2px rgba(57, 255, 20, 0.7);
+}
+
+/* --- 玩家座牌：系统进程信息块 --- */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card--rival-mini {
+  background: var(--dp-terminal-bg);
+  border: 1px solid var(--dp-terminal-border);
+  border-radius: 0;
+  padding: 4px 6px;
+  box-shadow: none;
+  font-family: var(--dp-font-ui);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card--rival-mini .dp-player-card__rival-name {
+  font-family: var(--dp-font-ui);
+  font-size: 11px;
+  color: #e0e8e0;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card--rival-mini .dp-player-card__rival-name::before {
+  content: "PROC: ";
+  color: var(--dp-text-muted);
+  font-size: 10px;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card--rival-mini .dp-player-card__rival-stats {
+  font-family: var(--dp-font-ui);
+  font-size: 10px;
+  color: var(--dp-text-secondary);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card--rival-mini .dp-player-card__rival-stats::before {
+  content: "STK: ";
+  color: var(--dp-text-muted);
+}
+
+/* 重写分隔符 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card__rival-stats .dp-player-card__bet-val {
+  font-family: var(--dp-font-ui);
+  color: var(--dp-pot);
+}
+
+/* 行动指示点 → ">>" 闪烁 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card__rival-turn-dot {
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  font-family: var(--dp-font-ui);
+  color: var(--dp-warning);
+  font-size: 9px;
+  line-height: 1;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card__rival-turn-dot::after {
+  content: ">>";
+  animation: dp-retro-cursor-blink 1s step-end infinite;
+}
+
+/* 盖牌标识 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card--rival-mini .dp-player-card__rival-fold {
+  font-family: var(--dp-font-ui);
+  font-size: 9px;
+  color: var(--dp-danger);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card--rival-mini .dp-player-card__rival-fold::before {
+  content: "[FOLD] ";
+}
+
+/* 离线标识 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card__rival-offline {
+  font-family: var(--dp-font-ui);
+  font-size: 10px;
+  color: var(--dp-text-muted);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card__rival-offline::before {
+  content: "[OFFLINE] ";
+}
+
+/* 座旁聊天气泡 — CRT 信号传输 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card__seat-chat {
+  border: 1px solid #4af626;
+  border-radius: 0;
+  background: rgba(4, 6, 8, 0.95);
+  font-family: 'Courier New', ui-monospace, 'PingFang SC', monospace;
+  font-size: 10px;
+  color: #4af626;
+  text-shadow: 0 0 6px rgba(74, 246, 38, 0.5);
+  box-shadow: 0 0 0 1px #000, 0 0 12px rgba(74, 246, 38, 0.15);
+  padding: 4px 8px 4px 18px;
+  animation: dp-retro-seat-chat-burst 0.35s ease-out;
+  overflow: hidden;
+}
+/* 信号指示灯 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card__seat-chat::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4af626;
+  box-shadow: 0 0 4px rgba(74, 246, 38, 0.8);
+  animation: dp-retro-rx-blink 0.6s step-end infinite;
+}
+/* 扫描线 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card__seat-chat::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, transparent 0 1px, rgba(0,0,0,0.08) 1px 2px);
+  background-size: 100% 2px;
+  z-index: 1;
+}
+@keyframes dp-retro-seat-chat-burst {
+  0% { opacity: 0; transform: translateX(-50%) scale(0.8); filter: blur(3px); }
+  30% { opacity: 1; filter: blur(1px); }
+  60% { opacity: 0.7; filter: blur(0.5px); }
+  100% { opacity: 1; transform: translateX(-50%) scale(1); filter: blur(0); }
+}
+@keyframes dp-retro-rx-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+/* 座旁气泡左右伸出变体 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card__seat-chat--out-left {
+  animation: dp-retro-seat-chat-burst-left 0.35s ease-out;
+}
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card__seat-chat--out-right {
+  animation: dp-retro-seat-chat-burst-right 0.35s ease-out;
+}
+@keyframes dp-retro-seat-chat-burst-left {
+  0% { opacity: 0; transform: translateY(-50%) scale(0.8); filter: blur(3px); }
+  100% { opacity: 1; transform: translateY(-50%) scale(1); filter: blur(0); }
+}
+@keyframes dp-retro-seat-chat-burst-right {
+  0% { opacity: 0; transform: translateY(-50%) scale(0.8); filter: blur(3px); }
+  100% { opacity: 1; transform: translateY(-50%) scale(1); filter: blur(0); }
+}
+
+/* 徽章 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card__badge {
+  border-radius: 0;
+  font-family: var(--dp-font-ui);
+  font-size: 9px;
+  padding: 1px 4px;
+  background: #0a0c0e;
+  border: 1px solid var(--dp-terminal-border);
+  color: var(--dp-text-secondary);
+}
+
+/* 牌型标签 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-player-card__rank-pill {
+  border-radius: 0;
+  font-family: var(--dp-font-ui);
+  border: 1px solid var(--dp-terminal-border);
+  background: #0a1a0a;
+  color: var(--dp-accent);
+  text-shadow: var(--dp-terminal-glow-text);
+}
+
+/* 公共牌区域标题 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__center {
+  top: 50%;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__center::before {
+  content: "=== BOARD ===";
+  display: block;
+  text-align: center;
+  font-family: var(--dp-font-pixel);
+  font-size: 9px;
+  color: var(--dp-text-muted);
+  letter-spacing: 0.1em;
+  margin-bottom: 4px;
+  text-shadow: var(--dp-terminal-glow-text);
+}
+
+/* 弃牌堆 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-muck-pile--orbit {
+  font-family: var(--dp-font-ui);
+  color: var(--dp-text-muted);
+}
+
+/* --- 对局主面板 → 终端框体 --- */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-layout__main.dp-game-layout__main--fit-table {
+  border-radius: 0;
+  background: var(--dp-terminal-bg);
+  border: 1px solid var(--dp-terminal-border);
+  box-shadow: none;
+}
+
+/* --- 行动倒计时（桌面中央） --- */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table-action-timer {
+  font-family: var(--dp-font-ui);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table-action-timer__sec {
+  font-family: var(--dp-font-ui);
+  text-shadow: var(--dp-terminal-glow-slot);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table-action-timer--danger .dp-game-table-action-timer__sec {
+  color: var(--dp-terminal-led-red);
+  text-shadow: 0 0 12px rgba(255, 68, 68, 0.8);
+}
+
+/* --- 英雄底栏停靠区 --- */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-hero-dock .dp-player-card {
+  border: 1px solid var(--dp-terminal-border);
+  border-radius: 0;
+  background: var(--dp-terminal-bg);
+  font-family: var(--dp-font-ui);
+}
+
+/* --- 手机端底栏 --- */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-mobile-hero-bar {
+  background: var(--dp-terminal-bg);
+  border-top: 1px solid var(--dp-terminal-border);
+}
+
+/* --- 底池公牌区 扫描线保持（已在 themes.css 定义） --- */
+
+/* --- 庄家/SB/BB 标记 --- */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-game-table__felt-markers {
+  font-family: var(--dp-font-ui);
+  color: var(--dp-accent);
+  text-shadow: var(--dp-terminal-glow-text);
+}
+
+/* --- 房间主按钮（准备/下一局等）直角 --- */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-btn--success {
+  border-radius: 0;
+  font-family: var(--dp-font-ui);
+}
+
+
+
+@keyframes dp-retro-hand-hologram-beam-expand {
+  from {
+    opacity: 0;
+    transform: rotateX(-10deg) scaleY(0.15) scaleX(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: rotateX(-10deg) scaleY(1) scaleX(1);
+  }
+}
+
+@keyframes dp-retro-hand-hologram-beam-collapse {
+  from {
+    opacity: 1;
+    transform: rotateX(-10deg) scaleY(1) scaleX(1);
+  }
+  to {
+    opacity: 0;
+    transform: rotateX(-10deg) scaleY(0.12) scaleX(0.55);
+  }
+}
+
+@keyframes dp-retro-hand-hologram-content-scan {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: brightness(1.8) blur(2px);
+  }
+  60% {
+    opacity: 0.85;
+    filter: brightness(1.2) blur(0.5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: none;
+  }
+}
+
+@keyframes dp-retro-hand-hologram-scan-sweep {
+  from {
+    opacity: 0.5;
+    transform: scaleY(0);
+  }
+  to {
+    opacity: 0.22;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes dp-retro-hand-hologram-content-flicker {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  40% {
+    opacity: 0.85;
+    transform: translateX(-1px);
+  }
+  60% {
+    opacity: 0.4;
+    transform: translateX(1px);
+  }
+}
+
+@keyframes dp-invite-friend-panel-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dp-invite-friend-panel-retract {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+}
+
+@keyframes dp-invite-friend-panel-snow-jitter-y {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+  100% {
+    transform: translateY(1px);
+  }
+}
+
+@keyframes dp-invite-friend-panel-noise-flicker {
+  0% {
+    background-position: 0 0, 1px 0, 0 1px, 0 0;
+    opacity: 0.82;
+  }
+  33% {
+    background-position: 2px 1px, -1px 2px, 1px -1px, 3px 0;
+    opacity: 0.95;
+  }
+  66% {
+    background-position: -1px 2px, 2px -1px, -2px 1px, -2px 0;
+    opacity: 0.78;
+  }
+  100% {
+    background-position: 1px -2px, 0 2px, 2px 0, 1px 0;
+    opacity: 0.9;
+  }
+}
+
+@keyframes dp-invite-friend-panel-roll-bars {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 -6px;
+  }
+}
+
+@keyframes dp-invite-friend-panel-bright-bar {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  8% {
+    opacity: 0.55;
+  }
+  45% {
+    transform: translateY(-120%);
+    opacity: 0.35;
+  }
+  100% {
+    transform: translateY(-240%);
+    opacity: 0;
+  }
+}
+
+@keyframes dp-invite-friend-panel-flash {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  40% {
+    opacity: 0.92;
+    filter: brightness(1.15);
+  }
+  60% {
+    opacity: 0.42;
+  }
+}
+
+@keyframes dp-friend-chat-panel-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-105%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes dp-friend-chat-panel-retract {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-105%);
+  }
+}
+
+@keyframes dp-friend-chat-panel-snow-jitter {
+  0% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-2px);
+  }
+  100% {
+    transform: translateX(1px);
+  }
+}
+
+@keyframes dp-friend-chat-panel-noise-flicker {
+  0% {
+    background-position: 0 0, 1px 0, 0 1px, 0 0;
+    opacity: 0.82;
+  }
+  33% {
+    background-position: 2px 1px, -1px 2px, 1px -1px, 3px 0;
+    opacity: 0.95;
+  }
+  66% {
+    background-position: -1px 2px, 2px -1px, -2px 1px, -2px 0;
+    opacity: 0.78;
+  }
+  100% {
+    background-position: 1px -2px, 0 2px, 2px 0, 1px 0;
+    opacity: 0.9;
+  }
+}
+
+@keyframes dp-friend-chat-panel-roll-bars {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 -6px;
+  }
+}
+
+@keyframes dp-friend-chat-panel-bright-bar {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  8% {
+    opacity: 0.55;
+  }
+  45% {
+    transform: translateY(-120%);
+    opacity: 0.35;
+  }
+  100% {
+    transform: translateY(-240%);
+    opacity: 0;
+  }
+}
+
+@keyframes dp-friend-chat-panel-flash {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  40% {
+    opacity: 0.92;
+    filter: brightness(1.15);
+  }
+  60% {
+    opacity: 0.42;
+  }
+}
+
+@keyframes dp-owner-terminal-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes dp-owner-terminal-retract {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+@keyframes dp-owner-terminal-snow-jitter-y {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+  100% {
+    transform: translateY(1px);
+  }
+}
+
+@keyframes dp-owner-terminal-noise-flicker {
+  0% {
+    background-position: 0 0, 1px 0, 0 0;
+    opacity: 0.85;
+  }
+  33% {
+    background-position: 2px 1px, -1px 2px, 3px 0;
+    opacity: 0.98;
+  }
+  66% {
+    background-position: -1px 2px, 2px -1px, -2px 0;
+    opacity: 0.8;
+  }
+  100% {
+    background-position: 1px -2px, 0 2px, 1px 0;
+    opacity: 0.92;
+  }
+}
+
+@keyframes dp-owner-terminal-roll-bars {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 -6px;
+  }
+}
+
+@keyframes dp-owner-terminal-bright-bar {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  8% {
+    opacity: 0.6;
+  }
+  45% {
+    transform: translateY(-120%);
+    opacity: 0.38;
+  }
+  100% {
+    transform: translateY(-240%);
+    opacity: 0;
+  }
+}
+
+@keyframes dp-owner-terminal-flash {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  40% {
+    opacity: 0.94;
+    filter: brightness(1.18);
+  }
+  60% {
+    opacity: 0.45;
+  }
 }
 
 .dp-game-hero-action-row .dp-game-footer-left-bar {
@@ -1360,9 +3678,9 @@
 
 /* urgent 脉冲已关（Q8）；eco/PRM 见 dp-game-eco-mode.css */
 
-/* 宽屏且非全屏：仍用内联手牌行，隐藏底栏 */
+/* 宽屏且非全屏（tablet 等）：仍用内联手牌行，隐藏底栏；desktop 档见上方 data-dp-layout-tier 规则 */
 @media (min-width: 601px) {
-  .dp-game-root:not(.dp-game-root--layout-fs):not(:fullscreen):not(:-webkit-full-screen) .dp-game-mobile-hero-bar {
+  .dp-game-root:not(.dp-game-root--layout-fs):not(:fullscreen):not(:-webkit-full-screen):not([data-dp-layout-tier='desktop']) .dp-game-mobile-hero-bar {
     display: none !important;
   }
 }
@@ -2564,6 +4882,160 @@
   }
 }
 
+/* ====== retro8bit 端末风格：顶栏 系统状态线 ====== */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar {
+  background: var(--dp-terminal-bg);
+  border: 1px solid var(--dp-terminal-border);
+  border-radius: 0;
+  box-shadow: none;
+  gap: 6px;
+  padding: 8px 10px;
+  font-family: var(--dp-font-ui);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar::before {
+  content: "";
+  display: block;
+  height: 4px;
+  margin-bottom: 4px;
+  background:
+    radial-gradient(circle 2px at 4px 2px, var(--dp-terminal-led-green) 0% 100%, transparent 0%),
+    radial-gradient(circle 2px at 16px 2px, var(--dp-terminal-led-green) 0% 100%, transparent 0%),
+    radial-gradient(circle 2px at 28px 2px, var(--dp-terminal-led-amber) 0% 100%, transparent 0%),
+    radial-gradient(circle 2px at 40px 2px, var(--dp-text-muted) 0% 100%, transparent 0%),
+    radial-gradient(circle 2px at 52px 2px, var(--dp-text-muted) 0% 100%, transparent 0%);
+  background-size: 60px 4px;
+  background-repeat: repeat-x;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"][data-dp-stage="showdown"] .dp-top-bar::before {
+  background:
+    radial-gradient(circle 2px at 4px 2px, var(--dp-terminal-led-green) 0% 100%, transparent 0%),
+    radial-gradient(circle 2px at 16px 2px, var(--dp-terminal-led-amber) 0% 100%, transparent 0%),
+    radial-gradient(circle 2px at 28px 2px, var(--dp-terminal-led-amber) 0% 100%, transparent 0%),
+    radial-gradient(circle 2px at 40px 2px, var(--dp-terminal-led-green) 0% 100%, transparent 0%),
+    radial-gradient(circle 2px at 52px 2px, var(--dp-text-muted) 0% 100%, transparent 0%);
+  background-size: 60px 4px;
+  background-repeat: repeat-x;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"][data-dp-stage="settled"] .dp-top-bar::before {
+  background:
+    radial-gradient(circle 2px at 4px 2px, var(--dp-terminal-led-green) 0% 100%, transparent 0%),
+    radial-gradient(circle 2px at 16px 2px, var(--dp-terminal-led-green) 0% 100%, transparent 0%),
+    radial-gradient(circle 2px at 28px 2px, var(--dp-terminal-led-green) 0% 100%, transparent 0%),
+    radial-gradient(circle 2px at 40px 2px, var(--dp-terminal-led-red) 0% 100%, transparent 0%),
+    radial-gradient(circle 2px at 52px 2px, var(--dp-terminal-led-red) 0% 100%, transparent 0%);
+  background-size: 60px 4px;
+  background-repeat: repeat-x;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__title::before {
+  content: "$ ";
+  color: var(--dp-accent);
+  font-family: var(--dp-font-ui);
+  font-weight: 400;
+  text-shadow: var(--dp-terminal-glow-text);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__meta-sep {
+  color: var(--dp-text-muted);
+  font-family: var(--dp-font-ui);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__meta-sep--thin {
+  color: var(--dp-text-muted);
+  opacity: 0.5;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__btn {
+  border-radius: 0;
+  font-family: var(--dp-font-ui);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 11px;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__btn:hover {
+  background: var(--dp-accent) !important;
+  color: #080a0c !important;
+  border-color: var(--dp-accent) !important;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__btn--ghost {
+  border: 1px dashed var(--dp-terminal-border-active);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__btn--friend-chat {
+  position: relative;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__btn--friend-chat-alert {
+  animation: dp-mailbox-card-blink 0.65s step-end infinite;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__friend-chat-pip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 4px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border: 1px solid #f56c6c;
+  border-radius: 0;
+  background: #f56c6c;
+  color: #080a0c;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__settings-panel {
+  background: var(--dp-terminal-bg);
+  border: 2px solid var(--dp-terminal-border-active);
+  border-radius: 0;
+  box-shadow: 0 0 0 1px #000, 4px 4px 0 rgba(0, 0, 0, 0.5);
+  font-family: var(--dp-font-ui);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__accent {
+  text-shadow: var(--dp-terminal-glow-text);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__pot {
+  text-shadow: 0 0 6px rgba(255, 68, 68, 0.5);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__sub,
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__hero-eco {
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  line-height: 1.55;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+}
+
+@media (max-width: 600px) {
+  .dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar::before {
+    display: none;
+  }
+  .dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar__btn {
+    border-radius: 0;
+    padding: 3px 6px;
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 1024px) and (max-height: 560px) {
+  .dp-game-root[data-dp-game-theme="retro8bit"] .dp-top-bar::before {
+    display: none;
+  }
+}
+
+
 .dp-btn {
   border: none;
   border-radius: 5px;
@@ -2881,6 +5353,194 @@
   border-radius: 5px;
   cursor: pointer;
   font-weight: bold;
+}
+
+/* ====== retro8bit 端末风格：行动面板 命令行提示符 ====== */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-action-panel {
+  background: var(--dp-terminal-bg);
+  border: 1px solid var(--dp-terminal-border);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 10px;
+  font-family: var(--dp-font-ui);
+}
+
+/* "$ " 行动提示 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-action-panel__turn {
+  color: var(--dp-accent);
+  font-family: var(--dp-font-ui);
+  letter-spacing: 0.03em;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-action-panel__turn::before {
+  content: "$ ";
+  color: var(--dp-accent);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-action-panel__turn::after {
+  content: '■';
+  animation: dp-retro-cursor-blink 0.9s step-end infinite;
+  color: var(--dp-accent);
+  margin-left: 2px;
+  text-shadow: var(--dp-terminal-glow-slot);
+}
+
+@keyframes dp-retro-cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-action-panel__raise-hint {
+  font-family: var(--dp-font-ui);
+  color: var(--dp-text-secondary);
+  font-size: 11px;
+}
+
+/* 底池预设 → 终端功能键风格 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-btn--pot-preset {
+  border-radius: 0;
+  border: 1px solid var(--dp-terminal-border);
+  background: var(--dp-terminal-bg);
+  color: var(--dp-text-secondary);
+  font-family: var(--dp-font-ui);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-btn--pot-preset:hover {
+  background: var(--dp-accent);
+  color: #080a0c;
+  border-color: var(--dp-accent);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-btn--pot-preset:active {
+  opacity: 0.85;
+}
+
+/* 加注滑动条 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-raise-slider {
+  accent-color: var(--dp-accent);
+  height: 8px;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-raise-slider-value {
+  font-family: var(--dp-font-ui);
+  color: var(--dp-accent);
+  text-shadow: var(--dp-terminal-glow-text);
+  font-size: 14px;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-raise-slider-label {
+  font-family: var(--dp-font-ui);
+  color: var(--dp-text-muted);
+  font-size: 10px;
+}
+
+/* 核心操作按钮：全部直角 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-btn--call {
+  border-radius: 0;
+  font-family: var(--dp-font-ui);
+  letter-spacing: 0.03em;
+  border: 1px solid var(--dp-terminal-border-active);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-btn--raise-go {
+  border-radius: 0;
+  font-family: var(--dp-font-ui);
+  letter-spacing: 0.03em;
+  border: 1px solid var(--dp-terminal-border-active);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-btn--allin {
+  border-radius: 0;
+  font-family: var(--dp-font-ui);
+  letter-spacing: 0.03em;
+  border: 1px solid rgba(255, 68, 68, 0.4);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-btn--fold {
+  border-radius: 0;
+  font-family: var(--dp-font-ui);
+  letter-spacing: 0.03em;
+  border: 1px solid rgba(255, 68, 68, 0.4);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-btn--ghost-sm {
+  border-radius: 0;
+  font-family: var(--dp-font-ui);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-input--raise {
+  border-radius: 0;
+  font-family: var(--dp-font-ui);
+  color: var(--dp-accent);
+  text-shadow: var(--dp-terminal-glow-text);
+  border: 1px solid var(--dp-terminal-border-active);
+}
+
+/* 计时器：直角方形 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-timer-ring {
+  border-radius: 0;
+  border-color: var(--dp-timer-ring);
+  background: var(--dp-terminal-bg);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-timer-ring__text {
+  font-family: var(--dp-font-ui);
+  font-weight: 900;
+  text-shadow: 0 0 10px rgba(255, 68, 68, 0.7);
+}
+
+/* 控制区 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-action-panel__controls {
+  gap: 8px;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-action-panel__row--main {
+  gap: 5px;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-action-panel__row--commit {
+  gap: 6px;
+}
+
+/* 结算准备栏 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-settled-prepare-bar__hint {
+  font-family: var(--dp-font-ui);
+  color: var(--dp-accent);
+  text-shadow: var(--dp-terminal-glow-text);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-settled-prepare-bar__hint::before {
+  content: '> ';
+  color: var(--dp-text-muted);
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-settled-prepare-bar__btn {
+  border-radius: 0;
+  font-family: var(--dp-font-ui);
+}
+
+/* 通用按钮直角覆盖 */
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-btn {
+  border-radius: 0;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-btn--primary {
+  border-radius: 0;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-btn--danger {
+  border-radius: 0;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-btn--cyan {
+  border-radius: 0;
+}
+
+.dp-game-root[data-dp-game-theme="retro8bit"] .dp-btn--success {
+  border-radius: 0;
 }
 
 /* ---- Owner panel ---- */
@@ -3271,4 +5931,421 @@
     padding-top: clamp(85px, 24vmin, 300px);
     scroll-padding-top: clamp(88px, 15vmin, 180px);
   }
+}
+
+/* ====== retro8bit 端末风格 Round 5：装饰与磷光效果 ====== */
+
+/* --- 发牌磷光拖尾 --- */
+.dp-game-root[data-dp-game-theme='retro8bit'] .hole-card-fly-wrapper.hole-deal-fly-in::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(74, 246, 38, 0.15);
+  filter: blur(3px);
+  animation: dp-retro-phosphor-trail 0.35s ease-out forwards;
+  pointer-events: none;
+  z-index: -1;
+}
+
+@keyframes dp-retro-phosphor-trail {
+  0% {
+    opacity: 0.8;
+    transform: translate(-3px, -3px) scale(1.05);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(5px, 5px) scale(0.92);
+  }
+}
+
+/* --- 公共牌翻牌时磷光残影 --- */
+.dp-game-root[data-dp-game-theme='retro8bit'] .card-flip-wrapper.deal-fly-in::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 2px;
+  background: rgba(74, 246, 38, 0.12);
+  filter: blur(2px);
+  animation: dp-retro-card-phosphor 0.4s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes dp-retro-card-phosphor {
+  0% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+/* --- 牌桌 CRT 极低噪声（显示屏运行感） --- */
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-table__felt::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 0;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0.06;
+  background-image:
+    repeating-radial-gradient(
+      circle at 18% 22%,
+      rgba(255, 255, 255, 0.3) 0 0.35px,
+      transparent 0.45px
+    ),
+    repeating-radial-gradient(
+      circle at 82% 68%,
+      rgba(255, 255, 255, 0.25) 0 0.3px,
+      transparent 0.4px
+    );
+  background-size: 4px 4px, 3px 3px;
+}
+
+/* --- 阶段切换 Glitch（只在翻牌/转牌/河牌时闪现一次） --- */
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-table__center.glitch-flash {
+  animation: dp-retro-glitch 0.1s ease-out;
+}
+
+@keyframes dp-retro-glitch {
+  0% {
+    clip-path: inset(0 0 80% 0);
+    transform: translate(-3px, 0);
+    filter: hue-rotate(25deg) brightness(1.3);
+  }
+  30% {
+    clip-path: inset(20% 0 30% 0);
+    transform: translate(2px, 0);
+    filter: hue-rotate(-15deg) brightness(0.8);
+  }
+  60% {
+    clip-path: inset(50% 0 5% 0);
+    transform: translate(0, 2px);
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+    transform: none;
+    filter: none;
+  }
+}
+
+/* --- 玩家行动时座牌的微闪烁 --- */
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-player-card--rival-mini.player-card--act-turn {
+  animation: dp-retro-act-flash 0.6s ease-in-out infinite;
+}
+
+@keyframes dp-retro-act-flash {
+  0%, 100% {
+    border-color: rgba(74, 246, 38, 0.2);
+    box-shadow: none;
+  }
+  50% {
+    border-color: rgba(74, 246, 38, 0.7);
+    box-shadow: var(--dp-terminal-glow-md);
+  }
+}
+
+/* --- 全压/警告时刻的座牌红色闪烁 --- */
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-player-card--rival-mini.player-card--danger-flash {
+  animation: dp-retro-danger-flash 0.5s step-end infinite;
+}
+
+@keyframes dp-retro-danger-flash {
+  0%, 100% {
+    border-color: rgba(74, 246, 38, 0.2);
+  }
+  50% {
+    border-color: rgba(255, 68, 68, 0.8);
+    box-shadow: 0 0 10px rgba(255, 68, 68, 0.4);
+  }
+}
+
+/* --- glitch flash for public board --- */
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-game-table__center.glitch-flash .community-cards-row {
+  animation: dp-retro-cards-glitch 0.12s ease-out;
+}
+
+@keyframes dp-retro-cards-glitch {
+  0% {
+    transform: translateX(-2px);
+    filter: brightness(1.4);
+  }
+  50% {
+    transform: translateX(2px);
+    filter: brightness(0.7);
+  }
+  100% {
+    transform: none;
+    filter: none;
+  }
+}
+
+/* ====== retro8bit：发牌动画 — CRT 电子束逐行扫描绘制 ====== */
+
+/* 底牌发牌：覆盖默认 fly-in，改用 scanline sweep */
+.dp-game-root[data-dp-game-theme='retro8bit'] .hole-card-fly-wrapper.hole-deal-fly-in {
+  animation: dp-retro-hole-scan-deal 0.42s steps(8) both;
+  pointer-events: none;
+}
+
+@keyframes dp-retro-hole-scan-deal {
+  0% {
+    clip-path: inset(100% 0 0 0);
+    opacity: 0;
+    filter: brightness(3) blur(2px);
+    transform: none;
+  }
+  15% {
+    opacity: 0.6;
+    filter: brightness(2.2) blur(1.5px);
+  }
+  35% {
+    clip-path: inset(60% 0 0 0);
+    filter: brightness(1.6) blur(1px);
+  }
+  55% {
+    clip-path: inset(30% 0 0 0);
+    filter: brightness(1.3) blur(0.5px);
+  }
+  75% {
+    clip-path: inset(5% 0 0 0);
+    filter: brightness(1.1) blur(0);
+    opacity: 1;
+  }
+  88% {
+    clip-path: inset(0 0 0 0);
+    filter: brightness(1.4) blur(0);
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+    filter: none;
+    opacity: 1;
+  }
+}
+
+/* 发牌时附加磷光扫描线效果 */
+.dp-game-root[data-dp-game-theme='retro8bit'] .hole-card-fly-wrapper.hole-deal-fly-in::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(74, 246, 38, 0.5) 48%,
+    rgba(74, 246, 38, 0.8) 50%,
+    rgba(74, 246, 38, 0.5) 52%,
+    transparent 100%
+  );
+  animation: dp-retro-deal-beam 0.42s ease-out forwards;
+}
+
+@keyframes dp-retro-deal-beam {
+  0%   { transform: translateY(-100%); opacity: 1; }
+  70%  { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+
+/* 公共牌发牌：同样的 scanline sweep */
+.dp-game-root[data-dp-game-theme='retro8bit'] .card-flip-wrapper.deal-fly-in {
+  animation: dp-retro-community-scan-deal 0.45s steps(8) both;
+  pointer-events: none;
+}
+
+@keyframes dp-retro-community-scan-deal {
+  0% {
+    clip-path: inset(100% 0 0 0);
+    opacity: 0;
+    filter: brightness(3) blur(3px);
+    transform: none;
+  }
+  12% {
+    opacity: 0.5;
+    filter: brightness(2.5) blur(2px);
+  }
+  30% {
+    clip-path: inset(65% 0 0 0);
+    filter: brightness(1.8) blur(1.2px);
+  }
+  50% {
+    clip-path: inset(35% 0 0 0);
+    filter: brightness(1.4) blur(0.6px);
+    opacity: 0.85;
+  }
+  70% {
+    clip-path: inset(8% 0 0 0);
+    filter: brightness(1.1) blur(0);
+    opacity: 1;
+  }
+  85% {
+    clip-path: inset(0 0 0 0);
+    filter: brightness(1.5) blur(0);
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+    filter: none;
+    opacity: 1;
+  }
+}
+
+/* 公共牌发牌扫描光束 */
+.dp-game-root[data-dp-game-theme='retro8bit'] .card-flip-wrapper.deal-fly-in::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(74, 246, 38, 0.4) 45%,
+    rgba(74, 246, 38, 0.7) 50%,
+    rgba(74, 246, 38, 0.4) 55%,
+    transparent 100%
+  );
+  animation: dp-retro-deal-beam 0.45s ease-out forwards;
+}
+
+/* 发牌完成后闪一下（磷光余辉） */
+.dp-game-root[data-dp-game-theme='retro8bit'] .hole-card-fly-wrapper.hole-deal-fly-in::after,
+.dp-game-root[data-dp-game-theme='retro8bit'] .card-flip-wrapper.deal-fly-in::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  z-index: 4;
+  pointer-events: none;
+  background: transparent;
+  animation: dp-retro-deal-afterglow 0.5s ease-out forwards;
+}
+
+@keyframes dp-retro-deal-afterglow {
+  0%   { box-shadow: 0 0 0 transparent; }
+  60%  { box-shadow: 0 0 0 transparent; }
+  70%  { box-shadow: 0 0 12px rgba(74, 246, 38, 0.5), inset 0 0 8px rgba(74, 246, 38, 0.3); }
+  100% { box-shadow: 0 0 0 transparent, inset 0 0 0 transparent; }
+}
+
+/* ====== retro8bit：弃牌动画 — 数据损坏 / 像素错位分解 ====== */
+
+/* 弃牌：覆盖默认 fly-to-muck，改用 glitch dissolve */
+.dp-game-root[data-dp-game-theme='retro8bit'] .hole-card-fly-wrapper.hole-fold-to-muck {
+  animation: dp-retro-fold-glitch 0.55s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes dp-retro-fold-glitch {
+  0% {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    clip-path: inset(0 0 0 0);
+  }
+  /* freeze moment */
+  10% {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    clip-path: inset(0 0 0 0);
+  }
+  /* glitch slice 1 */
+  18% {
+    clip-path: inset(8% -3% 75% -3%);
+    transform: translateX(-5px);
+    filter: brightness(1.4) saturate(1.5) hue-rotate(15deg);
+    opacity: 0.9;
+  }
+  /* glitch slice 2 */
+  28% {
+    clip-path: inset(45% -3% 28% -3%);
+    transform: translateX(4px);
+    filter: brightness(0.7) saturate(2) hue-rotate(-10deg);
+    opacity: 0.85;
+  }
+  /* glitch slice 3 */
+  38% {
+    clip-path: inset(70% -3% 5% -3%);
+    transform: translateX(-3px);
+    filter: brightness(1.8) saturate(1.2);
+    opacity: 0.8;
+  }
+  /* glitch slice 4 */
+  48% {
+    clip-path: inset(15% -3% 45% -3%);
+    transform: translateX(6px);
+    filter: brightness(0.5) hue-rotate(-20deg);
+    opacity: 0.7;
+  }
+  /* glitch intensifies - multiple slices */
+  55% {
+    clip-path: inset(25% 0 50% 0);
+    transform: translateX(-2px) scaleY(1.05);
+    filter: brightness(1.6) blur(0.5px);
+    opacity: 0.6;
+  }
+  /* noise takeover */
+  65% {
+    clip-path: inset(5% -5% 5% -5%);
+    transform: scale(0.92);
+    filter: brightness(2) blur(1.5px) saturate(3);
+    opacity: 0.45;
+  }
+  /* collapse */
+  80% {
+    clip-path: inset(0 0 0 0);
+    transform: scale(0.75);
+    filter: brightness(3) blur(3px);
+    opacity: 0.2;
+  }
+  /* dissolve */
+  100% {
+    clip-path: inset(0 0 0 0);
+    transform: scale(0.5);
+    filter: brightness(4) blur(6px);
+    opacity: 0;
+  }
+}
+
+/* 弃牌时卡面上覆盖绿色噪声 */
+.dp-game-root[data-dp-game-theme='retro8bit'] .hole-card-fly-wrapper.hole-fold-to-muck .card-base::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0;
+  background-image:
+    repeating-linear-gradient(0deg, transparent 0 1px, rgba(74,246,38,0.4) 1px 2px),
+    repeating-linear-gradient(90deg, transparent 0 2px, rgba(74,246,38,0.3) 2px 3px);
+  background-size: 4px 4px;
+  animation: dp-retro-fold-noise 0.55s ease-out forwards;
+}
+
+@keyframes dp-retro-fold-noise {
+  0%, 35% { opacity: 0; }
+  45% { opacity: 0.3; }
+  60% { opacity: 0.7; }
+  80% { opacity: 0.9; }
+  100% { opacity: 0; }
+}
+
+/* 弃牌后短暂磷光残影 */
+.dp-game-root[data-dp-game-theme='retro8bit'] .hole-card-fly-wrapper.hole-fold-to-muck::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 3px;
+  background: transparent;
+  animation: dp-retro-fold-burnin 0.7s ease-out forwards;
+}
+
+@keyframes dp-retro-fold-burnin {
+  0%   { box-shadow: 0 0 0 transparent; }
+  30%  { box-shadow: 0 0 8px rgba(74, 246, 38, 0.3); }
+  55%  { box-shadow: 0 0 16px rgba(74, 246, 38, 0.5), 0 0 30px rgba(74, 246, 38, 0.2); }
+  100% { box-shadow: 0 0 0 transparent, 0 0 0 transparent; }
 }

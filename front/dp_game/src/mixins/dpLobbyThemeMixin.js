@@ -9,11 +9,9 @@ export default {
   computed: {
     ...mapState('dpGame', [
       'gameUiTheme',
-      'gameThemeOptions',
-      'customThemeBase',
-      'customThemeOverrides'
+      'gameThemeOptions'
     ]),
-    ...mapGetters('dpGame', ['effectiveThemeForCss', 'customThemeInlineStyle'])
+    ...mapGetters('dpGame', ['effectiveThemeForCss'])
   },
   methods: {
     onLobbyThemeChange(themeId) {
