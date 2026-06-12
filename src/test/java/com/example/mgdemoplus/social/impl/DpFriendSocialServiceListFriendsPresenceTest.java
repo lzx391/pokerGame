@@ -10,10 +10,12 @@ import com.example.mgdemoplus.presence.DpFriendPresenceService;
 import com.example.mgdemoplus.room.DpRoomService;
 import com.example.mgdemoplus.presence.DpSitePresenceService;
 import com.example.mgdemoplus.utils.ResultUtil;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.LinkedHashMap;
@@ -23,6 +25,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 /**
@@ -47,12 +50,17 @@ class DpFriendSocialServiceListFriendsPresenceTest {
     @Mock
     private DpSitePresenceService sitePresenceService;
 
+    @Spy
     @InjectMocks
     private DpFriendSocialService service;
 
+    @BeforeEach
+    void skipRoomInviteExpiry() {
+        lenient().doNothing().when(service).touchExpireRoomInvites();
+    }
+
     @Test
     void listFriends_attachesPresenceStringsForEachFriendRow() {
-        when(roomInviteMapper.update(any(), any())).thenReturn(0);
 
         DpFriendLinkRow r1 = new DpFriendLinkRow();
         r1.setFriendUserId(10);
@@ -60,7 +68,7 @@ class DpFriendSocialServiceListFriendsPresenceTest {
         DpFriendLinkRow r2 = new DpFriendLinkRow();
         r2.setFriendUserId(20);
         r2.setFriendNickname("Beta");
-        when(friendLinkMapper.listFriendsOfUser(1)).thenReturn(List.of(r1, r2));
+        when(friendLinkMapper.listFriendsOfUserPaged(eq(1), eq(null), eq(null))).thenReturn(List.of(r1, r2));
 
         when(friendPresenceService.getEffectiveMany(any()))
                 .thenReturn(
@@ -72,11 +80,13 @@ class DpFriendSocialServiceListFriendsPresenceTest {
         when(sitePresenceService.isOnlineSite(eq(10))).thenReturn(false);
         when(sitePresenceService.isOnlineSite(eq(20))).thenReturn(true);
 
-        ResultUtil res = service.listFriends(1);
+        ResultUtil res = service.listFriends(1, 1, 20, null);
         assertThat(Boolean.TRUE.equals(res.getSuccess())).isTrue();
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> friends = (List<Map<String, Object>>) res.getData().get("friends");
         assertThat(friends).hasSize(2);
+        assertThat(res.getData().get("page")).isEqualTo(1);
+        assertThat(res.getData().get("pageSize")).isEqualTo(20);
         assertThat(friends.get(0).get("presence")).isEqualTo("IN_GAME");
         assertThat(friends.get(1).get("presence")).isEqualTo("IDLE");
         assertThat(friends.get(0).get("friendship_status")).isEqualTo("ACCEPTED");
@@ -84,18 +94,16 @@ class DpFriendSocialServiceListFriendsPresenceTest {
 
     @Test
     void listFriends_notInGame_withoutSiteHeartbeat_showsOffline() {
-        when(roomInviteMapper.update(any(), any())).thenReturn(0);
-
         DpFriendLinkRow r1 = new DpFriendLinkRow();
         r1.setFriendUserId(30);
         r1.setFriendNickname("Gamma");
-        when(friendLinkMapper.listFriendsOfUser(1)).thenReturn(List.of(r1));
+        when(friendLinkMapper.listFriendsOfUserPaged(eq(1), eq(null), eq(null))).thenReturn(List.of(r1));
 
         when(friendPresenceService.getEffectiveMany(any()))
                 .thenReturn(new LinkedHashMap<>(Map.of(30, DpFriendPresenceState.IDLE)));
         when(sitePresenceService.isOnlineSite(eq(30))).thenReturn(false);
 
-        ResultUtil res = service.listFriends(1);
+        ResultUtil res = service.listFriends(1, 1, 20, null);
         assertThat(Boolean.TRUE.equals(res.getSuccess())).isTrue();
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> friends = (List<Map<String, Object>>) res.getData().get("friends");

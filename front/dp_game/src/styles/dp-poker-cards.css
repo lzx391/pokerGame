@@ -9,7 +9,7 @@
   color: #f5f5f5;
   font-weight: 800;
   font-size: var(--dp-card-base-font-size, 18px);
-  font-family: 'Garamond', 'Georgia', serif;
+  font-family: var(--dp-font-display, 'Garamond', 'Georgia', serif);
   text-shadow:
     0 1px 0 rgba(0, 0, 0, 0.45),
     0 0 12px rgba(255, 255, 255, 0.12);

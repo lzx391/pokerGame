@@ -1,6 +1,11 @@
 /**
  * 对局根全屏、伪全屏与 Element UI 弹层挪入 gameRoot（供 game.vue 使用）。
  */
+import {
+  registerDpFullscreenOverlayReparent,
+  unregisterDpFullscreenOverlayReparent
+} from '@/utils/dpFullscreenOverlayBridge'
+
 export default {
   data: function () {
     return {
@@ -29,6 +34,8 @@ export default {
     document.addEventListener('webkitfullscreenchange', this._dpFsChange)
     this.syncDpFullscreenState()
     this.wrapDpMessageForFullscreenOverlays()
+    this._dpFsReparent = this.scheduleReparentElementUiLayersIntoFullscreenRoot.bind(this)
+    registerDpFullscreenOverlayReparent(this._dpFsReparent)
     var self = this
     this.$nextTick(function () {
       self.tryEnterDpFullscreen()
@@ -36,6 +43,8 @@ export default {
     })
   },
   beforeDestroy: function () {
+    unregisterDpFullscreenOverlayReparent(this._dpFsReparent)
+    this._dpFsReparent = null
     if (this._dpFsChange) {
       document.removeEventListener('fullscreenchange', this._dpFsChange)
       document.removeEventListener('webkitfullscreenchange', this._dpFsChange)
@@ -55,6 +64,17 @@ export default {
       if (this.isFullscreen) {
         this.scheduleReparentElementUiLayersIntoFullscreenRoot()
       }
+      var self = this
+      this.$nextTick(function () {
+        if (typeof self.scheduleTableFitUpdate === 'function') {
+          self.scheduleTableFitUpdate()
+          if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(function () {
+              self.scheduleTableFitUpdate()
+            })
+          }
+        }
+      })
     },
     exitDpFullscreenIfActive: function () {
       var root = this.$refs.gameRoot
@@ -123,7 +143,7 @@ export default {
     },
     reparentElementUiLayersIntoFullscreenRoot: function () {
       var root = this.$refs.gameRoot
-      if (!root || !this.isFullscreen) return
+      if (!root || !this.layoutFullscreen) return
       var moveIfOutside = function (node) {
         if (!node || !node.parentNode || root.contains(node)) return
         root.appendChild(node)
@@ -139,8 +159,13 @@ export default {
       moveAll('.el-message-box__wrapper')
       moveAll('.el-dialog__wrapper')
       moveAll('.el-drawer__wrapper')
+      /* 玩家资料子层：历史对局自定义遮罩（stacked + portal） */
+      moveAll('.hand-rank-modal-mask--stacked')
       /* el-select / 部分下拉挂在 body，全屏时必须在 gameRoot 内才能看见 */
       moveAll('.el-select-dropdown')
+      moveAll('.dp-ach-toast-host')
+      moveAll('.dp-awc')
+      moveAll('.dp-hd')
       var modals = document.getElementsByClassName('v-modal')
       for (w = 0; w < modals.length; w++) {
         moveIfOutside(modals[w])
@@ -152,7 +177,7 @@ export default {
     },
     scheduleReparentElementUiLayersIntoFullscreenRoot: function () {
       var self = this
-      if (!self.isFullscreen) return
+      if (!self.layoutFullscreen) return
       var run = function () {
         self.reparentElementUiLayersIntoFullscreenRoot()
       }

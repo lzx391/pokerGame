@@ -1,5 +1,6 @@
 package com.example.mgdemoplus.leaderboard;
 
+import com.example.mgdemoplus.leaderboard.impl.DpLeaderboardWeeklyFinalizeService;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import org.slf4j.Logger;
@@ -19,12 +20,15 @@ public class DpLeaderboardWeeklyRedisSyncScheduler {
     private static final Logger log = LoggerFactory.getLogger(DpLeaderboardWeeklyRedisSyncScheduler.class);
 
     private final DpLeaderboardRedisRepository dpLeaderboardRedisRepository;
+    private final DpLeaderboardWeeklyFinalizeService dpLeaderboardWeeklyFinalizeService;
     private final ZoneId appZone;
 
     public DpLeaderboardWeeklyRedisSyncScheduler(
             DpLeaderboardRedisRepository dpLeaderboardRedisRepository,
+            DpLeaderboardWeeklyFinalizeService dpLeaderboardWeeklyFinalizeService,
             @Value("${mgdemoplus.time-zone:Asia/Shanghai}") String timeZoneId) {
         this.dpLeaderboardRedisRepository = dpLeaderboardRedisRepository;
+        this.dpLeaderboardWeeklyFinalizeService = dpLeaderboardWeeklyFinalizeService;
         this.appZone = ZoneId.of(timeZoneId);
     }
 
@@ -33,6 +37,7 @@ public class DpLeaderboardWeeklyRedisSyncScheduler {
             initialDelayString = "${mgdemoplus.leaderboard.sync-interval-ms:60000}")
     public void syncCurrentWeekToRedis() {
         try {
+            dpLeaderboardWeeklyFinalizeService.finalizePendingWeeksBeforeRefresh();
             LocalDate week = DpLeaderboardWeekUtil.weekStartMonday(appZone);
             dpLeaderboardRedisRepository.rebuildCurrentWeekFromMysql(week);
         } catch (Exception e) {

@@ -1,0 +1,340 @@
+/**
+ * retro8bit desktop ambience (game.vue .dp-game-root--retro-desktop-fx).
+ * Mount only when game.vue sets showRetroDesktopFx; animations gated by eco / PRM.
+ */
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-table-fx {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* Top of .dp-game-table__surface (felt + glitch + monster below) */
+  z-index: 3;
+  pointer-events: none;
+  overflow: visible;
+}
+
+/* Static CRT frame — always on when retro table FX mounts (tablet+ retro8bit) */
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-table-fx__border-outer {
+  fill: none;
+  stroke: #4af626;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: miter;
+  stroke-miterlimit: 4;
+  shape-rendering: crispEdges;
+  opacity: 0.92;
+  filter: drop-shadow(0 0 4px rgba(74, 246, 38, 0.55));
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-table-fx__border-inner {
+  fill: none;
+  stroke: #1a3d12;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: miter;
+  stroke-miterlimit: 4;
+  shape-rendering: crispEdges;
+  opacity: 1;
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-table-fx__corner {
+  fill: #4af626;
+  shape-rendering: crispEdges;
+  opacity: 0.88;
+  filter: drop-shadow(0 0 2px rgba(74, 246, 38, 0.4));
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-table-fx__edge {
+  fill: none;
+  stroke: #4af626;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: miter;
+  opacity: 0.32;
+  filter: drop-shadow(0 0 4px #39ff14);
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-table-fx__edge--animate {
+  stroke-dasharray: 12 88;
+  will-change: stroke-dashoffset;
+  animation: dp-retro-edge-flow 5s linear infinite;
+}
+
+@keyframes dp-retro-edge-flow {
+  to {
+    stroke-dashoffset: -100;
+  }
+}
+
+/* Table edge phosphor blink — synced to glitch monster lifecycle via edgeAlert */
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-table-fx--alert .dp-retro-table-fx__border-outer,
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-table-fx--alert .dp-retro-table-fx__border-inner,
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-table-fx--alert .dp-retro-table-fx__corner,
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-table-fx--alert .dp-retro-table-fx__edge {
+  animation: dp-retro-table-edge-alert-pulse 0.35s steps(2) infinite;
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-table-fx--alert .dp-retro-table-fx__edge--animate {
+  animation: dp-retro-table-edge-alert-pulse 0.35s steps(2) infinite;
+}
+
+@keyframes dp-retro-table-edge-alert-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    filter: drop-shadow(0 0 2px rgba(74, 246, 38, 0.25));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 8px rgba(74, 246, 38, 0.95));
+  }
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-stack-leader {
+  font-family: var(--dp-font-mono, 'Courier New', monospace);
+  font-size: clamp(9px, 1.1vw, 11px);
+  line-height: 1.25;
+  color: #e0e8e0;
+  text-align: center;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 6px rgba(74, 246, 38, 0.35);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-stack-leader__prefix {
+  color: #4af626;
+  margin-right: 0.35em;
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-stack-leader--fade {
+  animation: dp-retro-leader-fade 0.2s ease-out;
+}
+
+@keyframes dp-retro-leader-fade {
+  from {
+    opacity: 0.4;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster {
+  position: absolute;
+  inset: 0;
+  /* Same table-surface layer as felt; cards/pot/seats paint above via .dp-game-table__surface z-index */
+  z-index: 2;
+  pointer-events: none;
+  overflow: visible;
+}
+
+/* Table felt signal corruption — clipped to retro polygon, not full viewport */
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster__table-glitch {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  clip-path: var(--dp-table-polygon);
+  opacity: 0;
+  transition: opacity 0.04s ease-out;
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster__table-glitch--burst {
+  opacity: 1;
+  animation: dp-retro-table-glitch-jitter 0.35s steps(3) infinite;
+}
+
+@keyframes dp-retro-table-glitch-jitter {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  33% {
+    transform: translate(3px, -1px);
+  }
+  66% {
+    transform: translate(-2px, 2px);
+  }
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster__noise,
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster__bars {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster__noise {
+  opacity: 0.7;
+  background-image:
+    repeating-radial-gradient(circle at 12% 18%, rgba(255, 120, 220, 0.5) 0 0.4px, transparent 0.5px),
+    repeating-radial-gradient(circle at 78% 62%, rgba(120, 240, 255, 0.45) 0 0.35px, transparent 0.45px);
+  background-size: 3px 3px, 4px 4px;
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster__table-glitch--burst .dp-retro-glitch-monster__noise {
+  animation: dp-retro-table-glitch-noise 0.28s steps(4) infinite;
+}
+
+@keyframes dp-retro-table-glitch-noise {
+  50% {
+    background-position: 2px 1px, -1px 2px;
+    opacity: 0.92;
+  }
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster__bars {
+  opacity: 0.5;
+  mix-blend-mode: screen;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.2) 0 1px,
+    rgba(200, 255, 240, 0.14) 1px 2px,
+    transparent 2px 6px
+  );
+  background-size: 100% 6px;
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster__table-glitch--burst .dp-retro-glitch-monster__bars {
+  animation: dp-retro-table-glitch-bars 0.5s steps(2) infinite;
+}
+
+@keyframes dp-retro-table-glitch-bars {
+  50% {
+    background-position: 0 3px;
+    opacity: 0.72;
+  }
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster__flash {
+  position: absolute;
+  /* Above table-glitch noise within surface group; still below center cards/pot */
+  z-index: 1;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: opacity 0.12s ease-out;
+  will-change: opacity, transform;
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster__flash--in {
+  opacity: 1;
+  animation: dp-retro-monster-pop 0.18s ease-out 1;
+  animation-delay: calc(var(--monster-i, 0) * 0.045s);
+}
+
+@keyframes dp-retro-monster-pop {
+  0% {
+    transform: translate(-50%, -50%) scale(0.55);
+  }
+  70% {
+    transform: translate(-50%, -50%) scale(1.12);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster__anim {
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster__flash--in .dp-retro-glitch-monster__anim--walk-x {
+  animation: dp-retro-monster-walk-x var(--anim-dur, 0.85s) steps(4) var(--anim-delay, 0.25s) infinite;
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster__flash--in .dp-retro-glitch-monster__anim--bob-y {
+  animation: dp-retro-monster-bob-y var(--anim-dur, 0.75s) steps(3) var(--anim-delay, 0.25s) infinite;
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster__flash--in .dp-retro-glitch-monster__anim--spin {
+  animation: dp-retro-monster-spin var(--anim-dur, 1.4s) steps(8) var(--anim-delay, 0.25s) infinite;
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster__flash--in .dp-retro-glitch-monster__anim--fight {
+  animation: dp-retro-monster-fight var(--anim-dur, 0.55s) steps(4) var(--anim-delay, 0.25s) infinite;
+}
+
+@keyframes dp-retro-monster-walk-x {
+  0%,
+  100% {
+    transform: translateX(-12px);
+  }
+  50% {
+    transform: translateX(12px);
+  }
+}
+
+@keyframes dp-retro-monster-bob-y {
+  0%,
+  100% {
+    transform: translateY(5px);
+  }
+  50% {
+    transform: translateY(-11px);
+  }
+}
+
+@keyframes dp-retro-monster-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dp-retro-monster-fight {
+  0%,
+  100% {
+    transform: translateX(calc(var(--fight-dir, 1) * -3px)) rotate(calc(var(--fight-dir, 1) * -6deg));
+  }
+  25% {
+    transform: translateX(calc(var(--fight-dir, 1) * 10px)) rotate(calc(var(--fight-dir, 1) * 10deg)) scale(1.06);
+  }
+  50% {
+    transform: translateX(calc(var(--fight-dir, 1) * 14px)) rotate(calc(var(--fight-dir, 1) * -8deg));
+  }
+  75% {
+    transform: translateX(calc(var(--fight-dir, 1) * 6px)) rotate(calc(var(--fight-dir, 1) * 5deg));
+  }
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster__sprite {
+  display: block;
+  width: clamp(64px, 8vw, 96px);
+  height: clamp(64px, 8vw, 96px);
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  filter:
+    drop-shadow(0 0 6px rgba(255, 77, 216, 0.85))
+    drop-shadow(0 0 10px rgba(0, 229, 255, 0.45))
+    drop-shadow(0 2px 0 rgba(10, 12, 14, 0.95));
+}
+
+/* retroGlitchDebug=1: oversized sprite for manual QA */
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster--debug .dp-retro-glitch-monster__sprite {
+  width: clamp(120px, 14vw, 168px);
+  height: clamp(120px, 14vw, 168px);
+}
+
+.dp-game-root.dp-game-root--retro-desktop-fx .dp-retro-glitch-monster--debug .dp-retro-glitch-monster__flash--in {
+  opacity: 1 !important;
+}
+
+.dp-retro-ambient-scheduler {
+  display: none;
+}
+
+/* Hide stray retro FX when JS gate off — same vw band as hologram / seat rays (>600) */
+@media (min-width: 601px) {
+  .dp-game-root[data-dp-game-theme='retro8bit']:not(.dp-game-root--retro-desktop-fx) .dp-retro-table-fx,
+  .dp-game-root[data-dp-game-theme='retro8bit']:not(.dp-game-root--retro-desktop-fx) .dp-retro-glitch-monster,
+  .dp-game-root[data-dp-game-theme='retro8bit']:not(.dp-game-root--retro-desktop-fx) .dp-retro-stack-leader {
+    display: none !important;
+  }
+}

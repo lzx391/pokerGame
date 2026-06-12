@@ -10,6 +10,7 @@
     <game-spectator-modal
         :visible="vm.showSpectatorModal"
         :spectators="vm.spectators"
+        :players="vm.players"
         @close="$store.commit('dpGame/SET_MODAL', { showSpectatorModal: false })"
     />
     <game-wait-next-hand-modal
@@ -22,16 +23,6 @@
         :game-ui-theme="vm.effectiveThemeForCss"
         list-mode="mine"
         @close="$store.commit('dpGame/SET_MODAL', { showHandHistoryModal: false })"
-    />
-    <game-hand-history-modal
-        :visible="vm.showOpponentHandHistoryModal"
-        :game-ui-theme="vm.effectiveThemeForCss"
-        list-mode="withOpponent"
-        :other-user-id="vm.opponentHandHistoryOtherUserId"
-        :opponent-display-name="vm.opponentHandHistoryDisplayName"
-        @close="
-          $store.commit('dpGame/SET_MODAL', { showOpponentHandHistoryModal: false })
-        "
     />
     <game-music-box-modal
         :visible="vm.showMusicBoxModal"

@@ -22,7 +22,7 @@
 <script>
 import { getDealerAnchorViewportPoint } from '../utils/dpGameDealerAnchor'
 import { getCardClass, getCardDisplay } from '../utils/dpGameCardVisual'
-import { DP_DEAL_STAGGER_MS } from '../constants/dpGameDealTiming'
+import { dealStaggerMsForTheme } from '../constants/dpGameDealTiming'
 
 export default {
   name: 'GameCommunityCards',
@@ -44,6 +44,12 @@ export default {
   computed: {
     emptySlots() {
       return Math.max(0, 5 - this.communityCards.length)
+    },
+    gameUiTheme() {
+      return (this.dpGameView && this.dpGameView.gameUiTheme) || 'default'
+    },
+    dealStaggerMs() {
+      return dealStaggerMsForTheme(this.gameUiTheme)
     }
   },
   watch: {
@@ -67,8 +73,9 @@ export default {
           this.$nextTick(function () {
             self.dealOriginByIndex = self.computeDealOriginsFromDealer(oldLen, newLen)
             var n2 = {}
+            var stagger = self.dealStaggerMs
             for (var i = oldLen; i < newLen; i++) {
-              n2[i] = { delay: DP_DEAL_STAGGER_MS * (i - oldLen) }
+              n2[i] = { delay: stagger * (i - oldLen) }
             }
             self.dealFlyByIndex = n2
           })

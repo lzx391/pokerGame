@@ -101,9 +101,16 @@ public final class DpRoomHeartbeatScheduler {
                     callbacks.giveOwner(room.getRoomId(), p.getNickname());
                 }
                 System.out.println("未收到" + p.getNickname() + "的心跳,已移出房间");
+                if (!DpNpcEngine.isBotPlayer(p)) {
+                    callbacks.settleHumanOnLeaveSeat(room, p);
+                }
                 String hbNick = p.getNickname();
                 Integer hbUid = p.getDpUserId();
                 it.remove();
+                // 心跳踢人已从 players 摘除：优先按已知 userId 直写 IDLE，避免仅依赖 tryMarkIdle 的昵称解析
+                if (hbUid != null && hbUid > 0) {
+                    callbacks.presenceMarkIdleHuman(hbUid, "heartbeat_evict_player");
+                }
                 callbacks.presenceTryMarkIdleFullyLeft(hbNick, hbUid, room, "heartbeat_evict_player");
                 lobbyDirty = true;
             }
@@ -159,7 +166,7 @@ public final class DpRoomHeartbeatScheduler {
                 if (p.isLeftThisHand()) {
                     callbacks.moveToNextValidActor(room);
                     callbacks.autoAdvanceIfRoundFinished(room);
-                } else if (System.currentTimeMillis() - room.getLastActionTime() > DpRoomBO.getActionTimeout()) {
+                } else if (System.currentTimeMillis() - room.getLastActionTime() > room.getActionTimeoutMs()) {
                     p.setFold(true);
                     callbacks.moveToNextValidActor(room);
                     callbacks.autoAdvanceIfRoundFinished(room);

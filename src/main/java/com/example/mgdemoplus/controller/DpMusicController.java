@@ -2,9 +2,10 @@ package com.example.mgdemoplus.controller;
 
 import com.example.mgdemoplus.music.entity.DpMusicTrack;
 import com.example.mgdemoplus.music.DpMusicService;
+import com.example.mgdemoplus.storage.DpObjectStorage;
+import com.example.mgdemoplus.storage.DpWebPathSupport;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,7 +15,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
@@ -34,28 +34,8 @@ public class DpMusicController {
 
     @Autowired
     private DpMusicService dpMusicService;
-    @Value("${mgdemoplus.music.file-location:file:P:/javaworkspace/DPGameFiles/music/}")
-    private String musicFileLocation;
-
-    /**
-     * 将文件路径转换为物理路径
-     * 
-     * @param fileLocation
-     * @return
-     */
-    private static String toPhysicalDir(String fileLocation) {
-        if (fileLocation == null || fileLocation.isBlank()) {
-            return "P:/javaworkspace/DPGameFiles/music/";
-        }
-        String s = fileLocation.trim();
-        if (s.startsWith("file:")) {
-            s = s.substring(5);
-        }
-        if (!s.endsWith("/") && !s.endsWith("\\")) {
-            s = s + "/";
-        }
-        return s;
-    }
+    @Autowired
+    private DpObjectStorage objectStorage;
 
     /**
      * 获取文件扩展名
@@ -119,16 +99,13 @@ public class DpMusicController {
             return ResponseEntity.badRequest().body(Map.of("error", "仅支持 mp3、m4a、wav、ogg、flac"));
         }
 
-        String dir = toPhysicalDir(musicFileLocation);
-        File folder = new File(dir);
-        if (!folder.exists() && !folder.mkdirs()) {
-            return ResponseEntity.internalServerError().body(Map.of("error", "无法创建音乐目录"));
-        }
-
         String storedFilename = UUID.randomUUID() + ext;
-        file.transferTo(new File(dir + storedFilename));
-
-        String webPath = "/music/" + storedFilename;
+        String webPath = DpWebPathSupport.MUSIC_PREFIX + storedFilename;
+        try {
+            objectStorage.put(webPath, file.getInputStream(), file.getSize(), DpWebPathSupport.guessContentType(webPath));
+        } catch (IOException e) {
+            return ResponseEntity.internalServerError().body(Map.of("error", "保存文件失败"));
+        }
         String title = StringUtils.hasText(displayName)
                 ? displayName.trim()
                 : stripExtension(file.getOriginalFilename());

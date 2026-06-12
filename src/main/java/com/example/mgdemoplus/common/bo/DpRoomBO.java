@@ -36,6 +36,13 @@ public class DpRoomBO {
     @JsonIgnore
     private final Map<String, Integer> carryInChips = new HashMap<>();
 
+    /**
+     * 房间内每位真人玩家当前连胜手数（至少赢下本手任意底池的一份即计为赢）。
+     * 离座/退房时 flush 至 dp_user_stats.max_win_streak 后清除；key=昵称，不下发 JSON。
+     */
+    @JsonIgnore
+    private final Map<String, Integer> winStreakByNickname = new HashMap<>();
+
     // 德扑核心
     private String currentStage = "preflop";
     private List<String> communityCards = new ArrayList<>();
@@ -65,6 +72,14 @@ public class DpRoomBO {
     public static final int MAX_SEAT_COUNT = 9;
     public static final int DEFAULT_MAX_SEAT_COUNT = MAX_SEAT_COUNT;
 
+    /** 默认真人行动思考时间（秒）；合法区间 15～180，建房时可配置。 */
+    public static final int DEFAULT_THINK_TIME_SECONDS = 30;
+    public static final int MIN_THINK_TIME_SECONDS = 15;
+    public static final int MAX_THINK_TIME_SECONDS = 180;
+
+    /** 结算后准备阶段倒计时（毫秒）；与 {@link #thinkTimeSeconds} 无关。 */
+    public static final long READY_TIMEOUT_MS = 30_000L;
+
     /** 本桌小盲/大盲；逻辑与下注校验均使用实例值，不再使用静态全局盲注。 */
     private int smallBlindChips = DEFAULT_SMALL_BLIND_CHIPS;
     private int bigBlindChips = DEFAULT_BIG_BLIND_CHIPS;
@@ -86,11 +101,13 @@ public class DpRoomBO {
      */
     private int maxSeatCount = DEFAULT_MAX_SEAT_COUNT;
 
+    /** 真人每步行动思考上限（秒）；仅约束真人超时，Bot 路径不读此字段。 */
+    private int thinkTimeSeconds = DEFAULT_THINK_TIME_SECONDS;
+
     // 行动顺序
     private int lastDealerIndex =0;
     private int currentActorIndex = -1;
     private long lastActionTime = 0;
-    private static final int ACTION_TIMEOUT = 30000; // 30秒
     private static final int HEART_TIMEOUT = 20000; // 20秒
     private List<DpPot> pots = new ArrayList<>();
     // 等待在下一局加入的玩家昵称列表（当前局仅旁观）
@@ -121,6 +138,13 @@ public class DpRoomBO {
     private Map<String, DpPlayerStats> playerStatsMap = new HashMap<>();
 
     /**
+     * 房主预设的下一局牌堆前缀（按发牌顺序）；{@link com.example.mgdemoplus.room.impl.DpRoomServiceImpl#newHandWithoutLobbyUpsert}
+     * 消费一次后清空。不下发 JSON。
+     */
+    @JsonIgnore
+    private List<String> nextHandDeckPrefix;
+
+    /**
      * 当前这手牌的随机种子：用于让机器人在同一局内的随机行为可复现、跨多次调用共享。
      * 由服务层在 newHand 时生成。
      */
@@ -148,6 +172,19 @@ public class DpRoomBO {
      * 用于下一局从 wait 列表拉人上桌时补全 {@link DpPlayer#setDpUserId}，不参与房间 JSON。
      */
     private final ConcurrentHashMap<String, Integer> registeredDpUserIdByNickname = new ConcurrentHashMap<>();
+
+    /**
+     * 按已登记的 userId 反查昵称（仅内存登记，不含 dp_user 表）。
+     */
+    public String findRegisteredNicknameByUserId(int userId) {
+        for (Map.Entry<String, Integer> entry : registeredDpUserIdByNickname.entrySet()) {
+            Integer uid = entry.getValue();
+            if (uid != null && uid == userId) {
+                return entry.getKey();
+            }
+        }
+        return null;
+    }
 
     /**
      * 本桌机器人昵称共用递增序号（各档位与大模型 BOT 占位均占用）；房间内唯一，重启房间后归零。
@@ -230,7 +267,20 @@ public class DpRoomBO {
     public void setCurrentActorIndex(int currentActorIndex) { this.currentActorIndex = currentActorIndex; }
     public long getLastActionTime() { return lastActionTime; }
     public void setLastActionTime(long lastActionTime) { this.lastActionTime = lastActionTime; }
-    public static int getActionTimeout() { return ACTION_TIMEOUT; }
+
+    public int getThinkTimeSeconds() {
+        return thinkTimeSeconds;
+    }
+
+    public void setThinkTimeSeconds(int thinkTimeSeconds) {
+        this.thinkTimeSeconds = thinkTimeSeconds;
+    }
+
+    /** 真人行动超时判定用毫秒数（{@code thinkTimeSeconds × 1000}）。 */
+    public long getActionTimeoutMs() {
+        return (long) thinkTimeSeconds * 1000L;
+    }
+
     public List<DpPot> getPots() { return pots; }
     public void setPots(List<DpPot> pots) { this.pots = pots; }
     public List<String> getWaitNextHand() { return waitNextHand; }
@@ -299,6 +349,10 @@ public class DpRoomBO {
         this.maxSeatCount = maxSeatCount;
     }
 
+    public static boolean isThinkTimeSecondsInRange(int thinkTimeSeconds) {
+        return thinkTimeSeconds >= MIN_THINK_TIME_SECONDS && thinkTimeSeconds <= MAX_THINK_TIME_SECONDS;
+    }
+
     /** 加入房间时校验；未设密码时恒为 true。 */
     public boolean matchesRoomPassword(String attempt) {
         if (!isPasswordProtected()) {
@@ -334,6 +388,14 @@ public class DpRoomBO {
         this.currentHandSeed = currentHandSeed;
     }
 
+    public List<String> getNextHandDeckPrefix() {
+        return nextHandDeckPrefix;
+    }
+
+    public void setNextHandDeckPrefix(List<String> nextHandDeckPrefix) {
+        this.nextHandDeckPrefix = nextHandDeckPrefix;
+    }
+
     public List<String> getChipLeaderNicknames() {
         return chipLeaderNicknames;
     }
@@ -366,6 +428,10 @@ public class DpRoomBO {
 
     public Map<String, Integer> getCarryInChips() {
         return carryInChips;
+    }
+
+    public Map<String, Integer> getWinStreakByNickname() {
+        return winStreakByNickname;
     }
 
     public int getMyCarryInChips() {

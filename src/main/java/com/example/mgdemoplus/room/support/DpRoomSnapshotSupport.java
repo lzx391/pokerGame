@@ -68,15 +68,25 @@ public final class DpRoomSnapshotSupport {
     }
 
     public DpRoomBO getRoomSnapshotForViewer(String roomId, String viewerNickname) {
+        return getRoomSnapshotForViewer(roomId, viewerNickname, null);
+    }
+
+    public DpRoomBO getRoomSnapshotForViewer(String roomId, String viewerNickname, Integer viewerUserId) {
         DpRoomBO live = callbacks.getAllRooms(roomId);
         if (live == null) {
             return null;
         }
-        if (viewerNickname != null && !viewerNickname.trim().isEmpty()
-                && !callbacks.isNicknameInRoom(live, viewerNickname)) {
-            return null;
+        if (viewerNickname == null || viewerNickname.trim().isEmpty()) {
+            return snapshotForViewerFromLive(live, viewerNickname);
         }
-        return snapshotForViewerFromLive(live, viewerNickname);
+        String effectiveNick;
+        synchronized (live) {
+            effectiveNick = callbacks.resolveRoomActorNickname(live, viewerNickname, viewerUserId);
+            if (effectiveNick == null || !callbacks.isNicknameInRoom(live, effectiveNick)) {
+                return null;
+            }
+        }
+        return snapshotForViewerFromLive(live, effectiveNick);
     }
 /**
  * 裁剪json给不同视角的人看

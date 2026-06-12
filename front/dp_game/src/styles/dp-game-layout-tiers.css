@@ -33,7 +33,48 @@
   --dp-zoom-game: 1;
 }
 
+/*
+ * desktop：非全屏与全屏同一套紧凑底栏 + 锁一屏 flex；顶距收紧，避免主区被压扁导致牌桌过小。
+ */
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='desktop'] {
+  height: 100dvh;
+  height: 100svh;
+  --dp-game-main-pad-top: clamp(8px, 1.2vmin, 40px);
+  --dp-game-fs-extra-pad-top: 12px;
+  zoom: 0.9;
+}
+
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='desktop'] > .dp-game-layout {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: visible;
+}
+
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='desktop'] .dp-game-layout__main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='desktop'] .dp-game-layout__main.dp-game-layout__main--fit-table {
+  overflow-x: hidden;
+  overflow-y: visible;
+}
+
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='desktop'] .dp-game-layout__main.dp-game-layout__main--fit-table.dp-game-layout__main--settlement-scroll {
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
 #app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='tablet'] {
+  height: 100dvh;
+  height: 100svh;
   --dp-game-main-pad-top: clamp(8px, 1.6vmin, 40px);
   --dp-game-top-title-fs: 16px;
   --dp-game-top-sub-fs: 13px;
@@ -88,8 +129,18 @@ body.dp-game-no-scroll {
 #app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='tablet']:-webkit-full-screen,
 #app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='tablet']:-moz-full-screen,
 #app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='tablet'].dp-game-root--layout-fs {
-  zoom: 0.92;
+  --dp-zoom-game: 0.92;
+  zoom: var(--dp-zoom-game);
   --dp-game-fs-extra-pad-top: 10px;
+  /*
+   * zoom 会缩小布局占位（约 92% 视口高），未补偿时 #app 默认浅灰底从底部露出。
+   * 反算高度使缩放后仍铺满一屏。
+   */
+  height: calc(100dvh / var(--dp-zoom-game));
+  height: calc(100svh / var(--dp-zoom-game));
+  max-height: calc(100dvh / var(--dp-zoom-game));
+  max-height: calc(100svh / var(--dp-zoom-game));
+  min-height: calc(100dvh / var(--dp-zoom-game));
 }
 
 /* 圆桌占位高度：按档收紧 */

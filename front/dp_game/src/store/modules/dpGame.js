@@ -4,24 +4,13 @@ import { pickShowdownLeaderNicknames } from '../../utils/dpGameHandRank'
 import { dpDisplayNickname, isDpBotNickname } from '../../utils/dpDisplayNickname'
 import { readGameTheme, writeGameTheme } from '../../utils/dpGameTheme'
 import { readEcoMode, writeEcoMode } from '../../utils/dpGameEcoMode'
-import {
-  readCustomTheme,
-  writeCustomTheme,
-  normalizeAccentHex,
-  mergeCustomThemeVars,
-  normalizeOverrides
-} from '../../utils/dpGameCustomTheme'
-import { GAME_UI_THEMES, GAME_UI_THEME_IDS } from '../../constants/dpGameThemes'
+import { GAME_UI_THEMES } from '../../constants/dpGameThemes'
 import { dpGameStageDisplay } from '../../constants/dpCatThemeCopy'
 
 function initialState() {
-  var ct = readCustomTheme()
   return {
     gameUiTheme: readGameTheme(),
     ecoMode: readEcoMode(),
-    customThemeBase: ct.baseId,
-    customAccent: ct.accent,
-    customThemeOverrides: ct.overrides || {},
     gameThemeOptions: GAME_UI_THEMES,
     roomId: '',
     user: null,
@@ -93,11 +82,16 @@ function initialState() {
     ownerRevealAll: false,
     showMobileHandSheet: false,
     showMobileActionSheet: false,
+    showHeroHandHologram: false,
     heroHoleDealIntroDone: false,
     /** 后端 autoSettle 后写入的「场上积分并列最高」昵称，未结算过为空 */
     chipLeaderNicknames: [],
     /** 当前用户本段累计带入（快照字段 myCarryInChips） */
-    myCarryInChips: 0
+    myCarryInChips: 0,
+    /** 真人每步思考上限（秒）；与后端 thinkTimeSeconds 一致，默认 30 */
+    thinkTimeSeconds: 30,
+    /** 当前行动位起始时间（毫秒）；用于行动倒计时与后端对齐 */
+    lastActionTime: 0
   }
 }
 
@@ -310,21 +304,41 @@ export default {
     showBottomHeroDock: function (state, getters) {
       return getters.heroDockRow && state.stage !== 'preflop'
     },
-    /** 供 data-dp-game-theme：自定义时沿用预设底的 CSS 变量块 */
-    effectiveThemeForCss: function (state) {
-      if (state.gameUiTheme === 'custom') {
-        var b = state.customThemeBase
-        if (b && GAME_UI_THEME_IDS.indexOf(b) !== -1 && b !== 'custom') {
-          return b
+    /** 桌上实时筹码最多（未离座），并列返回全部 nickname */
+    liveTableChipLeaderNicks: function (state) {
+      var max = -1
+      var nicks = []
+      var players = state.players || []
+      for (var i = 0; i < players.length; i++) {
+        var p = players[i]
+        if (!p || p.leftThisHand) continue
+        var c = Number(p.chips)
+        if (!isFinite(c) || c < 0) c = 0
+        if (c > max) {
+          max = c
+          nicks = [p.nickname]
+        } else if (c === max && p.nickname) {
+          nicks.push(p.nickname)
         }
-        return 'default'
       }
-      return state.gameUiTheme || 'default'
+      return nicks
     },
-    /** 自定义时覆盖到 .dp-game-root 内联样式，与 body 上由 dpBodyGameTheme 同步的一致 */
-    customThemeInlineStyle: function (state) {
-      if (state.gameUiTheme !== 'custom') return {}
-      return mergeCustomThemeVars(null, state.customThemeOverrides)
+    liveTableChipLeaderMaxChips: function (state, getters) {
+      var nicks = getters.liveTableChipLeaderNicks
+      if (!nicks.length) return 0
+      var players = state.players || []
+      for (var i = 0; i < players.length; i++) {
+        var p = players[i]
+        if (p && nicks.indexOf(p.nickname) !== -1) {
+          var c = Number(p.chips)
+          return isFinite(c) && c >= 0 ? Math.floor(c) : 0
+        }
+      }
+      return 0
+    },
+    /** 供 data-dp-game-theme 绑定 */
+    effectiveThemeForCss: function (state) {
+      return state.gameUiTheme || 'default'
     }
   },
   mutations: {
@@ -335,27 +349,6 @@ export default {
     SET_GAME_UI_THEME: function (state, id) {
       state.gameUiTheme = id
       writeGameTheme(id)
-    },
-    SET_CUSTOM_THEME: function (state, payload) {
-      payload = payload || {}
-      if (payload.baseId != null) {
-        var bid = String(payload.baseId)
-        if (GAME_UI_THEME_IDS.indexOf(bid) !== -1 && bid !== 'custom') {
-          state.customThemeBase = bid
-        }
-      }
-      if (payload.accent != null) {
-        var ax = normalizeAccentHex(payload.accent)
-        if (ax) state.customAccent = ax
-      }
-      if (payload.overrides !== undefined) {
-        state.customThemeOverrides = normalizeOverrides(payload.overrides)
-      }
-      writeCustomTheme({
-        baseId: state.customThemeBase,
-        accent: state.customAccent,
-        overrides: state.customThemeOverrides
-      })
     },
     /** 仅用户手动切换；禁止 UA/PRM 自动调用 writeEcoMode（策略 B）。body 档位见 dpBodyFluidity.js */
     SET_ECO_MODE: function (state, on) {
@@ -401,6 +394,24 @@ export default {
         room.myCarryInChips != null && isFinite(Number(room.myCarryInChips))
           ? Math.max(0, Math.floor(Number(room.myCarryInChips)))
           : 0
+      if (room.thinkTimeSeconds != null && isFinite(Number(room.thinkTimeSeconds))) {
+        var think = Math.floor(Number(room.thinkTimeSeconds))
+        state.thinkTimeSeconds = think >= 15 && think <= 180 ? think : 30
+      }
+      if (room.lastActionTime != null && isFinite(Number(room.lastActionTime))) {
+        state.lastActionTime = Number(room.lastActionTime)
+      }
+    },
+    /** WS 指纹未变时仍刷新行动计时字段，供倒计时 resync */
+    SYNC_ACTION_COUNTDOWN_FIELDS: function (state, room) {
+      if (!room || typeof room !== 'object') return
+      if (room.thinkTimeSeconds != null && isFinite(Number(room.thinkTimeSeconds))) {
+        var thinkSec = Math.floor(Number(room.thinkTimeSeconds))
+        state.thinkTimeSeconds = thinkSec >= 15 && thinkSec <= 180 ? thinkSec : 30
+      }
+      if (room.lastActionTime != null && isFinite(Number(room.lastActionTime))) {
+        state.lastActionTime = Number(room.lastActionTime)
+      }
     },
     SET_LOADING: function (state, v) {
       state.loading = !!v
@@ -608,8 +619,18 @@ export default {
       if (payload.customBotAddedTip !== undefined) state.customBotAddedTip = payload.customBotAddedTip
     },
     SET_MOBILE_SHEETS: function (state, payload) {
-      if (payload.showMobileHandSheet !== undefined) state.showMobileHandSheet = payload.showMobileHandSheet
+      if (payload.showMobileHandSheet !== undefined) {
+        state.showMobileHandSheet = payload.showMobileHandSheet
+        if (payload.showMobileHandSheet) state.showHeroHandHologram = false
+      }
       if (payload.showMobileActionSheet !== undefined) state.showMobileActionSheet = payload.showMobileActionSheet
+    },
+    SET_HERO_HAND_HOLOGRAM: function (state, v) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[dp-hand-hologram] SET_HERO_HAND_HOLOGRAM', { value: !!v })
+      }
+      state.showHeroHandHologram = !!v
+      if (v) state.showMobileHandSheet = false
     },
     SET_HERO_HOLE_DEAL: function (state, v) {
       state.heroHoleDealIntroDone = !!v

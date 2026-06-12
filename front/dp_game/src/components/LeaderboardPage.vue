@@ -2,7 +2,6 @@
   <div
     class="dp-game-root"
     :data-dp-game-theme="effectiveThemeForCss"
-    :style="customThemeInlineStyle"
   >
     <div class="lb-page lb-page--dp">
       <header class="lb-page__header">
@@ -21,11 +20,7 @@
             <dp-theme-picker
               :game-ui-theme="gameUiTheme"
               :theme-options="gameThemeOptions"
-              :custom-theme-base="customThemeBase"
-              :custom-theme-overrides="customThemeOverrides"
               @input-theme="onLobbyThemeChange($event)"
-              @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
-              @custom-overrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
             />
             <dp-fluidity-toggle />
           </div>
@@ -57,26 +52,129 @@
       </div>
 
       <div class="lb-page__body">
-        <p v-if="loading" class="lb-page__status">加载中…</p>
+        <p
+          v-if="loading && !retroLbFx"
+          class="lb-page__status"
+        >加载中…</p>
+        <div
+          v-else-if="loading && retroLbFx"
+          class="lb-scan-skeleton"
+          aria-busy="true"
+          aria-label="Scanning leaderboard"
+        >
+          <div class="lb-scan-skeleton__beam" aria-hidden="true" />
+          <table class="lb-table">
+            <thead>
+              <tr>
+                <th class="lb-table__col-rank">RANK</th>
+                <th class="lb-table__col-nick">PLAYER</th>
+                <th class="lb-table__col-mult">MULT</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(sk, skIdx) in scanSkeletonRows"
+                :key="'sk-' + skIdx"
+              >
+                <td class="lb-table__rank">
+                  <span class="lb-table__rank-num lb-table__pixel-en">{{ sk.rank }}</span>
+                </td>
+                <td class="lb-table__nick">
+                  <span class="lb-table__pixel-en">{{ sk.nick }}</span>
+                </td>
+                <td class="lb-table__mult">
+                  <span class="lb-table__pixel-en">{{ sk.mult }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
         <p v-else-if="loadError" class="lb-page__error">{{ loadError }}</p>
         <template v-else>
           <p v-if="!items.length" class="lb-page__empty">
             {{ emptyMessage }}
           </p>
-          <div v-else class="lb-table-wrap">
+          <div
+            v-else
+            class="lb-table-wrap"
+            :class="tableWrapClasses"
+          >
+            <div
+              v-if="retroLbFx"
+              class="lb-table-wrap__glitch-noise"
+              aria-hidden="true"
+            />
+            <div
+              v-if="retroLbFx"
+              class="lb-table-wrap__glitch-bars"
+              aria-hidden="true"
+            />
+            <div
+              v-if="retroLbFx"
+              class="lb-table-wrap__scan-beam"
+              aria-hidden="true"
+            />
             <table class="lb-table">
               <thead>
                 <tr>
-                  <th class="lb-table__col-rank">名次</th>
-                  <th class="lb-table__col-nick">昵称</th>
-                  <th class="lb-table__col-mult">倍数</th>
+                  <th class="lb-table__col-rank">{{ retroLbFx ? 'RANK' : '名次' }}</th>
+                  <th class="lb-table__col-nick">{{ retroLbFx ? 'PLAYER' : '昵称' }}</th>
+                  <th class="lb-table__col-mult">{{ retroLbFx ? 'MULT' : '倍数' }}</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(row, idx) in items" :key="row.userId + '-' + idx">
-                  <td class="lb-table__rank">{{ row.rank }}</td>
-                  <td class="lb-table__nick">{{ row.nickname || '—' }}</td>
-                  <td class="lb-table__mult">{{ formatMultiplier(row.multiplier) }}</td>
+                <tr
+                  v-for="(row, idx) in items"
+                  :key="row.userId + '-' + idx + '-' + scanRevealKey"
+                  :class="podiumRowClass(row.rank)"
+                  :style="scanRowStyle(idx)"
+                >
+                  <td class="lb-table__rank">
+                    <span class="lb-table__rank-cell">
+                      <svg
+                        v-if="isPodiumRank(row.rank)"
+                        class="lb-table__crown"
+                        :class="'lb-table__crown--' + podiumTier(row.rank)"
+                        width="18"
+                        height="14"
+                        viewBox="0 0 18 14"
+                        fill="currentColor"
+                        aria-hidden="true"
+                        focusable="false"
+                      >
+                        <path d="M2 12h14v2H2v-2zm1.5-2L5.5 2 8 6.2 10 1l2 5.2L13.5 2 16.5 10H3.5z" />
+                      </svg>
+                      <span
+                        class="lb-table__rank-num"
+                        :class="{ 'lb-table__pixel-en': retroLbFx }"
+                      >{{ formatRankLabel(row.rank) }}</span>
+                    </span>
+                  </td>
+                  <td class="lb-table__nick">
+                    <button
+                      type="button"
+                      class="lb-table__profile-btn"
+                      :class="{ 'lb-table__nick-podium': isPodiumRank(row.rank) }"
+                      :aria-label="'查看 ' + displayNickname(row.nickname) + ' 的资料'"
+                      @click="onRowProfileClick(row)"
+                    >
+                      <dp-user-avatar
+                        v-if="isPodiumRank(row.rank)"
+                        :avatar-url="row.avatarUrl"
+                        :nickname="row.nickname"
+                        :cache-bust="avatarCacheBustFromUpdatedAt(row.avatarUpdatedAt)"
+                        size="sm"
+                        img-loading="lazy"
+                      />
+                      <span
+                        class="lb-table__nick-text"
+                        :class="leaderboardNickFontClass(row.nickname, row.rank)"
+                      >{{ displayNickname(row.nickname) }}</span>
+                    </button>
+                  </td>
+                  <td class="lb-table__mult">
+                    <span :class="{ 'lb-table__pixel-en': retroLbFx }">{{ formatMultiplier(row.multiplier) }}</span>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -97,22 +195,64 @@
         <span v-else class="lb-page__footer-muted">登录后查看我的名次</span>
       </footer>
     </div>
+
+    <home-profile-modal :visible.sync="profileVisible" />
+
+    <game-player-social-sheet
+      v-if="playerSocialOpen && playerSocialTarget"
+      :visible="true"
+      :target="playerSocialTarget"
+      @close="closePlayerSocialSheet"
+      @view-hand-history-with-opponent="openOpponentHandHistoryFromSocial"
+    />
+
+    <game-hand-history-modal
+      :visible="opponentHandHistoryOpen"
+      list-mode="withOpponent"
+      stacked
+      :other-user-id="opponentHandHistoryUserId"
+      :opponent-display-name="opponentHandHistoryDisplayName"
+      :game-ui-theme="gameUiTheme"
+      @close="closeOpponentHandHistoryModal"
+    />
   </div>
 </template>
 
 <script>
 import '@/styles/dp-game-themes.css'
 import '@/styles/dp-lobby-shell.css'
+import '@/styles/dp-leaderboard-scan.css'
+import { mapState } from 'vuex'
 import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import DpFluidityToggle from '@/components/DpFluidityToggle.vue'
+import DpUserAvatar from '@/components/DpUserAvatar.vue'
+import HomeProfileModal from '@/components/HomeProfileModal.vue'
+import GamePlayerSocialSheet from '@/components/GamePlayerSocialSheet.vue'
+import GameHandHistoryModal from '@/components/GameHandHistoryModal.vue'
 import { getWeeklyHandLeaderboard, getWeeklyRoomLeaderboard } from '@/api/api.dpLeaderboard'
+import { dpSocialApi } from '@/api/api.dpSocial'
 import { dpResultSuccess, dpResultData, dpResultMessage, dpAxiosErrorMessage } from '@/utils/dpApiResult'
+import { avatarCacheBustFromUpdatedAt } from '@/utils/dpAvatarUrl'
+import { dpDisplayNickname, isDpBotNickname } from '@/utils/dpDisplayNickname'
+import { shouldUsePixelFont } from '@/utils/dpNicknameFont'
 
 var TAB_CACHE_MS = 30000
+var SCAN_ROW_STAGGER_MS = 48
+var SCAN_BASE_MS = 440
+var GLITCH_BURST_MS = 100
+var SKELETON_ROW_COUNT = 8
+var SCAN_SKELETON_RANKS = ['#--', '#--', '#--', '#--', '#--', '#--', '#--', '#--']
+var SCAN_SKELETON_NICKS = ['SCAN...', 'LOAD...', 'WAIT...', 'SYNC...', 'SCAN...', 'LOAD...', 'WAIT...', 'SYNC...']
 
 export default {
   name: 'LeaderboardPage',
-  components: { DpFluidityToggle },
+  components: {
+    DpFluidityToggle,
+    DpUserAvatar,
+    HomeProfileModal,
+    GamePlayerSocialSheet,
+    GameHandHistoryModal
+  },
   mixins: [dpLobbyThemeMixin],
   data() {
     return {
@@ -126,13 +266,73 @@ export default {
       loading: false,
       loadError: '',
       isLoggedIn: false,
+      user: {},
+      profileVisible: false,
+      playerSocialOpen: false,
+      playerSocialTarget: null,
+      opponentHandHistoryOpen: false,
+      opponentHandHistoryUserId: null,
+      opponentHandHistoryDisplayName: '',
+      prefersReducedMotion: false,
+      scanRevealKey: 0,
+      scanActive: false,
+      panelGlitchBurst: false,
+      _scanDoneTimer: null,
+      _glitchTimer: null,
       /** @type {Record<string, { at: number, payload: object }>} */
       tabCache: {}
+    }
+  },
+  computed: {
+    ...mapState('dpGame', ['ecoMode']),
+    retroLbFx() {
+      return (
+        this.gameUiTheme === 'retro8bit' &&
+        !this.ecoMode &&
+        !this.prefersReducedMotion
+      )
+    },
+    scanSkeletonRows() {
+      var rows = []
+      for (var i = 0; i < SKELETON_ROW_COUNT; i++) {
+        rows.push({
+          rank: SCAN_SKELETON_RANKS[i] || '#--',
+          nick: SCAN_SKELETON_NICKS[i] || 'SCAN...',
+          mult: '×--.--'
+        })
+      }
+      return rows
+    },
+    tableWrapClasses() {
+      return {
+        'lb-table-wrap--fx': this.retroLbFx,
+        'lb-table-wrap--scan-active': this.retroLbFx && this.scanActive,
+        'lb-table-wrap--glitch-burst': this.retroLbFx && this.panelGlitchBurst
+      }
     }
   },
   created() {
     this.readLoginState()
     this.fetchBoard(this.activeTab, false)
+  },
+  mounted() {
+    this.syncReducedMotion()
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      var mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+      var self = this
+      var onChange = function () {
+        self.syncReducedMotion()
+      }
+      if (mq.addEventListener) mq.addEventListener('change', onChange)
+      else if (mq.addListener) mq.addListener(onChange)
+    }
+  },
+  beforeDestroy() {
+    this.clearScanTimer()
+    if (this._glitchTimer) {
+      clearTimeout(this._glitchTimer)
+      this._glitchTimer = null
+    }
   },
   methods: {
     readLoginState() {
@@ -140,27 +340,185 @@ export default {
         var raw = localStorage.getItem('userInfo')
         if (!raw) {
           this.isLoggedIn = false
+          this.user = {}
           return
         }
         var u = JSON.parse(raw)
+        this.user = u || {}
         this.isLoggedIn = !!(u && u.token)
       } catch (e) {
         this.isLoggedIn = false
+        this.user = {}
       }
+    },
+    onRowProfileClick(row) {
+      if (!row || !row.nickname) return
+      if (isDpBotNickname(row.nickname)) {
+        this.$message.info('机器人不支持该功能')
+        return
+      }
+      this.openPlayerSocialProfile({ nickname: row.nickname, userId: row.userId })
+    },
+    async openPlayerSocialProfile(payload) {
+      var nickname = payload && payload.nickname
+      if (!nickname) return
+
+      if (this.user && nickname === this.user.nickname) {
+        this.profileVisible = true
+        return
+      }
+
+      var uid = payload && payload.userId != null ? Number(payload.userId) : 0
+      if (!uid || uid <= 0 || isNaN(uid)) {
+        try {
+          var res = await dpSocialApi(this.$http).lookupUser(String(nickname))
+          if (dpResultSuccess(res.data)) {
+            var user = (dpResultData(res.data) || {}).user
+            var looked = user && user.userId != null ? Number(user.userId) : 0
+            if (looked > 0 && !isNaN(looked)) uid = looked
+          }
+        } catch (e) {
+          /* 静默 */
+        }
+      }
+
+      if (!uid || uid <= 0 || isNaN(uid)) {
+        this.$message.warning('无法获取该玩家的账号信息')
+        return
+      }
+
+      this.playerSocialTarget = { nickname: nickname, userId: uid }
+      this.playerSocialOpen = true
+    },
+    closePlayerSocialSheet() {
+      this.playerSocialOpen = false
+      this.playerSocialTarget = null
+    },
+    openOpponentHandHistoryFromSocial(payload) {
+      if (!payload || payload.userId == null || payload.userId === '') return
+      var uid = Number(payload.userId)
+      if (!uid || uid <= 0 || isNaN(uid)) return
+      this.opponentHandHistoryUserId = uid
+      this.opponentHandHistoryDisplayName = payload.displayName || ''
+      this.opponentHandHistoryOpen = true
+    },
+    closeOpponentHandHistoryModal() {
+      this.opponentHandHistoryOpen = false
+      this.opponentHandHistoryUserId = null
+      this.opponentHandHistoryDisplayName = ''
     },
     goBack() {
       this.$router.push('/home')
     },
+    syncReducedMotion() {
+      if (typeof window === 'undefined' || !window.matchMedia) {
+        this.prefersReducedMotion = false
+        return
+      }
+      this.prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    },
+    displayNickname(nickname) {
+      var text = dpDisplayNickname(nickname)
+      return text || (this.retroLbFx ? 'UNKNOWN' : '—')
+    },
+    leaderboardNickFontClass(nickname, rank) {
+      var classes = {}
+      if (!this.isPodiumRank(rank)) {
+        classes['lb-table__nick-text--plain'] = true
+      }
+      if (this.gameUiTheme !== 'retro8bit') return classes
+      if (shouldUsePixelFont(nickname)) {
+        classes['lb-table__pixel-en'] = true
+      } else {
+        classes['dp-nick-font--terminal'] = true
+      }
+      return classes
+    },
+    formatRankLabel(rank) {
+      if (!this.retroLbFx) return rank
+      if (rank == null || rank === '') return '#--'
+      var n = Number(rank)
+      if (!Number.isFinite(n)) return '#--'
+      return '#' + String(n).padStart(2, '0')
+    },
+    scanRowStyle(idx) {
+      if (!this.retroLbFx || !this.scanActive) return null
+      return { '--lb-scan-delay': idx * SCAN_ROW_STAGGER_MS + 'ms' }
+    },
+    clearScanTimer() {
+      if (this._scanDoneTimer) {
+        clearTimeout(this._scanDoneTimer)
+        this._scanDoneTimer = null
+      }
+    },
+    scheduleScanReveal() {
+      this.clearScanTimer()
+      if (!this.retroLbFx || !this.items.length) {
+        this.scanActive = false
+        return
+      }
+      this.scanActive = false
+      var self = this
+      this.$nextTick(function () {
+        self.scanRevealKey++
+        self.scanActive = true
+        var duration = SCAN_BASE_MS + self.items.length * SCAN_ROW_STAGGER_MS + 60
+        self._scanDoneTimer = setTimeout(function () {
+          self.scanActive = false
+          self._scanDoneTimer = null
+        }, duration)
+      })
+    },
+    runPanelGlitchThen(fn) {
+      if (this._glitchTimer) {
+        clearTimeout(this._glitchTimer)
+        this._glitchTimer = null
+      }
+      if (!this.retroLbFx) {
+        if (typeof fn === 'function') fn()
+        return
+      }
+      this.panelGlitchBurst = true
+      var self = this
+      this._glitchTimer = setTimeout(function () {
+        self.panelGlitchBurst = false
+        self._glitchTimer = null
+        if (typeof fn === 'function') fn()
+      }, GLITCH_BURST_MS)
+    },
     switchTab(tab) {
       if (tab === this.activeTab) return
       this.activeTab = tab
-      this.fetchBoard(tab, true)
+      var self = this
+      if (tab === 'room' && this.retroLbFx) {
+        this.runPanelGlitchThen(function () {
+          self.fetchBoard(tab, true)
+        })
+      } else {
+        this.fetchBoard(tab, true)
+      }
     },
     formatMultiplier(value) {
       if (value == null || value === '') return '—'
       var n = Number(value)
       if (!Number.isFinite(n)) return '—'
       return '×' + n.toFixed(2)
+    },
+    avatarCacheBustFromUpdatedAt: avatarCacheBustFromUpdatedAt,
+    isPodiumRank(rank) {
+      return rank === 1 || rank === 2 || rank === 3
+    },
+    podiumTier(rank) {
+      if (rank === 1) return 'gold'
+      if (rank === 2) return 'silver'
+      if (rank === 3) return 'bronze'
+      return ''
+    },
+    podiumRowClass(rank) {
+      if (rank === 1) return 'lb-table__row--podium-gold'
+      if (rank === 2) return 'lb-table__row--podium-silver'
+      if (rank === 3) return 'lb-table__row--podium-bronze'
+      return ''
     },
     applyPayload(data) {
       this.items = Array.isArray(data.items) ? data.items : []
@@ -189,12 +547,14 @@ export default {
       if (useCache) {
         var cached = this.getCached(tab)
         if (cached) {
-          this.applyPayload(cached)
-          this.loadError = ''
           this.loading = false
+          this.loadError = ''
+          this.applyPayload(cached)
+          this.scheduleScanReveal()
           return
         }
       }
+      this.scanActive = false
       this.loading = true
       this.loadError = ''
       try {
@@ -217,6 +577,9 @@ export default {
         this.items = []
       } finally {
         this.loading = false
+        if (!this.loadError) {
+          this.scheduleScanReveal()
+        }
       }
     }
   }
@@ -358,7 +721,7 @@ export default {
   border-bottom: none;
 }
 .lb-table__col-rank {
-  width: 72px;
+  width: clamp(56px, 14vw, 80px);
 }
 .lb-table__col-mult {
   width: 100px;
@@ -366,6 +729,98 @@ export default {
 }
 .lb-table__rank {
   font-weight: 600;
+  color: var(--dp-text-primary, #303133);
+}
+.lb-table__rank-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.lb-table__crown {
+  flex-shrink: 0;
+  display: block;
+}
+.lb-table__crown--gold {
+  color: var(--dp-lb-podium-gold);
+}
+.lb-table__crown--silver {
+  color: var(--dp-lb-podium-silver);
+}
+.lb-table__crown--bronze {
+  color: var(--dp-lb-podium-bronze);
+}
+.lb-table__rank-num {
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.lb-table__profile-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.lb-table__profile-btn:hover,
+.lb-table__profile-btn:focus-visible {
+  opacity: 0.88;
+  text-decoration: underline;
+}
+.lb-table__profile-btn:focus-visible {
+  outline: 2px solid var(--dp-accent, #409eff);
+  outline-offset: 2px;
+}
+.lb-table__nick-podium {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.lb-table__nick-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.lb-table__nick-text--plain {
+  font-weight: inherit;
+}
+.lb-table__row--podium-gold td {
+  background: var(--dp-lb-podium-row-bg-gold);
+  box-shadow: inset 4px 0 0 var(--dp-lb-podium-gold);
+}
+.lb-table__row--podium-gold .lb-table__rank,
+.lb-table__row--podium-gold .lb-table__nick-text {
+  color: var(--dp-lb-podium-gold);
+}
+.lb-table__row--podium-silver td {
+  background: var(--dp-lb-podium-row-bg-silver);
+  box-shadow: inset 4px 0 0 var(--dp-lb-podium-silver);
+}
+.lb-table__row--podium-silver .lb-table__rank,
+.lb-table__row--podium-silver .lb-table__nick-text {
+  color: var(--dp-lb-podium-silver);
+}
+.lb-table__row--podium-bronze td {
+  background: var(--dp-lb-podium-row-bg-bronze);
+  box-shadow: inset 4px 0 0 var(--dp-lb-podium-bronze);
+}
+.lb-table__row--podium-bronze .lb-table__rank,
+.lb-table__row--podium-bronze .lb-table__nick-text {
+  color: var(--dp-lb-podium-bronze);
+}
+.lb-table__row--podium-gold .lb-table__mult,
+.lb-table__row--podium-silver .lb-table__mult,
+.lb-table__row--podium-bronze .lb-table__mult {
   color: var(--dp-text-primary, #303133);
 }
 .lb-table__mult {

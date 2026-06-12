@@ -16,7 +16,9 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         "com.example.mgdemoplus.roomchat.mapper",
         "com.example.mgdemoplus.social.mapper",
         "com.example.mgdemoplus.user.mapper",
-        "com.example.mgdemoplus.leaderboard.mapper"
+        "com.example.mgdemoplus.leaderboard.mapper",
+        "com.example.mgdemoplus.achievement.mapper",
+        "com.example.mgdemoplus.oauth.mapper"
 })
 @EnableScheduling
 public class MgDemoPlusApplication {
@@ -24,8 +26,8 @@ public class MgDemoPlusApplication {
     
     private static final String[] DPGAME_BANNER = {
             "",
-            " ██████╗ ██████╗   ██████╗   █████╗ ███╗   ███╗███████╗",
-            " ██╔══██╗██╔══██╗ ██╔════╝  ██╔══██╗████╗ ████║██╔════╝",
+            " ██████╗ ██████╗   ██████╗  █████╗ ███╗   ███╗███████╗",
+            " ██╔══██╗██╔══██╗ ██╔════╝ ██╔══██╗████╗ ████║██╔════╝",
             " ██║  ██║██████╔╝██║  ███╗ ███████║██╔████╔██║█████╗  ",
             " ██║  ██║██╔═══╝ ██║   ██║ ██╔══██║██║╚██╔╝██║██╔══╝  ",
             " ██████╔╝██║     ╚██████╔╝ ██║  ██║██║ ╚═╝ ██║███████╗",

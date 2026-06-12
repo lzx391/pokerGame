@@ -103,7 +103,8 @@ public final class DpRoomQuickMatchPairingHost implements DpQuickMatchPairingHos
                 DpRoomQuickMatchBridge.DEFAULT_QM_BB,
                 DpRoomQuickMatchBridge.DEFAULT_QM_STARTING_BB,
                 null,
-                DpRoomQuickMatchBridge.DEFAULT_QM_MAX_SEATS);
+                DpRoomQuickMatchBridge.DEFAULT_QM_MAX_SEATS,
+                DpRoomBO.DEFAULT_THINK_TIME_SECONDS);
     }
 
     @Override

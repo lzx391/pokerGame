@@ -1,8 +1,10 @@
 /** 后端牌格式: "hearts_A", "spades_10" — 展示用 */
 
-export function getCardDisplay(c) {
+export function getCardDisplay(c, opts) {
   if (!c || !c.includes('_')) return '?'
-  return c.split('_')[1]
+  var rank = c.split('_')[1]
+  if (opts && opts.tenChar && rank === '10') return opts.tenChar
+  return rank
 }
 
 export function getCardClass(c) {

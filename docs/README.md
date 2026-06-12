@@ -68,6 +68,15 @@
 
 ---
 
+## 成就系统
+
+| 文档 | 简介 | 负责 Agent |
+|------|------|------------|
+| [achievement-system-delivery.md](achievement-system-delivery.md) | 8 项成就交付：API、Flyway、检测入口、前端入口 | — |
+| [refactor/achievement-semantics-plan.md](refactor/achievement-semantics-plan.md) | P0 判定语义修订：≥6 人、天灾连追、净赢等验收口径 | — |
+
+---
+
 ## Redis
 
 | 文档 | 简介 | 负责 Agent |

@@ -55,7 +55,7 @@ sequenceDiagram
 | 阶段 | 行为 |
 |------|------|
 | 翻前 `preflop` | **仅** `DpNpcUnifiedPreflopStrategy.decide(...)`；非 null 即返回 |
-| 翻后 | `estimateCurrentStrength` + `buildSmartContext`（按类型选用）→ `switch (BotType)` 委托策略类 |
+| 翻后 | `estimateCurrentHandSnapshot` + `buildSmartContext(handSnapshot)` → `switch (BotType)` 委托策略类 |
 
 全局开关：
 
@@ -73,7 +73,7 @@ sequenceDiagram
 | `DpNpcEngine` | 入口、Bot 识别、翻前路由、SmartContext、HandPlan 框架 |
 | `DpNpcUnifiedPreflopStrategy` | G1–G8 + 13×13 矩阵 |
 | `DpNpc*Strategy` | 各 archetype 翻后 |
-| `DpUtilHandEvaluator` | `SimpleStrength` / `HandStrength` |
+| `DpUtilHandEvaluator` | `HandStrength`（展示轨） |
 | `DpUtilSmartContext` | 翻后 DTO |
 | `DpLlmNpcDecisionService` | LLM（见 npc-llm 分册） |
 

@@ -2,11 +2,13 @@ package com.example.mgdemoplus.room.impl;
 
 import com.example.mgdemoplus.room.DpRoomService;
 import com.example.mgdemoplus.room.KickPlayersBatchResult;
+import com.example.mgdemoplus.room.support.DpExperimentalDeckPresetPasswordGuard;
 import com.example.mgdemoplus.room.support.DpRoomHeartbeatScheduler;
 import com.example.mgdemoplus.room.support.DpRoomHumanCounts;
 import com.example.mgdemoplus.room.support.DpRoomLobbySync;
 import com.example.mgdemoplus.room.support.DpRoomMutationEffect;
 import com.example.mgdemoplus.room.support.DpRoomQuickMatchBridge;
+import com.example.mgdemoplus.room.support.DpMaxWinStreakFlush;
 import com.example.mgdemoplus.room.support.DpSettlePersistJob;
 import com.example.mgdemoplus.room.support.DpSettlePersistenceDispatcher;
 import com.example.mgdemoplus.room.support.DpSettleStatsIncrement;
@@ -40,6 +42,7 @@ import com.example.mgdemoplus.npc.mood.NpcMoodState;
 import com.example.mgdemoplus.npc.tabletalk.DpNpcTableTalkService;
 import com.example.mgdemoplus.npc.llm.LlmNpcGlobalHandConversationStore;
 import com.example.mgdemoplus.utils.ResultUtil;
+import com.example.mgdemoplus.utils.DpDeckUtil;
 import com.example.mgdemoplus.utils.DpUtilHandEvaluator;
 import com.example.mgdemoplus.roomchat.buffer.RoomChatBuffer;
 import com.example.mgdemoplus.roomchat.DpRoomChatPersistenceService;
@@ -89,6 +92,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     private final DpFriendPresenceService friendPresence;
     private final RoomChatBuffer roomChatBuffer;
     private final DpRoomChatPersistenceService roomChatPersistenceService;
+    private final DpExperimentalDeckPresetPasswordGuard experimentalDeckPresetPasswordGuard;
 
     // 统一从 NPC 引擎中获取机器人昵称，避免散落魔法字符串
     public boolean addDemoBotToNextHand(String roomId) {
@@ -297,7 +301,8 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
             DpFriendPresenceService friendPresence,
             RoomChatBuffer roomChatBuffer,
             DpRoomChatPersistenceService roomChatPersistenceService,
-            com.example.mgdemoplus.moderation.DpSensitiveWordService sensitiveWordService) {
+            com.example.mgdemoplus.moderation.DpSensitiveWordService sensitiveWordService,
+            DpExperimentalDeckPresetPasswordGuard experimentalDeckPresetPasswordGuard) {
         this.observedHandPersistService = observedHandPersistService;
         this.settlePersistenceDispatcher = settlePersistenceDispatcher;
         this.llmNpcDecisionService = llmNpcDecisionService;
@@ -315,6 +320,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         this.friendPresence = friendPresence;
         this.roomChatBuffer = roomChatBuffer;
         this.roomChatPersistenceService = roomChatPersistenceService;
+        this.experimentalDeckPresetPasswordGuard = experimentalDeckPresetPasswordGuard;
         this.lobbySync = new DpRoomLobbySync(
                 registry,
                 joinableQuickMatchRoomIndex,
@@ -400,6 +406,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
                 default:
                     break;
             }
+            //独立于决策，仅根据决策结果进行台词推送
             npcTableTalkService.afterNpcActionSucceeded(room, p, action);
         }
     }
@@ -415,6 +422,16 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         }
         Collections.shuffle(deck);
         return deck;
+    }
+
+    /** 若房主已预设下一局前缀则应用并清空；否则纯随机洗牌。 */
+    private List<String> buildDeckForNewHand(DpRoomBO r) {
+        List<String> prefix = r.getNextHandDeckPrefix();
+        if (prefix != null && !prefix.isEmpty()) {
+            r.setNextHandDeckPrefix(null);
+            return DpDeckUtil.shuffleDeckWithPrefix(prefix);
+        }
+        return newDeck();
     }
 
     private void syncLobbyForRoomId(String roomId) {
@@ -483,6 +500,86 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         }
         refreshJoinableQmIndexThenSyncLobby(roomId);
         return true;
+    }
+
+    @Override
+    public ResultUtil verifyExperimentalDeckPassword(String roomId, String requesterNickname, String experimentalPassword) {
+        DpRoomBO r = roomMap.get(roomId);
+        if (r == null) {
+            return ResultUtil.error().data("message", "房间不存在");
+        }
+        if (!isRoomOwnerNickname(roomId, requesterNickname)) {
+            return ResultUtil.error().data("message", "仅房主可访问实验排牌");
+        }
+        ResultUtil gate = experimentalDeckPresetPasswordGuard.gate(experimentalPassword);
+        if (gate != null) {
+            return gate;
+        }
+        return ResultUtil.ok().data("message", "访问密码验证通过");
+    }
+
+    @Override
+    public ResultUtil setNextHandDeckPrefix(String roomId, String requesterNickname, List<String> cards, String experimentalPassword) {
+        DpRoomBO r = roomMap.get(roomId);
+        if (r == null) {
+            return ResultUtil.error().data("message", "房间不存在");
+        }
+        if (!isRoomOwnerNickname(roomId, requesterNickname)) {
+            return ResultUtil.error().data("message", "仅房主可预设牌序");
+        }
+        ResultUtil gate = experimentalDeckPresetPasswordGuard.gate(experimentalPassword);
+        if (gate != null) {
+            return gate;
+        }
+        List<String> normalized = new ArrayList<>();
+        if (cards != null) {
+            for (String c : cards) {
+                if (c != null && !c.isBlank()) {
+                    normalized.add(c.trim());
+                }
+            }
+        }
+        String validationError = DpDeckUtil.validatePrefix(normalized);
+        if (validationError != null) {
+            return ResultUtil.error().data("message", validationError);
+        }
+        synchronized (r) {
+            if (!isRoomOwnerNickname(roomId, requesterNickname)) {
+                return ResultUtil.error().data("message", "仅房主可预设牌序");
+            }
+            if (normalized.isEmpty()) {
+                r.setNextHandDeckPrefix(null);
+            } else {
+                r.setNextHandDeckPrefix(new ArrayList<>(normalized));
+            }
+        }
+        return ResultUtil.ok()
+                .data("presetCount", normalized.size())
+                .data("message", normalized.isEmpty() ? "已清空下局牌序预设" : "已预设 " + normalized.size() + " 张，下局生效");
+    }
+
+    @Override
+    public ResultUtil getNextHandDeckPrefixStatus(String roomId, String requesterNickname, String experimentalPassword) {
+        DpRoomBO r = roomMap.get(roomId);
+        if (r == null) {
+            return ResultUtil.error().data("message", "房间不存在");
+        }
+        if (!isRoomOwnerNickname(roomId, requesterNickname)) {
+            return ResultUtil.error().data("message", "仅房主可查询牌序预设");
+        }
+        ResultUtil gate = experimentalDeckPresetPasswordGuard.gate(experimentalPassword);
+        if (gate != null) {
+            return gate;
+        }
+        List<String> prefix;
+        synchronized (r) {
+            prefix = r.getNextHandDeckPrefix();
+        }
+        List<String> cardsCopy = prefix != null ? new ArrayList<>(prefix) : new ArrayList<>();
+        return ResultUtil.ok()
+                .data("presetCount", cardsCopy.size())
+                .data("cards", cardsCopy)
+                .data("canSet", true);
     }
 
     private static final class GiveOwnerMutationOutcome {
@@ -787,7 +884,7 @@ ownerFieldChanged：房主字段是否发生变化。
 
     public DpRoomBO createRoom(String ownerNickname, Integer ownerUserId,
             int smallBlindChips, int bigBlindChips, int startingStackBb, String roomPassword,
-            int maxSeatCount) {
+            int maxSeatCount, int thinkTimeSeconds) {
         quickMatchBridge.cancelDefaultQuickMatchWaitForOwner(ownerNickname);
         String id = UUID.randomUUID().toString().substring(0, 8);// 随机生成的id?
         DpRoomBO r = new DpRoomBO();
@@ -813,6 +910,7 @@ ownerFieldChanged：房主字段是否发生变化。
         r.setStartingChips(starting);
         r.setRoomPassword(roomPassword);
         r.setMaxSeatCount(maxSeatCount);
+        r.setThinkTimeSeconds(thinkTimeSeconds);
 
         DpPlayer p = new DpPlayer();
         p.setNickname(ownerNickname);
@@ -889,30 +987,55 @@ ownerFieldChanged：房主字段是否发生变化。
         }
     }
 
+    @Override
+    public void presenceMarkIdleHuman(int dpUserId, String trigger) {
+        if (dpUserId > 0) {
+            friendPresence.markIdle(dpUserId, trigger);
+        }
+    }
+
     /**
-     * 当昵称已不在任何房间的 players/spectators 中时置 IDLE（离房幂等；多路径重复调用无害）。
+     * 昵称是否仍在任一内存房的「有效在房」集合中：观众席，或 players 中本手未离座（{@code leftThisHand} 僵尸位不算）。
+     */
+    private boolean isNicknameActivelyPresentInAnyRoom(String nickname) {
+        if (nickname == null) {
+            return false;
+        }
+        for (DpRoomBO r : roomMap.values()) {
+            List<String> specs = r.getSpectators();
+            if (specs != null && specs.contains(nickname)) {
+                return true;
+            }
+            List<DpPlayer> ps = r.getPlayers();
+            if (ps == null) {
+                continue;
+            }
+            for (DpPlayer p : ps) {
+                if (p != null && nickname.equals(p.getNickname()) && !p.isLeftThisHand()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 当昵称已不在任何房间的「有效在房」集合中时置 IDLE（离房幂等；多路径重复调用无害）。
+     * {@code leftThisHand} 仅占位维持本手流程，视为已离房，与 {@link #exitRoom} 口径一致。
      */
     @Override
     public void presenceTryMarkIdleFullyLeft(String nickname, Integer hintedUserId, DpRoomBO roomHint, String trigger) {
         if (nickname == null || DpNpcEngine.isBotNickname(nickname)) {//昵称为空返回
             return;
         }
-
-        if (findRoomContainingNickname(nickname) != null) {//发现房间包含自己名字，直接返回
-            List<DpPlayer> players = roomHint.getPlayers();
-            if (players != null) {
-                for (DpPlayer p : players) {
-                    if (p != null && nickname.equals(p.getNickname()) && !p.isLeftThisHand()) {
-                        System.out.println("清理的时候只清理观众和等待下一把的人，所以僵尸位要单独判断一下");
-                        return;
-                    }
-                }
-            }
+        if (isNicknameActivelyPresentInAnyRoom(nickname)) {
+            return;
         }
         Integer uid = resolvePresenceUserIdPreferHint(nickname, hintedUserId, roomHint);
         if (uid != null) {
-            //昵称合法就设置空闲状态
             friendPresence.markIdle(uid, trigger);
+        } else {
+            log.warn("friend_presence markIdle skipped: uid unresolved nickname={} trigger={}", nickname, trigger);
         }
     }
 /**
@@ -1041,6 +1164,13 @@ ownerFieldChanged：房主字段是否发生变化。
                 p.setHandRankDetail("");
             }
         }
+        for (DpPlayer p : r.getPlayers()) {
+            if (p == null) {
+                continue;
+            }
+            Integer ws = r.getWinStreakByNickname().get(p.getNickname());
+            p.setWinStreak(ws != null ? ws : 0);
+        }
         return r;
     }
 
@@ -1095,11 +1225,116 @@ ownerFieldChanged：房主字段是否发生变化。
         return wait != null && wait.contains(n);
     }
 
+    @Override
+    public boolean isViewerInRoom(DpRoomBO room, String nickname, Integer userId) {
+        if (isNicknameInRoom(room, nickname)) {
+            return true;
+        }
+        if (userId == null || userId <= 0) {
+            return false;
+        }
+        return findSeatNicknameByUserId(room, userId) != null;
+    }
+
+    @Override
+    public String resolveRoomActorNickname(DpRoomBO room, String canonicalNickname, Integer userId) {
+        if (room == null || canonicalNickname == null) {
+            return null;
+        }
+        String canonical = canonicalNickname.trim();
+        if (canonical.isEmpty()) {
+            return null;
+        }
+        if (isNicknameInRoom(room, canonical)) {
+            return canonical;
+        }
+        if (userId == null || userId <= 0) {
+            return null;
+        }
+        String seatNick = findSeatNicknameByUserId(room, userId);
+        if (seatNick == null) {
+            return null;
+        }
+        syncNicknameInRoomAssumeLocked(room, seatNick, canonical);
+        return canonical;
+    }
+
+    private static String findSeatNicknameByUserId(DpRoomBO room, int userId) {
+        List<DpPlayer> players = room.getPlayers();
+        if (players != null) {
+            for (DpPlayer p : players) {
+                if (p != null && p.getDpUserId() != null && p.getDpUserId() == userId) {
+                    return p.getNickname();
+                }
+            }
+        }
+        String registered = room.findRegisteredNicknameByUserId(userId);
+        if (registered != null && !registered.isEmpty()) {
+            List<String> specs = room.getSpectators();
+            if (specs != null && specs.contains(registered)) {
+                return registered;
+            }
+            List<String> wait = room.getWaitNextHand();
+            if (wait != null && wait.contains(registered)) {
+                return registered;
+            }
+        }
+        return null;
+    }
+
     /**
-     * 对外接口与 WebSocket 推送使用：在完整房间状态上按观看者身份隐藏他人底牌及相关推导字段，不修改内存中的房间实体。
-     *
-     * @param viewerNickname 当前连接者的昵称；null 或空则视为未认领身份，不展示任何玩家的真实底牌。
+     * 将房内旧昵称同步为 JWT/资料中的当前昵称（改昵称后仍在桌时使用）。
+     * 调用方须已持有 {@code synchronized(room)}。
      */
+    private static void syncNicknameInRoomAssumeLocked(DpRoomBO room, String oldNick, String newNick) {
+        if (room == null || oldNick == null || newNick == null || oldNick.equals(newNick)) {
+            return;
+        }
+        List<DpPlayer> players = room.getPlayers();
+        if (players != null) {
+            for (DpPlayer p : players) {
+                if (p != null && oldNick.equals(p.getNickname())) {
+                    p.setNickname(newNick);
+                }
+            }
+        }
+        if (oldNick.equals(room.getOwner())) {
+            room.setOwner(newNick);
+        }
+        replaceNicknameInList(room.getSpectators(), oldNick, newNick);
+        replaceNicknameInList(room.getWaitNextHand(), oldNick, newNick);
+        renameMapKey(room.getCarryInChips(), oldNick, newNick);
+        renameMapKey(room.getWinStreakByNickname(), oldNick, newNick);
+        renameMapKey(room.getPlayerStatsMap(), oldNick, newNick);
+        Integer uid = room.getRegisteredDpUserId(oldNick);
+        if (uid != null) {
+            room.putRegisteredDpUserId(newNick, uid);
+        }
+    }
+
+    private static void replaceNicknameInList(List<String> list, String oldNick, String newNick) {
+        if (list == null) {
+            return;
+        }
+        for (int i = 0; i < list.size(); i++) {
+            if (oldNick.equals(list.get(i))) {
+                list.set(i, newNick);
+            }
+        }
+    }
+
+    private static <V> void renameMapKey(Map<String, V> map, String oldNick, String newNick) {
+        if (map == null || !map.containsKey(oldNick)) {
+            return;
+        }
+        V value = map.remove(oldNick);
+        map.put(newNick, value);
+    }
+
+    public DpRoomBO getRoomSnapshotForViewer(String roomId, String viewerNickname) {
+        return getRoomSnapshotForViewer(roomId, viewerNickname, null);
+    }
+
     /**
      * 房内最近聊天（内存）；观看者须在房内。
      *
@@ -1108,11 +1343,10 @@ ownerFieldChanged：房主字段是否发生变化。
     public ResultUtil listRecentRoomChat(String roomId, String viewerNickname, int limit) {
         return snapshotSupport.listRecentRoomChat(roomId, viewerNickname, limit);
     }
-/**
- * 裁剪json给不同视角的人看
- */
-    public DpRoomBO getRoomSnapshotForViewer(String roomId, String viewerNickname) {
-        return snapshotSupport.getRoomSnapshotForViewer(roomId, viewerNickname);
+
+    @Override
+    public DpRoomBO getRoomSnapshotForViewer(String roomId, String viewerNickname, Integer viewerUserId) {
+        return snapshotSupport.getRoomSnapshotForViewer(roomId, viewerNickname, viewerUserId);
     }
 
     public DpRoomBO snapshotForViewerFromLive(DpRoomBO live, String viewerNickname) {
@@ -1361,9 +1595,24 @@ ownerFieldChanged：房主字段是否发生变化。
         DpRoomBO r = roomMap.get(roomId);
         if (r == null)
             return false;
+        synchronized (r) {
+            String actor = resolveRoomActorNickname(r, nickname, userId);
+            if (actor == null) {
+                return false;
+            }
+            for (DpPlayer p : r.getPlayers()) {
+                if (p != null && !p.isLeftThisHand() && actor.equals(p.getNickname())) {
+                    return true;
+                }
+            }
+        }
         boolean ok;
         synchronized (r) {
-            ok = applyReadyNextHandWhileLocked(r, nickname, userId);
+            String actor = resolveRoomActorNickname(r, nickname, userId);
+            if (actor == null) {
+                return false;
+            }
+            ok = applyReadyNextHandWhileLocked(r, actor, userId);
         }
         if (ok) {
             //仅更新房间索引，不更新大厅索引，因为大厅索引显示的是正在游戏的人数，不是算上等待者一起的人数
@@ -1598,12 +1847,20 @@ ownerFieldChanged：房主字段是否发生变化。
     }
 
     public boolean toggleReady(String roomId, String nickname) {
+        return toggleReady(roomId, nickname, null);
+    }
+
+    public boolean toggleReady(String roomId, String nickname, Integer userId) {
         DpRoomBO r = roomMap.get(roomId);
         if (r == null)
             return false;
         boolean ok;
         synchronized (r) {
-            ok = toggleReadyAssumeLocked(r, nickname);
+            String actor = resolveRoomActorNickname(r, nickname, userId);
+            if (actor == null) {
+                return false;
+            }
+            ok = toggleReadyAssumeLocked(r, actor);
         }
         return ok;
     }
@@ -1760,6 +2017,9 @@ ownerFieldChanged：房主字段是否发生变化。
             if (p.isReady()) {
                 remain.add(p);
             } else {
+                if (!DpNpcEngine.isBotPlayer(p)) {
+                    settleAndClearCarryInOnLeaveSeatLocked(r, p.getNickname(), p);
+                }
                 kicked.add(p.getNickname());
             }
         }
@@ -1936,27 +2196,31 @@ ownerFieldChanged：房主字段是否发生变化。
     }
 
     /**
-     * 真人离座/退房时按 (当前筹码 − 累计买入) / 初始积分 结算本段净赢倍数，并清除 {@link DpRoomBO#getCarryInChips()} 条目。
-     * 调用方须持有 r 的监视器。
+     * 真人离座/退房时：按 (当前筹码 − 累计买入) / 初始积分 结算本段净赢倍数并清除 {@link DpRoomBO#getCarryInChips()}；
+     * 同时将 {@link DpRoomBO#getWinStreakByNickname()} 本段连胜 flush 至 dp_user_stats.max_win_streak 后清除。
+     * 调用方须持有 r 的监视器（心跳踢人等外部入口经 {@link #settleHumanOnLeaveSeat} 加锁）。
      */
     private void settleAndClearCarryInOnLeaveSeatLocked(DpRoomBO r, String nickname, DpPlayer p) {
         if (r == null || nickname == null || p == null || DpNpcEngine.isBotPlayer(p)) {
             return;
         }
         Integer totalCarryIn = r.getCarryInChips().get(nickname);
-        if (totalCarryIn == null) {
-            return;
+        if (totalCarryIn != null) {
+            int initialChips = r.getStartingChips();
+            if (initialChips > 0) {
+                BigDecimal multiplier = computeRoomNetWinMultiplier(p.getChips(), totalCarryIn, initialChips);
+                if (multiplier.compareTo(BigDecimal.ZERO) > 0 && p.getDpUserId() != null) {
+                    dpUserStatsMapper.tryUpdateLargestRoomNet(p.getDpUserId(), multiplier);
+                    dpLeaderboardWeeklyWriteService.recordRoomBest(p.getDpUserId(), multiplier);
+                }
+            }
+            r.getCarryInChips().remove(nickname);
         }
-        int initialChips = r.getStartingChips();
-        if (initialChips <= 0) {
-            return;
+        Integer streak = r.getWinStreakByNickname().get(nickname);
+        if (streak != null && streak > 0 && p.getDpUserId() != null) {
+            dpUserStatsMapper.tryUpdateMaxWinStreak(p.getDpUserId(), streak);
         }
-        BigDecimal multiplier = computeRoomNetWinMultiplier(p.getChips(), totalCarryIn, initialChips);
-        if (multiplier.compareTo(BigDecimal.ZERO) > 0 && p.getDpUserId() != null) {
-            dpUserStatsMapper.tryUpdateLargestRoomNet(p.getDpUserId(), multiplier);
-            dpLeaderboardWeeklyWriteService.recordRoomBest(p.getDpUserId(), multiplier);
-        }
-        r.getCarryInChips().remove(nickname);
+        r.getWinStreakByNickname().remove(nickname);
     }
 
     /** 单房间净赢倍数 = (离场筹码 − 累计买入) / 初始积分，保留两位小数。 */
@@ -1995,9 +2259,8 @@ ownerFieldChanged：房主字段是否发生变化。
             }
         }
         r.getCarryInChips().remove(nickname);
+        r.getWinStreakByNickname().remove(nickname);
     }
-
-    // ========== 游戏开始与流程 ==========
 
     public boolean startGame(String roomId, String ownerNickname) {
         DpRoomBO r = roomMap.get(roomId);
@@ -2076,7 +2339,7 @@ ownerFieldChanged：房主字段是否发生变化。
         // 开始一手牌谱的记录
         observedHandService.beginHand(r);
 
-        r.setDeck(newDeck());
+        r.setDeck(buildDeckForNewHand(r));
         r.setCommunityCards(new ArrayList<>());
         r.setCurrentStage("preflop");
         r.setPot(0);
@@ -2089,6 +2352,7 @@ ownerFieldChanged：房主字段是否发生变化。
         for (DpPlayer p : ps) {
             if (!DpNpcEngine.isBotPlayer(p)) {
                 r.getCarryInChips().putIfAbsent(p.getNickname(), r.getStartingChips());
+                r.getWinStreakByNickname().putIfAbsent(p.getNickname(), 0);
             }
         }
         int did = 0;// 庄家索引
@@ -2441,6 +2705,7 @@ ownerFieldChanged：房主字段是否发生变化。
         List<String> deck = r.getDeck();
         switch (r.getCurrentStage()) {
             case "preflop":
+                observedHandService.recordPotAtStreetEnd(r, "preflop", r.getPot());
                 r.getCommunityCards().add(deck.remove(0));
                 r.getCommunityCards().add(deck.remove(0));
                 r.getCommunityCards().add(deck.remove(0));
@@ -2449,18 +2714,21 @@ ownerFieldChanged：房主字段是否发生变化。
                 observedHandService.recordBoardState(r);
                 break;
             case "flop":
+                observedHandService.recordPotAtStreetEnd(r, "flop", r.getPot());
                 r.getCommunityCards().add(deck.remove(0));
                 r.setCurrentStage("turn");
                 observedHandService.recordBoardState(r);
                 // System.out.println("设置turn阶段");
                 break;
             case "turn":
+                observedHandService.recordPotAtStreetEnd(r, "turn", r.getPot());
                 r.getCommunityCards().add(deck.remove(0));
                 r.setCurrentStage("river");
                 observedHandService.recordBoardState(r);
                 // System.out.println("设置river阶段");
                 break;
             case "river":
+                observedHandService.recordPotAtStreetEnd(r, "river", r.getPot());
                 r.setCurrentStage("showdown");
                 // System.out.println("设置showdown阶段");
                 calculatePots(r); // 进入摊牌时计算主池/边池
@@ -2602,21 +2870,32 @@ ownerFieldChanged：房主字段是否发生变化。
     /**
      * 本手牌池底分配完成后更新连胜：牌力全局第一或并列第一的玩家 +1，其余未离线座位清零。
      * 若没有任何此类赢家（异常局），不修改避免误清空。
+     * 断连胜时返回待异步 flush 的峰值（userId + streak），不在本方法内写库。
      */
-    private void applyWinStreakAfterHand(DpRoomBO r, Set<String> winnerNicknames) {
+    private List<DpMaxWinStreakFlush> applyWinStreakAfterHand(DpRoomBO r, Set<String> winnerNicknames) {
         if (r == null || r.getPlayers() == null)
-            return;
+            return List.of();
         if (winnerNicknames == null || winnerNicknames.isEmpty())
-            return;
+            return List.of();
+        List<DpMaxWinStreakFlush> flushes = new ArrayList<>();
         for (DpPlayer p : r.getPlayers()) {
             if (p == null || p.isLeftThisHand())
                 continue;
-            if (winnerNicknames.contains(p.getNickname())) {
-                p.setWinStreak(p.getWinStreak() + 1);
+            if (DpNpcEngine.isBotPlayer(p)) {
+                continue;
+            }
+            String nick = p.getNickname();
+            if (winnerNicknames.contains(nick)) {
+                r.getWinStreakByNickname().compute(nick, (k, v) -> (v == null ? 0 : v) + 1);
             } else {
-                p.setWinStreak(0);
+                Integer streak = r.getWinStreakByNickname().get(nick);
+                if (streak != null && streak > 0 && p.getDpUserId() != null) {
+                    flushes.add(new DpMaxWinStreakFlush(p.getDpUserId(), streak));
+                }
+                r.getWinStreakByNickname().put(nick, 0);
             }
         }
+        return flushes;
     }
 
     // ========== 游戏尾声：结算与下一局准备 ==========
@@ -2701,7 +2980,11 @@ ownerFieldChanged：房主字段是否发生变化。
         }
         return out;
     }
-
+/**
+ * 零池荣誉统计增量构建
+ * @param r
+ * @return
+ */
     private List<DpSettleStatsIncrement> buildZeroPotHonorStatsIncrements(DpRoomBO r) {
         if (r == null || r.getPlayers() == null) {
             return List.of();
@@ -2714,8 +2997,17 @@ ownerFieldChanged：房主字段是否发生变化。
         }
         return out;
     }
-
-    private void enqueueSettlePersistence(DpObservedHandRecordBO archived, DpRoomBO r, List<DpSettleStatsIncrement> stats) {
+/**
+ * 开异步线程处理
+ * @param archived
+ * @param r
+ * @param stats
+ */
+    private void enqueueSettlePersistence(
+            DpObservedHandRecordBO archived,
+            DpRoomBO r,
+            List<DpSettleStatsIncrement> stats,
+            List<DpMaxWinStreakFlush> streakFlushes) {
         if (archived == null) {
             return;
         }
@@ -2723,7 +3015,8 @@ ownerFieldChanged：房主字段是否发生变化。
                 r.getRoomId(),
                 archived,
                 DpSettlePersistenceDispatcher.snapshotRoomForHandPersist(r),
-                stats != null ? List.copyOf(stats) : List.of());
+                stats != null ? List.copyOf(stats) : List.of(),
+                streakFlushes != null ? List.copyOf(streakFlushes) : List.of());
         settlePersistenceDispatcher.dispatch(job);
     }
 
@@ -2762,9 +3055,10 @@ ownerFieldChanged：房主字段是否发生变化。
         // 与 sanitizeHoleCardsForViewer 在 settled 阶段依赖本标志矛盾，导致非房主看不到赢家手牌。
         final boolean lastHandPublic = countPlayersStillInHand(r) >= 1;
 
-        // 没有任何下注，直接标记为结算完成
-        if (r.getPot() <= 0 && (r.getPots() == null || r.getPots().isEmpty())) {
+        // 没有任何下注，直接标记为结算完成,0底池或者单纯只有一个玩家的时候直接跳过
+        if (r.getPot() <= 0 && (r.getPots() == null || r.getPots().isEmpty()) || r.getPlayers().size()==1) {
             autoSettleZeroPotAndEnterSettledShortcut(r);
+            System.out.println("零池短路");
             return;
         }
 
@@ -2776,15 +3070,30 @@ ownerFieldChanged：房主字段是否发生变化。
         r.setLastHandHoleCardsPublic(false);
         r.setCurrentStage("settled");
         r.setSettledAtMs(System.currentTimeMillis());
-        r.setReadyDeadline(System.currentTimeMillis() + 30_000L);
+        r.setReadyDeadline(System.currentTimeMillis() + DpRoomBO.READY_TIMEOUT_MS);
         for (DpPlayer p : r.getPlayers()) {
             // settle阶段会自动把大家的准备状态设置为false
             p.setReady(false);
         }
         // 每局结算的时候将牌谱归档，并存入数据库
         DpObservedHandRecordBO archivedEarly = observedHandService.finalizeHand(r);
+        //零池必返null
         if (archivedEarly != null) {
-            enqueueSettlePersistence(archivedEarly, r, buildZeroPotHonorStatsIncrements(r));
+            enqueueSettlePersistence(archivedEarly, r, buildZeroPotHonorStatsIncrements(r), List.of());
+        }
+        //如果是一个玩家，但是它下了鱼干，那就返还
+        if (r.getPots() != null) {
+            for (DpPot pot : r.getPots()) {
+                if (pot.getAmount() > 0 && pot.getEligiblePlayers() != null && pot.getEligiblePlayers().size() == 1) {
+                    String onlyPlayer = pot.getEligiblePlayers().get(0);
+                    for (DpPlayer p : r.getPlayers()) {
+                        if (onlyPlayer.equals(p.getNickname())) {
+                            p.setChips(p.getChips() + pot.getAmount());
+                            pot.setAmount(0);
+                        }
+                    }
+                }
+            }
         }
         DpNpcStreetActionLog.clearHand(r);
         observedHandService.clearHand(r);
@@ -2884,7 +3193,7 @@ ownerFieldChanged：房主字段是否发生变化。
             }
         }
 
-        applyWinStreakAfterHand(r, streakWinnerNicknames);
+        List<DpMaxWinStreakFlush> streakFlushes = applyWinStreakAfterHand(r, streakWinnerNicknames);
 
         // 结算分配前快照底池结构（随后会清空 pots）
         observedHandService.capturePotsBeforeClear(r);
@@ -3103,7 +3412,7 @@ ownerFieldChanged：房主字段是否发生变化。
         DpObservedHandRecordBO archived = observedHandService.finalizeHand(r);
         if (archived != null) {
             enqueueSettlePersistence(
-                    archived, r, buildHonorStatsIncrementsAfterSettle(r, strengthMap, chipsBeforeSettle));
+                    archived, r, buildHonorStatsIncrementsAfterSettle(r, strengthMap, chipsBeforeSettle), streakFlushes);
         }
 
         // 逐街动作日志：本手结束后清理，避免内存增长
@@ -3119,10 +3428,14 @@ ownerFieldChanged：房主字段是否发生变化。
         r.setLastHandHoleCardsPublic(lastHandPublic);
         r.setCurrentStage("settled");
         r.setSettledAtMs(System.currentTimeMillis());
-        r.setReadyDeadline(System.currentTimeMillis() + 30_000L);
+        r.setReadyDeadline(System.currentTimeMillis() + DpRoomBO.READY_TIMEOUT_MS);
         for (DpPlayer p : r.getPlayers()) {
             p.setReady(false);
         }
+        // 先推送 settled 快照，再发 settle 话术，
+        // 因为前端只拦截settled来的信息，而settled是靠定时器推的，桌边话是要立即推的，所以抢跑了
+        // 所以需要补发settled先行，然后给后来的桌边话冻住
+        gameRoomPushService.broadcastIfSubscribed(r.getRoomId());
         npcTableTalkService.afterHandSettled(r, streakWinnerNicknames);
         // checkAndStartNextHandAfterSettle(r);
     }
@@ -3132,6 +3445,16 @@ ownerFieldChanged：房主字段是否发生变化。
      * {@link #checkAndStartNextHandAfterSettleReturning}
      * （外层在释放临界区后在 {@link #handleReadyTimeout} 中 upsert）。
      */
+    @Override
+    public void settleHumanOnLeaveSeat(DpRoomBO room, DpPlayer player) {
+        if (room == null || player == null || DpNpcEngine.isBotPlayer(player)) {
+            return;
+        }
+        synchronized (room) {
+            settleAndClearCarryInOnLeaveSeatLocked(room, player.getNickname(), player);
+        }
+    }
+
     @Override
     public void handleReadyTimeout(DpRoomBO r) {
         System.out.println("结算准备倒计时到期");
@@ -3181,19 +3504,27 @@ ownerFieldChanged：房主字段是否发生变化。
     // ========== 心跳 ==========
 
     public void heartbeat(String roomId, String nickname) {
+        heartbeat(roomId, nickname, null);
+    }
+
+    public void heartbeat(String roomId, String nickname, Integer userId) {
         DpRoomBO r = roomMap.get(roomId);
         if (r == null)
             return;
         synchronized (r) {
+            String actor = resolveRoomActorNickname(r, nickname, userId);
+            if (actor == null) {
+                return;
+            }
             long now = System.currentTimeMillis();
             for (DpPlayer p : r.getPlayers()) {
-                if (p.getNickname().equals(nickname)) {
+                if (p.getNickname().equals(actor)) {
                     p.setLastHeartBeat(now);
                 }
             }
             List<String> specs = r.getSpectators();
-            if (specs != null && specs.contains(nickname)) {
-                r.touchSpectatorPresence(nickname, now);
+            if (specs != null && specs.contains(actor)) {
+                r.touchSpectatorPresence(actor, now);
             }
         }
     }

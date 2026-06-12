@@ -13,13 +13,21 @@ public final class DpObservedStreetBoardBO {
     public final List<String> communityCards;
     /** 该街结束时各玩家最佳牌型中文大类（如「顺子」），仅展示文案；翻前或无足够公共牌时为空。 */
     public final Map<String, String> handRankNameByPlayer;
+    /** 该街下注轮结束时的桌池总额（payload v2+）；未记录时为 null。 */
+    public final Integer potTotalAtStreetEnd;
 
     public DpObservedStreetBoardBO(String stage, List<String> communityCards) {
-        this(stage, communityCards, Map.of());
+        this(stage, communityCards, Map.of(), null);
     }
 
     public DpObservedStreetBoardBO(String stage, List<String> communityCards,
                                    Map<String, String> handRankNameByPlayer) {
+        this(stage, communityCards, handRankNameByPlayer, null);
+    }
+
+    public DpObservedStreetBoardBO(String stage, List<String> communityCards,
+                                   Map<String, String> handRankNameByPlayer,
+                                   Integer potTotalAtStreetEnd) {
         this.stage = stage == null ? "" : stage;
         this.communityCards = communityCards == null
                 ? List.of()
@@ -29,5 +37,6 @@ public final class DpObservedStreetBoardBO {
         } else {
             this.handRankNameByPlayer = Collections.unmodifiableMap(new LinkedHashMap<>(handRankNameByPlayer));
         }
+        this.potTotalAtStreetEnd = potTotalAtStreetEnd;
     }
 }

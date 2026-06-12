@@ -1,0 +1,746 @@
+/* retro8bit create-room — NES-style console menu */
+
+.dp-console-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: clamp(8px, 2vw, 16px) clamp(10px, 3vw, 20px)
+    max(12px, env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  font-family: 'Courier New', ui-monospace, 'PingFang SC', 'Microsoft YaHei', monospace;
+  color: var(--dp-terminal-led-green, #4af626);
+  background: var(--dp-terminal-bg, #0a0c0e);
+}
+
+.dp-console-page__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.dp-console-page__title {
+  margin: 0;
+  font-family: var(--dp-font-pixel, 'Press Start 2P', monospace);
+  font-size: clamp(9px, 2.6vw, 12px);
+  letter-spacing: 0.06em;
+  text-shadow: var(--dp-terminal-glow-text, 0 0 6px rgba(74, 246, 38, 0.55));
+  color: var(--dp-terminal-led-green, #4af626);
+}
+
+.dp-console-page__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dp-console-page__back {
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 2px solid var(--dp-terminal-border-active, rgba(74, 246, 38, 0.34));
+  border-radius: 0;
+  background: var(--dp-terminal-bg, #0a0c0e);
+  color: var(--dp-terminal-led-green, #4af626);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dp-console-page__back:hover,
+.dp-console-page__back:focus-visible {
+  background: var(--dp-terminal-led-green, #4af626);
+  color: #080a0c;
+  outline: 2px solid var(--dp-terminal-led-green, #4af626);
+  outline-offset: 2px;
+}
+
+.dp-console-stage {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 0;
+  position: relative;
+}
+
+.dp-console-shell {
+  position: relative;
+  width: min(100%, 520px);
+  border: 4px solid var(--dp-terminal-border-active, rgba(74, 246, 38, 0.45));
+  background: var(--dp-terminal-bg, #0e1012);
+  box-shadow:
+    var(--dp-terminal-glow-md, 0 0 8px rgba(74, 246, 38, 0.42)),
+    inset 0 0 40px rgba(0, 0, 0, 0.35);
+  padding: 0;
+  outline: none;
+}
+
+.dp-console-shell:focus-visible {
+  box-shadow:
+    var(--dp-terminal-glow-md, 0 0 8px rgba(74, 246, 38, 0.42)),
+    0 0 0 2px #4af626;
+}
+
+.dp-console-shell__scanlines {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  /* Scanlines scoped to left label column (~52%) — right value column stays clean */
+  clip-path: inset(0 48% 0 0);
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0 2px,
+    rgba(0, 0, 0, 0.1) 2px 3px
+  );
+  background-size: 100% 3px;
+  opacity: 0.12;
+}
+
+.dp-console-shell__head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 16px 10px;
+  border-bottom: 2px solid var(--dp-terminal-border, rgba(74, 246, 38, 0.2));
+  position: relative;
+  z-index: 3;
+}
+
+.dp-console-shell__head-title {
+  margin: 0;
+  font-family: var(--dp-font-pixel, 'Press Start 2P', monospace);
+  font-size: clamp(8px, 2.4vw, 11px);
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-shadow: var(--dp-terminal-glow-text);
+}
+
+.dp-console-menu {
+  list-style: none;
+  margin: 0;
+  padding: 12px 8px 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.dp-console-menu__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 6px;
+  min-height: 44px;
+  margin: 2px 0;
+  font-size: clamp(11px, 2.8vw, 13px);
+  letter-spacing: 0.03em;
+  color: rgba(224, 240, 216, 0.82);
+  border: 2px solid transparent;
+  box-sizing: border-box;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  padding: 0;
+}
+
+.dp-console-menu__left {
+  display: grid;
+  grid-template-columns: 1.4em 1fr;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 2px solid transparent;
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+}
+
+.dp-console-menu__right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 44px;
+  padding: 8px 8px 8px 0;
+  box-sizing: border-box;
+  /* Value column stays stable — no blink / glitch inheritance */
+  color: rgba(224, 240, 216, 0.92);
+}
+
+.dp-console-menu__cursor {
+  font-family: var(--dp-font-pixel, 'Press Start 2P', monospace);
+  font-size: 10px;
+  color: transparent;
+  text-align: center;
+}
+
+.dp-console-menu__row--selected .dp-console-menu__cursor {
+  color: inherit;
+  text-shadow: none;
+}
+
+.dp-console-menu__row--selected .dp-console-menu__left {
+  color: #080a0c;
+  background: var(--dp-terminal-led-green, #4af626);
+  border-color: #72f052;
+  box-shadow: inset 0 0 0 1px #080a0c;
+}
+
+.dp-console-menu__row--selected.dp-console-menu__row--blink .dp-console-menu__left {
+  animation: dp-console-left-blink 0.55s step-end infinite;
+}
+
+.dp-console-menu__row--selected.dp-console-menu__row--blink .dp-console-menu__left::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0 2px,
+    rgba(0, 0, 0, 0.14) 2px 3px
+  );
+  background-size: 100% 3px;
+  opacity: 0.22;
+  mix-blend-mode: multiply;
+  animation: dp-console-left-scan 0.55s step-end infinite;
+}
+
+@keyframes dp-console-left-blink {
+  0%,
+  100% {
+    background: var(--dp-terminal-led-green, #4af626);
+    color: #080a0c;
+  }
+  50% {
+    background: #0a0c0e;
+    color: var(--dp-terminal-led-green, #4af626);
+  }
+}
+
+@keyframes dp-console-left-scan {
+  0%,
+  100% {
+    opacity: 0.18;
+  }
+  50% {
+    opacity: 0.32;
+  }
+}
+
+.dp-console-menu__label {
+  font-weight: 600;
+  text-transform: uppercase;
+  position: relative;
+  z-index: 2;
+}
+
+.dp-console-menu__value {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+  color: inherit;
+  opacity: 0.92;
+}
+
+.dp-console-menu__adj {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.dp-console-menu__chev,
+.dp-console-menu__value-btn {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 2px 6px;
+  border: 1px solid rgba(74, 246, 38, 0.28);
+  border-radius: 0;
+  background: rgba(0, 0, 0, 0.22);
+  color: inherit;
+  font-family: var(--dp-font-pixel, 'Press Start 2P', monospace);
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dp-console-menu__chev {
+  font-size: 11px;
+  letter-spacing: 0;
+}
+
+.dp-console-menu__value-btn {
+  min-width: 0;
+  max-width: min(42vw, 160px);
+  padding: 4px 8px;
+  font-family: inherit;
+  font-size: clamp(10px, 2.4vw, 12px);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Selected row: right column keeps stable readable colors (no blink) */
+.dp-console-menu__row--selected .dp-console-menu__right,
+.dp-console-menu__row--selected .dp-console-menu__value,
+.dp-console-menu__row--selected .dp-console-menu__chev,
+.dp-console-menu__row--selected .dp-console-menu__value-btn {
+  color: var(--dp-terminal-led-green, #4af626);
+}
+
+.dp-console-menu__row--selected .dp-console-menu__chev,
+.dp-console-menu__row--selected .dp-console-menu__value-btn {
+  border-color: rgba(74, 246, 38, 0.45);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.dp-console-menu__chev:active,
+.dp-console-menu__value-btn:active,
+.dp-console-menu__chev:focus-visible,
+.dp-console-menu__value-btn:focus-visible {
+  background: rgba(74, 246, 38, 0.22);
+  outline: 1px solid currentColor;
+  outline-offset: 1px;
+}
+
+.dp-console-menu__row:not(.dp-console-menu__row--selected) .dp-console-menu__chev,
+.dp-console-menu__row:not(.dp-console-menu__row--selected) .dp-console-menu__value-btn {
+  opacity: 0.72;
+}
+
+.dp-console-menu__row--action .dp-console-menu__value {
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.dp-console-menu__row--create .dp-console-menu__label {
+  letter-spacing: 0.12em;
+}
+
+.dp-console-footer {
+  padding: 8px 14px 12px;
+  border-top: 2px solid var(--dp-terminal-border, rgba(74, 246, 38, 0.14));
+  font-size: 9px;
+  color: rgba(74, 246, 38, 0.38);
+  text-align: center;
+  letter-spacing: 0.04em;
+  position: relative;
+  z-index: 1;
+}
+
+.dp-console-footer__touch {
+  display: none;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .dp-console-footer__kb {
+    display: none;
+  }
+
+  .dp-console-footer__touch {
+    display: inline;
+  }
+}
+
+/* Password sub-mode */
+.dp-console-pass {
+  padding: 16px 14px 20px;
+  position: relative;
+  z-index: 3;
+  text-align: center;
+}
+
+.dp-console-pass__title {
+  margin: 0 0 12px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--dp-terminal-led-amber, #ffe066);
+}
+
+.dp-console-pass__mask {
+  margin: 0 0 16px;
+  font-size: clamp(16px, 4vw, 22px);
+  letter-spacing: 0.2em;
+  color: #e0f0d8;
+  min-height: 1.4em;
+}
+
+.dp-console-pass__picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border: 2px solid var(--dp-terminal-border-active, rgba(74, 246, 38, 0.34));
+  background: rgba(0, 0, 0, 0.25);
+  margin-bottom: 12px;
+}
+
+.dp-console-pass__chev,
+.dp-console-pass__char-btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 4px 8px;
+  border: 2px solid var(--dp-terminal-border-active, rgba(74, 246, 38, 0.34));
+  border-radius: 0;
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--dp-terminal-led-green, #4af626);
+  font-family: var(--dp-font-pixel, 'Press Start 2P', monospace);
+  font-size: 11px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dp-console-pass__char-btn {
+  min-width: 1.6em;
+  font-size: clamp(14px, 4vw, 18px);
+  text-shadow: var(--dp-terminal-glow-text);
+}
+
+.dp-console-pass__chev:active,
+.dp-console-pass__char-btn:active,
+.dp-console-pass__chev:focus-visible,
+.dp-console-pass__char-btn:focus-visible {
+  background: var(--dp-terminal-led-green, #4af626);
+  color: #080a0c;
+  outline: none;
+}
+
+.dp-console-pass__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.dp-console-pass__act {
+  min-height: 36px;
+  min-width: 52px;
+  padding: 6px 10px;
+  border: 2px solid var(--dp-terminal-border-active, rgba(74, 246, 38, 0.34));
+  border-radius: 0;
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--dp-terminal-led-green, #4af626);
+  font-family: var(--dp-font-pixel, 'Press Start 2P', monospace);
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dp-console-pass__act--ok {
+  border-color: rgba(74, 246, 38, 0.55);
+}
+
+.dp-console-pass__act--cancel {
+  border-color: rgba(255, 224, 102, 0.45);
+  color: var(--dp-terminal-led-amber, #ffe066);
+}
+
+.dp-console-pass__act:active,
+.dp-console-pass__act:focus-visible {
+  background: var(--dp-terminal-led-green, #4af626);
+  color: #080a0c;
+  outline: none;
+}
+
+.dp-console-pass__act--cancel:active,
+.dp-console-pass__act--cancel:focus-visible {
+  background: var(--dp-terminal-led-amber, #ffe066);
+}
+
+.dp-console-pass__charset {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  max-width: 100%;
+  margin: 0 auto 10px;
+  padding: 0 4px;
+  max-height: 120px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.dp-console-pass__charset-btn {
+  min-width: 28px;
+  min-height: 28px;
+  padding: 2px 4px;
+  border: 1px solid rgba(74, 246, 38, 0.22);
+  border-radius: 0;
+  background: rgba(0, 0, 0, 0.28);
+  color: rgba(224, 240, 216, 0.88);
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.2;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dp-console-pass__charset-btn--active {
+  border-color: var(--dp-terminal-led-green, #4af626);
+  background: var(--dp-terminal-led-green, #4af626);
+  color: #080a0c;
+}
+
+.dp-console-pass__charset-btn:active,
+.dp-console-pass__charset-btn:focus-visible {
+  background: rgba(74, 246, 38, 0.35);
+  outline: 1px solid var(--dp-terminal-led-green, #4af626);
+}
+
+.dp-console-pass__hint {
+  margin: 0;
+  font-size: 9px;
+  color: rgba(74, 246, 38, 0.42);
+  line-height: 1.6;
+}
+
+.dp-console-pass__hint-touch {
+  display: none;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .dp-console-pass__hint-kb {
+    display: none;
+  }
+
+  .dp-console-pass__hint-touch {
+    display: inline;
+  }
+}
+
+/* Status bar + dialog */
+.dp-console-status {
+  width: min(100%, 520px);
+  min-height: 28px;
+  padding: 6px 12px;
+  box-sizing: border-box;
+  border: 2px solid rgba(255, 102, 102, 0.35);
+  background: rgba(255, 40, 40, 0.08);
+  color: var(--dp-terminal-led-red, #ff6666);
+  font-size: 11px;
+  text-align: center;
+  letter-spacing: 0.03em;
+}
+
+.dp-console-status:empty {
+  display: none;
+}
+
+.dp-console-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 10070;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.72);
+  box-sizing: border-box;
+}
+
+.dp-console-dialog__box {
+  width: min(100%, 360px);
+  padding: 20px 18px 16px;
+  border: 4px solid var(--dp-terminal-led-red, #ff6666);
+  background: var(--dp-terminal-bg, #0e1012);
+  box-shadow: 0 0 16px rgba(255, 102, 102, 0.35);
+  text-align: center;
+}
+
+.dp-console-dialog__msg {
+  margin: 0 0 16px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--dp-terminal-led-red, #ff6666);
+}
+
+.dp-console-dialog__btn {
+  min-height: 44px;
+  min-width: 120px;
+  padding: 10px 20px;
+  border: 2px solid var(--dp-terminal-led-green, #4af626);
+  background: transparent;
+  color: var(--dp-terminal-led-green, #4af626);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.dp-console-dialog__btn:hover,
+.dp-console-dialog__btn:focus-visible {
+  background: var(--dp-terminal-led-green, #4af626);
+  color: #080a0c;
+  outline: none;
+}
+
+.dp-console-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Commit boot overlay (shared with former terminal) */
+.dp-console-boot {
+  position: fixed;
+  inset: 0;
+  z-index: 10080;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--dp-terminal-bg, #080a0c);
+}
+
+.dp-console-boot__snow {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #080a0c;
+}
+
+.dp-console-boot__snow-noise,
+.dp-console-boot__snow-bars {
+  position: absolute;
+  inset: 0;
+}
+
+.dp-console-boot__snow-noise {
+  opacity: 0.7;
+  background-image:
+    repeating-radial-gradient(circle at 15% 20%, rgba(74, 246, 38, 0.45) 0 0.4px, transparent 0.5px),
+    repeating-radial-gradient(circle at 72% 58%, rgba(114, 240, 82, 0.35) 0 0.35px, transparent 0.45px);
+  background-size: 3px 3px, 4px 4px;
+  animation: dp-console-boot-noise 0.04s steps(3) infinite;
+}
+
+@keyframes dp-console-boot-noise {
+  0% {
+    opacity: 0.65;
+  }
+  50% {
+    opacity: 0.88;
+  }
+  100% {
+    opacity: 0.62;
+  }
+}
+
+.dp-console-boot__snow-bars {
+  opacity: 0.55;
+  mix-blend-mode: screen;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.12) 0 1px,
+    rgba(74, 246, 38, 0.12) 1px 2px,
+    transparent 2px 6px
+  );
+  background-size: 100% 6px;
+  animation: dp-console-boot-bars 0.22s linear infinite;
+}
+
+@keyframes dp-console-boot-bars {
+  to {
+    background-position: 0 -6px;
+  }
+}
+
+.dp-console-boot__terminal {
+  position: relative;
+  z-index: 1;
+  padding: 24px;
+}
+
+.dp-console-boot__lines {
+  margin: 0;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--dp-terminal-led-green, #4af626);
+  white-space: pre;
+  text-shadow: var(--dp-terminal-glow-text);
+}
+
+.dp-console-boot__line {
+  display: block;
+}
+
+.dp-console-boot__line--ok {
+  color: #72f052;
+}
+
+.dp-console-boot__cursor {
+  animation: dp-console-cursor-blink 0.8s step-end infinite;
+}
+
+@keyframes dp-console-cursor-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .dp-console-menu__chev {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dp-console-menu__row--selected.dp-console-menu__row--blink .dp-console-menu__left {
+    animation: none !important;
+  }
+
+  .dp-console-menu__row--selected.dp-console-menu__row--blink .dp-console-menu__left::after {
+    animation: none !important;
+  }
+
+  .dp-console-menu__row--selected .dp-console-menu__left {
+    background: var(--dp-terminal-led-green, #4af626);
+    color: #080a0c;
+  }
+
+  .dp-console-boot__snow-noise,
+  .dp-console-boot__snow-bars,
+  .dp-console-boot__cursor {
+    animation: none !important;
+  }
+}
+
+body[data-dp-fluidity='eco'] .dp-console-menu__row--selected.dp-console-menu__row--blink .dp-console-menu__left,
+body[data-dp-fluidity='eco'] .dp-console-menu__row--selected.dp-console-menu__row--blink .dp-console-menu__left::after,
+body[data-dp-fluidity='eco'] .dp-console-boot__snow-noise,
+body[data-dp-fluidity='eco'] .dp-console-boot__snow-bars {
+  animation: none !important;
+}

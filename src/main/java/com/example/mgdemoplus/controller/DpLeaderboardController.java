@@ -1,13 +1,10 @@
 package com.example.mgdemoplus.controller;
 
-import com.example.mgdemoplus.common.entity.DpUser;
-import com.example.mgdemoplus.common.mapper.DpUserMapper;
 import com.example.mgdemoplus.leaderboard.impl.DpLeaderboardWeeklyReadService;
+import com.example.mgdemoplus.security.DpCurrentUserSupport;
 import com.example.mgdemoplus.utils.ResultUtil;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -23,7 +20,7 @@ public class DpLeaderboardController {
     @Autowired
     private DpLeaderboardWeeklyReadService dpLeaderboardWeeklyReadService;
     @Autowired
-    private DpUserMapper dpUserMapper;
+    private DpCurrentUserSupport currentUserSupport;
 
     @GetMapping("/hand")
     public ResultUtil weeklyHand(@RequestParam(defaultValue = "50") int limit) {
@@ -38,12 +35,6 @@ public class DpLeaderboardController {
     }
 
     private Integer resolveOptionalUserId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated()
-                || "anonymousUser".equals(String.valueOf(auth.getPrincipal()))) {
-            return null;
-        }
-        DpUser u = dpUserMapper.selectByNickname(auth.getName());
-        return u != null ? u.getId() : null;
+        return currentUserSupport.resolveUserOptional().map(u -> u.getId()).orElse(null);
     }
 }

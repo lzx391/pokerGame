@@ -14,7 +14,7 @@ public interface DpRoomService {
 
     DpRoomBO createRoom(String ownerNickname, Integer ownerUserId,
                         int smallBlindChips, int bigBlindChips, int startingStackBb,
-                        String roomPassword, int maxSeatCount);
+                        String roomPassword, int maxSeatCount, int thinkTimeSeconds);
 
     ResultUtil listRecentRoomChat(String roomId, String viewerNickname, int limit);
 /**
@@ -25,7 +25,13 @@ public interface DpRoomService {
  */
     DpRoomBO getRoomSnapshotForViewer(String roomId, String viewerNickname);
 
+    DpRoomBO getRoomSnapshotForViewer(String roomId, String viewerNickname, Integer viewerUserId);
+
     DpRoomBO snapshotForViewerFromLive(DpRoomBO live, String viewerNickname);
+
+    boolean isViewerInRoom(DpRoomBO room, String nickname, Integer userId);
+
+    String resolveRoomActorNickname(DpRoomBO room, String canonicalNickname, Integer userId);
 
     DpRoomBO getAllRooms(String roomId);
 
@@ -57,6 +63,8 @@ public interface DpRoomService {
 
     boolean toggleReady(String roomId, String nickname);
 
+    boolean toggleReady(String roomId, String nickname, Integer userId);
+
     boolean exitRoom(String roomId, String nickname);
 
     boolean startGame(String roomId, String ownerNickname);
@@ -72,6 +80,8 @@ public interface DpRoomService {
     KickPlayersBatchResult kickPlayersBatch(String roomId, String nicknamesCsv);
 
     void heartbeat(String roomId, String nickname);
+
+    void heartbeat(String roomId, String nickname, Integer userId);
 
     boolean rebuy(String roomId, String nickname);
 
@@ -102,6 +112,12 @@ public interface DpRoomService {
     boolean addGlobalLlmBotToNextHand(String roomId);
 
     boolean transferOwner(String roomId, String fromNickname, String toNickname);
+
+    ResultUtil verifyExperimentalDeckPassword(String roomId, String requesterNickname, String experimentalPassword);
+
+    ResultUtil setNextHandDeckPrefix(String roomId, String requesterNickname, List<String> cards, String experimentalPassword);
+
+    ResultUtil getNextHandDeckPrefixStatus(String roomId, String requesterNickname, String experimentalPassword);
 
     List<DpRoom> getAllRooms2();
 

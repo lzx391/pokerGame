@@ -57,6 +57,25 @@
   }
 }
 
+/* retro8bit 发牌扫描光束 / 弃牌噪声 / 磷光残影关断 */
+.dp-game-root[data-dp-eco-mode='true'] .hole-card-fly-wrapper.hole-deal-fly-in::before,
+.dp-game-root[data-dp-eco-mode='true'] .hole-card-fly-wrapper.hole-deal-fly-in::after,
+.dp-game-root[data-dp-eco-mode='true'] .hole-card-fly-wrapper.hole-fold-to-muck .card-base::after,
+.dp-game-root[data-dp-eco-mode='true'] .hole-card-fly-wrapper.hole-fold-to-muck::after,
+.dp-game-root[data-dp-eco-mode='true'] .card-flip-wrapper.deal-fly-in::before,
+.dp-game-root[data-dp-eco-mode='true'] .card-flip-wrapper.deal-fly-in::after,
+@media (prefers-reduced-motion: reduce) {
+  .hole-card-fly-wrapper.hole-deal-fly-in::before,
+  .hole-card-fly-wrapper.hole-deal-fly-in::after,
+  .hole-card-fly-wrapper.hole-fold-to-muck .card-base::after,
+  .hole-card-fly-wrapper.hole-fold-to-muck::after,
+  .card-flip-wrapper.deal-fly-in::before,
+  .card-flip-wrapper.deal-fly-in::after {
+    animation: none !important;
+    display: none !important;
+  }
+}
+
 .dp-game-root[data-dp-eco-mode='true'] .hole-card-flip,
 @media (prefers-reduced-motion: reduce) {
   .hole-card-flip {
@@ -179,4 +198,321 @@
   .dp-game-mobile-hero-bar__btn--urgent {
     animation: none !important;
   }
+}
+
+/* —— retro8bit 聊天消息入场 + 座旁气泡 + toggle 闪烁 + 信号条 —— */
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-room-chat-panel__row,
+.dp-game-root[data-dp-eco-mode='true'] .dp-player-card__seat-chat,
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-room-chat-panel__toggle--new-msg,
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-room-chat-panel__row::before,
+@media (prefers-reduced-motion: reduce) {
+  .dp-game-room-chat-panel__row,
+  .dp-player-card__seat-chat,
+  .dp-game-room-chat-panel__toggle--new-msg,
+  .dp-game-room-chat-panel__row::before {
+    animation: none !important;
+  }
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .dp-player-card__seat-chat::before,
+@media (prefers-reduced-motion: reduce) {
+  .dp-player-card__seat-chat::before {
+    animation: none !important;
+    opacity: 1;
+  }
+}
+
+/* —— retro8bit 聊天翻板 + 心电图 —— */
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-room-chat-panel__board--flipping-up,
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-room-chat-panel__board--collapsing-down,
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-room-chat-panel__board--ecg-sweep .dp-game-room-chat-panel__ecg,
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-room-chat-panel__board--ecg-sweep .dp-game-room-chat-panel__ecg-line,
+@media (prefers-reduced-motion: reduce) {
+  .dp-game-room-chat-panel__board--flipping-up,
+  .dp-game-room-chat-panel__board--collapsing-down,
+  .dp-game-room-chat-panel__board--ecg-sweep .dp-game-room-chat-panel__ecg,
+  .dp-game-room-chat-panel__board--ecg-sweep .dp-game-room-chat-panel__ecg-line {
+    animation: none !important;
+  }
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-room-chat-panel__board--revealed .dp-game-room-chat-panel__list,
+@media (prefers-reduced-motion: reduce) {
+  .dp-game-room-chat-panel__board--revealed .dp-game-room-chat-panel__list {
+    transition: none !important;
+  }
+}
+
+/* —— retro8bit 手牌全息 v2 —— */
+@media (prefers-reduced-motion: reduce) {
+  .dp-game-hero-hand-hologram--projecting .dp-game-hero-hand-hologram__volume,
+  .dp-game-hero-hand-hologram--collapsing .dp-game-hero-hand-hologram__volume,
+  .dp-game-hero-hand-hologram--materializing .dp-game-hero-hand-hologram__content,
+  .dp-game-hero-hand-hologram--materializing .dp-game-hero-hand-hologram__scan-sweep,
+  .dp-game-hero-hand-hologram--flash .dp-game-hero-hand-hologram__flash {
+    animation: none !important;
+  }
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-hero-hand-hologram--projecting .dp-game-hero-hand-hologram__volume,
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-hero-hand-hologram--collapsing .dp-game-hero-hand-hologram__volume,
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-hero-hand-hologram--materializing .dp-game-hero-hand-hologram__content,
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-hero-hand-hologram--materializing .dp-game-hero-hand-hologram__scan-sweep,
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-hero-hand-hologram--flash .dp-game-hero-hand-hologram__flash {
+  animation: none !important;
+}
+
+/* —— retro8bit 邀请好友左上显示板 —— */
+@media (prefers-reduced-motion: reduce) {
+  .dp-invite-friend-panel--slide-in .dp-invite-friend-panel__shell,
+  .dp-invite-friend-panel--retract .dp-invite-friend-panel__shell,
+  .dp-invite-friend-panel__snow,
+  .dp-invite-friend-panel__snow--active,
+  .dp-invite-friend-panel__snow-noise,
+  .dp-invite-friend-panel__snow-bars,
+  .dp-invite-friend-panel__snow-bright,
+  .dp-invite-friend-panel__flash {
+    animation: none !important;
+  }
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .dp-invite-friend-panel--slide-in .dp-invite-friend-panel__shell,
+.dp-game-root[data-dp-eco-mode='true'] .dp-invite-friend-panel--retract .dp-invite-friend-panel__shell,
+.dp-game-root[data-dp-eco-mode='true'] .dp-invite-friend-panel__snow,
+.dp-game-root[data-dp-eco-mode='true'] .dp-invite-friend-panel__snow--active,
+.dp-game-root[data-dp-eco-mode='true'] .dp-invite-friend-panel__snow-noise,
+.dp-game-root[data-dp-eco-mode='true'] .dp-invite-friend-panel__snow-bars,
+.dp-game-root[data-dp-eco-mode='true'] .dp-invite-friend-panel__snow-bright,
+.dp-game-root[data-dp-eco-mode='true'] .dp-invite-friend-panel__flash {
+  animation: none !important;
+}
+
+/* —— retro8bit 好友私信左上 CRT 面板 —— */
+@media (prefers-reduced-motion: reduce) {
+  .dp-friend-chat-panel--slide-in .dp-friend-chat-panel__shell,
+  .dp-friend-chat-panel--retract .dp-friend-chat-panel__shell,
+  .dp-friend-chat-panel__snow,
+  .dp-friend-chat-panel__snow--active,
+  .dp-friend-chat-panel__snow-noise,
+  .dp-friend-chat-panel__snow-bars,
+  .dp-friend-chat-panel__snow-bright,
+  .dp-friend-chat-panel__flash {
+    animation: none !important;
+  }
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .dp-friend-chat-panel--slide-in .dp-friend-chat-panel__shell,
+.dp-game-root[data-dp-eco-mode='true'] .dp-friend-chat-panel--retract .dp-friend-chat-panel__shell,
+.dp-game-root[data-dp-eco-mode='true'] .dp-friend-chat-panel__snow,
+.dp-game-root[data-dp-eco-mode='true'] .dp-friend-chat-panel__snow--active,
+.dp-game-root[data-dp-eco-mode='true'] .dp-friend-chat-panel__snow-noise,
+.dp-game-root[data-dp-eco-mode='true'] .dp-friend-chat-panel__snow-bars,
+.dp-game-root[data-dp-eco-mode='true'] .dp-friend-chat-panel__snow-bright,
+.dp-game-root[data-dp-eco-mode='true'] .dp-friend-chat-panel__flash {
+  animation: none !important;
+}
+
+/* —— retro8bit 房主终端右上显示板 —— */
+@media (prefers-reduced-motion: reduce) {
+  .dp-owner-terminal--slide-in .dp-owner-terminal__shell,
+  .dp-owner-terminal--retract .dp-owner-terminal__shell,
+  .dp-owner-terminal__snow,
+  .dp-owner-terminal__snow--active,
+  .dp-owner-terminal__snow-noise,
+  .dp-owner-terminal__snow-bars,
+  .dp-owner-terminal__snow-bright,
+  .dp-owner-terminal__flash {
+    animation: none !important;
+  }
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .dp-owner-terminal--slide-in .dp-owner-terminal__shell,
+.dp-game-root[data-dp-eco-mode='true'] .dp-owner-terminal--retract .dp-owner-terminal__shell,
+.dp-game-root[data-dp-eco-mode='true'] .dp-owner-terminal__snow,
+.dp-game-root[data-dp-eco-mode='true'] .dp-owner-terminal__snow--active,
+.dp-game-root[data-dp-eco-mode='true'] .dp-owner-terminal__snow-noise,
+.dp-game-root[data-dp-eco-mode='true'] .dp-owner-terminal__snow-bars,
+.dp-game-root[data-dp-eco-mode='true'] .dp-owner-terminal__snow-bright,
+.dp-game-root[data-dp-eco-mode='true'] .dp-owner-terminal__flash {
+  animation: none !important;
+}
+
+/* —— retro8bit 对手座位入座 —— */
+@media (prefers-reduced-motion: reduce) {
+  .dp-game-table__seat--join-reveal::after,
+  .dp-game-table__seat--join-reveal .dp-player-card--rival-mini {
+    animation: none !important;
+    filter: none !important;
+    opacity: 1 !important;
+  }
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-table__seat--join-reveal::after,
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-table__seat--join-reveal .dp-player-card--rival-mini {
+  animation: none !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+/* —— retro8bit 终端光标闪烁 + phosphor 动画关断 —— */
+.dp-game-root[data-dp-eco-mode='true'] .dp-action-panel__turn::after,
+@media (prefers-reduced-motion: reduce) {
+  .dp-action-panel__turn::after {
+    animation: none !important;
+  }
+}
+
+/* —— retro8bit 桌面鱼干池数据包粒子 + 光标闪烁 —— */
+.dp-game-root[data-dp-eco-mode='true'] .dp-tpot__blink,
+.dp-game-root[data-dp-eco-mode='true'] .dp-tpot__pkt,
+@media (prefers-reduced-motion: reduce) {
+  .dp-tpot__blink,
+  .dp-tpot__pkt {
+    animation: none !important;
+  }
+}
+
+/* —— retro8bit 行动射线 + 座牌闪烁 —— */
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-table__seat-ray--active,
+.dp-game-root[data-dp-eco-mode='true'] .dp-game-table__seat-ray--active-breathe,
+.dp-game-root[data-dp-eco-mode='true'] .dp-player-card--acting,
+@media (prefers-reduced-motion: reduce) {
+  .dp-game-table__seat-ray--active,
+  .dp-game-table__seat-ray--active-breathe,
+  .dp-player-card--acting {
+    animation: none !important;
+  }
+  .dp-game-table__seat-rays line.dp-game-table__seat-ray--active,
+  .dp-game-table__seat-rays polyline.dp-game-table__seat-ray--active {
+    stroke: #4af626;
+    stroke-width: 2;
+    opacity: 0.8;
+  }
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .dp-player-card__rival-turn-dot::after,
+@media (prefers-reduced-motion: reduce) {
+  .dp-player-card__rival-turn-dot::after {
+    animation: none !important;
+  }
+}
+
+/* —— retro8bit 桌面鱼干池显示 + 数据包粒子 + 光标闪烁 —— */
+.dp-game-root[data-dp-eco-mode='true'] .dp-tpot__blink,
+.dp-game-root[data-dp-eco-mode='true'] .dp-tpot__pkt,
+@media (prefers-reduced-motion: reduce) {
+  .dp-tpot__blink,
+  .dp-tpot__pkt {
+    animation: none !important;
+  }
+}
+.dp-game-root[data-dp-eco-mode='true'] .dp-tpot__pkt,
+@media (prefers-reduced-motion: reduce) {
+  .dp-tpot__pkt {
+    display: none;
+  }
+}
+
+/* —— retro8bit 桌面氛围（流光 / glitch / 彩蛋 / 怪物闪）—— */
+.dp-game-root[data-dp-eco-mode='true'] .dp-retro-table-fx__edge--animate,
+.dp-game-root[data-dp-eco-mode='true'] .dp-retro-glitch-monster__flash--in,
+.dp-game-root[data-dp-eco-mode='true'] .dp-retro-glitch-monster__anim,
+.dp-game-root[data-dp-eco-mode='true'] .dp-retro-stack-leader--fade,
+.dp-game-root[data-dp-eco-mode='true'] .dp-retro-ambient--burst,
+.dp-game-root[data-dp-eco-mode='true'] .dp-retro-ambient--burst .dp-retro-ambient__noise {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dp-retro-table-fx__edge--animate,
+  .dp-retro-glitch-monster__flash--in,
+  .dp-retro-glitch-monster__anim,
+  .dp-retro-stack-leader--fade,
+  .dp-retro-ambient--burst,
+  .dp-retro-ambient--burst .dp-retro-ambient__noise {
+    animation: none !important;
+  }
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .dp-retro-glitch-monster {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dp-retro-glitch-monster {
+    display: none !important;
+  }
+}
+
+.dp-game-root[data-dp-eco-mode='true'] .dp-retro-ambient {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dp-retro-ambient {
+    display: none !important;
+  }
+}
+
+/* —— retro8bit 排行榜 scan / glitch —— */
+.dp-game-root[data-dp-eco-mode='true'] .lb-scan-skeleton__beam,
+.dp-game-root[data-dp-eco-mode='true'] .lb-table-wrap--scan-active .lb-table-wrap__scan-beam,
+.dp-game-root[data-dp-eco-mode='true'] .lb-table-wrap--scan-active .lb-table tbody tr,
+.dp-game-root[data-dp-eco-mode='true'] .lb-table-wrap--glitch-burst,
+.dp-game-root[data-dp-eco-mode='true'] .lb-table-wrap--glitch-burst .lb-table-wrap__glitch-noise,
+.dp-game-root[data-dp-eco-mode='true'] .lb-table-wrap--glitch-burst .lb-table-wrap__glitch-bars {
+  animation: none !important;
+  opacity: 1 !important;
+  clip-path: none !important;
+  transform: none !important;
+}
+
+body[data-dp-fluidity='eco'] .lb-scan-skeleton__beam,
+body[data-dp-fluidity='eco'] .lb-table-wrap--scan-active .lb-table-wrap__scan-beam,
+body[data-dp-fluidity='eco'] .lb-table-wrap--scan-active .lb-table tbody tr,
+body[data-dp-fluidity='eco'] .lb-table-wrap--glitch-burst,
+body[data-dp-fluidity='eco'] .lb-table-wrap--glitch-burst .lb-table-wrap__glitch-noise,
+body[data-dp-fluidity='eco'] .lb-table-wrap--glitch-burst .lb-table-wrap__glitch-bars {
+  animation: none !important;
+  opacity: 1 !important;
+  clip-path: none !important;
+  transform: none !important;
+}
+
+/* —— retro8bit 大厅邮箱 / 好友 / 快匹 blink —— */
+.dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert,
+.dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert,
+.dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--match-alert,
+@media (prefers-reduced-motion: reduce) {
+  .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--match-alert {
+    animation: none !important;
+  }
+}
+
+.dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert .home-quick-card__label::before,
+.dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert .home-quick-card__label::before,
+.dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--match-alert .home-quick-card__label::before,
+.dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert .home-quick-card__mailbox-pip,
+.dp-game-root[data-dp-eco-mode='true'][data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert .home-quick-card__friends-pip,
+@media (prefers-reduced-motion: reduce) {
+  .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert .home-quick-card__label::before,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert .home-quick-card__label::before,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--match-alert .home-quick-card__label::before,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert .home-quick-card__mailbox-pip,
+  .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert .home-quick-card__friends-pip {
+    animation: none !important;
+  }
+}
+
+body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert,
+body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert,
+body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--match-alert,
+body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert .home-quick-card__label::before,
+body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert .home-quick-card__label::before,
+body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--match-alert .home-quick-card__label::before,
+body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--mailbox-alert .home-quick-card__mailbox-pip,
+body[data-dp-fluidity='eco'] .dp-game-root[data-dp-game-theme='retro8bit'] .home-quick-card--friends-alert .home-quick-card__friends-pip {
+  animation: none !important;
 }

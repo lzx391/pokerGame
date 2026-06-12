@@ -23,4 +23,20 @@ public class DpDownloadServiceImpl implements DpDownloadService {
     public List<DpDownloadAsset> listEnabled() {
         return dpDownloadAssetMapper.listEnabled();
     }
+
+    @Override
+    public DpDownloadAsset findById(Long id) {
+        if (id == null) {
+            return null;
+        }
+        return dpDownloadAssetMapper.selectById(id);
+    }
+
+    @Override
+    public int disableById(Long id) {
+        if (id == null) {
+            return 0;
+        }
+        return dpDownloadAssetMapper.disableById(id);
+    }
 }

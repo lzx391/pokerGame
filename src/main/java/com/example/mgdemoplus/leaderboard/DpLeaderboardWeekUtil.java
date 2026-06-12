@@ -23,10 +23,10 @@ public final class DpLeaderboardWeekUtil {
     }
 
     public static String handRedisKey(LocalDate weekMonday) {
-        return "lb:w:" + weekKeySuffix(weekMonday) + ":hand";
+        return "mgdemo:lb:w:" + weekKeySuffix(weekMonday) + ":hand";
     }
 
     public static String roomRedisKey(LocalDate weekMonday) {
-        return "lb:w:" + weekKeySuffix(weekMonday) + ":room";
+        return "mgdemo:lb:w:" + weekKeySuffix(weekMonday) + ":room";
     }
 }

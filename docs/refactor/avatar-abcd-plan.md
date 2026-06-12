@@ -42,44 +42,25 @@
 1. 目录下所有 `{userId}.*`（原图，扩展名变更时清旧图）
 2. 固定文件 `{userId}_sm.webp`
 
-## 4. 老数据回填（P1，默认关闭）
-
-配置项（`application.yml` / 环境变量）：
-
-```yaml
-mgdemoplus:
-  images:
-    backfill-thumbs: ${MGDEMOPLUS_IMAGES_BACKFILL_THUMBS:false}
-```
-
-- `false`（默认）：启动不扫描。
-- `true`：启动时 `DpAvatarThumbBackfillRunner` 扫描图片目录，对每个 `{userId}.{jpg|jpeg|png|webp|gif}` 若不存在 `{userId}_sm.webp` 则生成。
-
-**运维建议**：仅在维护窗口对单机执行一次；多实例部署时只在一台开启，避免并发写同一 NFS/目录。
-
-**备选（未实现代码，可按需加）**：受 JWT 保护的一次性 `POST /dpUser/admin/backfill-avatar-thumbs` + `mgdemoplus.images.backfill-admin-enabled=true`，仅 dev/staging。
-
-## 5. 验收清单
+## 4. 验收清单
 
 - [ ] 上传 jpg/png：磁盘同时存在 `12.jpg` 与 `12_sm.webp`
 - [ ] 再次上传（改扩展名 png）：旧 `12.jpg`、旧 `12_sm.webp` 已删，仅保留 `12.png` + `12_sm.webp`
 - [ ] `curl -I http://localhost:8088/images/12_sm.webp` → `Cache-Control` 含 `public` 与 `max-age=31536000`，且有 `Last-Modified` 或 `ETag`
 - [ ] Docker：重建/重载 Nginx 后，`curl -I https://<host>/images/12_sm.webp` 缓存头正确
-- [ ] `mgdemoplus.images.backfill-thumbs=true` 启动后，仅有原图无 `_sm` 的用户生成缩略图
 - [ ] GIF：首帧缩略图或跳过（日志），原图上传成功
 
-## 6. 回滚
+## 5. 回滚
 
 1. **删缩略图文件**：在图片目录批量删除 `*_sm.webp`（不影响原图）。
-2. **还原 Java**：移除 `DpAvatarThumbnailSupport`、`DpAvatarThumbBackfillRunner`；`WebConfig` 去掉 `/images/**` 的 `cachePeriod`；`DpUserServiceImpl` 去掉生成缩略图调用；`DpImageFileSupport` 恢复仅删 `{userId}.*`。
+2. **还原 Java**：移除 `DpAvatarThumbnailSupport`；`WebConfig` 去掉 `/images/**` 的 `cachePeriod`；`DpUserServiceImpl` 去掉生成缩略图调用；`DpImageFileSupport` 恢复仅删 `{userId}.*`。
 3. **还原 Nginx**：删除 `location ^~ /images/` 块，重建 nginx 镜像/重载配置。
-4. **配置**：`backfill-thumbs` 保持 `false`。
 
-## 7. WebP 编码依赖
+## 6. WebP 编码依赖
 
 JDK `ImageIO` 不内置 WebP **写出**。项目增加 **`com.github.gotson:webp-imageio`**（ImageIO SPI）；缩放仍用 `BufferedImage` + `Graphics2D`。
 
-## 8. 相关代码
+## 7. 相关代码
 
 | 文件 | 职责 |
 |---|---|
@@ -87,16 +68,15 @@ JDK `ImageIO` 不内置 WebP **写出**。项目增加 **`com.github.gotson:webp
 | `utils/DpImageFileSupport.java` | 路径、删除、thumb 文件名 |
 | `utils/DpAvatarThumbnailSupport.java` | 读原图 → 缩放 → 写 WebP |
 | `user/impl/DpUserServiceImpl.java` | 上传后生成 thumb |
-| `config/DpAvatarThumbBackfillRunner.java` | 可选启动扫描 |
 | `docker/nginx/default.conf` | `/images/` 代理与缓存头 |
 
-## 9. Docker 发布提醒
+## 8. Docker 发布提醒
 
 修改 `docker/nginx/default.conf` 后需 **重建 nginx 镜像或更新挂载并重载**（`docker compose up -d --build nginx` 或等价操作），否则生产仍走旧配置。
 
-## 10. 头像时间戳 bust（`avatar_updated_at` / `avatarUpdatedAt`）
+## 9. 头像时间戳 bust（`avatar_updated_at` / `avatarUpdatedAt`）
 
-### 10.1 语义
+### 9.1 语义
 
 | 层 | 说明 |
 |---|---|
@@ -106,7 +86,7 @@ JDK `ImageIO` 不内置 WebP **写出**。项目增加 **`com.github.gotson:webp
 
 头像 **URL 路径不变**（仍为 `/images/{userId}.{ext}`），换图靠磁盘覆盖 + 客户端 cache bust。
 
-### 10.2 JSON 示例
+### 9.2 JSON 示例
 
 `GET /dpUser/profile` → `data.profile`：
 
@@ -131,13 +111,13 @@ JDK `ImageIO` 不内置 WebP **写出**。项目增加 **`com.github.gotson:webp
 
 `GET /dp/friends` 每条好友含同名字段；周榜 `items[]`、`GET /dpUser/stats/{userId}` 的 `honor` 亦返回。
 
-### 10.3 与前端 `?t=` 的关系
+### 9.3 与前端 `?t=` 的关系
 
 - 静态资源仍走 `/images/**` 长缓存（§2）；**不换 URL** 时浏览器可能命中旧图。
 - 前端在 `<img src>` 上拼接 **`?t={avatarUpdatedAt}`**（或缩略图 `_sm.webp` 同源规则），使 URL 变化从而绕过 `max-age`。
 - `avatarUpdatedAt` 在每次成功上传后递增；仅读接口、未换头像时不变。
 
-### 10.4 回滚
+### 9.4 回滚
 
 1. 部署旧版 Java（不读写该列）。
 2. 可选：`ALTER TABLE dp_user DROP COLUMN avatar_updated_at;`（需确认无 Flyway 降级流程；生产一般保留列即可）。

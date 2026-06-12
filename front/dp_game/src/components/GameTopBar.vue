@@ -4,13 +4,13 @@
     <div class="dp-top-bar__row dp-top-bar__row--primary">
       <div class="dp-top-bar__primary-text">
         <span class="dp-top-bar__title">
-          房间: {{ roomId }} | 阶段: <span ref="guideTopStage" class="dp-top-bar__accent">{{ stageLabel }}</span>
+          {{ lbl.room }}: {{ roomId }} | {{ lbl.phase }}: <span ref="guideTopStage" class="dp-top-bar__accent">{{ displayStageLabel }}</span>
         </span>
         <span class="dp-top-bar__meta-sep" aria-hidden="true">·</span>
         <span class="dp-top-bar__sub">
-          小鱼干池 <span ref="guideTopPot" class="dp-top-bar__pot">{{ pot }}</span>
+          {{ lbl.pot }} <span ref="guideTopPot" class="dp-top-bar__pot">{{ pot }}</span>
           <span class="dp-top-bar__meta-sep dp-top-bar__meta-sep--thin" aria-hidden="true">|</span>
-          需对齐 <span ref="guideTopAlign" class="dp-top-bar__bet">{{ currentBetToCall }}</span>
+          {{ lbl.toCall }} <span ref="guideTopAlign" class="dp-top-bar__bet">{{ currentBetToCall }}</span>
           <template v-if="showHeroEconomy">
             <span class="dp-top-bar__meta-sep dp-top-bar__meta-sep--thin" aria-hidden="true">|</span>
             <span
@@ -19,11 +19,11 @@
                 role="region"
                 :aria-label="heroEconomyAriaLabel"
             >
-              <span class="dp-top-bar__hero-eco-stash">持有 <strong class="dp-top-bar__hero-eco-strong">{{ heroMyChips }}</strong></span>
+              <span class="dp-top-bar__hero-eco-stash">{{ lbl.stack }} <strong class="dp-top-bar__hero-eco-strong">{{ heroMyChips }}</strong></span>
               <span class="dp-top-bar__meta-sep dp-top-bar__meta-sep--thin" aria-hidden="true">|</span>
-              <span class="dp-top-bar__hero-eco-secondary">{{ heroEconomySecondaryLabel }} <strong class="dp-top-bar__hero-eco-strong">{{ heroEconomySecondaryValue }}</strong></span>
+              <span class="dp-top-bar__hero-eco-secondary">{{ displayHeroSecondaryLabel }} <strong class="dp-top-bar__hero-eco-strong">{{ heroEconomySecondaryValue }}</strong></span>
               <span class="dp-top-bar__meta-sep dp-top-bar__meta-sep--thin" aria-hidden="true">|</span>
-              <span class="dp-top-bar__hero-eco-secondary">已买入 <strong class="dp-top-bar__hero-eco-strong">{{ heroCarryInChips }}</strong></span>
+              <span class="dp-top-bar__hero-eco-secondary">{{ lbl.invested }} <strong class="dp-top-bar__hero-eco-strong">{{ heroCarryInChips }}</strong></span>
             </span>
           </template>
         </span>
@@ -52,12 +52,8 @@
           <dp-theme-picker
               :game-ui-theme="gameUiTheme"
               :theme-options="themeOptions"
-              :custom-theme-base="customThemeBase"
-              :custom-theme-overrides="customThemeOverrides"
               aria-label="选择对局界面主题"
               @input-theme="onThemeChange($event)"
-              @custom-base="$emit('update:customThemeBase', $event)"
-              @custom-overrides="$emit('update:customThemeOverrides', $event)"
           />
           <label class="dp-game-eco-label">
             <input
@@ -87,7 +83,7 @@
           玩法说明
         </button>
         <button
-            v-if="isOwner"
+            v-if="isOwner && gameUiTheme !== 'retro8bit'"
             ref="guideTopOwnerHub"
             type="button"
             class="dp-btn dp-top-bar__btn dp-top-bar__btn--owner"
@@ -95,6 +91,18 @@
             @click="$emit('open-owner-hub')"
         >
           房主操作
+        </button>
+        <button
+            v-if="isOwner && gameUiTheme === 'retro8bit'"
+            ref="guideTopOwnerTouch"
+            type="button"
+            class="dp-owner-touch__entry dp-owner-touch__entry--topbar dp-owner-touch__entry--retro dp-top-bar__btn"
+            aria-label="房主操作"
+            :aria-expanded="ownerTouchOpen ? 'true' : 'false'"
+            @click="$emit('open-owner-hub')"
+        >
+          <span class="dp-owner-touch__entry-icon" aria-hidden="true">⚙</span>
+          <span class="dp-owner-touch__entry-label">OWNER</span>
         </button>
         <button
             v-if="canInviteFriend"
@@ -105,6 +113,21 @@
             @click="$emit('open-invite-friend')"
         >
           邀请好友
+        </button>
+        <button
+            ref="guideTopFriendChat"
+            type="button"
+            class="dp-btn dp-top-bar__btn dp-top-bar__btn--ghost dp-top-bar__btn--friend-chat"
+            :class="{ 'dp-top-bar__btn--friend-chat-alert': friendChatUnreadTotal > 0 }"
+            :aria-label="friendChatBtnAria"
+            @click="$emit('open-friend-chat')"
+        >
+          <span class="dp-top-bar__friend-chat-label">{{ friendChatBtnLabel }}</span>
+          <span
+              v-if="friendChatUnreadTotal > 0"
+              class="dp-top-bar__friend-chat-pip"
+              aria-hidden="true"
+          >!</span>
         </button>
         <button
             ref="guideTopHandHistory"
@@ -159,10 +182,19 @@
 </template>
 
 <script>
+import {
+  formatTopBarLabel,
+  dpTopBarStageLabel,
+  dpTopBarHeroSecondaryLabel,
+  dpTopBarHeroEconomyAria
+} from '../utils/dpTopBarLabels'
+
 export default {
   name: 'GameTopBar',
   props: {
     roomId: { type: String, required: true },
+    /** 后端 stage 键（preflop/flop/…），retro8bit 映射英文阶段名 */
+    stage: { type: String, default: '' },
     stageLabel: { type: String, required: true },
     pot: { type: Number, required: true },
     currentBetToCall: { type: Number, required: true },
@@ -175,18 +207,15 @@ export default {
     nextHandReady: { type: Boolean, default: false },
     /** 与 game.vue 的 data-dp-game-theme 同步 */
     gameUiTheme: { type: String, required: true },
-    customThemeBase: { type: String, default: 'default' },
-    customThemeOverrides: {
-      type: Object,
-      default: function () {
-        return {}
-      }
-    },
     ecoMode: { type: Boolean, required: true },
     /** 是否在顶栏显示「房主操作」入口 */
     isOwner: { type: Boolean, default: false },
+    /** retro8bit 触控房主面板是否已打开（顶栏按钮 aria） */
+    ownerTouchOpen: { type: Boolean, default: false },
     /** 局内未离座成员或观众：可邀请互为好友进房 */
     canInviteFriend: { type: Boolean, default: false },
+    /** Vuex dpMailbox：好友私信未读总数 */
+    friendChatUnreadTotal: { type: Number, default: 0 },
     themeOptions: {
       type: Array,
       default: function () {
@@ -203,18 +232,42 @@ export default {
     exitLabel: { type: String, default: '退出对局' }
   },
   computed: {
+    lbl: function () {
+      var t = this.gameUiTheme
+      return {
+        room: formatTopBarLabel(t, 'room'),
+        phase: formatTopBarLabel(t, 'phase'),
+        pot: formatTopBarLabel(t, 'pot'),
+        toCall: formatTopBarLabel(t, 'toCall'),
+        stack: formatTopBarLabel(t, 'stack'),
+        invested: formatTopBarLabel(t, 'invested')
+      }
+    },
+    displayStageLabel: function () {
+      return dpTopBarStageLabel(this.gameUiTheme, this.stage, this.stageLabel)
+    },
+    displayHeroSecondaryLabel: function () {
+      return dpTopBarHeroSecondaryLabel(this.gameUiTheme, this.heroEconomySecondaryLabel)
+    },
     heroEconomyAriaLabel: function () {
       if (!this.showHeroEconomy) return ''
-      return (
-          '剩余小鱼干 ' +
-          this.heroMyChips +
-          '，' +
-          this.heroEconomySecondaryLabel +
-          ' ' +
-          this.heroEconomySecondaryValue +
-          '，已买入 ' +
+      return dpTopBarHeroEconomyAria(
+          this.gameUiTheme,
+          this.heroMyChips,
+          this.heroEconomySecondaryLabel,
+          this.heroEconomySecondaryValue,
           this.heroCarryInChips
       )
+    },
+    friendChatBtnLabel: function () {
+      return this.gameUiTheme === 'retro8bit' ? 'DM' : '私信'
+    },
+    friendChatBtnAria: function () {
+      var base = this.gameUiTheme === 'retro8bit' ? '好友私信' : '打开好友私信'
+      if (this.friendChatUnreadTotal > 0) {
+        return base + '，' + this.friendChatUnreadTotal + ' 条未读'
+      }
+      return base
     }
   },
   data: function () {

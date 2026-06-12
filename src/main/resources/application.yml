@@ -52,6 +52,44 @@ spring:
   mvc:
     async:
       request-timeout: -1  # [D]
+  # OAuth2 Client：仅用于 code→token；authorize/callback/JWT 仍走 DpOAuthController
+  security:
+    oauth2:
+      client:
+        registration:
+          github:
+            provider: github
+            client-id: ${GITHUB_CLIENT_ID:}
+            client-secret: ${GITHUB_CLIENT_SECRET:}
+            redirect-uri: ${GITHUB_REDIRECT_URI:}
+            scope: read:user
+          gitee:
+            provider: gitee
+            client-id: ${GITE_CLIENT_ID:}
+            client-secret: ${GITE_CLIENT_SECRET:}
+            redirect-uri: ${GITE_REDIRECT_URI:}
+            authorization-grant-type: authorization_code
+            scope: user_info
+          # 钉钉凭证仍绑定此处 env；authorize/token/profile 由 JustAuth AuthDingTalkV2Request 处理（见 DpDingOAuthProvider）
+          ding:
+            provider: ding
+            client-id: ${DING_CLIENT_ID:}
+            client-secret: ${DING_CLIENT_SECRET:}
+            redirect-uri: ${DING_REDIRECT_URI:}
+            authorization-grant-type: authorization_code
+            scope:
+              - openid
+              - Contact.User.Read
+        provider:
+          gitee:
+            authorization-uri: https://gitee.com/oauth/authorize
+            token-uri: https://gitee.com/oauth/token
+            user-info-uri: https://gitee.com/api/v5/user
+            user-name-attribute: login
+          ding:
+            authorization-uri: https://login.dingtalk.com/oauth2/auth
+            token-uri: https://api.dingtalk.com/v1.0/oauth2/userAccessToken
+            user-name-attribute: unionId
 
 # -----------------------------------------------------------------------------
 # mgdemoplus — 业务配置（A / B / C / D）
@@ -66,6 +104,9 @@ mgdemoplus:
     expiration:
       time: 259200000  # [D] 约 3 天
 
+  # --- A/C: OAuth 登录（GitHub/Gitee 凭证见 spring.security.oauth2.client.registration；钉钉同键名但走 JustAuth）---
+  oauth:
+    frontend-base-url: ${FRONTEND_BASE_URL:}  # [C] 授权成功后 302 跳转至前端（dev 默认 http://localhost:8080）
   # --- B: Redis 缓存 TTL ---
   cache:
     music-list-ttl-seconds: ${MGDEMOPLUS_CACHE_MUSIC_LIST_TTL_SECONDS:300}  # [B] env: MGDEMOPLUS_CACHE_MUSIC_LIST_TTL_SECONDS
@@ -80,12 +121,19 @@ mgdemoplus:
   # --- C: 上传路径 ---
   images:
     file-location: ${MGDEMOPLUS_IMAGES_FILE_LOCATION:file:P:/javaworkspace/DPGameFiles/images/}  # [C] env: MGDEMOPLUS_IMAGES_FILE_LOCATION
-    # 启动扫描并生成缺失的 {userId}_sm.webp；默认 false，避免生产意外全目录扫
-    backfill-thumbs: ${MGDEMOPLUS_IMAGES_BACKFILL_THUMBS:false}  # [B] env: MGDEMOPLUS_IMAGES_BACKFILL_THUMBS
   music:
     file-location: ${MGDEMOPLUS_MUSIC_FILE_LOCATION:file:P:/javaworkspace/DPGameFiles/music/}  # [C] env: MGDEMOPLUS_MUSIC_FILE_LOCATION
   files:
     file-location: ${MGDEMOPLUS_FILES_FILE_LOCATION:file:P:/javaworkspace/DPGameFiles/other/}  # [C] env: MGDEMOPLUS_FILES_FILE_LOCATION
+
+  # --- C: MinIO 对象存储（默认 false，行为与现网磁盘模式一致）---
+  minio:
+    enabled: ${MGDEMOPLUS_MINIO_ENABLED:false}  # [C] env: MGDEMOPLUS_MINIO_ENABLED
+    endpoint: ${MGDEMOPLUS_MINIO_ENDPOINT:http://127.0.0.1:9000}  # [C] env: MGDEMOPLUS_MINIO_ENDPOINT
+    access-key: ${MGDEMOPLUS_MINIO_ACCESS_KEY:}  # [A] env: MGDEMOPLUS_MINIO_ACCESS_KEY
+    secret-key: ${MGDEMOPLUS_MINIO_SECRET_KEY:}  # [A] env: MGDEMOPLUS_MINIO_SECRET_KEY
+    bucket: ${MGDEMOPLUS_MINIO_BUCKET:mgdemo}  # [C] env: MGDEMOPLUS_MINIO_BUCKET
+
   # --- B: 排行榜 Redis 同步 ---
   leaderboard:
     sync-enabled: ${MGDEMOPLUS_LEADERBOARD_SYNC_ENABLED:true}  # [B] env: MGDEMOPLUS_LEADERBOARD_SYNC_ENABLED
@@ -96,6 +144,9 @@ mgdemoplus:
   settle-persist:
     async-enabled: ${MGDEMOPLUS_SETTLE_PERSIST_ASYNC_ENABLED:true}  # [B] env: MGDEMOPLUS_SETTLE_PERSIST_ASYNC_ENABLED
     queue-capacity: ${MGDEMOPLUS_SETTLE_PERSIST_QUEUE_CAPACITY:256}  # [B] env: MGDEMOPLUS_SETTLE_PERSIST_QUEUE_CAPACITY
+
+  # --- A: 实验排牌访问密码（勿提交真值；未配置则功能不可用） ---
+  experimental-deck-preset-password: ${EXPERIMENTAL_DECK_PRESET_PASSWORD:}  # [A] env: EXPERIMENTAL_DECK_PRESET_PASSWORD
 
 # -----------------------------------------------------------------------------
 # mybatis-plus / pagehelper — 持久层（D）

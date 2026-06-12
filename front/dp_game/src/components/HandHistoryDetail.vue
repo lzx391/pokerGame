@@ -1,9 +1,33 @@
 <template>
   <div
+    v-if="useRetroDetail"
+    class="dp-game-root dp-hh-lobby-route"
+    :data-dp-game-theme="effectiveThemeForCss"
+  >
+    <header class="dp-hh-lobby-route__header">
+      <div class="dp-hh-lobby-route__header-actions">
+        <div class="dp-game-theme-row dp-hh-lobby-route__theme-row">
+          <span class="dp-game-theme-row__label">界面主题</span>
+          <dp-theme-picker
+            :game-ui-theme="gameUiTheme"
+            :theme-options="gameThemeOptions"
+            @input-theme="onLobbyThemeChange($event)"
+          />
+        </div>
+      </div>
+    </header>
+    <dp-hand-history-detail
+      context="lobby-page"
+      :hand-history-id="handHistoryId"
+      :achievement-subject-user-id="achievementSubjectUserId"
+      :achievement-subject-nickname="achievementSubjectNickname"
+    />
+  </div>
+  <div
+    v-else
     class="hand-detail-page-root"
     :class="{ 'dp-game-root': !embedded }"
     :data-dp-game-theme="!embedded ? effectiveThemeForCss : undefined"
-    :style="!embedded ? customThemeInlineStyle : {}"
   >
   <div class="hand-detail-page hand-detail-page--embedded">
     <div class="hand-detail-page__shell">
@@ -18,11 +42,7 @@
             <dp-theme-picker
               :game-ui-theme="gameUiTheme"
               :theme-options="gameThemeOptions"
-              :custom-theme-base="customThemeBase"
-              :custom-theme-overrides="customThemeOverrides"
               @input-theme="onLobbyThemeChange($event)"
-              @custom-base="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
-              @custom-overrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
             />
           </div>
         </div>
@@ -56,6 +76,10 @@
             <span class="hand-detail-page__meta-k">发牌猫</span>
             <span class="hand-detail-page__meta-v">{{ detail.dealerNickname || '—' }}</span>
           </div>
+          <div class="hand-detail-page__meta-chip" title="SC 带入倍数">
+            <span class="hand-detail-page__meta-k">带入</span>
+            <span class="hand-detail-page__meta-v">{{ startingStackBbLabel }}</span>
+          </div>
         </div>
 
         <nav class="hand-detail-page__tabs" role="tablist" aria-label="牌局阶段">
@@ -77,7 +101,14 @@
           <div class="hand-detail-page__board">
             <div class="hand-detail-page__board-head">
               <span class="hand-detail-page__board-title">公共牌</span>
-              <span class="hand-detail-page__board-hint">{{ streetHint }}</span>
+              <div class="hand-detail-page__board-meta">
+                <span class="hand-detail-page__board-hint">{{ streetHint }}</span>
+                <span
+                  v-if="potTotalForActiveTab != null"
+                  class="hand-detail-page__board-pot"
+                  title="该街下注轮结束时的桌池总额"
+                >街末总池 {{ potTotalForActiveTab }}</span>
+              </div>
             </div>
             <div class="hand-detail-page__board-felt">
               <template v-if="!communityCardsForTab.length">
@@ -189,6 +220,7 @@
                 <tr>
                   <th scope="col">玩家</th>
                   <th scope="col">鱼干输赢</th>
+                  <th scope="col">终局筹码</th>
                   <th scope="col">底牌</th>
                   <th scope="col">牌型</th>
                 </tr>
@@ -207,6 +239,7 @@
                     </div>
                   </td>
                   <td :class="['hand-detail-table__net', netClass(row.net)]">{{ row.net }}</td>
+                  <td class="hand-detail-table__net">{{ row.chipsAtEnd != null ? row.chipsAtEnd : '—' }}</td>
                   <td class="hand-detail-table__holes-cell">
                     <span v-if="row.folded && !row.isSelf" class="hand-detail-page__folded-label">已盖牌</span>
                     <div v-else-if="row.cards.length" class="hand-detail-page__card-row hand-detail-page__card-row--holes">
@@ -249,12 +282,17 @@
 </template>
 
 <script>
+/**
+ * 洞牌展示：权威数据由后端 GET /dpHandHistory/detail 脱敏（如 holeCardsAtEnd）；
+ * 本组件 computed（如 holeCardsByNickForStreet）及 dpHandHistoryReplay 规则仅作 UI 兜底，与接口裁切可能重复，保留供负责人评估。
+ */
 import '@/styles/dp-game-themes.css'
 import '@/styles/dp-lobby-shell.css'
 import dpLobbyThemeMixin from '@/mixins/dpLobbyThemeMixin'
 import '@/styles/dp-poker-cards.css'
 import { getCardClass, getCardDisplay } from '@/utils/dpGameCardVisual'
 import { getHandRank } from '@/utils/dpGameHandRank'
+import { displayHandRankName } from '@/utils/dpHandRankDisplay'
 import {
   STREET_TABS,
   seatNicknamesOrdered,
@@ -264,17 +302,21 @@ import {
   boardForStreet,
   handRankNameByStreet,
   finalHandRankNameByPlayer,
-  formatActionText,
+  formatActionTextWithChips,
+  potTotalAtStreetEndForStreet,
   firstFoldStage,
   shouldShowHoleCardsOnStreetTab,
   finalCommunityCards,
-  playerRoleTagsByNickname
+  playerRoleTagsByNickname,
+  resolveChipsAtEnd
 } from '@/utils/dpHandHistoryReplay.js'
 import { ensureDpUserIdInStorage } from '@/utils/dpEnsureUserId'
 import { CAT_COPY, dpPotDisplayLabel } from '@/constants/dpCatThemeCopy'
+import DpHandHistoryDetail from '@/components/DpHandHistoryDetail.vue'
 
 export default {
   name: 'HandHistoryDetail',
+  components: { DpHandHistoryDetail },
   mixins: [dpLobbyThemeMixin],
   props: {
     handHistoryId: {
@@ -282,7 +324,11 @@ export default {
       required: true
     },
     /** 为 true 时「返回列表」交给父组件（如对局内弹层），不跳转路由 */
-    embedded: { type: Boolean, default: false }
+    embedded: { type: Boolean, default: false },
+    /** 成就墙回放：牌谱主体玩家 userId；有值时走 checkUserAchievementDetail */
+    achievementSubjectUserId: { type: Number, default: null },
+    /** 成就墙回放：主体玩家昵称，用于洞牌/本人视角 UI */
+    achievementSubjectNickname: { type: String, default: '' }
   },
   data() {
     return {
@@ -296,6 +342,16 @@ export default {
     }
   },
   computed: {
+    replayViewerNickname() {
+      if (this.achievementSubjectUserId != null && this.achievementSubjectUserId > 0) {
+        var sub = this.achievementSubjectNickname && String(this.achievementSubjectNickname).trim()
+        if (sub) return sub
+      }
+      return (this.user && this.user.nickname) || ''
+    },
+    useRetroDetail() {
+      return !this.embedded && this.gameUiTheme === 'retro8bit'
+    },
     payload() {
       return (this.detail && this.detail.payload) || {}
     },
@@ -329,7 +385,7 @@ export default {
       if (tab === 'settlement') return out
       const holes = this.payload.holeCardsAtEnd
       const map = holes && typeof holes === 'object' ? holes : {}
-      const viewer = this.user && this.user.nickname
+      const viewer = this.replayViewerNickname
       for (const nick of this.rowNicknames) {
         const isSelf = viewer && nick === viewer
         if (isSelf) {
@@ -377,7 +433,7 @@ export default {
     settlementRowsWithCards() {
       const holes = this.payload.holeCardsAtEnd
       const map = holes && typeof holes === 'object' ? holes : {}
-      const viewer = this.user && this.user.nickname
+      const viewer = this.replayViewerNickname
       return this.settlementNetRows.map((row) => {
         const folded = this.foldedNicknames.has(row.nick)
         const isSelf = viewer && row.nick === viewer
@@ -391,7 +447,7 @@ export default {
           const raw = map[row.nick]
           cards = Array.isArray(raw) ? raw : []
         }
-        return { ...row, folded, isSelf, cards }
+        return { ...row, folded, isSelf, cards, chipsAtEnd: resolveChipsAtEnd(this.payload, row.nick, this.seatsAtStart) }
       })
     },
     playersForStreet() {
@@ -415,11 +471,12 @@ export default {
       const playersArr = this.playersForStreet
       const { prefix, rounds } = splitRoundsByRaises(this.streetActions)
       const cols = []
+      const gridOpts = { includeChipsAfter: true }
       if (prefix.length) {
-        cols.push(buildRoundGrid([prefix], playersArr)[0])
+        cols.push(buildRoundGrid([prefix], playersArr, gridOpts)[0])
       }
       if (rounds.length) {
-        cols.push(...buildRoundGrid(rounds, playersArr))
+        cols.push(...buildRoundGrid(rounds, playersArr, gridOpts))
       }
       return cols
     },
@@ -454,14 +511,34 @@ export default {
         river: '本圈公开第 5 张桌面牌'
       }
       return map[this.activeTab] || ''
+    },
+    startingStackBbValue() {
+      const fromDetail = this.detail && this.detail.startingStackBb
+      const fromPayload = this.payload.startingStackBb
+      const raw = fromDetail != null ? fromDetail : fromPayload
+      if (raw == null || raw === '') return null
+      const n = Number(raw)
+      return Number.isNaN(n) ? null : n
+    },
+    startingStackBbLabel() {
+      const n = this.startingStackBbValue
+      return n != null ? n + ' BB' : '—'
+    },
+    potTotalForActiveTab() {
+      if (this.activeTab === 'settlement') return null
+      return potTotalAtStreetEndForStreet(this.boardsByStreet, this.activeTab)
     }
   },
   watch: {
     handHistoryId() {
       this.fetchDetail()
+    },
+    achievementSubjectUserId() {
+      this.fetchDetail()
     }
   },
   async created() {
+    if (this.useRetroDetail) return
     try {
       const raw = localStorage.getItem('userInfo')
       this.user = raw ? JSON.parse(raw) : null
@@ -526,7 +603,7 @@ export default {
     },
     handRankTextForStreet(nick) {
       if (!nick || this.activeTab === 'settlement') return ''
-      const viewer = this.user && this.user.nickname
+      const viewer = this.replayViewerNickname
       const isSelf = viewer && nick === viewer
       const holesCell = this.holeCardsByNickForStreet[nick]
       if (!isSelf && holesCell === null) return ''
@@ -534,11 +611,11 @@ export default {
       if (!community || community.length < 3) return ''
       const map = handRankNameByStreet(this.boardsByStreet, this.activeTab)
       let text = map[nick]
-      if (text && String(text).trim()) return String(text).trim()
+      if (text && String(text).trim()) return displayHandRankName(String(text).trim())
       if (!isSelf) return ''
       const holeList = Array.isArray(holesCell) ? holesCell : []
       if (holeList.length < 2) return ''
-      return getHandRank(holeList, community) || ''
+      return displayHandRankName(getHandRank(holeList, community) || '')
     },
     handRankTextForSettlement(nick, folded, isSelf) {
       if (!nick) return ''
@@ -547,13 +624,13 @@ export default {
       if (!community || community.length < 3) return ''
       const map = finalHandRankNameByPlayer(this.boardsByStreet)
       let text = map[nick]
-      if (text && String(text).trim()) return String(text).trim()
+      if (text && String(text).trim()) return displayHandRankName(String(text).trim())
       if (!isSelf) return ''
       const holes = this.payload.holeCardsAtEnd
       const holeMap = holes && typeof holes === 'object' ? holes : {}
       const holeList = Array.isArray(holeMap[nick]) ? holeMap[nick] : []
       if (holeList.length < 2) return ''
-      return getHandRank(holeList, community) || ''
+      return displayHandRankName(getHandRank(holeList, community) || '')
     },
     cellText(nick, colIdx) {
       const g = this.roundGrid
@@ -563,7 +640,7 @@ export default {
         for (var i = 0; i < this.streetActions.length; i++) {
           var a = this.streetActions[i]
           if (a && a.actorNickname === nick) {
-            parts.push(formatActionText(a))
+            parts.push(formatActionTextWithChips(a))
           }
         }
         return parts.length ? parts.join('\n') : '—'
@@ -582,11 +659,14 @@ export default {
       this.loading = true
       this.loadError = ''
       try {
-        var params = {
-          handHistoryId: id,
-          userId: Number(this.user.userId)
+        var params = { handHistoryId: id }
+        var url = '/dpHandHistory/detail'
+        var subjectUid = Number(this.achievementSubjectUserId)
+        if (!isNaN(subjectUid) && subjectUid > 0) {
+          url = '/dpHandHistory/checkUserAchievementDetail'
+          params.userId = subjectUid
         }
-        var res = await this.$http.get('/dpHandHistory/detail', { params: params })
+        var res = await this.$http.get(url, { params: params })
         this.detail = res.data || null
         if (!this.detail) {
           this.loadError = '未找到数据'
@@ -830,9 +910,30 @@ export default {
   color: var(--hd-text);
 }
 
+.hand-detail-page__board-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 14px;
+}
+
 .hand-detail-page__board-hint {
   font-size: 12px;
   color: var(--hd-muted);
+}
+
+.hand-detail-page__board-pot {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--hd-tab-active);
+  background: color-mix(in srgb, var(--hd-accent) 10%, var(--hd-surface));
+  border: 1px solid color-mix(in srgb, var(--hd-accent) 22%, transparent);
 }
 
 .hand-detail-page__board-felt {
@@ -1230,6 +1331,12 @@ export default {
   color: color-mix(in srgb, var(--dp-text-primary) 52%, transparent);
 }
 
+.hand-detail-page--embedded .hand-detail-page__board-pot {
+  color: var(--dp-accent, var(--hd-tab-active));
+  background: color-mix(in srgb, var(--dp-accent, var(--hd-accent)) 10%, var(--dp-panel-bg, var(--hd-surface)));
+  border-color: color-mix(in srgb, var(--dp-accent, var(--hd-accent)) 22%, transparent);
+}
+
 .hand-detail-page--embedded .hand-detail-page__empty-block {
   background: var(--dp-subpanel-bg, #f6f8fb);
   color: var(--hd-muted);
@@ -1318,5 +1425,24 @@ export default {
   .hand-detail-page__panel {
     padding: 14px;
   }
+}
+
+.dp-hh-lobby-route {
+  max-width: min(960px, 100%);
+  margin: 0 auto;
+}
+.dp-hh-lobby-route__header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: clamp(8px, 2vw, 14px);
+}
+.dp-hh-lobby-route__header-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+.dp-hh-lobby-route__theme-row {
+  justify-content: flex-end;
 }
 </style>

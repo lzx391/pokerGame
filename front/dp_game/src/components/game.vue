@@ -6,35 +6,34 @@
       :class="{
         'dp-game-root--pseudo-fs': pseudoFullscreen,
         'dp-game-root--layout-fs': layoutFullscreen,
-        'dp-game-root--mobile-hero-dock': mobileHeroDockActive
+        'dp-game-root--mobile-hero-dock': mobileHeroDockActive,
+        'dp-game-root--retro-desktop-fx': showRetroDesktopFx
       }"
       :data-dp-game-theme="effectiveThemeForCss"
-      :style="customThemeInlineStyle"
       :data-dp-eco-mode="ecoMode ? 'true' : 'false'"
-      :data-dp-stage="stage"
+      :data-dp-stage="cardDisplayStage"
       :data-dp-orientation="layoutOrientation"
+      :style="retroPolygonRootStyle"
   >
     <!-- 顶栏 | 主区(牌桌) | 底栏 —— 三块同级 flex，无额外嵌套 -->
     <div class="dp-game-layout">
     <header class="dp-game-layout__header">
     <game-top-bar
         :room-id="roomId"
-        :stage-label="stageCN"
-        :pot="pot"
-        :current-bet-to-call="currentBetToCall"
+        :stage="cardDisplayStage"
+        :stage-label="displayStageCN"
+        :pot="displayPot"
+        :current-bet-to-call="displayCurrentBetToCall"
         :spectator-count="spectators.length"
         :wait-next-hand-count="waitNextHand.length"
         :is-fullscreen="layoutFullscreen"
         :is-owner="isOwner"
+        :owner-touch-open="ownerTouchSheetOpen"
         :can-invite-friend="canInviteFriend"
         :show-spectator-prepare="showSpectatorPrepareBlock"
         :next-hand-ready="nextHandReady"
         :game-ui-theme="gameUiTheme"
-        :custom-theme-base="customThemeBase"
-        :custom-theme-overrides="customThemeOverrides"
-        @update:gameUiTheme="$store.commit('dpGame/SET_GAME_UI_THEME', $event)"
-        @update:customThemeBase="$store.commit('dpGame/SET_CUSTOM_THEME', { baseId: $event })"
-        @update:customThemeOverrides="$store.commit('dpGame/SET_CUSTOM_THEME', { overrides: $event })"
+        @update:gameUiTheme="onGameUiThemeChange"
         :eco-mode="ecoMode"
         @update:ecoMode="$store.commit('dpGame/SET_ECO_MODE', $event)"
         :theme-options="gameThemeOptions"
@@ -43,13 +42,15 @@
         @show-wait-next-hand="$store.commit('dpGame/SET_MODAL', { showWaitNextHandModal: true })"
         @toggle-fullscreen="toggleDpFullscreen"
         @open-hand-history="openHandHistory"
-        @open-music-box="$store.commit('dpGame/SET_MODAL', { showMusicBoxModal: true })"
-        @open-owner-hub="openOwnerHubSheet"
-        @open-invite-friend="openInviteFriendSheet"
+        @open-music-box="onOpenMusicBox"
+        @open-owner-hub="onOwnerHubClick"
+        @open-invite-friend="onInviteFriendClick"
+        @open-friend-chat="onFriendChatClick"
+        :friend-chat-unread-total="friendChatUnreadTotal"
         @exit="exitGame"
         @ready-next-hand="readyNextHand"
         :show-hero-economy="topBarShowHeroEconomy"
-        :hero-my-chips="myChips"
+        :hero-my-chips="displayMyChips"
         :hero-economy-secondary-label="topBarHeroEconomySecondaryLabel"
         :hero-economy-secondary-value="topBarHeroEconomySecondaryValue"
         :hero-carry-in-chips="myCarryInChips"
@@ -60,7 +61,7 @@
     <main
         ref="gameMain"
         class="dp-game-layout__main dp-game-layout__main--fit-table"
-        :class="{ 'dp-game-layout__main--settlement-scroll': stage === 'showdown' || stage === 'settled' }"
+        :class="{ 'dp-game-layout__main--settlement-scroll': cardDisplayStage === 'showdown' || cardDisplayStage === 'settled' }"
     >
     <p
         v-if="layoutTier === 'phone' && layoutOrientation === 'portrait'"
@@ -72,7 +73,7 @@
     <div class="dp-game-table-fit" :style="tableFitClipStyleObj">
       <div ref="tableFitInner" class="dp-game-table-fit__inner">
           <game-round-table
-              :chip-leader-nicknames="chipLeaderNicknames"
+              :chip-leader-nicknames="tableChipLeaderNicknames"
               :players-display-order="playersDisplayOrder"
               :show-table-action-timer="showTableActionTimer"
               :time-left="timeLeft"
@@ -85,18 +86,29 @@
               :viewer-seated-at-table="viewerSeatedAtTable"
               :act-index="actIndex"
               :stage="stage"
+              :card-display-stage="cardDisplayStage"
+              :retro-showdown-tv-pending="retroShowdownTvPending"
               :community-cards-flip-complete="communityCardsFlipComplete"
               :is-owner="isOwner"
               :owner-reveal-all="ownerRevealAll"
               :my-nickname="user ? user.nickname : ''"
               :current-hand-seed="currentHandSeed"
               :hole-deal-player-count-for-anim="holeDealPlayerCountForAnim"
-              :showdown-hand-leader-nicknames="showdownHandLeaderNicknames"
+              :showdown-hand-leader-nicknames="tableShowdownHandLeaderNicknames"
               :dealer-display-index="dealerDisplayIndex"
               :get-player-box-style="getPlayerBoxStyle"
               :hole-deal-order-from-dealer="holeDealOrderFromDealer"
               :seat-chat-text-for="seatChatTextFor"
+              :join-reveal-nicks="joinRevealNicks"
+              :seat-enter-reveal-enabled="useRetroSeatEnterReveal"
+              :game-ui-theme="gameUiTheme"
+              :pot="displayPot"
+              :player-economy-for-display="playerEconomyForDisplay"
+              :show-retro-desktop-fx="showRetroDesktopFx"
+              :retro-desktop-animated="useRetroDesktopAmbience"
+              :retro-glitch-seq="retroGlitchSeq"
               @hole-deal-intro-complete="$store.commit('dpGame/SET_HERO_HOLE_DEAL', true)"
+              @seat-enter-reveal-done="onSeatEnterRevealDone"
               @card-click="onPlayerCardClick"
           />
         </div>
@@ -105,7 +117,7 @@
     </main>
 
     <footer class="dp-game-layout__footer">
-      <game-hero-dock-footer />
+      <game-hero-dock-footer ref="heroDockFooter" />
     </footer>
     </div>
 
@@ -120,6 +132,35 @@
 
     <game-dp-game-sheets />
 
+    <game-hero-hand-hologram v-if="gameUiTheme === 'retro8bit'" ref="heroHandHologram" />
+    <dp-crt-boot-sequence ref="crtBootSequence" />
+    <dp-terminal-cli v-if="gameUiTheme === 'retro8bit'" ref="terminalCli" />
+    <dp-crt-event-popup v-if="gameUiTheme === 'retro8bit'" ref="crtEventPopup" />
+    <dp-music-player ref="musicPlayer" v-if="gameUiTheme === 'retro8bit'" :open.sync="showMusicPlayer" />
+    <dp-hand-history-viewer ref="handHistoryViewer" v-if="gameUiTheme === 'retro8bit'" :open.sync="showHandHistoryPanel" />
+    <dp-hand-history-viewer
+        v-if="gameUiTheme === 'retro8bit'"
+        ref="opponentHandHistoryViewer"
+        :open.sync="showOpponentHandHistoryPanel"
+        list-mode="withOpponent"
+        :other-user-id="opponentHandHistoryOtherUserId"
+        :opponent-display-name="opponentHandHistoryDisplayName"
+    />
+    <dp-hand-history-detail
+      ref="handHistoryDetail"
+      v-if="gameUiTheme === 'retro8bit'"
+      :hand-history-id="handHistoryDetailId"
+      :achievement-subject-user-id="handHistoryDetailSubjectUserId"
+      :achievement-subject-nickname="handHistoryDetailSubjectNickname"
+      @closed="onHandHistoryDetailClosed"
+    />
+
+    <dp-retro-ambient-overlay
+        v-if="showRetroDesktopFx"
+        :animated="useRetroDesktopAmbience"
+        @glitch-burst="onRetroGlitchBurst"
+    />
+
   </div>
 </template>
 
@@ -128,14 +169,25 @@ import '../styles/dp-game-themes.css'
 import '../styles/dp-game-shell.css'
 import '../styles/dp-game-modals.css'
 import '../styles/dp-game-eco-mode.css'
+import '../styles/dp-retro-desktop-fx.css'
 import GameTopBar from './GameTopBar.vue'
-import { holeDealOrderFromDealer as holeDealOrderFromDealerUtil } from '../utils/dpGameRoundTableLayout'
+import { buildRetroTableLayout, holeDealOrderFromDealer as holeDealOrderFromDealerUtil } from '../utils/dpGameRoundTableLayout'
 import { dpDisplayNickname, isDpBotNickname } from '../utils/dpDisplayNickname'
+import { resolveRoomPersonMeta } from '../utils/dpRoomPlayerLookup'
+import { dpSocialApi } from '../api/api.dpSocial'
 import { musicFileSrc } from '../utils/dpGameMusicUrl'
 import GameRoundTable from './GameRoundTable.vue'
 import GameHeroDockFooter from './GameHeroDockFooter.vue'
 import GameDpFloatingModals from './GameDpFloatingModals.vue'
 import GameDpGameSheets from './GameDpGameSheets.vue'
+import GameHeroHandHologram from './GameHeroHandHologram.vue'
+import DpCrtBootSequence from './DpCrtBootSequence.vue'
+import DpTerminalCli from './DpTerminalCli.vue'
+import DpCrtEventPopup from './DpCrtEventPopup.vue'
+import DpMusicPlayer from './DpMusicPlayer.vue'
+import DpHandHistoryViewer from './DpHandHistoryViewer.vue'
+import DpHandHistoryDetail from './DpHandHistoryDetail.vue'
+import DpRetroAmbientOverlay from './DpRetroAmbientOverlay.vue'
 import dpGameFullscreenMixin from '../mixins/dpGameFullscreenMixin'
 import dpGameTableFitMixin from '../mixins/dpGameTableFitMixin'
 import dpGameActionCountdownMixin from '../mixins/dpGameActionCountdownMixin'
@@ -143,10 +195,33 @@ import dpGameLayoutTierMixin from '../mixins/dpGameLayoutTierMixin'
 import { dpGamePlayerBoxStyle } from '../utils/dpGamePlayerBoxStyle'
 import { ensureDpUserIdInStorage } from '../utils/dpEnsureUserId'
 import { dpResultSuccess, dpResultData, dpResultMessage } from '../utils/dpApiResult'
+import {
+  isDeckPresetUnlocked,
+  setDeckPresetSessionUnlock,
+  dpDeckPresetSessionPassword,
+  clearDeckPresetSessionUnlock
+} from '../utils/dpDeckPresetUnlock'
 import { dpRoomApi } from '@/api/api.dpRoom'
 import { mapState, mapGetters } from 'vuex'
+import { dpSocialDisplayNickname } from '../utils/dpSocialDisplayName'
 import { encodeRoomApplyFingerprint } from '../utils/dpGameRoomFingerprint'
 import { CAT_COPY, dpPotDisplayLabel } from '../constants/dpCatThemeCopy'
+import { dpHandHologramDevLog } from '../utils/dpHandHologramDevLog'
+import { dpInviteFriendsDevLog } from '../utils/dpInviteFriendsDevLog'
+import { dpOwnerTerminalDevLog } from '../utils/dpOwnerTerminalDevLog'
+import { dpSeatEnterDevLog } from '../utils/dpSeatEnterDevLog'
+import {
+  dpRetroMonsterGateLog,
+  dpRetroMonsterLog,
+  dpRetroMonsterLogStartupHint
+} from '../utils/dpRetroDesktopFxDevLog'
+import { extractPlayerNicknames, diffNewSeatNicknames } from '../utils/dpSeatEnterNickDiff'
+import {
+  communityFlipCompleteMsForTheme,
+  communityFlipDelayMsForTheme
+} from '../constants/dpGameDealTiming'
+import { shouldRetroShowdownTvSequence, resolveCardDisplayStage, resolveShowdownHandLeaders, isRetroBettingStage, isRetroRevealStage, isSettlePresentationFrozen, shouldDeferRetroNpcSeatChat, captureBettingEconomySnapshot, resolvePlayerEconomyDisplay, resolveFrozenTablePot, resolveFrozenCurrentBetToCall, resolveFrozenChipLeaderNicknames } from '../utils/dpRetroShowdownReveal'
+import { dpGameStageDisplay } from '../constants/dpCatThemeCopy'
 
 export default {
   mixins: [dpGameFullscreenMixin, dpGameTableFitMixin, dpGameActionCountdownMixin, dpGameLayoutTierMixin],
@@ -160,7 +235,15 @@ export default {
     GameRoundTable,
     GameHeroDockFooter,
     GameDpFloatingModals,
-    GameDpGameSheets
+    GameDpGameSheets,
+    GameHeroHandHologram,
+    DpCrtBootSequence,
+    DpTerminalCli,
+    DpCrtEventPopup,
+    DpMusicPlayer,
+    DpHandHistoryViewer,
+    DpHandHistoryDetail,
+    DpRetroAmbientOverlay
   },
   data() {
     return {
@@ -185,27 +268,82 @@ export default {
       _lastRoomMusicWebPath: '',
       playerSocialOpen: false,
       playerSocialTarget: null,
-      inviteFriendOpen: false
+      inviteFriendOpen: false,
+      friendChatPickerOpen: false,
+      friendChatVisible: false,
+      friendChatPeerId: null,
+      friendChatPeerName: '',
+      friendChatPeerAvatar: '',
+      friendChatPeerAvatarUpdatedAt: null,
+      friendChatPeerUnread: 0,
+      ownerTerminalOpen: false,
+      ownerTouchSheetOpen: false,
+      showOwnerPotJudgeSheet: false,
+      showMusicPlayer: false,
+      showHandHistoryPanel: false,
+      showOpponentHandHistoryPanel: false,
+      handHistoryDetailId: null,
+      handHistoryDetailSubjectUserId: null,
+      handHistoryDetailSubjectNickname: '',
+      viewportWidth: typeof window !== 'undefined' ? window.innerWidth : 1024,
+      prefersReducedMotion: false,
+      _hologramResizeTimer: null,
+      _hologramPrmMedia: null,
+      _seatEnterNickSeeded: false,
+      joinRevealNicks: {},
+      _gameUiThemeChangeTimer: null,
+      retroGlitchSeq: 0,
+      /** retro8bit：首帧 stage 同步完成后才允许 TV 摊牌序列（避免进房即 settled 误触） */
+      retroStageNavReady: false,
+      /** 本局摊牌 TV 是否已排队（避免 stage 重复触发）；勿用 _ 前缀，Vue2 computed 无法订阅 */
+      retroShowdownTvPending: false,
+      /** 进入摊牌前的下注街，供 TV 期间 cardDisplayStage 回退 */
+      retroShowdownFromStage: null,
+      /** 最后一帧下注街经济快照（TV 期间冻结积分/底池展示） */
+      retroBettingEconomySnapshot: null,
+      showDeckPresetDialog: false,
+      showDeckPresetPasswordGate: false,
+      deckPresetSavedCount: 0,
+      deckPresetInitialCards: [],
+      deckPresetSubmitting: false
     }
   },
 
   computed: {
     ...mapState('dpGame', [
-      'gameUiTheme', 'customThemeBase', 'customThemeOverrides', 'ecoMode', 'gameThemeOptions', 'roomId', 'user', 'currentHandSeed', 'owner', 'players', 'playing', 'stage', 'communityCards', 'pot', 'pots', 'currentBetToCall', 'lastRaiseIncrement', 'actIndex', 'spectators', 'waitNextHand', 'raiseAmount', 'selectedWinners', 'potWinners', 'nextHandReady', 'loading', 'communityCardsFlipState', 'communityCardsFlipComplete', 'seatChatTextByNick', 'roomChatMessages', 'chatInputDraft', 'showPlayGuideModal', 'playGuideTab', 'showSpectatorModal', 'showWaitNextHandModal', 'showHandHistoryModal', 'showOpponentHandHistoryModal', 'opponentHandHistoryOtherUserId', 'opponentHandHistoryDisplayName', 'showMusicBoxModal', 'musicTracks', 'musicTracksLoading', 'musicTracksError', 'roomMusicState', 'showOwnerHubSheet', 'showCustomNpcStyleDialog', 'customNpcPendingCount', 'ownerToolType', 'ownerActionTarget', 'demoBotAdding', 'demoBotAddedTip', 'maniacBotAdding', 'maniacBotAddedTip', 'tagBotAdding', 'tagBotAddedTip', 'lagBotAdding', 'lagBotAddedTip', 'nitBotAdding', 'nitBotAddedTip', 'callBotAdding', 'callBotAddedTip', 'llmBotAdding', 'llmBotAddedTip', 'llmGlobalBotAdding', 'llmGlobalBotAddedTip', 'customBotAdding', 'customBotAddedTip', 'ownerRevealAll', 'showMobileHandSheet', 'showMobileActionSheet', 'heroHoleDealIntroDone', 'chipLeaderNicknames', 'myCarryInChips'
+      'gameUiTheme', 'ecoMode', 'gameThemeOptions', 'roomId', 'user', 'currentHandSeed', 'owner', 'players', 'playing', 'stage', 'communityCards', 'pot', 'pots', 'currentBetToCall', 'lastRaiseIncrement', 'actIndex', 'spectators', 'waitNextHand', 'raiseAmount', 'selectedWinners', 'potWinners', 'nextHandReady', 'loading', 'communityCardsFlipState', 'communityCardsFlipComplete', 'seatChatTextByNick', 'roomChatMessages', 'chatInputDraft', 'showPlayGuideModal', 'playGuideTab', 'showSpectatorModal', 'showWaitNextHandModal', 'showHandHistoryModal', 'showOpponentHandHistoryModal', 'opponentHandHistoryOtherUserId', 'opponentHandHistoryDisplayName', 'showMusicBoxModal', 'musicTracks', 'musicTracksLoading', 'musicTracksError', 'roomMusicState', 'showOwnerHubSheet', 'showCustomNpcStyleDialog', 'customNpcPendingCount', 'ownerToolType', 'ownerActionTarget', 'demoBotAdding', 'demoBotAddedTip', 'maniacBotAdding', 'maniacBotAddedTip', 'tagBotAdding', 'tagBotAddedTip', 'lagBotAdding', 'lagBotAddedTip', 'nitBotAdding', 'nitBotAddedTip', 'callBotAdding', 'callBotAddedTip', 'llmBotAdding', 'llmBotAddedTip', 'llmGlobalBotAdding', 'llmGlobalBotAddedTip', 'customBotAdding', 'customBotAddedTip', 'ownerRevealAll', 'showMobileHandSheet', 'showMobileActionSheet', 'showHeroHandHologram', 'heroHoleDealIntroDone', 'chipLeaderNicknames', 'myCarryInChips'
     ]),
     ...mapGetters('dpGame', [
-      'effectiveThemeForCss', 'customThemeInlineStyle', 'handRankReference', 'stageCN', 'isOwner', 'canInviteFriend', 'isMyTurn', 'myPlayer', 'showSpectatorPrepareBlock', 'myReady', 'myChips', 'myBet', 'callAmount', 'smallBlind', 'bigBlind', 'lastRaiseIncrementEffective', 'minTotalToRaise', 'minRaise', 'allPotsHaveWinners', 'inSettledStage', 'ownerActionPlayers', 'playersDisplayOrder', 'viewerSeatedAtTable', 'holeDealPlayerCountForAnim', 'heroDockRow', 'dealerDisplayIndex', 'showdownHandLeaderNicknames', 'spectatorSeatChatEntries', 'tableActionActorDisplayName', 'mobileHeroDockActive', 'showHeroViewHandButton', 'showBottomHeroDock'
+      'effectiveThemeForCss', 'handRankReference', 'stageCN', 'isOwner', 'canInviteFriend', 'isMyTurn', 'myPlayer', 'showSpectatorPrepareBlock', 'myReady', 'myChips', 'myBet', 'callAmount', 'smallBlind', 'bigBlind', 'lastRaiseIncrementEffective', 'minTotalToRaise', 'minRaise', 'allPotsHaveWinners', 'inSettledStage', 'ownerActionPlayers', 'playersDisplayOrder', 'viewerSeatedAtTable', 'holeDealPlayerCountForAnim', 'heroDockRow', 'dealerDisplayIndex', 'showdownHandLeaderNicknames', 'spectatorSeatChatEntries', 'tableActionActorDisplayName', 'showHeroViewHandButton', 'showBottomHeroDock'
     ]),
+    ...mapState('dpMailbox', ['friendChatUnreadTotal']),
+    ...mapGetters('dpMailbox', ['friendUnreadForUser']),
+    useRetroFriendChatPanelWide() {
+      return this.gameUiTheme === 'retro8bit' && this.viewportWidth > 600
+    },
+    friendChatMyUserId() {
+      var u = this.user
+      var n = u && u.userId != null && u.userId !== '' ? Number(u.userId) : 0
+      return isNaN(n) || n <= 0 ? 0 : n
+    },
+    roomApiParams() {
+      return { roomId: this.roomId }
+    },
+    actionTimerThinkTotalSec() {
+      var v = Number(this.$store.state.dpGame.thinkTimeSeconds)
+      return isFinite(v) && v >= 1 ? Math.floor(v) : 30
+    },
     actionTimerProgressPct() {
       var t = Number(this.timeLeft)
-      if (isNaN(t) || t < 0) return 0
-      return Math.min(1, t / 30)
+      var total = this.actionTimerThinkTotalSec
+      if (isNaN(t) || t < 0 || total < 1) return 0
+      return Math.min(1, t / total)
     },
     tableActionTimerUrgency() {
       var t = Number(this.timeLeft)
       if (isNaN(t)) return 'ok'
       if (t > 10) return 'ok'
-      if (t > 5) return 'warn'
+      if (t > 5) return 'warning'
       return 'danger'
     },
     showTableActionTimer() {
@@ -216,26 +354,170 @@ export default {
       return !!(this.viewerSeatedAtTable && this.heroDockRow)
     },
     topBarHeroEconomySecondaryLabel() {
-      if (this.isMyTurn && !this.inSettledStage && (Number(this.callAmount) || 0) > 0) {
+      if (this.isMyTurn && !this.uiInSettledStage && (Number(this.callAmount) || 0) > 0) {
         return '还需补'
       }
       return '本轮'
     },
     topBarHeroEconomySecondaryValue() {
-      if (this.isMyTurn && !this.inSettledStage && (Number(this.callAmount) || 0) > 0) {
+      if (this.isMyTurn && !this.uiInSettledStage && (Number(this.callAmount) || 0) > 0) {
         return Number(this.callAmount) || 0
       }
-      return Number(this.myBet) || 0
+      return Number(this.displayMyBet) || 0
+    },
+    useRetroHandHologramWide() {
+      return this.gameUiTheme === 'retro8bit' && this.viewportWidth > 600
+    },
+    useRetroInvitePanelWide() {
+      return this.gameUiTheme === 'retro8bit' && this.viewportWidth > 600
+    },
+    useRetroOwnerPanelWide() {
+      return this.gameUiTheme === 'retro8bit' && this.viewportWidth > 600
+    },
+    useRetroSeatEnterReveal() {
+      return this.gameUiTheme === 'retro8bit'
+        && this.viewportWidth > 600
+        && !this.ecoMode
+        && !this.prefersReducedMotion
+    },
+    /**
+     * Wide retro table FX layout: same gate as hologram / seat rays / pot particles (vw > 600).
+     * Phone tier excluded; tablet (e.g. 778px) included — not desktop-only ≥900/1024.
+     */
+    isRetroDesktopLayout() {
+      if (this.layoutTier === 'phone') return false
+      return this.viewportWidth > 600
+    },
+    showRetroDesktopFx() {
+      return this.gameUiTheme === 'retro8bit' && this.isRetroDesktopLayout
+    },
+    useRetroDesktopAmbience() {
+      return this.showRetroDesktopFx && !this.ecoMode && !this.prefersReducedMotion
+    },
+    retroPolygonRootStyle() {
+      if (this.gameUiTheme !== 'retro8bit') return {}
+      var n = (this.playersDisplayOrder && this.playersDisplayOrder.length) || 0
+      var layout = buildRetroTableLayout(n, {
+        viewerSeatedAtTable: this.viewerSeatedAtTable,
+        logReason: 'game-root-polygon'
+      })
+      return { '--dp-table-polygon': layout.clipPath }
+    },
+    /** retro8bit TV 播放期间：玩家卡片仍按上一下注街展示（紧凑/未亮牌） */
+    cardDisplayStage() {
+      if (this.gameUiTheme !== 'retro8bit') return this.stage
+      return resolveCardDisplayStage(
+        this.stage,
+        this.retroShowdownTvPending,
+        this.retroShowdownFromStage
+      )
+    },
+    /** 牌桌摊牌高亮：TV 结束后再展示 */
+    tableShowdownHandLeaderNicknames() {
+      return resolveShowdownHandLeaders(
+        this.stage,
+        this.retroShowdownTvPending,
+        this.showdownHandLeaderNicknames
+      )
+    },
+    /** retro8bit TV 播放中：presentation 冻结（亮牌/结算 UI/积分/NPC 气泡） */
+    settlePresentationFrozen() {
+      if (this.gameUiTheme !== 'retro8bit') return false
+      return isSettlePresentationFrozen(this.retroShowdownTvPending, this.stage)
+    },
+    uiInSettledStage() {
+      if (this.settlePresentationFrozen) return false
+      return this.inSettledStage
+    },
+    deckPresetPlayerCount() {
+      var ps = this.players || []
+      var n = 0
+      for (var i = 0; i < ps.length; i++) {
+        var p = ps[i]
+        if (p && !p.leftThisHand) n++
+      }
+      return n
+    },
+    mobileHeroDockActive() {
+      return !!(this.heroDockRow || this.isMyTurn || this.uiInSettledStage || this.isOwner)
+    },
+    displayStageCN() {
+      if (!this.settlePresentationFrozen) return this.stageCN
+      return dpGameStageDisplay(this.cardDisplayStage)
+    },
+    displayPot() {
+      return resolveFrozenTablePot(this.pot, this.retroBettingEconomySnapshot, this.settlePresentationFrozen)
+    },
+    displayCurrentBetToCall() {
+      return resolveFrozenCurrentBetToCall(
+        this.currentBetToCall,
+        this.retroBettingEconomySnapshot,
+        this.settlePresentationFrozen
+      )
+    },
+    tableChipLeaderNicknames() {
+      return resolveFrozenChipLeaderNicknames(
+        this.chipLeaderNicknames,
+        this.retroBettingEconomySnapshot,
+        this.settlePresentationFrozen
+      )
+    },
+    displayMyChips() {
+      var mp = this.myPlayer
+      if (!mp) return 0
+      return resolvePlayerEconomyDisplay(
+        mp,
+        this.retroBettingEconomySnapshot,
+        this.settlePresentationFrozen
+      ).chips
+    },
+    displayMyBet() {
+      var mp = this.myPlayer
+      if (!mp) return 0
+      return resolvePlayerEconomyDisplay(
+        mp,
+        this.retroBettingEconomySnapshot,
+        this.settlePresentationFrozen
+      ).bet
     }
   },
 
   watch: {
+    showRetroDesktopFx: function (on) {
+      if (this.gameUiTheme === 'retro8bit') this.logRetroFxGate('showRetroDesktopFx')
+      if (on) this.logRetroMonsterMountState('showRetroDesktopFx')
+    },
+    useRetroDesktopAmbience: function () {
+      if (this.gameUiTheme === 'retro8bit') this.logRetroFxGate('useRetroDesktopAmbience')
+    },
+    layoutTier: function () {
+      if (this.gameUiTheme === 'retro8bit') this.logRetroFxGate('layoutTier')
+    },
+    viewportWidth: function () {
+      if (this.gameUiTheme === 'retro8bit') this.logRetroFxGate('viewportWidth')
+    },
+    ecoMode: function () {
+      if (this.gameUiTheme === 'retro8bit') this.logRetroFxGate('ecoMode')
+    },
+    prefersReducedMotion: function () {
+      if (this.gameUiTheme === 'retro8bit') this.logRetroFxGate('prefersReducedMotion')
+    },
+    gameUiTheme: function (theme) {
+      if (theme === 'retro8bit') {
+        this.$nextTick(function () {
+          this.logRetroFxGate('gameUiTheme')
+        }.bind(this))
+      }
+    },
     isMyTurn: function (v) {
       if (v) this.$store.commit('dpGame/SET_RAISE_AMOUNT', this.minRaise)
       else this.$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileActionSheet: false })
     },
     heroDockRow: function (row) {
-      if (!row) this.$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileHandSheet: false })
+      if (!row) {
+        this.$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileHandSheet: false })
+        this.$store.commit('dpGame/SET_HERO_HAND_HOLOGRAM', false)
+      }
     },
     minRaise: function () {
       if (this.isMyTurn && this.raiseAmount < this.minRaise) {
@@ -252,16 +534,30 @@ export default {
       this.$store.commit('dpGame/SET_HERO_HOLE_DEAL', false)
       this.syncActionCountdown()
     },
-    stage(newVal) {
+    stage(newVal, oldVal) {
       this.syncActionCountdown()
       if (newVal !== 'preflop') {
         this.$store.commit('dpGame/SET_HERO_HOLE_DEAL', true)
       }
       if (newVal === 'settled') {
-        this.startReadyCountdown()
+        if (!this.settlePresentationFrozen) {
+          this.startReadyCountdown()
+        }
       } else {
         this.stopReadyCountdown()
         this.$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileActionSheet: false })
+      }
+      if (newVal === 'showdown' && this.isOwner && this.useRetroOwnerPanelWide) {
+        this.showOwnerPotJudgeSheet = true
+        dpOwnerTerminalDevLog('pot judge sheet', { action: 'auto-open', stage: newVal })
+      }
+      if (newVal !== 'showdown') {
+        this.showOwnerPotJudgeSheet = false
+      }
+      this.onRetroStageTransition(newVal, oldVal)
+      if (newVal === 'preflop' && oldVal === 'settled') {
+        var handSeed = this.currentHandSeed || ''
+        this.fireCrtPopup('info', 'NEW HAND', '第 ' + handSeed + ' 局', '发牌中...')
       }
       var self = this
       this.$nextTick(function () {
@@ -269,13 +565,30 @@ export default {
       })
     },
     isOwner(v) {
-      if (!v) this.$store.commit('dpGame/CLOSE_OWNER_HUB')
+      if (!v) {
+        this.$store.commit('dpGame/CLOSE_OWNER_HUB')
+        this.closeOwnerTerminal()
+        this.showOwnerPotJudgeSheet = false
+      }
+    },
+    showMusicPlayer(v) {
+      if (!v) { this.refocusTerminalIfOpen() }
+    },
+    showHandHistoryPanel(v) {
+      if (!v) { this.refocusTerminalIfOpen() }
+    },
+    showOpponentHandHistoryPanel(v) {
+      if (!v) { this.refocusTerminalIfOpen() }
+    },
+    handHistoryDetailId(v) {
+      if (v == null && !this.showHandHistoryPanel && !this.showOpponentHandHistoryPanel) { this.refocusTerminalIfOpen() }
     }
   },
 
   beforeRouteUpdate(to, from, next) {
     if (to.params.roomId !== from.params.roomId) {
       this.resetRoomChatUiForEnter()
+      this.resetSeatEnterStateForRoom()
       this.$store.commit('dpGame/SET_SESSION', { roomId: to.params.roomId })
       var self = this
       this.loadGame().then(function () {
@@ -289,7 +602,10 @@ export default {
 
   created() {
     this._seatChatTimers = Object.create(null)
+    this._deferredSeatChats = []
+    this._seatEnterNickSnapshot = new Set()
     this.resetRoomChatUiForEnter()
+    this.resetSeatEnterStateForRoom()
     this.$store.commit('dpGame/SET_SESSION', { roomId: this.$route.params.roomId })
 
     var self = this
@@ -344,7 +660,24 @@ export default {
     })()
   },
 
+  mounted() {
+    this.initHologramViewportListeners()
+    this._onGameKeydown = this.onGameKeydown.bind(this)
+    window.addEventListener('keydown', this._onGameKeydown)
+    if (this.gameUiTheme === 'retro8bit') {
+      this.logRetroFxGate('mounted')
+      if (this.showRetroDesktopFx) {
+        this.logRetroMonsterMountState('mounted')
+      }
+    }
+  },
+
   beforeDestroy() {
+    this.teardownHologramViewportListeners()
+    if (this._onGameKeydown) {
+      window.removeEventListener('keydown', this._onGameKeydown)
+      this._onGameKeydown = null
+    }
     this.$store.commit('dpGame/SET_MODAL', { showCustomNpcStyleDialog: false })
     try {
       var bgm = this.$refs.roomBgm
@@ -360,6 +693,8 @@ export default {
     if (this.actionTimer) clearInterval(this.actionTimer)
     if (this.readyTimer) clearInterval(this.readyTimer)
     if (this.communityCardsFlipCompleteTimer) clearTimeout(this.communityCardsFlipCompleteTimer)
+    if (this._gameUiThemeChangeTimer) clearTimeout(this._gameUiThemeChangeTimer)
+    this.clearRetroShowdownTvPending()
     this._lastRoomApplyFingerprint = ''
     if (this._seatChatTimers) {
       var self = this
@@ -368,9 +703,458 @@ export default {
       })
       this._seatChatTimers = Object.create(null)
     }
+    this.resetSeatEnterStateForRoom()
   },
 
   methods: {
+    retroDesktopFxBlockReason: function () {
+      if (this.gameUiTheme !== 'retro8bit') return 'wrong-theme'
+      if (this.layoutTier === 'phone') return 'phone-layout'
+      if (this.viewportWidth <= 600) return 'viewport-too-narrow'
+      return null
+    },
+    logRetroFxGate: function (reason) {
+      var fxOn = this.showRetroDesktopFx
+      var animOn = this.useRetroDesktopAmbience
+      var mountBlock = this.retroDesktopFxBlockReason()
+      var blockers = []
+      if (mountBlock) blockers.push(mountBlock)
+      if (this.ecoMode) blockers.push('eco-mode-ON (turn off in top bar to enable glitch monster)')
+      if (this.prefersReducedMotion) blockers.push('prefers-reduced-motion')
+      dpRetroMonsterGateLog({
+        reason: reason || 'gate',
+        theme: this.gameUiTheme,
+        layoutTier: this.layoutTier,
+        vw: this.viewportWidth,
+        showRetroDesktopFx: fxOn,
+        blockReason: fxOn ? null : (mountBlock || 'unknown'),
+        useRetroDesktopAmbience: animOn,
+        animBlockReason: fxOn && !animOn
+          ? (this.ecoMode ? 'eco-mode' : (this.prefersReducedMotion ? 'prefers-reduced-motion' : null))
+          : null,
+        eco: this.ecoMode,
+        prm: this.prefersReducedMotion,
+        retroGlitchSeq: this.retroGlitchSeq,
+        pipelineMounted: fxOn,
+        schedulerWouldRun: animOn,
+        blockers: blockers.length ? blockers : null
+      })
+      if (!animOn && fxOn && this.ecoMode) {
+        dpRetroMonsterGateLog({
+          hint: 'eco mode blocks glitch scheduler + monster animation — disable eco in top bar'
+        })
+      }
+    },
+    logRetroMonsterMountState: function (reason) {
+      dpRetroMonsterLogStartupHint()
+      dpRetroMonsterLog('mount', {
+        reason: reason,
+        showRetroDesktopFx: this.showRetroDesktopFx,
+        useRetroDesktopAmbience: this.useRetroDesktopAmbience,
+        isRetroDesktopLayout: this.isRetroDesktopLayout,
+        layoutTier: this.layoutTier,
+        viewportWidth: this.viewportWidth,
+        ecoMode: this.ecoMode,
+        prefersReducedMotion: this.prefersReducedMotion,
+        retroGlitchSeq: this.retroGlitchSeq
+      })
+    },
+    onRetroGlitchBurst: function () {
+      this.retroGlitchSeq++
+      dpRetroMonsterLog('seq-increment', { retroGlitchSeq: this.retroGlitchSeq })
+    },
+    onGameKeydown: function (e) {
+      if (this.gameUiTheme !== 'retro8bit') return
+      var tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : ''
+      var isInput = tag === 'input' || tag === 'textarea' || tag === 'select' || (e.target && e.target.isContentEditable)
+
+      // Ctrl+D 优先级：对局详情 → 音乐盒 → 对局历史 → 终端（仅非输入框时路由到面板）
+      if (e.ctrlKey && e.key === 'd') {
+        if (!isInput) {
+          if (this.handHistoryDetailId != null) {
+            e.preventDefault()
+            this.onHandHistoryDetailClosed(); return
+          }
+          if (this.showMusicPlayer) {
+            e.preventDefault()
+            var mp = this.$refs.musicPlayer
+            if (mp && typeof mp.onKey === 'function') { mp.onKey(e); return }
+            this.showMusicPlayer = false; return
+          }
+          if (this.showHandHistoryPanel || this.showOpponentHandHistoryPanel) {
+            e.preventDefault()
+            var hh = this.resolveActiveHandHistoryViewer()
+            if (hh && typeof hh.onKey === 'function') { hh.onKey(e); return }
+            this.showHandHistoryPanel = false
+            this.showOpponentHandHistoryPanel = false
+            return
+          }
+        }
+        return
+      }
+
+      // `~` 热键：toggle 终端（不在输入框内时）
+      if (e.key === '`' || e.key === '~') {
+        if (isInput) return
+        // 如果对局详情开着，先关掉
+        if (this.handHistoryDetailId != null) {
+          e.preventDefault()
+          this.onHandHistoryDetailClosed()
+          return
+        }
+        // 如果音乐盒开着，先关音乐盒
+        if (this.showMusicPlayer) {
+          e.preventDefault()
+          var mp2 = this.$refs.musicPlayer
+          if (mp2 && typeof mp2.close === 'function') { mp2.close() }
+          else { this.showMusicPlayer = false }
+          return
+        }
+        // 如果历史对局开着，先关历史对局
+        if (this.showHandHistoryPanel || this.showOpponentHandHistoryPanel) {
+          e.preventDefault()
+          var hh2 = this.resolveActiveHandHistoryViewer()
+          if (hh2 && typeof hh2.close === 'function') { hh2.close() }
+          else {
+            this.showHandHistoryPanel = false
+            this.showOpponentHandHistoryPanel = false
+          }
+          return
+        }
+        e.preventDefault()
+        var cli = this.$refs.terminalCli
+        if (cli && typeof cli.toggle === 'function') {
+          cli.toggle()
+        }
+        return
+      }
+
+      // 路由按键到打开的面板（不在输入框内时）
+      if (!isInput) {
+        if (this.handHistoryDetailId != null) {
+          var hd3 = this.$refs.handHistoryDetail
+          if (hd3 && typeof hd3.onKey === 'function' && hd3.onKey(e)) return
+        }
+        if (this.showMusicPlayer) {
+          var mp3 = this.$refs.musicPlayer
+          if (mp3 && typeof mp3.onKey === 'function' && mp3.onKey(e)) return
+        }
+        if (this.showHandHistoryPanel || this.showOpponentHandHistoryPanel) {
+          var hh3 = this.resolveActiveHandHistoryViewer()
+          if (hh3 && typeof hh3.onKey === 'function' && hh3.onKey(e)) return
+        }
+      }
+    },
+    refocusTerminalIfOpen: function () {
+      var cli = this.$refs.terminalCli
+      if (cli && cli.open && typeof cli.focusInput === 'function') {
+        var self = this
+        this.$nextTick(function () { cli.focusInput() })
+      }
+    },
+    fireCrtPopup: function (type, title, subtitle, detail, onComplete) {
+      if (this.gameUiTheme !== 'retro8bit') {
+        if (typeof onComplete === 'function') onComplete()
+        return
+      }
+      var popup = this.$refs.crtEventPopup
+      if (popup && typeof popup.trigger === 'function') {
+        popup.trigger(type, title, subtitle, detail, onComplete)
+      } else if (typeof onComplete === 'function') {
+        onComplete()
+      }
+    },
+    clearRetroShowdownTvPending: function () {
+      if (this._retroShowdownTvFallbackTimer) {
+        clearTimeout(this._retroShowdownTvFallbackTimer)
+        this._retroShowdownTvFallbackTimer = null
+      }
+      this.retroShowdownTvPending = false
+      this.retroShowdownFromStage = null
+      this.retroBettingEconomySnapshot = null
+    },
+    /** retro8bit：下注街→摊牌时播放 TV 弹窗（纯 overlay，不改牌桌状态） */
+    beginRetroShowdownTvSequence: function () {
+      if (this.gameUiTheme !== 'retro8bit') return
+      if (this.retroShowdownTvPending) return
+      this.retroShowdownTvPending = true
+      var self = this
+      var finished = false
+      function finishRetroShowdownTv() {
+        if (finished) return
+        finished = true
+        self.clearRetroShowdownTvPending()
+        self.$nextTick(function () {
+          self.$forceUpdate()
+          if (self.stage === 'settled') {
+            self.startReadyCountdown()
+          }
+          self.$nextTick(function () {
+            self.flushDeferredSeatChats()
+          })
+        })
+      }
+      if (this._retroShowdownTvFallbackTimer) {
+        clearTimeout(this._retroShowdownTvFallbackTimer)
+      }
+      this._retroShowdownTvFallbackTimer = setTimeout(finishRetroShowdownTv, 3500)
+      this.fireCrtPopup(
+        'danger',
+        'SHOWDOWN',
+        '决胜时刻',
+        '摊牌!',
+        finishRetroShowdownTv
+      )
+    },
+    onRetroStageTransition: function (newVal, oldVal) {
+      if (this.gameUiTheme !== 'retro8bit') {
+        this.retroStageNavReady = true
+        return
+      }
+      if (!this.retroStageNavReady) {
+        this.retroStageNavReady = true
+        return
+      }
+      if (newVal === 'preflop') {
+        this.clearRetroShowdownTvPending()
+        this._deferredSeatChats = []
+        return
+      }
+      if (
+        !this.retroShowdownTvPending
+        && shouldRetroShowdownTvSequence(oldVal, newVal, this.retroStageNavReady)
+      ) {
+        this.retroShowdownFromStage = oldVal
+        this.beginRetroShowdownTvSequence()
+      }
+    },
+    onGameUiThemeChange(nextTheme) {
+      var next = nextTheme || 'default'
+      if (next === this.gameUiTheme) return
+      if (this._gameUiThemeChangeTimer) {
+        clearTimeout(this._gameUiThemeChangeTimer)
+      }
+      var self = this
+      this._gameUiThemeChangeTimer = setTimeout(function () {
+        self._gameUiThemeChangeTimer = null
+        self.applyGameUiThemeChange(next)
+      }, 80)
+    },
+    applyGameUiThemeChange(next) {
+      var self = this
+      var leavingRetro = this.gameUiTheme === 'retro8bit' && next !== 'retro8bit'
+      var enteringRetro = this.gameUiTheme !== 'retro8bit' && next === 'retro8bit'
+      if (leavingRetro) {
+        this.teardownRetro8bitUi()
+      }
+      var commitTheme = function () {
+        self.$store.commit('dpGame/SET_GAME_UI_THEME', next)
+        self.$nextTick(function () {
+          if (typeof self.scheduleTableFitUpdate === 'function') {
+            self.scheduleTableFitUpdate()
+            if (typeof requestAnimationFrame === 'function') {
+              requestAnimationFrame(function () {
+                self.scheduleTableFitUpdate()
+              })
+            }
+          }
+        })
+      }
+      if (leavingRetro) {
+        this.$nextTick(function () {
+          self.$nextTick(function () {
+            if (typeof requestAnimationFrame === 'function') {
+              requestAnimationFrame(commitTheme)
+            } else {
+              commitTheme()
+            }
+          })
+        })
+        return
+      }
+      // 切换到 retro8bit：播放终端启动动画
+      if (enteringRetro) {
+        var boot = self.$refs.crtBootSequence
+        if (boot && typeof boot.play === 'function') {
+          boot.play(function () {
+            commitTheme()
+          })
+          return
+        }
+      }
+      commitTheme()
+    },
+    /** 离开 retro8bit 前统一关闭特效/面板，再 nextTick×2 + rAF 切主题，避免 v-if 与 overlay 竞态 */
+    teardownRetro8bitUi() {
+      this.clearRetroShowdownTvPending()
+      this._deferredSeatChats = []
+      this.$store.commit('dpGame/SET_HERO_HAND_HOLOGRAM', false)
+      this.$store.commit('dpGame/CLOSE_OWNER_HUB')
+      this.$store.commit('dpGame/SET_MOBILE_SHEETS', {
+        showMobileHandSheet: false,
+        showMobileActionSheet: false
+      })
+      this.ownerTerminalOpen = false
+      this.inviteFriendOpen = false
+      this.showOwnerPotJudgeSheet = false
+      this.joinRevealNicks = {}
+      this.resetRetroChatReveal()
+      var holo = this.$refs.heroHandHologram
+      if (holo && typeof holo.forceTeardown === 'function') {
+        holo.forceTeardown()
+      }
+    },
+    resetRetroChatReveal() {
+      var footer = this.$refs.heroDockFooter
+      if (!footer || !footer.$refs) return
+      var refs = ['guideRoomChatPanel', 'guideMobileRoomChatPanel']
+      for (var i = 0; i < refs.length; i++) {
+        var panel = footer.$refs[refs[i]]
+        if (panel && typeof panel.closeForGuide === 'function') {
+          panel.closeForGuide()
+        }
+      }
+    },
+    initHologramViewportListeners() {
+      if (this._hologramViewportReady) return
+      this._hologramViewportReady = true
+      this.prefersReducedMotion = this.readPrefersReducedMotion()
+      if (typeof window !== 'undefined') {
+        this.viewportWidth = window.innerWidth
+        window.addEventListener('resize', this.onHologramResize)
+        if (window.matchMedia) {
+          this._hologramPrmMedia = window.matchMedia('(prefers-reduced-motion: reduce)')
+          if (this._hologramPrmMedia.addEventListener) {
+            this._hologramPrmMedia.addEventListener('change', this.onHologramPrmChange)
+          } else if (this._hologramPrmMedia.addListener) {
+            this._hologramPrmMedia.addListener(this.onHologramPrmChange)
+          }
+        }
+      }
+    },
+    teardownHologramViewportListeners() {
+      if (!this._hologramViewportReady) return
+      this._hologramViewportReady = false
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('resize', this.onHologramResize)
+      }
+      if (this._hologramResizeTimer) {
+        clearTimeout(this._hologramResizeTimer)
+        this._hologramResizeTimer = null
+      }
+      if (this._hologramPrmMedia) {
+        if (this._hologramPrmMedia.removeEventListener) {
+          this._hologramPrmMedia.removeEventListener('change', this.onHologramPrmChange)
+        } else if (this._hologramPrmMedia.removeListener) {
+          this._hologramPrmMedia.removeListener(this.onHologramPrmChange)
+        }
+        this._hologramPrmMedia = null
+      }
+    },
+    readPrefersReducedMotion() {
+      if (typeof window === 'undefined' || !window.matchMedia) return false
+      return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    },
+    onHologramPrmChange() {
+      this.prefersReducedMotion = this.readPrefersReducedMotion()
+    },
+    onHologramResize() {
+      var self = this
+      if (this._hologramResizeTimer) clearTimeout(this._hologramResizeTimer)
+      this._hologramResizeTimer = setTimeout(function () {
+        self.viewportWidth = window.innerWidth
+      }, 150)
+    },
+    onHeroViewHandClick(source) {
+      try {
+        dpHandHologramDevLog('click received', {
+          source: source || 'unknown',
+          theme: this.gameUiTheme,
+          viewportWidth: this.viewportWidth,
+          useRetroHandHologramWide: this.useRetroHandHologramWide,
+          showHeroViewHandButton: this.showHeroViewHandButton,
+          heroDockRowPresent: !!this.heroDockRow,
+          heroHoleDealIntroDone: this.heroHoleDealIntroDone,
+          stage: this.stage,
+          layoutFullscreen: this.layoutFullscreen,
+          isFullscreen: this.isFullscreen,
+          pseudoFullscreen: this.pseudoFullscreen,
+          showHeroHandHologram: this.showHeroHandHologram
+        })
+        if (!this.showHeroViewHandButton) {
+          dpHandHologramDevLog('blocked: showHeroViewHandButton is false', {
+            heroDockRowPresent: !!this.heroDockRow,
+            stage: this.stage,
+            heroHoleDealIntroDone: this.heroHoleDealIntroDone
+          })
+          return
+        }
+        if (!this.heroDockRow) {
+          dpHandHologramDevLog('blocked: heroDockRow is null')
+          return
+        }
+        if (this.useRetroHandHologramWide) {
+          if (this.showHeroHandHologram) {
+            dpHandHologramDevLog('branch: close hologram')
+            this.$store.commit('dpGame/SET_HERO_HAND_HOLOGRAM', false)
+            return
+          }
+          dpHandHologramDevLog('branch: open hologram (wide retro8bit)')
+          this.$store.commit('dpGame/SET_HERO_HAND_HOLOGRAM', true)
+          var self = this
+          this.$nextTick(function () {
+            self.$nextTick(function () {
+              self.verifyHeroHandHologramOpen()
+            })
+          })
+          return
+        }
+        dpHandHologramDevLog('branch: open mobile hand sheet', {
+          reason: this.gameUiTheme !== 'retro8bit'
+            ? 'theme is not retro8bit'
+            : 'viewportWidth <= 600'
+        })
+        this.$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileHandSheet: true })
+      } catch (e) {
+        dpHandHologramDevLog('onHeroViewHandClick threw', { error: String(e && e.message ? e.message : e) })
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('[dp-game] onHeroViewHandClick failed', e)
+        }
+        this.fallbackHeroHandSheet('click handler exception')
+      }
+    },
+    fallbackHeroHandSheet(reason) {
+      dpHandHologramDevLog('fallback sheet', { reason: reason || 'unspecified' })
+      this.$store.commit('dpGame/SET_HERO_HAND_HOLOGRAM', false)
+      this.$store.commit('dpGame/SET_MOBILE_SHEETS', { showMobileHandSheet: true })
+    },
+    verifyHeroHandHologramOpen() {
+      if (!this.showHeroHandHologram) {
+        dpHandHologramDevLog('verify skipped: showHeroHandHologram already false')
+        return
+      }
+      var holo = this.$refs.heroHandHologram
+      if (!holo) {
+        dpHandHologramDevLog('fallback sheet: heroHandHologram ref missing after open')
+        this.fallbackHeroHandSheet('ref missing after open')
+        return
+      }
+      if (typeof holo.isShowing !== 'function') {
+        dpHandHologramDevLog('fallback sheet: isShowing() not available on ref')
+        this.fallbackHeroHandSheet('isShowing missing')
+        return
+      }
+      if (!holo.isShowing()) {
+        dpHandHologramDevLog('fallback sheet: isShowing() false after open', {
+          phase: holo.hologramPhase
+        })
+        this.fallbackHeroHandSheet('isShowing false after open')
+        return
+      }
+      dpHandHologramDevLog('open confirmed: hologram is showing', {
+        phase: holo.hologramPhase
+      })
+    },
     /**
      * 离开房间时多处可能同时触发跳转（WS roomClosed + 轮询 getNowRoom 为空、热更新等）；
      * Vue Router 3 对重复 push 同一地址会抛 NavigationDuplicated，需吞掉或跳过。
@@ -387,7 +1171,7 @@ export default {
     sendHeartbeat() {
       if (!this.user) return
       this.$http.post('/dpRoom/heartbeat', null, {
-        params: {roomId: this.roomId, nickname: this.user.nickname}
+        params: this.roomApiParams
       }).catch(function (e) {
         console.error('心跳失败', e)
       })
@@ -495,8 +1279,9 @@ export default {
 
       // 开发服：走 /dp-ws → vue 代理转成后端 /ws（避免与 webpack HMR 的 /ws 冲突）
       var path = process.env.NODE_ENV === 'development' ? '/dp-ws/dp-game' : '/ws/dp-game'
+      var tok = self.user && self.user.token ? String(self.user.token) : ''
       var url = self.gameWsBaseUrl() + path + '?roomId=' + encodeURIComponent(self.roomId)
-        + '&nickname=' + encodeURIComponent(self.user.nickname)
+        + (tok ? '&token=' + encodeURIComponent(tok) : '')
       try {
         var ws = new WebSocket(url)
         self.gameWs = ws
@@ -670,7 +1455,6 @@ export default {
       }
       var body = {
         _ws: 'roomMusicSync',
-        nickname: this.user.nickname,
         action: action,
         trackId: payload.trackId != null ? payload.trackId : 0,
         webPath: webPath,
@@ -728,10 +1512,98 @@ export default {
       }
     },
 
+    resetSeatEnterStateForRoom() {
+      this._seatEnterNickSeeded = false
+      this._seatEnterNickSnapshot = new Set()
+      this.joinRevealNicks = {}
+      dpSeatEnterDevLog('reset')
+    },
+
+    syncSeatEnterRevealFromRoom(room) {
+      var nextNicks = extractPlayerNicknames(room && room.players)
+      if (!this._seatEnterNickSeeded) {
+        this._seatEnterNickSnapshot = new Set(nextNicks)
+        this._seatEnterNickSeeded = true
+        dpSeatEnterDevLog('seed', { count: nextNicks.length, nicks: nextNicks })
+        return
+      }
+      var added = diffNewSeatNicknames(this._seatEnterNickSnapshot, nextNicks)
+      if (added.length && !this.useRetroSeatEnterReveal) {
+        dpSeatEnterDevLog('gate-off', { added: added })
+      }
+      if (added.length && this.useRetroSeatEnterReveal) {
+        var self = this
+        added.forEach(function (nick) {
+          self.$set(self.joinRevealNicks, nick, true)
+        })
+      }
+      this._seatEnterNickSnapshot = new Set(nextNicks)
+      dpSeatEnterDevLog('diff', { added: added, skipped: !this.useRetroSeatEnterReveal })
+    },
+
+    onSeatEnterRevealDone(nick) {
+      this.$delete(this.joinRevealNicks, nick)
+      dpSeatEnterDevLog('done', { nick: nick })
+    },
+
+    currentActingNicknameForSeatChat: function () {
+      if (!this.actionCountdownShouldRun()) return null
+      var list = this.players
+      var i = this.actIndex
+      if (i < 0 || !list || i >= list.length) return null
+      var p = list[i]
+      return p && p.nickname ? p.nickname : null
+    },
+
+    maybeBeginRetroShowdownTvForDeferredNpcChat: function () {
+      if (this.gameUiTheme !== 'retro8bit' || this.retroShowdownTvPending) return
+      if (!isRetroBettingStage(this.stage) && !isRetroRevealStage(this.stage)) return
+      if (!this.retroShowdownFromStage) {
+        this.retroShowdownFromStage = isRetroBettingStage(this.stage) ? this.stage : 'river'
+      }
+      this.beginRetroShowdownTvSequence()
+    },
+
     pushRoomChatFromServer(data) {
       var nick = (data.nickname || '').trim()
       var text = (data.text != null ? String(data.text) : '').trim()
       if (!nick || !text) return
+      var deferNpcRetro = this.gameUiTheme === 'retro8bit' && isDpBotNickname(nick)
+        && shouldDeferRetroNpcSeatChat({
+          isNpc: true,
+          stage: this.stage,
+          tvPending: this.retroShowdownTvPending,
+          presentationFrozen: this.settlePresentationFrozen,
+          playing: this.playing,
+          actionCountdownActive: this.actionCountdownShouldRun(),
+          actingNickname: this.currentActingNicknameForSeatChat(),
+          chatNickname: nick
+        })
+      if (this.settlePresentationFrozen || deferNpcRetro) {
+        if (!this._deferredSeatChats) this._deferredSeatChats = []
+        this._deferredSeatChats.push(data)
+        if (deferNpcRetro) {
+          this.maybeBeginRetroShowdownTvForDeferredNpcChat()
+        }
+        return
+      }
+      this.applySeatChatFromServer(data, nick, text)
+    },
+
+    flushDeferredSeatChats: function () {
+      if (!this._deferredSeatChats || !this._deferredSeatChats.length) return
+      var queue = this._deferredSeatChats.slice()
+      this._deferredSeatChats = []
+      for (var i = 0; i < queue.length; i++) {
+        var data = queue[i]
+        var nick = (data.nickname || '').trim()
+        var text = (data.text != null ? String(data.text) : '').trim()
+        if (!nick || !text) continue
+        this.applySeatChatFromServer(data, nick, text)
+      }
+    },
+
+    applySeatChatFromServer(data, nick, text) {
       this.$store.commit('dpGame/APPEND_ROOM_CHAT_MESSAGE', this.normalizeRoomChatRow(data, nick, text))
       var ttl = typeof data.ttlMs === 'number' && data.ttlMs > 0 ? data.ttlMs : 15000
       var prev = this._seatChatTimers[nick]
@@ -750,6 +1622,17 @@ export default {
       this._seatChatTimers[nick] = tid
     },
 
+    playerEconomyForDisplay(player) {
+      return resolvePlayerEconomyDisplay(
+        player,
+        this.retroBettingEconomySnapshot,
+        this.settlePresentationFrozen
+      )
+    },
+
+    /**
+     * 拉取最近房间聊天记录（HTTP 进房补全；不落座位气泡）
+     */
     async fetchRoomChatRecent() {
       if (!this.roomId || !this.$http) return
       var api = dpRoomApi(this.$http)
@@ -794,7 +1677,6 @@ export default {
       try {
         this.gameWs.send(JSON.stringify({
           _ws: 'chatSend',
-          nickname: this.user.nickname,
           text: t
         }))
         this.$store.commit('dpGame/SET_CHAT_DRAFT', '')
@@ -805,6 +1687,13 @@ export default {
     },
 
     applyRoomFromServer(room) {
+      this.syncSeatEnterRevealFromRoom(room)
+      if (room) {
+        this.$store.commit('dpGame/SYNC_ACTION_COUNTDOWN_FIELDS', room)
+        if (this.gameUiTheme === 'retro8bit' && isRetroBettingStage(room.currentStage)) {
+          this.retroBettingEconomySnapshot = captureBettingEconomySnapshot(room)
+        }
+      }
       var fp = encodeRoomApplyFingerprint(room)
       if (fp && fp === this._lastRoomApplyFingerprint) {
         this.$nextTick(function () {
@@ -840,7 +1729,7 @@ export default {
       this.$store.commit('dpGame/SET_LOADING', true)
       try {
         var res = await this.$http.get('/dpRoom/getNowRoom', {
-          params: {roomId: this.roomId, nickname: this.user ? this.user.nickname : ''}
+          params: this.roomApiParams
         })
         var room = res.data
         if (!room) {
@@ -859,11 +1748,11 @@ export default {
 
     // ---- 准备/取消准备（与 readyNextHand 一致：ok 才 commit 本地态、提示、loadGame）----
     async toggleReady() {
-      if (!this.user) return
+      if (!this.user) return { ok: false, message: '未登录' }
       var wasReady = this.myReady
       try {
         var res = await this.$http.post('/dpRoom/toggleReady', null, {
-          params: { roomId: this.roomId, nickname: this.user.nickname }
+          params: this.roomApiParams
         })
         if (res.data === 'ok') {
           this.$store.commit('dpGame/PATCH_MY_PLAYER_READY', !wasReady)
@@ -873,27 +1762,31 @@ export default {
             this.$message.success('已准备下一局')
           }
           await this.loadGame()
-        } else {
-          this.$message.error('操作失败：' + res.data)
+          return { ok: true, wasReady: wasReady }
         }
+        this.$message.error('操作失败：' + res.data)
+        return { ok: false, message: String(res.data) }
       } catch (err) {
         this.$message.error('网络错误: ' + err.message)
+        return { ok: false, message: err.message || '网络错误' }
       }
     },
     // 结算后积分归零时补满
     async rebuy() {
       try {
         var res = await this.$http.post('/dpRoom/rebuy', null, {
-          params: {roomId: this.roomId, nickname: this.user.nickname}
+          params: { roomId: this.roomId }
         })
         if (res.data !== 'ok') {
           this.$message.error('补满失败：' + res.data)
-        } else {
-          this.$message.success('补满成功，可在结算阶段准备下一局')
+          return { ok: false, message: String(res.data) }
         }
+        this.$message.success('补满成功，可在结算阶段准备下一局')
         await this.loadGame()
+        return { ok: true }
       } catch (err) {
         this.$message.error('网络错误: ' + err.message)
+        return { ok: false, message: err.message || '网络错误' }
       }
     },
 
@@ -926,7 +1819,7 @@ export default {
     async submitBet(amount) {
       try {
         var res = await this.$http.post('/dpRoom/bet', null, {
-          params: {roomId: this.roomId, nickname: this.user.nickname, bet: amount}
+          params: { roomId: this.roomId, bet: amount }
         })
         if (res.data !== 'ok') this.$message.error('投入失败，请检查数额')
         this.$store.commit('dpGame/SET_RAISE_AMOUNT', 0)
@@ -940,7 +1833,7 @@ export default {
     async doFold() {
       try {
         var res = await this.$http.post('/dpRoom/fold', null, {
-          params: {roomId: this.roomId, nickname: this.user.nickname}
+          params: { roomId: this.roomId }
         })
         if (res.data !== 'ok') this.$message.error('盖牌失败')
         await this.loadGame()
@@ -973,6 +1866,7 @@ export default {
           showMobileHandSheet: false,
           showMobileActionSheet: false
         })
+        this.$store.commit('dpGame/SET_HERO_HAND_HOLOGRAM', false)
         await this.loadGame()
       } catch (err) {
         this.$message.error('网络错误: ' + err.message)
@@ -988,13 +1882,68 @@ export default {
       this.$store.commit('dpGame/TOGGLE_SELECTED_WINNER', nickname)
     },
 
-    openInviteFriendSheet() {
-      if (!this.canInviteFriend) return
-      this.inviteFriendOpen = true
+    onInviteFriendClick() {
+      if (!this.canInviteFriend) {
+        dpInviteFriendsDevLog('blocked', { canInviteFriend: false })
+        return
+      }
+      dpInviteFriendsDevLog('top bar click', {
+        theme: this.gameUiTheme,
+        viewportWidth: this.viewportWidth,
+        useRetroInvitePanelWide: this.useRetroInvitePanelWide,
+        inviteFriendOpen: this.inviteFriendOpen,
+        canInviteFriend: this.canInviteFriend
+      })
+      if (this.useRetroInvitePanelWide) {
+        if (this.inviteFriendOpen) {
+          dpInviteFriendsDevLog('branch', 'close panel')
+          this.closeInviteFriendSheet()
+        } else {
+          dpInviteFriendsDevLog('branch', 'open panel')
+          this.inviteFriendOpen = true
+        }
+      } else {
+        dpInviteFriendsDevLog('branch', this.inviteFriendOpen ? 'close sheet' : 'open sheet')
+        this.inviteFriendOpen = !this.inviteFriendOpen
+      }
       this.scheduleReparentElementUiLayersIntoFullscreenRoot()
     },
     closeInviteFriendSheet() {
       this.inviteFriendOpen = false
+    },
+    onFriendChatClick() {
+      if (this.useRetroFriendChatPanelWide) {
+        this.friendChatPickerOpen = !this.friendChatPickerOpen
+      } else {
+        this.friendChatPickerOpen = !this.friendChatPickerOpen
+      }
+      this.scheduleReparentElementUiLayersIntoFullscreenRoot()
+    },
+    closeFriendChatPicker() {
+      this.friendChatPickerOpen = false
+    },
+    friendChatDisplayName(f) {
+      return dpSocialDisplayNickname(f && f.nickname, f && f.userId, '未知好友')
+    },
+    openFriendChatFromPicker(f) {
+      var uid = f && f.userId != null ? Number(f.userId) : 0
+      if (!isFinite(uid) || uid <= 0) return
+      this.friendChatPickerOpen = false
+      this.friendChatPeerId = uid
+      this.friendChatPeerName = this.friendChatDisplayName(f)
+      this.friendChatPeerAvatar = (f && f.avatarUrl) || ''
+      this.friendChatPeerAvatarUpdatedAt = f && f.avatarUpdatedAt != null ? f.avatarUpdatedAt : null
+      this.friendChatPeerUnread = this.friendUnreadForUser(uid)
+      this.friendChatVisible = true
+      this.scheduleReparentElementUiLayersIntoFullscreenRoot()
+    },
+    onFriendChatClosed() {
+      this.friendChatPeerId = null
+      this.friendChatPeerName = ''
+      this.friendChatPeerAvatar = ''
+      this.friendChatPeerAvatarUpdatedAt = null
+      this.friendChatPeerUnread = 0
+      this.$store.dispatch('dpMailbox/fetchFriendChatUnreadSummary', { http: this.$http }).catch(function () {})
     },
     closePlayerSocialSheet() {
       this.playerSocialOpen = false
@@ -1008,12 +1957,18 @@ export default {
       if (!payload || payload.userId == null || payload.userId === '') return
       var uid = Number(payload.userId)
       if (!uid || uid <= 0 || isNaN(uid)) return
-      this.closePlayerSocialSheet()
       this.$store.commit('dpGame/SET_MODAL', {
-        showOpponentHandHistoryModal: true,
         opponentHandHistoryOtherUserId: uid,
         opponentHandHistoryDisplayName: payload.displayName || ''
       })
+      if (this.gameUiTheme === 'retro8bit') {
+        this.showOpponentHandHistoryPanel = true
+        return
+      }
+      this.$store.commit('dpGame/SET_MODAL', {
+        showOpponentHandHistoryModal: true
+      })
+      this.scheduleReparentElementUiLayersIntoFullscreenRoot()
     },
     /**
      * @param {string|{nickname:string,userId?:number}} payload
@@ -1033,13 +1988,48 @@ export default {
         return
       }
 
+      var rawUid = typeof payload === 'object' && payload ? payload.userId : null
+      this.openPlayerSocialProfile({ nickname: nickname, userId: rawUid })
+    },
+    /**
+     * 观众席 / 邀请好友等入口：打开局内玩家资料（与点击桌上玩家卡片一致）。
+     * @param {{ nickname: string, userId?: number|string }} payload
+     */
+    async openPlayerSocialProfile(payload) {
+      var nickname = payload && payload.nickname
+      if (!nickname) return
+
+      if (this.user && nickname === this.user.nickname) {
+        return
+      }
+
       if (isDpBotNickname(nickname)) {
         this.$message.info('机器人不支持该功能')
         return
       }
 
-      var rawUid = typeof payload === 'object' && payload ? payload.userId : null
-      var uid = rawUid != null && rawUid !== '' ? Number(rawUid) : NaN
+      var friends = (this.$store.state.dpMailbox && this.$store.state.dpMailbox.friends) || []
+      var meta = resolveRoomPersonMeta({
+        players: this.players,
+        friends: friends,
+        nickname: nickname,
+        userId: payload && payload.userId
+      })
+      var uid = meta.userId
+
+      if (!uid || uid <= 0 || isNaN(uid)) {
+        try {
+          var res = await dpSocialApi(this.$http).lookupUser(String(nickname))
+          if (dpResultSuccess(res.data)) {
+            var user = (dpResultData(res.data) || {}).user
+            var looked = user && user.userId != null ? Number(user.userId) : 0
+            if (looked > 0 && !isNaN(looked)) uid = looked
+          }
+        } catch (e) {
+          /* 静默，沿用下方统一提示 */
+        }
+      }
+
       if (!uid || uid <= 0 || isNaN(uid)) {
         this.$message.warning('无法获取该玩家的账号信息，请对方使用已登录账号进房后再试')
         return
@@ -1135,17 +2125,168 @@ export default {
       }
     },
 
-    // ---- 房主神器：底栏入口与底部抽屉 ----
-    openOwnerHubSheet() {
-      this.$store.commit('dpGame/OPEN_OWNER_HUB')
+    // ---- 房主神器：顶栏入口（宽 retro 终端 / 窄 legacy sheet） ----
+    onOwnerHubClick() {
+      if (!this.isOwner) {
+        dpOwnerTerminalDevLog('blocked', { isOwner: false })
+        return
+      }
+      dpOwnerTerminalDevLog('top bar click', {
+        theme: this.gameUiTheme,
+        viewportWidth: this.viewportWidth,
+        useRetroOwnerPanelWide: this.useRetroOwnerPanelWide,
+        ownerTerminalOpen: this.ownerTerminalOpen,
+        ownerTouchSheetOpen: this.ownerTouchSheetOpen,
+        isOwner: this.isOwner,
+        stage: this.stage
+      })
+      if (this.gameUiTheme === 'retro8bit') {
+        if (this.ownerTouchSheetOpen) {
+          dpOwnerTerminalDevLog('branch', 'close touch sheet')
+          this.closeOwnerTouchPanel()
+        } else {
+          dpOwnerTerminalDevLog('branch', 'open touch sheet')
+          this.openOwnerTouchPanel()
+        }
+        this.scheduleReparentElementUiLayersIntoFullscreenRoot()
+        return
+      }
+      if (this.showOwnerHubSheet) {
+        dpOwnerTerminalDevLog('branch', 'close legacy sheet')
+        this.closeOwnerHubPanel()
+      } else {
+        dpOwnerTerminalDevLog('branch', 'open legacy sheet')
+        this.$store.commit('dpGame/OPEN_OWNER_HUB')
+      }
+      this.scheduleReparentElementUiLayersIntoFullscreenRoot()
+    },
+
+    openOwnerTouchPanel() {
+      if (!this.isOwner) return
+      this.ownerTouchSheetOpen = true
+      this.scheduleReparentElementUiLayersIntoFullscreenRoot()
+    },
+
+    closeOwnerTouchPanel() {
+      this.ownerTouchSheetOpen = false
+    },
+
+    onOwnerTouchToggleReveal() {
+      var next = !this.ownerRevealAll
+      this.$store.commit('dpGame/SET_OWNER_REVEAL_ALL', next)
+      this.$message.success(next ? '已开启看牌' : '已关闭看牌')
+    },
+
+    closeOwnerTerminal() {
+      this.ownerTerminalOpen = false
+    },
+
+    closeOwnerPotJudgeSheet() {
+      this.showOwnerPotJudgeSheet = false
+      dpOwnerTerminalDevLog('pot judge sheet', { action: 'close', stage: this.stage })
+    },
+
+    onOwnerTerminalToggleReveal() {
+      var next = !this.ownerRevealAll
+      this.$store.commit('dpGame/SET_OWNER_REVEAL_ALL', next)
+      this.$message.success(next ? '已开启看穿底牌' : '已关闭看穿底牌')
     },
 
     closeOwnerHubPanel() {
       this.$store.commit('dpGame/CLOSE_OWNER_HUB')
+      this.closeOwnerTerminal()
+      this.closeOwnerTouchPanel()
+    },
+
+    async loadDeckPresetStatus() {
+      if (!this.isOwner || !this.roomId || !this.user) return
+      var pwd = dpDeckPresetSessionPassword(this.roomId)
+      if (!pwd) return
+      try {
+        var res = await this.$http.get('/dpRoom/nextHandDeckPrefixStatus', {
+          params: {
+            roomId: this.roomId,
+            experimentalPassword: pwd
+          }
+        })
+        var body = res.data
+        if (!dpResultSuccess(body)) {
+          this.handleDeckPresetAuthFailure(body)
+          return
+        }
+        var d = dpResultData(body) || {}
+        this.deckPresetSavedCount = d.presetCount != null ? d.presetCount : 0
+        this.deckPresetInitialCards = Array.isArray(d.cards) ? d.cards.slice() : []
+      } catch (e) {
+        /* 非关键路径，静默 */
+      }
+    },
+
+    handleDeckPresetAuthFailure(body) {
+      var msg = dpResultMessage(body) || ''
+      if (msg.indexOf('密码') >= 0 || msg.indexOf('访问') >= 0 || msg.indexOf('未启用') >= 0 || msg.indexOf('验证') >= 0) {
+        clearDeckPresetSessionUnlock(this.roomId)
+        this.showDeckPresetDialog = false
+        this.showDeckPresetPasswordGate = true
+        this.$message.error(msg || '实验排牌访问验证已失效，请重新输入密码')
+      }
+    },
+
+    openDeckPresetDialog() {
+      if (!this.isOwner) return
+      this.closeOwnerHubPanel()
+      if (isDeckPresetUnlocked(this.roomId)) {
+        this.showDeckPresetDialog = true
+        this.loadDeckPresetStatus()
+      } else {
+        this.showDeckPresetPasswordGate = true
+      }
+    },
+
+    onDeckPresetPasswordVerified(password) {
+      setDeckPresetSessionUnlock(this.roomId, password)
+      this.showDeckPresetPasswordGate = false
+      this.showDeckPresetDialog = true
+      this.loadDeckPresetStatus()
+    },
+
+    async submitDeckPreset(cards) {
+      if (!this.isOwner || this.deckPresetSubmitting) return
+      var pwd = dpDeckPresetSessionPassword(this.roomId)
+      if (!pwd) {
+        this.showDeckPresetDialog = false
+        this.showDeckPresetPasswordGate = true
+        return
+      }
+      this.deckPresetSubmitting = true
+      try {
+        var res = await this.$http.post('/dpRoom/setNextHandDeckPrefix', {
+          roomId: this.roomId,
+          experimentalPassword: pwd,
+          cards: cards || []
+        })
+        var body = res.data
+        if (!dpResultSuccess(body)) {
+          this.handleDeckPresetAuthFailure(body)
+          if (!this.showDeckPresetPasswordGate) {
+            this.$message.error(dpResultMessage(body) || '预设失败')
+          }
+          return
+        }
+        var d = dpResultData(body) || {}
+        this.deckPresetSavedCount = d.presetCount != null ? d.presetCount : (cards || []).length
+        this.deckPresetInitialCards = (cards || []).slice()
+        this.$message.success(d.message || '已预设下局牌序')
+        this.showDeckPresetDialog = false
+      } catch (err) {
+        this.$message.error('网络错误: ' + err.message)
+      } finally {
+        this.deckPresetSubmitting = false
+      }
     },
 
     // ---- 房主：移交房主（通过弹窗选择玩家） ----
-    async doTransferOwner() {
+    async doTransferOwner(options) {
       if (!this.ownerActionTarget) {
         this.$message.warning('请先选择要移交房主的玩家')
         return
@@ -1154,19 +2295,22 @@ export default {
         this.$message.warning('不能把房主移交给自己')
         return
       }
-      try {
-        await this.dpConfirm(
-          '确定将房主移交给 [' + dpDisplayNickname(this.ownerActionTarget) + '] 吗？',
-          '移交房主'
-        )
-      } catch (e) {
-        return
+      var skipConfirm = options && options.skipConfirm
+      if (!skipConfirm) {
+        this.scheduleReparentElementUiLayersIntoFullscreenRoot()
+        try {
+          await this.dpConfirm(
+            '确定将房主移交给 [' + dpDisplayNickname(this.ownerActionTarget) + '] 吗？',
+            '移交房主'
+          )
+        } catch (e) {
+          return
+        }
       }
       try {
         var res = await this.$http.post('/dpRoom/transferOwner', null, {
           params: {
             roomId: this.roomId,
-            fromNickname: this.user.nickname,
             toNickname: this.ownerActionTarget
           }
         })
@@ -1183,7 +2327,7 @@ export default {
     },
 
     // ---- 房主：踢人到观众席（可多选批量） ----
-    async doKickPlayers (nicknames) {
+    async doKickPlayers (nicknames, options) {
       var raw = [].concat(nicknames || []).filter(Boolean)
       var seen = {}
       var list = []
@@ -1197,20 +2341,24 @@ export default {
         this.$message.warning('请至少选择一名要踢出的玩家')
         return
       }
-      var preview = list.slice(0, 8).map(function (n) {
-        return dpDisplayNickname(n)
-      }).join('、')
-      if (list.length > 8) preview += ' …'
-      try {
-        await this.dpConfirm(
-          '确定将以下 ' +
-            list.length +
-            ' 人踢出本局并移至观众席吗？\n\n' +
-            preview,
-          '批量踢出'
-        )
-      } catch (e) {
-        return
+      var skipConfirm = options && options.skipConfirm
+      if (!skipConfirm) {
+        var preview = list.slice(0, 8).map(function (n) {
+          return dpDisplayNickname(n)
+        }).join('、')
+        if (list.length > 8) preview += ' …'
+        this.scheduleReparentElementUiLayersIntoFullscreenRoot()
+        try {
+          await this.dpConfirm(
+            '确定将以下 ' +
+              list.length +
+              ' 人踢出本局并移至观众席吗？\n\n' +
+              preview,
+            '批量踢出'
+          )
+        } catch (e) {
+          return
+        }
       }
       try {
         var res = await this.$http.post('/dpRoom/kickPlayersBatch', null, {
@@ -1283,7 +2431,6 @@ export default {
         var res = await this.$http.post('/dpRoom/addCustomNpcBatch', {
           roomId: this.roomId,
           count: count,
-          requesterNickname: this.user.nickname,
           profile: profile
         })
         var msg
@@ -1429,8 +2576,220 @@ export default {
       }
     },
 
+    /**
+     * retro8bit 触控板：批量串行添加多种 NPC（count=0 已过滤）。
+     */
+    async confirmBatchAddOwnerNpcs (payload) {
+      if (!this.roomId || !payload || !payload.items || !payload.items.length) return
+      if (!this.user || !this.user.nickname) {
+        this.$message.warning('请先登录')
+        return
+      }
+
+      var items = payload.items.filter(function (it) {
+        var c = parseInt(it.count, 10)
+        return !isNaN(c) && c > 0
+      })
+      if (!items.length) {
+        this.$message.warning('请至少选择一种 NPC 并设置数量')
+        return
+      }
+
+      var okParts = []
+      var errParts = []
+
+      for (var i = 0; i < items.length; i++) {
+        var item = items[i]
+        var count = parseInt(item.count, 10)
+        if (isNaN(count) || count < 1) continue
+        if (count > 9) count = 9
+
+        try {
+          if (item.type === 'rule') {
+            var arch = String(item.archetype || 'FISH').toUpperCase().replace(/^BOT_/, '')
+            var res = await this.$http.post('/dpRoom/addRuleNpcBatch', null, {
+              params: { roomId: this.roomId, archetype: arch, count: count }
+            })
+            if (res.data === 'ok') {
+              okParts.push(arch + '×' + count)
+            } else {
+              errParts.push(arch + ': ' + res.data)
+            }
+          } else if (item.type === 'custom') {
+            var profile = payload.customProfile
+            if (!profile) {
+              errParts.push('CUSTOM: 缺少参数')
+              continue
+            }
+            var resCustom = await this.$http.post('/dpRoom/addCustomNpcBatch', {
+              roomId: this.roomId,
+              count: count,
+              profile: profile
+            })
+            if (resCustom.data === 'ok') {
+              okParts.push('CUSTOM×' + count)
+            } else {
+              errParts.push('CUSTOM: ' + resCustom.data)
+            }
+          } else if (item.type === 'llm') {
+            var llmOk = 0
+            var llmErr = ''
+            for (var li = 0; li < count; li++) {
+              var resLlm = await this.$http.post('/dpRoom/addLlmBot', null, {
+                params: { roomId: this.roomId }
+              })
+              if (resLlm.data === 'ok') {
+                llmOk++
+              } else {
+                llmErr = String(resLlm.data)
+                break
+              }
+            }
+            if (llmOk === count) {
+              okParts.push('LLM×' + count)
+            } else if (llmOk > 0) {
+              okParts.push('LLM×' + llmOk)
+              errParts.push('LLM: 仅成功 ' + llmOk + '/' + count + (llmErr ? ' (' + llmErr + ')' : ''))
+            } else {
+              errParts.push('LLM: ' + (llmErr || 'fail'))
+            }
+          } else if (item.type === 'llmGlobal') {
+            var gOk = 0
+            var gErr = ''
+            for (var gi = 0; gi < count; gi++) {
+              var resG = await this.$http.post('/dpRoom/addLlmGlobalBot', null, {
+                params: { roomId: this.roomId }
+              })
+              if (resG.data === 'ok') {
+                gOk++
+              } else {
+                gErr = String(resG.data)
+                break
+              }
+            }
+            if (gOk === count) {
+              okParts.push('LLM_GLOBAL×' + count)
+            } else if (gOk > 0) {
+              okParts.push('LLM_GLOBAL×' + gOk)
+              errParts.push('LLM_GLOBAL: 仅成功 ' + gOk + '/' + count + (gErr ? ' (' + gErr + ')' : ''))
+            } else {
+              errParts.push('LLM_GLOBAL: ' + (gErr || 'fail'))
+            }
+          }
+        } catch (e) {
+          var label = item.type === 'rule'
+            ? String(item.archetype || 'RULE')
+            : String(item.type || 'NPC').toUpperCase()
+          errParts.push(label + ': 网络错误')
+        }
+      }
+
+      if (okParts.length && !errParts.length) {
+        this.$message.success('已请求批量添加 ' + okParts.join('+') + '，请等待本局结束（受空位限制）。')
+      } else if (okParts.length && errParts.length) {
+        this.$message.warning('部分成功 ' + okParts.join('+') + '；失败：' + errParts.join('；'))
+      } else if (errParts.length) {
+        this.$message.error('批量添加失败：' + errParts.join('；'))
+      }
+
+      this.closeOwnerTouchPanel()
+    },
+
+    onOpenMusicBox() {
+      if (this.gameUiTheme === 'retro8bit') { this.showMusicPlayer = true; return }
+      this.$store.commit('dpGame/SET_MODAL', { showMusicBoxModal: true })
+    },
+
     openHandHistory() {
+      if (this.gameUiTheme === 'retro8bit') { this.showHandHistoryPanel = true; return }
       this.$store.commit('dpGame/SET_MODAL', { showHandHistoryModal: true })
+    },
+    resolveActiveHandHistoryViewer() {
+      if (this.showOpponentHandHistoryPanel) {
+        return this.$refs.opponentHandHistoryViewer || this.$refs.handHistoryViewer
+      }
+      return this.$refs.handHistoryViewer
+    },
+    openHandHistoryDetail(handHistoryId, achievementSubjectUserId, achievementSubjectNickname) {
+      this.handHistoryDetailId = handHistoryId
+      var subjectUid = Number(achievementSubjectUserId)
+      if (!isNaN(subjectUid) && subjectUid > 0) {
+        this.handHistoryDetailSubjectUserId = subjectUid
+        this.handHistoryDetailSubjectNickname = achievementSubjectNickname ? String(achievementSubjectNickname) : ''
+      } else {
+        this.handHistoryDetailSubjectUserId = null
+        this.handHistoryDetailSubjectNickname = ''
+      }
+    },
+    onHandHistoryDetailClosed() {
+      this.handHistoryDetailId = null
+      this.handHistoryDetailSubjectUserId = null
+      this.handHistoryDetailSubjectNickname = ''
+    },
+    chatPanelUsesMobileDock() {
+      return this.viewportWidth <= 600
+        || this.layoutTier === 'desktop'
+        || !!this.layoutFullscreen
+    },
+    resolveActiveChatPanel(footer) {
+      if (!footer || !footer.$refs) return null
+      var refs = footer.$refs
+      if (this.chatPanelUsesMobileDock() && refs.guideMobileRoomChatPanel) {
+        return refs.guideMobileRoomChatPanel
+      }
+      if (refs.guideRoomChatPanel) return refs.guideRoomChatPanel
+      return refs.guideMobileRoomChatPanel || null
+    },
+    expandChat() {
+      var footer = this.$refs.heroDockFooter
+      if (!footer) return
+      var panel = this.resolveActiveChatPanel(footer)
+      if (panel && typeof panel.openWithReveal === 'function') {
+        panel.openWithReveal()
+        this.$nextTick(function () {
+          var el = panel.$el || panel.$refs.list || (panel.$refs.guideChatListWrap)
+          if (el && typeof el.scrollIntoView === 'function') {
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+          }
+        })
+      }
+    },
+    /** 终端 CLI：切换聊天面板开/关；返回 'opened' | 'closed' | null */
+    toggleChat() {
+      var footer = this.$refs.heroDockFooter
+      if (!footer) return null
+      var panel = this.resolveActiveChatPanel(footer)
+      if (!panel) return null
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[dp-terminal] toggleChat', {
+          usesMobileDock: this.chatPanelUsesMobileDock(),
+          isVisuallyOpen: panel.isVisuallyOpen
+        })
+      }
+      var result = null
+      if (typeof panel.toggleWithReveal === 'function') {
+        result = panel.toggleWithReveal()
+      } else if (panel.isVisuallyOpen) {
+        if (typeof panel.closeWithReveal === 'function') {
+          panel.closeWithReveal()
+        } else if (typeof panel.closeForGuide === 'function') {
+          panel.closeForGuide()
+        }
+        result = 'closed'
+      } else if (typeof panel.openWithReveal === 'function') {
+        panel.openWithReveal()
+        result = 'opened'
+      }
+      if (result === 'opened') {
+        var self = this
+        this.$nextTick(function () {
+          var el = panel.$el || panel.$refs.list || panel.$refs.guideChatListWrap
+          if (el && typeof el.scrollIntoView === 'function') {
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+          }
+        })
+      }
+      return result
     },
 
     // ---- 退出 ----
@@ -1447,7 +2806,7 @@ export default {
       this.beginIntentionalLeave()
       try {
         await this.$http.post('/dpRoom/exitRoom', null, {
-          params: {roomId: this.roomId, nickname: this.user.nickname}
+          params: { roomId: this.roomId }
         })
       } catch (err) {
         console.error('退出失败', err)
@@ -1457,12 +2816,9 @@ export default {
 
     // ---- 观众：报名 / 取消下一局加入（再点一次从候补列表移除）----
     async readyNextHand() {
-      if (!this.user) return
+      if (!this.user) return { ok: false, message: '未登录' }
       try {
-        var rp = { roomId: this.roomId, nickname: this.user.nickname }
-        if (this.user.userId != null && this.user.userId !== '') {
-          rp.userId = this.user.userId
-        }
+        var rp = this.roomApiParams
         if (this.nextHandReady) {
           var cancelRes = await this.$http.post('/dpRoom/cancelReadyNextHand', null, {
             params: rp
@@ -1471,10 +2827,10 @@ export default {
             this.$store.commit('dpGame/SET_NEXT_HAND_READY', false)
             this.$message.success('已取消下一局报名')
             await this.loadGame()
-          } else {
-            this.$message.error('取消失败：' + cancelRes.data)
+            return { ok: true, cancelled: true }
           }
-          return
+          this.$message.error('取消失败：' + cancelRes.data)
+          return { ok: false, message: String(cancelRes.data) }
         }
         var res = await this.$http.post('/dpRoom/readyNextHand', null, {
           params: rp
@@ -1483,11 +2839,13 @@ export default {
           this.$store.commit('dpGame/SET_NEXT_HAND_READY', true)
           this.$message.success('已报名下一局，将在下一局开局时自动加入对局')
           await this.loadGame()
-        } else {
-          this.$message.error('报名失败：' + res.data)
+          return { ok: true }
         }
+        this.$message.error('报名失败：' + res.data)
+        return { ok: false, message: String(res.data) }
       } catch (err) {
         this.$message.error('网络错误: ' + err.message)
+        return { ok: false, message: err.message || '网络错误' }
       }
     },
 
@@ -1536,6 +2894,7 @@ export default {
           selfInstant.communityCardsFlipCompleteTimer = null
         }, 180)
       } else if (numNew > 0) {
+        var theme = this.gameUiTheme
         for (var j = prevLen; j < newCards.length; j++) {
           var self = this
           ;(function (capturedIdx, capturedDelay) {
@@ -1544,15 +2903,13 @@ export default {
                 self.$store.commit('dpGame/SET_FLIP_AT', { index: capturedIdx, value: true })
               }
             }, capturedDelay)
-          })(j, 520 + 350 * (j - prevLen))
+          })(j, communityFlipDelayMsForTheme(theme, j - prevLen))
         }
-        var flipDuration = 480
-        var lastFlipStart = 520 + 350 * (numNew - 1)
         var selfDone = this
         this.communityCardsFlipCompleteTimer = setTimeout(function () {
           selfDone.$store.commit('dpGame/SET_COMMUNITY_FLIP_COMPLETE', true)
           selfDone.communityCardsFlipCompleteTimer = null
-        }, lastFlipStart + flipDuration)
+        }, communityFlipCompleteMsForTheme(theme, numNew))
       } else if (newCards.length > 0 && this.communityCardsFlipState.every(function (x) {
         return x
       })) {
@@ -1570,7 +2927,7 @@ export default {
     getPlayerBoxStyle(p, i) {
       return dpGamePlayerBoxStyle(p, i, {
         actIndex: this.actIndex,
-        stage: this.stage,
+        stage: this.cardDisplayStage,
         isOwner: this.isOwner,
         selectedWinners: this.selectedWinners,
         myNickname: this.user && this.user.nickname

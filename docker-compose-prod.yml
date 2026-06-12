@@ -89,8 +89,23 @@ services:
       ARK_THINKING_TYPE: ${ARK_THINKING_TYPE:-}
       ARK_RESPONSE_JSON_OBJECT: ${ARK_RESPONSE_JSON_OBJECT:-true}
 
+      # --- A: OAuth 前后端回跳基址 ---
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-}
+      # --- A: GitHub OAuth ---
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GITHUB_REDIRECT_URI: ${GITHUB_REDIRECT_URI:-}
+      # --- A: Gitee OAuth ---
+      GITE_CLIENT_ID: ${GITE_CLIENT_ID:-}
+      GITE_CLIENT_SECRET: ${GITE_CLIENT_SECRET:-}
+      GITE_REDIRECT_URI: ${GITE_REDIRECT_URI:-}
+      # --- A: Ding OAuth ---
+      DING_CLIENT_ID: ${DING_CLIENT_ID:-}
+      DING_CLIENT_SECRET: ${DING_CLIENT_SECRET:-}
+      DING_REDIRECT_URI: ${DING_REDIRECT_URI:-}
       # --- A: JWT（生产公网强烈建议填写；勿写入真实密钥到 Git）---
       JWT_SECRET: ${JWT_SECRET:-}
+      EXPERIMENTAL_DECK_PRESET_PASSWORD: ${EXPERIMENTAL_DECK_PRESET_PASSWORD:-}
     volumes:
       - mgdemo_uploads:/data/mgdemo-files
     depends_on:

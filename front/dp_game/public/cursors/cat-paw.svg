@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <!-- 猫爪光标：深色剪影 + 白色描边确保明暗背景都能看清 -->
+  <g transform="translate(16,18)">
+    <!-- 主肉垫 -->
+    <path d="M-5.5,-1.5 C-7.5,-3.5 -7.5,-7 -5,-8 C-2.5,-9 2.5,-9 5,-8 C7.5,-7 7.5,-3.5 5.5,-1.5 Z" fill="#333" stroke="#fff" stroke-width="0.8"/>
+    <!-- 左上趾 -->
+    <ellipse cx="-9" cy="-10" rx="3.5" ry="4" fill="#333" stroke="#fff" stroke-width="0.8" transform="rotate(-12,-9,-10)"/>
+    <!-- 左中趾 -->
+    <ellipse cx="-3.2" cy="-12.5" rx="3.5" ry="4" fill="#333" stroke="#fff" stroke-width="0.8" transform="rotate(-4,-3.2,-12.5)"/>
+    <!-- 右中趾 -->
+    <ellipse cx="3.2" cy="-12.5" rx="3.5" ry="4" fill="#333" stroke="#fff" stroke-width="0.8" transform="rotate(4,3.2,-12.5)"/>
+    <!-- 右上趾 -->
+    <ellipse cx="9" cy="-10" rx="3.5" ry="4" fill="#333" stroke="#fff" stroke-width="0.8" transform="rotate(12,9,-10)"/>
+  </g>
+</svg>

@@ -33,7 +33,7 @@ public class DpGameRoomPushService {
     private static final String ROOM_CLOSED = "{\"_ws\":\"roomClosed\"}";
 
     /** 房间聊天：内存缓冲，摘房落库；广播帧带 ttlMs 供前端气泡 */
-    private static final long CHAT_TTL_MS = 15_000L;
+    private static final long CHAT_TTL_MS = 5_000L;
     private static final int CHAT_MAX_LEN = 200;
     /** NPC 桌边话术（不落库） */
     private static final int NPC_TABLE_TALK_MAX_LEN = 80;
@@ -200,7 +200,7 @@ public class DpGameRoomPushService {
             return;
         }
         String roomId = (String) ridObj;
-        String nickname = root.path("nickname").asText("").trim();
+        String nickname = resolveSessionViewerNickname(session, root);
         String text = root.path("text").asText("");
         text = text.replace('\r', ' ').replace('\n', ' ').trim();
         if (nickname.isEmpty() || text.isEmpty()) {
@@ -253,7 +253,7 @@ public class DpGameRoomPushService {
             return;
         }
         String roomId = (String) ridObj;
-        String nickname = root.path("nickname").asText("").trim();
+        String nickname = resolveSessionViewerNickname(session, root);
         String action = root.path("action").asText("").trim().toLowerCase(Locale.ROOT);
         if (nickname.isEmpty()) {
             return;
@@ -381,7 +381,8 @@ public class DpGameRoomPushService {
     public void sendInitialSnapshot(WebSocketSession session, String roomId) {
         try {
             String nick = (String) session.getAttributes().get("viewerNickname");
-            DpRoomBO r = roomService.getRoomSnapshotForViewer(roomId, nick);
+            Integer viewerUserId = (Integer) session.getAttributes().get("viewerUserId");
+            DpRoomBO r = roomService.getRoomSnapshotForViewer(roomId, nick, viewerUserId);
             if (r == null) {
                 synchronized (session) {
                     session.sendMessage(new TextMessage(ROOM_CLOSED));
@@ -426,14 +427,22 @@ public class DpGameRoomPushService {
                 }
                 //定制化的json数据
                 String nick = (String) s.getAttributes().get("viewerNickname");
+                Integer viewerUserId = (Integer) s.getAttributes().get("viewerUserId");
                 String json;
                 if (live == null) {
                     json = ROOM_CLOSED;
                     //如果房间不存在，推送房间关闭消息
-                } else if (nick != null && !nick.trim().isEmpty()
-                        && !roomService.isNicknameInRoom(live, nick.trim())) {
-                    //如果昵称不在房间里，推送房间关闭消息
-                    json = ROOM_CLOSED;
+                } else if (nick != null && !nick.trim().isEmpty()) {
+                    String effectiveNick;
+                    synchronized (live) {
+                        effectiveNick = roomService.resolveRoomActorNickname(live, nick.trim(), viewerUserId);
+                    }
+                    if (effectiveNick == null || !roomService.isNicknameInRoom(live, effectiveNick)) {
+                        json = ROOM_CLOSED;
+                    } else {
+                        DpRoomBO view = roomService.snapshotForViewerFromLive(live, effectiveNick);
+                        json = objectMapper.writeValueAsString(view);
+                    }
                 } else {//对每个订阅者推送json数据
                     DpRoomBO view = roomService.snapshotForViewerFromLive(live, nick);
                     json = objectMapper.writeValueAsString(view);
@@ -513,6 +522,18 @@ public class DpGameRoomPushService {
     }
 
     // =========== 校验与工具方法（按首次引用内联到对应模块） ===========
+
+    /** 优先握手时写入的 {@code viewerNickname}；兼容旧客户端 body.nickname。 */
+    private static String resolveSessionViewerNickname(WebSocketSession session, JsonNode root) {
+        Object vn = session.getAttributes().get("viewerNickname");
+        if (vn instanceof String s && !s.isEmpty()) {
+            return s.trim();
+        }
+        if (root != null) {
+            return root.path("nickname").asText("").trim();
+        }
+        return "";
+    }
 
     private static boolean isSafeMusicWebPath(String path) {
         if (path == null || path.isEmpty()) {

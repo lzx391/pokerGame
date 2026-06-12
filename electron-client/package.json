@@ -6,8 +6,8 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "prebuild": "node -e \"var fs=require('fs'),p=require('path');var s='../front/dp_game/dist',d='dist-frontend';try{fs.rmSync(d,{recursive:true,force:true})}catch(e){}fs.cpSync(s,d,{recursive:true});console.log('Copied dist -> dist-frontend')\"",
-    "build": "npm run prebuild && electron-builder --win dir",
+    "prebuild": "node scripts/prebuild.js",
+    "build": "npm run prebuild && electron-builder --win dir --config.win.signAndEditExecutable=false",
     "build:cn": "set ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ && node scripts/build.js"
   },
   "build": {
@@ -24,7 +24,8 @@
     ],
     "win": {
       "target": "dir",
-      "icon": null
+      "icon": null,
+      "signAndEditExecutable": false
     }
   },
   "devDependencies": {

@@ -206,6 +206,24 @@
       </div>
       </section>
 
+      <section class="game-owner-tool__deck-preset" aria-label="预设下局牌序">
+      <div style="margin-bottom:12px; padding:8px; border-radius:6px; background:#f6ffed; border:1px dashed #52c41a;">
+        <div style="font-size:13px; font-weight:bold; color:#389e0d; margin-bottom:4px;">
+          实验玩法：预设下局牌序
+        </div>
+        <div style="font-size:12px; color:#8c8c8c; margin-bottom:8px;">
+          按发牌顺序选牌，仅下一局生效，其他玩家不会收到通知。
+        </div>
+        <button
+          type="button"
+          :style="confirmNpcStyle('#389e0d', true)"
+          @click="$emit('open-deck-preset')"
+        >
+          打开排牌面板
+        </button>
+      </div>
+      </section>
+
       <section class="game-owner-tool__room-mgmt" aria-label="移交房主与踢人">
       <div class="game-owner-tool__section-title">房间管理</div>
       <div class="game-owner-tool__mgmt-row">

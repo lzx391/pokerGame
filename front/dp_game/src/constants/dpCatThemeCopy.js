@@ -107,7 +107,7 @@ export const CAT_COPY = Object.freeze({
   musicLibraryNotReady: '曲库未就绪，请确认后端已启动。',
   musicListLoadFailed: '暂时无法加载曲库，请稍后再试',
   downloadCenterHint:
-    '安装包保存在服务器目录，会写入下载列表；支持 exe、apk、msi、zip，单文件建议不超过 80MB。',
+    '安装包保存在服务器目录，会写入下载列表；支持 exe、apk、msi、zip，单文件建议不超过 80MB。上传与下架需登录并验证管理密码。',
   downloadListLoadFailed: '暂时无法加载下载列表，请稍后再试'
 })
 

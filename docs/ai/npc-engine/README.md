@@ -1,7 +1,7 @@
 # 规则型 NPC 引擎文档索引
 
 > **核对日期**：2026-05-25  
-> **权威来源**：`com.example.mgdemoplus.npc.engine.DpNpcEngine`、`npc/strategy/*`、`application.yml` 之 `dp.npc`  
+> **权威来源**：`com.example.mgdemoplus.npc.engine.DpNpcEngine`、`npc/strategypro/*`、`application.yml` 之 `dp.npc`  
 > **Status**: maintained
 
 本目录说明 **规则型 Bot**（`BOT_FISH` / `BOT_TAG` / `BOT_LAG` / `BOT_NIT` / `BOT_CALL` / `BOT_MANIAC` / `BOT_CUSTOM` 及旧昵称兼容）。对局协议与房间流程见 [docs/DPGAME.md](../../DPGAME.md)。
@@ -31,8 +31,9 @@
 | 角色 | 类 / 配置 |
 |------|-----------|
 | 引擎入口 | `npc.engine.DpNpcEngine`（静态方法，非 Spring Bean） |
-| 翻前 | `npc.strategy.DpNpcUnifiedPreflopStrategy` |
-| 翻后 | `DpNpcFishStrategy`、`DpNpcCallStrategy`、`DpNpcLagStrategy`、`DpNpcManiacStrategy`、`DpNpcTagStrategy`、`DpNpcNitStrategy` |
+| 策略门面 | `npc.strategypro.facade.DpNpcStrategyProvider` → `DpNpcStrategyFacade` |
+| 翻前 | `npc.strategypro.preflop.DpNpcUnifiedPreflopStrategy` |
+| 翻后 | `npc.strategypro.DpNpcFishStrategy` 等（经 Facade 分派） |
 | 思考延时 | `npc.rulethink.DpNpcRuleThinkProperties`（`dp.npc.rule-think`）、`DpNpcRuleThinkSampler` |
 | 房间调度 | `room.support.DpRoomHeartbeatScheduler`（1s tick）→ `DpRoomServiceImpl` → `decideActionIfReady` / `npcAction` |
 | 牌力 | `utils.dp.DpUtilHandEvaluator` |
@@ -59,7 +60,11 @@
 ```text
 npc/
 ├── engine/DpNpcEngine.java          # 规则入口（静态）
-├── strategy/DpNpc*Strategy.java     # 翻后分 archetype；翻前 DpNpcUnifiedPreflopStrategy
+├── strategypro/                     # ★ 规则策略实现（Phase 1 迁入）
+│   ├── facade/DpNpcStrategyFacade   # Engine 唯一委托入口
+│   ├── preflop/DpNpcUnifiedPreflopStrategy
+│   └── DpNpc*Strategy.java          # 翻后分 archetype（暂含旧套壳）
+├── strategy/                        # @Deprecated 过渡期转发，Phase 5 删除
 ├── llm/DpLlmNpcDecisionService.java # BOT_LLM / BOT_LLM_GLOBAL
 ├── rulethink/                       # dp.npc.rule-think 采样
 ├── tabletalk/                       # 桌边话池与推送
