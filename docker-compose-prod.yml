@@ -80,7 +80,7 @@ services:
       MGDEMOPLUS_TIME_ZONE: Asia/Shanghai
 
       # --- MinIO 对象存储（bucket 由 app 启动时自动创建）---
-      MGDEMOPLUS_MINIO_ENABLED: "true"
+      MGDEMOPLUS_MINIO_ENABLED: ${MGDEMOPLUS_MINIO_ENABLED:-true}
       MGDEMOPLUS_MINIO_ENDPOINT: http://minio:9000
       MGDEMOPLUS_MINIO_ACCESS_KEY: ${MGDEMOPLUS_MINIO_ACCESS_KEY:-minioadmin}
       MGDEMOPLUS_MINIO_SECRET_KEY: ${MGDEMOPLUS_MINIO_SECRET_KEY:-minioadmin}
