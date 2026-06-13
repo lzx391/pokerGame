@@ -224,6 +224,24 @@
       </div>
       </section>
 
+      <section class="game-owner-tool__decision-trace" aria-label="TAG NPC 决策追踪">
+      <div style="margin-bottom:12px; padding:8px; border-radius:6px; background:#e6f4ff; border:1px dashed #409eff;">
+        <div style="font-size:13px; font-weight:bold; color:#0958d9; margin-bottom:4px;">
+          实验功能：分析决策
+        </div>
+        <div style="font-size:12px; color:#8c8c8c; margin-bottom:8px;">
+          查看 TAG NPC 最近手牌的决策推理与翻前范围矩阵；结算后点刷新同步。
+        </div>
+        <button
+          type="button"
+          :style="confirmNpcStyle('#1677ff', true)"
+          @click="$emit('open-decision-trace')"
+        >
+          打开决策追踪
+        </button>
+      </div>
+      </section>
+
       <section class="game-owner-tool__room-mgmt" aria-label="移交房主与踢人">
       <div class="game-owner-tool__section-title">房间管理</div>
       <div class="game-owner-tool__mgmt-row">

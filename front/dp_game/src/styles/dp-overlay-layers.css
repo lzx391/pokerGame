@@ -13,6 +13,7 @@ body[data-dp-game-theme] {
   --dp-z-achievement: 9100;
   --dp-z-hand-history: 9200;
   --dp-z-deck-preset: 9300;
+  --dp-z-decision-trace: 9310;
 }
 
 /*

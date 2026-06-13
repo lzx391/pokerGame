@@ -258,7 +258,9 @@ export default {
       default: function () {
         return null
       }
-    }
+    },
+    /** retro8bit 专属菜单项（分析决策） */
+    gameUiTheme: { type: String, default: 'default' }
   },
   data() {
     return {
@@ -282,22 +284,54 @@ export default {
       return this.menuStack.length
     },
     rootItems() {
+      var items
       if (this.touchMode) {
-        return [
+        items = [
           { id: 'add-npc', label: '添加 NPC' },
           { id: 'deck-preset', label: '实验排牌' },
           { id: 'reveal', label: '看牌' },
           { id: 'kick', label: '踢人' },
           { id: 'transfer', label: '转让' }
         ]
+      } else {
+        items = [
+          { id: 'add-npc', label: '添加NPC' },
+          { id: 'deck-preset', label: '实验玩法/预设下局牌序' },
+          { id: 'transfer', label: '移交房主' },
+          { id: 'kick', label: '踢出玩家' },
+          { id: 'reveal', label: '看穿底牌' }
+        ]
       }
-      return [
-        { id: 'add-npc', label: '添加NPC' },
-        { id: 'deck-preset', label: '实验玩法/预设下局牌序' },
-        { id: 'transfer', label: '移交房主' },
-        { id: 'kick', label: '踢出玩家' },
-        { id: 'reveal', label: '看穿底牌' }
-      ]
+      if (this.gameUiTheme === 'retro8bit') {
+        var deckIdx = -1
+        for (var i = 0; i < items.length; i++) {
+          if (items[i].id === 'deck-preset') {
+            deckIdx = i
+            break
+          }
+        }
+        var traceItem = { id: 'decision-trace', label: '分析决策' }
+        if (deckIdx >= 0) {
+          items.splice(deckIdx + 1, 0, traceItem)
+        } else {
+          items.push(traceItem)
+        }
+      } else {
+        var deckIdxDefault = -1
+        for (var j = 0; j < items.length; j++) {
+          if (items[j].id === 'deck-preset') {
+            deckIdxDefault = j
+            break
+          }
+        }
+        var traceItemDefault = { id: 'decision-trace', label: '分析决策' }
+        if (deckIdxDefault >= 0) {
+          items.splice(deckIdxDefault + 1, 0, traceItemDefault)
+        } else {
+          items.push(traceItemDefault)
+        }
+      }
+      return items
     },
     ruleNpcRows() {
       return [
@@ -631,6 +665,11 @@ export default {
       if (item.id === 'deck-preset') {
         dpOwnerTerminalDevLog('API emit', { action: 'open-deck-preset' })
         this.$emit('open-deck-preset')
+        return
+      }
+      if (item.id === 'decision-trace') {
+        dpOwnerTerminalDevLog('API emit', { action: 'open-decision-trace' })
+        this.$emit('open-decision-trace')
         return
       }
       if (item.id === 'transfer') {

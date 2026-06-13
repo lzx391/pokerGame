@@ -7,7 +7,8 @@
         'dp-game-root--pseudo-fs': pseudoFullscreen,
         'dp-game-root--layout-fs': layoutFullscreen,
         'dp-game-root--mobile-hero-dock': mobileHeroDockActive,
-        'dp-game-root--retro-desktop-fx': showRetroDesktopFx
+        'dp-game-root--retro-desktop-fx': showRetroDesktopFx,
+        'dp-game-root--trace-dock-open': showDecisionTraceDockWide
       }"
       :data-dp-game-theme="effectiveThemeForCss"
       :data-dp-eco-mode="ecoMode ? 'true' : 'false'"
@@ -16,6 +17,7 @@
       :style="retroPolygonRootStyle"
   >
     <!-- 顶栏 | 主区(牌桌) | 底栏 —— 三块同级 flex，无额外嵌套 -->
+    <div class="dp-game-body-row">
     <div class="dp-game-layout">
     <header class="dp-game-layout__header">
     <game-top-bar
@@ -54,6 +56,8 @@
         :hero-economy-secondary-label="topBarHeroEconomySecondaryLabel"
         :hero-economy-secondary-value="topBarHeroEconomySecondaryValue"
         :hero-carry-in-chips="myCarryInChips"
+        :npc-decision-trace-pinned="npcDecisionTraceDockPinned"
+        @toggle-decision-trace-dock="onToggleDecisionTraceDock"
     />
 
     </header>
@@ -121,6 +125,19 @@
     </footer>
     </div>
 
+    <game-npc-decision-trace-dock
+        v-if="isOwner && gameUiTheme !== 'retro8bit' && useDecisionTraceDockWide"
+        layout-mode="dock"
+        :pinned="npcDecisionTraceDockPinned"
+        :room-id="roomId"
+        :hands="traceHands"
+        :loading="traceHandsLoading"
+        :load-error="traceHandsLoadError"
+        :on-auth-failure="(body) => handleDeckPresetAuthFailure(body)"
+        @refresh="loadTraceHands()"
+    />
+    </div>
+
     <game-dp-floating-modals />
 
     <audio
@@ -180,6 +197,7 @@ import GameRoundTable from './GameRoundTable.vue'
 import GameHeroDockFooter from './GameHeroDockFooter.vue'
 import GameDpFloatingModals from './GameDpFloatingModals.vue'
 import GameDpGameSheets from './GameDpGameSheets.vue'
+import GameNpcDecisionTraceDock from './GameNpcDecisionTraceDock.vue'
 import GameHeroHandHologram from './GameHeroHandHologram.vue'
 import DpCrtBootSequence from './DpCrtBootSequence.vue'
 import DpTerminalCli from './DpTerminalCli.vue'
@@ -201,6 +219,7 @@ import {
   dpDeckPresetSessionPassword,
   clearDeckPresetSessionUnlock
 } from '../utils/dpDeckPresetUnlock'
+import { fetchTraceHands, mergeTraceHandBundle } from '../utils/dpNpcDecisionTrace'
 import { dpRoomApi } from '@/api/api.dpRoom'
 import { mapState, mapGetters } from 'vuex'
 import { dpSocialDisplayNickname } from '../utils/dpSocialDisplayName'
@@ -236,6 +255,7 @@ export default {
     GameHeroDockFooter,
     GameDpFloatingModals,
     GameDpGameSheets,
+    GameNpcDecisionTraceDock,
     GameHeroHandHologram,
     DpCrtBootSequence,
     DpTerminalCli,
@@ -305,7 +325,17 @@ export default {
       showDeckPresetPasswordGate: false,
       deckPresetSavedCount: 0,
       deckPresetInitialCards: [],
-      deckPresetSubmitting: false
+      deckPresetSubmitting: false,
+      /** 'deck-preset' | 'decision-trace' — routes shared experimental password gate */
+      experimentalGatePendingFeature: null,
+      showNpcDecisionTracePanel: false,
+      npcDecisionTraceDockPinned: false,
+      showNpcDecisionTraceSheet: false,
+      _decisionTraceDockLoadedOnce: false,
+      traceHands: [],
+      traceHandsLoading: false,
+      traceHandsLoadError: '',
+      traceNewHandNotice: ''
     }
   },
 
@@ -373,6 +403,16 @@ export default {
     },
     useRetroOwnerPanelWide() {
       return this.gameUiTheme === 'retro8bit' && this.viewportWidth > 600
+    },
+    /** 默认主题决策追踪：宽屏右侧 dock；窄屏 bottom sheet */
+    useDecisionTraceDockWide() {
+      return this.viewportWidth > 600 && this.layoutTier !== 'phone'
+    },
+    showDecisionTraceDockWide() {
+      return this.isOwner
+        && this.gameUiTheme !== 'retro8bit'
+        && this.npcDecisionTraceDockPinned
+        && this.useDecisionTraceDockWide
     },
     useRetroSeatEnterReveal() {
       return this.gameUiTheme === 'retro8bit'
@@ -1311,6 +1351,10 @@ export default {
               self.applyRoomMusicMessage(data)
               return
             }
+            if (data._ws === 'npcDecisionTraceHand') {
+              self.onNpcDecisionTraceHandPush(data)
+              return
+            }
             self.applyRoomFromServer(data)
           } catch (e) {
             console.error('WebSocket 消息解析失败', e)
@@ -2227,8 +2271,13 @@ export default {
       if (msg.indexOf('密码') >= 0 || msg.indexOf('访问') >= 0 || msg.indexOf('未启用') >= 0 || msg.indexOf('验证') >= 0) {
         clearDeckPresetSessionUnlock(this.roomId)
         this.showDeckPresetDialog = false
+        var reopenTrace = this.showNpcDecisionTracePanel || this.npcDecisionTraceDockPinned
+        this.showNpcDecisionTracePanel = false
+        this.npcDecisionTraceDockPinned = false
+        this.showNpcDecisionTraceSheet = false
+        this.experimentalGatePendingFeature = reopenTrace ? 'decision-trace' : 'deck-preset'
         this.showDeckPresetPasswordGate = true
-        this.$message.error(msg || '实验排牌访问验证已失效，请重新输入密码')
+        this.$message.error(msg || '实验功能访问验证已失效，请重新输入密码')
       }
     },
 
@@ -2239,15 +2288,130 @@ export default {
         this.showDeckPresetDialog = true
         this.loadDeckPresetStatus()
       } else {
+        this.experimentalGatePendingFeature = 'deck-preset'
         this.showDeckPresetPasswordGate = true
       }
+    },
+
+    openDecisionTracePanel() {
+      if (!this.isOwner) return
+      if (this.gameUiTheme === 'retro8bit') {
+        this.closeOwnerHubPanel()
+        if (isDeckPresetUnlocked(this.roomId)) {
+          this.showNpcDecisionTracePanel = true
+          this.loadTraceHands()
+        } else {
+          this.experimentalGatePendingFeature = 'decision-trace'
+          this.showDeckPresetPasswordGate = true
+        }
+        return
+      }
+      this.openDecisionTraceDock()
+    },
+
+    openDecisionTraceDock() {
+      if (!this.isOwner || this.gameUiTheme === 'retro8bit') return
+      this.closeOwnerHubPanel()
+      if (isDeckPresetUnlocked(this.roomId)) {
+        this.activateDecisionTraceDock()
+      } else {
+        this.experimentalGatePendingFeature = 'decision-trace'
+        this.showDeckPresetPasswordGate = true
+      }
+    },
+
+    activateDecisionTraceDock() {
+      this.npcDecisionTraceDockPinned = true
+      if (!this.useDecisionTraceDockWide) {
+        this.showNpcDecisionTraceSheet = true
+      }
+      if (!this._decisionTraceDockLoadedOnce) {
+        this._decisionTraceDockLoadedOnce = true
+        this.loadTraceHands()
+      }
+    },
+
+    onToggleDecisionTraceDock() {
+      if (this.npcDecisionTraceDockPinned) {
+        this.npcDecisionTraceDockPinned = false
+        this.showNpcDecisionTraceSheet = false
+        return
+      }
+      this.openDecisionTraceDock()
+    },
+
+    onDecisionTraceSheetClose() {
+      this.showNpcDecisionTraceSheet = false
+      this.npcDecisionTraceDockPinned = false
     },
 
     onDeckPresetPasswordVerified(password) {
       setDeckPresetSessionUnlock(this.roomId, password)
       this.showDeckPresetPasswordGate = false
+      var pending = this.experimentalGatePendingFeature
+      this.experimentalGatePendingFeature = null
+      if (pending === 'decision-trace') {
+        if (this.gameUiTheme === 'retro8bit') {
+          this.showNpcDecisionTracePanel = true
+          this.loadTraceHands()
+        } else {
+          this.activateDecisionTraceDock()
+        }
+        return
+      }
       this.showDeckPresetDialog = true
       this.loadDeckPresetStatus()
+    },
+
+    async loadTraceHands() {
+      if (!this.isOwner || !this.roomId) return
+      var pwd = dpDeckPresetSessionPassword(this.roomId)
+      if (!pwd) {
+        this.traceHandsLoadError = 'SESSION LOCKED'
+        this.showNpcDecisionTracePanel = false
+        this.npcDecisionTraceDockPinned = false
+        this.showNpcDecisionTraceSheet = false
+        this.experimentalGatePendingFeature = 'decision-trace'
+        this.showDeckPresetPasswordGate = true
+        return
+      }
+      this.traceHandsLoading = true
+      this.traceHandsLoadError = ''
+      try {
+        var result = await fetchTraceHands(this.$http, this.roomId, pwd)
+        if (!result.ok) {
+          this.handleDeckPresetAuthFailure(result.body)
+          if (!this.showDeckPresetPasswordGate) {
+            this.traceHandsLoadError = dpResultMessage(result.body) || '加载失败'
+          }
+          return
+        }
+        this.traceHands = result.hands || []
+      } catch (err) {
+        this.traceHandsLoadError = 'NETWORK ERROR'
+      } finally {
+        this.traceHandsLoading = false
+      }
+    },
+
+    onNpcDecisionTraceHandPush(data) {
+      if (this.gameUiTheme !== 'retro8bit') return
+      if (!this.isOwner || !data) return
+      if (data.roomId && this.roomId && data.roomId !== this.roomId) return
+      var bundle = data.bundle
+      if (!bundle) return
+      this.traceHands = mergeTraceHandBundle(this.traceHands, bundle)
+      var hi = bundle.handIndex != null ? bundle.handIndex : '?'
+      var ac = bundle.actionCount != null ? bundle.actionCount : 0
+      this.traceNewHandNotice = '> HAND #' + hi + ' TRACE READY (' + ac + ')'
+      if (this.showNpcDecisionTracePanel) {
+        var self = this
+        setTimeout(function () {
+          if (self.traceNewHandNotice.indexOf('HAND #' + hi) >= 0) {
+            self.traceNewHandNotice = ''
+          }
+        }, 4000)
+      }
     },
 
     async submitDeckPreset(cards) {

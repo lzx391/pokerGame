@@ -17,6 +17,7 @@ import com.example.mgdemoplus.npc.strategypro.l1.DpNpcHardConstraints;
 import com.example.mgdemoplus.npc.strategypro.l4.DpNpcHeroCall;
 import com.example.mgdemoplus.npc.strategypro.l4.DpNpcRaiseEscalation;
 import com.example.mgdemoplus.npc.strategypro.l4.DpNpcRaiseEscalation.EscalationResult;
+import com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTraceCollector;
 import com.example.mgdemoplus.utils.DpUtilSmartContext;
 
 /**
@@ -49,6 +50,8 @@ public final class DpNpcTagPostflopStrategy {
         DpNpcDrawCategory draw = DpNpcPostflopFormula.drawOrNone(p.handSnapshot);
         DpBoardTexture tex = DpNpcPostflopFormula.textureOrDry(p.handSnapshot);
         HandPlanType plan = DpNpcEngine.getHandPlanType(p.bot);
+
+        tracePostflopContext(stage, callAmount, plan, made, draw, tex);
 
         double commitFactor = tagCommitFactor(made, draw, tex, bd, p, ctx);
         final double commitThreshold = (p.bot.getBet() + p.bot.getChips()) * commitFactor;
@@ -166,9 +169,52 @@ public final class DpNpcTagPostflopStrategy {
                     callAmount >= p.chips)) {
                 return null;
             }
+            traceFoldResult(baseFold, foldProb);
             return new BotAction(BotActionType.FOLD, 0);
         }
         return null;
+    }
+
+    private static void tracePostflopContext(
+            String stage,
+            int callAmount,
+            HandPlanType plan,
+            DpNpcMadeHandCategory made,
+            DpNpcDrawCategory draw,
+            DpBoardTexture tex) {
+        if (DpNpcTagDecisionTraceCollector.current() == null) {
+            return;
+        }
+        DpNpcTagDecisionTraceCollector.step(
+                "CONTEXT",
+                "POSTFLOP_SPOT",
+                "stage=" + stage + " callAmount=" + callAmount + " plan=" + plan,
+                DpNpcTagDecisionTraceCollector.dataOf(
+                        "stage", stage,
+                        "callAmount", callAmount,
+                        "plan", plan != null ? plan.name() : "",
+                        "made", made != null ? made.name() : "",
+                        "draw", draw != null ? draw.name() : "",
+                        "tex", tex != null ? (tex.wet ? "wet" : "dry") : ""));
+    }
+
+    private static void traceFoldResult(double baseFold, double foldProb) {
+        if (DpNpcTagDecisionTraceCollector.current() == null) {
+            return;
+        }
+        DpNpcTagDecisionTraceCollector.step(
+                "PROB",
+                "FOLD_ROLL",
+                "baseFold=" + String.format("%.3f", baseFold) + " foldProb=" + String.format("%.3f", foldProb),
+                DpNpcTagDecisionTraceCollector.dataOf("baseFold", baseFold, "foldProb", foldProb));
+        DpNpcTagDecisionTraceCollector.step("RESULT", "FOLD", "fold facing bet", null);
+    }
+
+    private static void tracePostflopResult(String message) {
+        if (DpNpcTagDecisionTraceCollector.current() == null) {
+            return;
+        }
+        DpNpcTagDecisionTraceCollector.step("RESULT", "POSTFLOP_ACTION", message, null);
     }
 
     private static BotAction decideNoBet(
@@ -203,11 +249,14 @@ public final class DpNpcTagPostflopStrategy {
         if (p.random.nextDouble() < valueBetProb) {
             if (DpNpcEngine.shouldSkipAggressiveActionByPlan(p.bot, stage)
                     && !made.isAtLeast(DpNpcMadeHandCategory.TOP_PAIR_TOP_KICKER)) {
+                tracePostflopResult("check (plan skip aggressive)");
                 return new BotAction(BotActionType.CALL_OR_CHECK, 0);
             }
             double factor = DpNpcPostflopFormula.cbetPotFactor(made, tex, stage);
+            tracePostflopResult("value bet potFraction=" + String.format("%.2f", factor));
             return raisePotFraction(p, stage, factor);
         }
+        tracePostflopResult("check (no bet line)");
         return new BotAction(BotActionType.CALL_OR_CHECK, 0);
     }
 
@@ -319,6 +368,7 @@ public final class DpNpcTagPostflopStrategy {
         raiseProb = Math.min(0.9, Math.max(0.05, raiseProb));
 
         if (p.random.nextDouble() > raiseProb || p.chips <= callAmount) {
+            tracePostflopResult("call facing bet (raiseProb miss)");
             return new BotAction(BotActionType.CALL_OR_CHECK, 0);
         }
 
@@ -327,10 +377,12 @@ public final class DpNpcTagPostflopStrategy {
         EscalationResult esc = DpNpcRaiseEscalation.computeFacingBetRaise(
                 p.room, callAmount, p.chips, made, stage, p.type, extraMin, extraMax, p.random);
         if (esc.suggestJam && p.random.nextDouble() < 0.55) {
+            tracePostflopResult("all-in facing bet (escalation jam)");
             return new BotAction(BotActionType.ALL_IN, p.chips);
         }
         int raiseAmount = esc.raiseAmount;
         if (raiseAmount <= callAmount) {
+            tracePostflopResult("call (raise amount too small)");
             return new BotAction(BotActionType.CALL_OR_CHECK, 0);
         }
         int heroInvestAfter = p.bot.getBet() + raiseAmount;
@@ -342,6 +394,7 @@ public final class DpNpcTagPostflopStrategy {
             return new BotAction(BotActionType.CALL_OR_CHECK, 0);
         }
         DpNpcEngine.consumeOneBarrelIfAny(p.bot, stage);
+        tracePostflopResult("raise facing bet amount=" + raiseAmount);
         return new BotAction(BotActionType.RAISE, raiseAmount);
     }
 

@@ -9,6 +9,7 @@ import com.example.mgdemoplus.npc.eval.DpNpcHandSnapshot;
 import com.example.mgdemoplus.npc.eval.DpNpcMadeHandCategory;
 import com.example.mgdemoplus.npc.eval.DpNpcPostflopFormula;
 import com.example.mgdemoplus.npc.strategypro.facade.DpNpcDecisionContext;
+import com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTraceCollector;
 import com.example.mgdemoplus.utils.DpUtilHandEvaluator.HandStrength;
 
 /**
@@ -156,6 +157,14 @@ public final class DpNpcHardConstraints {
         boolean facingAllIn = callAmount >= ctx.params.chips && ctx.params.chips > 0;
         double equityEst = estimateEquityForGuard(ctx, snap, callAmount);
         if (mustNotFold(made, hs, callAmount, equityEst, facingAllIn)) {
+            if (DpNpcTagDecisionTraceCollector.current() != null
+                    && ctx.botType == DpNpcEngine.BotType.TAG) {
+                DpNpcTagDecisionTraceCollector.step(
+                        "L1",
+                        "L1_BLOCK_FOLD",
+                        "L1 blocked fold → call/check",
+                        null);
+            }
             return new BotAction(BotActionType.CALL_OR_CHECK, 0);
         }
         return action;

@@ -150,6 +150,7 @@
           @close="vm.closeOwnerHubPanel"
           @confirm-add-npcs="(p) => vm.confirmAddOwnerNpcs(p)"
           @open-deck-preset="() => vm.openDeckPresetDialog()"
+          @open-decision-trace="() => vm.openDecisionTracePanel()"
           @transfer-owner="() => vm.doTransferOwner()"
           @kick-players="(nicks) => vm.doKickPlayers(nicks)"
       />
@@ -187,6 +188,7 @@
         @confirm-add-npcs="(p) => vm.confirmAddOwnerNpcs(p)"
         @confirm-batch-add-npcs="(p) => vm.confirmBatchAddOwnerNpcs(p)"
         @open-deck-preset="() => vm.openDeckPresetDialog()"
+        @open-decision-trace="() => vm.openDecisionTracePanel()"
         @transfer-owner="() => vm.doTransferOwner({ skipConfirm: true })"
         @kick-players="(nicks) => vm.doKickPlayers(nicks, { skipConfirm: true })"
         @toggle-reveal="vm.onOwnerTouchToggleReveal"
@@ -240,6 +242,7 @@
     <game-owner-hub-panel
         v-if="vm.useRetroOwnerPanelWide"
         :open="vm.ownerTerminalOpen"
+        :game-ui-theme="vm.gameUiTheme"
         :owner-reveal-all="vm.ownerRevealAll"
         :demo-bot-adding="vm.demoBotAdding"
         :demo-bot-added-tip="vm.demoBotAddedTip"
@@ -262,6 +265,7 @@
         @close="vm.closeOwnerTerminal"
         @confirm-add-npcs="(p) => vm.confirmAddOwnerNpcs(p)"
         @open-deck-preset="() => vm.openDeckPresetDialog()"
+        @open-decision-trace="() => vm.openDecisionTracePanel()"
         @transfer-owner="() => vm.doTransferOwner()"
         @kick-players="(nicks) => vm.doKickPlayers(nicks)"
         @toggle-reveal="vm.onOwnerTerminalToggleReveal"
@@ -282,6 +286,34 @@
         :submitting="vm.deckPresetSubmitting"
         :game-ui-theme="vm.gameUiTheme"
         @confirm="(cards) => vm.submitDeckPreset(cards)"
+    />
+
+    <game-npc-decision-trace-panel
+        v-if="vm.gameUiTheme === 'retro8bit'"
+        :visible.sync="vm.showNpcDecisionTracePanel"
+        :room-id="vm.roomId"
+        :hands="vm.traceHands"
+        :loading="vm.traceHandsLoading"
+        :load-error="vm.traceHandsLoadError"
+        :new-hand-notice="vm.traceNewHandNotice"
+        :on-auth-failure="(body) => vm.handleDeckPresetAuthFailure(body)"
+        @refresh="() => vm.loadTraceHands()"
+        @close="() => { vm.traceNewHandNotice = '' }"
+    />
+
+    <game-npc-decision-trace-dock
+        v-if="vm.isOwner && vm.gameUiTheme !== 'retro8bit' && !vm.useDecisionTraceDockWide"
+        layout-mode="sheet"
+        :pinned="vm.npcDecisionTraceDockPinned"
+        :sheet-open="vm.showNpcDecisionTraceSheet"
+        :room-id="vm.roomId"
+        :hands="vm.traceHands"
+        :loading="vm.traceHandsLoading"
+        :load-error="vm.traceHandsLoadError"
+        :on-auth-failure="(body) => vm.handleDeckPresetAuthFailure(body)"
+        @update:sheetOpen="(v) => { vm.showNpcDecisionTraceSheet = v }"
+        @refresh="() => vm.loadTraceHands()"
+        @close-sheet="() => vm.onDecisionTraceSheetClose()"
     />
 
     <game-player-social-sheet
@@ -365,6 +397,8 @@ import GameOwnerTouchPanel from './GameOwnerTouchPanel.vue'
 import CustomNpcStyleDialog from './CustomNpcStyleDialog.vue'
 import GameDeckPresetDialog from './GameDeckPresetDialog.vue'
 import GameDeckPresetPasswordGate from './GameDeckPresetPasswordGate.vue'
+import GameNpcDecisionTracePanel from './GameNpcDecisionTracePanel.vue'
+import GameNpcDecisionTraceDock from './GameNpcDecisionTraceDock.vue'
 
 export default {
   name: 'GameDpGameSheets',
@@ -386,7 +420,9 @@ export default {
     GameOwnerTouchPanel,
     CustomNpcStyleDialog,
     GameDeckPresetDialog,
-    GameDeckPresetPasswordGate
+    GameDeckPresetPasswordGate,
+    GameNpcDecisionTracePanel,
+    GameNpcDecisionTraceDock
   },
   inject: ['dpGameView'],
   computed: {

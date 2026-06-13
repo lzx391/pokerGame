@@ -493,6 +493,42 @@ public class DpGameRoomPushService {
     }
 
     /**
+     * 向房间内 {@code viewerNickname} 与 {@code ownerNickname} 匹配的 open 会话发送（可多开标签页各收一份）。
+     */
+    public void sendRawJsonToRoomOwner(String roomId, String ownerNickname, String json) {
+        if (roomId == null || roomId.isEmpty() || ownerNickname == null || ownerNickname.isEmpty() || json == null) {
+            return;
+        }
+        Set<WebSocketSession> set = roomSessions.get(roomId);
+        if (set == null || set.isEmpty()) {
+            return;
+        }
+        for (WebSocketSession s : new ArrayList<>(set)) {
+            if (!s.isOpen()) {
+                removeSessionFromRoom(roomId, s);
+                continue;
+            }
+            Object vn = s.getAttributes().get("viewerNickname");
+            if (!(vn instanceof String) || !ownerNickname.equals(vn)) {
+                continue;
+            }
+            try {
+                synchronized (s) {
+                    s.sendMessage(new TextMessage(json));
+                }
+            } catch (IOException e) {
+                log.debug("WebSocket owner send failed, closing session", e);
+                removeSessionFromRoom(roomId, s);
+                try {
+                    s.close();
+                } catch (IOException ignored) {
+                    // ignore
+                }
+            }
+        }
+    }
+
+    /**
      * 向房间内所有会话推送json字符串消息（内部模块，供多处调用）。
      */
     private void broadcastRawJsonToRoom(String roomId, String json) {

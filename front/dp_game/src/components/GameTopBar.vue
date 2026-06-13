@@ -93,6 +93,18 @@
           房主操作
         </button>
         <button
+            v-if="isOwner && gameUiTheme !== 'retro8bit'"
+            ref="guideTopDecisionTrace"
+            type="button"
+            class="dp-btn dp-top-bar__btn"
+            :class="npcDecisionTracePinned ? 'dp-btn--primary' : 'dp-btn--ghost'"
+            :aria-pressed="npcDecisionTracePinned ? 'true' : 'false'"
+            aria-label="固定决策追踪侧栏"
+            @click="$emit('toggle-decision-trace-dock')"
+        >
+          {{ npcDecisionTracePinned ? '决策追踪已固定' : '决策追踪' }}
+        </button>
+        <button
             v-if="isOwner && gameUiTheme === 'retro8bit'"
             ref="guideTopOwnerTouch"
             type="button"
@@ -228,6 +240,8 @@ export default {
     heroEconomySecondaryLabel: { type: String, default: '本轮' },
     heroEconomySecondaryValue: { type: [Number, String], default: 0 },
     heroCarryInChips: { type: [Number, String], default: 0 },
+    /** 默认主题：决策追踪 dock 是否固定（Pin） */
+    npcDecisionTracePinned: { type: Boolean, default: false },
     /** 教程页等可改为「退出教程」 */
     exitLabel: { type: String, default: '退出对局' }
   },

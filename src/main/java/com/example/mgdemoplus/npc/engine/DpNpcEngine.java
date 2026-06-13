@@ -1663,7 +1663,21 @@ public class DpNpcEngine {
             action = decideBotAction(room, bot, type);
         }
         bot.setNextBotActionTime(0L);
-        return action;
+        try {
+            if (action != null && com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTraceStore.ENABLED) {
+                BotType traceType = getBotTypeByNickname(bot.getNickname());
+                if (traceType == BotType.TAG) {
+                    com.example.mgdemoplus.npc.trace.model.DpNpcActionTrace trace =
+                            com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTraceCollector.build(action);
+                    if (trace != null) {
+                        com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTraceStore.appendAction(room, bot, action, trace);
+                    }
+                }
+            }
+            return action;
+        } finally {
+            com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTraceCollector.clear();
+        }
     }
 
     /**
@@ -2005,6 +2019,9 @@ public class DpNpcEngine {
      * @return
      */
     private static BotAction decideBotAction(DpRoomBO room, DpPlayer bot, BotType type) {
+        if (com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTraceStore.ENABLED && type == BotType.TAG) {
+            com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTraceCollector.begin(room, bot);
+        }
         int chips = bot.getChips();
         if (chips <= 0) {
             return new BotAction(BotActionType.FOLD, 0);

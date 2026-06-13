@@ -36,6 +36,9 @@ import com.example.mgdemoplus.lobby.DpRoomHallService;
 import com.example.mgdemoplus.npc.CustomNpcStyleSnapshot;
 import com.example.mgdemoplus.npc.engine.DpNpcEngine;
 import com.example.mgdemoplus.npc.engine.DpNpcStreetActionLog;
+import com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTraceStore;
+import com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTracePushService;
+import com.example.mgdemoplus.npc.trace.model.DpNpcHandTraceBundle;
 import com.example.mgdemoplus.npc.llm.DpLlmNpcDecisionService;
 import com.example.mgdemoplus.npc.mood.DpNpcMoodProperties;
 import com.example.mgdemoplus.npc.mood.NpcMoodState;
@@ -93,6 +96,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     private final RoomChatBuffer roomChatBuffer;
     private final DpRoomChatPersistenceService roomChatPersistenceService;
     private final DpExperimentalDeckPresetPasswordGuard experimentalDeckPresetPasswordGuard;
+    private final DpNpcTagDecisionTracePushService npcDecisionTracePushService;
 
     // 统一从 NPC 引擎中获取机器人昵称，避免散落魔法字符串
     public boolean addDemoBotToNextHand(String roomId) {
@@ -302,7 +306,8 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
             RoomChatBuffer roomChatBuffer,
             DpRoomChatPersistenceService roomChatPersistenceService,
             com.example.mgdemoplus.moderation.DpSensitiveWordService sensitiveWordService,
-            DpExperimentalDeckPresetPasswordGuard experimentalDeckPresetPasswordGuard) {
+            DpExperimentalDeckPresetPasswordGuard experimentalDeckPresetPasswordGuard,
+            DpNpcTagDecisionTracePushService npcDecisionTracePushService) {
         this.observedHandPersistService = observedHandPersistService;
         this.settlePersistenceDispatcher = settlePersistenceDispatcher;
         this.llmNpcDecisionService = llmNpcDecisionService;
@@ -321,6 +326,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         this.roomChatBuffer = roomChatBuffer;
         this.roomChatPersistenceService = roomChatPersistenceService;
         this.experimentalDeckPresetPasswordGuard = experimentalDeckPresetPasswordGuard;
+        this.npcDecisionTracePushService = npcDecisionTracePushService;
         this.lobbySync = new DpRoomLobbySync(
                 registry,
                 joinableQuickMatchRoomIndex,
@@ -458,6 +464,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         }
         if (dropped) {
             llmNpcGlobalHandConversationStore.removeRoom(roomId);
+            DpNpcTagDecisionTraceStore.removeRoom(roomId);
             finalizeHallAfterRoomRemovedWithPresenceSnapshot(roomId, r);
         }
     }
@@ -2336,6 +2343,7 @@ ownerFieldChanged：房主字段是否发生变化。
 
         // 逐街动作日志（全员）：与新一手种子绑定，结算后清空
         DpNpcStreetActionLog.beginHand(r);
+        DpNpcTagDecisionTraceStore.beginHand(r);
         // 开始一手牌谱的记录
         observedHandService.beginHand(r);
 
@@ -3095,11 +3103,15 @@ ownerFieldChanged：房主字段是否发生变化。
                 }
             }
         }
+        DpNpcHandTraceBundle traceBundle = DpNpcTagDecisionTraceStore.sealHand(r);
         DpNpcStreetActionLog.clearHand(r);
         observedHandService.clearHand(r);
         llmNpcGlobalHandConversationStore.clearHand(r);
         removeLeftThisHandZombiesAfterHand(r);
         refreshChipLeaderNicknames(r);
+        if (traceBundle != null) {
+            npcDecisionTracePushService.pushHandSealed(r, traceBundle);
+        }
     }
 
     /**
@@ -3416,6 +3428,7 @@ ownerFieldChanged：房主字段是否发生变化。
         }
 
         // 逐街动作日志：本手结束后清理，避免内存增长
+        DpNpcHandTraceBundle traceBundle = DpNpcTagDecisionTraceStore.sealHand(r);
         DpNpcStreetActionLog.clearHand(r);
         observedHandService.clearHand(r);
         llmNpcGlobalHandConversationStore.clearHand(r);
@@ -3436,6 +3449,9 @@ ownerFieldChanged：房主字段是否发生变化。
         // 因为前端只拦截settled来的信息，而settled是靠定时器推的，桌边话是要立即推的，所以抢跑了
         // 所以需要补发settled先行，然后给后来的桌边话冻住
         gameRoomPushService.broadcastIfSubscribed(r.getRoomId());
+        if (traceBundle != null) {
+            npcDecisionTracePushService.pushHandSealed(r, traceBundle);
+        }
         npcTableTalkService.afterHandSettled(r, streakWinnerNicknames);
         // checkAndStartNextHandAfterSettle(r);
     }

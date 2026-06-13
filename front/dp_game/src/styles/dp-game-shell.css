@@ -115,6 +115,24 @@
 }
 
 /* ========== 对局页骨架：顶栏 | 主区(仅圆桌滚动) | 底栏(文档流，不盖桌面) ========== */
+.dp-game-body-row {
+  display: flex;
+  flex-direction: row;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+.dp-game-root--trace-dock-open .dp-trace-dock {
+  align-self: stretch;
+  max-height: none;
+}
+.dp-game-body-row > .dp-game-layout {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
 .dp-game-layout {
   display: flex;
   flex-direction: column;
@@ -326,6 +344,31 @@
   min-height: 100dvh;
   min-height: -webkit-fill-available;
   overflow: hidden;
+}
+
+.dp-game-root:fullscreen > .dp-game-body-row,
+.dp-game-root:-webkit-full-screen > .dp-game-body-row,
+.dp-game-root.dp-game-root--layout-fs > .dp-game-body-row,
+.dp-game-root.dp-game-root--pseudo-fs > .dp-game-body-row {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+}
+
+.dp-game-root:fullscreen > .dp-game-body-row > .dp-game-layout,
+.dp-game-root:-webkit-full-screen > .dp-game-body-row > .dp-game-layout,
+.dp-game-root.dp-game-root--layout-fs > .dp-game-body-row > .dp-game-layout,
+.dp-game-root.dp-game-root--pseudo-fs > .dp-game-body-row > .dp-game-layout {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: visible;
 }
 
 .dp-game-root:fullscreen > .dp-game-layout,

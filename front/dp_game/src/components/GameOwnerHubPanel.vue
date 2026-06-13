@@ -56,6 +56,7 @@
           <game-owner-hub-content
               ref="hubContent"
               :active="contentActive"
+              :game-ui-theme="gameUiTheme"
               :terminal-focused="terminalFocused"
               :owner-reveal-all="ownerRevealAll"
               :demo-bot-adding="demoBotAdding"
@@ -78,6 +79,7 @@
               :custom-bot-added-tip="customBotAddedTip"
               @confirm-add-npcs="$emit('confirm-add-npcs', $event)"
               @open-deck-preset="$emit('open-deck-preset')"
+              @open-decision-trace="$emit('open-decision-trace')"
               @transfer-owner="$emit('transfer-owner')"
               @kick-players="$emit('kick-players', $event)"
               @toggle-reveal="$emit('toggle-reveal')"
@@ -103,6 +105,7 @@ export default {
   inject: ['dpGameView'],
   props: {
     open: { type: Boolean, default: false },
+    gameUiTheme: { type: String, default: 'default' },
     ownerRevealAll: { type: Boolean, default: false },
     demoBotAdding: { type: Boolean, default: false },
     demoBotAddedTip: { type: String, default: '' },

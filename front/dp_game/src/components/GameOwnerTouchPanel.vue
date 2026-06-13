@@ -60,6 +60,7 @@
             <game-owner-hub-content
                 ref="hubContent"
                 :active="open"
+                :game-ui-theme="gameUiTheme"
                 :touch-mode="true"
                 :touch-footer-back-seq="touchFooterBackSeq"
                 :touch-footer-primary-cmd="touchFooterPrimaryCmd"
@@ -86,6 +87,7 @@
                 @confirm-add-npcs="$emit('confirm-add-npcs', $event)"
                 @confirm-batch-add-npcs="$emit('confirm-batch-add-npcs', $event)"
                 @open-deck-preset="$emit('open-deck-preset')"
+                @open-decision-trace="$emit('open-decision-trace')"
                 @transfer-owner="$emit('transfer-owner')"
                 @kick-players="$emit('kick-players', $event)"
                 @toggle-reveal="$emit('toggle-reveal')"
