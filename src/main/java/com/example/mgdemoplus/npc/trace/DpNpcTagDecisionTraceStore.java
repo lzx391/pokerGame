@@ -100,7 +100,7 @@ public final class DpNpcTagDecisionTraceStore {
     }
 
     /**
-     * 结算路径：将当前 hand 移入 room 环缓冲。无 TAG action 时不占槽位，返回 null。
+     * 结算路径：将当前 hand 移入 room 环缓冲。无 trace action 时不占槽位，返回 null。
      */
     public static DpNpcHandTraceBundle sealHand(DpRoomBO room) {
         if (!ENABLED || room == null) {

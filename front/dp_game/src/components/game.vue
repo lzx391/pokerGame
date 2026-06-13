@@ -126,9 +126,10 @@
     </div>
 
     <game-npc-decision-trace-dock
-        v-if="isOwner && gameUiTheme !== 'retro8bit' && useDecisionTraceDockWide"
+        v-if="isOwner && useDecisionTraceDockWide"
         layout-mode="dock"
         :pinned="npcDecisionTraceDockPinned"
+        :ui-variant="gameUiTheme === 'retro8bit' ? 'retro8bit' : 'default'"
         :room-id="roomId"
         :hands="traceHands"
         :loading="traceHandsLoading"
@@ -219,7 +220,7 @@ import {
   dpDeckPresetSessionPassword,
   clearDeckPresetSessionUnlock
 } from '../utils/dpDeckPresetUnlock'
-import { fetchTraceHands, mergeTraceHandBundle } from '../utils/dpNpcDecisionTrace'
+import { fetchTraceHands } from '../utils/dpNpcDecisionTrace'
 import {
   dpNpcDecisionTraceAuthPassword,
   isNpcDecisionTraceUnlocked
@@ -333,14 +334,12 @@ export default {
       deckPresetSubmitting: false,
       /** 'deck-preset' | 'decision-trace' — routes shared experimental password gate */
       experimentalGatePendingFeature: null,
-      showNpcDecisionTracePanel: false,
       npcDecisionTraceDockPinned: false,
       showNpcDecisionTraceSheet: false,
       _decisionTraceDockLoadedOnce: false,
       traceHands: [],
       traceHandsLoading: false,
       traceHandsLoadError: '',
-      traceNewHandNotice: ''
     }
   },
 
@@ -415,7 +414,6 @@ export default {
     },
     showDecisionTraceDockWide() {
       return this.isOwner
-        && this.gameUiTheme !== 'retro8bit'
         && this.npcDecisionTraceDockPinned
         && this.useDecisionTraceDockWide
     },
@@ -2276,8 +2274,7 @@ export default {
       if (msg.indexOf('密码') >= 0 || msg.indexOf('访问') >= 0 || msg.indexOf('未启用') >= 0 || msg.indexOf('验证') >= 0) {
         clearDeckPresetSessionUnlock(this.roomId)
         this.showDeckPresetDialog = false
-        var reopenTrace = this.showNpcDecisionTracePanel || this.npcDecisionTraceDockPinned
-        this.showNpcDecisionTracePanel = false
+        var reopenTrace = this.npcDecisionTraceDockPinned
         this.npcDecisionTraceDockPinned = false
         this.showNpcDecisionTraceSheet = false
         this.experimentalGatePendingFeature = reopenTrace ? 'decision-trace' : 'deck-preset'
@@ -2301,21 +2298,11 @@ export default {
     openDecisionTracePanel() {
       if (!this.isOwner) return
       this.closeOwnerHubPanel()
-      if (this.gameUiTheme === 'retro8bit') {
-        if (isNpcDecisionTraceUnlocked(this.roomId)) {
-          this.showNpcDecisionTracePanel = true
-          this.loadTraceHands()
-        } else {
-          this.experimentalGatePendingFeature = 'decision-trace'
-          this.showDeckPresetPasswordGate = true
-        }
-        return
-      }
       this.openDecisionTraceDock()
     },
 
     openDecisionTraceDock() {
-      if (!this.isOwner || this.gameUiTheme === 'retro8bit') return
+      if (!this.isOwner) return
       this.closeOwnerHubPanel()
       if (isNpcDecisionTraceUnlocked(this.roomId)) {
         this.activateDecisionTraceDock()
@@ -2356,12 +2343,7 @@ export default {
       var pending = this.experimentalGatePendingFeature
       this.experimentalGatePendingFeature = null
       if (pending === 'decision-trace') {
-        if (this.gameUiTheme === 'retro8bit') {
-          this.showNpcDecisionTracePanel = true
-          this.loadTraceHands()
-        } else {
-          this.activateDecisionTraceDock()
-        }
+        this.activateDecisionTraceDock()
         return
       }
       this.showDeckPresetDialog = true
@@ -2373,7 +2355,6 @@ export default {
       var pwd = dpNpcDecisionTraceAuthPassword(this.roomId)
       if (!isNpcDecisionTraceUnlocked(this.roomId)) {
         this.traceHandsLoadError = 'SESSION LOCKED'
-        this.showNpcDecisionTracePanel = false
         this.npcDecisionTraceDockPinned = false
         this.showNpcDecisionTraceSheet = false
         this.experimentalGatePendingFeature = 'decision-trace'
@@ -2399,24 +2380,8 @@ export default {
       }
     },
 
-    onNpcDecisionTraceHandPush(data) {
-      if (this.gameUiTheme !== 'retro8bit') return
-      if (!this.isOwner || !data) return
-      if (data.roomId && this.roomId && data.roomId !== this.roomId) return
-      var bundle = data.bundle
-      if (!bundle) return
-      this.traceHands = mergeTraceHandBundle(this.traceHands, bundle)
-      var hi = bundle.handIndex != null ? bundle.handIndex : '?'
-      var ac = bundle.actionCount != null ? bundle.actionCount : 0
-      this.traceNewHandNotice = '> HAND #' + hi + ' TRACE READY (' + ac + ')'
-      if (this.showNpcDecisionTracePanel) {
-        var self = this
-        setTimeout(function () {
-          if (self.traceNewHandNotice.indexOf('HAND #' + hi) >= 0) {
-            self.traceNewHandNotice = ''
-          }
-        }, 4000)
-      }
+    onNpcDecisionTraceHandPush() {
+      /* Pull-only REST：决策 trace 仅通过 dock「刷新」拉取，忽略 WS 推送 */
     },
 
     async submitDeckPreset(cards) {

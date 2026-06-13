@@ -134,6 +134,11 @@ export default {
     onAuthFailure: {
       type: Function,
       default: null
+    },
+    /** 预留：'default' | 'retro8bit'，矩阵仍用 default 可读字号 */
+    uiVariant: {
+      type: String,
+      default: 'default'
     }
   },
   data: function () {

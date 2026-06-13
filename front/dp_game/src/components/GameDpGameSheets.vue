@@ -288,24 +288,12 @@
         @confirm="(cards) => vm.submitDeckPreset(cards)"
     />
 
-    <game-npc-decision-trace-panel
-        v-if="vm.gameUiTheme === 'retro8bit'"
-        :visible.sync="vm.showNpcDecisionTracePanel"
-        :room-id="vm.roomId"
-        :hands="vm.traceHands"
-        :loading="vm.traceHandsLoading"
-        :load-error="vm.traceHandsLoadError"
-        :new-hand-notice="vm.traceNewHandNotice"
-        :on-auth-failure="(body) => vm.handleDeckPresetAuthFailure(body)"
-        @refresh="() => vm.loadTraceHands()"
-        @close="() => { vm.traceNewHandNotice = '' }"
-    />
-
     <game-npc-decision-trace-dock
-        v-if="vm.isOwner && vm.gameUiTheme !== 'retro8bit' && !vm.useDecisionTraceDockWide"
+        v-if="vm.isOwner && !vm.useDecisionTraceDockWide"
         layout-mode="sheet"
         :pinned="vm.npcDecisionTraceDockPinned"
         :sheet-open="vm.showNpcDecisionTraceSheet"
+        :ui-variant="vm.gameUiTheme === 'retro8bit' ? 'retro8bit' : 'default'"
         :room-id="vm.roomId"
         :hands="vm.traceHands"
         :loading="vm.traceHandsLoading"
@@ -398,7 +386,6 @@ import GameOwnerTouchPanel from './GameOwnerTouchPanel.vue'
 import CustomNpcStyleDialog from './CustomNpcStyleDialog.vue'
 import GameDeckPresetDialog from './GameDeckPresetDialog.vue'
 import GameDeckPresetPasswordGate from './GameDeckPresetPasswordGate.vue'
-import GameNpcDecisionTracePanel from './GameNpcDecisionTracePanel.vue'
 import GameNpcDecisionTraceDock from './GameNpcDecisionTraceDock.vue'
 
 export default {
@@ -422,7 +409,6 @@ export default {
     CustomNpcStyleDialog,
     GameDeckPresetDialog,
     GameDeckPresetPasswordGate,
-    GameNpcDecisionTracePanel,
     GameNpcDecisionTraceDock
   },
   inject: ['dpGameView'],

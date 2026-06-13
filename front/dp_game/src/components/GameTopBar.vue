@@ -117,6 +117,19 @@
           <span class="dp-owner-touch__entry-label">OWNER</span>
         </button>
         <button
+            v-if="isOwner && gameUiTheme === 'retro8bit'"
+            ref="guideTopDecisionTrace"
+            type="button"
+            class="dp-owner-touch__entry dp-owner-touch__entry--topbar dp-owner-touch__entry--retro dp-top-bar__btn"
+            :class="{ 'dp-owner-touch__entry--retro-pinned': npcDecisionTracePinned }"
+            :aria-pressed="npcDecisionTracePinned ? 'true' : 'false'"
+            aria-label="固定决策追踪侧栏"
+            @click="$emit('toggle-decision-trace-dock')"
+        >
+          <span class="dp-owner-touch__entry-icon" aria-hidden="true">▤</span>
+          <span class="dp-owner-touch__entry-label">{{ npcDecisionTracePinned ? 'TRACE+' : 'TRACE' }}</span>
+        </button>
+        <button
             v-if="canInviteFriend"
             ref="guideTopInvite"
             type="button"

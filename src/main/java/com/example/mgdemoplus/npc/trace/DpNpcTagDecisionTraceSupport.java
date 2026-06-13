@@ -8,7 +8,7 @@ import com.example.mgdemoplus.npc.trace.model.DpNpcActionTraceSummary;
 import java.util.ArrayList;
 import java.util.List;
 
-/** TAG trace 辅助：bot 识别、actionId、BotAction → JSON 字段。 */
+/** 规则 NPC 决策 trace 辅助：bot 识别、actionId、BotAction → JSON 字段。 */
 public final class DpNpcTagDecisionTraceSupport {
     private DpNpcTagDecisionTraceSupport() {
     }
@@ -17,6 +17,25 @@ public final class DpNpcTagDecisionTraceSupport {
 
     public static boolean isTagBot(String nickname) {
         return DpNpcEngine.getBotTypeByNickname(nickname) == DpNpcEngine.BotType.TAG;
+    }
+
+    /**
+     * 是否应采集决策 trace：TAG 翻前+翻后；Fish/LAG/NIT/CALL/Maniac 仅翻前（P0）。
+     */
+    public static boolean isTraceEligibleRuleBot(DpNpcEngine.BotType type, String stage) {
+        if (type == null) {
+            return false;
+        }
+        return switch (type) {
+            case TAG -> true;
+            case FISH, LAG, NIT, CALL, MANIAC -> "preflop".equals(stage);
+            default -> false;
+        };
+    }
+
+    /** 昵称 → 是否 trace  eligible（含 legacy 映射）。 */
+    public static boolean isTraceEligibleRuleBot(String nickname, String stage) {
+        return isTraceEligibleRuleBot(DpNpcEngine.getBotTypeByNickname(nickname), stage);
     }
 
     public static String formatActionId(long handSeed, int actionSeq) {

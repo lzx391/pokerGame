@@ -1666,7 +1666,9 @@ public class DpNpcEngine {
         try {
             if (action != null && com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTraceStore.ENABLED) {
                 BotType traceType = getBotTypeByNickname(bot.getNickname());
-                if (traceType == BotType.TAG) {
+                String traceStage = room.getCurrentStage() != null ? room.getCurrentStage() : "";
+                if (com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTraceSupport
+                        .isTraceEligibleRuleBot(traceType, traceStage)) {
                     com.example.mgdemoplus.npc.trace.model.DpNpcActionTrace trace =
                             com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTraceCollector.build(action);
                     if (trace != null) {
@@ -2019,7 +2021,10 @@ public class DpNpcEngine {
      * @return
      */
     private static BotAction decideBotAction(DpRoomBO room, DpPlayer bot, BotType type) {
-        if (com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTraceStore.ENABLED && type == BotType.TAG) {
+        String stageForTrace = room.getCurrentStage() != null ? room.getCurrentStage() : "";
+        if (com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTraceStore.ENABLED
+                && com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTraceSupport
+                        .isTraceEligibleRuleBot(type, stageForTrace)) {
             com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTraceCollector.begin(room, bot);
         }
         int chips = bot.getChips();

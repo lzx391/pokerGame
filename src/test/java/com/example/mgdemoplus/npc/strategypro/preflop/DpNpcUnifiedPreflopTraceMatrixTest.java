@@ -147,6 +147,35 @@ class DpNpcUnifiedPreflopTraceMatrixTest {
     }
 
     @Test
+    void fishPreflop_unopened_hasPrimaryMatrixAndFinalAction() {
+        DpRoomBO room = buildUnopenedBtnRoom("hearts_A", "diamonds_K");
+        DpPlayer hero = room.getPlayers().get(0);
+        hero.setNickname("BOT_FISH_1");
+
+        DpNpcTagDecisionTraceCollector.begin(room, hero);
+        DpNpcEngine.BotAction action = DpNpcUnifiedPreflopStrategy.decide(
+                room,
+                hero,
+                0,
+                0.0,
+                0.55,
+                0.15,
+                0.72,
+                0.12,
+                new Random(99L),
+                DpNpcEngine.BotType.FISH);
+        DpNpcActionTrace trace = DpNpcTagDecisionTraceCollector.build(action);
+
+        assertNotNull(action);
+        assertNotNull(trace);
+        assertEquals("BOT_FISH_1", trace.actorNickname);
+        assertNotNull(trace.finalAction);
+        assertNotNull(trace.preflopMatrix);
+        assertEquals("openAllow", trace.preflopMatrix.matrixKind);
+        assertTrue(trace.steps.stream().anyMatch(s -> "PREFLOP_SPOT".equals(s.code)));
+    }
+
+    @Test
     void unopened_hasPrimaryMatrixOnly() {
         DpRoomBO room = buildUnopenedBtnRoom("hearts_A", "diamonds_K");
         DpPlayer hero = room.getPlayers().get(0);

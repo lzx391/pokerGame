@@ -4,6 +4,7 @@
     <aside
         v-if="layoutMode === 'dock' && pinned"
         class="dp-trace-dock"
+        :class="{ 'dp-trace-dock--retro8bit': uiVariant === 'retro8bit' }"
         role="complementary"
         aria-label="NPC 决策追踪"
     >
@@ -34,6 +35,7 @@
       <game-npc-decision-trace-body
           ref="traceBody"
           class="dp-trace-dock__body"
+          :ui-variant="uiVariant"
           :room-id="roomId"
           :hands="hands"
           :loading="loading"
@@ -76,6 +78,7 @@
         <game-npc-decision-trace-body
             ref="traceBodySheet"
             class="dp-trace-dock__body"
+            :ui-variant="uiVariant"
             :room-id="roomId"
             :hands="hands"
             :loading="loading"
@@ -119,6 +122,14 @@ export default {
     onAuthFailure: {
       type: Function,
       default: null
+    },
+    /** 'default' | 'retro8bit' — retro 外壳 + 可读字号 body */
+    uiVariant: {
+      type: String,
+      default: 'default',
+      validator: function (v) {
+        return v === 'default' || v === 'retro8bit'
+      }
     }
   },
   data: function () {
@@ -259,5 +270,39 @@ export default {
   min-height: 0;
   padding: 0 12px 12px;
   box-sizing: border-box;
+}
+
+/* 8bit 主题：终端绿边框，内容仍用 Body 可读字号 */
+.dp-trace-dock--retro8bit {
+  border-left: 2px solid rgba(74, 246, 38, 0.45);
+  background: rgba(8, 14, 10, 0.97);
+  box-shadow: inset 2px 0 0 rgba(0, 0, 0, 0.35);
+}
+.dp-trace-dock--retro8bit .dp-trace-dock__head {
+  border-bottom-color: rgba(74, 246, 38, 0.25);
+}
+.dp-trace-dock--retro8bit .dp-trace-dock__title {
+  font-family: 'Courier New', ui-monospace, monospace;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #4af626;
+}
+.dp-trace-dock--retro8bit .dp-trace-dock__tag {
+  border-radius: 0;
+  font-family: 'Courier New', ui-monospace, monospace;
+  background: rgba(74, 246, 38, 0.12);
+  color: #72f052;
+  border: 1px solid rgba(74, 246, 38, 0.35);
+}
+.dp-trace-dock--retro8bit .dp-trace-dock__toolbar,
+.dp-trace-dock--retro8bit .dp-trace-dock__sheet-toolbar {
+  border-bottom-color: rgba(74, 246, 38, 0.15);
+}
+.dp-trace-dock--retro8bit .dp-trace-dock__hint,
+.dp-trace-dock--retro8bit .dp-trace-dock__crumb {
+  font-family: 'Courier New', ui-monospace, monospace;
+  font-size: 11px;
+  color: #6bdc58;
 }
 </style>

@@ -28,6 +28,22 @@ class DpNpcTagDecisionTraceStoreTest {
     }
 
     @Test
+    void appendFishPreflopAction_queryableByStore() {
+        DpRoomBO room = room("room-a", 700L);
+        room.getPlayers().get(0).setNickname("BOT_FISH_1");
+        DpNpcTagDecisionTraceStore.beginHand(room);
+        appendDummyAction(room, "BOT_FISH_1");
+
+        List<DpNpcHandTraceBundle> hands = DpNpcTagDecisionTraceStore.listHandSummaries("room-a", room);
+        assertEquals(1, hands.size());
+        assertEquals("BOT_FISH_1", hands.get(0).actions.get(0).actorNickname);
+
+        DpNpcHandTraceBundle sealed = DpNpcTagDecisionTraceStore.sealHand(room);
+        assertNotNull(sealed);
+        assertEquals("BOT_FISH_1", sealed.actions.get(0).actorNickname);
+    }
+
+    @Test
     void sealHand_skipsEmptyActionsAndTrimsRingBuffer() {
         DpRoomBO room = room("room-a", 100L);
         DpNpcTagDecisionTraceStore.beginHand(room);
