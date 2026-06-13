@@ -148,6 +148,10 @@ mgdemoplus:
   # --- A: 实验排牌访问密码（勿提交真值；未配置则功能不可用） ---
   experimental-deck-preset-password: ${EXPERIMENTAL_DECK_PRESET_PASSWORD:}  # [A] env: EXPERIMENTAL_DECK_PRESET_PASSWORD
 
+  # --- A: 内测跳过决策分析实验密码（仍校验 JWT + 房主） ---
+  npc-decision-trace:
+    skip-password: ${DP_NPC_DECISION_TRACE_SKIP_PASSWORD:true}  # [A] env: DP_NPC_DECISION_TRACE_SKIP_PASSWORD
+
 # -----------------------------------------------------------------------------
 # mybatis-plus / pagehelper — 持久层（D）
 # -----------------------------------------------------------------------------

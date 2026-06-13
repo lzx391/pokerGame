@@ -110,7 +110,7 @@
 import { dpResultMessage } from '@/utils/dpApiResult'
 import { getCardClass, getCardDisplay } from '@/utils/dpGameCardVisual'
 import { fetchTraceAction } from '@/utils/dpNpcDecisionTrace'
-import { dpDeckPresetSessionPassword } from '@/utils/dpDeckPresetUnlock'
+import { dpNpcDecisionTraceAuthPassword, isNpcDecisionTraceUnlocked } from '@/utils/dpNpcDecisionTraceAuth'
 import GameNpcDecisionTraceActionGrid from './GameNpcDecisionTraceActionGrid.vue'
 import GameNpcDecisionTraceMatrixGrid from './GameNpcDecisionTraceMatrixGrid.vue'
 
@@ -277,8 +277,8 @@ export default {
       this.detailError = ''
       this.detailLoading = true
       this.emitNavChange()
-      var pwd = dpDeckPresetSessionPassword(this.roomId)
-      if (!pwd) {
+      var pwd = dpNpcDecisionTraceAuthPassword(this.roomId)
+      if (!isNpcDecisionTraceUnlocked(this.roomId)) {
         this.detailLoading = false
         this.detailError = '会话已锁定，请重新输入密码'
         if (typeof this.onAuthFailure === 'function') {

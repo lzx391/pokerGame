@@ -1,6 +1,15 @@
 /** REST client for NPC TAG decision trace (owner + experimental password). */
 
 import { dpResultData, dpResultSuccess } from './dpApiResult'
+import { DP_NPC_DECISION_TRACE_SKIP_EXPERIMENTAL_PASSWORD } from '@/constants/dpNpcDecisionTraceUi'
+
+function traceRequestParams(roomId, experimentalPassword, extra) {
+  var params = Object.assign({ roomId: roomId }, extra || {})
+  if (!DP_NPC_DECISION_TRACE_SKIP_EXPERIMENTAL_PASSWORD) {
+    params.experimentalPassword = experimentalPassword
+  }
+  return params
+}
 
 /**
  * @param {import('axios').AxiosInstance} http
@@ -9,10 +18,7 @@ import { dpResultData, dpResultSuccess } from './dpApiResult'
  */
 export async function fetchTraceHands(http, roomId, experimentalPassword) {
   var res = await http.get('/dpRoom/npcDecisionTrace/hands', {
-    params: {
-      roomId: roomId,
-      experimentalPassword: experimentalPassword
-    }
+    params: traceRequestParams(roomId, experimentalPassword)
   })
   var body = res.data
   if (!dpResultSuccess(body)) {
@@ -34,11 +40,7 @@ export async function fetchTraceHands(http, roomId, experimentalPassword) {
  */
 export async function fetchTraceHand(http, roomId, handSeed, experimentalPassword) {
   var res = await http.get('/dpRoom/npcDecisionTrace/hand', {
-    params: {
-      roomId: roomId,
-      handSeed: handSeed,
-      experimentalPassword: experimentalPassword
-    }
+    params: traceRequestParams(roomId, experimentalPassword, { handSeed: handSeed })
   })
   var body = res.data
   if (!dpResultSuccess(body)) {
@@ -61,12 +63,10 @@ export async function fetchTraceHand(http, roomId, handSeed, experimentalPasswor
  */
 export async function fetchTraceAction(http, roomId, handSeed, actionId, experimentalPassword) {
   var res = await http.get('/dpRoom/npcDecisionTrace/action', {
-    params: {
-      roomId: roomId,
+    params: traceRequestParams(roomId, experimentalPassword, {
       handSeed: handSeed,
-      actionId: actionId,
-      experimentalPassword: experimentalPassword
-    }
+      actionId: actionId
+    })
   })
   var body = res.data
   if (!dpResultSuccess(body)) {

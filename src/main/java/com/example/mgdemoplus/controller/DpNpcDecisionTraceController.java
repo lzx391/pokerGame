@@ -24,7 +24,7 @@ public class DpNpcDecisionTraceController {
     @GetMapping("/hands")
     public ResultUtil listHands(
             @RequestParam String roomId,
-            @RequestParam String experimentalPassword) {
+            @RequestParam(required = false) String experimentalPassword) {
         DpUser me = requireUser();
         return npcDecisionTraceQueryService.listHands(roomId, me.getNickname(), experimentalPassword);
     }
@@ -33,7 +33,7 @@ public class DpNpcDecisionTraceController {
     public ResultUtil getHand(
             @RequestParam String roomId,
             @RequestParam long handSeed,
-            @RequestParam String experimentalPassword) {
+            @RequestParam(required = false) String experimentalPassword) {
         DpUser me = requireUser();
         return npcDecisionTraceQueryService.getHand(roomId, handSeed, me.getNickname(), experimentalPassword);
     }
@@ -43,7 +43,7 @@ public class DpNpcDecisionTraceController {
             @RequestParam String roomId,
             @RequestParam long handSeed,
             @RequestParam String actionId,
-            @RequestParam String experimentalPassword) {
+            @RequestParam(required = false) String experimentalPassword) {
         DpUser me = requireUser();
         return npcDecisionTraceQueryService.getAction(roomId, handSeed, actionId, me.getNickname(), experimentalPassword);
     }

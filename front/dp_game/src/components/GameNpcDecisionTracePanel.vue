@@ -110,7 +110,7 @@
 import { dpNextZIndex } from '@/utils/dpModalZIndex'
 import { dpResultMessage } from '@/utils/dpApiResult'
 import { fetchTraceAction } from '@/utils/dpNpcDecisionTrace'
-import { dpDeckPresetSessionPassword } from '@/utils/dpDeckPresetUnlock'
+import { dpNpcDecisionTraceAuthPassword, isNpcDecisionTraceUnlocked } from '@/utils/dpNpcDecisionTraceAuth'
 import GameNpcDecisionTraceMatrixGrid from './GameNpcDecisionTraceMatrixGrid.vue'
 
 export default {
@@ -228,8 +228,8 @@ export default {
       this.actionDetail = null
       this.detailError = ''
       this.detailLoading = true
-      var pwd = dpDeckPresetSessionPassword(this.roomId)
-      if (!pwd) {
+      var pwd = dpNpcDecisionTraceAuthPassword(this.roomId)
+      if (!isNpcDecisionTraceUnlocked(this.roomId)) {
         this.detailLoading = false
         this.detailError = 'SESSION LOCKED — re-enter password'
         if (typeof this.onAuthFailure === 'function') {

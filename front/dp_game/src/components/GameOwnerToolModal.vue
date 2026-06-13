@@ -32,7 +32,9 @@
           <span style="font-weight:bold;">BOT_NIT</span>、
           <span style="font-weight:bold;">BOT_CALL</span>、
           <span style="font-weight:bold;">BOT_MANIAC</span>；
-          <span style="font-weight:bold;">BOT_CUSTOM</span>（自定义性格，弹窗调参）；
+          <template v-if="customNpcUiEnabled">
+            <span style="font-weight:bold;">BOT_CUSTOM</span>（自定义性格，弹窗调参）；
+          </template>
           另有 <span style="font-weight:bold;">BOT_LLM</span>（大模型）与
           <span style="font-weight:bold;">BOT_LLM_GLOBAL</span>（整手叙事 / 多轮上下文）。
           服务端会为 BOT 生成唯一后缀；JSON 里仍是完整 nickname，牌桌上展示为前缀 + uuid 去横线后的前 4 位。
@@ -83,7 +85,10 @@
             <span v-if="row.tip" style="flex:1 1 220px; color:#595959;">{{ row.tip }}</span>
           </div>
 
-          <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:12px;">
+          <div
+            v-if="customNpcUiEnabled"
+            style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:12px;"
+          >
             <span style="min-width:148px; font-weight:600; color:#531dab;">自定义 NPC BOT_CUSTOM</span>
             <span style="display:inline-flex; align-items:center; gap:4px;">
               <button
@@ -372,11 +377,13 @@
 
 <script>
 import { dpDisplayNickname } from '../utils/dpDisplayNickname'
+import { DP_CUSTOM_NPC_UI_ENABLED } from '../constants/dpCustomNpcUi'
 
 export default {
   name: 'GameOwnerToolModal',
   data () {
     return {
+      customNpcUiEnabled: DP_CUSTOM_NPC_UI_ENABLED,
       npcCounts: {
         fish: 1,
         tag: 1,
@@ -540,6 +547,7 @@ export default {
       })
     },
     emitOpenCustomNpcDialog () {
+      if (!this.customNpcUiEnabled) return
       this.$emit('confirm-add-npcs', {
         type: 'custom',
         count: this.clampCount(this.npcCounts.custom, 9)

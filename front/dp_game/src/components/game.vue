@@ -220,11 +220,16 @@ import {
   clearDeckPresetSessionUnlock
 } from '../utils/dpDeckPresetUnlock'
 import { fetchTraceHands, mergeTraceHandBundle } from '../utils/dpNpcDecisionTrace'
+import {
+  dpNpcDecisionTraceAuthPassword,
+  isNpcDecisionTraceUnlocked
+} from '../utils/dpNpcDecisionTraceAuth'
 import { dpRoomApi } from '@/api/api.dpRoom'
 import { mapState, mapGetters } from 'vuex'
 import { dpSocialDisplayNickname } from '../utils/dpSocialDisplayName'
 import { encodeRoomApplyFingerprint } from '../utils/dpGameRoomFingerprint'
 import { CAT_COPY, dpPotDisplayLabel } from '../constants/dpCatThemeCopy'
+import { DP_CUSTOM_NPC_UI_ENABLED } from '../constants/dpCustomNpcUi'
 import { dpHandHologramDevLog } from '../utils/dpHandHologramDevLog'
 import { dpInviteFriendsDevLog } from '../utils/dpInviteFriendsDevLog'
 import { dpOwnerTerminalDevLog } from '../utils/dpOwnerTerminalDevLog'
@@ -2295,9 +2300,9 @@ export default {
 
     openDecisionTracePanel() {
       if (!this.isOwner) return
+      this.closeOwnerHubPanel()
       if (this.gameUiTheme === 'retro8bit') {
-        this.closeOwnerHubPanel()
-        if (isDeckPresetUnlocked(this.roomId)) {
+        if (isNpcDecisionTraceUnlocked(this.roomId)) {
           this.showNpcDecisionTracePanel = true
           this.loadTraceHands()
         } else {
@@ -2312,7 +2317,7 @@ export default {
     openDecisionTraceDock() {
       if (!this.isOwner || this.gameUiTheme === 'retro8bit') return
       this.closeOwnerHubPanel()
-      if (isDeckPresetUnlocked(this.roomId)) {
+      if (isNpcDecisionTraceUnlocked(this.roomId)) {
         this.activateDecisionTraceDock()
       } else {
         this.experimentalGatePendingFeature = 'decision-trace'
@@ -2365,8 +2370,8 @@ export default {
 
     async loadTraceHands() {
       if (!this.isOwner || !this.roomId) return
-      var pwd = dpDeckPresetSessionPassword(this.roomId)
-      if (!pwd) {
+      var pwd = dpNpcDecisionTraceAuthPassword(this.roomId)
+      if (!isNpcDecisionTraceUnlocked(this.roomId)) {
         this.traceHandsLoadError = 'SESSION LOCKED'
         this.showNpcDecisionTracePanel = false
         this.npcDecisionTraceDockPinned = false
@@ -2581,6 +2586,7 @@ export default {
      * 自定义 NPC：弹窗确定后提交（本批共用一套 profile）。
      */
     async submitCustomNpcBatch (profile) {
+      if (!DP_CUSTOM_NPC_UI_ENABLED) return
       if (!this.roomId || !this.user || !this.user.nickname) {
         this.$message.warning('请先登录')
         return
@@ -2627,6 +2633,10 @@ export default {
       if (count > 9) count = 9
 
       if (type === 'custom') {
+        if (!DP_CUSTOM_NPC_UI_ENABLED) {
+          this.$message.warning('自定义 NPC 功能暂未开放')
+          return
+        }
         this.$store.commit('dpGame/SET_MODAL', {
           customNpcPendingCount: count,
           showCustomNpcStyleDialog: true
@@ -2780,6 +2790,10 @@ export default {
               errParts.push(arch + ': ' + res.data)
             }
           } else if (item.type === 'custom') {
+            if (!DP_CUSTOM_NPC_UI_ENABLED) {
+              errParts.push('CUSTOM: 功能暂未开放')
+              continue
+            }
             var profile = payload.customProfile
             if (!profile) {
               errParts.push('CUSTOM: 缺少参数')

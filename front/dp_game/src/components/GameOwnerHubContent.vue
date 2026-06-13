@@ -70,7 +70,7 @@
 
     <!-- NPC custom profile (retro8bit touch) -->
     <div
-        v-else-if="currentScreen === 'npc-custom-profile'"
+        v-else-if="customNpcUiEnabled && currentScreen === 'npc-custom-profile'"
         class="dp-owner-hub-content__screen"
         aria-label="自定义 NPC 参数"
     >
@@ -208,6 +208,7 @@ import {
   clampNpcStyleProfile,
   cloneNpcStyleProfile
 } from '../constants/npcStylePresets'
+import { DP_CUSTOM_NPC_UI_ENABLED } from '../constants/dpCustomNpcUi'
 import DpOwnerNpcConsole from './DpOwnerNpcConsole.vue'
 import DpCustomNpcConsole from './DpCustomNpcConsole.vue'
 
@@ -264,6 +265,7 @@ export default {
   },
   data() {
     return {
+      customNpcUiEnabled: DP_CUSTOM_NPC_UI_ENABLED,
       menuStack: ['root'],
       cursorIndex: 0,
       npcCounts: Object.assign({}, DEFAULT_NPC_COUNTS),
@@ -344,11 +346,21 @@ export default {
       ]
     },
     llmNpcRows() {
-      return [
-        { id: 'custom', type: 'custom', label: 'BOT_CUSTOM', labelColor: '#531dab', adding: this.customBotAdding, tip: this.customBotAddedTip },
+      var rows = [
         { id: 'llm', type: 'llm', label: 'BOT_LLM', labelColor: '#08979c', adding: this.llmBotAdding, tip: this.llmBotAddedTip },
         { id: 'llmGlobal', type: 'llmGlobal', label: 'BOT_LLM_GLOBAL', labelColor: '#006d75', adding: this.llmGlobalBotAdding, tip: this.llmGlobalBotAddedTip }
       ]
+      if (this.customNpcUiEnabled) {
+        rows.unshift({
+          id: 'custom',
+          type: 'custom',
+          label: 'BOT_CUSTOM',
+          labelColor: '#531dab',
+          adding: this.customBotAdding,
+          tip: this.customBotAddedTip
+        })
+      }
+      return rows
     },
     allNpcRows() {
       return this.ruleNpcRows.concat(this.llmNpcRows)
@@ -579,7 +591,7 @@ export default {
         return
       }
       this.npcTouchTip = ''
-      if (this.clampCount(this.npcCounts.custom, this.npcCountMax) > 0) {
+      if (this.customNpcUiEnabled && this.clampCount(this.npcCounts.custom, this.npcCountMax) > 0) {
         this.pendingCustomProfile = cloneNpcStyleProfile(NPC_STYLE_TAG_PRESET)
         this.pushScreen('npc-custom-profile')
         return
@@ -603,7 +615,7 @@ export default {
       var items = this.buildBatchItems()
       if (!items.length) return
       var payload = { items: items }
-      if (this.clampCount(this.npcCounts.custom, this.npcCountMax) > 0) {
+      if (this.customNpcUiEnabled && this.clampCount(this.npcCounts.custom, this.npcCountMax) > 0) {
         payload.customProfile = clampNpcStyleProfile(this.pendingCustomProfile)
       }
       this.submitting = true

@@ -6,6 +6,7 @@ import com.example.mgdemoplus.npc.trace.model.DpNpcHandTraceBundle;
 import com.example.mgdemoplus.room.DpRoomService;
 import com.example.mgdemoplus.room.support.DpExperimentalDeckPresetPasswordGuard;
 import com.example.mgdemoplus.utils.ResultUtil;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -15,12 +16,15 @@ public class DpNpcDecisionTraceQueryServiceImpl implements DpNpcDecisionTraceQue
 
     private final DpRoomService roomService;
     private final DpExperimentalDeckPresetPasswordGuard experimentalDeckPresetPasswordGuard;
+    private final boolean skipExperimentalPassword;
 
     public DpNpcDecisionTraceQueryServiceImpl(
             DpRoomService roomService,
-            DpExperimentalDeckPresetPasswordGuard experimentalDeckPresetPasswordGuard) {
+            DpExperimentalDeckPresetPasswordGuard experimentalDeckPresetPasswordGuard,
+            @Value("${mgdemoplus.npc-decision-trace.skip-password:false}") boolean skipExperimentalPassword) {
         this.roomService = roomService;
         this.experimentalDeckPresetPasswordGuard = experimentalDeckPresetPasswordGuard;
+        this.skipExperimentalPassword = skipExperimentalPassword;
     }
 
     @Override
@@ -68,9 +72,11 @@ public class DpNpcDecisionTraceQueryServiceImpl implements DpNpcDecisionTraceQue
         if (!roomService.isRoomOwnerNickname(roomId, requesterNickname)) {
             return ResultUtil.error().data("message", "仅房主可访问决策分析");
         }
-        ResultUtil gate = experimentalDeckPresetPasswordGuard.gate(experimentalPassword);
-        if (gate != null) {
-            return gate;
+        if (!skipExperimentalPassword) {
+            ResultUtil gate = experimentalDeckPresetPasswordGuard.gate(experimentalPassword);
+            if (gate != null) {
+                return gate;
+            }
         }
         return null;
     }

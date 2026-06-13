@@ -97,7 +97,7 @@
     >
       <template slot="overlay">
         <custom-npc-style-dialog
-            v-if="vm.showCustomNpcStyleDialog"
+            v-if="customNpcUiEnabled && vm.showCustomNpcStyleDialog"
             :visible="true"
             :pending-count="vm.customNpcPendingCount"
             :submitting="vm.customBotAdding"
@@ -205,7 +205,7 @@
     >
       <template slot="overlay">
         <custom-npc-style-dialog
-            v-if="vm.showCustomNpcStyleDialog"
+            v-if="customNpcUiEnabled && vm.showCustomNpcStyleDialog"
             :visible="true"
             :pending-count="vm.customNpcPendingCount"
             :submitting="vm.customBotAdding"
@@ -231,7 +231,7 @@
     </transition>
 
     <custom-npc-style-dialog
-        v-if="vm.showCustomNpcStyleDialog && vm.useRetroOwnerPanelWide && vm.ownerTerminalOpen"
+        v-if="customNpcUiEnabled && vm.showCustomNpcStyleDialog && vm.useRetroOwnerPanelWide && vm.ownerTerminalOpen"
         :visible="true"
         :pending-count="vm.customNpcPendingCount"
         :submitting="vm.customBotAdding"
@@ -379,6 +379,7 @@
 </template>
 
 <script>
+import { DP_CUSTOM_NPC_UI_ENABLED } from '../constants/dpCustomNpcUi'
 import GameBottomSheet from './GameBottomSheet.vue'
 import GamePlayerCard from './GamePlayerCard.vue'
 import GameActionPanel from './GameActionPanel.vue'
@@ -428,6 +429,9 @@ export default {
   computed: {
     vm: function () {
       return this.dpGameView
+    },
+    customNpcUiEnabled: function () {
+      return DP_CUSTOM_NPC_UI_ENABLED
     },
     inviteFriendMyUserId: function () {
       var u = this.vm && this.vm.user

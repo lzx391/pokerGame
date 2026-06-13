@@ -54,6 +54,8 @@
 </template>
 
 <script>
+import { DP_CUSTOM_NPC_UI_ENABLED } from '../constants/dpCustomNpcUi'
+
 // ---- 命令注册表 ----
 var CMDS = {
   // 玩家操作
@@ -394,6 +396,7 @@ export default {
       if (sub === 'list') {
         var lines = []
         Object.keys(NPC_TYPES).forEach(function (k) {
+          if (k === 'custom' && !DP_CUSTOM_NPC_UI_ENABLED) return
           var t = NPC_TYPES[k]
           lines.push('  ' + k + ' — ' + t.desc + (t.archetype ? ' [' + t.archetype + ']' : ''))
         })
@@ -408,6 +411,10 @@ export default {
       this.addEntry('ok', raw, undefined)
       var vm = this.vm
       if (sub === 'custom') {
+        if (!DP_CUSTOM_NPC_UI_ENABLED) {
+          this.appendOut('[ERR] 自定义 NPC 功能暂未开放')
+          return
+        }
         vm.$store.commit('dpGame/SET_MODAL', { customNpcPendingCount: count, showCustomNpcStyleDialog: true })
         this.appendOut('[OK] 正在打开自定义NPC对话框 (x' + count + ')')
       } else if (nt.archetype) {
