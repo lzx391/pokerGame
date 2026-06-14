@@ -1,5 +1,5 @@
 <template>
-  <div class="dp-trace-body">
+  <div class="dp-trace-body" :class="{ 'dp-trace-body--retro8bit': uiVariant === 'retro8bit' }">
     <p v-if="statusLine" class="dp-trace-body__status" role="status">{{ statusLine }}</p>
     <p v-if="errorMessage" class="dp-trace-body__err" role="alert">{{ errorMessage }}</p>
 
@@ -61,9 +61,30 @@
                     >{{ cardFace(c) }}</span>
                   </span>
                 </div>
-                <div v-if="contextSteps.length" class="dp-trace-body__context">
+                <div
+                    v-if="postflopSummaryRows.length"
+                    class="dp-trace-body__postflop-summary"
+                    aria-label="翻后决策变量"
+                >
+                  <div class="dp-trace-body__postflop-summary-head">
+                    <span class="dp-trace-body__postflop-summary-title">决策变量</span>
+                    <span class="dp-trace-body__postflop-summary-tag">POSTFLOP</span>
+                  </div>
+                  <p class="dp-trace-body__postflop-hint">plan 为意图；最终以 COMMIT 为准。</p>
+                  <div class="dp-trace-body__summary-grid">
+                    <div
+                        v-for="row in postflopSummaryRows"
+                        :key="'pf-' + row.key"
+                        class="dp-trace-body__summary-cell"
+                    >
+                      <span class="dp-trace-body__summary-label">{{ row.label }}</span>
+                      <span class="dp-trace-body__summary-value">{{ row.display }}</span>
+                    </div>
+                  </div>
+                </div>
+                <div v-if="otherContextSteps.length" class="dp-trace-body__context">
                   <div
-                      v-for="step in contextSteps"
+                      v-for="step in otherContextSteps"
                       :key="'ctx-' + step.seq"
                       class="dp-trace-body__context-row"
                   >
@@ -78,9 +99,24 @@
                       v-for="step in reasoningSteps"
                       :key="'step-' + step.seq"
                       class="dp-trace-body__step"
+                      :class="'dp-trace-body__step--' + String(step.phase || '').toLowerCase()"
                   >
                     <span class="dp-trace-body__phase">{{ step.phase }}</span>
-                    <span class="dp-trace-body__step-msg">{{ step.message }}</span>
+                    <div class="dp-trace-body__step-content">
+                      <span v-if="step.code" class="dp-trace-body__step-code">{{ step.code }}</span>
+                      <span class="dp-trace-body__step-msg">{{ step.message }}</span>
+                      <div
+                          v-if="stepInlineData(step).length"
+                          class="dp-trace-body__step-data"
+                          aria-label="步骤数据"
+                      >
+                        <span
+                            v-for="chip in stepInlineData(step)"
+                            :key="'chip-' + step.seq + '-' + chip.key"
+                            class="dp-trace-body__data-chip"
+                        >{{ chip.label }}: {{ chip.display }}</span>
+                      </div>
+                    </div>
                   </div>
                   <p v-if="!reasoningSteps.length" class="dp-trace-body__empty">暂无推理步骤</p>
                 </div>
@@ -111,6 +147,10 @@ import { dpResultMessage } from '@/utils/dpApiResult'
 import { getCardClass, getCardDisplay } from '@/utils/dpGameCardVisual'
 import { fetchTraceAction } from '@/utils/dpNpcDecisionTrace'
 import { dpNpcDecisionTraceAuthPassword, isNpcDecisionTraceUnlocked } from '@/utils/dpNpcDecisionTraceAuth'
+import {
+  buildPostflopSummaryRows,
+  buildStepDataInline
+} from '@/utils/dpNpcDecisionTraceLabels'
 import GameNpcDecisionTraceActionGrid from './GameNpcDecisionTraceActionGrid.vue'
 import GameNpcDecisionTraceMatrixGrid from './GameNpcDecisionTraceMatrixGrid.vue'
 
@@ -187,10 +227,27 @@ export default {
     canGoBack: function () {
       return this.screen !== 'hand-list'
     },
-    contextSteps: function () {
+    postflopSpotStep: function () {
+      if (!this.actionDetail || !Array.isArray(this.actionDetail.steps)) return null
+      for (var i = 0; i < this.actionDetail.steps.length; i++) {
+        var s = this.actionDetail.steps[i]
+        if (s && String(s.phase || '').toUpperCase() === 'CONTEXT' &&
+            String(s.code || '').toUpperCase() === 'POSTFLOP_SPOT') {
+          return s
+        }
+      }
+      return null
+    },
+    postflopSummaryRows: function () {
+      var step = this.postflopSpotStep
+      if (!step || !step.data) return []
+      return buildPostflopSummaryRows(step.data)
+    },
+    otherContextSteps: function () {
       if (!this.actionDetail || !Array.isArray(this.actionDetail.steps)) return []
       return this.actionDetail.steps.filter(function (s) {
-        return s && String(s.phase || '').toUpperCase() === 'CONTEXT'
+        if (!s || String(s.phase || '').toUpperCase() !== 'CONTEXT') return false
+        return String(s.code || '').toUpperCase() !== 'POSTFLOP_SPOT'
       })
     },
     reasoningSteps: function () {
@@ -348,6 +405,9 @@ export default {
       var t = String(fa.type)
       if (fa.amount != null && fa.amount > 0) return t + ' ' + fa.amount
       return t
+    },
+    stepInlineData: function (step) {
+      return buildStepDataInline(step)
     }
   }
 }
@@ -545,8 +605,156 @@ export default {
   color: var(--dp-accent-muted, #79bbff);
   text-transform: uppercase;
 }
+.dp-trace-body__step-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.dp-trace-body__step-code {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--dp-text-secondary, #a8abb2);
+}
 .dp-trace-body__step-msg {
   word-break: break-word;
   color: var(--dp-text-primary, #e0e0e0);
+}
+.dp-trace-body__step-data {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+.dp-trace-body__data-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--dp-accent-muted, #79bbff);
+  background: rgba(64, 158, 255, 0.1);
+  border: 1px solid rgba(64, 158, 255, 0.22);
+}
+.dp-trace-body__step--prob .dp-trace-body__data-chip {
+  color: #e6a23c;
+  background: rgba(230, 162, 60, 0.1);
+  border-color: rgba(230, 162, 60, 0.28);
+}
+.dp-trace-body__step--eval .dp-trace-body__data-chip {
+  color: #67c23a;
+  background: rgba(103, 194, 58, 0.1);
+  border-color: rgba(103, 194, 58, 0.28);
+}
+.dp-trace-body__postflop-summary {
+  padding: 10px 12px;
+  border: 1px solid var(--dp-border-subtle, rgba(255, 255, 255, 0.12));
+  border-radius: 6px;
+  background: var(--dp-surface-raised, rgba(255, 255, 255, 0.04));
+}
+.dp-trace-body__postflop-summary-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.dp-trace-body__postflop-summary-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dp-text-primary, #e8e8e8);
+}
+.dp-trace-body__postflop-summary-tag {
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--dp-accent, #409eff);
+  background: rgba(64, 158, 255, 0.12);
+  border: 1px solid rgba(64, 158, 255, 0.28);
+}
+.dp-trace-body__postflop-hint {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--dp-text-secondary, #909399);
+}
+.dp-trace-body__summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 8px;
+}
+.dp-trace-body__summary-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  min-width: 0;
+}
+.dp-trace-body__summary-label {
+  font-size: 11px;
+  color: var(--dp-text-secondary, #909399);
+  line-height: 1.3;
+}
+.dp-trace-body__summary-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--dp-text-primary, #e8e8e8);
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+/* retro8bit：终端绿强调，沿用 trace dock 变量 */
+.dp-trace-body--retro8bit .dp-trace-body__postflop-summary {
+  border-color: rgba(74, 246, 38, 0.28);
+  background: rgba(0, 20, 8, 0.55);
+}
+.dp-trace-body--retro8bit .dp-trace-body__postflop-summary-title {
+  font-family: 'Courier New', ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #4af626;
+}
+.dp-trace-body--retro8bit .dp-trace-body__postflop-summary-tag {
+  border-radius: 0;
+  font-family: 'Courier New', ui-monospace, monospace;
+  color: #72f052;
+  background: rgba(74, 246, 38, 0.1);
+  border-color: rgba(74, 246, 38, 0.35);
+}
+.dp-trace-body--retro8bit .dp-trace-body__postflop-hint,
+.dp-trace-body--retro8bit .dp-trace-body__summary-label {
+  font-family: 'Courier New', ui-monospace, monospace;
+  font-size: 11px;
+  color: #6bdc58;
+}
+.dp-trace-body--retro8bit .dp-trace-body__summary-value {
+  font-family: 'Courier New', ui-monospace, monospace;
+  color: #d8ffe0;
+}
+.dp-trace-body--retro8bit .dp-trace-body__summary-cell {
+  border-color: rgba(74, 246, 38, 0.12);
+  background: rgba(0, 0, 0, 0.35);
+}
+.dp-trace-body--retro8bit .dp-trace-body__data-chip {
+  border-radius: 0;
+  font-family: 'Courier New', ui-monospace, monospace;
+  color: #72f052;
+  background: rgba(74, 246, 38, 0.08);
+  border-color: rgba(74, 246, 38, 0.28);
+}
+.dp-trace-body--retro8bit .dp-trace-body__step--prob .dp-trace-body__data-chip {
+  color: #f0d060;
+  background: rgba(240, 208, 96, 0.08);
+  border-color: rgba(240, 208, 96, 0.28);
+}
+.dp-trace-body--retro8bit .dp-trace-body__step-code {
+  font-family: 'Courier New', ui-monospace, monospace;
+  color: #6bdc58;
 }
 </style>

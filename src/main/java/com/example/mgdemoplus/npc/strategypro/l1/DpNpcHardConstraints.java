@@ -5,6 +5,7 @@ import com.example.mgdemoplus.npc.engine.DpNpcEngine.BotAction;
 import com.example.mgdemoplus.npc.engine.DpNpcEngine.BotActionType;
 import com.example.mgdemoplus.npc.engine.DpNpcEngine.RuleNpcConfig;
 import com.example.mgdemoplus.npc.eval.DpNpcEquityEstimator;
+import com.example.mgdemoplus.npc.eval.DpNpcCategoryLabels;
 import com.example.mgdemoplus.npc.eval.DpNpcHandSnapshot;
 import com.example.mgdemoplus.npc.eval.DpNpcMadeHandCategory;
 import com.example.mgdemoplus.npc.eval.DpNpcPostflopFormula;
@@ -163,7 +164,10 @@ public final class DpNpcHardConstraints {
                         "L1",
                         "L1_BLOCK_FOLD",
                         "L1 blocked fold → call/check",
-                        null);
+                        DpNpcTagDecisionTraceCollector.dataOf(
+                                "made", made != null ? made.name() : "",
+                                "madeLabel", DpNpcCategoryLabels.madeZh(made),
+                                "equityEst", equityEst));
             }
             return new BotAction(BotActionType.CALL_OR_CHECK, 0);
         }
