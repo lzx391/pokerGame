@@ -3420,7 +3420,8 @@ ownerFieldChanged：房主字段是否发生变化。
                 if (chipsBefore == null) {
                     continue;
                 }
-                int handDelta = p.getChips() - chipsBefore;
+                // 这里差点没算明白，结算后的积分-初始分只是赢的总池的分，总池的分里还有自己垫进去的，所以需要再减自己下的分
+                int handDelta = p.getChips() - chipsBefore - p.getTotalBet();
                 if (handDelta == 0) {
                     continue;
                 }
