@@ -8,6 +8,7 @@
     >
       <div
           class="hand-rank-modal dp-npc-mood-crt"
+          :class="crtMoodClass"
           role="dialog"
           aria-modal="true"
           :aria-label="ariaLabel"
@@ -91,6 +92,12 @@ export default {
         return this.displayName + ' LLM NO MOOD'
       }
       return this.displayName + ' mood ' + this.moodTierLabel + ' ' + this.moodValueText
+    },
+    crtMoodClass: function () {
+      if (this.target && this.target.isLlm) return 'crt--neutral'
+      if (this.moodStateKey === 'HIGH') return 'crt--happy'
+      if (this.moodStateKey === 'LOW') return 'crt--sad'
+      return 'crt--calm'
     }
   }
 }
@@ -137,13 +144,37 @@ export default {
   filter: brightness(1.12);
 }
 
+.dp-npc-mood-crt.crt--happy {
+  --dp-mood-crt-tint: #e85c5c;
+  --dp-mood-crt-tint-rgb: 232, 92, 92;
+  --dp-mood-crt-glow: 0 0 8px rgba(232, 92, 92, 0.45);
+}
+
+.dp-npc-mood-crt.crt--calm {
+  --dp-mood-crt-tint: #5cb86a;
+  --dp-mood-crt-tint-rgb: 92, 184, 106;
+  --dp-mood-crt-glow: 0 0 8px rgba(92, 184, 106, 0.45);
+}
+
+.dp-npc-mood-crt.crt--sad {
+  --dp-mood-crt-tint: #5c9ee8;
+  --dp-mood-crt-tint-rgb: 92, 158, 232;
+  --dp-mood-crt-glow: 0 0 8px rgba(92, 158, 232, 0.45);
+}
+
+.dp-npc-mood-crt.crt--neutral {
+  --dp-mood-crt-tint: #a8adb8;
+  --dp-mood-crt-tint-rgb: 168, 173, 184;
+  --dp-mood-crt-glow: none;
+}
+
 .dp-npc-mood-crt__bezel {
   padding: 10px;
   border: 3px solid #2a2a2a;
   border-radius: 6px;
   background: linear-gradient(180deg, #3a3a3a 0%, #222 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 1px 0 rgba(var(--dp-mood-crt-tint-rgb, 255, 255, 255), 0.08),
     0 8px 24px rgba(0, 0, 0, 0.55);
 }
 
@@ -151,9 +182,11 @@ export default {
   position: relative;
   overflow: hidden;
   padding: 28px 18px 24px;
-  border: 2px solid rgba(0, 0, 0, 0.45);
+  border: 2px solid rgba(var(--dp-mood-crt-tint-rgb, 0, 0, 0), 0.35);
   background: #0a0c0e;
-  box-shadow: inset 0 0 32px rgba(0, 0, 0, 0.65);
+  box-shadow:
+    inset 0 0 32px rgba(0, 0, 0, 0.65),
+    inset 0 0 20px rgba(var(--dp-mood-crt-tint-rgb, 0, 0, 0), 0.06);
 }
 
 .dp-npc-mood-crt__scanlines {
@@ -166,8 +199,8 @@ export default {
     0deg,
     transparent 0,
     transparent 2px,
-    rgba(0, 0, 0, 0.18) 2px,
-    rgba(0, 0, 0, 0.18) 4px
+    rgba(var(--dp-mood-crt-tint-rgb, 0, 0, 0), 0.14) 2px,
+    rgba(var(--dp-mood-crt-tint-rgb, 0, 0, 0), 0.14) 4px
   );
 }
 
@@ -186,7 +219,8 @@ export default {
   font-size: 10px;
   line-height: 1.65;
   letter-spacing: 0.04em;
-  color: var(--dp-text-primary, #e8e8e8);
+  color: var(--dp-mood-crt-tint, var(--dp-text-primary, #e8e8e8));
+  text-shadow: var(--dp-mood-crt-glow, none);
   word-break: break-word;
   max-width: 100%;
 }
@@ -197,45 +231,73 @@ export default {
 </style>
 
 <style>
+body[data-dp-game-theme='retro8bit'] .dp-npc-mood-crt.crt--happy,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-npc-mood-crt.crt--happy {
+  --dp-mood-crt-tint: #ff5555;
+  --dp-mood-crt-tint-rgb: 255, 85, 85;
+  --dp-mood-crt-glow: 0 0 6px rgba(255, 85, 85, 0.55);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-npc-mood-crt.crt--calm,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-npc-mood-crt.crt--calm {
+  --dp-mood-crt-tint: #4af626;
+  --dp-mood-crt-tint-rgb: 74, 246, 38;
+  --dp-mood-crt-glow: 0 0 6px rgba(74, 246, 38, 0.55);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-npc-mood-crt.crt--sad,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-npc-mood-crt.crt--sad {
+  --dp-mood-crt-tint: #55aaff;
+  --dp-mood-crt-tint-rgb: 85, 170, 255;
+  --dp-mood-crt-glow: 0 0 6px rgba(85, 170, 255, 0.55);
+}
+
+body[data-dp-game-theme='retro8bit'] .dp-npc-mood-crt.crt--neutral,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-npc-mood-crt.crt--neutral {
+  --dp-mood-crt-tint: #9aa0a6;
+  --dp-mood-crt-tint-rgb: 154, 160, 166;
+  --dp-mood-crt-glow: 0 0 4px rgba(154, 160, 166, 0.35);
+}
+
 body[data-dp-game-theme='retro8bit'] .dp-npc-mood-crt__bezel,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-npc-mood-crt__bezel {
   border-radius: 0;
   border: 3px solid #1a1a1a;
   background: linear-gradient(180deg, #2e2e2e 0%, #181818 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 1px 0 rgba(var(--dp-mood-crt-tint-rgb), 0.06),
     0 6px 0 rgba(0, 0, 0, 0.55);
 }
 
 body[data-dp-game-theme='retro8bit'] .dp-npc-mood-crt__screen,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-npc-mood-crt__screen {
   border-radius: 0;
-  border: 2px solid var(--dp-terminal-border-active, rgba(74, 246, 38, 0.28));
+  border: 2px solid rgba(var(--dp-mood-crt-tint-rgb), 0.28);
   background: rgba(0, 0, 0, 0.55);
   box-shadow:
-    inset 0 0 24px rgba(74, 246, 38, 0.04),
+    inset 0 0 24px rgba(var(--dp-mood-crt-tint-rgb), 0.04),
     inset 0 0 48px rgba(0, 0, 0, 0.75);
 }
 
 body[data-dp-game-theme='retro8bit'] .dp-npc-mood-crt__close,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-npc-mood-crt__close {
   border-radius: 0;
-  border: 1px solid rgba(74, 246, 38, 0.28);
+  border: 1px solid rgba(var(--dp-mood-crt-tint-rgb), 0.28);
   background: var(--dp-terminal-bg, #0a0c0e);
-  color: var(--dp-accent, #4af626);
+  color: var(--dp-mood-crt-tint);
 }
 
 body[data-dp-game-theme='retro8bit'] .dp-npc-mood-crt__close:hover,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-npc-mood-crt__close:hover {
-  background: var(--dp-accent, #4af626);
+  background: var(--dp-mood-crt-tint);
   color: #080a0c;
   filter: none;
 }
 
 body[data-dp-game-theme='retro8bit'] .dp-npc-mood-crt__line,
 .dp-game-root[data-dp-game-theme='retro8bit'] .dp-npc-mood-crt__line {
-  color: var(--dp-accent, #4af626);
-  text-shadow: var(--dp-terminal-glow-text, 0 0 6px rgba(74, 246, 38, 0.55));
+  color: var(--dp-mood-crt-tint);
+  text-shadow: var(--dp-mood-crt-glow);
 }
 
 body[data-dp-game-theme='retro8bit'] .dp-npc-mood-crt__scanlines,
@@ -245,8 +307,8 @@ body[data-dp-game-theme='retro8bit'] .dp-npc-mood-crt__scanlines,
     0deg,
     transparent 0,
     transparent 2px,
-    rgba(74, 246, 38, 0.04) 2px,
-    rgba(74, 246, 38, 0.04) 4px
+    rgba(var(--dp-mood-crt-tint-rgb), 0.04) 2px,
+    rgba(var(--dp-mood-crt-tint-rgb), 0.04) 4px
   );
 }
 
