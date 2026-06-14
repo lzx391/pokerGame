@@ -92,7 +92,6 @@ DpRoomServiceImpl.npcAction → fold / call / raise / all-in
 ### Section 5: 全局开关（底部右侧）
 
 NPC_MOOD_ENABLED = false
-NPC_HAND_SEED_FOR_DECISIONS = true
 
 ## Text Labels (in Chinese)
 - 七档规则 Archetype

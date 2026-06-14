@@ -1643,8 +1643,7 @@ public class DpNpcEngine {
 
         if (deadline <= 0) {
             //独立于决策的思考延时
-            long delay = DpNpcRuleThinkSampler.sampleDelayMs(
-                    buildHandRandomForRuleThink(room, bot));
+            long delay = DpNpcRuleThinkSampler.sampleDelayMs(ThreadLocalRandom.current());
             if (delay > 0) {
                 bot.setNextBotActionTime(now + delay);
                 return null;
@@ -1682,24 +1681,6 @@ public class DpNpcEngine {
         } finally {
             com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTraceCollector.clear();
         }
-    }
-
-    /**
-     * 规则 NPC 决策用的 {@link Random}（仅用于概率抽样，不参与洗牌发牌）。
-     * 无种子、不可复现；与 {@code currentHandSeed} 无关。
-     */
-    private static Random buildHandRandom(DpRoomBO room, DpPlayer bot) {
-        return ThreadLocalRandom.current();
-    }
-
-    /** 规则 NPC 思考延时抽样 RNG。 */
-    public static Random buildHandRandomForRuleThink(DpRoomBO room, DpPlayer bot) {
-        return ThreadLocalRandom.current();
-    }
-
-    /** 桌边话术抽样 RNG；{@code rollSalt} 保留供调用方计数，不再参与种子。 */
-    public static Random buildHandRandomForTableTalk(DpRoomBO room, DpPlayer bot, long rollSalt) {
-        return ThreadLocalRandom.current();
     }
 
     /**
@@ -1927,7 +1908,7 @@ public class DpNpcEngine {
         int callAmount = Math.max(0, room.getCurrentBetToCall() - bot.getBet());
         DpNpcHandSnapshot handSnapshot = estimateCurrentHandSnapshot(room, bot);
         TablePosition position = getTablePosition(room, bot);
-        Random random = buildHandRandom(room, bot);
+        Random random = ThreadLocalRandom.current();
         DpUtilSmartContext ctx = buildSmartContext(room, bot, handSnapshot, stage, callAmount, random);
         return LlmNpcGameContext.map(room, bot, ctx, handSnapshot, stage, callAmount, position);
     }
@@ -1952,7 +1933,7 @@ public class DpNpcEngine {
         double callRatio = chips == 0 || callAmount >= chips ? 1.0 : (callAmount * 1.0 / chips);
         TablePosition position = getTablePosition(room, bot);
         String stageForNpc = room.getCurrentStage() != null ? room.getCurrentStage() : "";
-        Random random = buildHandRandom(room, bot);
+        Random random = ThreadLocalRandom.current();
         BoardDanger boardDanger = evaluateBoardDanger(room.getCommunityCards());
         DpNpcHandSnapshot handSnapshot = estimateCurrentHandSnapshot(room, bot);
         DpNpcRuleDecisionParams ruleParams = new DpNpcRuleDecisionParams(
@@ -2003,7 +1984,7 @@ public class DpNpcEngine {
         double callRatio = chips == 0 || callAmount >= chips ? 1.0 : (callAmount * 1.0 / chips);// 把要跟的大于自己的部分算作1，因为超出去部分没意义，要跟的已经占百分百了
         TablePosition position = getTablePosition(room, bot);// 看位置方法
         String stageForNpc = room.getCurrentStage() != null ? room.getCurrentStage() : "";
-        Random random = buildHandRandom(room, bot);
+        Random random = ThreadLocalRandom.current();
         // log.info("random: {}", random);
         /// 这里判断牌面危险度、风格配置（翻前范围、凶度、偷盲率、诈唬频率等）
         BoardDanger boardDanger = evaluateBoardDanger(room.getCommunityCards());

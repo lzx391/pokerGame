@@ -53,7 +53,7 @@ class DpNpcL4HeroCallTest {
         assertTrue(DpNpcHeroCall.shouldHeroCall(
                 p, "river", p.callAmount,
                 DpNpcMadeHandCategory.HIGH_CARD, DpNpcDrawCategory.NONE, ctx),
-                "fixed seed should hit hero call when roll < probability");
+                "seeded Random should hit hero call when roll < probability");
     }
 
     @Test

@@ -47,7 +47,7 @@
 | `callAmount` | `max(0, room.getCurrentBetToCall() - bot.getBet())` |
 | `callRatio` | `callAmount / chips`（跟满或超出则为 `1.0`） |
 | `stageForNpc` | `room.getCurrentStage()` |
-| `random` | `buildHandRandom(room, bot)` — 无种子 `ThreadLocalRandom` |
+| `random` | `ThreadLocalRandom.current()` — 无种子纯随机 |
 | `boardDanger` | `evaluateBoardDanger(...)` — **翻前在统一策略返回后不再使用** |
 | `mood` | `NPC_MOOD_ENABLED ? bot.getMood() : 0` |
 | `style` | `STYLE_PROFILE_MAP.get(getStyleByBotType(type))` |
