@@ -35,6 +35,8 @@ class DpNpcCustomBotTest {
         assertTrue(DpNpcEngine.isCustomBotNickname("BOT_CUSTOM_7"));
         assertTrue(DpNpcEngine.isBotNickname("BOT_CUSTOM_7"));
         assertFalse(DpNpcEngine.isLlmBotNickname("BOT_CUSTOM_7"));
+        assertTrue(DpNpcEngine.isRuleBotNickname("BOT_CUSTOM_7"));
+        assertFalse(DpNpcEngine.isRuleBotNickname("BOT_LLM_1"));
         assertNull(DpNpcEngine.getBotTypeByNickname("BOT_CUSTOM_7"));
         assertEquals("BOT_CUSTOM_12", DpNpcEngine.customBotNickname(12));
     }

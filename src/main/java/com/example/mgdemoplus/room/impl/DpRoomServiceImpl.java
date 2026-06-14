@@ -1177,8 +1177,25 @@ ownerFieldChanged：房主字段是否发生变化。
             }
             Integer ws = r.getWinStreakByNickname().get(p.getNickname());
             p.setWinStreak(ws != null ? ws : 0);
+            if (DpNpcEngine.isRuleBotPlayer(p)) {
+                p.setMoodState(resolveRuleBotMoodState(p.getMood()));
+            } else {
+                p.setMoodState(null);
+            }
         }
         return r;
+    }
+
+    /** 规则 bot 快照 moodState；{@code dp.npc.mood.enabled=false} 时固定 NEUTRAL（与桌边话一致）。 */
+    private String resolveRuleBotMoodState(double mood) {
+        NpcMoodState state;
+        if (!npcMoodProperties.isEnabled()) {
+            state = NpcMoodState.NEUTRAL;
+        } else {
+            state = NpcMoodState.fromMood(
+                    mood, npcMoodProperties.getHighThreshold(), npcMoodProperties.getLowThreshold());
+        }
+        return state.name();
     }
 
     /**

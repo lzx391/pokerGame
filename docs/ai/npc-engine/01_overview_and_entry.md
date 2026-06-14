@@ -62,7 +62,8 @@ sequenceDiagram
 | 配置 / 常量 | 默认 | 含义 |
 |------|------|------|
 | `dp.npc.mood.enabled`（`DP_NPC_MOOD_ENABLED`） | `true` | 结算更新 mood；台词按 mood 分桶（TAG 除外）。**决策不使用 mood** |
-| `DpNpcEngine.NPC_HAND_SEED_FOR_DECISIONS` | `true` | `handSeed ^ 座位` 固定 RNG |
+
+规则 NPC 决策、思考延时、桌边话术使用无种子纯随机（`ThreadLocalRandom`），与 `currentHandSeed` 无关。
 
 ---
 

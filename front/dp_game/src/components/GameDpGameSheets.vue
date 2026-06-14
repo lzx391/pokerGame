@@ -312,6 +312,13 @@
         @view-hand-history-with-opponent="(p) => vm.openOpponentHandHistoryFromSocial(p)"
     />
 
+    <game-npc-mood-sheet
+        v-if="vm.npcMoodOpen && vm.npcMoodTarget"
+        :visible="true"
+        :target="vm.npcMoodTarget"
+        @close="() => vm.closeNpcMoodSheet()"
+    />
+
     <game-hand-history-modal
         v-if="vm.gameUiTheme !== 'retro8bit'"
         :visible="vm.showOpponentHandHistoryModal"
@@ -375,6 +382,7 @@ import GameSettledPrepareBar from './GameSettledPrepareBar.vue'
 import GameOwnerPanel from './GameOwnerPanel.vue'
 import GameOwnerToolModal from './GameOwnerToolModal.vue'
 import GamePlayerSocialSheet from './GamePlayerSocialSheet.vue'
+import GameNpcMoodSheet from './GameNpcMoodSheet.vue'
 import GameHandHistoryModal from './GameHandHistoryModal.vue'
 import GameInviteFriendSheet from './GameInviteFriendSheet.vue'
 import GameInviteFriendPanel from './GameInviteFriendPanel.vue'
@@ -398,6 +406,7 @@ export default {
     GameOwnerPanel,
     GameOwnerToolModal,
     GamePlayerSocialSheet,
+    GameNpcMoodSheet,
     GameHandHistoryModal,
     GameInviteFriendSheet,
     GameInviteFriendPanel,

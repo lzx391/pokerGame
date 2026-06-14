@@ -190,7 +190,7 @@ import '../styles/dp-game-eco-mode.css'
 import '../styles/dp-retro-desktop-fx.css'
 import GameTopBar from './GameTopBar.vue'
 import { buildRetroTableLayout, holeDealOrderFromDealer as holeDealOrderFromDealerUtil } from '../utils/dpGameRoundTableLayout'
-import { dpDisplayNickname, isDpBotNickname } from '../utils/dpDisplayNickname'
+import { dpDisplayNickname, isDpBotNickname, isDpLlmBotNickname, isDpRuleBotNickname } from '../utils/dpDisplayNickname'
 import { resolveRoomPersonMeta } from '../utils/dpRoomPlayerLookup'
 import { dpSocialApi } from '../api/api.dpSocial'
 import { musicFileSrc } from '../utils/dpGameMusicUrl'
@@ -294,6 +294,8 @@ export default {
       _lastRoomMusicWebPath: '',
       playerSocialOpen: false,
       playerSocialTarget: null,
+      npcMoodOpen: false,
+      npcMoodTarget: null,
       inviteFriendOpen: false,
       friendChatPickerOpen: false,
       friendChatVisible: false,
@@ -1996,6 +1998,34 @@ export default {
       this.playerSocialOpen = false
       this.playerSocialTarget = null
     },
+    closeNpcMoodSheet() {
+      this.npcMoodOpen = false
+      this.npcMoodTarget = null
+    },
+    /**
+     * 规则 / LLM bot：打开情绪面板（规则 bot 展示 mood；LLM 仅提示无情绪）。
+     * @param {{ nickname: string }} payload
+     */
+    openNpcMoodSheet(payload) {
+      var nickname = payload && payload.nickname
+      if (!nickname) return
+      var player = null
+      var players = this.players || []
+      for (var i = 0; i < players.length; i++) {
+        if (players[i] && players[i].nickname === nickname) {
+          player = players[i]
+          break
+        }
+      }
+      var isLlm = isDpLlmBotNickname(nickname)
+      this.npcMoodTarget = {
+        nickname: nickname,
+        isLlm: isLlm,
+        mood: player && player.mood != null ? Number(player.mood) : 0,
+        moodState: player && player.moodState ? player.moodState : null
+      }
+      this.npcMoodOpen = true
+    },
     /**
      * 从玩家信息底栏打开「与 TA 的共同历史对局」（独立弹层，数据走 checkUserAndOtherPlayerHandHistoryList）
      * @param {{ userId: number, displayName: string }} payload
@@ -2035,6 +2065,11 @@ export default {
         return
       }
 
+      if (isDpRuleBotNickname(nickname) || isDpLlmBotNickname(nickname)) {
+        this.openNpcMoodSheet({ nickname: nickname })
+        return
+      }
+
       var rawUid = typeof payload === 'object' && payload ? payload.userId : null
       this.openPlayerSocialProfile({ nickname: nickname, userId: rawUid })
     },
@@ -2050,8 +2085,8 @@ export default {
         return
       }
 
-      if (isDpBotNickname(nickname)) {
-        this.$message.info('机器人不支持该功能')
+      if (isDpRuleBotNickname(nickname) || isDpLlmBotNickname(nickname)) {
+        this.openNpcMoodSheet({ nickname: nickname })
         return
       }
 

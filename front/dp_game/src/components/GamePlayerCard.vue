@@ -12,7 +12,8 @@
         isShowdownRevealActive
         && !player.leftThisHand,
       'dp-player-card--acting':
-        rivalMini && !player.fold && !player.leftThisHand && actIndex === seatIndex
+        rivalMini && !player.fold && !player.leftThisHand && actIndex === seatIndex,
+      'dp-player-card--mood-clickable': isNpcMoodClickable
     }"
     :style="cardBoxStyle"
     @click="onClick"
@@ -343,7 +344,7 @@
 
 <script>
 import { getCardClass, getCardDisplay } from '../utils/dpGameCardVisual'
-import { dpDisplayNickname } from '../utils/dpDisplayNickname'
+import { dpDisplayNickname, isDpLlmBotNickname, isDpRuleBotNickname } from '../utils/dpDisplayNickname'
 import { dealStaggerMsForTheme } from '../constants/dpGameDealTiming'
 import { getDealerAnchorViewportPoint } from '../utils/dpGameDealerAnchor'
 import { CAT_COPY } from '../constants/dpCatThemeCopy'
@@ -560,6 +561,11 @@ export default {
     },
     isMe() {
       return !!this.myNickname && this.player.nickname === this.myNickname
+    },
+    isNpcMoodClickable() {
+      if (this.isMe || this.player.leftThisHand) return false
+      var nick = this.player.nickname
+      return isDpRuleBotNickname(nick) || isDpLlmBotNickname(nick)
     },
     displayPlayerName() {
       return dpDisplayNickname(this.player.nickname)
@@ -1021,5 +1027,11 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.dp-player-card--mood-clickable {
+  cursor: pointer;
+}
+</style>
 
 <style src="../styles/dp-poker-cards.css"></style>

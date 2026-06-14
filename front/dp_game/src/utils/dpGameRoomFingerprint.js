@@ -30,7 +30,9 @@ function playerVisualFingerprint(p) {
     Number(p.totalBet) || 0,
     stableJsonSlice(p.holeCards),
     p.handRankName != null ? String(p.handRankName) : '',
-    stableJsonSlice(p.bestHandCards)
+    stableJsonSlice(p.bestHandCards),
+    p.mood != null ? String(Number(p.mood)) : '',
+    p.moodState != null ? String(p.moodState) : ''
   ].join('~')
 }
 

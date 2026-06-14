@@ -59,3 +59,16 @@ export function isDpBotNickname (nickname) {
   }
   return false
 }
+
+/** BOT_LLM / BOT_LLM_GLOBAL 及多实例后缀 */
+export function isDpLlmBotNickname (nickname) {
+  if (!nickname || typeof nickname !== 'string') return false
+  if (nickname === 'BOT_LLM_GLOBAL' || nickname.startsWith('BOT_LLM_GLOBAL_')) return true
+  if (nickname === 'BOT_LLM' || nickname.startsWith('BOT_LLM_')) return true
+  return false
+}
+
+/** 规则 bot（含 BOT_CUSTOM），排除 LLM */
+export function isDpRuleBotNickname (nickname) {
+  return isDpBotNickname(nickname) && !isDpLlmBotNickname(nickname)
+}
