@@ -157,11 +157,11 @@ EARLY 仍会对 `vsOpen3BetValue` 再收紧一档（体现在对应矩阵切片�
 
 ### 5.1 `FACING_4BET` → `decideFacing4Bet`
 
-输入侧重：`callRatio`、`effStackBB`、`hole`、`tier`、`mood`、`random`；便宜跟注 / jam / G3 分支用 **`facing4Bet*`** 三张固定表 + `matrixAllows`；输出 **FOLD / CALL_OR_CHECK / RAISE / ALL_IN**。
+输入侧重：`callRatio`、`effStackBB`、`hole`、`tier`、`random`；jam / pot-odds / G3 分支用 **`facing4Bet*`** 表与当前 pos×level 的 **`vs3BetContinueAllow` 求交** 后再 `matrixAllows`；输出 **FOLD / CALL_OR_CHECK / RAISE / ALL_IN**。
 
 ### 5.2 `UNOPENED` → `decideUnopened`
 
-- `canOpen = matrixAllows(openAllow[pos][level], hole)`；否 → **`CALL_OR_CHECK, 0`**。  
+- `canOpen = matrixAllows(openAllow[pos][level], hole)`；否 → **`CALL_OR_CHECK, 0`**（limp/check，含 NIT SB 补盲）。  
 - 是 → `openSizeBB = baseOpenSizeBB(activePlayers, effStackBB, mood, random)`（**2～4BB** 档位 + jitter），再 `raiseAmount = min(chips, openSizeBB * bb)`，`roundToSB` → **`RAISE`**。
 
 **尺度与六旋钮**：open **倍数/档位**不直接乘 `vpip/pfr`；`mood` 参与 `baseOpenSizeBB` 的 jitter。

@@ -6,7 +6,9 @@
         role="presentation"
         @click="$emit('close')"
     >
+      <!-- retro8bit: CRT 中央弹窗 -->
       <div
+          v-if="isRetroTheme"
           class="hand-rank-modal dp-npc-mood-crt"
           :class="crtMoodClass"
           role="dialog"
@@ -41,11 +43,44 @@
           </div>
         </div>
       </div>
+
+      <!-- 其它主题：常规居中弹窗 -->
+      <div
+          v-else
+          class="hand-rank-modal dp-npc-mood-standard"
+          :class="standardMoodClass"
+          role="dialog"
+          aria-modal="true"
+          :aria-label="ariaLabel"
+          @click.stop
+      >
+        <div class="dp-game-dialog__head">
+          <span class="dp-game-dialog__title">{{ displayName }}</span>
+          <button
+              type="button"
+              class="dp-game-dialog__close"
+              aria-label="关闭"
+              @click="$emit('close')"
+          >
+            ×
+          </button>
+        </div>
+        <div class="dp-game-dialog__body dp-npc-mood-standard__body">
+          <template v-if="target.isLlm">
+            <p class="dp-npc-mood-standard__line dp-npc-mood-standard__line--muted">LLM NO MOOD</p>
+          </template>
+          <template v-else>
+            <p class="dp-npc-mood-standard__tier">{{ moodTierLabel }}</p>
+            <p class="dp-npc-mood-standard__value">{{ moodValueText }}</p>
+          </template>
+        </div>
+      </div>
     </div>
   </transition>
 </template>
 
 <script>
+import { mapState } from 'vuex'
 import { dpDisplayNickname } from '../utils/dpDisplayNickname'
 
 var MOOD_TIER_LABELS = {
@@ -64,6 +99,10 @@ export default {
     }
   },
   computed: {
+    ...mapState('dpGame', ['gameUiTheme']),
+    isRetroTheme: function () {
+      return this.gameUiTheme === 'retro8bit'
+    },
     displayName: function () {
       return dpDisplayNickname(this.target || {})
     },
@@ -98,6 +137,12 @@ export default {
       if (this.moodStateKey === 'HIGH') return 'crt--happy'
       if (this.moodStateKey === 'LOW') return 'crt--sad'
       return 'crt--calm'
+    },
+    standardMoodClass: function () {
+      if (this.target && this.target.isLlm) return 'mood--neutral'
+      if (this.moodStateKey === 'HIGH') return 'mood--happy'
+      if (this.moodStateKey === 'LOW') return 'mood--sad'
+      return 'mood--calm'
     }
   }
 }
@@ -108,6 +153,60 @@ export default {
 <style scoped>
 .dp-npc-mood-modal-mask {
   z-index: var(--dp-z-npc-mood, 9100);
+}
+
+.dp-npc-mood-standard {
+  max-width: min(92vw, 340px);
+}
+
+.dp-npc-mood-standard__body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding-top: 8px;
+  padding-bottom: 24px;
+  text-align: center;
+}
+
+.dp-npc-mood-standard__tier {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  color: var(--dp-text-primary);
+}
+
+.dp-npc-mood-standard__value {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--dp-text-secondary);
+}
+
+.dp-npc-mood-standard__line {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--dp-text-primary);
+}
+
+.dp-npc-mood-standard__line--muted {
+  color: var(--dp-text-muted);
+}
+
+.dp-npc-mood-standard.mood--happy .dp-npc-mood-standard__tier {
+  color: var(--dp-danger, #e85c5c);
+}
+
+.dp-npc-mood-standard.mood--calm .dp-npc-mood-standard__tier {
+  color: var(--dp-success, #5cb86a);
+}
+
+.dp-npc-mood-standard.mood--sad .dp-npc-mood-standard__tier {
+  color: var(--dp-accent, #5c9ee8);
 }
 
 .dp-npc-mood-crt {
