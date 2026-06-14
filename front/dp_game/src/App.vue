@@ -272,6 +272,7 @@ body {
 
 /* 对局：#app 与全屏容器拉满动态视口，子级 .dp-game-root flex:1 避免平板/安全区下露浅灰底 */
 #app.app--dp-game {
+  min-height: 100svh;
   min-height: 100dvh;
   min-height: -webkit-fill-available;
   display: flex;
@@ -283,6 +284,7 @@ body {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  min-height: 100svh;
   min-height: 100dvh;
   min-height: -webkit-fill-available;
 }

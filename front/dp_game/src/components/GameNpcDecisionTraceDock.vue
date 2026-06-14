@@ -11,7 +11,7 @@
     >
       <header class="dp-trace-dock__head">
         <h2 class="dp-trace-dock__title">决策追踪</h2>
-        <span class="dp-trace-dock__tag">TAG</span>
+        <!-- <span class="dp-trace-dock__tag">TAG</span> -->
       </header>
       <div class="dp-trace-dock__toolbar">
         <button

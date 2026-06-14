@@ -9,7 +9,8 @@
         'dp-game-root--mobile-hero-dock': mobileHeroDockActive,
         'dp-game-root--retro-desktop-fx': showRetroDesktopFx,
         'dp-game-root--trace-dock-open': showDecisionTraceDockWide,
-        'dp-game-root--trace-dock-resizing': traceDockResizing
+        'dp-game-root--trace-dock-resizing': traceDockResizing,
+        'dp-game-root--debug-bounds': debugBoundsEnabled
       }"
       :data-dp-game-theme="effectiveThemeForCss"
       :data-dp-eco-mode="ecoMode ? 'true' : 'false'"
@@ -205,6 +206,7 @@
 <script>
 import '../styles/dp-game-themes.css'
 import '../styles/dp-game-shell.css'
+import '../styles/dp-game-debug-bounds.css'
 import '../styles/dp-game-modals.css'
 import '../styles/dp-game-eco-mode.css'
 import '../styles/dp-retro-desktop-fx.css'
@@ -252,6 +254,7 @@ import { encodeRoomApplyFingerprint } from '../utils/dpGameRoomFingerprint'
 import { CAT_COPY, dpPotDisplayLabel } from '../constants/dpCatThemeCopy'
 import { DP_CUSTOM_NPC_UI_ENABLED } from '../constants/dpCustomNpcUi'
 import { dpHandHologramDevLog } from '../utils/dpHandHologramDevLog'
+import { isDpDebugBoundsEnabled, DP_DEBUG_BOUNDS_BODY_CLASS } from '../utils/dpDebugBounds'
 import { dpInviteFriendsDevLog } from '../utils/dpInviteFriendsDevLog'
 import { dpOwnerTerminalDevLog } from '../utils/dpOwnerTerminalDevLog'
 import { dpSeatEnterDevLog } from '../utils/dpSeatEnterDevLog'
@@ -365,6 +368,7 @@ export default {
       /** 宽屏决策追踪侧栏宽度（px）；localStorage 持久化 */
       traceDockWidthPx: 320,
       traceDockResizing: false,
+      debugBoundsEnabled: false,
     }
   },
 
@@ -678,6 +682,10 @@ export default {
   },
 
   created() {
+    this.debugBoundsEnabled = isDpDebugBoundsEnabled()
+    if (this.debugBoundsEnabled && typeof document !== 'undefined') {
+      document.body.classList.add(DP_DEBUG_BOUNDS_BODY_CLASS)
+    }
     this._seatChatTimers = Object.create(null)
     this._deferredSeatChats = []
     this._seatEnterNickSnapshot = new Set()
@@ -751,6 +759,9 @@ export default {
   },
 
   beforeDestroy() {
+    if (this.debugBoundsEnabled && typeof document !== 'undefined') {
+      document.body.classList.remove(DP_DEBUG_BOUNDS_BODY_CLASS)
+    }
     this.teardownHologramViewportListeners()
     this.teardownTraceDockResizeListeners()
     if (this._onGameKeydown) {
