@@ -1,10 +1,11 @@
 <template>
-  <div>
+  <div class="dp-trace-dock-mount">
     <!-- 宽屏：右侧常驻 dock -->
     <aside
         v-if="layoutMode === 'dock' && pinned"
         class="dp-trace-dock"
         :class="{ 'dp-trace-dock--retro8bit': uiVariant === 'retro8bit' }"
+        :style="dockAsideStyle"
         role="complementary"
         aria-label="NPC 决策追踪"
     >
@@ -109,6 +110,8 @@ export default {
       }
     },
     pinned: { type: Boolean, default: false },
+    /** 宽屏 dock 宽度（px）；由 game.vue 拖拽写入 */
+    dockWidthPx: { type: Number, default: null },
     sheetOpen: { type: Boolean, default: false },
     roomId: { type: String, default: '' },
     hands: {
@@ -140,6 +143,16 @@ export default {
     }
   },
   computed: {
+    dockAsideStyle: function () {
+      if (this.dockWidthPx == null || !isFinite(this.dockWidthPx)) return null
+      var w = Math.round(this.dockWidthPx) + 'px'
+      return {
+        width: w,
+        minWidth: w,
+        maxWidth: w,
+        flexBasis: w
+      }
+    },
     bodyBreadcrumb: function () {
       return this.navBreadcrumb
     },
@@ -206,8 +219,9 @@ export default {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  width: min(320px, 28vw);
-  min-width: 260px;
+  width: var(--dp-trace-dock-width, min(320px, 28vw));
+  min-width: 280px;
+  max-width: 50vw;
   max-height: 100%;
   box-sizing: border-box;
   border-left: 1px solid var(--dp-border-subtle, rgba(255, 255, 255, 0.1));

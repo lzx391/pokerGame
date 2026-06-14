@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class DpNpcTagDecisionTraceSupportTest {
 
     @Test
-    void traceEligible_tagAllStreets_otherArchetypesPreflopOnly() {
+    void traceEligible_ruleArchetypesAllStreets() {
         assertTrue(DpNpcTagDecisionTraceSupport.isTraceEligibleRuleBot(DpNpcEngine.BotType.TAG, "preflop"));
         assertTrue(DpNpcTagDecisionTraceSupport.isTraceEligibleRuleBot(DpNpcEngine.BotType.TAG, "flop"));
         assertTrue(DpNpcTagDecisionTraceSupport.isTraceEligibleRuleBot("BOT_TAG_1", "turn"));
@@ -22,19 +22,21 @@ class DpNpcTagDecisionTraceSupportTest {
                 DpNpcEngine.BotType.MANIAC
         }) {
             assertTrue(DpNpcTagDecisionTraceSupport.isTraceEligibleRuleBot(type, "preflop"), type.name());
-            assertFalse(DpNpcTagDecisionTraceSupport.isTraceEligibleRuleBot(type, "flop"), type.name());
-            assertFalse(DpNpcTagDecisionTraceSupport.isTraceEligibleRuleBot(type, "turn"), type.name());
+            assertTrue(DpNpcTagDecisionTraceSupport.isTraceEligibleRuleBot(type, "flop"), type.name());
+            assertTrue(DpNpcTagDecisionTraceSupport.isTraceEligibleRuleBot(type, "turn"), type.name());
+            assertTrue(DpNpcTagDecisionTraceSupport.isTraceEligibleRuleBot(type, "river"), type.name());
         }
     }
 
     @Test
     void traceEligible_byNicknamePrefix() {
         assertTrue(DpNpcTagDecisionTraceSupport.isTraceEligibleRuleBot("BOT_FISH_2", "preflop"));
-        assertFalse(DpNpcTagDecisionTraceSupport.isTraceEligibleRuleBot("BOT_FISH_2", "river"));
-        assertTrue(DpNpcTagDecisionTraceSupport.isTraceEligibleRuleBot("BOT_LAG_1", "preflop"));
-        assertTrue(DpNpcTagDecisionTraceSupport.isTraceEligibleRuleBot("BOT_NIT_1", "preflop"));
-        assertTrue(DpNpcTagDecisionTraceSupport.isTraceEligibleRuleBot("BOT_CALL_1", "preflop"));
-        assertTrue(DpNpcTagDecisionTraceSupport.isTraceEligibleRuleBot("BOT_MANIAC_1", "preflop"));
+        assertTrue(DpNpcTagDecisionTraceSupport.isTraceEligibleRuleBot("BOT_FISH_2", "river"));
+        assertTrue(DpNpcTagDecisionTraceSupport.isTraceEligibleRuleBot("BOT_LAG_1", "flop"));
+        assertTrue(DpNpcTagDecisionTraceSupport.isTraceEligibleRuleBot("BOT_NIT_1", "turn"));
+        assertTrue(DpNpcTagDecisionTraceSupport.isTraceEligibleRuleBot("BOT_CALL_1", "river"));
+        assertTrue(DpNpcTagDecisionTraceSupport.isTraceEligibleRuleBot("BOT_MANIAC_1", "flop"));
         assertFalse(DpNpcTagDecisionTraceSupport.isTraceEligibleRuleBot("BOT_LLM_1", "preflop"));
+        assertFalse(DpNpcTagDecisionTraceSupport.isTraceEligibleRuleBot("BOT_LLM_1", "flop"));
     }
 }

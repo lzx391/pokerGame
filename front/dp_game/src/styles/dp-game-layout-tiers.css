@@ -44,7 +44,13 @@
   zoom: 0.9;
 }
 
-#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='desktop'] > .dp-game-layout {
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='desktop'] > .dp-game-body-row {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='desktop'] > .dp-game-body-row > .dp-game-layout {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;

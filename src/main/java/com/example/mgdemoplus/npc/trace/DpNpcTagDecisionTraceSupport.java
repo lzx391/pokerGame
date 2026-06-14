@@ -20,15 +20,14 @@ public final class DpNpcTagDecisionTraceSupport {
     }
 
     /**
-     * 是否应采集决策 trace：TAG 翻前+翻后；Fish/LAG/NIT/CALL/Maniac 仅翻前（P0）。
+     * 是否应采集决策 trace：TAG/Fish/LAG/NIT/CALL/Maniac 翻前+翻后；CUSTOM/LLM 不采集。
      */
     public static boolean isTraceEligibleRuleBot(DpNpcEngine.BotType type, String stage) {
         if (type == null) {
             return false;
         }
         return switch (type) {
-            case TAG -> true;
-            case FISH, LAG, NIT, CALL, MANIAC -> "preflop".equals(stage);
+            case TAG, FISH, LAG, NIT, CALL, MANIAC -> true;
             default -> false;
         };
     }

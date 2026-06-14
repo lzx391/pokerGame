@@ -12,6 +12,7 @@ import com.example.mgdemoplus.npc.eval.DpNpcMadeHandCategory;
 import com.example.mgdemoplus.npc.eval.DpNpcPostflopFormula;
 import com.example.mgdemoplus.npc.strategypro.DpNpcRuleDecisionParams;
 import com.example.mgdemoplus.npc.strategypro.l1.DpNpcHardConstraints;
+import com.example.mgdemoplus.npc.trace.DpNpcPostflopTraceHooks;
 import com.example.mgdemoplus.utils.DpUtilSmartContext;
 
 /**
@@ -43,19 +44,25 @@ public final class DpNpcCallPostflopStrategy {
         DpBoardTexture tex = DpNpcPostflopFormula.textureOrDry(p.handSnapshot);
         HandPlanType plan = DpNpcEngine.getHandPlanType(p.bot);
 
+        DpNpcPostflopTraceHooks.postflopContext(
+                stage, callAmount, plan, made, draw, tex, bd, p, ctx, 0.0, 0.0);
+
         if (callAmount > 0) {
-            BotAction foldAction = tryFoldFacingBet(p, callAmount, made, draw, tex, plan, ctx);
+            BotAction foldAction = tryFoldFacingBet(p, stage, callAmount, made, draw, tex, plan, ctx);
             if (foldAction != null) {
                 return foldAction;
             }
+            DpNpcPostflopTraceHooks.postflopAction("CALL_OR_CHECK", "跟注站默认跟注");
             return new BotAction(BotActionType.CALL_OR_CHECK, 0);
         }
+        DpNpcPostflopTraceHooks.postflopAction("CALL_OR_CHECK", "无下注线 check");
         // §4.2：0% cbet，永远 check，无诈唬
         return new BotAction(BotActionType.CALL_OR_CHECK, 0);
     }
 
     private static BotAction tryFoldFacingBet(
             DpNpcRuleDecisionParams p,
+            String stage,
             int callAmount,
             DpNpcMadeHandCategory made,
             DpNpcDrawCategory draw,
@@ -91,8 +98,10 @@ public final class DpNpcCallPostflopStrategy {
                         ctx.equityEst,
                         callAmount >= p.chips);
                 if (foldProb > 0 && p.random.nextDouble() < foldProb) {
+                    DpNpcPostflopTraceHooks.foldRollHit(foldProb, foldProb);
                     return new BotAction(BotActionType.FOLD, 0);
                 }
+                DpNpcPostflopTraceHooks.foldRollMiss(foldProb, foldProb, plan);
             }
             return null;
         }
@@ -114,7 +123,9 @@ public final class DpNpcCallPostflopStrategy {
             baseFold = Math.min(1.0, baseFold + 0.12);
         }
         if (plan == HandPlanType.GIVE_UP) {
+            double beforeGiveUp = baseFold;
             baseFold = Math.min(1.0, baseFold + 0.08);
+            DpNpcPostflopTraceHooks.giveUpFoldBoost(plan, made, beforeGiveUp, baseFold, 0.08);
         }
 
         double foldProb = applyCallStationShrink(baseFold, p.callStation);
@@ -134,8 +145,10 @@ public final class DpNpcCallPostflopStrategy {
                     callAmount >= p.chips)) {
                 return null;
             }
+            DpNpcPostflopTraceHooks.foldRollHit(baseFold, foldProb);
             return new BotAction(BotActionType.FOLD, 0);
         }
+        DpNpcPostflopTraceHooks.foldRollMiss(baseFold, foldProb, plan);
         return null;
     }
 

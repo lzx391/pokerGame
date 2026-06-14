@@ -8,7 +8,8 @@
         'dp-game-root--layout-fs': layoutFullscreen,
         'dp-game-root--mobile-hero-dock': mobileHeroDockActive,
         'dp-game-root--retro-desktop-fx': showRetroDesktopFx,
-        'dp-game-root--trace-dock-open': showDecisionTraceDockWide
+        'dp-game-root--trace-dock-open': showDecisionTraceDockWide,
+        'dp-game-root--trace-dock-resizing': traceDockResizing
       }"
       :data-dp-game-theme="effectiveThemeForCss"
       :data-dp-eco-mode="ecoMode ? 'true' : 'false'"
@@ -125,18 +126,37 @@
     </footer>
     </div>
 
-    <game-npc-decision-trace-dock
-        v-if="isOwner && useDecisionTraceDockWide"
-        layout-mode="dock"
-        :pinned="npcDecisionTraceDockPinned"
-        :ui-variant="gameUiTheme === 'retro8bit' ? 'retro8bit' : 'default'"
-        :room-id="roomId"
-        :hands="traceHands"
-        :loading="traceHandsLoading"
-        :load-error="traceHandsLoadError"
-        :on-auth-failure="(body) => handleDeckPresetAuthFailure(body)"
-        @refresh="loadTraceHands()"
-    />
+    <div
+        v-if="showDecisionTraceDockWide"
+        class="dp-trace-dock-split"
+        :style="traceDockLayoutStyle"
+    >
+      <div
+          class="dp-trace-dock-resizer"
+          :class="{ 'dp-trace-dock-resizer--active': traceDockResizing }"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="调整决策追踪面板宽度"
+          aria-valuemin="280"
+          :aria-valuemax="traceDockWidthMaxPx"
+          :aria-valuenow="traceDockWidthPx"
+          tabindex="0"
+          @pointerdown.prevent="onTraceDockResizeStart"
+      />
+
+      <game-npc-decision-trace-dock
+          layout-mode="dock"
+          :pinned="npcDecisionTraceDockPinned"
+          :dock-width-px="traceDockWidthPx"
+          :ui-variant="gameUiTheme === 'retro8bit' ? 'retro8bit' : 'default'"
+          :room-id="roomId"
+          :hands="traceHands"
+          :loading="traceHandsLoading"
+          :load-error="traceHandsLoadError"
+          :on-auth-failure="(body) => handleDeckPresetAuthFailure(body)"
+          @refresh="loadTraceHands()"
+      />
+    </div>
     </div>
 
     <game-dp-floating-modals />
@@ -342,6 +362,9 @@ export default {
       traceHands: [],
       traceHandsLoading: false,
       traceHandsLoadError: '',
+      /** 宽屏决策追踪侧栏宽度（px）；localStorage 持久化 */
+      traceDockWidthPx: 320,
+      traceDockResizing: false,
     }
   },
 
@@ -418,6 +441,14 @@ export default {
       return this.isOwner
         && this.npcDecisionTraceDockPinned
         && this.useDecisionTraceDockWide
+    },
+    traceDockWidthMaxPx() {
+      var vw = this.viewportWidth || (typeof window !== 'undefined' ? window.innerWidth : 1024)
+      return Math.floor(vw * 0.5)
+    },
+    traceDockLayoutStyle() {
+      if (!this.showDecisionTraceDockWide) return {}
+      return { '--dp-trace-dock-width': this.traceDockWidthPx + 'px' }
     },
     useRetroSeatEnterReveal() {
       return this.gameUiTheme === 'retro8bit'
@@ -540,6 +571,7 @@ export default {
     },
     viewportWidth: function () {
       if (this.gameUiTheme === 'retro8bit') this.logRetroFxGate('viewportWidth')
+      this.traceDockWidthPx = this.clampTraceDockWidth(this.traceDockWidthPx)
     },
     ecoMode: function () {
       if (this.gameUiTheme === 'retro8bit') this.logRetroFxGate('ecoMode')
@@ -651,6 +683,7 @@ export default {
     this._seatEnterNickSnapshot = new Set()
     this.resetRoomChatUiForEnter()
     this.resetSeatEnterStateForRoom()
+    this.traceDockWidthPx = this.readTraceDockWidthPx()
     this.$store.commit('dpGame/SET_SESSION', { roomId: this.$route.params.roomId })
 
     var self = this
@@ -719,6 +752,7 @@ export default {
 
   beforeDestroy() {
     this.teardownHologramViewportListeners()
+    this.teardownTraceDockResizeListeners()
     if (this._onGameKeydown) {
       window.removeEventListener('keydown', this._onGameKeydown)
       this._onGameKeydown = null
@@ -2365,6 +2399,76 @@ export default {
         return
       }
       this.openDecisionTraceDock()
+    },
+
+    readTraceDockWidthPx() {
+      var KEY = 'dp_trace_dock_width_px'
+      var DEF = 320
+      var MIN = 280
+      try {
+        var v = parseInt(localStorage.getItem(KEY), 10)
+        if (!isFinite(v)) return DEF
+        return Math.max(MIN, Math.min(this.traceDockWidthMaxPx, v))
+      } catch (e) {
+        return DEF
+      }
+    },
+
+    clampTraceDockWidth(px) {
+      return Math.max(280, Math.min(this.traceDockWidthMaxPx, Math.round(px)))
+    },
+
+    onTraceDockResizeStart(ev) {
+      if (!this.showDecisionTraceDockWide) return
+      var el = ev.currentTarget
+      if (el && el.setPointerCapture && ev.pointerId != null) {
+        try {
+          el.setPointerCapture(ev.pointerId)
+        } catch (e) { /* ignore */ }
+      }
+      this._traceDockResizePointerId = ev.pointerId
+      this._traceDockResizeStartX = ev.clientX
+      this._traceDockResizeStartW = this.traceDockWidthPx
+      this.traceDockResizing = true
+      this._onTraceDockResizeMove = this.onTraceDockResizeMove.bind(this)
+      this._onTraceDockResizeEnd = this.onTraceDockResizeEnd.bind(this)
+      document.addEventListener('pointermove', this._onTraceDockResizeMove)
+      document.addEventListener('pointerup', this._onTraceDockResizeEnd)
+      document.addEventListener('pointercancel', this._onTraceDockResizeEnd)
+    },
+
+    onTraceDockResizeMove(ev) {
+      if (!this.traceDockResizing) return
+      if (this._traceDockResizePointerId != null && ev.pointerId !== this._traceDockResizePointerId) return
+      if (ev.cancelable) ev.preventDefault()
+      // 右栏 dock 左缘分隔条：向右拖应缩小 dock、向左拖应放大（与 clientX 增量反向）
+      var delta = this._traceDockResizeStartX - ev.clientX
+      this.traceDockWidthPx = this.clampTraceDockWidth(this._traceDockResizeStartW + delta)
+    },
+
+    onTraceDockResizeEnd(ev) {
+      if (!this.traceDockResizing) return
+      if (ev && this._traceDockResizePointerId != null && ev.pointerId !== this._traceDockResizePointerId) return
+      this.traceDockResizing = false
+      this._traceDockResizePointerId = null
+      this.teardownTraceDockResizeListeners()
+      try {
+        localStorage.setItem('dp_trace_dock_width_px', String(this.traceDockWidthPx))
+      } catch (e) { /* ignore */ }
+    },
+
+    teardownTraceDockResizeListeners() {
+      if (this._onTraceDockResizeMove) {
+        document.removeEventListener('pointermove', this._onTraceDockResizeMove)
+        this._onTraceDockResizeMove = null
+      }
+      if (this._onTraceDockResizeEnd) {
+        document.removeEventListener('pointerup', this._onTraceDockResizeEnd)
+        document.removeEventListener('pointercancel', this._onTraceDockResizeEnd)
+        this._onTraceDockResizeEnd = null
+      }
+      this.traceDockResizing = false
+      this._traceDockResizePointerId = null
     },
 
     onDecisionTraceSheetClose() {

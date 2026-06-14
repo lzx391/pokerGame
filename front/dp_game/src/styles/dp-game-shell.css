@@ -128,6 +128,68 @@
   align-self: stretch;
   max-height: none;
 }
+
+/* 宽屏决策追踪：分隔条 + 侧栏同一 flex 列，避免侧栏盖住 hit area */
+.dp-trace-dock-split {
+  display: flex;
+  flex-direction: row;
+  flex-shrink: 0;
+  align-self: stretch;
+  min-height: 0;
+  max-height: 100%;
+}
+.dp-trace-dock-split > .dp-trace-dock-mount {
+  flex-shrink: 0;
+  min-width: 0;
+  display: flex;
+  align-self: stretch;
+}
+
+/* 牌桌与决策追踪之间的可拖拽分隔条（仅宽屏 dock 固定时由 game.vue 渲染） */
+.dp-trace-dock-resizer {
+  flex: 0 0 10px;
+  width: 10px;
+  cursor: col-resize;
+  position: relative;
+  z-index: 30;
+  align-self: stretch;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  background: transparent;
+}
+.dp-trace-dock-resizer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: var(--dp-border-subtle, rgba(255, 255, 255, 0.12));
+  transition: background 0.15s ease, width 0.15s ease;
+  pointer-events: none;
+}
+.dp-trace-dock-resizer:hover::before,
+.dp-trace-dock-resizer--active::before,
+.dp-trace-dock-resizer:focus-visible::before {
+  width: 3px;
+  background: var(--dp-accent, #409eff);
+}
+.dp-game-root--trace-dock-resizing {
+  cursor: col-resize;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-trace-dock-resizer::before {
+  background: rgba(74, 246, 38, 0.25);
+}
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-trace-dock-resizer:hover::before,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-trace-dock-resizer--active::before,
+.dp-game-root[data-dp-game-theme='retro8bit'] .dp-trace-dock-resizer:focus-visible::before {
+  background: #4af626;
+}
+
 .dp-game-body-row > .dp-game-layout {
   flex: 1 1 auto;
   min-width: 0;
