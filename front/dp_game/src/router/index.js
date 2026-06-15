@@ -1,6 +1,6 @@
-// import Home from "@/components/home.vue";
-// import Login from "@/components/login.vue";
-// import Register from "@/components/register.vue";
+// import Home from "@features/lobby/pages/LobbyPage.vue";
+// import Login from "@features/user/pages/LoginPage.vue";
+// import Register from "@features/user/pages/RegisterPage.vue";
 // import Room from "@/components/room.vue";
 // import RoomList from "@/components/roomList.vue";
 // import Vue from "vue";
@@ -42,38 +42,38 @@ export default new Router({
     { path: '/', redirect: '/login' },
     {
       path: '/login',
-      component: () => import(/* webpackChunkName: "route-login" */ '@/components/login.vue')
+      component: () => import(/* webpackChunkName: "route-login" */ '@features/user/pages/LoginPage.vue')
     },
     {
       path: '/register',
-      component: () => import(/* webpackChunkName: "route-register" */ '@/components/register.vue')
+      component: () => import(/* webpackChunkName: "route-register" */ '@features/user/pages/RegisterPage.vue')
     },
     {
       path: '/home',
-      component: () => import(/* webpackChunkName: "route-home" */ '@/components/home.vue')
+      component: () => import(/* webpackChunkName: "route-home" */ '@features/lobby/pages/LobbyPage.vue')
     },
     {
       path: '/guide',
       name: 'GameButtonGuide',
-      component: () => import(/* webpackChunkName: "route-guide" */ '@/components/GameButtonGuidePage.vue')
+      component: () => import(/* webpackChunkName: "route-guide" */ '@features/room/pages/ButtonGuidePage.vue')
     },
     {
       path: '/create-room',
       name: 'create-room',
       meta: { transition: 'slide-from-right' },
-      component: () => import(/* webpackChunkName: "route-create-room" */ '@/components/CreateRoom.vue')
+      component: () => import(/* webpackChunkName: "route-create-room" */ '@features/lobby/pages/CreateRoomPage.vue')
     },
     {
       path: '/hand-history',
-      component: () => import(/* webpackChunkName: "route-hand-history" */ '@/components/HandHistory.vue')
+      component: () => import(/* webpackChunkName: "route-hand-history" */ '@features/history/pages/HandHistoryPage.vue')
     },
     {
       path: '/leaderboard',
-      component: () => import(/* webpackChunkName: "route-leaderboard" */ '@/components/LeaderboardPage.vue')
+      component: () => import(/* webpackChunkName: "route-leaderboard" */ '@features/leaderboard/pages/LeaderboardPage.vue')
     },
     {
       path: '/hand-history/detail/:handHistoryId',
-      component: () => import(/* webpackChunkName: "route-hand-history-detail" */ '@/components/HandHistoryDetail.vue'),
+      component: () => import(/* webpackChunkName: "route-hand-history-detail" */ '@features/history/pages/HandHistoryDetailPage.vue'),
       props: true
     },
     {
@@ -88,24 +88,24 @@ export default new Router({
         import(
           /* webpackChunkName: "route-game" */
           /* webpackPrefetch: true */
-          '@/components/game.vue'
+          '@features/room/pages/GamePage.vue'
         )
     },
     {
       path: '/image_upload',
-      component: () => import(/* webpackChunkName: "route-image-upload" */ '@/components/image_upload.vue')
+      component: () => import(/* webpackChunkName: "route-image-upload" */ '@features/user/components/ImageUpload.vue')
     },
     {
       path: '/music-upload',
-      component: () => import(/* webpackChunkName: "route-music-upload" */ '@/components/MusicUpload.vue')
+      component: () => import(/* webpackChunkName: "route-music-upload" */ '@features/music/pages/MusicUploadPage.vue')
     },
     {
       path: '/download-center',
-      component: () => import(/* webpackChunkName: "route-download-center" */ '@/components/DownloadCenter.vue')
+      component: () => import(/* webpackChunkName: "route-download-center" */ '@features/download/pages/DownloadCenterPage.vue')
     },
     {
       path: '/oauth/callback',
-      component: () => import(/* webpackChunkName: "route-oauth-callback" */ '@/components/OAuthCallback.vue')
+      component: () => import(/* webpackChunkName: "route-oauth-callback" */ '@features/user/pages/OAuthCallbackPage.vue')
     }
   ]
 })

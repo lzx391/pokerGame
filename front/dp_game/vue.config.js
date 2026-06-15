@@ -1,9 +1,19 @@
+const path = require('path')
 const {defineConfig} = require('@vue/cli-service')
 // Electron 桌面客户端：用相对路径（file:// 协议下绝对路径会解析到磁盘根目录）
 const publicPath = process.env.ELECTRON_BUILD ? './' : '/'
 module.exports = defineConfig({
     publicPath,
     transpileDependencies: true,
+    configureWebpack: {
+        resolve: {
+            alias: {
+                '@': path.resolve(__dirname, 'src'),
+                '@shared': path.resolve(__dirname, 'src/shared'),
+                '@features': path.resolve(__dirname, 'src/features')
+            }
+        }
+    },
     /** 浏览器标签页标题；不设时默认用 package.json 的 name（即 dp_game） */
     pages: {
         index: {

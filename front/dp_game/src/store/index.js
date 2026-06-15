@@ -1,8 +1,8 @@
 import Vue from 'vue'
 import Vuex from 'vuex'
-import dpGame from './modules/dpGame'
-import dpMailbox from './modules/dpMailbox'
-import dpAchievement from './modules/dpAchievement'
+import dpGame from '@features/room/store/dpGame'
+import dpMailbox from '@features/social/store/dpMailbox'
+import dpAchievement from '@features/achievement/store/dpAchievement'
 
 Vue.use(Vuex)
 
