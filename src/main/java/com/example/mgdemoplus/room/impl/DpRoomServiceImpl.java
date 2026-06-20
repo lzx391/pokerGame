@@ -17,7 +17,6 @@ import com.example.mgdemoplus.room.support.DpRoomRegistry;
 import com.example.mgdemoplus.room.support.DpRoomServiceCallbacks;
 import com.example.mgdemoplus.room.support.DpRoomSnapshotSupport;
 import com.example.mgdemoplus.rbac.DpPermissionService;
-import com.example.mgdemoplus.rbac.support.DpPermissionCodes;
 
 import com.example.mgdemoplus.history.bo.DpObservedHandRecordBO;
 import com.example.mgdemoplus.common.bo.DpRoomBO;
@@ -522,10 +521,6 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         if (r == null) {
             return ResultUtil.error().data("message", "房间不存在");
         }
-        ResultUtil denied = authorizeExperimentalDeckPreset(requesterNickname);
-        if (denied != null) {
-            return denied;
-        }
         return ResultUtil.ok().data("message", "访问密码验证通过");
     }
 
@@ -535,10 +530,6 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         DpRoomBO r = roomMap.get(roomId);
         if (r == null) {
             return ResultUtil.error().data("message", "房间不存在");
-        }
-        ResultUtil denied = authorizeExperimentalDeckPreset(requesterNickname);
-        if (denied != null) {
-            return denied;
         }
         List<String> normalized = new ArrayList<>();
         if (cards != null) {
@@ -571,10 +562,6 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         if (r == null) {
             return ResultUtil.error().data("message", "房间不存在");
         }
-        ResultUtil denied = authorizeExperimentalDeckPreset(requesterNickname);
-        if (denied != null) {
-            return denied;
-        }
         List<String> prefix;
         synchronized (r) {
             prefix = r.getNextHandDeckPrefix();
@@ -584,17 +571,6 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
                 .data("presetCount", cardsCopy.size())
                 .data("cards", cardsCopy)
                 .data("canSet", true);
-    }
-
-    /** 有 {@link DpPermissionCodes#GAME_EXPERIMENTAL_DECK_PRESET} 权限即可，跳过实验密码。 */
-    private ResultUtil authorizeExperimentalDeckPreset(String requesterNickname) {
-        if (requesterNickname == null || requesterNickname.isBlank()) {
-            return ResultUtil.error().data("message", "无实验排牌权限");
-        }
-        if (!dpPermissionService.hasPermi(DpPermissionCodes.GAME_EXPERIMENTAL_DECK_PRESET)) {
-            return ResultUtil.error().data("message", "无实验排牌权限");
-        }
-        return null;
     }
 
     private static final class GiveOwnerMutationOutcome {

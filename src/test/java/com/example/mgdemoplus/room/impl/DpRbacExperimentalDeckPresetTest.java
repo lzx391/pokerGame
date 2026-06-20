@@ -11,7 +11,6 @@ import com.example.mgdemoplus.npc.tabletalk.DpNpcTableTalkService;
 import com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTracePushService;
 import com.example.mgdemoplus.presence.DpFriendPresenceService;
 import com.example.mgdemoplus.rbac.DpPermissionService;
-import com.example.mgdemoplus.rbac.support.DpPermissionCodes;
 import com.example.mgdemoplus.room.support.DpExperimentalDeckPresetPasswordGuard;
 import com.example.mgdemoplus.room.support.DpSettlePersistenceDispatcher;
 import com.example.mgdemoplus.roomchat.DpRoomChatPersistenceService;
@@ -31,19 +30,15 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 class DpRbacExperimentalDeckPresetTest {
 
     private DpRoomServiceImpl svc;
-    private DpPermissionService permissionService;
 
     @BeforeEach
     void setUp() throws Exception {
         DpRoomServiceImpl.suppressGlobalRoomTimerForTests = true;
-        permissionService = mock(DpPermissionService.class);
         svc = new DpRoomServiceImpl(
                 mock(DpHandHistoryPersistService.class),
                 mock(DpSettlePersistenceDispatcher.class),
@@ -65,7 +60,7 @@ class DpRbacExperimentalDeckPresetTest {
                 mock(com.example.mgdemoplus.moderation.DpSensitiveWordService.class),
                 new DpExperimentalDeckPresetPasswordGuard("secret"),
                 mock(DpNpcTagDecisionTracePushService.class),
-                permissionService);
+                mock(DpPermissionService.class));
         putRoom("room-1", "owner");
     }
 
@@ -75,21 +70,7 @@ class DpRbacExperimentalDeckPresetTest {
     }
 
     @Test
-    void owner_withoutPermission_isDenied() {
-        when(permissionService.hasPermi(eq(DpPermissionCodes.GAME_EXPERIMENTAL_DECK_PRESET)))
-                .thenReturn(false);
-
-        ResultUtil result = svc.verifyExperimentalDeckPassword("room-1", "owner", "secret");
-
-        assertThat(result.getSuccess()).isFalse();
-        assertThat(result.getData().get("message")).isEqualTo("无实验排牌权限");
-    }
-
-    @Test
-    void nonOwner_withPermission_skipsPasswordAndAllowsPreset() {
-        when(permissionService.hasPermi(eq(DpPermissionCodes.GAME_EXPERIMENTAL_DECK_PRESET)))
-                .thenReturn(true);
-
+    void nonOwner_canVerifyPresetAndQueryStatus() {
         ResultUtil verify = svc.verifyExperimentalDeckPassword("room-1", "viewer", null);
         assertThat(verify.getSuccess()).isTrue();
 
@@ -103,14 +84,11 @@ class DpRbacExperimentalDeckPresetTest {
     }
 
     @Test
-    void nonOwner_withoutPermission_isDenied() {
-        when(permissionService.hasPermi(eq(DpPermissionCodes.GAME_EXPERIMENTAL_DECK_PRESET)))
-                .thenReturn(false);
-
-        ResultUtil result = svc.getNextHandDeckPrefixStatus("room-1", "viewer", "secret");
+    void missingRoom_returnsError() {
+        ResultUtil result = svc.getNextHandDeckPrefixStatus("missing-room", "viewer", null);
 
         assertThat(result.getSuccess()).isFalse();
-        assertThat(result.getData().get("message")).isEqualTo("无实验排牌权限");
+        assertThat(result.getData().get("message")).isEqualTo("房间不存在");
     }
 
     private void putRoom(String roomId, String owner) throws Exception {
