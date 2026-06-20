@@ -30,7 +30,7 @@ async function seedLoggedIn(page, permissions) {
     })
   })
 
-  await page.route('**/dp/auth/permissions**', function (route) {
+  await page.route('**/dpUser/permissions**', function (route) {
     route.fulfill({
       status: 200,
       contentType: 'application/json',

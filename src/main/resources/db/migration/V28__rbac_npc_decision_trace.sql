@@ -1,0 +1,16 @@
+-- Flyway V28: RBAC NPC 决策追踪权限
+
+INSERT INTO dp_permission (code, name) VALUES
+    ('game:npc_decision_trace', '决策追踪');
+
+INSERT INTO dp_role_permission (role_id, permission_id)
+SELECT r.id, p.id
+FROM dp_role r
+CROSS JOIN dp_permission p
+WHERE r.code = 'ADMIN'
+  AND p.code = 'game:npc_decision_trace'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM dp_role_permission rp
+      WHERE rp.role_id = r.id AND rp.permission_id = p.id
+  );

@@ -2,6 +2,7 @@ import { dpResultData, dpResultSuccess } from '@shared/utils/dpApiResult'
 
 export const DP_PERM_HOLE_CARDS_VIEW = 'game:hole_cards:view'
 export const DP_PERM_EXPERIMENTAL_DECK_PRESET = 'game:experimental_deck_preset'
+export const DP_PERM_NPC_DECISION_TRACE = 'game:npc_decision_trace'
 
 export default {
   namespaced: true,
@@ -22,7 +23,7 @@ export default {
       return getters.hasPerm(DP_PERM_EXPERIMENTAL_DECK_PRESET)
     },
     canNpcDecisionTrace: function (state, getters) {
-      return getters.hasPerm(DP_PERM_EXPERIMENTAL_DECK_PRESET)
+      return getters.hasPerm(DP_PERM_NPC_DECISION_TRACE)
     }
   },
   mutations: {
@@ -38,7 +39,7 @@ export default {
       var http = payload && payload.http
       if (!http) return
       try {
-        var res = await http.get('/dp/auth/permissions')
+        var res = await http.get('/dpUser/permissions')
         if (dpResultSuccess(res.data)) {
           var data = dpResultData(res.data) || {}
           commit('SET_PERMISSIONS', data.permissions || [])
