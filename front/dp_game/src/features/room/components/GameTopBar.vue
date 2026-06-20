@@ -95,6 +95,16 @@
           {{ ownerRevealAll ? '关闭看牌' : '看穿底牌' }}
         </button>
         <button
+            v-if="canManageExperimentalDeckPreset"
+            ref="guideTopDeckPreset"
+            type="button"
+            class="dp-btn dp-top-bar__btn dp-top-bar__btn--ghost"
+            aria-label="实验排牌"
+            @click="$emit('open-deck-preset')"
+        >
+          实验排牌
+        </button>
+        <button
             v-if="isOwner && gameUiTheme !== 'retro8bit'"
             ref="guideTopOwnerHub"
             type="button"
@@ -105,7 +115,7 @@
           房主操作
         </button>
         <button
-            v-if="isOwner && gameUiTheme !== 'retro8bit'"
+            v-if="canNpcDecisionTrace && gameUiTheme !== 'retro8bit'"
             ref="guideTopDecisionTrace"
             type="button"
             class="dp-btn dp-top-bar__btn"
@@ -130,6 +140,17 @@
           <span class="dp-owner-touch__entry-label">{{ ownerRevealAll ? 'REVEAL+' : 'REVEAL' }}</span>
         </button>
         <button
+            v-if="canManageExperimentalDeckPreset && gameUiTheme === 'retro8bit'"
+            ref="guideTopDeckPresetRetro"
+            type="button"
+            class="dp-owner-touch__entry dp-owner-touch__entry--topbar dp-owner-touch__entry--retro dp-top-bar__btn"
+            aria-label="实验排牌"
+            @click="$emit('open-deck-preset')"
+        >
+          <span class="dp-owner-touch__entry-icon" aria-hidden="true">🃏</span>
+          <span class="dp-owner-touch__entry-label">DECK</span>
+        </button>
+        <button
             v-if="isOwner && gameUiTheme === 'retro8bit'"
             ref="guideTopOwnerTouch"
             type="button"
@@ -142,7 +163,7 @@
           <span class="dp-owner-touch__entry-label">OWNER</span>
         </button>
         <button
-            v-if="isOwner && gameUiTheme === 'retro8bit'"
+            v-if="canNpcDecisionTrace && gameUiTheme === 'retro8bit'"
             ref="guideTopDecisionTrace"
             type="button"
             class="dp-owner-touch__entry dp-owner-touch__entry--topbar dp-owner-touch__entry--retro dp-top-bar__btn"
@@ -262,6 +283,10 @@ export default {
     isOwner: { type: Boolean, default: false },
     /** RBAC：拥有 game:hole_cards:view 权限 */
     canViewHoleCards: { type: Boolean, default: false },
+    /** RBAC：拥有 game:experimental_deck_preset 权限 */
+    canManageExperimentalDeckPreset: { type: Boolean, default: false },
+    /** RBAC：拥有 game:npc_decision_trace 权限 */
+    canNpcDecisionTrace: { type: Boolean, default: false },
     /** RBAC 看牌权限：可切换看穿底牌 */
     canToggleReveal: { type: Boolean, default: false },
     ownerRevealAll: { type: Boolean, default: false },

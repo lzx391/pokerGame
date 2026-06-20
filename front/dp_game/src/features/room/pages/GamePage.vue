@@ -34,6 +34,8 @@
         :is-owner="isOwner"
         :can-view-hole-cards="canViewHoleCards"
         :can-toggle-reveal="canToggleReveal"
+        :can-manage-experimental-deck-preset="canManageExperimentalDeckPreset"
+        :can-npc-decision-trace="canNpcDecisionTrace"
         :owner-reveal-all="ownerRevealAll"
         :owner-touch-open="ownerTouchSheetOpen"
         :can-invite-friend="canInviteFriend"
@@ -52,6 +54,7 @@
         @open-music-box="onOpenMusicBox"
         @open-owner-hub="onOwnerHubClick"
         @toggle-reveal="onToggleRevealAll"
+        @open-deck-preset="openDeckPresetDialog"
         @open-invite-friend="onInviteFriendClick"
         @open-friend-chat="onFriendChatClick"
         :friend-chat-unread-total="friendChatUnreadTotal"
@@ -159,7 +162,7 @@
           :hands="traceHands"
           :loading="traceHandsLoading"
           :load-error="traceHandsLoadError"
-          :on-auth-failure="(body) => handleDeckPresetAuthFailure(body)"
+          :on-auth-failure="(body) => handleNpcDecisionTraceAuthFailure(body)"
           @refresh="loadTraceHands()"
       />
     </div>
@@ -385,7 +388,7 @@ export default {
     ...mapGetters('dpGame', [
       'effectiveThemeForCss', 'handRankReference', 'stageCN', 'isOwner', 'canInviteFriend', 'isMyTurn', 'myPlayer', 'showSpectatorPrepareBlock', 'myReady', 'myChips', 'myBet', 'callAmount', 'smallBlind', 'bigBlind', 'lastRaiseIncrementEffective', 'minTotalToRaise', 'minRaise', 'allPotsHaveWinners', 'inSettledStage', 'ownerActionPlayers', 'playersDisplayOrder', 'viewerSeatedAtTable', 'holeDealPlayerCountForAnim', 'heroDockRow', 'dealerDisplayIndex', 'showdownHandLeaderNicknames', 'spectatorSeatChatEntries', 'tableActionActorDisplayName', 'showHeroViewHandButton', 'showBottomHeroDock'
     ]),
-    ...mapGetters('dpAuth', ['canViewHoleCards']),
+    ...mapGetters('dpAuth', ['canViewHoleCards', 'canManageExperimentalDeckPreset', 'canNpcDecisionTrace']),
     ...mapState('dpMailbox', ['friendChatUnreadTotal']),
     ...mapGetters('dpMailbox', ['friendUnreadForUser']),
     useRetroFriendChatPanelWide() {
@@ -455,7 +458,7 @@ export default {
       return this.viewportWidth > 600 && this.layoutTier !== 'phone'
     },
     showDecisionTraceDockWide() {
-      return this.isOwner
+      return this.canNpcDecisionTrace
         && this.npcDecisionTraceDockPinned
         && this.useDecisionTraceDockWide
     },
@@ -2346,14 +2349,11 @@ export default {
     },
 
     async loadDeckPresetStatus() {
-      if (!this.isOwner || !this.roomId || !this.user) return
-      var pwd = dpDeckPresetSessionPassword(this.roomId)
-      if (!pwd) return
+      if (!this.canManageExperimentalDeckPreset || !this.roomId || !this.user) return
       try {
         var res = await this.$http.get('/dpRoom/nextHandDeckPrefixStatus', {
           params: {
-            roomId: this.roomId,
-            experimentalPassword: pwd
+            roomId: this.roomId
           }
         })
         var body = res.data
@@ -2374,42 +2374,42 @@ export default {
       if (msg.indexOf('密码') >= 0 || msg.indexOf('访问') >= 0 || msg.indexOf('未启用') >= 0 || msg.indexOf('验证') >= 0) {
         clearDeckPresetSessionUnlock(this.roomId)
         this.showDeckPresetDialog = false
-        var reopenTrace = this.npcDecisionTraceDockPinned
         this.npcDecisionTraceDockPinned = false
         this.showNpcDecisionTraceSheet = false
-        this.experimentalGatePendingFeature = reopenTrace ? 'decision-trace' : 'deck-preset'
+        this.experimentalGatePendingFeature = 'deck-preset'
         this.showDeckPresetPasswordGate = true
         this.$message.error(msg || '实验功能访问验证已失效，请重新输入密码')
       }
     },
 
-    openDeckPresetDialog() {
-      if (!this.isOwner) return
-      this.closeOwnerHubPanel()
-      if (isDeckPresetUnlocked(this.roomId)) {
-        this.showDeckPresetDialog = true
-        this.loadDeckPresetStatus()
-      } else {
-        this.experimentalGatePendingFeature = 'deck-preset'
-        this.showDeckPresetPasswordGate = true
+    handleNpcDecisionTraceAuthFailure(body) {
+      var msg = dpResultMessage(body) || ''
+      if (msg.indexOf('权限') >= 0) {
+        this.npcDecisionTraceDockPinned = false
+        this.showNpcDecisionTraceSheet = false
+        this.traceHandsLoadError = msg || '无决策追踪权限'
+        return
       }
+      this.traceHandsLoadError = msg || '加载失败'
+    },
+
+    openDeckPresetDialog() {
+      if (!this.canManageExperimentalDeckPreset) return
+      this.closeOwnerHubPanel()
+      this.showDeckPresetDialog = true
+      this.loadDeckPresetStatus()
     },
 
     openDecisionTracePanel() {
-      if (!this.isOwner) return
+      if (!this.canNpcDecisionTrace) return
       this.closeOwnerHubPanel()
       this.openDecisionTraceDock()
     },
 
     openDecisionTraceDock() {
-      if (!this.isOwner) return
+      if (!this.canNpcDecisionTrace) return
       this.closeOwnerHubPanel()
-      if (isNpcDecisionTraceUnlocked(this.roomId)) {
-        this.activateDecisionTraceDock()
-      } else {
-        this.experimentalGatePendingFeature = 'decision-trace'
-        this.showDeckPresetPasswordGate = true
-      }
+      this.activateDecisionTraceDock()
     },
 
     activateDecisionTraceDock() {
@@ -2424,6 +2424,7 @@ export default {
     },
 
     onToggleDecisionTraceDock() {
+      if (!this.canNpcDecisionTrace) return
       if (this.npcDecisionTraceDockPinned) {
         this.npcDecisionTraceDockPinned = false
         this.showNpcDecisionTraceSheet = false
@@ -2510,34 +2511,20 @@ export default {
     onDeckPresetPasswordVerified(password) {
       setDeckPresetSessionUnlock(this.roomId, password)
       this.showDeckPresetPasswordGate = false
-      var pending = this.experimentalGatePendingFeature
       this.experimentalGatePendingFeature = null
-      if (pending === 'decision-trace') {
-        this.activateDecisionTraceDock()
-        return
-      }
       this.showDeckPresetDialog = true
       this.loadDeckPresetStatus()
     },
 
     async loadTraceHands() {
-      if (!this.isOwner || !this.roomId) return
-      var pwd = dpNpcDecisionTraceAuthPassword(this.roomId)
-      if (!isNpcDecisionTraceUnlocked(this.roomId)) {
-        this.traceHandsLoadError = 'SESSION LOCKED'
-        this.npcDecisionTraceDockPinned = false
-        this.showNpcDecisionTraceSheet = false
-        this.experimentalGatePendingFeature = 'decision-trace'
-        this.showDeckPresetPasswordGate = true
-        return
-      }
+      if (!this.canNpcDecisionTrace || !this.roomId) return
       this.traceHandsLoading = true
       this.traceHandsLoadError = ''
       try {
-        var result = await fetchTraceHands(this.$http, this.roomId, pwd)
+        var result = await fetchTraceHands(this.$http, this.roomId, '')
         if (!result.ok) {
-          this.handleDeckPresetAuthFailure(result.body)
-          if (!this.showDeckPresetPasswordGate) {
+          this.handleNpcDecisionTraceAuthFailure(result.body)
+          if (!this.traceHandsLoadError) {
             this.traceHandsLoadError = dpResultMessage(result.body) || '加载失败'
           }
           return
@@ -2555,18 +2542,11 @@ export default {
     },
 
     async submitDeckPreset(cards) {
-      if (!this.isOwner || this.deckPresetSubmitting) return
-      var pwd = dpDeckPresetSessionPassword(this.roomId)
-      if (!pwd) {
-        this.showDeckPresetDialog = false
-        this.showDeckPresetPasswordGate = true
-        return
-      }
+      if (!this.canManageExperimentalDeckPreset || this.deckPresetSubmitting) return
       this.deckPresetSubmitting = true
       try {
         var res = await this.$http.post('/dpRoom/setNextHandDeckPrefix', {
           roomId: this.roomId,
-          experimentalPassword: pwd,
           cards: cards || []
         })
         var body = res.data

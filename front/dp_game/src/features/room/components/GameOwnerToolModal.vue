@@ -211,7 +211,7 @@
       </div>
       </section>
 
-      <section class="game-owner-tool__deck-preset" aria-label="预设下局牌序">
+      <section v-if="canManageExperimentalDeckPreset" class="game-owner-tool__deck-preset" aria-label="预设下局牌序">
       <div style="margin-bottom:12px; padding:8px; border-radius:6px; background:#f6ffed; border:1px dashed #52c41a;">
         <div style="font-size:13px; font-weight:bold; color:#389e0d; margin-bottom:4px;">
           实验玩法：预设下局牌序
@@ -229,7 +229,7 @@
       </div>
       </section>
 
-      <section class="game-owner-tool__decision-trace" aria-label="TAG NPC 决策追踪">
+      <section v-if="canNpcDecisionTrace" class="game-owner-tool__decision-trace" aria-label="TAG NPC 决策追踪">
       <div style="margin-bottom:12px; padding:8px; border-radius:6px; background:#e6f4ff; border:1px dashed #409eff;">
         <div style="font-size:13px; font-weight:bold; color:#0958d9; margin-bottom:4px;">
           实验功能：分析决策
@@ -413,6 +413,8 @@ export default {
     embedded: { type: Boolean, default: false },
     visible: { type: Boolean, default: false },
     canToggleReveal: { type: Boolean, default: false },
+    canManageExperimentalDeckPreset: { type: Boolean, default: false },
+    canNpcDecisionTrace: { type: Boolean, default: false },
     ownerRevealAll: { type: Boolean, default: false },
     ownerToolType: { type: String, default: 'transfer' },
     ownerActionTarget: { type: String, default: '' },

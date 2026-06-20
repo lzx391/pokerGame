@@ -66,6 +66,8 @@
                 :touch-footer-primary-cmd="touchFooterPrimaryCmd"
                 :terminal-focused="false"
                 :can-toggle-reveal="canToggleReveal"
+                :can-manage-experimental-deck-preset="canManageExperimentalDeckPreset"
+                :can-npc-decision-trace="canNpcDecisionTrace"
                 :owner-reveal-all="ownerRevealAll"
                 :demo-bot-adding="demoBotAdding"
                 :demo-bot-added-tip="demoBotAddedTip"
@@ -153,6 +155,8 @@ export default {
     },
     ownerRevealAll: { type: Boolean, default: false },
     canToggleReveal: { type: Boolean, default: false },
+    canManageExperimentalDeckPreset: { type: Boolean, default: false },
+    canNpcDecisionTrace: { type: Boolean, default: false },
     showCustomNpcStyleDialog: { type: Boolean, default: false },
     customNpcPendingCount: { type: Number, default: 1 },
     demoBotAdding: { type: Boolean, default: false },

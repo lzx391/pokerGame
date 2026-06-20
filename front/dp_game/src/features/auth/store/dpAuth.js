@@ -1,6 +1,7 @@
 import { dpResultData, dpResultSuccess } from '@shared/utils/dpApiResult'
 
 export const DP_PERM_HOLE_CARDS_VIEW = 'game:hole_cards:view'
+export const DP_PERM_EXPERIMENTAL_DECK_PRESET = 'game:experimental_deck_preset'
 
 export default {
   namespaced: true,
@@ -16,6 +17,12 @@ export default {
     },
     canViewHoleCards: function (state, getters) {
       return getters.hasPerm(DP_PERM_HOLE_CARDS_VIEW)
+    },
+    canManageExperimentalDeckPreset: function (state, getters) {
+      return getters.hasPerm(DP_PERM_EXPERIMENTAL_DECK_PRESET)
+    },
+    canNpcDecisionTrace: function (state, getters) {
+      return getters.hasPerm(DP_PERM_EXPERIMENTAL_DECK_PRESET)
     }
   },
   mutations: {

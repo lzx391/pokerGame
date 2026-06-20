@@ -3,10 +3,10 @@ package com.example.mgdemoplus.npc.trace;
 import com.example.mgdemoplus.common.bo.DpRoomBO;
 import com.example.mgdemoplus.npc.trace.model.DpNpcActionTrace;
 import com.example.mgdemoplus.npc.trace.model.DpNpcHandTraceBundle;
+import com.example.mgdemoplus.rbac.DpPermissionService;
+import com.example.mgdemoplus.rbac.support.DpPermissionCodes;
 import com.example.mgdemoplus.room.DpRoomService;
-import com.example.mgdemoplus.room.support.DpExperimentalDeckPresetPasswordGuard;
 import com.example.mgdemoplus.utils.ResultUtil;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -15,16 +15,13 @@ import java.util.List;
 public class DpNpcDecisionTraceQueryServiceImpl implements DpNpcDecisionTraceQueryService {
 
     private final DpRoomService roomService;
-    private final DpExperimentalDeckPresetPasswordGuard experimentalDeckPresetPasswordGuard;
-    private final boolean skipExperimentalPassword;
+    private final DpPermissionService permissionService;
 
     public DpNpcDecisionTraceQueryServiceImpl(
             DpRoomService roomService,
-            DpExperimentalDeckPresetPasswordGuard experimentalDeckPresetPasswordGuard,
-            @Value("${mgdemoplus.npc-decision-trace.skip-password:false}") boolean skipExperimentalPassword) {
+            DpPermissionService permissionService) {
         this.roomService = roomService;
-        this.experimentalDeckPresetPasswordGuard = experimentalDeckPresetPasswordGuard;
-        this.skipExperimentalPassword = skipExperimentalPassword;
+        this.permissionService = permissionService;
     }
 
     @Override
@@ -69,14 +66,9 @@ public class DpNpcDecisionTraceQueryServiceImpl implements DpNpcDecisionTraceQue
         if (roomService.getAllRooms(roomId) == null) {
             return ResultUtil.error().data("message", "房间不存在");
         }
-        if (!roomService.isRoomOwnerNickname(roomId, requesterNickname)) {
-            return ResultUtil.error().data("message", "仅房主可访问决策分析");
-        }
-        if (!skipExperimentalPassword) {
-            ResultUtil gate = experimentalDeckPresetPasswordGuard.gate(experimentalPassword);
-            if (gate != null) {
-                return gate;
-            }
+        if (requesterNickname == null || requesterNickname.isBlank()
+                || !permissionService.hasPermi(requesterNickname.trim(), DpPermissionCodes.GAME_NPC_DECISION_TRACE)) {
+            return ResultUtil.error().data("message", "无决策追踪权限");
         }
         return null;
     }

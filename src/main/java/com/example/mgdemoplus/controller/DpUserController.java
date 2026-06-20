@@ -2,6 +2,7 @@ package com.example.mgdemoplus.controller;
 
 import com.example.mgdemoplus.common.entity.DpUser;
 import com.example.mgdemoplus.common.mapper.DpUserMapper;
+import com.example.mgdemoplus.rbac.DpPermissionService;
 import com.example.mgdemoplus.security.DpCurrentUserSupport;
 import com.example.mgdemoplus.security.JwtTokenService;
 import com.example.mgdemoplus.user.cache.DpRedisLoginCacheService;
@@ -32,7 +33,9 @@ import com.example.mgdemoplus.achievement.DpAchievementService;
 import com.example.mgdemoplus.achievement.vo.DpAchievementWallItemVO;
 import com.example.mgdemoplus.user.dto.DpAvatarUploadResult;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -52,6 +55,8 @@ public class DpUserController {
     ObjectMapper objectMapper;
     @Autowired
     DpCurrentUserSupport currentUserSupport;
+    @Autowired
+    DpPermissionService dpPermissionService;
 
     @PostMapping("/registerUser")
     public ResultUtil registerUser(@RequestBody DpUser dpUser) {
@@ -88,6 +93,19 @@ public class DpUserController {
         String token = jwtTokenService.generateToken(u.getNickname(), jti);
         dpRedisLoginCacheService.setLoginJti(u.getNickname(), jti);
         return ResultUtil.ok().data("userId", u.getId()).data("nickname", u.getNickname()).data("token", token);
+    }
+
+    /**
+     * 当前登录用户的 RBAC 权限码列表。
+     */
+    @GetMapping("/permissions")
+    public ResultUtil currentUserPermissions() {
+        Integer userId = currentUserSupport.requireUserId();
+        if (userId == null) {
+            return ResultUtil.error().data("message", "未登录或登录已失效");
+        }
+        Set<String> permissions = dpPermissionService.resolveByUserId(userId);
+        return ResultUtil.ok().data("permissions", new ArrayList<>(permissions));
     }
 
     /**

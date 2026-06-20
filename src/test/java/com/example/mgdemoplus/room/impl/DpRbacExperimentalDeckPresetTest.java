@@ -1,0 +1,126 @@
+package com.example.mgdemoplus.room.impl;
+
+import com.example.mgdemoplus.common.bo.DpRoomBO;
+import com.example.mgdemoplus.history.DpHandHistoryObservedService;
+import com.example.mgdemoplus.history.DpHandHistoryPersistService;
+import com.example.mgdemoplus.leaderboard.impl.DpLeaderboardWeeklyWriteService;
+import com.example.mgdemoplus.lobby.DpRoomHallService;
+import com.example.mgdemoplus.npc.llm.DpLlmNpcDecisionService;
+import com.example.mgdemoplus.npc.llm.LlmNpcGlobalHandConversationStore;
+import com.example.mgdemoplus.npc.tabletalk.DpNpcTableTalkService;
+import com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTracePushService;
+import com.example.mgdemoplus.presence.DpFriendPresenceService;
+import com.example.mgdemoplus.rbac.DpPermissionService;
+import com.example.mgdemoplus.rbac.support.DpPermissionCodes;
+import com.example.mgdemoplus.room.support.DpExperimentalDeckPresetPasswordGuard;
+import com.example.mgdemoplus.room.support.DpSettlePersistenceDispatcher;
+import com.example.mgdemoplus.roomchat.DpRoomChatPersistenceService;
+import com.example.mgdemoplus.roomchat.buffer.RoomChatBuffer;
+import com.example.mgdemoplus.user.mapper.DpUserStatsMapper;
+import com.example.mgdemoplus.utils.ResultUtil;
+import com.example.mgdemoplus.websocket.DpGameRoomPushService;
+import com.example.mgdemoplus.websocket.DpQuickMatchPushService;
+import com.example.mgdemoplus.common.mapper.DpUserMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.lang.reflect.Field;
+import java.util.List;
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+class DpRbacExperimentalDeckPresetTest {
+
+    private DpRoomServiceImpl svc;
+    private DpPermissionService permissionService;
+
+    @BeforeEach
+    void setUp() throws Exception {
+        DpRoomServiceImpl.suppressGlobalRoomTimerForTests = true;
+        permissionService = mock(DpPermissionService.class);
+        svc = new DpRoomServiceImpl(
+                mock(DpHandHistoryPersistService.class),
+                mock(DpSettlePersistenceDispatcher.class),
+                mock(DpLlmNpcDecisionService.class),
+                mock(DpNpcTableTalkService.class),
+                mock(com.example.mgdemoplus.npc.mood.DpNpcMoodProperties.class),
+                mock(DpGameRoomPushService.class),
+                mock(DpUserMapper.class),
+                mock(DpUserStatsMapper.class),
+                mock(DpLeaderboardWeeklyWriteService.class),
+                mock(DpHandHistoryObservedService.class),
+                new LlmNpcGlobalHandConversationStore(),
+                mock(DpRoomHallService.class),
+                new ObjectMapper(),
+                mock(DpQuickMatchPushService.class),
+                mock(DpFriendPresenceService.class),
+                new RoomChatBuffer(),
+                mock(DpRoomChatPersistenceService.class),
+                mock(com.example.mgdemoplus.moderation.DpSensitiveWordService.class),
+                new DpExperimentalDeckPresetPasswordGuard("secret"),
+                mock(DpNpcTagDecisionTracePushService.class),
+                permissionService);
+        putRoom("room-1", "owner");
+    }
+
+    @AfterEach
+    void tearDown() {
+        DpRoomServiceImpl.suppressGlobalRoomTimerForTests = false;
+    }
+
+    @Test
+    void owner_withoutPermission_isDenied() {
+        when(permissionService.hasPermi(eq("owner"), eq(DpPermissionCodes.GAME_EXPERIMENTAL_DECK_PRESET)))
+                .thenReturn(false);
+
+        ResultUtil result = svc.verifyExperimentalDeckPassword("room-1", "owner", "secret");
+
+        assertThat(result.getSuccess()).isFalse();
+        assertThat(result.getData().get("message")).isEqualTo("无实验排牌权限");
+    }
+
+    @Test
+    void nonOwner_withPermission_skipsPasswordAndAllowsPreset() {
+        when(permissionService.hasPermi(eq("viewer"), eq(DpPermissionCodes.GAME_EXPERIMENTAL_DECK_PRESET)))
+                .thenReturn(true);
+
+        ResultUtil verify = svc.verifyExperimentalDeckPassword("room-1", "viewer", null);
+        assertThat(verify.getSuccess()).isTrue();
+
+        ResultUtil set = svc.setNextHandDeckPrefix("room-1", "viewer", List.of("hearts_A", "diamonds_K"), null);
+        assertThat(set.getSuccess()).isTrue();
+        assertThat(set.getData().get("presetCount")).isEqualTo(2);
+
+        ResultUtil status = svc.getNextHandDeckPrefixStatus("room-1", "viewer", null);
+        assertThat(status.getSuccess()).isTrue();
+        assertThat(status.getData().get("presetCount")).isEqualTo(2);
+    }
+
+    @Test
+    void nonOwner_withoutPermission_isDenied() {
+        when(permissionService.hasPermi(eq("viewer"), eq(DpPermissionCodes.GAME_EXPERIMENTAL_DECK_PRESET)))
+                .thenReturn(false);
+
+        ResultUtil result = svc.getNextHandDeckPrefixStatus("room-1", "viewer", "secret");
+
+        assertThat(result.getSuccess()).isFalse();
+        assertThat(result.getData().get("message")).isEqualTo("无实验排牌权限");
+    }
+
+    private void putRoom(String roomId, String owner) throws Exception {
+        DpRoomBO room = new DpRoomBO();
+        room.setRoomId(roomId);
+        room.setOwner(owner);
+        Field f = DpRoomServiceImpl.class.getDeclaredField("roomMap");
+        f.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<String, DpRoomBO> roomMap = (Map<String, DpRoomBO>) f.get(svc);
+        roomMap.put(roomId, room);
+    }
+}

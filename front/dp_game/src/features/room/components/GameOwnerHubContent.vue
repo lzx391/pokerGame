@@ -233,6 +233,8 @@ export default {
     /** 触控面板：更大点击区，看牌直接切换 */
     touchMode: { type: Boolean, default: false },
     canToggleReveal: { type: Boolean, default: false },
+    canManageExperimentalDeckPreset: { type: Boolean, default: false },
+    canNpcDecisionTrace: { type: Boolean, default: false },
     ownerRevealAll: { type: Boolean, default: false },
     demoBotAdding: { type: Boolean, default: false },
     demoBotAddedTip: { type: String, default: '' },
@@ -337,6 +339,16 @@ export default {
       if (!this.canToggleReveal) {
         items = items.filter(function (item) {
           return item.id !== 'reveal'
+        })
+      }
+      if (!this.canManageExperimentalDeckPreset) {
+        items = items.filter(function (item) {
+          return item.id !== 'deck-preset'
+        })
+      }
+      if (!this.canNpcDecisionTrace) {
+        items = items.filter(function (item) {
+          return item.id !== 'decision-trace'
         })
       }
       return items

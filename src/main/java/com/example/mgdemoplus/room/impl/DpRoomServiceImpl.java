@@ -17,6 +17,7 @@ import com.example.mgdemoplus.room.support.DpRoomRegistry;
 import com.example.mgdemoplus.room.support.DpRoomServiceCallbacks;
 import com.example.mgdemoplus.room.support.DpRoomSnapshotSupport;
 import com.example.mgdemoplus.rbac.DpPermissionService;
+import com.example.mgdemoplus.rbac.support.DpPermissionCodes;
 
 import com.example.mgdemoplus.history.bo.DpObservedHandRecordBO;
 import com.example.mgdemoplus.common.bo.DpRoomBO;
@@ -98,6 +99,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     private final DpRoomChatPersistenceService roomChatPersistenceService;
     private final DpExperimentalDeckPresetPasswordGuard experimentalDeckPresetPasswordGuard;
     private final DpNpcTagDecisionTracePushService npcDecisionTracePushService;
+    private final DpPermissionService dpPermissionService;
 
     // 统一从 NPC 引擎中获取机器人昵称，避免散落魔法字符串
     public boolean addDemoBotToNextHand(String roomId) {
@@ -330,6 +332,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         this.roomChatPersistenceService = roomChatPersistenceService;
         this.experimentalDeckPresetPasswordGuard = experimentalDeckPresetPasswordGuard;
         this.npcDecisionTracePushService = npcDecisionTracePushService;
+        this.dpPermissionService = dpPermissionService;
         this.lobbySync = new DpRoomLobbySync(
                 registry,
                 joinableQuickMatchRoomIndex,
@@ -519,12 +522,9 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         if (r == null) {
             return ResultUtil.error().data("message", "房间不存在");
         }
-        if (!isRoomOwnerNickname(roomId, requesterNickname)) {
-            return ResultUtil.error().data("message", "仅房主可访问实验排牌");
-        }
-        ResultUtil gate = experimentalDeckPresetPasswordGuard.gate(experimentalPassword);
-        if (gate != null) {
-            return gate;
+        ResultUtil denied = authorizeExperimentalDeckPreset(requesterNickname);
+        if (denied != null) {
+            return denied;
         }
         return ResultUtil.ok().data("message", "访问密码验证通过");
     }
@@ -536,12 +536,9 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         if (r == null) {
             return ResultUtil.error().data("message", "房间不存在");
         }
-        if (!isRoomOwnerNickname(roomId, requesterNickname)) {
-            return ResultUtil.error().data("message", "仅房主可预设牌序");
-        }
-        ResultUtil gate = experimentalDeckPresetPasswordGuard.gate(experimentalPassword);
-        if (gate != null) {
-            return gate;
+        ResultUtil denied = authorizeExperimentalDeckPreset(requesterNickname);
+        if (denied != null) {
+            return denied;
         }
         List<String> normalized = new ArrayList<>();
         if (cards != null) {
@@ -556,9 +553,6 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
             return ResultUtil.error().data("message", validationError);
         }
         synchronized (r) {
-            if (!isRoomOwnerNickname(roomId, requesterNickname)) {
-                return ResultUtil.error().data("message", "仅房主可预设牌序");
-            }
             if (normalized.isEmpty()) {
                 r.setNextHandDeckPrefix(null);
             } else {
@@ -577,12 +571,9 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         if (r == null) {
             return ResultUtil.error().data("message", "房间不存在");
         }
-        if (!isRoomOwnerNickname(roomId, requesterNickname)) {
-            return ResultUtil.error().data("message", "仅房主可查询牌序预设");
-        }
-        ResultUtil gate = experimentalDeckPresetPasswordGuard.gate(experimentalPassword);
-        if (gate != null) {
-            return gate;
+        ResultUtil denied = authorizeExperimentalDeckPreset(requesterNickname);
+        if (denied != null) {
+            return denied;
         }
         List<String> prefix;
         synchronized (r) {
@@ -593,6 +584,17 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
                 .data("presetCount", cardsCopy.size())
                 .data("cards", cardsCopy)
                 .data("canSet", true);
+    }
+
+    /** 有 {@link DpPermissionCodes#GAME_EXPERIMENTAL_DECK_PRESET} 权限即可，跳过实验密码。 */
+    private ResultUtil authorizeExperimentalDeckPreset(String requesterNickname) {
+        if (requesterNickname == null || requesterNickname.isBlank()) {
+            return ResultUtil.error().data("message", "无实验排牌权限");
+        }
+        if (!dpPermissionService.hasPermi(requesterNickname.trim(), DpPermissionCodes.GAME_EXPERIMENTAL_DECK_PRESET)) {
+            return ResultUtil.error().data("message", "无实验排牌权限");
+        }
+        return null;
     }
 
     private static final class GiveOwnerMutationOutcome {
