@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Configuration
+//web级安全
 @EnableWebSecurity
 //方法级安全
 @EnableMethodSecurity(prePostEnabled = true)
