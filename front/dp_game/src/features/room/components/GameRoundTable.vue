@@ -138,6 +138,7 @@
             :community-cards="communityCards"
             :community-cards-flip-complete="communityCardsFlipComplete"
             :is-owner="isOwner"
+            :can-view-all-hole-cards="canViewAllHoleCards"
             :owner-reveal-all="ownerRevealAll"
             :my-nickname="myNickname"
             :hand-deal-key="currentHandSeed"
@@ -210,6 +211,7 @@ export default {
     retroShowdownTvPending: { type: Boolean, default: false },
     communityCardsFlipComplete: { type: Boolean, default: false },
     isOwner: { type: Boolean, default: false },
+    canViewAllHoleCards: { type: Boolean, default: false },
     ownerRevealAll: { type: Boolean, default: false },
     myNickname: { type: String, default: '' },
     currentHandSeed: { type: Number, default: 0 },

@@ -58,6 +58,7 @@
           <dp-fluidity-toggle label-class="home-fluidity-toggle" />
         </div>
         <div class="home-toolbar__actions">
+          <button type="button" class="home-tool-btn" @click="openAdminMode">进入管理员模式</button>
           <button type="button" class="home-tool-btn" @click="openPlayGuide(false)">玩法说明</button>
           <button type="button" class="home-tool-btn" @click="goButtonGuide">新手一分钟</button>
           <button type="button" class="home-tool-btn" @click="profileVisible = true">个人资料</button>
@@ -746,6 +747,12 @@
       :game-ui-theme="gameUiTheme"
       @close="closeOpponentHandHistoryModal"
     />
+
+    <admin-password-gate
+      :visible.sync="adminPasswordGateVisible"
+      :game-ui-theme="gameUiTheme"
+      @verified="onAdminPasswordVerified"
+    />
   </div>
 </template>
 
@@ -783,10 +790,12 @@ import DpCrtBootSequence from '@shared/components/DpCrtBootSequence.vue'
 import DpMailboxConsole from '@features/social/components/DpMailboxConsole.vue'
 import QuickMatchPixelCritters from '@features/quickmatch/components/QuickMatchPixelCritters.vue'
 import LobbyRoomPasswordGate from '@features/lobby/components/LobbyRoomPasswordGate.vue'
+import AdminPasswordGate from '@features/admin/components/AdminPasswordGate.vue'
 import { prefetchAvatarUrls } from '@features/user/utils/dpAvatarPrefetch'
 import { avatarCacheBustFromUpdatedAt } from '@features/user/utils/dpAvatarUrl'
 import { DP_Z_LAYER } from '@shared/utils/dpModalZIndex'
 import { dpPruneFriendDrawerStrayVModal } from '@shared/utils/dpOverlayPortal'
+import { bootstrapDpAuthPermissions } from '@features/auth/utils/dpAuthBootstrap'
 
 export default {
   name: 'LobbyPage',
@@ -801,7 +810,8 @@ export default {
     DpCrtBootSequence,
     DpMailboxConsole,
     QuickMatchPixelCritters,
-    LobbyRoomPasswordGate
+    LobbyRoomPasswordGate,
+    AdminPasswordGate
   },
   mixins: [dpLobbyThemeMixin],
   data() {
@@ -859,6 +869,7 @@ export default {
       opponentHandHistoryDisplayName: '',
       lobbyPasswordGateVisible: false,
       lobbyPasswordGateRoomId: '',
+      adminPasswordGateVisible: false,
       DP_Z_LAYER
     }
   },
@@ -971,6 +982,7 @@ export default {
       this.bootstrapSocial()
       this.loadCurrentUserAvatar()
       prefetchGameChunk()
+      bootstrapDpAuthPermissions(this).catch(function () {})
     }
   },
   mounted() {
@@ -1401,7 +1413,26 @@ export default {
         localStorage.setItem('userInfo', JSON.stringify(stored))
       } catch (e) { /* ignore */ }
     },
-    logout() { disconnectDpSocialStream(); localStorage.removeItem('userInfo'); this.$router.push('/') },
+    logout() {
+      disconnectDpSocialStream()
+      this.$store.dispatch('dpAuth/clearPermissions')
+      localStorage.removeItem('userInfo')
+      this.$router.push('/')
+    },
+    openAdminMode() {
+      if (!this.user || !this.user.token) {
+        alert('请先登录')
+        return
+      }
+      if (sessionStorage.getItem('dp_admin_unlock') === '1') {
+        this.$router.push('/admin')
+        return
+      }
+      this.adminPasswordGateVisible = true
+    },
+    onAdminPasswordVerified() {
+      this.$router.push('/admin')
+    },
     goHandHistory() { this.$router.push('/hand-history') },
     goLeaderboard() { this.$router.push('/leaderboard') },
     goButtonGuide() { this.$router.push({ name: 'GameButtonGuide' }) },

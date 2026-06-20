@@ -3,6 +3,8 @@ package com.example.mgdemoplus.room.support;
 import com.example.mgdemoplus.common.bo.DpRoomBO;
 import com.example.mgdemoplus.common.entity.DpPlayer;
 import com.example.mgdemoplus.moderation.DpSensitiveWordService;
+import com.example.mgdemoplus.rbac.DpPermissionService;
+import com.example.mgdemoplus.rbac.support.DpPermissionCodes;
 import com.example.mgdemoplus.roomchat.buffer.RoomChatBuffer;
 import com.example.mgdemoplus.roomchat.buffer.RoomChatEntry;
 import com.example.mgdemoplus.utils.ResultUtil;
@@ -24,18 +26,21 @@ public final class DpRoomSnapshotSupport {
     private final ObjectMapper objectMapper;
     private final DpRoomServiceCallbacks callbacks;
     private final DpSensitiveWordService sensitiveWordService;
+    private final DpPermissionService permissionService;
 
     public DpRoomSnapshotSupport(
             DpRoomRegistry registry,
             RoomChatBuffer roomChatBuffer,
             ObjectMapper objectMapper,
             DpRoomServiceCallbacks callbacks,
-            DpSensitiveWordService sensitiveWordService) {
+            DpSensitiveWordService sensitiveWordService,
+            DpPermissionService permissionService) {
         this.registry = registry;
         this.roomChatBuffer = roomChatBuffer;
         this.objectMapper = objectMapper;
         this.callbacks = callbacks;
         this.sensitiveWordService = sensitiveWordService;
+        this.permissionService = permissionService;
     }
 
     public ResultUtil listRecentRoomChat(String roomId, String viewerNickname, int limit) {
@@ -129,7 +134,7 @@ public final class DpRoomSnapshotSupport {
         }
     }
 
-    private static void sanitizeHoleCardsForViewer(DpRoomBO room, String viewerNickname) {
+    private void sanitizeHoleCardsForViewer(DpRoomBO room, String viewerNickname) {
         if (room == null || room.getPlayers() == null) {
             return;
         }
@@ -138,6 +143,8 @@ public final class DpRoomSnapshotSupport {
         boolean multiWayShowdown = true;
         boolean revealOthers = ("showdown".equals(stage) && multiWayShowdown)
                 || ("settled".equals(stage) && room.isLastHandHoleCardsPublic() && multiWayShowdown);
+        boolean canViewAllHoleCards = !v.isEmpty()
+                && permissionService.hasPermi(v, DpPermissionCodes.GAME_HOLE_CARDS_VIEW);
 
         for (DpPlayer p : room.getPlayers()) {
             if (p == null) {
@@ -147,7 +154,7 @@ public final class DpRoomSnapshotSupport {
                 continue;
             }
             boolean showCards = revealOthers && !p.isFold();
-            if (!showCards && !v.equals(room.getOwner())) {
+            if (!showCards && !canViewAllHoleCards) {
                 p.setHoleCards(Collections.emptyList());
                 p.setBestHandCards(Collections.emptyList());
                 p.setHandRankName("");

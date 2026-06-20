@@ -66,6 +66,7 @@
             :community-cards="vm.communityCards"
             :community-cards-flip-complete="vm.communityCardsFlipComplete"
             :is-owner="vm.isOwner"
+            :can-view-all-hole-cards="vm.canViewAllHoleCards"
             :owner-reveal-all="vm.ownerRevealAll"
             :my-nickname="vm.user ? vm.user.nickname : ''"
             :hand-deal-key="vm.currentHandSeed"

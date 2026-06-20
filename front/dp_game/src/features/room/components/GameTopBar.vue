@@ -83,6 +83,18 @@
           玩法说明
         </button>
         <button
+            v-if="canToggleReveal"
+            ref="guideTopReveal"
+            type="button"
+            class="dp-btn dp-top-bar__btn dp-top-bar__btn--reveal"
+            :class="ownerRevealAll ? 'dp-btn--primary' : 'dp-btn--ghost'"
+            :aria-pressed="ownerRevealAll ? 'true' : 'false'"
+            aria-label="看穿底牌"
+            @click="$emit('toggle-reveal')"
+        >
+          {{ ownerRevealAll ? '关闭看牌' : '看穿底牌' }}
+        </button>
+        <button
             v-if="isOwner && gameUiTheme !== 'retro8bit'"
             ref="guideTopOwnerHub"
             type="button"
@@ -103,6 +115,19 @@
             @click="$emit('toggle-decision-trace-dock')"
         >
           {{ npcDecisionTracePinned ? '决策追踪已固定' : '决策追踪' }}
+        </button>
+        <button
+            v-if="canToggleReveal && gameUiTheme === 'retro8bit'"
+            ref="guideTopRevealRetro"
+            type="button"
+            class="dp-owner-touch__entry dp-owner-touch__entry--topbar dp-owner-touch__entry--retro dp-top-bar__btn"
+            :class="{ 'dp-owner-touch__entry--retro-pinned': ownerRevealAll }"
+            :aria-pressed="ownerRevealAll ? 'true' : 'false'"
+            aria-label="看穿底牌"
+            @click="$emit('toggle-reveal')"
+        >
+          <span class="dp-owner-touch__entry-icon" aria-hidden="true">👁</span>
+          <span class="dp-owner-touch__entry-label">{{ ownerRevealAll ? 'REVEAL+' : 'REVEAL' }}</span>
         </button>
         <button
             v-if="isOwner && gameUiTheme === 'retro8bit'"
@@ -235,6 +260,11 @@ export default {
     ecoMode: { type: Boolean, required: true },
     /** 是否在顶栏显示「房主操作」入口 */
     isOwner: { type: Boolean, default: false },
+    /** RBAC：拥有 game:hole_cards:view 权限 */
+    canViewHoleCards: { type: Boolean, default: false },
+    /** RBAC 看牌权限：可切换看穿底牌 */
+    canToggleReveal: { type: Boolean, default: false },
+    ownerRevealAll: { type: Boolean, default: false },
     /** retro8bit 触控房主面板是否已打开（顶栏按钮 aria） */
     ownerTouchOpen: { type: Boolean, default: false },
     /** 局内未离座成员或观众：可邀请互为好友进房 */

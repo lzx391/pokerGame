@@ -265,6 +265,7 @@
           踢出至观众席
         </button>
         <button
+          v-if="canToggleReveal"
           type="button"
           class="dp-btn--owner-orange game-owner-tool__reveal-btn"
           @click="$emit('update:ownerRevealAll', !ownerRevealAll)"
@@ -411,6 +412,7 @@ export default {
     /** 嵌入 game.vue 底部抽屉时不使用遮罩层，由外层 sheet 承载 */
     embedded: { type: Boolean, default: false },
     visible: { type: Boolean, default: false },
+    canToggleReveal: { type: Boolean, default: false },
     ownerRevealAll: { type: Boolean, default: false },
     ownerToolType: { type: String, default: 'transfer' },
     ownerActionTarget: { type: String, default: '' },

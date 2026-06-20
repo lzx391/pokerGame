@@ -16,7 +16,9 @@ export function syncDpBodyGameTheme(store, router) {
       path.startsWith('/hand-history') ||
       path === '/leaderboard' ||
       path === '/music-upload' ||
-      path === '/download-center'
+      path === '/download-center' ||
+      path === '/admin' ||
+      path.indexOf('/admin/') === 0
     var gameLike = path.indexOf('/game') === 0
     var guideLike = path === '/guide'
     var authLike =

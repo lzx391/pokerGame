@@ -12,6 +12,7 @@ import com.example.mgdemoplus.user.dto.DpUserProfileUpdateResult;
 import com.example.mgdemoplus.user.dto.DpPlayerHonorView;
 import com.example.mgdemoplus.user.dto.DpUserProfileView;
 import com.example.mgdemoplus.leaderboard.impl.DpLeaderboardWeeklyReadService;
+import com.example.mgdemoplus.rbac.DpRbacService;
 import com.example.mgdemoplus.user.mapper.DpUserStatsMapper;
 import com.example.mgdemoplus.utils.CryptoUtil;
 import com.example.mgdemoplus.storage.DpAvatarStorageSupport;
@@ -45,6 +46,8 @@ public class DpUserServiceImpl implements DpUserService {
     DpObjectStorage objectStorage;
     @Autowired
     DpAvatarStorageSupport avatarStorageSupport;
+    @Autowired
+    DpRbacService dpRbacService;
 
     private static final long MAX_AVATAR_BYTES = 2L * 1024 * 1024;
 
@@ -80,7 +83,11 @@ public class DpUserServiceImpl implements DpUserService {
             return 0;
         }
         dpUser.setPassword(CryptoUtil.bcryptEncode(dpUser.getPassword()));
-        return dpUserMapper.registerUser(dpUser);
+        int result = dpUserMapper.registerUser(dpUser);
+        if (result == REGISTER_OK) {
+            dpRbacService.bindPlayerRole(dpUser.getId());
+        }
+        return result;
     }
 
     public DpUser selectById(int id) {

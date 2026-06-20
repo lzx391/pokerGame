@@ -32,9 +32,12 @@ import './styles/dp-game-responsive-type.css'
 import './styles/dp-game-layout-tiers.css'
 import './styles/dp-game-element-ui.css'
 import './styles/dp-social-lists.css'
+import hasPermi from '@/directives/hasPermi'
 import {
   Badge,
   Button,
+  Checkbox,
+  CheckboxGroup,
   Dialog,
   Drawer,
   Form,
@@ -56,8 +59,12 @@ import 'element-ui/lib/theme-chalk/icon.css'
 
 Vue.config.productionTip = false
 
+Vue.directive('hasPermi', hasPermi)
+
 Vue.use(Badge)
 Vue.use(Button)
+Vue.use(Checkbox)
+Vue.use(CheckboxGroup)
 Vue.use(Dialog)
 Vue.use(Drawer)
 Vue.use(Form)

@@ -32,6 +32,9 @@
         :wait-next-hand-count="waitNextHand.length"
         :is-fullscreen="layoutFullscreen"
         :is-owner="isOwner"
+        :can-view-hole-cards="canViewHoleCards"
+        :can-toggle-reveal="canToggleReveal"
+        :owner-reveal-all="ownerRevealAll"
         :owner-touch-open="ownerTouchSheetOpen"
         :can-invite-friend="canInviteFriend"
         :show-spectator-prepare="showSpectatorPrepareBlock"
@@ -48,6 +51,7 @@
         @open-hand-history="openHandHistory"
         @open-music-box="onOpenMusicBox"
         @open-owner-hub="onOwnerHubClick"
+        @toggle-reveal="onToggleRevealAll"
         @open-invite-friend="onInviteFriendClick"
         @open-friend-chat="onFriendChatClick"
         :friend-chat-unread-total="friendChatUnreadTotal"
@@ -96,6 +100,7 @@
               :retro-showdown-tv-pending="retroShowdownTvPending"
               :community-cards-flip-complete="communityCardsFlipComplete"
               :is-owner="isOwner"
+              :can-view-all-hole-cards="canViewAllHoleCards"
               :owner-reveal-all="ownerRevealAll"
               :my-nickname="user ? user.nickname : ''"
               :current-hand-seed="currentHandSeed"
@@ -235,6 +240,7 @@ import dpGameActionCountdownMixin from '../mixins/dpGameActionCountdownMixin'
 import dpGameLayoutTierMixin from '../mixins/dpGameLayoutTierMixin'
 import { dpGamePlayerBoxStyle } from '../utils/dpGamePlayerBoxStyle'
 import { ensureDpUserIdInStorage } from '@features/user/utils/dpEnsureUserId'
+import { bootstrapDpAuthPermissions } from '@features/auth/utils/dpAuthBootstrap'
 import { dpResultSuccess, dpResultData, dpResultMessage } from '@shared/utils/dpApiResult'
 import {
   isDeckPresetUnlocked,
@@ -379,6 +385,7 @@ export default {
     ...mapGetters('dpGame', [
       'effectiveThemeForCss', 'handRankReference', 'stageCN', 'isOwner', 'canInviteFriend', 'isMyTurn', 'myPlayer', 'showSpectatorPrepareBlock', 'myReady', 'myChips', 'myBet', 'callAmount', 'smallBlind', 'bigBlind', 'lastRaiseIncrementEffective', 'minTotalToRaise', 'minRaise', 'allPotsHaveWinners', 'inSettledStage', 'ownerActionPlayers', 'playersDisplayOrder', 'viewerSeatedAtTable', 'holeDealPlayerCountForAnim', 'heroDockRow', 'dealerDisplayIndex', 'showdownHandLeaderNicknames', 'spectatorSeatChatEntries', 'tableActionActorDisplayName', 'showHeroViewHandButton', 'showBottomHeroDock'
     ]),
+    ...mapGetters('dpAuth', ['canViewHoleCards']),
     ...mapState('dpMailbox', ['friendChatUnreadTotal']),
     ...mapGetters('dpMailbox', ['friendUnreadForUser']),
     useRetroFriendChatPanelWide() {
@@ -436,6 +443,12 @@ export default {
     },
     useRetroOwnerPanelWide() {
       return this.gameUiTheme === 'retro8bit' && this.viewportWidth > 600
+    },
+    canViewAllHoleCards() {
+      return !!this.canViewHoleCards
+    },
+    canToggleReveal() {
+      return this.canViewAllHoleCards
     },
     /** 默认主题决策追踪：宽屏右侧 dock；窄屏 bottom sheet */
     useDecisionTraceDockWide() {
@@ -716,6 +729,7 @@ export default {
       }
       user.userId = uid
       self.$store.commit('dpGame/SET_SESSION', { user: user })
+      bootstrapDpAuthPermissions(self).catch(function () {})
 
       // 先 HTTP 拉一次，再建立 WebSocket（推送与定时器同 1s 节奏）
       self.loadGame().then(function () {
@@ -2299,9 +2313,7 @@ export default {
     },
 
     onOwnerTouchToggleReveal() {
-      var next = !this.ownerRevealAll
-      this.$store.commit('dpGame/SET_OWNER_REVEAL_ALL', next)
-      this.$message.success(next ? '已开启看牌' : '已关闭看牌')
+      this.onToggleRevealAll()
     },
 
     closeOwnerTerminal() {
@@ -2314,6 +2326,14 @@ export default {
     },
 
     onOwnerTerminalToggleReveal() {
+      this.onToggleRevealAll()
+    },
+
+    onToggleRevealAll() {
+      if (!this.canToggleReveal) {
+        dpOwnerTerminalDevLog('blocked', { canToggleReveal: false })
+        return
+      }
       var next = !this.ownerRevealAll
       this.$store.commit('dpGame/SET_OWNER_REVEAL_ALL', next)
       this.$message.success(next ? '已开启看穿底牌' : '已关闭看穿底牌')

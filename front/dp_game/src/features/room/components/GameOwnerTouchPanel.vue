@@ -65,6 +65,7 @@
                 :touch-footer-back-seq="touchFooterBackSeq"
                 :touch-footer-primary-cmd="touchFooterPrimaryCmd"
                 :terminal-focused="false"
+                :can-toggle-reveal="canToggleReveal"
                 :owner-reveal-all="ownerRevealAll"
                 :demo-bot-adding="demoBotAdding"
                 :demo-bot-added-tip="demoBotAddedTip"
@@ -151,6 +152,7 @@ export default {
       }
     },
     ownerRevealAll: { type: Boolean, default: false },
+    canToggleReveal: { type: Boolean, default: false },
     showCustomNpcStyleDialog: { type: Boolean, default: false },
     customNpcPendingCount: { type: Number, default: 1 },
     demoBotAdding: { type: Boolean, default: false },

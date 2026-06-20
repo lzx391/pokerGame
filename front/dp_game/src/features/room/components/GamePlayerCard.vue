@@ -369,6 +369,8 @@ export default {
     communityCards: { type: Array, required: true },
     communityCardsFlipComplete: { type: Boolean, required: true },
     isOwner: { type: Boolean, required: true },
+    /** RBAC 看牌权限 */
+    canViewAllHoleCards: { type: Boolean, default: false },
     ownerRevealAll: { type: Boolean, required: true },
     myNickname: { type: String, default: '' },
     /** 与房间 currentHandSeed 同步，每新一手变化以触发展位发手牌动画 */
@@ -533,7 +535,7 @@ export default {
         this.player.fold
         && this.foldMuckAnimComplete
         && !this.isMe
-        && !(this.isOwner && this.ownerRevealAll)
+        && !(this.canViewAllHoleCards && this.ownerRevealAll)
       ) {
         return false
       }
@@ -588,7 +590,7 @@ export default {
       if (this.player.leftThisHand) return false
       return (
         this.isMe
-        || (this.isOwner && this.ownerRevealAll && this.player.holeCards && this.player.holeCards.length > 0)
+        || (this.canViewAllHoleCards && this.ownerRevealAll && this.player.holeCards && this.player.holeCards.length > 0)
         || (this.isShowdownRevealActive && !this.player.fold)
       )
     },
@@ -603,7 +605,7 @@ export default {
       if (!boardOk) return false
       return (
         this.isMe
-        || (this.isOwner && this.ownerRevealAll && this.player.holeCards && this.player.holeCards.length > 0)
+        || (this.canViewAllHoleCards && this.ownerRevealAll && this.player.holeCards && this.player.holeCards.length > 0)
         || (this.isShowdownRevealActive && !this.player.fold)
       )
     },
@@ -622,7 +624,7 @@ export default {
     /** 牌型标签用「己方可见」配色还是摊牌公开配色 */
     showHandRankAsOpen() {
       return this.isMe
-        || (this.isOwner && this.ownerRevealAll && this.player.holeCards && this.player.holeCards.length > 0)
+        || (this.canViewAllHoleCards && this.ownerRevealAll && this.player.holeCards && this.player.holeCards.length > 0)
     },
     /** 牌型名称：服务端 `handRankName` 经前端展示映射（旧名兼容） */
     displayHandRankName() {

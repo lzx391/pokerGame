@@ -122,6 +122,7 @@
       <game-owner-tool-modal
           :embedded="true"
           :visible="true"
+          :can-toggle-reveal="vm.canToggleReveal"
           :owner-reveal-all="vm.ownerRevealAll"
           @update:ownerRevealAll="$store.commit('dpGame/SET_OWNER_REVEAL_ALL', $event)"
           :owner-tool-type="vm.ownerToolType"
@@ -162,6 +163,7 @@
         :open="vm.ownerTouchSheetOpen"
         :game-ui-theme="vm.gameUiTheme"
         :owner-reveal-all="vm.ownerRevealAll"
+        :can-toggle-reveal="vm.canToggleReveal"
         :show-custom-npc-style-dialog="vm.showCustomNpcStyleDialog"
         :custom-npc-pending-count="vm.customNpcPendingCount"
         :demo-bot-adding="vm.demoBotAdding"
@@ -244,6 +246,7 @@
         :open="vm.ownerTerminalOpen"
         :game-ui-theme="vm.gameUiTheme"
         :owner-reveal-all="vm.ownerRevealAll"
+        :can-toggle-reveal="vm.canToggleReveal"
         :demo-bot-adding="vm.demoBotAdding"
         :demo-bot-added-tip="vm.demoBotAddedTip"
         :maniac-bot-adding="vm.maniacBotAdding"

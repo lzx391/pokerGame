@@ -13,6 +13,7 @@
 <script>
 import { dpResultSuccess, dpResultData, dpResultMessage } from '@shared/utils/dpApiResult'
 import { enterLobbyAfterAuth } from '@features/user/utils/dpAuthEnterLobby'
+import { bootstrapDpAuthPermissions } from '@features/auth/utils/dpAuthBootstrap'
 
 export default {
   data() {
@@ -66,7 +67,10 @@ export default {
             this.$message.info('请先设置一个合规的昵称')
             this.$router.replace('/home')
           } else {
-            enterLobbyAfterAuth(this.$router, this, { message: '登录成功' })
+            var self = this
+            bootstrapDpAuthPermissions(this).then(function () {
+              enterLobbyAfterAuth(self.$router, self, { message: '登录成功' })
+            })
           }
         })
         .catch(() => {

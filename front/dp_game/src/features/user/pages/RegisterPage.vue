@@ -37,6 +37,7 @@
 import { dpResultSuccess, dpResultData, dpResultMessage } from '@shared/utils/dpApiResult'
 import { flagCatTutorialAfterLogin } from '@shared/constants/dpCatThemeCopy'
 import { enterLobbyAfterAuth } from '@features/user/utils/dpAuthEnterLobby'
+import { bootstrapDpAuthPermissions } from '@features/auth/utils/dpAuthBootstrap'
 
 export default {
   inject: {
@@ -97,8 +98,11 @@ export default {
             }
             if (inner.token) row.token = String(inner.token)
             localStorage.setItem('userInfo', JSON.stringify(row))
-            enterLobbyAfterAuth(this.$router, this, {
-              message: msg + '，正在进入大厅'
+            var self = this
+            bootstrapDpAuthPermissions(this).then(function () {
+              enterLobbyAfterAuth(self.$router, self, {
+                message: msg + '，正在进入大厅'
+              })
             })
           } else {
             this.showAuthError(dpResultMessage(d))

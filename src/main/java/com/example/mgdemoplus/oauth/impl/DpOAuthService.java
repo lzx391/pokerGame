@@ -10,6 +10,7 @@ import com.example.mgdemoplus.oauth.entity.DpSocialAuth;
 import com.example.mgdemoplus.oauth.mapper.DpSocialAuthMapper;
 import com.example.mgdemoplus.oauth.provider.DpOAuthProvider;
 import com.example.mgdemoplus.oauth.provider.DpOAuthProviderRegistry;
+import com.example.mgdemoplus.rbac.DpRbacService;
 import com.example.mgdemoplus.storage.DpAvatarStorageSupport;
 import com.example.mgdemoplus.storage.DpObjectStorage;
 import com.example.mgdemoplus.storage.DpWebPathSupport;
@@ -60,6 +61,7 @@ public class DpOAuthService {
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
     private final DpOAuthProviderRegistry providerRegistry;
+    private final DpRbacService dpRbacService;
 
     public DpOAuthService(
             DpObjectStorage objectStorage,
@@ -69,7 +71,8 @@ public class DpOAuthService {
             DpSensitiveWordService sensitiveWordService,
             StringRedisTemplate stringRedisTemplate,
             ObjectMapper objectMapper,
-            DpOAuthProviderRegistry providerRegistry) {
+            DpOAuthProviderRegistry providerRegistry,
+            DpRbacService dpRbacService) {
         this.objectStorage = objectStorage;
         this.avatarStorageSupport = avatarStorageSupport;
         this.socialAuthMapper = socialAuthMapper;
@@ -78,6 +81,7 @@ public class DpOAuthService {
         this.stringRedisTemplate = stringRedisTemplate;
         this.objectMapper = objectMapper;
         this.providerRegistry = providerRegistry;
+        this.dpRbacService = dpRbacService;
     }
 /**
  * 拼接提供商，回调地址，存state防止CSRF攻击
@@ -179,6 +183,7 @@ public class DpOAuthService {
         newUser.setNickname(defaultNickname);
         newUser.setPassword(null);
         dpUserMapper.registerUser(newUser);
+        dpRbacService.bindPlayerRole(newUser.getId());
         //注册成功后，将用户信息存入dp_social_auth表
         DpSocialAuth auth = new DpSocialAuth();
         auth.setUserId(newUser.getId());

@@ -58,6 +58,7 @@
               :active="contentActive"
               :game-ui-theme="gameUiTheme"
               :terminal-focused="terminalFocused"
+              :can-toggle-reveal="canToggleReveal"
               :owner-reveal-all="ownerRevealAll"
               :demo-bot-adding="demoBotAdding"
               :demo-bot-added-tip="demoBotAddedTip"
@@ -107,6 +108,7 @@ export default {
     open: { type: Boolean, default: false },
     gameUiTheme: { type: String, default: 'default' },
     ownerRevealAll: { type: Boolean, default: false },
+    canToggleReveal: { type: Boolean, default: false },
     demoBotAdding: { type: Boolean, default: false },
     demoBotAddedTip: { type: String, default: '' },
     maniacBotAdding: { type: Boolean, default: false },

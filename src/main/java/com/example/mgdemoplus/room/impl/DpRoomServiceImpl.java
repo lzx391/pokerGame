@@ -16,6 +16,7 @@ import com.example.mgdemoplus.room.support.DpPotCalculator;
 import com.example.mgdemoplus.room.support.DpRoomRegistry;
 import com.example.mgdemoplus.room.support.DpRoomServiceCallbacks;
 import com.example.mgdemoplus.room.support.DpRoomSnapshotSupport;
+import com.example.mgdemoplus.rbac.DpPermissionService;
 
 import com.example.mgdemoplus.history.bo.DpObservedHandRecordBO;
 import com.example.mgdemoplus.common.bo.DpRoomBO;
@@ -308,7 +309,8 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
             DpRoomChatPersistenceService roomChatPersistenceService,
             com.example.mgdemoplus.moderation.DpSensitiveWordService sensitiveWordService,
             DpExperimentalDeckPresetPasswordGuard experimentalDeckPresetPasswordGuard,
-            DpNpcTagDecisionTracePushService npcDecisionTracePushService) {
+            DpNpcTagDecisionTracePushService npcDecisionTracePushService,
+            DpPermissionService dpPermissionService) {
         this.observedHandPersistService = observedHandPersistService;
         this.settlePersistenceDispatcher = settlePersistenceDispatcher;
         this.llmNpcDecisionService = llmNpcDecisionService;
@@ -336,7 +338,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
                 roomChatPersistenceService);
         this.quickMatchBridge = new DpRoomQuickMatchBridge(registry, lobbySync, quickMatchPush, this);
         this.snapshotSupport = new DpRoomSnapshotSupport(registry, roomChatBuffer, objectMapper, this,
-                sensitiveWordService);
+                sensitiveWordService, dpPermissionService);
         this.heartbeatScheduler = new DpRoomHeartbeatScheduler(
                 registry, llmNpcDecisionService, gameRoomPushService, lobbySync, this);
         heartbeatScheduler.startGlobalTimerUnlessSuppressed(suppressGlobalRoomTimerForTests);

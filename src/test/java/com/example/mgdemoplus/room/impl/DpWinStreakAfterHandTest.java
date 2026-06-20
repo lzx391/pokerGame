@@ -65,7 +65,8 @@ class DpWinStreakAfterHandTest {
                 new RoomChatBuffer(),
                 mock(DpRoomChatPersistenceService.class),
                 mock(com.example.mgdemoplus.moderation.DpSensitiveWordService.class), null,
-                mock(com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTracePushService.class));
+                mock(com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTracePushService.class),
+                mock(com.example.mgdemoplus.rbac.DpPermissionService.class));
     }
 
     @AfterEach

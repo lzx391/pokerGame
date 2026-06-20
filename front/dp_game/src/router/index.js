@@ -37,7 +37,7 @@ import Router from 'vue-router'
 
 Vue.use(Router)
 
-export default new Router({
+var router = new Router({
   routes: [
     { path: '/', redirect: '/login' },
     {
@@ -106,6 +106,33 @@ export default new Router({
     {
       path: '/oauth/callback',
       component: () => import(/* webpackChunkName: "route-oauth-callback" */ '@features/user/pages/OAuthCallbackPage.vue')
+    },
+    {
+      path: '/admin',
+      component: () => import(/* webpackChunkName: "route-admin" */ '@features/admin/pages/AdminLayoutPage.vue'),
+      redirect: '/admin/roles',
+      children: [
+        {
+          path: 'roles',
+          component: () => import(/* webpackChunkName: "route-admin-roles" */ '@features/admin/pages/AdminRolesPage.vue')
+        },
+        {
+          path: 'users',
+          component: () => import(/* webpackChunkName: "route-admin-users" */ '@features/admin/pages/AdminUsersPage.vue')
+        }
+      ]
     }
   ]
 })
+
+router.beforeEach(function (to, from, next) {
+  if (to.path === '/admin' || to.path.indexOf('/admin/') === 0) {
+    if (sessionStorage.getItem('dp_admin_unlock') !== '1') {
+      next('/home')
+      return
+    }
+  }
+  next()
+})
+
+export default router

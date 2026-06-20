@@ -232,6 +232,7 @@ export default {
     terminalFocused: { type: Boolean, default: false },
     /** 触控面板：更大点击区，看牌直接切换 */
     touchMode: { type: Boolean, default: false },
+    canToggleReveal: { type: Boolean, default: false },
     ownerRevealAll: { type: Boolean, default: false },
     demoBotAdding: { type: Boolean, default: false },
     demoBotAddedTip: { type: String, default: '' },
@@ -332,6 +333,11 @@ export default {
         } else {
           items.push(traceItemDefault)
         }
+      }
+      if (!this.canToggleReveal) {
+        items = items.filter(function (item) {
+          return item.id !== 'reveal'
+        })
       }
       return items
     },
