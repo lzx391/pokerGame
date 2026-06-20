@@ -43,7 +43,7 @@ class DpRbacHoleCardsTest {
 
     @Test
     void owner_withoutRbacPermission_sanitizesOthersHoleCards() {
-        when(permissionService.hasPermi(eq("owner"), eq(DpPermissionCodes.GAME_HOLE_CARDS_VIEW))).thenReturn(false);
+        when(permissionService.hasPermi(eq(DpPermissionCodes.GAME_HOLE_CARDS_VIEW))).thenReturn(false);
 
         DpRoomBO snapshot = snapshotSupport.snapshotForViewerFromLive(sampleRoom(), "owner");
 
@@ -53,7 +53,7 @@ class DpRbacHoleCardsTest {
 
     @Test
     void nonOwner_withHoleCardsViewPermission_keepsOthersHoleCards() {
-        when(permissionService.hasPermi(eq("viewer"), eq(DpPermissionCodes.GAME_HOLE_CARDS_VIEW))).thenReturn(true);
+        when(permissionService.hasPermi(eq(DpPermissionCodes.GAME_HOLE_CARDS_VIEW))).thenReturn(true);
 
         DpRoomBO snapshot = snapshotSupport.snapshotForViewerFromLive(sampleRoom(), "viewer");
 
@@ -62,7 +62,7 @@ class DpRbacHoleCardsTest {
 
     @Test
     void nonOwner_withoutPermission_sanitizesOthersHoleCards() {
-        when(permissionService.hasPermi(eq("viewer"), eq(DpPermissionCodes.GAME_HOLE_CARDS_VIEW))).thenReturn(false);
+        when(permissionService.hasPermi(eq(DpPermissionCodes.GAME_HOLE_CARDS_VIEW))).thenReturn(false);
 
         DpRoomBO snapshot = snapshotSupport.snapshotForViewerFromLive(sampleRoom(), "viewer");
 
@@ -72,7 +72,7 @@ class DpRbacHoleCardsTest {
 
     @Test
     void afterGrantEvictAndRevoke_sanitizesOthersHoleCards() {
-        when(permissionService.hasPermi(eq("viewer"), eq(DpPermissionCodes.GAME_HOLE_CARDS_VIEW)))
+        when(permissionService.hasPermi(eq(DpPermissionCodes.GAME_HOLE_CARDS_VIEW)))
                 .thenReturn(true)
                 .thenReturn(false);
 

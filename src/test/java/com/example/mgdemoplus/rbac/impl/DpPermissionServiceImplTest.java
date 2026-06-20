@@ -4,6 +4,7 @@ import com.example.mgdemoplus.common.entity.DpUser;
 import com.example.mgdemoplus.common.mapper.DpUserMapper;
 import com.example.mgdemoplus.rbac.mapper.DpRbacQueryMapper;
 import com.example.mgdemoplus.rbac.support.DpPermissionCodes;
+import com.example.mgdemoplus.security.DpCurrentUserSupport;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,6 +24,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -39,13 +41,15 @@ class DpPermissionServiceImplTest {
     private ValueOperations<String, String> valueOperations;
     @Mock
     private ObjectMapper objectMapper;
+    @Mock
+    private DpCurrentUserSupport currentUserSupport;
 
     @InjectMocks
     private DpPermissionServiceImpl permissionService;
 
     @BeforeEach
     void wireRedisValueOps() {
-        when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
+        lenient().when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
     }
 
     @Test
@@ -53,12 +57,13 @@ class DpPermissionServiceImplTest {
         DpUser user = new DpUser();
         user.setId(7);
         user.setNickname("viewer");
+        when(currentUserSupport.requireNickname()).thenReturn("viewer");
         when(dpUserMapper.selectByNickname("viewer")).thenReturn(user);
         when(valueOperations.get("mgdemo:cache:perm:7")).thenReturn("[\"game:hole_cards:view\"]");
         when(objectMapper.readValue(eq("[\"game:hole_cards:view\"]"), any(com.fasterxml.jackson.core.type.TypeReference.class)))
                 .thenReturn(List.of(DpPermissionCodes.GAME_HOLE_CARDS_VIEW));
 
-        assertThat(permissionService.hasPermi("viewer", DpPermissionCodes.GAME_HOLE_CARDS_VIEW)).isTrue();
+        assertThat(permissionService.hasPermi(DpPermissionCodes.GAME_HOLE_CARDS_VIEW)).isTrue();
     }
 
     @Test

@@ -4,6 +4,7 @@ import com.example.mgdemoplus.common.entity.DpUser;
 import com.example.mgdemoplus.common.mapper.DpUserMapper;
 import com.example.mgdemoplus.rbac.DpPermissionService;
 import com.example.mgdemoplus.rbac.mapper.DpRbacQueryMapper;
+import com.example.mgdemoplus.security.DpCurrentUserSupport;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -18,7 +19,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-@Service
+@Service("dpPermissionService")
 public class DpPermissionServiceImpl implements DpPermissionService {
 
     private static final Logger log = LoggerFactory.getLogger(DpPermissionServiceImpl.class);
@@ -34,9 +35,14 @@ public class DpPermissionServiceImpl implements DpPermissionService {
     private StringRedisTemplate stringRedisTemplate;
     @Autowired
     private ObjectMapper objectMapper;
-
+    @Autowired
+    private DpCurrentUserSupport currentUserSupport;
+/**
+ * 本质是输入昵称和需要的权限，通过昵称获取id,再从redis获取权限，然后看包含目标权限吗；然后如果权限在jwt里就直接从jwt中获取权限，再看包不包含
+ */
     @Override
-    public boolean hasPermi(String nickname, String code) {
+    public boolean hasPermi(String code) {
+        String nickname = currentUserSupport.requireNickname();
         if (nickname == null || nickname.isBlank() || code == null || code.isBlank()) {
             return false;
         }
@@ -46,7 +52,9 @@ public class DpPermissionServiceImpl implements DpPermissionService {
         }
         return resolveByUserId(user.getId()).contains(code);
     }
-
+/**
+ * 通过id获取权限，如果redis有就从redis获取，没有就从数据库获取，然后缓存到redis
+ */
     @Override
     public Set<String> resolveByUserId(int userId) {
         if (userId <= 0) {

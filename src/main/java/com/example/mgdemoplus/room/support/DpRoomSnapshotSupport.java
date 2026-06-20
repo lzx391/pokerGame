@@ -144,7 +144,7 @@ public final class DpRoomSnapshotSupport {
                 || ("settled".equals(stage) && room.isLastHandHoleCardsPublic());
                 //有没有看牌特权的人
         boolean canViewAllHoleCards = !v.isEmpty()
-                && permissionService.hasPermi(v, DpPermissionCodes.GAME_HOLE_CARDS_VIEW);
+                && permissionService.hasPermi(DpPermissionCodes.GAME_HOLE_CARDS_VIEW);
 //遍历列表开始空摘信息
         for (DpPlayer p : room.getPlayers()) {
             if (p == null) {

@@ -76,7 +76,7 @@ class DpRbacExperimentalDeckPresetTest {
 
     @Test
     void owner_withoutPermission_isDenied() {
-        when(permissionService.hasPermi(eq("owner"), eq(DpPermissionCodes.GAME_EXPERIMENTAL_DECK_PRESET)))
+        when(permissionService.hasPermi(eq(DpPermissionCodes.GAME_EXPERIMENTAL_DECK_PRESET)))
                 .thenReturn(false);
 
         ResultUtil result = svc.verifyExperimentalDeckPassword("room-1", "owner", "secret");
@@ -87,7 +87,7 @@ class DpRbacExperimentalDeckPresetTest {
 
     @Test
     void nonOwner_withPermission_skipsPasswordAndAllowsPreset() {
-        when(permissionService.hasPermi(eq("viewer"), eq(DpPermissionCodes.GAME_EXPERIMENTAL_DECK_PRESET)))
+        when(permissionService.hasPermi(eq(DpPermissionCodes.GAME_EXPERIMENTAL_DECK_PRESET)))
                 .thenReturn(true);
 
         ResultUtil verify = svc.verifyExperimentalDeckPassword("room-1", "viewer", null);
@@ -104,7 +104,7 @@ class DpRbacExperimentalDeckPresetTest {
 
     @Test
     void nonOwner_withoutPermission_isDenied() {
-        when(permissionService.hasPermi(eq("viewer"), eq(DpPermissionCodes.GAME_EXPERIMENTAL_DECK_PRESET)))
+        when(permissionService.hasPermi(eq(DpPermissionCodes.GAME_EXPERIMENTAL_DECK_PRESET)))
                 .thenReturn(false);
 
         ResultUtil result = svc.getNextHandDeckPrefixStatus("room-1", "viewer", "secret");

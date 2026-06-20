@@ -6,6 +6,7 @@ import com.example.mgdemoplus.security.DpCurrentUserSupport;
 import com.example.mgdemoplus.utils.ResultUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -22,6 +23,7 @@ public class DpNpcDecisionTraceController {
     private DpCurrentUserSupport currentUserSupport;
 
     @GetMapping("/hands")
+    @PreAuthorize("@dpPermissionService.hasPermi(T(com.example.mgdemoplus.rbac.support.DpPermissionCodes).GAME_NPC_DECISION_TRACE)")
     public ResultUtil listHands(
             @RequestParam String roomId,
             @RequestParam(required = false) String experimentalPassword) {
@@ -30,6 +32,7 @@ public class DpNpcDecisionTraceController {
     }
 
     @GetMapping("/hand")
+    @PreAuthorize("@dpPermissionService.hasPermi(T(com.example.mgdemoplus.rbac.support.DpPermissionCodes).GAME_NPC_DECISION_TRACE)")
     public ResultUtil getHand(
             @RequestParam String roomId,
             @RequestParam long handSeed,
@@ -39,6 +42,7 @@ public class DpNpcDecisionTraceController {
     }
 
     @GetMapping("/action")
+    @PreAuthorize("@dpPermissionService.hasPermi(T(com.example.mgdemoplus.rbac.support.DpPermissionCodes).GAME_NPC_DECISION_TRACE)")
     public ResultUtil getAction(
             @RequestParam String roomId,
             @RequestParam long handSeed,

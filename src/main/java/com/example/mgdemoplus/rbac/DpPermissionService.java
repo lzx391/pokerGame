@@ -4,7 +4,7 @@ import java.util.Set;
 
 public interface DpPermissionService {
 
-    boolean hasPermi(String nickname, String code);
+    boolean hasPermi(String code);
 
     Set<String> resolveByUserId(int userId);
 

@@ -591,7 +591,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         if (requesterNickname == null || requesterNickname.isBlank()) {
             return ResultUtil.error().data("message", "无实验排牌权限");
         }
-        if (!dpPermissionService.hasPermi(requesterNickname.trim(), DpPermissionCodes.GAME_EXPERIMENTAL_DECK_PRESET)) {
+        if (!dpPermissionService.hasPermi(DpPermissionCodes.GAME_EXPERIMENTAL_DECK_PRESET)) {
             return ResultUtil.error().data("message", "无实验排牌权限");
         }
         return null;
