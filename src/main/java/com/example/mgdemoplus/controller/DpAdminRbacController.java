@@ -1,4 +1,4 @@
-package com.example.mgdemoplus.rbac.controller;
+package com.example.mgdemoplus.controller;
 
 import com.example.mgdemoplus.rbac.DpRbacService;
 import com.example.mgdemoplus.rbac.bo.DpAdminVerifyPasswordRequest;

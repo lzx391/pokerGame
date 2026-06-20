@@ -140,12 +140,12 @@ public final class DpRoomSnapshotSupport {
         }
         String v = viewerNickname == null ? "" : viewerNickname.trim();
         String stage = room.getCurrentStage();
-        boolean multiWayShowdown = true;
-        boolean revealOthers = ("showdown".equals(stage) && multiWayShowdown)
-                || ("settled".equals(stage) && room.isLastHandHoleCardsPublic() && multiWayShowdown);
+        boolean revealOthers = ("showdown".equals(stage))
+                || ("settled".equals(stage) && room.isLastHandHoleCardsPublic());
+                //有没有看牌特权的人
         boolean canViewAllHoleCards = !v.isEmpty()
                 && permissionService.hasPermi(v, DpPermissionCodes.GAME_HOLE_CARDS_VIEW);
-
+//遍历列表开始空摘信息
         for (DpPlayer p : room.getPlayers()) {
             if (p == null) {
                 continue;
@@ -153,8 +153,9 @@ public final class DpRoomSnapshotSupport {
             if (!v.isEmpty() && v.equals(p.getNickname())) {
                 continue;
             }
+            //摊牌且没弃牌的人
             boolean showCards = revealOthers && !p.isFold();
-            if (!showCards && !canViewAllHoleCards) {
+            if (!showCards && !canViewAllHoleCards) {//如果不是摊牌且没弃牌，且没有看牌特权的人
                 p.setHoleCards(Collections.emptyList());
                 p.setBestHandCards(Collections.emptyList());
                 p.setHandRankName("");
