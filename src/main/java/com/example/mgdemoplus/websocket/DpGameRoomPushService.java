@@ -447,8 +447,10 @@ public class DpGameRoomPushService {
                     DpRoomBO view = roomService.snapshotForViewerFromLive(live, nick);
                     json = objectMapper.writeValueAsString(view);
                 }
+                //去重检测
                 String prev = lastBroadcastPayloadBySession.get(s);
                 if (json.equals(prev)) {
+                    // System.out.println("重复");
                     log.debug("WS broadcast skip (payload unchanged) roomId={}", roomId);
                     continue;
                 }
