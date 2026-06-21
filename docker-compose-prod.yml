@@ -6,9 +6,12 @@ services:
     image: mysql:8.0
     mem_limit: 450m
     cpus: "0.5"
+    # 与 app TZ / JDBC serverTimezone 对齐，避免 NOW()、TIMESTAMP 与业务时区不一致
     environment:
       MYSQL_ROOT_PASSWORD: mgdemo_root
       MYSQL_DATABASE: school_db
+      TZ: Asia/Shanghai
+    command: --default-time-zone='+08:00'
     ports:
       - "3307:3306"
     volumes:
