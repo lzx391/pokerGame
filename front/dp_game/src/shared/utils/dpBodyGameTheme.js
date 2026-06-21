@@ -3,7 +3,7 @@
  * 导致 SPA 跳转后主题变量与背景不同步、整页高度/滚动错乱。
  *
  * 大厅路由真源（与 App.vue isLobbyRoute 保持一致）：/home、/create-room、/hand-history*、
- * /leaderboard、/music-upload、/download-center。
+ * /gallery*、/leaderboard、/music-upload、/download-center。
  * 新手一分钟 /guide 与对局页同样需 body[data-dp-game-theme]（retro8bit CRT 引导/弹层）。
  */
 export function syncDpBodyGameTheme(store, router) {
@@ -14,6 +14,7 @@ export function syncDpBodyGameTheme(store, router) {
       path === '/home' ||
       path === '/create-room' ||
       path.startsWith('/hand-history') ||
+      path.startsWith('/gallery') ||
       path === '/leaderboard' ||
       path === '/music-upload' ||
       path === '/download-center' ||

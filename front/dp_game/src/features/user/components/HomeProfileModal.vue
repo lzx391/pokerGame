@@ -347,10 +347,6 @@
     :visible.sync="achievementWallVisible"
     :user-id="null"
   />
-  <dp-gallery-editor
-    :visible.sync="galleryEditorVisible"
-    :user-id="form.id"
-  />
   </div>
 </template>
 
@@ -358,7 +354,6 @@
 import DpUserAvatar from '@features/user/components/DpUserAvatar.vue'
 import DpAchievementWallModal from '@features/achievement/components/DpAchievementWallModal.vue'
 import DpAchievementWallCrt from '@features/achievement/components/DpAchievementWallCrt.vue'
-import DpGalleryEditor from '@features/gallery/components/DpGalleryEditor.vue'
 import { mapState, mapGetters } from 'vuex'
 import { DP_PERM_GALLERY_VIEW } from '@features/auth/store/dpAuth'
 import dpProfileGrayGlitchMixin, {
@@ -378,7 +373,7 @@ var HONOR_SCRAMBLE_TICK_MS = 48
 
 export default {
   name: 'HomeProfileModal',
-  components: { DpUserAvatar, DpAchievementWallModal, DpAchievementWallCrt, DpGalleryEditor },
+  components: { DpUserAvatar, DpAchievementWallModal, DpAchievementWallCrt },
   mixins: [dpProfileGrayGlitchMixin],
   props: {
     visible: {
@@ -400,7 +395,6 @@ export default {
       honorGlitchTimer: null,
       honorRevealTimer: null,
       achievementWallVisible: false,
-      galleryEditorVisible: false,
       form: {
         id: '',
         nickname: '',
@@ -537,7 +531,8 @@ export default {
         return
       }
       if (!this.form.id) return
-      this.galleryEditorVisible = true
+      this.dialogVisible = false
+      this.$router.push({ path: '/gallery', query: { mode: 'edit' } })
     },
     leaveEditMode() {
       this.mode = 'view'

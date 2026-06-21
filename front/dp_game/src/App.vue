@@ -113,6 +113,7 @@ export default {
         p === '/home' ||
         p === '/create-room' ||
         p.startsWith('/hand-history') ||
+        p.startsWith('/gallery') ||
         p === '/leaderboard' ||
         p === '/music-upload' ||
         p === '/download-center' ||

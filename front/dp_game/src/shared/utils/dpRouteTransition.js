@@ -9,11 +9,13 @@ function pathPattern(path) {
   if (path.startsWith('/game/')) return '/game/:id'
   if (path.startsWith('/hand-history/detail')) return '/hand-history/detail/:id'
   if (path.startsWith('/hand-history')) return '/hand-history'
+  if (path.startsWith('/gallery/users/')) return '/gallery/users/:userId'
+  if (path.startsWith('/gallery')) return '/gallery'
   return path
 }
 
 var GAME = '/game/:id'
-var LOBBY_SUB = ['/leaderboard', '/hand-history', '/music-upload', '/download-center', '/image_upload']
+var LOBBY_SUB = ['/leaderboard', '/hand-history', '/gallery', '/gallery/users/:userId', '/music-upload', '/download-center', '/image_upload']
 var AUTH = ['/login', '/register', '/']
 
 function isLobbySub(p) {

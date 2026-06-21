@@ -77,6 +77,15 @@ var router = new Router({
       props: true
     },
     {
+      path: '/gallery',
+      component: () => import(/* webpackChunkName: "route-gallery" */ '@features/gallery/pages/GalleryPage.vue')
+    },
+    {
+      path: '/gallery/users/:userId',
+      component: () => import(/* webpackChunkName: "route-gallery-user" */ '@features/gallery/pages/GalleryPage.vue'),
+      props: true
+    },
+    {
       path: '/room/:roomId',
       redirect: (to) => ({ path: '/game/' + to.params.roomId })
     },

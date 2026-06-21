@@ -255,11 +255,6 @@
     :subject-name="displayName"
     :subject-nickname="achievementWallSubjectNickname"
   />
-  <dp-gallery-viewer
-    :visible.sync="galleryViewerVisible"
-    :user-id="achievementWallTargetUserId"
-    :subject-name="displayName"
-  />
   </div>
 </template>
 
@@ -267,7 +262,6 @@
 import DpUserAvatar from '@features/user/components/DpUserAvatar.vue'
 import DpAchievementWallModal from '@features/achievement/components/DpAchievementWallModal.vue'
 import DpAchievementWallCrt from '@features/achievement/components/DpAchievementWallCrt.vue'
-import DpGalleryViewer from '@features/gallery/components/DpGalleryViewer.vue'
 import { mapState, mapGetters } from 'vuex'
 import { DP_PERM_GALLERY_VIEW } from '@features/auth/store/dpAuth'
 import dpProfileGrayGlitchMixin, {
@@ -290,7 +284,7 @@ var HONOR_SCRAMBLE_TICK_MS = 48
 
 export default {
   name: 'GamePlayerSocialSheet',
-  components: { DpUserAvatar, DpAchievementWallModal, DpAchievementWallCrt, DpGalleryViewer },
+  components: { DpUserAvatar, DpAchievementWallModal, DpAchievementWallCrt },
   mixins: [dpProfileGrayGlitchMixin],
   inject: {
     dpGameView: { default: null }
@@ -313,7 +307,6 @@ export default {
       honorGlitchTick: 0,
       honorGlitchTimer: null,
       achievementWallVisible: false,
-      galleryViewerVisible: false,
       honorRevealTimer: null,
       honorFetchSettled: false
     }
@@ -650,7 +643,8 @@ export default {
         return
       }
       if (!this.achievementWallTargetUserId) return
-      this.galleryViewerVisible = true
+      this.$emit('close')
+      this.$router.push('/gallery/users/' + this.achievementWallTargetUserId)
     },
     async onSendRequest() {
       if (!this.target || this.primaryDisabled) return
