@@ -2,19 +2,45 @@
   <section class="dp-gallery-items-editor" aria-label="编辑画廊作品">
     <div class="dp-gallery-items-editor__toolbar">
       <el-upload
+        ref="upload"
         class="dp-gallery-items-editor__upload"
         action=""
         accept="image/jpeg,image/png,image/webp,image/gif"
+        multiple
+        :limit="maxBatchFiles"
+        :auto-upload="false"
         :show-file-list="false"
         :disabled="busy"
-        :http-request="onUploadRequest"
+        :on-exceed="onUploadExceed"
+        :on-change="onUploadChange"
       >
-        <button type="button" class="dp-gallery-items-editor__add" :disabled="busy" aria-label="上传作品">
+        <button type="button" class="dp-gallery-items-editor__add" :disabled="busy" aria-label="批量上传作品">
           <i class="el-icon-plus" aria-hidden="true"></i>
           上传作品
+          <span class="dp-gallery-items-editor__add-badge">可多选</span>
         </button>
       </el-upload>
-      <p class="dp-gallery-items-editor__hint">jpg / png / webp / gif，最大 15MB</p>
+      <p class="dp-gallery-items-editor__hint">
+        可多选，一次最多 {{ maxBatchFiles }} 张 · jpg / png / webp / gif，最大 15MB
+      </p>
+    </div>
+
+    <div
+      v-if="uploadProgress"
+      class="dp-gallery-items-editor__progress-panel"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="dp-gallery-items-editor__progress-head">
+        <i class="el-icon-loading" aria-hidden="true"></i>
+        <span>正在上传 {{ uploadProgress.done }}/{{ uploadProgress.total }}</span>
+      </div>
+      <div class="dp-gallery-items-editor__progress-track" aria-hidden="true">
+        <div
+          class="dp-gallery-items-editor__progress-bar"
+          :style="{ width: uploadProgressPercent + '%' }"
+        ></div>
+      </div>
     </div>
 
     <div v-if="loading" class="dp-gallery-items-editor__status">
@@ -23,7 +49,8 @@
     </div>
 
     <div v-else-if="!rows.length" class="dp-gallery-items-editor__empty">
-      点击「上传作品」添加第一张画
+      <span>点击「上传作品」添加第一张画</span>
+      <span class="dp-gallery-items-editor__empty-sub">支持一次多选，最多 {{ maxBatchFiles }} 张</span>
     </div>
 
     <div v-else class="dp-gallery-items-editor__list">
@@ -73,13 +100,38 @@
 import { dpResultSuccess, dpResultData, dpResultMessage } from '@shared/utils/dpApiResult'
 import { galleryFileSrc } from '@features/gallery/utils/dpGalleryUrl'
 
+var MAX_BATCH_FILES = 20
+var UPLOAD_CONCURRENCY = 2
+var MAX_FILE_BYTES = 15 * 1024 * 1024
+var ALLOWED_IMAGE_TYPES = {
+  'image/jpeg': true,
+  'image/png': true,
+  'image/webp': true,
+  'image/gif': true
+}
+
 export default {
   name: 'DpGalleryItemsEditor',
   data() {
     return {
       loading: false,
       busy: false,
-      rows: []
+      rows: [],
+      maxBatchFiles: MAX_BATCH_FILES,
+      uploadProgress: null,
+      uploadBatchTimer: null
+    }
+  },
+  beforeDestroy() {
+    if (this.uploadBatchTimer) {
+      clearTimeout(this.uploadBatchTimer)
+      this.uploadBatchTimer = null
+    }
+  },
+  computed: {
+    uploadProgressPercent() {
+      if (!this.uploadProgress || !this.uploadProgress.total) return 0
+      return Math.round((this.uploadProgress.done / this.uploadProgress.total) * 100)
     }
   },
   created() {
@@ -127,33 +179,97 @@ export default {
         this.loading = false
       }
     },
-    async onUploadRequest(options) {
-      var file = options && options.file
-      if (!file) return
-      if (file.size > 15 * 1024 * 1024) {
+    onUploadExceed() {
+      if (this.$message) this.$message.warning('单次最多选择 ' + MAX_BATCH_FILES + ' 张')
+    },
+    onUploadChange(file, fileList) {
+      if (this.busy || !fileList || !fileList.length) return
+      if (this.uploadBatchTimer) clearTimeout(this.uploadBatchTimer)
+      var self = this
+      this.uploadBatchTimer = setTimeout(function () {
+        self.uploadBatchTimer = null
+        var files = fileList.map(function (entry) {
+          return entry.raw
+        }).filter(Boolean)
+        if (self.$refs.upload) self.$refs.upload.clearFiles()
+        if (files.length) self.startBatchUpload(files)
+      }, 0)
+    },
+    isAllowedImageType(file) {
+      return !!(file && ALLOWED_IMAGE_TYPES[file.type])
+    },
+    async uploadSingleFile(file) {
+      if (!file) return { ok: false }
+      if (file.size > MAX_FILE_BYTES) {
         if (this.$message) this.$message.warning('图片不能超过 15MB')
-        return
+        return { ok: false }
+      }
+      if (!this.isAllowedImageType(file)) {
+        if (this.$message) this.$message.warning('仅支持 jpg / png / webp / gif')
+        return { ok: false }
       }
       var fd = new FormData()
       fd.append('file', file)
-      this.busy = true
       try {
         var res = await this.$http.post('/dp/gallery/items', fd, {
           headers: { 'Content-Type': 'multipart/form-data' }
         })
         if (!dpResultSuccess(res.data)) {
-          if (this.$message) this.$message.error(dpResultMessage(res.data) || '上传失败')
-          return
+          return { ok: false }
         }
         var data = dpResultData(res.data) || {}
         if (data.item) {
           this.rows.push(this.mapRow(data.item))
           this.emitItems()
-          if (this.$message) this.$message.success('上传成功')
+          return { ok: true }
         }
       } catch (e) {
-        if (this.$message) this.$message.error('上传失败')
+        return { ok: false }
+      }
+      return { ok: false }
+    },
+    async runUploadPool(files) {
+      var self = this
+      var index = 0
+      var success = 0
+      var fail = 0
+
+      async function worker() {
+        while (index < files.length) {
+          var current = index
+          index += 1
+          var result = await self.uploadSingleFile(files[current])
+          if (result.ok) success += 1
+          else fail += 1
+          self.uploadProgress = {
+            done: success + fail,
+            total: files.length
+          }
+        }
+      }
+
+      var workers = []
+      var poolSize = Math.min(UPLOAD_CONCURRENCY, files.length)
+      for (var i = 0; i < poolSize; i++) {
+        workers.push(worker())
+      }
+      await Promise.all(workers)
+      return { success: success, fail: fail }
+    },
+    async startBatchUpload(files) {
+      if (!files || !files.length || this.busy) return
+      this.busy = true
+      this.uploadProgress = { done: 0, total: files.length }
+      try {
+        var result = await this.runUploadPool(files)
+        if (this.$message) {
+          this.$message({
+            type: result.fail ? (result.success ? 'warning' : 'error') : 'success',
+            message: '上传完成：成功 ' + result.success + ' 张，失败 ' + result.fail + ' 张'
+          })
+        }
       } finally {
+        this.uploadProgress = null
         this.busy = false
       }
     },
@@ -270,21 +386,74 @@ export default {
   cursor: not-allowed;
 }
 
+.dp-gallery-items-editor__add-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--dp-warning, #e6a23c) 18%, var(--dp-panel-bg, #fff));
+  color: var(--dp-warning, #e6a23c);
+  line-height: 1.2;
+}
+.dp-gallery-items-editor__add:hover:not(:disabled) .dp-gallery-items-editor__add-badge {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
 .dp-gallery-items-editor__hint {
   margin: 0;
   font-size: 12px;
   color: var(--dp-text-muted, #909399);
 }
 
+.dp-gallery-items-editor__progress-panel {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--dp-warning, #e6a23c) 35%, var(--dp-subpanel-border, #e4e7ed));
+  background: color-mix(in srgb, var(--dp-warning, #e6a23c) 8%, var(--dp-panel-bg, #fff));
+}
+
+.dp-gallery-items-editor__progress-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dp-warning, #e6a23c);
+}
+
+.dp-gallery-items-editor__progress-track {
+  height: 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--dp-warning, #e6a23c) 12%, var(--dp-subpanel-bg, #f5f7fa));
+  overflow: hidden;
+}
+
+.dp-gallery-items-editor__progress-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--dp-warning, #e6a23c);
+  transition: width 0.2s ease;
+}
+
 .dp-gallery-items-editor__status,
 .dp-gallery-items-editor__empty {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   min-height: 80px;
   color: var(--dp-text-muted, #909399);
   font-size: 14px;
+  text-align: center;
+}
+
+.dp-gallery-items-editor__empty-sub {
+  font-size: 12px;
+  color: color-mix(in srgb, var(--dp-warning, #e6a23c) 70%, var(--dp-text-muted, #909399));
 }
 
 .dp-gallery-items-editor__list {

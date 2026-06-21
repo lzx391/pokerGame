@@ -20,7 +20,7 @@
       >
         <header class="dp-gallery-envelope__sheet-head">
           <h2 id="dp-gallery-envelope-sheet-title" class="dp-gallery-envelope__sheet-title">
-            介绍信
+            来自玩家的信
           </h2>
           <button
             type="button"
@@ -63,7 +63,7 @@
           <span class="dp-gallery-envelope__seal-inner"></span>
         </span>
       </span>
-      <span class="dp-gallery-envelope__hint">介绍信</span>
+      <span class="dp-gallery-envelope__hint">一封信</span>
     </button>
 
   </div>
