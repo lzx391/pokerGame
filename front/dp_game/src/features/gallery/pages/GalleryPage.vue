@@ -25,7 +25,7 @@
       </div>
     </header>
 
-    <div v-if="forbidden" class="gallery-page__forbidden">
+    <div v-if="forbidden && !booting" class="gallery-page__forbidden">
       <p class="gallery-page__forbidden-text">无权限查看画廊</p>
       <button type="button" class="gallery-page__back gallery-page__back--center" @click="goBack">
         返回
@@ -65,7 +65,7 @@ import dpLobbyThemeMixin from '@features/lobby/mixins/dpLobbyThemeMixin'
 import { mapGetters } from 'vuex'
 import { DP_PERM_GALLERY_VIEW } from '@features/auth/store/dpAuth'
 import { ensureDpUserIdInStorage } from '@features/user/utils/dpEnsureUserId'
-import { refreshDpAuthPermissions } from '@features/auth/utils/dpAuthBootstrap'
+import { bootstrapDpAuthPermissions } from '@features/auth/utils/dpAuthBootstrap'
 import { dpResultSuccess, dpResultData, dpResultMessage, dpAxiosErrorMessage } from '@shared/utils/dpApiResult'
 import { dpSocialApi } from '@features/social/api/socialApi'
 import { dpDisplayNickname } from '@shared/utils/dpDisplayNickname'
@@ -143,7 +143,6 @@ export default {
     }
   },
   async created() {
-    refreshDpAuthPermissions(this)
     try {
       var raw = localStorage.getItem('userInfo')
       this.currentUser = raw ? JSON.parse(raw) : null
@@ -161,6 +160,8 @@ export default {
       return
     }
     this.currentUser.userId = uid
+
+    await bootstrapDpAuthPermissions(this)
 
     if (!this.hasPerm(DP_PERM_GALLERY_VIEW)) {
       this.forbidden = true

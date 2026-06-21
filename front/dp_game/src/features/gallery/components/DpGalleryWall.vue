@@ -9,72 +9,72 @@
       {{ emptyText }}
     </p>
 
-    <div
-      v-else
-      class="dp-gallery-wall__track"
-      :class="{ 'dp-gallery-wall__track--wide': isWide }"
-      role="list"
-    >
-      <article
-        v-for="(item, index) in items"
-        :key="item.id"
-        class="dp-gallery-wall__piece"
-        :style="pieceStyle(index)"
-        role="listitem"
+    <div v-else class="dp-gallery-wall__frame">
+      <div
+        ref="track"
+        class="dp-gallery-wall__track"
+        :class="{ 'dp-gallery-wall__track--wide': isWide }"
+        role="list"
+        @scroll.passive="onTrackScroll"
       >
-        <button
-          type="button"
-          class="gallery-frame"
-          :class="frameClass(item.id)"
-          :aria-label="item.caption ? '查看作品：' + item.caption : '查看画廊作品'"
-          @click="openDetail(item)"
+        <article
+          v-for="(item, index) in items"
+          :key="item.id"
+          class="dp-gallery-wall__piece"
+          :style="pieceStyle(index)"
+          role="listitem"
         >
-          <div class="gallery-frame__mat">
-            <img
-              :src="galleryFileSrc(item.previewUrl || item.imageUrl)"
-              :alt="item.caption || '画廊作品'"
-              loading="lazy"
-              decoding="async"
-              @load="onImageLoad(item.id, $event)"
-            >
-          </div>
-        </button>
-        <p v-if="item.caption" class="dp-gallery-wall__caption">{{ item.caption }}</p>
-      </article>
+          <button
+            type="button"
+            class="gallery-frame"
+            :class="frameClass(item.id)"
+            :aria-label="item.caption ? '查看作品：' + item.caption : '查看画廊作品'"
+            @click="openDetail(item)"
+            @mouseenter="onFrameWarm(item)"
+            @focus="onFrameWarm(item)"
+          >
+            <div class="gallery-frame__mat">
+              <img
+                :src="galleryFileSrc(item.previewUrl || item.imageUrl)"
+                :alt="item.caption || '画廊作品'"
+                loading="lazy"
+                decoding="async"
+                @load="onImageLoad(item.id, $event)"
+              >
+            </div>
+          </button>
+          <p v-if="item.caption" class="dp-gallery-wall__caption">{{ item.caption }}</p>
+        </article>
+      </div>
     </div>
 
-    <el-dialog
-      :visible.sync="detailVisible"
-      width="min(94vw, 720px)"
-      custom-class="dp-gallery-detail-dialog"
-      append-to-body
-      :close-on-click-modal="true"
-      @closed="stopTypewriter"
-    >
-      <div v-if="detailItem" class="dp-gallery-detail">
-        <img
-          class="dp-gallery-detail__img"
-          :src="galleryFileSrc(detailItem.imageUrl)"
-          :alt="detailItem.caption || '画廊作品'"
-          decoding="async"
-        >
-        <p class="dp-gallery-detail__caption">
-          <span>{{ typewriterText }}</span>
-          <span v-if="typewriterActive" class="dp-gallery-detail__cursor" aria-hidden="true">|</span>
-        </p>
-      </div>
-    </el-dialog>
+    <dp-gallery-print-reveal
+      :visible="detailVisible"
+      :item="detailItem"
+      @closed="onDetailClosed"
+    />
   </section>
 </template>
 
 <script>
 import { galleryFileSrc } from '@features/gallery/utils/dpGalleryUrl'
 import { dpGalleryFrameClass } from '@features/gallery/utils/dpGalleryFrame'
+import DpGalleryPrintReveal from '@features/gallery/components/DpGalleryPrintReveal.vue'
+import {
+  prefetchGalleryAhead,
+  prefetchGalleryFull,
+  prefetchGalleryUrls
+} from '@features/gallery/utils/dpGalleryPrefetch'
 
 var WIDE_BP = 768
+var PREFETCH_AHEAD = 3
+var PREFETCH_THROTTLE_MS = 200
 
 export default {
   name: 'DpGalleryWall',
+  components: {
+    DpGalleryPrintReveal
+  },
   props: {
     items: {
       type: Array,
@@ -95,17 +95,35 @@ export default {
       isWide: typeof window !== 'undefined' ? window.innerWidth >= WIDE_BP : true,
       detailVisible: false,
       detailItem: null,
-      typewriterText: '',
-      typewriterActive: false,
-      typewriterTimer: null,
-      resizeObserver: null
+      prefetchTimer: null
+    }
+  },
+  computed: {
+    prefersReducedMotion() {
+      return typeof window !== 'undefined' &&
+        window.matchMedia &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches
     }
   },
   watch: {
     items: {
       deep: true,
-      handler() {
+      handler: function () {
         this.frameClasses = {}
+        var self = this
+        this.$nextTick(function () {
+          self.schedulePrefetch(true)
+          prefetchGalleryUrls(self.items.slice(0, Math.min(PREFETCH_AHEAD, self.items.length)))
+        })
+      }
+    },
+    loading: function (val) {
+      if (!val && this.items.length) {
+        var self = this
+        this.$nextTick(function () {
+          self.schedulePrefetch(true)
+          prefetchGalleryUrls(self.items.slice(0, Math.min(PREFETCH_AHEAD, self.items.length)))
+        })
       }
     }
   },
@@ -114,17 +132,30 @@ export default {
     if (typeof window !== 'undefined') {
       window.addEventListener('resize', this.syncWide, { passive: true })
     }
+    var self = this
+    this.$nextTick(function () {
+      if (self.items.length) {
+        self.schedulePrefetch(true)
+        prefetchGalleryUrls(self.items.slice(0, Math.min(PREFETCH_AHEAD, self.items.length)))
+      }
+    })
   },
   beforeDestroy() {
     if (typeof window !== 'undefined') {
       window.removeEventListener('resize', this.syncWide)
     }
-    this.stopTypewriter()
+    if (this.prefetchTimer != null) {
+      clearTimeout(this.prefetchTimer)
+      this.prefetchTimer = null
+    }
   },
   methods: {
     galleryFileSrc,
     syncWide() {
-      this.isWide = typeof window !== 'undefined' && window.innerWidth >= WIDE_BP
+      var wide = typeof window !== 'undefined' && window.innerWidth >= WIDE_BP
+      if (wide !== this.isWide) {
+        this.isWide = wide
+      }
     },
     onImageLoad(id, evt) {
       var img = evt && evt.target
@@ -136,53 +167,58 @@ export default {
       return this.frameClasses[id] || 'gallery-frame--square'
     },
     pieceStyle(index) {
-      if (typeof window !== 'undefined' &&
-        window.matchMedia &&
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      if (this.prefersReducedMotion) {
         return {}
       }
       return { animationDelay: (index * 0.08) + 's' }
     },
+    getCurrentItemIndex() {
+      var track = this.$refs.track
+      if (!track || !this.items.length) return 0
+      var pieces = track.querySelectorAll('.dp-gallery-wall__piece')
+      if (!pieces.length) return 0
+
+      var scrollPos = this.isWide ? track.scrollLeft : track.scrollTop
+      var viewport = this.isWide ? track.clientWidth : track.clientHeight
+      var center = scrollPos + viewport / 2
+
+      for (var i = 0; i < pieces.length; i++) {
+        var el = pieces[i]
+        var start = this.isWide ? el.offsetLeft : el.offsetTop
+        var end = start + (this.isWide ? el.offsetWidth : el.offsetHeight)
+        if (center >= start && center < end) return i
+      }
+      return 0
+    },
+    schedulePrefetch(immediate) {
+      var self = this
+      if (this.prefetchTimer != null) {
+        clearTimeout(this.prefetchTimer)
+        this.prefetchTimer = null
+      }
+      if (immediate) {
+        prefetchGalleryAhead(this.items, this.getCurrentItemIndex(), PREFETCH_AHEAD)
+        return
+      }
+      this.prefetchTimer = setTimeout(function () {
+        self.prefetchTimer = null
+        prefetchGalleryAhead(self.items, self.getCurrentItemIndex(), PREFETCH_AHEAD)
+      }, PREFETCH_THROTTLE_MS)
+    },
+    onTrackScroll() {
+      this.schedulePrefetch()
+    },
+    onFrameWarm(item) {
+      prefetchGalleryFull(item)
+    },
     openDetail(item) {
+      prefetchGalleryFull(item)
       this.detailItem = item
       this.detailVisible = true
-      this.startTypewriter(item && item.caption ? String(item.caption) : '')
     },
-    startTypewriter(fullText) {
-      this.stopTypewriter()
-      var text = fullText || ''
-      if (!text) {
-        this.typewriterText = '（无说明）'
-        this.typewriterActive = false
-        return
-      }
-      if (
-        typeof window !== 'undefined' &&
-        window.matchMedia &&
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      ) {
-        this.typewriterText = text
-        this.typewriterActive = false
-        return
-      }
-      var self = this
-      var idx = 0
-      this.typewriterText = ''
-      this.typewriterActive = true
-      this.typewriterTimer = setInterval(function () {
-        idx++
-        self.typewriterText = text.slice(0, idx)
-        if (idx >= text.length) {
-          self.stopTypewriter()
-        }
-      }, 42)
-    },
-    stopTypewriter() {
-      if (this.typewriterTimer != null) {
-        clearInterval(this.typewriterTimer)
-        this.typewriterTimer = null
-      }
-      this.typewriterActive = false
+    onDetailClosed() {
+      this.detailVisible = false
+      this.detailItem = null
     }
   }
 }
@@ -231,7 +267,7 @@ export default {
     );
   box-shadow:
     inset 0 3px 0 color-mix(in srgb, var(--dp-accent, #6b5d52) 20%, transparent),
-    inset 0 1px 0 color-mix(in srgb, #fff 36%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, #fff 36%, transparent),
     inset 0 -2px 0 var(--dp-gallery-mat-edge),
     0 2px 8px color-mix(in srgb, var(--dp-text-primary, #3a332c) 5%, transparent);
 }
@@ -272,35 +308,60 @@ export default {
   margin: 0;
 }
 
-.dp-gallery-wall__track {
+.dp-gallery-wall__frame {
   position: relative;
   z-index: 1;
-  display: flex;
-  flex-direction: column;
-  gap: clamp(20px, 4vw, 32px);
-  overflow-y: auto;
-  overflow-x: hidden;
-  scroll-snap-type: y mandatory;
-  -webkit-overflow-scrolling: touch;
-  padding: 8px 4px clamp(20px, 3vw, 28px);
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dp-gallery-wall__track {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(20px, 4vw, 32px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--dp-accent, #6b5d52) 35%, transparent) transparent;
+  padding: 8px 4px clamp(20px, 3vw, 28px);
+}
+.dp-gallery-wall__track::-webkit-scrollbar {
+  width: 6px;
+}
+.dp-gallery-wall__track::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--dp-accent, #6b5d52) 32%, transparent);
+}
+.dp-gallery-wall__track::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .dp-gallery-wall__track--wide {
   flex-direction: row;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: clamp(24px, 3vw, 40px);
   overflow-x: auto;
   overflow-y: hidden;
   scroll-snap-type: x mandatory;
-  gap: clamp(24px, 3vw, 40px);
   padding: 12px 8px 28px;
-  align-items: stretch;
+}
+.dp-gallery-wall__track--wide::-webkit-scrollbar {
+  height: 6px;
+  width: auto;
 }
 
 .dp-gallery-wall__piece {
   flex: 0 0 auto;
   scroll-snap-align: center;
-  scroll-snap-stop: always;
   animation: dp-gallery-piece-in 0.55s ease both;
 }
 
@@ -433,31 +494,6 @@ export default {
   -webkit-box-orient: vertical;
 }
 
-.dp-gallery-detail__img {
-  display: block;
-  width: 100%;
-  max-height: min(60vh, 520px);
-  object-fit: contain;
-  border-radius: 10px;
-  background: var(--dp-subpanel-bg, #faf8f5);
-}
-.dp-gallery-detail__caption {
-  margin: 14px 0 0;
-  min-height: 1.5em;
-  color: var(--dp-text-primary, #303133);
-  font-size: 15px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-}
-.dp-gallery-detail__cursor {
-  display: inline-block;
-  margin-left: 2px;
-  animation: dp-gallery-cursor-blink 0.8s step-end infinite;
-}
-@keyframes dp-gallery-cursor-blink {
-  50% { opacity: 0; }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .dp-gallery-wall__piece,
   .gallery-frame {
@@ -467,14 +503,5 @@ export default {
   .gallery-frame:hover {
     transform: none;
   }
-  .dp-gallery-detail__cursor {
-    animation: none;
-  }
-}
-</style>
-
-<style>
-.dp-gallery-detail-dialog .el-dialog__body {
-  background: var(--dp-panel-bg, #fff);
 }
 </style>
