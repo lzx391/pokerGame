@@ -509,3 +509,5 @@ mvn test -Dtest=DpPermissionServiceImplTest,DpRbacHoleCardsTest,DpRbacExperiment
 ---
 
 *文档维护：新增权限或变更缓存策略时请同步更新本节与 Flyway 版本表。*
+---
+# 手写接入画廊权限

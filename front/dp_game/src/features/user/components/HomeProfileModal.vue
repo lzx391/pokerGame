@@ -199,6 +199,14 @@
           <button type="button" class="home-prof-btn home-prof-btn--outline" @click.stop="openAchievementWall">
             成就墙
           </button>
+          <button
+            v-if="canEditGallery"
+            type="button"
+            class="home-prof-btn home-prof-btn--outline"
+            @click.stop="openGalleryEditor"
+          >
+            我的画廊
+          </button>
         </div>
       </template>
 
@@ -339,6 +347,10 @@
     :visible.sync="achievementWallVisible"
     :user-id="null"
   />
+  <dp-gallery-editor
+    :visible.sync="galleryEditorVisible"
+    :user-id="form.id"
+  />
   </div>
 </template>
 
@@ -346,7 +358,9 @@
 import DpUserAvatar from '@features/user/components/DpUserAvatar.vue'
 import DpAchievementWallModal from '@features/achievement/components/DpAchievementWallModal.vue'
 import DpAchievementWallCrt from '@features/achievement/components/DpAchievementWallCrt.vue'
-import { mapState } from 'vuex'
+import DpGalleryEditor from '@features/gallery/components/DpGalleryEditor.vue'
+import { mapState, mapGetters } from 'vuex'
+import { DP_PERM_GALLERY_VIEW } from '@features/auth/store/dpAuth'
 import dpProfileGrayGlitchMixin, {
   DP_PROF_GLITCH_BURST_MS,
   DP_PROF_GLITCH_REVEAL_MS
@@ -356,6 +370,7 @@ import { formatNetWinMultiplier, formatRoomNetMultiplier } from '@features/room/
 import { avatarCacheBustFromUpdatedAt, avatarFileSrc } from '@features/user/utils/dpAvatarUrl'
 import { dpLayerZIndex } from '@shared/utils/dpModalZIndex'
 import { getNicknameFontClass } from '@shared/utils/dpNicknameFont'
+import { refreshDpAuthPermissions } from '@features/auth/utils/dpAuthBootstrap'
 
 var HONOR_GLITCH_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%&*'
 var HONOR_SCRAMBLE_MS = 320
@@ -363,7 +378,7 @@ var HONOR_SCRAMBLE_TICK_MS = 48
 
 export default {
   name: 'HomeProfileModal',
-  components: { DpUserAvatar, DpAchievementWallModal, DpAchievementWallCrt },
+  components: { DpUserAvatar, DpAchievementWallModal, DpAchievementWallCrt, DpGalleryEditor },
   mixins: [dpProfileGrayGlitchMixin],
   props: {
     visible: {
@@ -385,6 +400,7 @@ export default {
       honorGlitchTimer: null,
       honorRevealTimer: null,
       achievementWallVisible: false,
+      galleryEditorVisible: false,
       form: {
         id: '',
         nickname: '',
@@ -447,6 +463,10 @@ export default {
       }
     },
     ...mapState('dpGame', ['gameUiTheme']),
+    ...mapGetters('dpAuth', ['hasPerm']),
+    canEditGallery() {
+      return this.hasPerm(DP_PERM_GALLERY_VIEW)
+    },
     useRetroAchievementWall() {
       return this.gameUiTheme === 'retro8bit'
     },
@@ -461,6 +481,7 @@ export default {
   watch: {
     visible(v) {
       if (v) {
+        refreshDpAuthPermissions(this)
         this.mode = 'view'
         this.loadProfile()
       } else {
@@ -509,6 +530,14 @@ export default {
     },
     openAchievementWall() {
       this.achievementWallVisible = true
+    },
+    openGalleryEditor() {
+      if (!this.canEditGallery) {
+        if (this.$message) this.$message.warning('无权限查看画廊')
+        return
+      }
+      if (!this.form.id) return
+      this.galleryEditorVisible = true
     },
     leaveEditMode() {
       this.mode = 'view'

@@ -19,7 +19,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         "com.example.mgdemoplus.leaderboard.mapper",
         "com.example.mgdemoplus.achievement.mapper",
         "com.example.mgdemoplus.oauth.mapper",
-        "com.example.mgdemoplus.rbac.mapper"
+        "com.example.mgdemoplus.rbac.mapper",
+        "com.example.mgdemoplus.gallery.mapper"
 })
 @EnableScheduling
 public class MgDemoPlusApplication {

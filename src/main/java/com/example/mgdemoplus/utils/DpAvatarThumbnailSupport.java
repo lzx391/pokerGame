@@ -118,19 +118,29 @@ public final class DpAvatarThumbnailSupport {
      * 从已落盘原图生成缩略图字节；失败返回 empty。
      */
     public static Optional<byte[]> generateThumbnailBytes(File sourceFile) {
-        if (sourceFile == null || !sourceFile.isFile()) {
+        return generateThumbnailBytes(sourceFile, THUMB_MAX_EDGE);
+    }
+
+    /**
+     * 从已落盘原图生成 WebP 缩略图字节，最长边不超过 {@code maxEdge}；失败返回 empty。
+     */
+    public static Optional<byte[]> generateThumbnailBytes(File sourceFile, int maxEdge) {
+        if (sourceFile == null || !sourceFile.isFile() || maxEdge <= 0) {
             return Optional.empty();
         }
         try {
             BufferedImage src = readImage(sourceFile);
             if (src == null) {
-                log.warn("avatar thumb skip: cannot decode file={}", sourceFile.getName());
+                log.warn("image thumb skip: cannot decode file={}", sourceFile.getName());
                 return Optional.empty();
             }
-            BufferedImage scaled = scaleToFit(src, THUMB_MAX_EDGE);
+            BufferedImage scaled = scaleToFit(src, maxEdge);
+            if (scaled == null) {
+                return Optional.empty();
+            }
             return Optional.of(writeWebpToBytes(scaled));
         } catch (IOException e) {
-            log.warn("avatar thumb bytes failed file={}: {}", sourceFile.getName(), e.getMessage());
+            log.warn("image thumb bytes failed file={}: {}", sourceFile.getName(), e.getMessage());
             return Optional.empty();
         }
     }

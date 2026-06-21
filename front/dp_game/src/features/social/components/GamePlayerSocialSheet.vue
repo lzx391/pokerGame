@@ -214,6 +214,14 @@
           >
             成就墙
           </button>
+          <button
+            v-if="canViewGallery"
+            type="button"
+            class="game-prof-btn game-prof-btn--outline"
+            @click.stop="openGalleryViewer"
+          >
+            查看画廊
+          </button>
           <div v-if="socialPrimaryIsStaticHint" class="game-prof-footer__hint">
             {{ primaryLabel }}
           </div>
@@ -247,6 +255,11 @@
     :subject-name="displayName"
     :subject-nickname="achievementWallSubjectNickname"
   />
+  <dp-gallery-viewer
+    :visible.sync="galleryViewerVisible"
+    :user-id="achievementWallTargetUserId"
+    :subject-name="displayName"
+  />
   </div>
 </template>
 
@@ -254,7 +267,9 @@
 import DpUserAvatar from '@features/user/components/DpUserAvatar.vue'
 import DpAchievementWallModal from '@features/achievement/components/DpAchievementWallModal.vue'
 import DpAchievementWallCrt from '@features/achievement/components/DpAchievementWallCrt.vue'
-import { mapState } from 'vuex'
+import DpGalleryViewer from '@features/gallery/components/DpGalleryViewer.vue'
+import { mapState, mapGetters } from 'vuex'
+import { DP_PERM_GALLERY_VIEW } from '@features/auth/store/dpAuth'
 import dpProfileGrayGlitchMixin, {
   DP_PROF_GLITCH_BURST_MS,
   DP_PROF_GLITCH_REVEAL_MS
@@ -267,6 +282,7 @@ import { avatarCacheBustFromUpdatedAt, avatarFileSrc } from '@features/user/util
 import { copySocialId as copySocialIdToClipboard } from '@features/social/utils/dpCopySocialId'
 import { dpScheduleOverlayFullscreenReparent } from '@shared/utils/dpOverlayPortal'
 import { getNicknameFontClass } from '@shared/utils/dpNicknameFont'
+import { refreshDpAuthPermissions } from '@features/auth/utils/dpAuthBootstrap'
 
 var HONOR_GLITCH_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%&*'
 var HONOR_SCRAMBLE_MS = 320
@@ -274,7 +290,7 @@ var HONOR_SCRAMBLE_TICK_MS = 48
 
 export default {
   name: 'GamePlayerSocialSheet',
-  components: { DpUserAvatar, DpAchievementWallModal, DpAchievementWallCrt },
+  components: { DpUserAvatar, DpAchievementWallModal, DpAchievementWallCrt, DpGalleryViewer },
   mixins: [dpProfileGrayGlitchMixin],
   inject: {
     dpGameView: { default: null }
@@ -297,6 +313,7 @@ export default {
       honorGlitchTick: 0,
       honorGlitchTimer: null,
       achievementWallVisible: false,
+      galleryViewerVisible: false,
       honorRevealTimer: null,
       honorFetchSettled: false
     }
@@ -304,6 +321,10 @@ export default {
   computed: {
     ...mapState('dpMailbox', ['friends']),
     ...mapState('dpGame', ['gameUiTheme']),
+    ...mapGetters('dpAuth', ['hasPerm']),
+    canViewGallery() {
+      return this.hasPerm(DP_PERM_GALLERY_VIEW)
+    },
     displayName() {
       if (!this.target || !this.target.nickname) return ''
       return dpDisplayNickname(this.target)
@@ -528,6 +549,7 @@ export default {
       })
     },
     refresh() {
+      refreshDpAuthPermissions(this)
       this.tip = ''
       this.sentOk = false
       this.lookupAddStatus = ''
@@ -621,6 +643,14 @@ export default {
       this.$nextTick(function () {
         dpScheduleOverlayFullscreenReparent(self.dpGameView)
       })
+    },
+    openGalleryViewer() {
+      if (!this.canViewGallery) {
+        if (this.$message) this.$message.warning('无权限查看画廊')
+        return
+      }
+      if (!this.achievementWallTargetUserId) return
+      this.galleryViewerVisible = true
     },
     async onSendRequest() {
       if (!this.target || this.primaryDisabled) return

@@ -3,6 +3,7 @@ import { dpResultData, dpResultSuccess } from '@shared/utils/dpApiResult'
 export const DP_PERM_HOLE_CARDS_VIEW = 'game:hole_cards:view'
 export const DP_PERM_EXPERIMENTAL_DECK_PRESET = 'game:experimental_deck_preset'
 export const DP_PERM_NPC_DECISION_TRACE = 'game:npc_decision_trace'
+export const DP_PERM_GALLERY_VIEW = 'gallery:view'
 
 export default {
   namespaced: true,

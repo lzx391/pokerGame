@@ -20,3 +20,12 @@ export function bootstrapDpAuthPermissions(vm) {
     return Promise.resolve()
   }
 }
+
+/**
+ * 打开个人资料等 UI 时刷新权限，不阻塞界面展示。
+ * @param {import('vue').default} vm 含 $http、$store 的组件实例
+ */
+export function refreshDpAuthPermissions(vm) {
+  if (!vm || !vm.$store || !vm.$http) return
+  vm.$store.dispatch('dpAuth/fetchPermissions', { http: vm.$http }).catch(function () {})
+}
