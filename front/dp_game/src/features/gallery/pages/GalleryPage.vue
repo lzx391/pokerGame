@@ -33,7 +33,7 @@
     </div>
 
     <template v-else-if="!booting">
-      <dp-gallery-letter-panel
+      <dp-gallery-letter-envelope
         :content="letterContent"
         :loading="letterLoading"
         :editable="canEditLetter"
@@ -69,14 +69,14 @@ import { refreshDpAuthPermissions } from '@features/auth/utils/dpAuthBootstrap'
 import { dpResultSuccess, dpResultData, dpResultMessage, dpAxiosErrorMessage } from '@shared/utils/dpApiResult'
 import { dpSocialApi } from '@features/social/api/socialApi'
 import { dpDisplayNickname } from '@shared/utils/dpDisplayNickname'
-import DpGalleryLetterPanel from '@features/gallery/components/DpGalleryLetterPanel.vue'
+import DpGalleryLetterEnvelope from '@features/gallery/components/DpGalleryLetterEnvelope.vue'
 import DpGalleryWall from '@features/gallery/components/DpGalleryWall.vue'
 import DpGalleryItemsEditor from '@features/gallery/components/DpGalleryItemsEditor.vue'
 
 export default {
   name: 'GalleryPage',
   components: {
-    DpGalleryLetterPanel,
+    DpGalleryLetterEnvelope,
     DpGalleryWall,
     DpGalleryItemsEditor
   },

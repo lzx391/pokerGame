@@ -1,21 +1,6 @@
 <template>
-  <section class="dp-gallery-letter" :class="{ 'dp-gallery-letter--collapsed': collapsed }">
-    <button
-      type="button"
-      class="dp-gallery-letter__toggle"
-      :aria-expanded="!collapsed"
-      aria-label="展开或收起介绍信"
-      @click="toggleCollapsed"
-    >
-      <span class="dp-gallery-letter__title">介绍信</span>
-      <i
-        class="dp-gallery-letter__chevron"
-        :class="collapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"
-        aria-hidden="true"
-      ></i>
-    </button>
-
-    <div v-show="!collapsed" class="dp-gallery-letter__body">
+  <section class="dp-gallery-letter">
+    <div class="dp-gallery-letter__body">
       <div v-if="loading" class="dp-gallery-letter__status">
         <i class="el-icon-loading" aria-hidden="true"></i>
         <span>加载介绍信…</span>
@@ -86,7 +71,6 @@ export default {
   },
   data() {
     return {
-      collapsed: false,
       draft: '',
       savedContent: '',
       saving: false
@@ -118,9 +102,6 @@ export default {
     }
   },
   methods: {
-    toggleCollapsed() {
-      this.collapsed = !this.collapsed
-    },
     async saveLetter() {
       var text = (this.draft || '').trim()
       if (!text) {
@@ -194,44 +175,6 @@ export default {
   );
   box-shadow: 0 2px 14px rgba(0, 0, 0, 0.06);
   overflow: hidden;
-}
-
-.dp-gallery-letter__toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  min-height: 44px;
-  padding: 12px 16px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-family: inherit;
-  text-align: left;
-  color: var(--dp-text-primary, #303133);
-  transition: background 0.2s ease;
-}
-.dp-gallery-letter__toggle:hover {
-  background: color-mix(in srgb, var(--dp-accent, #409eff) 6%, transparent);
-}
-.dp-gallery-letter__toggle:focus-visible {
-  outline: 2px solid var(--dp-accent, #409eff);
-  outline-offset: -2px;
-}
-
-.dp-gallery-letter__title {
-  font-size: 1rem;
-  font-weight: 650;
-  letter-spacing: 0.04em;
-}
-
-.dp-gallery-letter__chevron {
-  font-size: 16px;
-  color: var(--dp-text-muted, #909399);
-  transition: transform 0.25s ease;
-}
-.dp-gallery-letter--collapsed .dp-gallery-letter__chevron {
-  transform: rotate(0deg);
 }
 
 .dp-gallery-letter__body {
@@ -315,8 +258,6 @@ export default {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dp-gallery-letter__toggle,
-  .dp-gallery-letter__chevron,
   .dp-gallery-letter__btn {
     transition: none;
   }
