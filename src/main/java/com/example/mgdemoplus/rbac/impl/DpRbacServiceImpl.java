@@ -57,7 +57,9 @@ public class DpRbacServiceImpl implements DpRbacService {
         if (existing != null && existing.contains(roleId)) {
             return;
         }
+        //赋予默认的普通用户权限
         dpUserRoleMapper.insert(userId, roleId);
+        //清除缓存中改用户id的权限
         dpPermissionService.evictUser(userId);
     }
 

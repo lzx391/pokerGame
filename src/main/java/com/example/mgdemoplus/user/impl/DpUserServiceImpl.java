@@ -34,20 +34,20 @@ import java.time.LocalDateTime;
 
 @Service
 public class DpUserServiceImpl implements DpUserService {
-    @Autowired
-    DpUserMapper dpUserMapper;
-    @Autowired
-    DpUserStatsMapper dpUserStatsMapper;
-    @Autowired
-    DpSensitiveWordService sensitiveWordService;
-    @Autowired
-    DpLeaderboardWeeklyReadService dpLeaderboardWeeklyReadService;
-    @Autowired
-    DpObjectStorage objectStorage;
-    @Autowired
-    DpAvatarStorageSupport avatarStorageSupport;
-    @Autowired
-    DpRbacService dpRbacService;
+    // @Autowired
+    // DpUserMapper dpUserMapper;
+    // @Autowired
+    // DpUserStatsMapper dpUserStatsMapper;
+    // @Autowired
+    // DpSensitiveWordService sensitiveWordService;
+    // @Autowired
+    // DpLeaderboardWeeklyReadService dpLeaderboardWeeklyReadService;
+    // @Autowired
+    // DpObjectStorage objectStorage;
+    // @Autowired
+    // DpAvatarStorageSupport avatarStorageSupport;
+    // @Autowired
+    // DpRbacService dpRbacService;
 
     private static final long MAX_AVATAR_BYTES = 2L * 1024 * 1024;
 
@@ -65,6 +65,25 @@ public class DpUserServiceImpl implements DpUserService {
     public static final String MSG_SENSITIVE = "敏感词汇";
     public static final String MSG_NUMERIC_NICKNAME = "昵称不能为纯数字";
     public static final String MSG_USE_PASSWORD_ENDPOINT = "请使用改密接口";
+    private final DpUserMapper dpUserMapper;
+    private final DpUserStatsMapper dpUserStatsMapper;
+    private final DpSensitiveWordService sensitiveWordService;
+    private final DpLeaderboardWeeklyReadService dpLeaderboardWeeklyReadService;
+    private final DpObjectStorage objectStorage;
+    private final DpAvatarStorageSupport avatarStorageSupport;
+    private final DpRbacService dpRbacService;
+
+    public DpUserServiceImpl(DpUserMapper dpUserMapper, DpUserStatsMapper dpUserStatsMapper,
+            DpSensitiveWordService sensitiveWordService, DpLeaderboardWeeklyReadService dpLeaderboardWeeklyReadService,
+            DpObjectStorage objectStorage, DpAvatarStorageSupport avatarStorageSupport, DpRbacService dpRbacService) {
+        this.dpUserMapper = dpUserMapper;
+        this.dpUserStatsMapper = dpUserStatsMapper;
+        this.sensitiveWordService = sensitiveWordService;
+        this.dpLeaderboardWeeklyReadService = dpLeaderboardWeeklyReadService;
+        this.objectStorage = objectStorage;
+        this.avatarStorageSupport = avatarStorageSupport;
+        this.dpRbacService = dpRbacService;
+    }
 
     public int registerUser(DpUser dpUser) {
         String nickname = dpUser.getNickname() == null ? "" : dpUser.getNickname().trim();
@@ -231,17 +250,17 @@ public class DpUserServiceImpl implements DpUserService {
         if (stored == null) {
             return "用户不存在";
         }
-//有无旧密码？
+        // 有无旧密码？
         boolean hasPassword = stored.getPassword() != null && !stored.getPassword().isBlank();
-        //输入旧密码
+        // 输入旧密码
         String oldPassword = request.getOldPassword();
-        //旧密码是否存在
+        // 旧密码是否存在
         boolean hasOldPasswordInRequest = oldPassword != null && !oldPassword.isBlank();
-//没有密码但是输入了旧密码
+        // 没有密码但是输入了旧密码
         if (!hasPassword && hasOldPasswordInRequest) {
             return "尚未设置密码，无需填写当前密码";
         }
-//校验，如果有旧密码就验证旧密码对不对，没有旧密码通过，旧密码正确通过，然后出来直接设置新密码
+        // 校验，如果有旧密码就验证旧密码对不对，没有旧密码通过，旧密码正确通过，然后出来直接设置新密码
         String passwordError = validatePasswordUpdate(stored, hasPassword, oldPassword, newPassword);
         if (passwordError != null) {
             return passwordError;
