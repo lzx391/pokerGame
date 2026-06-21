@@ -10,6 +10,12 @@ export function dpAdminApi(http) {
     listRoles: function () {
       return http.get('/dp/admin/roles')
     },
+    createRole: function (code, name) {
+      return http.post('/dp/admin/roles', { code: code, name: name })
+    },
+    deleteRole: function (roleId) {
+      return http.delete('/dp/admin/roles/' + roleId)
+    },
     listPermissions: function () {
       return http.get('/dp/admin/permissions')
     },

@@ -19,4 +19,8 @@ public interface DpRbacService {
     DpAdminUserPageVO listUsers(int page, int size, String keyword);
 
     void replaceUserRoles(int userId, List<Long> roleIds);
+
+    DpAdminRoleVO createRole(String code, String name);
+
+    void deleteRole(long roleId);
 }

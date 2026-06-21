@@ -24,11 +24,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.regex.Pattern;
 
 @Service
 public class DpRbacServiceImpl implements DpRbacService {
 
     private static final String ROLE_PLAYER = "PLAYER";
+    private static final String ROLE_ADMIN = "ADMIN";
+    private static final Pattern ROLE_CODE_PATTERN = Pattern.compile("^[A-Z][A-Z0-9_]{1,31}$");
 
     @Autowired
     private DpRoleMapper dpRoleMapper;
@@ -175,5 +178,62 @@ public class DpRbacServiceImpl implements DpRbacService {
             }
         }
         dpPermissionService.evictUser(userId);
+    }
+
+    @Override
+    @Transactional
+    public DpAdminRoleVO createRole(String code, String name) {
+        String normalizedCode = normalizeRoleCode(code);
+        validateRoleName(name);
+        if (dpRoleMapper.selectIdByCode(normalizedCode) != null) {
+            throw new IllegalArgumentException("角色编码已存在：" + normalizedCode);
+        }
+        DpRole role = new DpRole();
+        role.setCode(normalizedCode);
+        role.setName(name.trim());
+        dpRoleMapper.insert(role);
+        DpAdminRoleVO vo = new DpAdminRoleVO();
+        vo.setId(role.getId());
+        vo.setCode(role.getCode());
+        vo.setName(role.getName());
+        vo.setPermissionIds(new ArrayList<>());
+        return vo;
+    }
+
+    @Override
+    @Transactional
+    public void deleteRole(long roleId) {
+        if (roleId <= 0) {
+            throw new IllegalArgumentException("roleId 无效");
+        }
+        DpRole role = dpRoleMapper.selectById(roleId);
+        if (role == null) {
+            throw new IllegalArgumentException("角色不存在");
+        }
+        if (ROLE_PLAYER.equals(role.getCode()) || ROLE_ADMIN.equals(role.getCode())) {
+            throw new IllegalArgumentException("内置角色不可删除");
+        }
+        dpRoleMapper.deleteById(roleId);
+        dpPermissionService.evictAll();
+    }
+
+    private static String normalizeRoleCode(String code) {
+        if (code == null || code.trim().isEmpty()) {
+            throw new IllegalArgumentException("角色编码不能为空");
+        }
+        String normalized = code.trim().toUpperCase();
+        if (!ROLE_CODE_PATTERN.matcher(normalized).matches()) {
+            throw new IllegalArgumentException("角色编码格式无效，需以大写字母开头，仅含大写字母、数字和下划线，长度 2-32");
+        }
+        return normalized;
+    }
+
+    private static void validateRoleName(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            throw new IllegalArgumentException("角色名称不能为空");
+        }
+        if (name.trim().length() > 64) {
+            throw new IllegalArgumentException("角色名称不能超过 64 个字符");
+        }
     }
 }

@@ -2,12 +2,14 @@ package com.example.mgdemoplus.controller;
 
 import com.example.mgdemoplus.rbac.DpRbacService;
 import com.example.mgdemoplus.rbac.bo.DpAdminVerifyPasswordRequest;
+import com.example.mgdemoplus.rbac.bo.DpRoleCreateRequest;
 import com.example.mgdemoplus.rbac.bo.DpRolePermissionsUpdateRequest;
 import com.example.mgdemoplus.rbac.bo.DpUserRolesUpdateRequest;
 import com.example.mgdemoplus.room.support.DpExperimentalDeckPresetPasswordGuard;
 import com.example.mgdemoplus.security.DpCurrentUserSupport;
 import com.example.mgdemoplus.utils.ResultUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -46,6 +48,34 @@ public class DpAdminRbacController {
             return ResultUtil.error().data("message", "未登录或登录已失效");
         }
         return ResultUtil.ok().data("list", dpRbacService.listRolesWithPermissions());
+    }
+
+    @PostMapping("/roles")
+    public ResultUtil createRole(@RequestBody DpRoleCreateRequest body) {
+        if (currentUserSupport.requireNickname() == null) {
+            return ResultUtil.error().data("message", "未登录或登录已失效");
+        }
+        try {
+            var role = dpRbacService.createRole(
+                    body != null ? body.getCode() : null,
+                    body != null ? body.getName() : null);
+            return ResultUtil.ok().data("role", role);
+        } catch (IllegalArgumentException ex) {
+            return ResultUtil.error().data("message", ex.getMessage());
+        }
+    }
+
+    @DeleteMapping("/roles/{roleId}")
+    public ResultUtil deleteRole(@PathVariable("roleId") long roleId) {
+        if (currentUserSupport.requireNickname() == null) {
+            return ResultUtil.error().data("message", "未登录或登录已失效");
+        }
+        try {
+            dpRbacService.deleteRole(roleId);
+            return ResultUtil.ok().data("message", "删除成功");
+        } catch (IllegalArgumentException ex) {
+            return ResultUtil.error().data("message", ex.getMessage());
+        }
     }
 
     @GetMapping("/permissions")
