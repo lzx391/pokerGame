@@ -17,7 +17,7 @@
         class="dp-gallery-wall__viewport"
         :class="{
           'dp-gallery-wall__viewport--paused': scrollPaused || hoverPaused,
-          'dp-gallery-wall__viewport--manual': hoverPaused && !scrollPaused
+          'dp-gallery-wall__viewport--manual': useManualMarqueeTransform
         }"
         @pointerdown="onMarqueePointerDown"
         @pointerup="onMarqueePointerUp"
@@ -178,6 +178,9 @@ export default {
       prefetchTimer: null,
       touchPaused: false,
       hoverPaused: false,
+      pointerOverViewport: false,
+      lastPointerX: 0,
+      lastPointerY: 0,
       manualMarqueeOffset: 0,
       useManualMarqueeTransform: false,
       ecoModeFromDom: false,
@@ -240,14 +243,6 @@ export default {
     }
   },
   watch: {
-    detailVisible: function (val) {
-      if (!val && this.hoverPaused && !this.scrollPaused) {
-        var self = this
-        this.$nextTick(function () {
-          self.freezeMarqueeAtCurrentPosition()
-        })
-      }
-    },
     items: {
       deep: true,
       handler: function () {
@@ -278,6 +273,9 @@ export default {
     if (typeof window !== 'undefined') {
       window.addEventListener('scroll', this.onPageScroll, { passive: true })
     }
+    if (typeof document !== 'undefined') {
+      document.addEventListener('pointermove', this.onDocumentPointerMove, { passive: true })
+    }
     this.observeEcoMode()
     var self = this
     this.$nextTick(function () {
@@ -289,6 +287,9 @@ export default {
   beforeDestroy() {
     if (typeof window !== 'undefined') {
       window.removeEventListener('scroll', this.onPageScroll)
+    }
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('pointermove', this.onDocumentPointerMove)
     }
     if (this.prefetchTimer != null) {
       clearTimeout(this.prefetchTimer)
@@ -380,13 +381,26 @@ export default {
     onMarqueePointerUp() {
       this.touchPaused = false
     },
+    onDocumentPointerMove(evt) {
+      if (!evt) return
+      this.lastPointerX = evt.clientX
+      this.lastPointerY = evt.clientY
+    },
+    isPointerOverMarqueeViewport() {
+      var viewport = this.$refs.marqueeViewport
+      if (!viewport || typeof document === 'undefined') return this.pointerOverViewport
+      var el = document.elementFromPoint(this.lastPointerX, this.lastPointerY)
+      return !!(el && viewport.contains(el))
+    },
     onMarqueePointerLeave() {
       this.touchPaused = false
-      if (!this.hoverPaused) return
+      this.pointerOverViewport = false
+      if (!this.hoverPaused || this.detailVisible) return
       this.resumeMarqueeAnimation()
       this.hoverPaused = false
     },
     onMarqueeMouseEnter() {
+      this.pointerOverViewport = true
       if (this.scrollPaused) return
       this.hoverPaused = true
       this.freezeMarqueeAtCurrentPosition()
@@ -494,6 +508,9 @@ export default {
       prefetchGalleryFull(item)
     },
     openDetail(item) {
+      if (this.autoScrollEnabled) {
+        this.freezeMarqueeAtCurrentPosition()
+      }
       prefetchGalleryFull(item)
       this.detailItem = item
       this.detailVisible = true
@@ -501,6 +518,19 @@ export default {
     onDetailClosed() {
       this.detailVisible = false
       this.detailItem = null
+      var self = this
+      this.$nextTick(function () {
+        if (!self.autoScrollEnabled || !self.$refs.marqueeEl) return
+        if (self.isPointerOverMarqueeViewport()) {
+          self.hoverPaused = true
+          self.freezeMarqueeAtCurrentPosition()
+        } else {
+          self.hoverPaused = false
+          if (self.useManualMarqueeTransform) {
+            self.resumeMarqueeAnimation()
+          }
+        }
+      })
     }
   }
 }
@@ -519,6 +549,12 @@ export default {
   --dp-gallery-frame-radius: clamp(6px, 1vw, 10px);
   --dp-gallery-marquee-duration: 50s;
   --dp-gallery-track-gap: clamp(14px, 2.4vw, 22px);
+  /* Per-column track spotlight — overridden by gallery-page theme */
+  --dp-gallery-spot-core: rgba(255, 248, 235, 0.55);
+  --dp-gallery-spot-mid: rgba(255, 248, 235, 0.15);
+  --dp-gallery-spot-spread: 80%;
+  --dp-gallery-spot-depth: 120%;
+  --dp-gallery-ambient-vignette: rgba(32, 26, 20, 0.42);
 
   position: relative;
   flex: 1 1 auto;
@@ -530,7 +566,7 @@ export default {
   border-radius: clamp(12px, 2.4vw, 18px);
 }
 
-/* Mat runway — museum display plinth, subtle vertical guides only */
+/* Mat runway — darker museum wall; column spotlights provide illumination */
 .dp-gallery-wall::before {
   content: '';
   position: absolute;
@@ -539,7 +575,6 @@ export default {
   border-radius: inherit;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 85% 70% at 50% 0%, color-mix(in srgb, #fff 12%, transparent) 0%, transparent 58%),
     repeating-linear-gradient(
       90deg,
       transparent 0,
@@ -549,9 +584,9 @@ export default {
     ),
     linear-gradient(
       180deg,
-      color-mix(in srgb, var(--dp-gallery-mat-bg, #f8f5f0) 96%, #fff) 0%,
-      var(--dp-gallery-mat-bg, #f8f5f0) 54%,
-      color-mix(in srgb, var(--dp-gallery-mat-bg, #f8f5f0) 92%, var(--dp-text-primary, #3a332c)) 100%
+      color-mix(in srgb, var(--dp-gallery-mat-bg, #b8aca0) 82%, #000) 0%,
+      color-mix(in srgb, var(--dp-gallery-mat-bg, #b8aca0) 92%, #000) 54%,
+      color-mix(in srgb, var(--dp-gallery-mat-bg, #b8aca0) 78%, #000) 100%
     );
   box-shadow:
     inset 0 3px 0 color-mix(in srgb, var(--dp-gallery-mat-edge, rgba(107, 93, 82, 0.12)) 65%, transparent),
@@ -606,8 +641,34 @@ export default {
   min-height: 0;
 }
 
+/* Ambient vignette between column spotlights */
+.dp-gallery-wall__frame::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent calc(var(--dp-gallery-frame-w) * 0.35 + var(--dp-gallery-track-gap) * 0.25),
+      color-mix(in srgb, var(--dp-gallery-ambient-vignette) 55%, transparent) calc(var(--dp-gallery-frame-w) * 0.55 + var(--dp-gallery-track-gap) * 0.45),
+      transparent calc(var(--dp-gallery-frame-w) + var(--dp-gallery-track-gap))
+    ),
+    radial-gradient(
+      ellipse 92% 88% at 50% 40%,
+      transparent 12%,
+      color-mix(in srgb, var(--dp-gallery-ambient-vignette) 72%, transparent) 58%,
+      var(--dp-gallery-ambient-vignette) 100%
+    );
+}
+
 /* Marquee viewport — clips conveyor belt */
 .dp-gallery-wall__viewport {
+  position: relative;
+  z-index: 1;
   flex: 1 1 auto;
   width: 100%;
   min-height: 0;
@@ -643,6 +704,8 @@ export default {
 }
 
 .dp-gallery-wall__track {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
@@ -673,11 +736,31 @@ export default {
 }
 
 .dp-gallery-wall__column {
+  position: relative;
   display: flex;
   flex-direction: column;
   flex: 0 0 auto;
   /* ~one frame height between stacked pieces in capacity-2 columns */
   gap: var(--dp-gallery-frame-w);
+}
+
+/* Overhead track light — arch/cone wash per column */
+.dp-gallery-wall__column::before {
+  content: '';
+  position: absolute;
+  top: calc(-1 * clamp(8px, 1.6vw, 14px));
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% + var(--dp-gallery-track-gap) * 0.85);
+  height: calc(100% + clamp(8px, 1.6vw, 14px) + clamp(20px, 3vw, 28px));
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(
+    ellipse var(--dp-gallery-spot-spread) var(--dp-gallery-spot-depth) at 50% 0%,
+    var(--dp-gallery-spot-core) 0%,
+    var(--dp-gallery-spot-mid) 35%,
+    transparent 70%
+  );
 }
 
 .dp-gallery-wall__column--stagger {
@@ -686,6 +769,8 @@ export default {
 }
 
 .dp-gallery-wall__piece {
+  position: relative;
+  z-index: 1;
   flex: 0 0 auto;
   animation: dp-gallery-piece-in 0.5s ease both;
 }
@@ -720,6 +805,7 @@ export default {
 }
 
 .gallery-frame {
+  position: relative;
   display: block;
   width: var(--dp-gallery-frame-w);
   aspect-ratio: var(--dp-gallery-frame-ratio, 1 / 1);
@@ -766,6 +852,21 @@ export default {
   border-radius: max(2px, calc(var(--dp-gallery-frame-radius) - var(--dp-gallery-frame-border-w) * 0.45));
 }
 
+/* Subtle lift in lit zone — warm highlight on frame rim */
+.gallery-frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0.45;
+  background: radial-gradient(
+    ellipse 90% 75% at 50% 8%,
+    color-mix(in srgb, var(--dp-gallery-spot-core) 28%, transparent) 0%,
+    transparent 62%
+  );
+}
+
 /* Mobile: vertical conveyor belt */
 @media (max-width: 767px) {
   .dp-gallery-wall__viewport {
@@ -790,6 +891,14 @@ export default {
   .dp-gallery-wall__column--stagger {
     padding-top: 0;
     padding-left: calc(var(--dp-gallery-frame-w) * 0.575);
+  }
+
+  /* Vertical belt: spotlight still falls from column top */
+  .dp-gallery-wall__column::before {
+    top: calc(-1 * clamp(8px, 1.6vw, 14px));
+    left: 50%;
+    width: calc(100% + var(--dp-gallery-track-gap) * 0.6);
+    height: calc(100% + clamp(8px, 1.6vw, 14px) + clamp(20px, 3vw, 28px));
   }
 }
 

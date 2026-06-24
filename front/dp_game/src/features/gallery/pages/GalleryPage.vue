@@ -313,19 +313,24 @@ export default {
 
 <style scoped>
 .gallery-page {
-  /* Light museum wall — warm off-white, no ruled lines */
-  --dp-gallery-wall-base: #f5f0e8;
-  --dp-gallery-wall-mid: #f0ebe3;
-  --dp-gallery-wall-deep: #ebe4d6;
-  --dp-gallery-wall-vignette: rgba(58, 51, 44, 0.1);
-  --dp-gallery-wall-spot: rgba(255, 252, 248, 0.55);
-  --dp-gallery-wall-texture-a: rgba(255, 255, 255, 0.35);
-  --dp-gallery-wall-texture-b: rgba(58, 51, 44, 0.025);
-  --dp-gallery-mat-bg: #f8f5f0;
-  --dp-gallery-mat-edge: rgba(107, 93, 82, 0.12);
-  --dp-gallery-baseboard: #ddd4c8;
+  /* Light museum wall — dim ambient base; column spotlights carve lit zones on mat */
+  --dp-gallery-wall-base: #c2b6a8;
+  --dp-gallery-wall-mid: #b5a89a;
+  --dp-gallery-wall-deep: #a6988a;
+  --dp-gallery-wall-vignette: rgba(28, 22, 16, 0.42);
+  --dp-gallery-wall-spot: rgba(255, 252, 248, 0.14);
+  --dp-gallery-wall-texture-a: rgba(255, 255, 255, 0.1);
+  --dp-gallery-wall-texture-b: rgba(28, 22, 16, 0.14);
+  --dp-gallery-mat-bg: #b5a89a;
+  --dp-gallery-mat-edge: rgba(72, 60, 50, 0.28);
+  --dp-gallery-baseboard: #9a8e80;
   --dp-gallery-frame-mat: #f7f4ef;
   --dp-gallery-frame-border: rgba(107, 93, 82, 0.22);
+  --dp-gallery-spot-core: rgba(255, 248, 235, 0.55);
+  --dp-gallery-spot-mid: rgba(255, 248, 235, 0.15);
+  --dp-gallery-spot-spread: 80%;
+  --dp-gallery-spot-depth: 120%;
+  --dp-gallery-ambient-vignette: rgba(28, 22, 16, 0.48);
 
   position: relative;
   isolation: isolate;
@@ -343,7 +348,7 @@ export default {
   background: transparent;
 }
 
-/* Full-viewport museum wall — gradient + vignette + soft texture, no ruled lines */
+/* Full-viewport museum wall — darker ambient; column spotlights live on mat panel */
 .gallery-page::before {
   content: '';
   position: fixed;
@@ -351,8 +356,7 @@ export default {
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 108% 96% at 50% 48%, transparent 38%, var(--dp-gallery-wall-vignette) 100%),
-    radial-gradient(ellipse 88% 52% at 50% -8%, var(--dp-gallery-wall-spot) 0%, transparent 62%),
+    radial-gradient(ellipse 100% 92% at 50% 46%, transparent 18%, var(--dp-gallery-wall-vignette) 100%),
     radial-gradient(circle at 18% 24%, var(--dp-gallery-wall-texture-a) 0%, transparent 42%),
     radial-gradient(circle at 82% 78%, var(--dp-gallery-wall-texture-b) 0%, transparent 38%),
     linear-gradient(
@@ -369,27 +373,32 @@ export default {
   --dp-gallery-wall-base: #2a2420;
   --dp-gallery-wall-mid: #252019;
   --dp-gallery-wall-deep: #1f1a17;
-  --dp-gallery-wall-vignette: rgba(0, 0, 0, 0.52);
+  --dp-gallery-wall-vignette: rgba(0, 0, 0, 0.68);
   --dp-gallery-wall-spot: rgba(255, 200, 120, 0.1);
   --dp-gallery-wall-texture-a: rgba(255, 220, 160, 0.04);
-  --dp-gallery-wall-texture-b: rgba(0, 0, 0, 0.18);
-  --dp-gallery-mat-bg: #322c28;
+  --dp-gallery-wall-texture-b: rgba(0, 0, 0, 0.22);
+  --dp-gallery-mat-bg: #2a2420;
   --dp-gallery-mat-edge: rgba(212, 184, 120, 0.14);
   --dp-gallery-baseboard: #3d342e;
   --dp-gallery-frame-mat: #2e2824;
   --dp-gallery-frame-border: rgba(212, 184, 120, 0.24);
+  --dp-gallery-spot-core: rgba(255, 200, 120, 0.28);
+  --dp-gallery-spot-mid: rgba(255, 180, 80, 0.1);
+  --dp-gallery-ambient-vignette: rgba(0, 0, 0, 0.52);
 }
 
 .gallery-page[data-dp-game-theme='gothic'] {
-  --dp-gallery-wall-spot: rgba(224, 201, 117, 0.09);
+  --dp-gallery-spot-core: rgba(224, 201, 117, 0.32);
+  --dp-gallery-spot-mid: rgba(224, 201, 117, 0.1);
 }
 
 .gallery-page[data-dp-game-theme='halloween'] {
-  --dp-gallery-wall-spot: rgba(251, 146, 60, 0.11);
+  --dp-gallery-spot-core: rgba(251, 146, 60, 0.3);
+  --dp-gallery-spot-mid: rgba(251, 146, 60, 0.11);
   --dp-gallery-wall-texture-a: rgba(251, 146, 60, 0.05);
 }
 
-/* retro8bit: dark CRT gallery with subtle green wash */
+/* retro8bit: dark CRT gallery — softer spot cones, no heavy shadow clash */
 .gallery-page[data-dp-game-theme='retro8bit'] {
   --dp-gallery-wall-base: #121510;
   --dp-gallery-wall-mid: #0e120e;
@@ -403,6 +412,11 @@ export default {
   --dp-gallery-baseboard: #1a2018;
   --dp-gallery-frame-mat: #141812;
   --dp-gallery-frame-border: rgba(74, 246, 38, 0.2);
+  --dp-gallery-spot-core: rgba(74, 246, 38, 0.14);
+  --dp-gallery-spot-mid: rgba(74, 246, 38, 0.05);
+  --dp-gallery-spot-spread: 72%;
+  --dp-gallery-spot-depth: 105%;
+  --dp-gallery-ambient-vignette: rgba(0, 0, 0, 0.4);
 }
 
 .gallery-page > *:not(.dp-gallery-envelope):not(.gallery-page__wall-wrap) {

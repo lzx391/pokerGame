@@ -252,4 +252,96 @@ test.describe('Gallery page smoke', function () {
     expect(after).not.toBe(before)
     await expect(viewport).toHaveClass(/dp-gallery-wall__viewport--manual/)
   })
+
+  test('T11: wheel scroll then click opens print reveal without flicker', async function ({ page }) {
+    await seedLoggedIn(page, [GALLERY_VIEW])
+    await mockGalleryApis(page, { letterContent: '', items: MOCK_GALLERY_ITEMS })
+    await page.goto('/#/gallery')
+    await waitForPermissions(page)
+    await page.waitForSelector('.dp-gallery-wall__marquee', { timeout: 30000 })
+
+    var viewport = page.locator('.dp-gallery-wall__viewport')
+    await viewport.hover()
+    await viewport.dispatchEvent('wheel', { deltaY: 240 })
+    await viewport.dispatchEvent('wheel', { deltaY: 240 })
+
+    await expect(viewport).toHaveClass(/dp-gallery-wall__viewport--manual/)
+
+    var marquee = page.locator('.dp-gallery-wall__marquee')
+    var transforms = []
+    for (var i = 0; i < 6; i++) {
+      transforms.push(await marquee.evaluate(function (el) {
+        return window.getComputedStyle(el).transform
+      }))
+      await page.waitForTimeout(50)
+    }
+    var uniqueTransforms = transforms.filter(function (v, idx, arr) { return arr.indexOf(v) === idx })
+    expect(uniqueTransforms.length).toBeLessThanOrEqual(2)
+
+    var clickedVisible = await page.evaluate(function () {
+      var viewport = document.querySelector('.dp-gallery-wall__viewport')
+      if (!viewport) return false
+      var vp = viewport.getBoundingClientRect()
+      var frames = viewport.querySelectorAll('.gallery-frame')
+      for (var i = 0; i < frames.length; i++) {
+        var r = frames[i].getBoundingClientRect()
+        if (r.width > 0 && r.height > 0 &&
+            r.left < vp.right && r.right > vp.left &&
+            r.top < vp.bottom && r.bottom > vp.top) {
+          frames[i].click()
+          return true
+        }
+      }
+      return false
+    })
+    expect(clickedVisible).toBe(true)
+    await expect(page.locator('.dp-gallery-print')).toBeVisible({ timeout: 3000 })
+    await expect(viewport).toHaveClass(/dp-gallery-wall__viewport--manual/)
+    await expect(viewport).toHaveClass(/dp-gallery-wall__viewport--paused/)
+
+    await page.keyboard.press('Escape')
+    await expect(page.locator('.dp-gallery-print')).toHaveCount(0, { timeout: 3000 })
+    await expect(viewport).toHaveClass(/dp-gallery-wall__viewport--manual/)
+  })
+
+  test('T12: closing detail outside gallery resumes marquee', async function ({ page }) {
+    await seedLoggedIn(page, [GALLERY_VIEW])
+    await mockGalleryApis(page, { letterContent: '', items: MOCK_GALLERY_ITEMS })
+    await page.goto('/#/gallery')
+    await waitForPermissions(page)
+    await page.waitForSelector('.dp-gallery-wall__marquee', { timeout: 30000 })
+
+    var viewport = page.locator('.dp-gallery-wall__viewport')
+    var marquee = page.locator('.dp-gallery-wall__marquee')
+    await viewport.hover()
+    await page.getByRole('button', { name: '查看作品：作品一' }).first().click()
+    await expect(page.locator('.dp-gallery-print')).toBeVisible({ timeout: 3000 })
+
+    var outsidePoint = await page.evaluate(function () {
+      var viewport = document.querySelector('.dp-gallery-wall__viewport')
+      if (!viewport) return { x: 8, y: 8 }
+      var rect = viewport.getBoundingClientRect()
+      return { x: Math.max(8, rect.left - 24), y: Math.max(8, rect.top - 24) }
+    })
+    await page.mouse.move(outsidePoint.x, outsidePoint.y)
+    await page.locator('.dp-gallery-print__backdrop').click({ position: { x: 5, y: 5 } })
+    await expect(page.locator('.dp-gallery-print')).toHaveCount(0, { timeout: 3000 })
+
+    await expect(viewport).not.toHaveClass(/dp-gallery-wall__viewport--paused/)
+    await expect(viewport).not.toHaveClass(/dp-gallery-wall__viewport--manual/)
+
+    var playState = await marquee.evaluate(function (el) {
+      return window.getComputedStyle(el).animationPlayState
+    })
+    expect(playState).toBe('running')
+
+    var t1 = await marquee.evaluate(function (el) {
+      return window.getComputedStyle(el).transform
+    })
+    await page.waitForTimeout(400)
+    var t2 = await marquee.evaluate(function (el) {
+      return window.getComputedStyle(el).transform
+    })
+    expect(t2).not.toBe(t1)
+  })
 })
