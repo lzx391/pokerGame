@@ -13,38 +13,43 @@
       <div
         ref="track"
         class="dp-gallery-wall__track"
-        :class="{ 'dp-gallery-wall__track--wide': isWide }"
+        :class="{ 'dp-gallery-wall__track--few': items.length <= 3 }"
         role="list"
-        @scroll.passive="onTrackScroll"
+        @scroll="onTrackScroll"
       >
-        <article
-          v-for="(item, index) in items"
-          :key="item.id"
-          class="dp-gallery-wall__piece"
-          :style="pieceStyle(index)"
-          role="listitem"
+        <div
+          v-for="(column, colIndex) in wallColumns"
+          :key="'col-' + colIndex"
+          class="dp-gallery-wall__column"
+          :class="{ 'dp-gallery-wall__column--stagger': colIndex % 2 === 1 }"
         >
-          <button
-            type="button"
-            class="gallery-frame"
-            :class="frameClass(item.id)"
-            :aria-label="item.caption ? '查看作品：' + item.caption : '查看画廊作品'"
-            @click="openDetail(item)"
-            @mouseenter="onFrameWarm(item)"
-            @focus="onFrameWarm(item)"
+          <article
+            v-for="entry in column"
+            :key="entry.item.id"
+            class="dp-gallery-wall__piece"
+            :style="pieceStyle(entry.index)"
+            role="listitem"
           >
-            <div class="gallery-frame__mat">
+            <button
+              type="button"
+              class="gallery-frame"
+              :class="frameClass(entry.item.id)"
+              :style="frameStyle(entry.item.id)"
+              :aria-label="entry.item.caption ? '查看作品：' + entry.item.caption : '查看画廊作品'"
+              @click="openDetail(entry.item)"
+              @mouseenter="onFrameWarm(entry.item)"
+              @focus="onFrameWarm(entry.item)"
+            >
               <img
-                :src="galleryFileSrc(item.previewUrl || item.imageUrl)"
-                :alt="item.caption || '画廊作品'"
+                :src="galleryFileSrc(entry.item.previewUrl || entry.item.imageUrl)"
+                :alt="entry.item.caption || '画廊作品'"
                 loading="lazy"
                 decoding="async"
-                @load="onImageLoad(item.id, $event)"
+                @load="onImageLoad(entry.item.id, $event)"
               >
-            </div>
-          </button>
-          <p v-if="item.caption" class="dp-gallery-wall__caption">{{ item.caption }}</p>
-        </article>
+            </button>
+          </article>
+        </div>
       </div>
     </div>
 
@@ -58,7 +63,7 @@
 
 <script>
 import { galleryFileSrc } from '@features/gallery/utils/dpGalleryUrl'
-import { dpGalleryFrameClass } from '@features/gallery/utils/dpGalleryFrame'
+import { dpGalleryFrameClass, dpGalleryAspectRatio } from '@features/gallery/utils/dpGalleryFrame'
 import DpGalleryPrintReveal from '@features/gallery/components/DpGalleryPrintReveal.vue'
 import {
   prefetchGalleryAhead,
@@ -66,7 +71,6 @@ import {
   prefetchGalleryUrls
 } from '@features/gallery/utils/dpGalleryPrefetch'
 
-var WIDE_BP = 768
 var PREFETCH_AHEAD = 3
 var PREFETCH_THROTTLE_MS = 200
 
@@ -92,7 +96,7 @@ export default {
   data() {
     return {
       frameClasses: {},
-      isWide: typeof window !== 'undefined' ? window.innerWidth >= WIDE_BP : true,
+      frameAspectRatios: {},
       detailVisible: false,
       detailItem: null,
       prefetchTimer: null
@@ -103,6 +107,31 @@ export default {
       return typeof window !== 'undefined' &&
         window.matchMedia &&
         window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    },
+    wallColumns() {
+      var items = this.items
+      if (!items.length) return []
+
+      var columns = []
+      var itemIndex = 0
+      var colIndex = 0
+
+      while (itemIndex < items.length) {
+        var capacity = colIndex % 2 === 0 ? 2 : 1
+        var column = []
+
+        for (var i = 0; i < capacity && itemIndex < items.length; i++) {
+          column.push({ item: items[itemIndex], index: itemIndex })
+          itemIndex++
+        }
+
+        if (column.length) {
+          columns.push(column)
+        }
+        colIndex++
+      }
+
+      return columns
     }
   },
   watch: {
@@ -110,6 +139,7 @@ export default {
       deep: true,
       handler: function () {
         this.frameClasses = {}
+        this.frameAspectRatios = {}
         var self = this
         this.$nextTick(function () {
           self.schedulePrefetch(true)
@@ -128,9 +158,8 @@ export default {
     }
   },
   mounted() {
-    this.syncWide()
     if (typeof window !== 'undefined') {
-      window.addEventListener('resize', this.syncWide, { passive: true })
+      window.addEventListener('scroll', this.onPageScroll, { passive: true })
     }
     var self = this
     this.$nextTick(function () {
@@ -142,7 +171,7 @@ export default {
   },
   beforeDestroy() {
     if (typeof window !== 'undefined') {
-      window.removeEventListener('resize', this.syncWide)
+      window.removeEventListener('scroll', this.onPageScroll)
     }
     if (this.prefetchTimer != null) {
       clearTimeout(this.prefetchTimer)
@@ -151,26 +180,25 @@ export default {
   },
   methods: {
     galleryFileSrc,
-    syncWide() {
-      var wide = typeof window !== 'undefined' && window.innerWidth >= WIDE_BP
-      if (wide !== this.isWide) {
-        this.isWide = wide
-      }
-    },
     onImageLoad(id, evt) {
       var img = evt && evt.target
       if (!img || !id) return
-      var cls = dpGalleryFrameClass(img.naturalWidth, img.naturalHeight)
-      this.$set(this.frameClasses, id, cls)
+      this.$set(this.frameClasses, id, dpGalleryFrameClass(img.naturalWidth, img.naturalHeight))
+      this.$set(this.frameAspectRatios, id, dpGalleryAspectRatio(img.naturalWidth, img.naturalHeight))
     },
     frameClass(id) {
       return this.frameClasses[id] || 'gallery-frame--square'
+    },
+    frameStyle(id) {
+      var ratio = this.frameAspectRatios[id]
+      if (!ratio) return {}
+      return { '--dp-gallery-frame-ratio': ratio }
     },
     pieceStyle(index) {
       if (this.prefersReducedMotion) {
         return {}
       }
-      return { animationDelay: (index * 0.08) + 's' }
+      return { animationDelay: (index * 0.06) + 's' }
     },
     getCurrentItemIndex() {
       var track = this.$refs.track
@@ -178,15 +206,18 @@ export default {
       var pieces = track.querySelectorAll('.dp-gallery-wall__piece')
       if (!pieces.length) return 0
 
-      var scrollPos = this.isWide ? track.scrollLeft : track.scrollTop
-      var viewport = this.isWide ? track.clientWidth : track.clientHeight
-      var center = scrollPos + viewport / 2
+      var trackRect = track.getBoundingClientRect()
+      var viewportCenter = track.scrollLeft + track.clientWidth / 2
 
       for (var i = 0; i < pieces.length; i++) {
-        var el = pieces[i]
-        var start = this.isWide ? el.offsetLeft : el.offsetTop
-        var end = start + (this.isWide ? el.offsetWidth : el.offsetHeight)
-        if (center >= start && center < end) return i
+        var rect = pieces[i].getBoundingClientRect()
+        var pieceCenter = rect.left - trackRect.left + track.scrollLeft + rect.width / 2
+        if (Math.abs(pieceCenter - viewportCenter) <= rect.width * 0.6) return i
+      }
+
+      for (var j = 0; j < pieces.length; j++) {
+        var r = pieces[j].getBoundingClientRect()
+        if (r.right > trackRect.left && r.left < trackRect.right) return j
       }
       return 0
     },
@@ -208,6 +239,9 @@ export default {
     onTrackScroll() {
       this.schedulePrefetch()
     },
+    onPageScroll() {
+      this.schedulePrefetch()
+    },
     onFrameWarm(item) {
       prefetchGalleryFull(item)
     },
@@ -226,15 +260,19 @@ export default {
 
 <style scoped>
 .dp-gallery-wall {
-  --dp-gallery-mat-bg: color-mix(in srgb, var(--dp-panel-bg, #fff) 38%, var(--dp-subpanel-bg, #f5f3f0));
-  --dp-gallery-mat-edge: color-mix(in srgb, var(--dp-panel-border, rgba(107, 93, 82, 0.16)) 85%, transparent);
-  --dp-gallery-baseboard: color-mix(in srgb, var(--dp-accent, #6b5d52) 18%, var(--dp-subpanel-bg, #f5f3f0));
-  --dp-gallery-frame-mat: color-mix(in srgb, var(--dp-gallery-mat-bg) 55%, #f7f4ef);
-  --dp-gallery-frame-border: color-mix(in srgb, var(--dp-accent, #6b5d52) 22%, transparent);
+  --dp-gallery-frame-brown-dark: #2c2118;
+  --dp-gallery-frame-brown-mid: #3d2e24;
+  --dp-gallery-frame-brown-body: #4a3729;
+  --dp-gallery-frame-brown-highlight: #6b5344;
+  --dp-gallery-frame-brown-rim: #1f1812;
+  --dp-gallery-frame-shadow: rgba(44, 33, 24, 0.25);
+  --dp-gallery-frame-border-w: clamp(5px, 0.7vw, 8px);
+  --dp-gallery-frame-w: clamp(120px, 13vw, 160px);
+  --dp-gallery-frame-radius: clamp(6px, 1vw, 10px);
 
   position: relative;
-  flex: 1;
-  min-height: 0;
+  flex: 1 1 auto;
+  min-height: clamp(60vh, 65vh, 70vh);
   display: flex;
   flex-direction: column;
   margin-top: clamp(8px, 1.6vw, 14px);
@@ -242,7 +280,7 @@ export default {
   border-radius: clamp(12px, 2.4vw, 18px);
 }
 
-/* Mat runway — differentiated from wall / header zone */
+/* Mat runway — museum display plinth, subtle vertical guides only */
 .dp-gallery-wall::before {
   content: '';
   position: absolute;
@@ -251,25 +289,25 @@ export default {
   border-radius: inherit;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 85% 70% at 50% 0%, color-mix(in srgb, #fff 14%, transparent) 0%, transparent 58%),
+    radial-gradient(ellipse 85% 70% at 50% 0%, color-mix(in srgb, #fff 12%, transparent) 0%, transparent 58%),
     repeating-linear-gradient(
       90deg,
       transparent 0,
-      transparent 52px,
-      color-mix(in srgb, var(--dp-gallery-mat-edge) 28%, transparent) 52px,
-      color-mix(in srgb, var(--dp-gallery-mat-edge) 28%, transparent) 53px
+      transparent 72px,
+      color-mix(in srgb, var(--dp-gallery-mat-edge, rgba(107, 93, 82, 0.12)) 18%, transparent) 72px,
+      color-mix(in srgb, var(--dp-gallery-mat-edge, rgba(107, 93, 82, 0.12)) 18%, transparent) 73px
     ),
     linear-gradient(
       180deg,
-      color-mix(in srgb, var(--dp-gallery-mat-bg) 94%, #fff) 0%,
-      var(--dp-gallery-mat-bg) 52%,
-      color-mix(in srgb, var(--dp-gallery-mat-bg) 88%, var(--dp-text-primary, #3a332c)) 100%
+      color-mix(in srgb, var(--dp-gallery-mat-bg, #f8f5f0) 96%, #fff) 0%,
+      var(--dp-gallery-mat-bg, #f8f5f0) 54%,
+      color-mix(in srgb, var(--dp-gallery-mat-bg, #f8f5f0) 92%, var(--dp-text-primary, #3a332c)) 100%
     );
   box-shadow:
-    inset 0 3px 0 color-mix(in srgb, var(--dp-accent, #6b5d52) 20%, transparent),
-    inset 0 0 0 1px color-mix(in srgb, #fff 36%, transparent),
-    inset 0 -2px 0 var(--dp-gallery-mat-edge),
-    0 2px 8px color-mix(in srgb, var(--dp-text-primary, #3a332c) 5%, transparent);
+    inset 0 3px 0 color-mix(in srgb, var(--dp-gallery-mat-edge, rgba(107, 93, 82, 0.12)) 65%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, #fff 28%, transparent),
+    inset 0 -2px 0 var(--dp-gallery-mat-edge, rgba(107, 93, 82, 0.12)),
+    0 2px 8px rgba(58, 51, 44, 0.06);
 }
 
 /* Baseboard trim along mat bottom edge */
@@ -311,64 +349,55 @@ export default {
 .dp-gallery-wall__frame {
   position: relative;
   z-index: 1;
-  flex: 1;
-  min-height: 0;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  width: 100%;
+  min-height: 0;
 }
 
 .dp-gallery-wall__track {
-  flex: 1;
-  min-height: 0;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: clamp(20px, 4vw, 32px);
-  overflow-x: hidden;
-  overflow-y: auto;
-  scroll-snap-type: y mandatory;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: clamp(14px, 2.4vw, 22px);
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: clamp(8px, 1.6vw, 14px) clamp(4px, 1vw, 10px) clamp(20px, 3vw, 28px);
+  scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--dp-accent, #6b5d52) 35%, transparent) transparent;
-  padding: 8px 4px clamp(20px, 3vw, 28px);
-}
-.dp-gallery-wall__track::-webkit-scrollbar {
-  width: 6px;
-}
-.dp-gallery-wall__track::-webkit-scrollbar-thumb {
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--dp-accent, #6b5d52) 32%, transparent);
-}
-.dp-gallery-wall__track::-webkit-scrollbar-track {
-  background: transparent;
 }
 
-.dp-gallery-wall__track--wide {
-  flex-direction: row;
-  align-items: stretch;
-  justify-content: flex-start;
-  gap: clamp(24px, 3vw, 40px);
-  overflow-x: auto;
-  overflow-y: hidden;
-  scroll-snap-type: x mandatory;
-  padding: 12px 8px 28px;
+.dp-gallery-wall__track--few {
+  justify-content: center;
 }
-.dp-gallery-wall__track--wide::-webkit-scrollbar {
-  height: 6px;
-  width: auto;
+
+.dp-gallery-wall__column {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  /* ~one frame height between stacked pieces in capacity-2 columns */
+  gap: var(--dp-gallery-frame-w);
+}
+
+.dp-gallery-wall__column--stagger {
+  /* offset single-image columns to sit in the vertical slot of adjacent pairs */
+  padding-top: calc(var(--dp-gallery-frame-w) * 1.15);
 }
 
 .dp-gallery-wall__piece {
   flex: 0 0 auto;
-  scroll-snap-align: center;
-  animation: dp-gallery-piece-in 0.55s ease both;
+  animation: dp-gallery-piece-in 0.5s ease both;
 }
 
 @keyframes dp-gallery-piece-in {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -376,29 +405,29 @@ export default {
   }
 }
 
-.dp-gallery-wall__track--wide .dp-gallery-wall__piece {
-  animation-name: dp-gallery-piece-in-x;
-}
-
-@keyframes dp-gallery-piece-in-x {
-  from {
-    opacity: 0;
-    transform: translateX(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
 .gallery-frame {
   display: block;
-  border: none;
-  padding: 0;
+  width: var(--dp-gallery-frame-w);
+  aspect-ratio: var(--dp-gallery-frame-ratio, 1 / 1);
+  box-sizing: border-box;
+  padding: var(--dp-gallery-frame-border-w);
+  border: 1px solid var(--dp-gallery-frame-brown-rim);
+  border-radius: var(--dp-gallery-frame-radius);
   margin: 0;
   cursor: pointer;
-  background: transparent;
+  background: linear-gradient(
+    155deg,
+    var(--dp-gallery-frame-brown-body) 0%,
+    var(--dp-gallery-frame-brown-mid) 42%,
+    var(--dp-gallery-frame-brown-dark) 100%
+  );
+  overflow: hidden;
   font-family: inherit;
+  box-shadow:
+    0 4px 12px var(--dp-gallery-frame-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -1px 0 rgba(44, 33, 24, 0.22),
+    inset 0 0 0 1px var(--dp-gallery-frame-brown-highlight);
   transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 .gallery-frame:focus-visible {
@@ -407,91 +436,20 @@ export default {
 }
 .gallery-frame:hover {
   transform: translateY(-3px);
-}
-
-.gallery-frame__mat {
-  background: linear-gradient(
-    145deg,
-    color-mix(in srgb, var(--dp-gallery-frame-mat, #f7f4ef) 88%, #fff) 0%,
-    var(--dp-gallery-frame-mat, #ebe6dc) 100%
-  );
-  padding: clamp(10px, 2vw, 16px);
-  border: 1px solid var(--dp-gallery-frame-border, color-mix(in srgb, #8b7355 28%, transparent));
   box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, #fff 52%, transparent),
-    0 4px 18px color-mix(in srgb, var(--dp-text-primary, #3a332c) 12%, transparent),
-    0 1px 3px color-mix(in srgb, var(--dp-text-primary, #3a332c) 6%, transparent);
+    0 8px 22px rgba(44, 33, 24, 0.32),
+    0 4px 12px var(--dp-gallery-frame-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(44, 33, 24, 0.26),
+    inset 0 0 0 1px color-mix(in srgb, var(--dp-gallery-frame-brown-highlight) 88%, #fff);
 }
 
 .gallery-frame img {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  background: color-mix(in srgb, var(--dp-gallery-frame-mat, #faf9f7) 70%, var(--dp-panel-bg, #fff));
-}
-
-.gallery-frame--portrait {
-  width: min(240px, 72vw);
-}
-.gallery-frame--portrait .gallery-frame__mat {
-  height: min(360px, 58vh);
-}
-.gallery-frame--portrait img {
-  max-height: calc(min(360px, 58vh) - 32px);
-  margin: 0 auto;
-}
-
-.gallery-frame--square {
-  width: min(280px, 78vw);
-}
-.gallery-frame--square .gallery-frame__mat {
-  height: min(280px, 48vh);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.gallery-frame--square img {
-  max-height: calc(min(280px, 48vh) - 32px);
-  max-width: 100%;
-}
-
-.gallery-frame--landscape {
-  width: min(420px, 88vw);
-}
-.gallery-frame--landscape .gallery-frame__mat {
-  height: min(240px, 40vh);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.gallery-frame--landscape img {
-  max-height: calc(min(240px, 40vh) - 32px);
-  max-width: 100%;
-}
-
-.dp-gallery-wall__track--wide .gallery-frame--portrait {
-  width: min(220px, 28vw);
-}
-.dp-gallery-wall__track--wide .gallery-frame--square {
-  width: min(260px, 32vw);
-}
-.dp-gallery-wall__track--wide .gallery-frame--landscape {
-  width: min(400px, 46vw);
-}
-
-.dp-gallery-wall__caption {
-  margin: 10px 4px 0;
-  max-width: min(420px, 88vw);
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--dp-text-secondary, #606266);
-  text-align: center;
-  white-space: pre-wrap;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  object-fit: cover;
+  border-radius: max(2px, calc(var(--dp-gallery-frame-radius) - var(--dp-gallery-frame-border-w) * 0.45));
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -499,6 +457,9 @@ export default {
   .gallery-frame {
     animation: none;
     transition: none;
+  }
+  .dp-gallery-wall__track {
+    scroll-behavior: auto;
   }
   .gallery-frame:hover {
     transform: none;

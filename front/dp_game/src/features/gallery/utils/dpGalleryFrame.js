@@ -15,3 +15,14 @@ export function dpGalleryFrameTier (width, height) {
 export function dpGalleryFrameClass (width, height) {
   return 'gallery-frame--' + dpGalleryFrameTier(width, height)
 }
+
+/**
+ * CSS aspect-ratio value (w / h) from natural image dimensions.
+ * @param {number} width
+ * @param {number} height
+ * @returns {string}
+ */
+export function dpGalleryAspectRatio (width, height) {
+  if (!width || !height || width <= 0 || height <= 0) return '1 / 1'
+  return width + ' / ' + height
+}

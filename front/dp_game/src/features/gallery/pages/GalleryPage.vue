@@ -2,6 +2,7 @@
   <div
     class="dp-game-root gallery-page"
     :data-dp-game-theme="effectiveThemeForCss"
+    :data-dp-eco-mode="ecoMode ? 'true' : 'false'"
   >
     <header class="gallery-page__header">
       <button
@@ -37,6 +38,8 @@
         :content="letterContent"
         :loading="letterLoading"
         :editable="canEditLetter"
+        :letter-author="letterAuthorName"
+        :eco-mode="ecoMode"
         @update:content="onLetterUpdated"
       />
 
@@ -47,11 +50,13 @@
 
       <h2 v-if="editMode" class="gallery-page__section-label">预览</h2>
 
-      <dp-gallery-wall
-        :items="wallItems"
-        :loading="itemsLoading && !editMode"
-        :empty-text="emptyWallText"
-      />
+      <div class="gallery-page__wall-wrap">
+        <dp-gallery-wall
+          :items="wallItems"
+          :loading="itemsLoading && !editMode"
+          :empty-text="emptyWallText"
+        />
+      </div>
     </template>
 
     <p v-else class="gallery-page__boot">加载中…</p>
@@ -62,7 +67,7 @@
 import '@/styles/dp-game-themes.css'
 import '@/styles/dp-lobby-shell.css'
 import dpLobbyThemeMixin from '@features/lobby/mixins/dpLobbyThemeMixin'
-import { mapGetters } from 'vuex'
+import { mapGetters, mapState } from 'vuex'
 import { DP_PERM_GALLERY_VIEW } from '@features/auth/store/dpAuth'
 import { ensureDpUserIdInStorage } from '@features/user/utils/dpEnsureUserId'
 import { bootstrapDpAuthPermissions } from '@features/auth/utils/dpAuthBootstrap'
@@ -102,6 +107,7 @@ export default {
   },
   computed: {
     ...mapGetters('dpAuth', ['hasPerm']),
+    ...mapState('dpGame', ['ecoMode']),
     isOwnGallery() {
       return !this.routeUserId
     },
@@ -130,6 +136,12 @@ export default {
       }
       var name = this.subjectNickname || '玩家'
       return name + ' 的画廊'
+    },
+    letterAuthorName() {
+      if (this.isOwnGallery) {
+        return (this.currentUser && this.currentUser.nickname) || '我'
+      }
+      return this.subjectNickname || '玩家'
     },
     wallItems() {
       if (this.editMode && Array.isArray(this.editorItems)) {
@@ -299,17 +311,19 @@ export default {
 
 <style scoped>
 .gallery-page {
-  --dp-gallery-wall-base: color-mix(in srgb, var(--dp-subpanel-bg, #f5f3f0) 68%, var(--dp-game-bg, #fafafa));
-  --dp-gallery-wall-warm: color-mix(in srgb, var(--dp-warning, #b8860b) 7%, var(--dp-gallery-wall-base));
-  --dp-gallery-wall-deep: color-mix(in srgb, var(--dp-text-primary, #3a332c) 10%, var(--dp-gallery-wall-warm));
-  --dp-gallery-wall-line: color-mix(in srgb, var(--dp-panel-border, rgba(107, 93, 82, 0.16)) 72%, transparent);
-  --dp-gallery-wall-vignette: color-mix(in srgb, var(--dp-text-primary, #3a332c) 14%, transparent);
-  --dp-gallery-wall-spot: color-mix(in srgb, var(--dp-accent, #6b5d52) 6%, transparent);
-  --dp-gallery-mat-bg: color-mix(in srgb, var(--dp-panel-bg, #fff) 38%, var(--dp-subpanel-bg, #f5f3f0));
-  --dp-gallery-mat-edge: color-mix(in srgb, var(--dp-panel-border, rgba(107, 93, 82, 0.16)) 85%, transparent);
-  --dp-gallery-baseboard: color-mix(in srgb, var(--dp-accent, #6b5d52) 18%, var(--dp-subpanel-bg, #f5f3f0));
-  --dp-gallery-frame-mat: color-mix(in srgb, var(--dp-gallery-mat-bg) 55%, #f7f4ef);
-  --dp-gallery-frame-border: color-mix(in srgb, var(--dp-accent, #6b5d52) 22%, transparent);
+  /* Light museum wall — warm off-white, no ruled lines */
+  --dp-gallery-wall-base: #f5f0e8;
+  --dp-gallery-wall-mid: #f0ebe3;
+  --dp-gallery-wall-deep: #ebe4d6;
+  --dp-gallery-wall-vignette: rgba(58, 51, 44, 0.1);
+  --dp-gallery-wall-spot: rgba(255, 252, 248, 0.55);
+  --dp-gallery-wall-texture-a: rgba(255, 255, 255, 0.35);
+  --dp-gallery-wall-texture-b: rgba(58, 51, 44, 0.025);
+  --dp-gallery-mat-bg: #f8f5f0;
+  --dp-gallery-mat-edge: rgba(107, 93, 82, 0.12);
+  --dp-gallery-baseboard: #ddd4c8;
+  --dp-gallery-frame-mat: #f7f4ef;
+  --dp-gallery-frame-border: rgba(107, 93, 82, 0.22);
 
   position: relative;
   isolation: isolate;
@@ -327,7 +341,7 @@ export default {
   background: transparent;
 }
 
-/* Full-viewport museum wall — CSS only, no image assets */
+/* Full-viewport museum wall — gradient + vignette + soft texture, no ruled lines */
 .gallery-page::before {
   content: '';
   position: fixed;
@@ -335,26 +349,72 @@ export default {
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 108% 96% at 50% 48%, transparent 40%, var(--dp-gallery-wall-vignette) 100%),
-    radial-gradient(ellipse 88% 52% at 50% -6%, var(--dp-gallery-wall-spot) 0%, transparent 64%),
-    repeating-linear-gradient(
-      180deg,
-      transparent 0,
-      transparent calc(128px - 1px),
-      var(--dp-gallery-wall-line) calc(128px - 1px),
-      var(--dp-gallery-wall-line) 128px
-    ),
+    radial-gradient(ellipse 108% 96% at 50% 48%, transparent 38%, var(--dp-gallery-wall-vignette) 100%),
+    radial-gradient(ellipse 88% 52% at 50% -8%, var(--dp-gallery-wall-spot) 0%, transparent 62%),
+    radial-gradient(circle at 18% 24%, var(--dp-gallery-wall-texture-a) 0%, transparent 42%),
+    radial-gradient(circle at 82% 78%, var(--dp-gallery-wall-texture-b) 0%, transparent 38%),
     linear-gradient(
       175deg,
-      color-mix(in srgb, var(--dp-gallery-wall-warm) 92%, #fff) 0%,
-      var(--dp-gallery-wall-warm) 42%,
+      var(--dp-gallery-wall-base) 0%,
+      var(--dp-gallery-wall-mid) 46%,
       var(--dp-gallery-wall-deep) 100%
     );
 }
 
-.gallery-page > * {
+/* Dark gallery ambiance — gothic & halloween */
+.gallery-page[data-dp-game-theme='gothic'],
+.gallery-page[data-dp-game-theme='halloween'] {
+  --dp-gallery-wall-base: #2a2420;
+  --dp-gallery-wall-mid: #252019;
+  --dp-gallery-wall-deep: #1f1a17;
+  --dp-gallery-wall-vignette: rgba(0, 0, 0, 0.52);
+  --dp-gallery-wall-spot: rgba(255, 200, 120, 0.1);
+  --dp-gallery-wall-texture-a: rgba(255, 220, 160, 0.04);
+  --dp-gallery-wall-texture-b: rgba(0, 0, 0, 0.18);
+  --dp-gallery-mat-bg: #322c28;
+  --dp-gallery-mat-edge: rgba(212, 184, 120, 0.14);
+  --dp-gallery-baseboard: #3d342e;
+  --dp-gallery-frame-mat: #2e2824;
+  --dp-gallery-frame-border: rgba(212, 184, 120, 0.24);
+}
+
+.gallery-page[data-dp-game-theme='gothic'] {
+  --dp-gallery-wall-spot: rgba(224, 201, 117, 0.09);
+}
+
+.gallery-page[data-dp-game-theme='halloween'] {
+  --dp-gallery-wall-spot: rgba(251, 146, 60, 0.11);
+  --dp-gallery-wall-texture-a: rgba(251, 146, 60, 0.05);
+}
+
+/* retro8bit: dark CRT gallery with subtle green wash */
+.gallery-page[data-dp-game-theme='retro8bit'] {
+  --dp-gallery-wall-base: #121510;
+  --dp-gallery-wall-mid: #0e120e;
+  --dp-gallery-wall-deep: #0a0c0a;
+  --dp-gallery-wall-vignette: rgba(0, 0, 0, 0.58);
+  --dp-gallery-wall-spot: rgba(74, 246, 38, 0.07);
+  --dp-gallery-wall-texture-a: rgba(74, 246, 38, 0.03);
+  --dp-gallery-wall-texture-b: rgba(0, 0, 0, 0.22);
+  --dp-gallery-mat-bg: #161a14;
+  --dp-gallery-mat-edge: rgba(74, 246, 38, 0.12);
+  --dp-gallery-baseboard: #1a2018;
+  --dp-gallery-frame-mat: #141812;
+  --dp-gallery-frame-border: rgba(74, 246, 38, 0.2);
+}
+
+.gallery-page > *:not(.dp-gallery-envelope):not(.gallery-page__wall-wrap) {
   position: relative;
   z-index: 1;
+}
+
+/* No z-index — avoids trapping print reveal (z-index 3000) below the letter layer. */
+.gallery-page__wall-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: clamp(60vh, 65vh, 70vh);
 }
 
 .gallery-page__header {

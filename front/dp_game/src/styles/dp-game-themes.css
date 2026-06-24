@@ -126,6 +126,16 @@ body[data-dp-game-theme='default'] {
   --dp-table-felt-rim-outer: rgba(46, 125, 50, 0.18);
   --dp-table-felt-drop-shadow-lg: 0 16px 40px rgba(27, 94, 32, 0.1);
   --dp-table-felt-vignette: rgba(27, 94, 32, 0.06);
+
+  /* 画廊介绍信纸：黄皮纸 + 钢笔手写体 */
+  --dp-letter-paper:
+    linear-gradient(168deg, #f8edd4 0%, #f0e0b8 32%, #e8d4a0 68%, #dfc88a 100%);
+  --dp-letter-paper-tint: #f0e0b8;
+  --dp-letter-font: 'Ma Shan Zheng', 'STKaiti', 'KaiTi', '楷体', cursive, serif;
+  --dp-letter-ink: #3a2e22;
+  --dp-letter-line: rgba(107, 82, 52, 0.14);
+  --dp-letter-border: rgba(139, 115, 75, 0.32);
+  --dp-letter-unfold-duration: 400ms;
 }
 
 /* 8bit 终端：深色磷光绿 CRT 风（登录屏内绿字由 dp-depth-tokens auth 段提供） */
@@ -271,6 +281,15 @@ body[data-dp-game-theme='retro8bit'] {
   --dp-terminal-glow-slot: 0 0 10px rgba(74, 246, 38, 0.65);
   /* 32px 像素指针；PNG 自 dp-cursor-8bit.cur 导出，CSS 热点 16 16（小怪物中心，跨浏览器比 .cur 更稳） */
   cursor: url('~@/assets/cursors/dp-cursor-8bit.png') 16 16, auto;
+
+  /* 画廊介绍信纸 */
+  --dp-letter-paper: linear-gradient(180deg, #1a1f14 0%, #12180e 100%);
+  --dp-letter-paper-tint: #1a1f14;
+  --dp-letter-font: var(--dp-font-pixel);
+  --dp-letter-ink: #c8f0b8;
+  --dp-letter-line: rgba(74, 246, 38, 0.08);
+  --dp-letter-border: rgba(74, 246, 38, 0.35);
+  --dp-letter-unfold-duration: 400ms;
 }
 
 /*
@@ -542,6 +561,15 @@ body[data-dp-game-theme='gothic'] {
   --dp-table-felt-drop-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.5);
   --dp-table-felt-vignette: rgba(20, 6, 12, 0.5);
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 32 32'%3E%3Cpath d='M16 2L13 6 6 8Q2 7 3 12L7 13 9 18 12 19 14 15 16 26 18 15 20 19 23 18 25 13 29 12Q30 7 26 8L19 6Z' fill='%23111' stroke='%23ddd' stroke-width='.7' stroke-linejoin='round'/%3E%3Cellipse cx='13' cy='5' rx='2' ry='2.5' fill='%23111' stroke='%23ddd' stroke-width='.6'/%3E%3Cellipse cx='19' cy='5' rx='2' ry='2.5' fill='%23111' stroke='%23ddd' stroke-width='.6'/%3E%3C/svg%3E") 16 14, auto;
+
+  /* 画廊介绍信纸 */
+  --dp-letter-paper: linear-gradient(168deg, #2a1818 0%, #1a0e12 48%, #12080c 100%);
+  --dp-letter-paper-tint: #2a1818;
+  --dp-letter-font: var(--dp-font-display);
+  --dp-letter-ink: #e8dcc8;
+  --dp-letter-line: rgba(212, 184, 120, 0.1);
+  --dp-letter-border: rgba(212, 184, 120, 0.32);
+  --dp-letter-unfold-duration: 400ms;
 }
 
 /* 草莓软糖：糖霜渐变 + 玫粉层次（panel 须纯色以配合 color-mix） */
@@ -679,6 +707,15 @@ body[data-dp-game-theme='strawberry'] {
   --dp-table-felt-vignette: rgba(190, 24, 93, 0.08);
   /* 30px 扁平心形指针（--dp-accent 玫粉），热点在顶部凹口；源文件 assets/cursors/strawberry-heart.svg */
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='M10 16.6C10 16.6 4.4 12.5 4.4 8.2C4.4 5.9 6.1 4.3 8.1 4.3C9.2 4.3 10 5 10 5C10 5 10.8 4.3 11.9 4.3C13.9 4.3 15.6 5.9 15.6 8.2C15.6 12.5 10 16.6 10 16.6Z' fill='%23EC4899' stroke='%23FFFFFF' stroke-width='0.9' stroke-linejoin='round'/%3E%3Cpath d='M10 16.6C10 16.6 4.4 12.5 4.4 8.2C4.4 5.9 6.1 4.3 8.1 4.3C9.2 4.3 10 5 10 5C10 5 10.8 4.3 11.9 4.3C13.9 4.3 15.6 5.9 15.6 8.2C15.6 12.5 10 16.6 10 16.6Z' fill='%23F9A8D4' fill-opacity='0.35'/%3E%3C/svg%3E") 19 19, auto;
+
+  /* 画廊介绍信纸 */
+  --dp-letter-paper: linear-gradient(168deg, #fff5f9 0%, #ffe8f0 55%, #ffd6e8 100%);
+  --dp-letter-paper-tint: #ffe8f0;
+  --dp-letter-font: var(--dp-font-ui);
+  --dp-letter-ink: #6b2d4a;
+  --dp-letter-line: rgba(236, 72, 153, 0.1);
+  --dp-letter-border: color-mix(in srgb, var(--dp-accent) 28%, transparent);
+  --dp-letter-unfold-duration: 400ms;
 }
 
 /* 万圣惊魂：南瓜橙 / 幽紫 / 鬼火绿（与全局深色主题同一套光影逻辑） */
@@ -812,6 +849,15 @@ body[data-dp-game-theme='halloween'] {
   --dp-table-felt-drop-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.52);
   --dp-table-felt-vignette: rgba(12, 4, 18, 0.52);
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='45' height='45' viewBox='0 0 32 32'%3E%3Cellipse cx='16' cy='17' rx='12' ry='10' fill='%23ef6c00' stroke='%23fff' stroke-width='.7'/%3E%3Cpath d='M14 4L16 1L18 4' fill='%234caf50'/%3E%3Crect x='10' y='13' width='3' height='4' rx='1' fill='%23ffeb3b'/%3E%3Crect x='19' y='13' width='3' height='4' rx='1' fill='%23ffeb3b'/%3E%3Crect x='8' y='16' width='3' height='3' rx='1' fill='%23ffeb3b'/%3E%3Crect x='21' y='16' width='3' height='3' rx='1' fill='%23ffeb3b'/%3E%3Cpath d='M10 23L14 21L18 23L22 21' fill='none' stroke='%23ffeb3b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") 16 14, auto;
+
+  /* 画廊介绍信纸 */
+  --dp-letter-paper: linear-gradient(175deg, #3d2818 0%, #2a1810 55%, #1f1208 100%);
+  --dp-letter-paper-tint: #3d2818;
+  --dp-letter-font: var(--dp-font-ui);
+  --dp-letter-ink: #f5e6c8;
+  --dp-letter-line: rgba(251, 146, 60, 0.12);
+  --dp-letter-border: rgba(251, 146, 60, 0.34);
+  --dp-letter-unfold-duration: 400ms;
 }
 
 /* 哥特：仅标题用 --dp-font-display；不碰 #app.app--auth（登录仍为 monospace） */
