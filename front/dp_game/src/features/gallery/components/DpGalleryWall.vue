@@ -13,14 +13,25 @@
       <!-- Conveyor belt: seamless CSS marquee in read-only view -->
       <div
         v-if="autoScrollEnabled"
+        ref="marqueeViewport"
         class="dp-gallery-wall__viewport"
-        :class="{ 'dp-gallery-wall__viewport--paused': scrollPaused }"
+        :class="{
+          'dp-gallery-wall__viewport--paused': scrollPaused || hoverPaused,
+          'dp-gallery-wall__viewport--manual': hoverPaused && !scrollPaused
+        }"
         @pointerdown="onMarqueePointerDown"
         @pointerup="onMarqueePointerUp"
         @pointercancel="onMarqueePointerUp"
-        @pointerleave="onMarqueePointerUp"
+        @pointerleave="onMarqueePointerLeave"
+        @mouseenter="onMarqueeMouseEnter"
+        @wheel="onMarqueeWheel"
       >
-        <div class="dp-gallery-wall__marquee" aria-hidden="false">
+        <div
+          ref="marqueeEl"
+          class="dp-gallery-wall__marquee"
+          :style="marqueeInlineStyle"
+          aria-hidden="false"
+        >
           <div
             v-for="set in displaySets"
             :key="'set-' + set.key"
@@ -166,6 +177,9 @@ export default {
       detailItem: null,
       prefetchTimer: null,
       touchPaused: false,
+      hoverPaused: false,
+      manualMarqueeOffset: 0,
+      useManualMarqueeTransform: false,
       ecoModeFromDom: false,
       ecoObserver: null
     }
@@ -186,6 +200,11 @@ export default {
     },
     scrollPaused() {
       return this.detailVisible || this.touchPaused || this.ecoModeActive
+    },
+    marqueeInlineStyle() {
+      if (!this.useManualMarqueeTransform) return {}
+      var axis = this.isMarqueeVertical() ? 'Y' : 'X'
+      return { transform: 'translate' + axis + '(' + this.manualMarqueeOffset + 'px)' }
     },
     wallColumns() {
       var items = this.items
@@ -221,6 +240,14 @@ export default {
     }
   },
   watch: {
+    detailVisible: function (val) {
+      if (!val && this.hoverPaused && !this.scrollPaused) {
+        var self = this
+        this.$nextTick(function () {
+          self.freezeMarqueeAtCurrentPosition()
+        })
+      }
+    },
     items: {
       deep: true,
       handler: function () {
@@ -293,11 +320,104 @@ export default {
         this.ecoObserver.observe(root, { attributes: true, attributeFilter: ['data-dp-eco-mode'] })
       }
     },
+    isMarqueeVertical() {
+      return typeof window !== 'undefined' &&
+        window.matchMedia &&
+        window.matchMedia('(max-width: 767px)').matches
+    },
+    getMarqueeDurationSec() {
+      var marquee = this.$refs.marqueeEl
+      if (!marquee || typeof window === 'undefined') return 50
+      var raw = window.getComputedStyle(marquee).getPropertyValue('--dp-gallery-marquee-duration').trim()
+      if (!raw) return 50
+      if (raw.endsWith('ms')) return parseFloat(raw) / 1000
+      if (raw.endsWith('s')) return parseFloat(raw)
+      var parsed = parseFloat(raw)
+      return isNaN(parsed) ? 50 : parsed
+    },
+    readMarqueeTranslate(el) {
+      if (!el || typeof window === 'undefined') return 0
+      var matrix = new DOMMatrixReadOnly(window.getComputedStyle(el).transform)
+      return this.isMarqueeVertical() ? matrix.m42 : matrix.m41
+    },
+    getMarqueeLoopDistance(el) {
+      if (!el) return 0
+      return this.isMarqueeVertical() ? el.offsetHeight / 2 : el.offsetWidth / 2
+    },
+    freezeMarqueeAtCurrentPosition() {
+      var marquee = this.$refs.marqueeEl
+      if (!marquee) return
+      this.manualMarqueeOffset = this.readMarqueeTranslate(marquee)
+      this.useManualMarqueeTransform = true
+    },
+    resumeMarqueeAnimation() {
+      var marquee = this.$refs.marqueeEl
+      if (!marquee) {
+        this.useManualMarqueeTransform = false
+        return
+      }
+
+      var loopDistance = this.getMarqueeLoopDistance(marquee)
+      var duration = this.getMarqueeDurationSec()
+      var progress = 0
+
+      if (loopDistance > 0) {
+        progress = ((-this.manualMarqueeOffset % loopDistance) + loopDistance) % loopDistance / loopDistance
+      }
+
+      this.manualMarqueeOffset = -progress * loopDistance
+      this.useManualMarqueeTransform = false
+
+      marquee.style.animation = 'none'
+      marquee.style.transform = ''
+      void marquee.offsetWidth
+      marquee.style.removeProperty('animation')
+      marquee.style.animationDelay = '-' + (progress * duration) + 's'
+    },
     onMarqueePointerDown() {
       this.touchPaused = true
     },
     onMarqueePointerUp() {
       this.touchPaused = false
+    },
+    onMarqueePointerLeave() {
+      this.touchPaused = false
+      if (!this.hoverPaused) return
+      this.resumeMarqueeAnimation()
+      this.hoverPaused = false
+    },
+    onMarqueeMouseEnter() {
+      if (this.scrollPaused) return
+      this.hoverPaused = true
+      this.freezeMarqueeAtCurrentPosition()
+    },
+    onMarqueeWheel(evt) {
+      if (!this.hoverPaused || this.scrollPaused || !evt) return
+
+      var delta = evt.deltaY
+      if (evt.deltaMode === 1) delta *= 16
+      else if (evt.deltaMode === 2) {
+        var viewport = this.$refs.marqueeViewport
+        delta *= viewport ? viewport.clientHeight : 400
+      }
+
+      if (evt.deltaMode === 0 && Math.abs(evt.deltaY) < Math.abs(evt.deltaX)) {
+        delta = evt.deltaX
+      }
+
+      if (!delta) return
+      evt.preventDefault()
+
+      var marquee = this.$refs.marqueeEl
+      if (!marquee) return
+
+      this.manualMarqueeOffset -= delta
+
+      var loopDistance = this.getMarqueeLoopDistance(marquee)
+      if (loopDistance > 0) {
+        var wrapped = ((-this.manualMarqueeOffset % loopDistance) + loopDistance) % loopDistance
+        this.manualMarqueeOffset = -wrapped
+      }
     },
     onImageLoad(id, evt) {
       var img = evt && evt.target
@@ -398,6 +518,7 @@ export default {
   --dp-gallery-frame-w: clamp(120px, 13vw, 160px);
   --dp-gallery-frame-radius: clamp(6px, 1vw, 10px);
   --dp-gallery-marquee-duration: 50s;
+  --dp-gallery-track-gap: clamp(14px, 2.4vw, 22px);
 
   position: relative;
   flex: 1 1 auto;
@@ -509,10 +630,16 @@ export default {
   animation-play-state: paused;
 }
 
-@media (min-width: 768px) {
-  .dp-gallery-wall__viewport:hover .dp-gallery-wall__marquee {
-    animation-play-state: paused;
-  }
+.dp-gallery-wall__viewport--manual .dp-gallery-wall__marquee {
+  animation: none !important;
+}
+
+.dp-gallery-wall__viewport--manual {
+  cursor: grab;
+}
+
+.dp-gallery-wall__viewport--manual:active {
+  cursor: grabbing;
 }
 
 .dp-gallery-wall__track {
@@ -520,7 +647,7 @@ export default {
   flex-direction: row;
   flex-wrap: nowrap;
   align-items: flex-start;
-  gap: clamp(14px, 2.4vw, 22px);
+  gap: var(--dp-gallery-track-gap);
   width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
@@ -536,6 +663,9 @@ export default {
   width: auto;
   overflow: visible;
   padding: 0;
+  /* Trailing gap on each duplicate half keeps loop seam spacing consistent */
+  padding-right: var(--dp-gallery-track-gap);
+  box-sizing: content-box;
 }
 
 .dp-gallery-wall__track--few {
@@ -653,6 +783,8 @@ export default {
     flex-direction: column;
     align-items: center;
     width: 100%;
+    padding-right: 0;
+    padding-bottom: var(--dp-gallery-track-gap);
   }
 
   .dp-gallery-wall__column--stagger {

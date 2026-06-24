@@ -226,4 +226,30 @@ test.describe('Gallery page smoke', function () {
     var paused = await page.locator('.dp-gallery-wall__viewport--paused').count()
     expect(paused).toBe(1)
   })
+
+  test('T10: wheel scroll while hovered moves marquee manually', async function ({ page }) {
+    await seedLoggedIn(page, [GALLERY_VIEW])
+    await mockGalleryApis(page, { letterContent: '', items: MOCK_GALLERY_ITEMS })
+    await page.goto('/#/gallery')
+    await waitForPermissions(page)
+    await page.waitForSelector('.dp-gallery-wall__marquee', { timeout: 30000 })
+
+    var viewport = page.locator('.dp-gallery-wall__viewport')
+    await viewport.hover()
+
+    var before = await page.locator('.dp-gallery-wall__marquee').evaluate(function (el) {
+      var matrix = new DOMMatrixReadOnly(window.getComputedStyle(el).transform)
+      return matrix.m41
+    })
+
+    await viewport.dispatchEvent('wheel', { deltaY: 120 })
+
+    var after = await page.locator('.dp-gallery-wall__marquee').evaluate(function (el) {
+      var matrix = new DOMMatrixReadOnly(window.getComputedStyle(el).transform)
+      return matrix.m41
+    })
+
+    expect(after).not.toBe(before)
+    await expect(viewport).toHaveClass(/dp-gallery-wall__viewport--manual/)
+  })
 })
