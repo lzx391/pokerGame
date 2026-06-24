@@ -55,6 +55,8 @@
           :items="wallItems"
           :loading="itemsLoading && !editMode"
           :empty-text="emptyWallText"
+          :edit-mode="editMode"
+          :eco-mode="ecoMode"
         />
       </div>
     </template>

@@ -5,9 +5,17 @@ const { ok, seedLoggedIn } = require('./helpers/rbacMocks')
 const GALLERY_VIEW = 'gallery:view'
 const LETTER_TEXT = '你好世界'
 
+var MOCK_GALLERY_ITEMS = [
+  { id: 1, caption: '作品一', previewUrl: '/dp/gallery/files/1_sm.webp', imageUrl: '/dp/gallery/files/1.webp' },
+  { id: 2, caption: '作品二', previewUrl: '/dp/gallery/files/2_sm.webp', imageUrl: '/dp/gallery/files/2.webp' },
+  { id: 3, caption: '作品三', previewUrl: '/dp/gallery/files/3_sm.webp', imageUrl: '/dp/gallery/files/3.webp' },
+  { id: 4, caption: '作品四', previewUrl: '/dp/gallery/files/4_sm.webp', imageUrl: '/dp/gallery/files/4.webp' }
+]
+
 async function mockGalleryApis(page, options) {
   var opts = options || {}
   var letterContent = opts.letterContent !== undefined ? opts.letterContent : LETTER_TEXT
+  var items = opts.items !== undefined ? opts.items : []
 
   await page.route('**/dev-api/dp/gallery/letter**', function (route) {
     route.fulfill({
@@ -20,7 +28,7 @@ async function mockGalleryApis(page, options) {
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(ok({ items: [] }))
+      body: JSON.stringify(ok({ items: items }))
     })
   })
 }
@@ -168,5 +176,54 @@ test.describe('Gallery page smoke', function () {
     } finally {
       await context.close()
     }
+  })
+
+  test('T6: read-only gallery with items enables conveyor marquee', async function ({ page }) {
+    await seedLoggedIn(page, [GALLERY_VIEW])
+    await mockGalleryApis(page, { letterContent: '', items: MOCK_GALLERY_ITEMS })
+    await page.goto('/#/gallery')
+    await waitForPermissions(page)
+    await page.waitForSelector('.dp-gallery-wall__marquee', { timeout: 30000 })
+    await expect(page.locator('.dp-gallery-wall__marquee')).toHaveCount(1)
+    await expect(page.locator('.dp-gallery-wall__track--marquee')).toHaveCount(2)
+  })
+
+  test('T7: edit mode disables conveyor marquee', async function ({ page }) {
+    await seedLoggedIn(page, [GALLERY_VIEW])
+    await mockGalleryApis(page, { letterContent: '', items: MOCK_GALLERY_ITEMS })
+    await page.goto('/#/gallery?mode=edit')
+    await waitForPermissions(page)
+    await page.waitForSelector('.gallery-page', { timeout: 30000 })
+    await expect(page.locator('.dp-gallery-wall__marquee')).toHaveCount(0)
+    await expect(page.locator('.dp-gallery-wall__track')).toHaveCount(1)
+  })
+
+  test('T8: reduced motion disables conveyor marquee', async function ({ browser }) {
+    var context = await browser.newContext({ reducedMotion: 'reduce' })
+    var page = await context.newPage()
+    try {
+      await seedLoggedIn(page, [GALLERY_VIEW])
+      await mockGalleryApis(page, { letterContent: '', items: MOCK_GALLERY_ITEMS })
+      await page.goto('/#/gallery')
+      await waitForPermissions(page)
+      await page.waitForSelector('.gallery-page', { timeout: 30000 })
+      await expect(page.locator('.dp-gallery-wall__marquee')).toHaveCount(0)
+      await expect(page.locator('.dp-gallery-wall__track')).toHaveCount(1)
+    } finally {
+      await context.close()
+    }
+  })
+
+  test('T9: clicking a piece opens print reveal and pauses marquee', async function ({ page }) {
+    await seedLoggedIn(page, [GALLERY_VIEW])
+    await mockGalleryApis(page, { letterContent: '', items: MOCK_GALLERY_ITEMS })
+    await page.goto('/#/gallery')
+    await waitForPermissions(page)
+    await page.waitForSelector('.dp-gallery-wall__marquee', { timeout: 30000 })
+    await page.locator('.dp-gallery-wall__viewport').hover()
+    await page.getByRole('button', { name: '查看作品：作品一' }).first().click()
+    await expect(page.locator('.dp-gallery-print')).toBeVisible({ timeout: 3000 })
+    var paused = await page.locator('.dp-gallery-wall__viewport--paused').count()
+    expect(paused).toBe(1)
   })
 })

@@ -10,7 +10,64 @@
     </p>
 
     <div v-else class="dp-gallery-wall__frame">
+      <!-- Conveyor belt: seamless CSS marquee in read-only view -->
       <div
+        v-if="autoScrollEnabled"
+        class="dp-gallery-wall__viewport"
+        :class="{ 'dp-gallery-wall__viewport--paused': scrollPaused }"
+        @pointerdown="onMarqueePointerDown"
+        @pointerup="onMarqueePointerUp"
+        @pointercancel="onMarqueePointerUp"
+        @pointerleave="onMarqueePointerUp"
+      >
+        <div class="dp-gallery-wall__marquee" aria-hidden="false">
+          <div
+            v-for="set in displaySets"
+            :key="'set-' + set.key"
+            class="dp-gallery-wall__track dp-gallery-wall__track--marquee"
+            :aria-hidden="set.duplicate ? 'true' : undefined"
+            role="list"
+          >
+            <div
+              v-for="(column, colIndex) in set.columns"
+              :key="'col-' + set.key + '-' + colIndex"
+              class="dp-gallery-wall__column"
+              :class="{ 'dp-gallery-wall__column--stagger': colIndex % 2 === 1 }"
+            >
+              <article
+                v-for="entry in column"
+                :key="'piece-' + set.key + '-' + entry.item.id"
+                class="dp-gallery-wall__piece"
+                :style="pieceStyle(entry.index)"
+                role="listitem"
+              >
+                <button
+                  type="button"
+                  class="gallery-frame"
+                  :class="frameClass(entry.item.id)"
+                  :style="frameStyle(entry.item.id)"
+                  :aria-label="entry.item.caption ? '查看作品：' + entry.item.caption : '查看画廊作品'"
+                  @click="openDetail(entry.item)"
+                  @mouseenter="onFrameWarm(entry.item)"
+                  @focus="onFrameWarm(entry.item)"
+                >
+                  <img
+                    :src="galleryFileSrc(entry.item.previewUrl || entry.item.imageUrl)"
+                    :alt="entry.item.caption || '画廊作品'"
+                    loading="lazy"
+                    decoding="async"
+                    @load="onImageLoad(entry.item.id, $event)"
+                  >
+                </button>
+              </article>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Static / manual scroll: edit mode, reduced motion, eco mode -->
+      <div
+        v-else
         ref="track"
         class="dp-gallery-wall__track"
         :class="{ 'dp-gallery-wall__track--few': items.length <= 3 }"
@@ -91,6 +148,14 @@ export default {
     emptyText: {
       type: String,
       default: '还没有上传画廊作品'
+    },
+    editMode: {
+      type: Boolean,
+      default: false
+    },
+    ecoMode: {
+      type: Boolean,
+      default: false
     }
   },
   data() {
@@ -99,7 +164,10 @@ export default {
       frameAspectRatios: {},
       detailVisible: false,
       detailItem: null,
-      prefetchTimer: null
+      prefetchTimer: null,
+      touchPaused: false,
+      ecoModeFromDom: false,
+      ecoObserver: null
     }
   },
   computed: {
@@ -107,6 +175,17 @@ export default {
       return typeof window !== 'undefined' &&
         window.matchMedia &&
         window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    },
+    ecoModeActive() {
+      return this.ecoMode || this.ecoModeFromDom
+    },
+    autoScrollEnabled() {
+      return !this.editMode &&
+        !this.prefersReducedMotion &&
+        this.items.length > 0
+    },
+    scrollPaused() {
+      return this.detailVisible || this.touchPaused || this.ecoModeActive
     },
     wallColumns() {
       var items = this.items
@@ -132,6 +211,13 @@ export default {
       }
 
       return columns
+    },
+    displaySets() {
+      var columns = this.wallColumns
+      return [
+        { key: 'a', columns: columns, duplicate: false },
+        { key: 'b', columns: columns, duplicate: true }
+      ]
     }
   },
   watch: {
@@ -143,7 +229,6 @@ export default {
         var self = this
         this.$nextTick(function () {
           self.schedulePrefetch(true)
-          prefetchGalleryUrls(self.items.slice(0, Math.min(PREFETCH_AHEAD, self.items.length)))
         })
       }
     },
@@ -152,20 +237,25 @@ export default {
         var self = this
         this.$nextTick(function () {
           self.schedulePrefetch(true)
-          prefetchGalleryUrls(self.items.slice(0, Math.min(PREFETCH_AHEAD, self.items.length)))
         })
       }
+    },
+    autoScrollEnabled: function () {
+      var self = this
+      this.$nextTick(function () {
+        self.schedulePrefetch(true)
+      })
     }
   },
   mounted() {
     if (typeof window !== 'undefined') {
       window.addEventListener('scroll', this.onPageScroll, { passive: true })
     }
+    this.observeEcoMode()
     var self = this
     this.$nextTick(function () {
       if (self.items.length) {
         self.schedulePrefetch(true)
-        prefetchGalleryUrls(self.items.slice(0, Math.min(PREFETCH_AHEAD, self.items.length)))
       }
     })
   },
@@ -177,9 +267,38 @@ export default {
       clearTimeout(this.prefetchTimer)
       this.prefetchTimer = null
     }
+    if (this.ecoObserver) {
+      this.ecoObserver.disconnect()
+      this.ecoObserver = null
+    }
   },
   methods: {
     galleryFileSrc,
+    observeEcoMode() {
+      if (typeof document === 'undefined') return
+      var root = this.$el && this.$el.closest('[data-dp-eco-mode]')
+      if (!root) {
+        root = document.querySelector('[data-dp-eco-mode]')
+      }
+      if (!root) return
+
+      var self = this
+      var readEco = function () {
+        self.ecoModeFromDom = root.getAttribute('data-dp-eco-mode') === 'true'
+      }
+      readEco()
+
+      if (typeof MutationObserver !== 'undefined') {
+        this.ecoObserver = new MutationObserver(readEco)
+        this.ecoObserver.observe(root, { attributes: true, attributeFilter: ['data-dp-eco-mode'] })
+      }
+    },
+    onMarqueePointerDown() {
+      this.touchPaused = true
+    },
+    onMarqueePointerUp() {
+      this.touchPaused = false
+    },
     onImageLoad(id, evt) {
       var img = evt && evt.target
       if (!img || !id) return
@@ -228,12 +347,21 @@ export default {
         this.prefetchTimer = null
       }
       if (immediate) {
-        prefetchGalleryAhead(this.items, this.getCurrentItemIndex(), PREFETCH_AHEAD)
+        if (this.autoScrollEnabled) {
+          prefetchGalleryUrls(this.items)
+        } else {
+          prefetchGalleryAhead(this.items, this.getCurrentItemIndex(), PREFETCH_AHEAD)
+          prefetchGalleryUrls(this.items.slice(0, Math.min(PREFETCH_AHEAD, this.items.length)))
+        }
         return
       }
       this.prefetchTimer = setTimeout(function () {
         self.prefetchTimer = null
-        prefetchGalleryAhead(self.items, self.getCurrentItemIndex(), PREFETCH_AHEAD)
+        if (self.autoScrollEnabled) {
+          prefetchGalleryUrls(self.items)
+        } else {
+          prefetchGalleryAhead(self.items, self.getCurrentItemIndex(), PREFETCH_AHEAD)
+        }
       }, PREFETCH_THROTTLE_MS)
     },
     onTrackScroll() {
@@ -269,6 +397,7 @@ export default {
   --dp-gallery-frame-border-w: clamp(5px, 0.7vw, 8px);
   --dp-gallery-frame-w: clamp(120px, 13vw, 160px);
   --dp-gallery-frame-radius: clamp(6px, 1vw, 10px);
+  --dp-gallery-marquee-duration: 50s;
 
   position: relative;
   flex: 1 1 auto;
@@ -356,6 +485,36 @@ export default {
   min-height: 0;
 }
 
+/* Marquee viewport — clips conveyor belt */
+.dp-gallery-wall__viewport {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding: clamp(8px, 1.6vw, 14px) clamp(4px, 1vw, 10px) clamp(20px, 3vw, 28px);
+  touch-action: pan-y pinch-zoom;
+}
+
+.dp-gallery-wall__marquee {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  width: max-content;
+  animation: dp-gallery-marquee-x var(--dp-gallery-marquee-duration) linear infinite;
+  will-change: transform;
+}
+
+.dp-gallery-wall__viewport--paused .dp-gallery-wall__marquee {
+  animation-play-state: paused;
+}
+
+@media (min-width: 768px) {
+  .dp-gallery-wall__viewport:hover .dp-gallery-wall__marquee {
+    animation-play-state: paused;
+  }
+}
+
 .dp-gallery-wall__track {
   display: flex;
   flex-direction: row;
@@ -370,6 +529,13 @@ export default {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--dp-accent, #6b5d52) 35%, transparent) transparent;
+}
+
+.dp-gallery-wall__track--marquee {
+  flex: 0 0 auto;
+  width: auto;
+  overflow: visible;
+  padding: 0;
 }
 
 .dp-gallery-wall__track--few {
@@ -392,6 +558,24 @@ export default {
 .dp-gallery-wall__piece {
   flex: 0 0 auto;
   animation: dp-gallery-piece-in 0.5s ease both;
+}
+
+@keyframes dp-gallery-marquee-x {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes dp-gallery-marquee-y {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-50%);
+  }
 }
 
 @keyframes dp-gallery-piece-in {
@@ -452,6 +636,31 @@ export default {
   border-radius: max(2px, calc(var(--dp-gallery-frame-radius) - var(--dp-gallery-frame-border-w) * 0.45));
 }
 
+/* Mobile: vertical conveyor belt */
+@media (max-width: 767px) {
+  .dp-gallery-wall__viewport {
+    touch-action: pan-x pinch-zoom;
+  }
+
+  .dp-gallery-wall__marquee {
+    flex-direction: column;
+    width: 100%;
+    height: max-content;
+    animation-name: dp-gallery-marquee-y;
+  }
+
+  .dp-gallery-wall__track--marquee {
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+
+  .dp-gallery-wall__column--stagger {
+    padding-top: 0;
+    padding-left: calc(var(--dp-gallery-frame-w) * 0.575);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .dp-gallery-wall__piece,
   .gallery-frame {
@@ -460,6 +669,9 @@ export default {
   }
   .dp-gallery-wall__track {
     scroll-behavior: auto;
+  }
+  .dp-gallery-wall__marquee {
+    animation: none;
   }
   .gallery-frame:hover {
     transform: none;
