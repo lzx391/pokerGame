@@ -60,7 +60,9 @@
         <dp-gallery-letter-panel
           :content="content"
           :loading="loading"
-          :editable="editable"
+          :editable="false"
+          :letter-author-name="letterAuthor"
+          :updated-at="letterUpdatedAt"
           :paper-unfolding="paperUnfolding"
           :paper-ready="paperReady"
           @update:content="$emit('update:content', $event)"
@@ -75,7 +77,7 @@
       class="dp-gallery-envelope__widget"
       :class="{ 'dp-gallery-envelope__widget--entering': uiState === 'entering' }"
       :aria-expanded="uiState === 'reading'"
-      aria-label="打开介绍信"
+      :aria-label="widgetAriaLabel"
       :disabled="uiState === 'entering'"
       @animationend="onEnterAnimationEnd"
       @click="openEnvelope"
@@ -89,7 +91,7 @@
           <span class="dp-gallery-envelope__seal-inner"></span>
         </span>
       </span>
-      <span class="dp-gallery-envelope__hint">一封信</span>
+      <span class="dp-gallery-envelope__hint">{{ widgetHint }}</span>
     </button>
   </div>
 </template>
@@ -123,9 +125,17 @@ export default {
       type: Boolean,
       default: false
     },
+    previewFab: {
+      type: Boolean,
+      default: false
+    },
     letterAuthor: {
       type: String,
       default: ''
+    },
+    letterUpdatedAt: {
+      type: [String, Number, Date, Array],
+      default: null
     },
     ecoMode: {
       type: Boolean,
@@ -151,7 +161,13 @@ export default {
     },
     showEnvelope() {
       if (this.loading) return false
-      return this.editable || this.hasContent
+      return this.previewFab || this.hasContent
+    },
+    widgetAriaLabel() {
+      return this.previewFab ? '预览访客视角' : '打开介绍信'
+    },
+    widgetHint() {
+      return this.previewFab ? '预览访客视角' : '一封信'
     },
     shouldSkipMotion() {
       return this.prefersReducedMotion || this.ecoMode
@@ -436,14 +452,43 @@ export default {
   width: 72px;
   height: 52px;
   margin-left: -36px;
-  border-radius: 4px;
-  background: var(--dp-letter-paper, var(--dp-panel-bg, #faf8f5));
+  border-radius: 3px;
+  background-color: var(--dp-letter-paper-tint, #f0e0b8);
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 7px,
+      var(--dp-letter-line, rgba(107, 82, 52, 0.12)) 7px,
+      var(--dp-letter-line, rgba(107, 82, 52, 0.12)) 8px
+    ),
+    var(--dp-letter-paper, var(--dp-panel-bg, #faf8f5));
+  background-size: 100% 100%, 100% 100%;
+  background-position: 0 10px, 0 0;
   border: 1px solid var(--dp-letter-border, rgba(107, 93, 82, 0.22));
-  box-shadow: 0 6px 16px rgba(58, 51, 44, 0.16);
+  box-shadow:
+    inset 0 0 12px color-mix(in srgb, var(--dp-letter-ink, #3a2e22) 4%, transparent),
+    0 6px 16px rgba(58, 51, 44, 0.16);
   transform-origin: bottom center;
   transform: translateY(12px) scale(0.35) rotateX(18deg);
   opacity: 0;
   pointer-events: none;
+}
+
+.dp-gallery-envelope__preview-letter::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--dp-letter-scroll-rod-mid, #a8864a) 45%, var(--dp-letter-scroll-rod-light, #f0ddb0) 55%),
+    transparent
+  );
+  opacity: 0.7;
 }
 
 .dp-gallery-envelope__stage-inner--letter .dp-gallery-envelope__preview-letter {
@@ -548,12 +593,8 @@ export default {
   position: absolute;
   inset: 0;
   border-radius: 3px 3px 5px 5px;
-  background: linear-gradient(
-    168deg,
-    color-mix(in srgb, var(--dp-panel-bg, #faf8f5) 88%, var(--dp-warning, #c9a962) 12%),
-    color-mix(in srgb, var(--dp-subpanel-bg, #ebe6df) 90%, var(--dp-accent, #6b5d52) 10%)
-  );
-  border: 1px solid color-mix(in srgb, var(--dp-accent, #6b5d52) 28%, transparent);
+  background: var(--dp-letter-envelope-front, linear-gradient(168deg, #f5ead8 0%, #ddd0bc 100%));
+  border: 1px solid color-mix(in srgb, var(--dp-letter-border, rgba(139, 115, 75, 0.32)) 85%, transparent);
   box-shadow: inset 0 -8px 12px rgba(58, 51, 44, 0.06);
 }
 
@@ -564,12 +605,8 @@ export default {
   right: 0;
   height: 26px;
   clip-path: polygon(0 0, 50% 100%, 100% 0);
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--dp-panel-bg, #fff) 70%, var(--dp-warning, #d4b978) 30%),
-    color-mix(in srgb, var(--dp-subpanel-bg, #e8e2d9) 85%, var(--dp-accent, #6b5d52) 15%)
-  );
-  border-top: 1px solid color-mix(in srgb, var(--dp-accent, #6b5d52) 22%, transparent);
+  background: var(--dp-letter-envelope-flap, linear-gradient(180deg, #faf5ec 0%, #e5d8c4 100%));
+  border-top: 1px solid color-mix(in srgb, var(--dp-letter-border, rgba(139, 115, 75, 0.32)) 70%, transparent);
   transform-origin: top center;
   z-index: 2;
 }
@@ -584,8 +621,8 @@ export default {
   border-radius: 50%;
   background: radial-gradient(
     circle at 35% 30%,
-    color-mix(in srgb, var(--dp-warning, #d4a853) 80%, #fff 20%),
-    color-mix(in srgb, var(--dp-warning, #b8860b) 70%, var(--dp-accent, #6b5d52) 30%)
+    var(--dp-letter-envelope-seal-light, #d4a853),
+    var(--dp-letter-envelope-seal-dark, #9a7030)
   );
   box-shadow:
     0 2px 6px rgba(58, 51, 44, 0.28),
@@ -600,17 +637,20 @@ export default {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--dp-accent, #6b5d52) 55%, #3a332c);
-  opacity: 0.55;
+  background: color-mix(in srgb, var(--dp-letter-wax, #a83232) 65%, var(--dp-letter-ink, #3a2e22) 35%);
+  opacity: 0.62;
 }
 
 .dp-gallery-envelope__hint {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--dp-text-muted, #909399);
-  opacity: 0.85;
+  color: color-mix(in srgb, var(--dp-letter-ink, #3a2e22) 55%, var(--dp-text-muted, #909399) 45%);
+  opacity: 0.9;
+  max-width: 88px;
+  text-align: center;
+  line-height: 1.35;
 }
 
 /* ---------- Reading backdrop + letter sheet ---------- */

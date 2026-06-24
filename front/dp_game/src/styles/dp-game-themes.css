@@ -136,6 +136,16 @@ body[data-dp-game-theme='default'] {
   --dp-letter-line: rgba(107, 82, 52, 0.14);
   --dp-letter-border: rgba(139, 115, 75, 0.32);
   --dp-letter-unfold-duration: 400ms;
+  --dp-letter-edge-accent: 5px;
+  --dp-letter-scroll-rod-dark: #5a4528;
+  --dp-letter-scroll-rod-mid: #a8864a;
+  --dp-letter-scroll-rod-light: #f0ddb0;
+  --dp-letter-envelope-front: linear-gradient(168deg, #f5ead8 0%, #e8dcc8 55%, #ddd0bc 100%);
+  --dp-letter-envelope-flap: linear-gradient(180deg, #faf5ec 0%, #e5d8c4 100%);
+  --dp-letter-envelope-seal-light: #d4a853;
+  --dp-letter-envelope-seal-dark: #9a7030;
+  --dp-letter-wax: #a83232;
+  --dp-letter-noise-opacity: 0.045;
 }
 
 /* 8bit 终端：深色磷光绿 CRT 风（登录屏内绿字由 dp-depth-tokens auth 段提供） */
@@ -290,6 +300,16 @@ body[data-dp-game-theme='retro8bit'] {
   --dp-letter-line: rgba(74, 246, 38, 0.08);
   --dp-letter-border: rgba(74, 246, 38, 0.35);
   --dp-letter-unfold-duration: 400ms;
+  --dp-letter-edge-accent: 5px;
+  --dp-letter-scroll-rod-dark: #1a2818;
+  --dp-letter-scroll-rod-mid: #3a5a30;
+  --dp-letter-scroll-rod-light: #5a8a48;
+  --dp-letter-envelope-front: linear-gradient(168deg, #1a2218 0%, #121a10 100%);
+  --dp-letter-envelope-flap: linear-gradient(180deg, #243020 0%, #141c10 100%);
+  --dp-letter-envelope-seal-light: #6af64a;
+  --dp-letter-envelope-seal-dark: #2a8a18;
+  --dp-letter-wax: #4af626;
+  --dp-letter-noise-opacity: 0.06;
 }
 
 /*
@@ -570,6 +590,16 @@ body[data-dp-game-theme='gothic'] {
   --dp-letter-line: rgba(212, 184, 120, 0.1);
   --dp-letter-border: rgba(212, 184, 120, 0.32);
   --dp-letter-unfold-duration: 400ms;
+  --dp-letter-edge-accent: 5px;
+  --dp-letter-scroll-rod-dark: #3a2820;
+  --dp-letter-scroll-rod-mid: #8a6840;
+  --dp-letter-scroll-rod-light: #c4a878;
+  --dp-letter-envelope-front: linear-gradient(168deg, #2a1e1a 0%, #1a1210 100%);
+  --dp-letter-envelope-flap: linear-gradient(180deg, #3a2820 0%, #221810 100%);
+  --dp-letter-envelope-seal-light: #d4b878;
+  --dp-letter-envelope-seal-dark: #8a6838;
+  --dp-letter-wax: #8b2020;
+  --dp-letter-noise-opacity: 0.05;
 }
 
 /* 草莓软糖：糖霜渐变 + 玫粉层次（panel 须纯色以配合 color-mix） */
@@ -716,6 +746,16 @@ body[data-dp-game-theme='strawberry'] {
   --dp-letter-line: rgba(236, 72, 153, 0.1);
   --dp-letter-border: color-mix(in srgb, var(--dp-accent) 28%, transparent);
   --dp-letter-unfold-duration: 400ms;
+  --dp-letter-edge-accent: 5px;
+  --dp-letter-scroll-rod-dark: #9a4068;
+  --dp-letter-scroll-rod-mid: #e878a8;
+  --dp-letter-scroll-rod-light: #ffd0e8;
+  --dp-letter-envelope-front: linear-gradient(168deg, #fff0f6 0%, #ffd6e8 100%);
+  --dp-letter-envelope-flap: linear-gradient(180deg, #fff5f9 0%, #ffc8e0 100%);
+  --dp-letter-envelope-seal-light: #f472b6;
+  --dp-letter-envelope-seal-dark: #db2777;
+  --dp-letter-wax: #db2777;
+  --dp-letter-noise-opacity: 0.035;
 }
 
 /* 万圣惊魂：南瓜橙 / 幽紫 / 鬼火绿（与全局深色主题同一套光影逻辑） */
@@ -858,6 +898,16 @@ body[data-dp-game-theme='halloween'] {
   --dp-letter-line: rgba(251, 146, 60, 0.12);
   --dp-letter-border: rgba(251, 146, 60, 0.34);
   --dp-letter-unfold-duration: 400ms;
+  --dp-letter-edge-accent: 5px;
+  --dp-letter-scroll-rod-dark: #3a2010;
+  --dp-letter-scroll-rod-mid: #a85820;
+  --dp-letter-scroll-rod-light: #e8a858;
+  --dp-letter-envelope-front: linear-gradient(168deg, #3a2818 0%, #2a1810 100%);
+  --dp-letter-envelope-flap: linear-gradient(180deg, #4a3820 0%, #2a1810 100%);
+  --dp-letter-envelope-seal-light: #fb923c;
+  --dp-letter-envelope-seal-dark: #c2410c;
+  --dp-letter-wax: #7c2d12;
+  --dp-letter-noise-opacity: 0.05;
 }
 
 /* 哥特：仅标题用 --dp-font-display；不碰 #app.app--auth（登录仍为 monospace） */

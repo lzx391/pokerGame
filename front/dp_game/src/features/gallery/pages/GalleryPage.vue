@@ -34,11 +34,28 @@
     </div>
 
     <template v-else-if="!booting">
+      <section v-if="editMode" class="gallery-page__letter-edit">
+        <h2 class="gallery-page__section-label gallery-page__section-label--letter">介绍信</h2>
+        <dp-gallery-letter-panel
+          :content="letterContent"
+          :loading="letterLoading"
+          :editable="true"
+          :letter-author-name="letterAuthorName"
+          :updated-at="letterUpdatedAt"
+          :paper-unfolding="true"
+          :paper-ready="true"
+          @update:content="onLetterUpdated"
+          @saved="onLetterSaved"
+          @cleared="onLetterCleared"
+        />
+      </section>
+
       <dp-gallery-letter-envelope
         :content="letterContent"
         :loading="letterLoading"
-        :editable="canEditLetter"
+        :preview-fab="editMode"
         :letter-author="letterAuthorName"
+        :letter-updated-at="letterUpdatedAt"
         :eco-mode="ecoMode"
         @update:content="onLetterUpdated"
       />
@@ -77,6 +94,7 @@ import { dpResultSuccess, dpResultData, dpResultMessage, dpAxiosErrorMessage } f
 import { dpSocialApi } from '@features/social/api/socialApi'
 import { dpDisplayNickname } from '@shared/utils/dpDisplayNickname'
 import DpGalleryLetterEnvelope from '@features/gallery/components/DpGalleryLetterEnvelope.vue'
+import DpGalleryLetterPanel from '@features/gallery/components/DpGalleryLetterPanel.vue'
 import DpGalleryWall from '@features/gallery/components/DpGalleryWall.vue'
 import DpGalleryItemsEditor from '@features/gallery/components/DpGalleryItemsEditor.vue'
 
@@ -84,6 +102,7 @@ export default {
   name: 'GalleryPage',
   components: {
     DpGalleryLetterEnvelope,
+    DpGalleryLetterPanel,
     DpGalleryWall,
     DpGalleryItemsEditor
   },
@@ -101,6 +120,7 @@ export default {
       currentUser: null,
       subjectNickname: '',
       letterContent: '',
+      letterUpdatedAt: null,
       letterLoading: false,
       items: [],
       editorItems: null,
@@ -201,6 +221,12 @@ export default {
     onLetterUpdated(text) {
       this.letterContent = text != null ? String(text) : ''
     },
+    onLetterSaved() {
+      this.letterUpdatedAt = new Date().toISOString()
+    },
+    onLetterCleared() {
+      this.letterUpdatedAt = null
+    },
     onEditorItemsChanged(items) {
       this.editorItems = Array.isArray(items) ? items.slice() : []
     },
@@ -242,14 +268,22 @@ export default {
         this.letterLoading = false
       }
     },
+    applyLetterFromApi(letter) {
+      if (!letter) {
+        this.letterContent = ''
+        this.letterUpdatedAt = null
+        return
+      }
+      this.letterContent = letter.content ? String(letter.content) : ''
+      this.letterUpdatedAt = letter.updatedAt != null ? letter.updatedAt : null
+    },
     async loadOwnLetter() {
       this.letterLoading = true
       try {
         var res = await this.$http.get('/dp/gallery/letter')
         if (dpResultSuccess(res.data)) {
           var data = dpResultData(res.data) || {}
-          var letter = data.letter
-          this.letterContent = letter && letter.content ? String(letter.content) : ''
+          this.applyLetterFromApi(data.letter)
         } else if (this.$message) {
           this.$message.error(dpResultMessage(res.data) || '加载介绍信失败')
         }
@@ -281,8 +315,7 @@ export default {
         var res = await this.$http.get('/dp/gallery/users/' + uid + '/letter')
         if (dpResultSuccess(res.data)) {
           var data = dpResultData(res.data) || {}
-          var letter = data.letter
-          this.letterContent = letter && letter.content ? String(letter.content) : ''
+          this.applyLetterFromApi(data.letter)
         }
       } catch (e) {
         if (this.isGalleryForbidden(e)) {
@@ -422,6 +455,17 @@ export default {
 .gallery-page > *:not(.dp-gallery-envelope):not(.gallery-page__wall-wrap) {
   position: relative;
   z-index: 1;
+}
+
+.gallery-page__letter-edit {
+  position: relative;
+  z-index: 1;
+  margin-bottom: clamp(16px, 3vw, 24px);
+  max-width: min(640px, 100%);
+}
+
+.gallery-page__section-label--letter {
+  margin-bottom: 8px;
 }
 
 /* No z-index — avoids trapping print reveal (z-index 3000) below the letter layer. */

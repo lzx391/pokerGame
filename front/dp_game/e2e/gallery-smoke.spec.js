@@ -16,12 +16,17 @@ async function mockGalleryApis(page, options) {
   var opts = options || {}
   var letterContent = opts.letterContent !== undefined ? opts.letterContent : LETTER_TEXT
   var items = opts.items !== undefined ? opts.items : []
+  var letterUpdatedAt = opts.letterUpdatedAt !== undefined ? opts.letterUpdatedAt : '2024-06-15T10:30:00'
 
   await page.route('**/dev-api/dp/gallery/letter**', function (route) {
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(ok({ letter: { content: letterContent } }))
+      body: JSON.stringify(ok({
+        letter: letterContent
+          ? { content: letterContent, updatedAt: letterUpdatedAt }
+          : null
+      }))
     })
   })
   await page.route('**/dev-api/dp/gallery/items**', function (route) {
@@ -36,12 +41,17 @@ async function mockGalleryApis(page, options) {
 async function mockOtherUserGalleryApis(page, options) {
   var opts = options || {}
   var letterContent = opts.letterContent !== undefined ? opts.letterContent : ''
+  var letterUpdatedAt = opts.letterUpdatedAt !== undefined ? opts.letterUpdatedAt : '2024-05-20T08:00:00'
 
   await page.route('**/dev-api/dp/gallery/users/1/letter**', function (route) {
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(ok({ letter: { content: letterContent } }))
+      body: JSON.stringify(ok({
+        letter: letterContent
+          ? { content: letterContent, updatedAt: letterUpdatedAt }
+          : null
+      }))
     })
   })
   await page.route('**/dev-api/dp/gallery/users/1/items**', function (route) {
@@ -122,6 +132,7 @@ test.describe('Gallery page smoke', function () {
     await page.waitForSelector('.gallery-page', { timeout: 30000 })
     await page.getByRole('button', { name: '打开介绍信' }).click()
     await expect(page.locator('.dp-gallery-letter__text')).toContainText(LETTER_TEXT, { timeout: 2500 })
+    await expect(page.locator('.dp-gallery-letter__placard-author')).toContainText('来自')
   })
 
   test('T3: Escape closes letter and returns sealed envelope', async function ({ page }) {
@@ -196,6 +207,21 @@ test.describe('Gallery page smoke', function () {
     await page.waitForSelector('.gallery-page', { timeout: 30000 })
     await expect(page.locator('.dp-gallery-wall__marquee')).toHaveCount(0)
     await expect(page.locator('.dp-gallery-wall__track')).toHaveCount(1)
+    await expect(page.locator('#dp-gallery-letter-input')).toBeVisible()
+    await expect(page.getByRole('button', { name: '预览访客视角' })).toBeVisible()
+  })
+
+  test('T7b: edit mode preview opens read-only letter with placard', async function ({ page }) {
+    await seedLoggedIn(page, [GALLERY_VIEW])
+    await mockGalleryApis(page, { letterContent: LETTER_TEXT })
+    await page.goto('/#/gallery?mode=edit')
+    await waitForPermissions(page)
+    await page.waitForSelector('.gallery-page', { timeout: 30000 })
+    await expect(page.locator('#dp-gallery-letter-input')).toBeVisible()
+    await page.getByRole('button', { name: '预览访客视角' }).click()
+    await expect(page.locator('.dp-gallery-envelope__sheet .dp-gallery-letter__text')).toContainText(LETTER_TEXT, { timeout: 2500 })
+    await expect(page.locator('.dp-gallery-envelope__sheet .dp-gallery-letter__placard-author')).toBeVisible()
+    await expect(page.locator('#dp-gallery-letter-input')).toBeVisible()
   })
 
   test('T8: reduced motion disables conveyor marquee', async function ({ browser }) {
