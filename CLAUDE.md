@@ -118,6 +118,7 @@ controller/          → REST 接口，只做参数校验和路由，不写业�
 ### 命名前缀
 - 所有项目专属类使用 `Dp` 前缀（`DpRoom`, `DpPlayer`, `DpNpcEngine` 等）
 
+
 ## 文档索引
 
 - 完整专题文档地图：`docs/README.md`

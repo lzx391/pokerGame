@@ -1,0 +1,4 @@
+# 此版本为多实例版本，非会话粘滞
+
+区别于mastercluster分支，此版本并没有把websession在匹配成功的时候并入房间所在JVM，而是websession存在各个JVM本地，利用Redis的Pub/Sub去同步游戏对局信息
+
