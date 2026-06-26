@@ -27,10 +27,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -88,13 +86,6 @@ class DpRoomMoodStateSnapshotTest {
         DpRoomServiceImpl.suppressGlobalRoomTimerForTests = false;
     }
 
-    @SuppressWarnings("unchecked")
-    private Map<String, DpRoomBO> roomMap() throws Exception {
-        Field f = DpRoomServiceImpl.class.getDeclaredField("roomMap");
-        f.setAccessible(true);
-        return (Map<String, DpRoomBO>) f.get(svc);
-    }
-
     private void seedRoom(DpPlayer... players) throws Exception {
         DpRoomBO room = new DpRoomBO();
         room.setRoomId(ROOM_ID);
@@ -103,7 +94,7 @@ class DpRoomMoodStateSnapshotTest {
             list.add(p);
         }
         room.setPlayers(list);
-        roomMap().put(ROOM_ID, room);
+        DpRoomTestSupport.putRoom(svc, ROOM_ID, room);
     }
 
     private static DpPlayer player(String nickname, double mood) {

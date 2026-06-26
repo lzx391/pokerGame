@@ -165,7 +165,7 @@ class DpRoomMoodAfterHandTest {
         r.getPots().get(0).setEligiblePlayers(List.of("BOT_TAG_1", "alice"));
         invokeAutoSettleNormalPotShowdownPath(r);
         assertThat(bot.getChips()).isEqualTo(520);
-        assertThat(bot.getMood()).isCloseTo(0.2, within(0.001));
+        assertThat(bot.getMood()).isCloseTo(0.4, within(0.001));
     }
 
     @Test

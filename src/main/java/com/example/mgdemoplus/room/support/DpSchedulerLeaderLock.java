@@ -1,6 +1,8 @@
 package com.example.mgdemoplus.room.support;
 
 import com.example.mgdemoplus.config.DpInstanceProperties;
+
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -14,7 +16,6 @@ import java.util.UUID;
 public class DpSchedulerLeaderLock {
 
     private static final Duration LEADER_TTL = Duration.ofSeconds(3);
-
     private final StringRedisTemplate stringRedisTemplate;
     private final String instanceId;
     private final String token = UUID.randomUUID().toString();

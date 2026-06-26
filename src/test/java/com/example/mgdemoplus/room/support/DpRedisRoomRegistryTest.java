@@ -95,4 +95,32 @@ class DpRedisRoomRegistryTest {
         assertTrue(ok);
         verify(lock).release("r1", "token-1");
     }
+
+    @Test
+    void runExclusiveIsReentrantOnSameThread() {
+        when(lock.tryAcquire("r1")).thenReturn("token-1");
+        ValueOperations<String, String> valueOps = redis.opsForValue();
+        when(valueOps.get("dp:room:state:r1")).thenReturn("{\"roomId\":\"r1\",\"owner\":\"a\"}");
+
+        Boolean ok = registry.runExclusive("r1", outer -> registry.runExclusive("r1", inner -> {
+            inner.setOwner("b");
+            return true;
+        }));
+
+        assertTrue(ok);
+        verify(lock).tryAcquire("r1");
+        verify(lock).release("r1", "token-1");
+    }
+
+    @Test
+    void pruneOrphanIndexEntriesRemovesIdsWithoutStateKey() {
+        SetOperations<String, String> setOps = redis.opsForSet();
+        when(setOps.members("dp:room:index")).thenReturn(Set.of("gone", "live"));
+        when(redis.hasKey("dp:room:state:gone")).thenReturn(false);
+        when(redis.hasKey("dp:room:state:live")).thenReturn(true);
+
+        registry.pruneOrphanIndexEntries();
+
+        verify(setOps).remove("dp:room:index", "gone");
+    }
 }

@@ -16,6 +16,8 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static java.util.Collections.emptyMap;
+
 /**
  * Redis-backed authoritative room state for multi-instance P0.
  */
@@ -25,6 +27,20 @@ public class DpRedisRoomRegistry implements DpRoomRegistry {
     private static final Logger log = LoggerFactory.getLogger(DpRedisRoomRegistry.class);
     private static final int LOCK_RETRY_MS = 25;
     private static final int LOCK_MAX_WAIT_MS = 5_000;
+
+    /** Same-thread nested {@link #runExclusive} for one room (heartbeat → fold/giveOwner/exitRoom). */
+    private static final ThreadLocal<Map<String, Holder>> EXCLUSIVE_HOLDER =
+            ThreadLocal.withInitial(() -> emptyMap());
+
+    private static final class Holder {
+        final String token;
+        int depth;
+
+        Holder(String token) {
+            this.token = token;
+            this.depth = 1;
+        }
+    }
 
     private final StringRedisTemplate stringRedisTemplate;
     private final DpRoomRedisCodec codec;
@@ -130,9 +146,22 @@ public class DpRedisRoomRegistry implements DpRoomRegistry {
 
     @Override
     public <T> T runExclusive(String roomId, Function<DpRoomBO, T> action) {
-        String token = acquireWithRetry(roomId);
+        if (roomId == null || roomId.isEmpty()) {
+            return null;
+        }
+        Map<String, Holder> holders = EXCLUSIVE_HOLDER.get();
+        Holder existing = holders.get(roomId);
+        boolean nested = existing != null;
+        String token = nested ? existing.token : acquireWithRetry(roomId);
         if (token == null) {
             throw new IllegalStateException("room lock timeout roomId=" + roomId);
+        }
+        if (nested) {
+            existing.depth++;
+        } else {
+            Map<String, Holder> next = new HashMap<>(holders);
+            next.put(roomId, new Holder(token));
+            EXCLUSIVE_HOLDER.set(next);
         }
         try {
             DpRoomBO r = get(roomId);
@@ -145,7 +174,34 @@ public class DpRedisRoomRegistry implements DpRoomRegistry {
             }
             return result;
         } finally {
-            distributedLock.release(roomId, token);
+            Holder h = EXCLUSIVE_HOLDER.get().get(roomId);
+            if (h != null) {
+                h.depth--;
+                if (h.depth <= 0) {
+                    Map<String, Holder> next = new HashMap<>(EXCLUSIVE_HOLDER.get());
+                    next.remove(roomId);
+                    EXCLUSIVE_HOLDER.set(next.isEmpty() ? emptyMap() : next);
+                    distributedLock.release(roomId, token);
+                }
+            }
+        }
+    }
+
+    @Override
+    public void pruneOrphanIndexEntries() {
+        Set<String> ids = roomIds();
+        if (ids.isEmpty()) {
+            return;
+        }
+        int pruned = 0;
+        for (String roomId : ids) {
+            if (!contains(roomId)) {
+                stringRedisTemplate.opsForSet().remove(DpRoomRedisKeys.INDEX, roomId);
+                pruned++;
+            }
+        }
+        if (pruned > 0) {
+            log.info("pruned {} orphan room id(s) from {}", pruned, DpRoomRedisKeys.INDEX);
         }
     }
 

@@ -10,10 +10,11 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * 定时将 {@code dp_room_lobby} 与单机内存 {@link com.example.mgdemoplus.room.impl.DpRoomServiceImpl} 中的房间对齐，
+ * 定时将 {@code dp_room_lobby} 与运行时房间注册表（{@link com.example.mgdemoplus.room.support.DpRoomRegistry}）对齐，
  * 清掉服务重启、异常路径下残留的「大厅幽灵房」。
  * <p>
- * 多实例部署时每个节点 roomMap 不一致，请勿开启（或需改为分布式房间注册后再对齐）。
+ * 多实例 + Redis 房间状态时：各节点共享同一注册表，可安全开启；单节点内存模式同样适用。
+ * 仅在各节点维护独立、不一致的内存房表时才应关闭。
  */
 @Component
 @ConditionalOnProperty(name = "mgdemoplus.dp-lobby-reconcile-enabled", havingValue = "true", matchIfMissing = true)

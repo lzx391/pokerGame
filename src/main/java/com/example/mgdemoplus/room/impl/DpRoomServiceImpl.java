@@ -75,8 +75,6 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     private static final long REBUY_DEADLINE_MS = 10_000L;
 
     private final DpRoomRegistry registry;
-    /** Retained for tests that reflect {@code roomMap} on this class. */
-    private final Map<String, DpRoomBO> roomMap;
     private final JoinableQuickMatchRoomIndex joinableQuickMatchRoomIndex = new JoinableQuickMatchRoomIndex();
     private final DpRoomLobbySync lobbySync;
     private final DpRoomQuickMatchBridge quickMatchBridge;
@@ -105,25 +103,31 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     private final DpInstanceProperties instanceProperties;
 
     // 统一从 NPC 引擎中获取机器人昵称，避免散落魔法字符串
-    public boolean addDemoBotToNextHand(String roomId) {
-        DpRoomBO r = roomMap.get(roomId);
-        if (r == null) {
-            return false;
+    private boolean addBotToNextHandInRoom(String roomId, java.util.function.Function<DpRoomBO, String> nickFactory) {
+        Boolean ok = registry.runExclusive(roomId, r -> {
+            if (r == null) {
+                return false;
+            }
+            String nick = nickFactory.apply(r);
+            return applyReadyNextHandWhileLocked(r, nick, null);
+        });
+        if (Boolean.TRUE.equals(ok)) {
+            refreshJoinableQuickMatchIndexRoom(roomId, System.currentTimeMillis());
         }
-        int seq = r.allocateBotNicknameSeqBatch(1);
-        return readyNextHand(roomId, DpNpcEngine.ruleBotNickname(DpNpcEngine.BotType.FISH, seq), null);
+        return Boolean.TRUE.equals(ok);
+    }
+
+    public boolean addDemoBotToNextHand(String roomId) {
+        return addBotToNextHandInRoom(roomId,
+                r -> DpNpcEngine.ruleBotNickname(DpNpcEngine.BotType.FISH, r.allocateBotNicknameSeqBatch(1)));
     }
 
     /**
      * 疯子 NPC：{@code BOT_MANIAC_<房间序号>}。
      */
     public boolean addManiacBotToNextHand(String roomId) {
-        DpRoomBO r = roomMap.get(roomId);
-        if (r == null) {
-            return false;
-        }
-        int seq = r.allocateBotNicknameSeqBatch(1);
-        return readyNextHand(roomId, DpNpcEngine.ruleBotNickname(DpNpcEngine.BotType.MANIAC, seq), null);
+        return addBotToNextHandInRoom(roomId,
+                r -> DpNpcEngine.ruleBotNickname(DpNpcEngine.BotType.MANIAC, r.allocateBotNicknameSeqBatch(1)));
     }
 
     /**
@@ -131,49 +135,33 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
      * 行为与 {@link #addTagBotToNextHand(String)} 相同（紧凶规则 NPC）。
      */
     public boolean addSharkBotToNextHand(String roomId) {
-        return readyNextHand(roomId, DpNpcEngine.LEGACY_BOT_SHARK_NICKNAME, null);
+        return addBotToNextHandInRoom(roomId, r -> DpNpcEngine.LEGACY_BOT_SHARK_NICKNAME);
     }
 
     /**
      * 紧凶型 NPC：{@code BOT_TAG_<房间序号>}。
      */
     public boolean addTagBotToNextHand(String roomId) {
-        DpRoomBO r = roomMap.get(roomId);
-        if (r == null) {
-            return false;
-        }
-        int seq = r.allocateBotNicknameSeqBatch(1);
-        return readyNextHand(roomId, DpNpcEngine.ruleBotNickname(DpNpcEngine.BotType.TAG, seq), null);
+        return addBotToNextHandInRoom(roomId,
+                r -> DpNpcEngine.ruleBotNickname(DpNpcEngine.BotType.TAG, r.allocateBotNicknameSeqBatch(1)));
     }
 
     /** 松凶 LAG */
     public boolean addLagBotToNextHand(String roomId) {
-        DpRoomBO r = roomMap.get(roomId);
-        if (r == null) {
-            return false;
-        }
-        int seq = r.allocateBotNicknameSeqBatch(1);
-        return readyNextHand(roomId, DpNpcEngine.ruleBotNickname(DpNpcEngine.BotType.LAG, seq), null);
+        return addBotToNextHandInRoom(roomId,
+                r -> DpNpcEngine.ruleBotNickname(DpNpcEngine.BotType.LAG, r.allocateBotNicknameSeqBatch(1)));
     }
 
     /** 紧弱 Nit */
     public boolean addNitBotToNextHand(String roomId) {
-        DpRoomBO r = roomMap.get(roomId);
-        if (r == null) {
-            return false;
-        }
-        int seq = r.allocateBotNicknameSeqBatch(1);
-        return readyNextHand(roomId, DpNpcEngine.ruleBotNickname(DpNpcEngine.BotType.NIT, seq), null);
+        return addBotToNextHandInRoom(roomId,
+                r -> DpNpcEngine.ruleBotNickname(DpNpcEngine.BotType.NIT, r.allocateBotNicknameSeqBatch(1)));
     }
 
     /** 跟注站 */
     public boolean addCallStationBotToNextHand(String roomId) {
-        DpRoomBO r = roomMap.get(roomId);
-        if (r == null) {
-            return false;
-        }
-        int seq = r.allocateBotNicknameSeqBatch(1);
-        return readyNextHand(roomId, DpNpcEngine.ruleBotNickname(DpNpcEngine.BotType.CALL, seq), null);
+        return addBotToNextHandInRoom(roomId,
+                r -> DpNpcEngine.ruleBotNickname(DpNpcEngine.BotType.CALL, r.allocateBotNicknameSeqBatch(1)));
     }
 
     /**
@@ -184,33 +172,37 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         if (count <= 0) {
             return true;
         }
-        DpRoomBO r = roomMap.get(roomId);
-        if (r == null) {
-            return false;
-        }
-        List<String> waiters = r.getWaitNextHand();
-        if (waiters == null) {
-            waiters = new ArrayList<>();
-            r.setWaitNextHand(waiters);
-        }
-        int cap = r.getMaxSeatCount() - seatedCountForSeatCap(r) - waiters.size();
-        if (cap <= 0) {
-            return false;
-        }
-        int n = Math.min(count, cap);
-        try {
-            int firstSeq = r.allocateBotNicknameSeqBatch(n);
-            for (int i = 0; i < n; i++) {
-                String nick = DpNpcEngine.ruleBotNicknameForKey(archetypeKey, firstSeq + i);
-                if (!waiters.contains(nick)) {
-                    waiters.add(nick);
-                }
+        Boolean ok = registry.runExclusive(roomId, r -> {
+            if (r == null) {
+                return false;
             }
-        } catch (IllegalArgumentException ex) {
-            return false;
+            List<String> waiters = r.getWaitNextHand();
+            if (waiters == null) {
+                waiters = new ArrayList<>();
+                r.setWaitNextHand(waiters);
+            }
+            int cap = r.getMaxSeatCount() - seatedCountForSeatCap(r) - waiters.size();
+            if (cap <= 0) {
+                return false;
+            }
+            int n = Math.min(count, cap);
+            try {
+                int firstSeq = r.allocateBotNicknameSeqBatch(n);
+                for (int i = 0; i < n; i++) {
+                    String nick = DpNpcEngine.ruleBotNicknameForKey(archetypeKey, firstSeq + i);
+                    if (!waiters.contains(nick)) {
+                        waiters.add(nick);
+                    }
+                }
+            } catch (IllegalArgumentException ex) {
+                return false;
+            }
+            return true;
+        });
+        if (Boolean.TRUE.equals(ok)) {
+            refreshJoinableQuickMatchIndexRoom(roomId, System.currentTimeMillis());
         }
-        refreshJoinableQuickMatchIndexRoom(roomId, System.currentTimeMillis());
-        return true;
+        return Boolean.TRUE.equals(ok);
     }
 
     /**
@@ -228,48 +220,52 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         if (profile == null) {
             return false;
         }
-        DpRoomBO r = roomMap.get(roomId);
-        if (r == null) {
-            return false;
-        }
-        if (requesterNickname == null
-                || r.getOwner() == null
-                || !requesterNickname.equals(r.getOwner())) {
-            return false;
-        }
-        List<String> waiters = r.getWaitNextHand();
-        if (waiters == null) {
-            waiters = new ArrayList<>();
-            r.setWaitNextHand(waiters);
-        }
-        int cap = r.getMaxSeatCount() - seatedCountForSeatCap(r) - waiters.size();
-        if (cap <= 0) {
-            return false;
-        }
-        int n = Math.min(count, cap);
-        CustomNpcStyleSnapshot batchSnapshot = profile.cloneSnapshot();
-        try {
-            int firstSeq = r.allocateBotNicknameSeqBatch(n);
-            Map<String, CustomNpcStyleSnapshot> pending = r.getPendingCustomNpcProfiles();
-            for (int i = 0; i < n; i++) {
-                String nick = DpNpcEngine.customBotNickname(firstSeq + i);
-                if (!waiters.contains(nick)) {
-                    waiters.add(nick);
-                }
-                pending.put(nick, batchSnapshot.cloneSnapshot());
+        Boolean ok = registry.runExclusive(roomId, r -> {
+            if (r == null) {
+                return false;
             }
-        } catch (IllegalArgumentException ex) {
-            return false;
+            if (requesterNickname == null
+                    || r.getOwner() == null
+                    || !requesterNickname.equals(r.getOwner())) {
+                return false;
+            }
+            List<String> waiters = r.getWaitNextHand();
+            if (waiters == null) {
+                waiters = new ArrayList<>();
+                r.setWaitNextHand(waiters);
+            }
+            int cap = r.getMaxSeatCount() - seatedCountForSeatCap(r) - waiters.size();
+            if (cap <= 0) {
+                return false;
+            }
+            int n = Math.min(count, cap);
+            CustomNpcStyleSnapshot batchSnapshot = profile.cloneSnapshot();
+            try {
+                int firstSeq = r.allocateBotNicknameSeqBatch(n);
+                Map<String, CustomNpcStyleSnapshot> pending = r.getPendingCustomNpcProfiles();
+                for (int i = 0; i < n; i++) {
+                    String nick = DpNpcEngine.customBotNickname(firstSeq + i);
+                    if (!waiters.contains(nick)) {
+                        waiters.add(nick);
+                    }
+                    pending.put(nick, batchSnapshot.cloneSnapshot());
+                }
+            } catch (IllegalArgumentException ex) {
+                return false;
+            }
+            return true;
+        });
+        if (Boolean.TRUE.equals(ok)) {
+            refreshJoinableQuickMatchIndexRoom(roomId, System.currentTimeMillis());
         }
-        refreshJoinableQuickMatchIndexRoom(roomId, System.currentTimeMillis());
-        return true;
+        return Boolean.TRUE.equals(ok);
     }
 
     /**
      * 将大模型 NPC 加入下一局；{@code BOT_LLM_<房间序号>}，决策仅走 {@link DpLlmNpcDecisionService}。
      */
     public boolean addLlmBotToNextHand(String roomId) {
-        DpRoomBO r = roomMap.get(roomId);
+        DpRoomBO r = registry.get(roomId);
         if (r == null) {
             return false;
         }
@@ -282,7 +278,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
      * {@link DpLlmNpcDecisionService}。
      */
     public boolean addGlobalLlmBotToNextHand(String roomId) {
-        DpRoomBO r = roomMap.get(roomId);
+        DpRoomBO r = registry.get(roomId);
         if (r == null) {
             return false;
         }
@@ -320,7 +316,6 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
             DpInstanceProperties instanceProperties,
             @Autowired(required = false) DpSchedulerLeaderLock schedulerLeaderLock) {
         this.registry = registry;
-        this.roomMap = registry.roomMap();
         this.instanceProperties = instanceProperties;
         this.observedHandPersistService = observedHandPersistService;
         this.settlePersistenceDispatcher = settlePersistenceDispatcher;
@@ -417,11 +412,11 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
             String roomId = room.getRoomId();
             switch (action.getType()) {
                 case FOLD:
-                    fold(roomId, p.getNickname());
+                    foldAssumeLocked(room, p.getNickname());
                     break;
                 case CALL_OR_CHECK: {
                     int callAmount = Math.max(0, room.getCurrentBetToCall() - p.getBet());
-                    bet(roomId, p.getNickname(), callAmount);
+                    betAssumeLocked(room, p.getNickname(), callAmount);
                     break;
                 }
                 case RAISE:
@@ -430,7 +425,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
                     if (action.getType() == DpNpcEngine.BotActionType.RAISE) {
                         amount = clampRaiseAmountForLegal(room, p, amount);
                     }
-                    bet(roomId, p.getNickname(), amount);
+                    betAssumeLocked(room, p.getNickname(), amount);
                     break;
                 }
                 default:
@@ -540,7 +535,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     @Override
     public ResultUtil verifyExperimentalDeckPassword(String roomId, String requesterNickname,
             String experimentalPassword) {
-        DpRoomBO r = roomMap.get(roomId);
+        DpRoomBO r = registry.get(roomId);
         if (r == null) {
             return ResultUtil.error().data("message", "房间不存在");
         }
@@ -550,7 +545,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     @Override
     public ResultUtil setNextHandDeckPrefix(String roomId, String requesterNickname, List<String> cards,
             String experimentalPassword) {
-        DpRoomBO r = roomMap.get(roomId);
+        DpRoomBO r = registry.get(roomId);
         if (r == null) {
             return ResultUtil.error().data("message", "房间不存在");
         }
@@ -566,13 +561,13 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         if (validationError != null) {
             return ResultUtil.error().data("message", validationError);
         }
-        synchronized (r) {
+        registry.runExclusiveVoid(roomId, room -> {
             if (normalized.isEmpty()) {
-                r.setNextHandDeckPrefix(null);
+                room.setNextHandDeckPrefix(null);
             } else {
-                r.setNextHandDeckPrefix(new ArrayList<>(normalized));
+                room.setNextHandDeckPrefix(new ArrayList<>(normalized));
             }
-        }
+        });
         return ResultUtil.ok()
                 .data("presetCount", normalized.size())
                 .data("message", normalized.isEmpty() ? "已清空下局牌序预设" : "已预设 " + normalized.size() + " 张，下局生效");
@@ -581,14 +576,11 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     @Override
     public ResultUtil getNextHandDeckPrefixStatus(String roomId, String requesterNickname,
             String experimentalPassword) {
-        DpRoomBO r = roomMap.get(roomId);
+        DpRoomBO r = registry.get(roomId);
         if (r == null) {
             return ResultUtil.error().data("message", "房间不存在");
         }
-        List<String> prefix;
-        synchronized (r) {
-            prefix = r.getNextHandDeckPrefix();
-        }
+        List<String> prefix = r.getNextHandDeckPrefix();
         List<String> cardsCopy = prefix != null ? new ArrayList<>(prefix) : new ArrayList<>();
         return ResultUtil.ok()
                 .data("presetCount", cardsCopy.size())
@@ -694,16 +686,22 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
 
     /** 定时器与其它未持房监视器的入口：内部单房串行并完成索引→大厅链路。 */
     public void giveOwner(String roomId, String ownerNickname) {
-        DpRoomBO room = roomMap.get(roomId);
-        if (room == null) {
+        DpRoomBO[] corpseHolder = new DpRoomBO[1];
+        GiveOwnerMutationOutcome outcome = registry.runExclusive(roomId, r -> {
+            if (r == null) {
+                return GiveOwnerMutationOutcome.none();
+            }
+            GiveOwnerMutationOutcome o = applyGiveOwnerWhileRoomLocked(r, ownerNickname);
+            if (o.droppedFromRoomMap) {
+                corpseHolder[0] = r;
+            }
+            return o;
+        });
+        if (outcome == null) {
             return;
         }
-        GiveOwnerMutationOutcome outcome;
-        synchronized (room) {
-            outcome = applyGiveOwnerWhileRoomLocked(room, ownerNickname);
-        }
         if (outcome.droppedFromRoomMap) {
-            finalizeHallAfterRoomRemovedWithPresenceSnapshot(roomId, room);
+            finalizeHallAfterRoomRemovedWithPresenceSnapshot(roomId, corpseHolder[0]);
         } else if (outcome.ownerFieldChanged) {
             refreshJoinableQmIndexThenSyncLobby(roomId);
         }
@@ -765,50 +763,48 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
      * 单次踢人核心逻辑，不触发大厅同步（供 {@link #kickPlayer} 与 {@link #kickPlayersBatch} 复用）。
      */
     private boolean kickOnePlayerWithoutLobbySync(String roomId, String nickname) {
-        DpRoomBO r = roomMap.get(roomId);
-        if (r == null) {
-            return false;
-        }
-        int idx = -1;
-        List<DpPlayer> ps = r.getPlayers();
-        for (int i = 0; i < ps.size(); i++) {
-            DpPlayer p = ps.get(i);
-            if (p.getNickname().equals(nickname)) {
-                idx = i;
-                break;
+        Boolean ok = registry.runExclusive(roomId, r -> {
+            if (r == null) {
+                return false;
             }
-        }
-        if (idx == -1) {
-            return false;
-        }
-        // fold 可能触发结算 → removeLeftThisHandZombiesAfterHand 对同一 List removeIf，
-        // 批量踢人时已离桌位会被摘掉，idx 会失效；后续必须对已解析的 DpPlayer 引用操作。
-        DpPlayer kicked = ps.get(idx);
-        if (r.getCurrentActorIndex() == idx) {
-            fold(roomId, nickname);
-        } else {
-            if (!kicked.isFold()) {
-                kicked.setFold(true);
+            int idx = -1;
+            List<DpPlayer> ps = r.getPlayers();
+            for (int i = 0; i < ps.size(); i++) {
+                DpPlayer p = ps.get(i);
+                if (p.getNickname().equals(nickname)) {
+                    idx = i;
+                    break;
+                }
             }
-        }
-        kicked.setReady(false);
-        kicked.setLeftThisHand(true);
-        if (DpNpcEngine.isCustomBotNickname(nickname)) {
-            r.getPendingCustomNpcProfiles().remove(nickname);
-        }
-        if (!DpNpcEngine.isBotPlayer(kicked)) {
-            List<String> spectators = getNewSpectators(r);
-            if (!spectators.contains(nickname)) {
-                spectators.add(nickname);
+            if (idx == -1) {
+                return false;
             }
-            if (!DpNpcEngine.isBotNickname(nickname)) {
-                r.touchSpectatorPresence(nickname, System.currentTimeMillis());
+            DpPlayer kicked = ps.get(idx);
+            if (r.getCurrentActorIndex() == idx) {
+                foldAssumeLocked(r, nickname);
+            } else {
+                if (!kicked.isFold()) {
+                    kicked.setFold(true);
+                }
             }
-            synchronized (r) {
+            kicked.setReady(false);
+            kicked.setLeftThisHand(true);
+            if (DpNpcEngine.isCustomBotNickname(nickname)) {
+                r.getPendingCustomNpcProfiles().remove(nickname);
+            }
+            if (!DpNpcEngine.isBotPlayer(kicked)) {
+                List<String> spectators = getNewSpectators(r);
+                if (!spectators.contains(nickname)) {
+                    spectators.add(nickname);
+                }
+                if (!DpNpcEngine.isBotNickname(nickname)) {
+                    r.touchSpectatorPresence(nickname, System.currentTimeMillis());
+                }
                 settleAndClearCarryInOnLeaveSeatLocked(r, nickname, kicked);
             }
-        }
-        return true;
+            return true;
+        });
+        return Boolean.TRUE.equals(ok);
     }
 
     // ======== 获取观众席防null版本 =========
@@ -1020,7 +1016,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         if (nickname == null) {
             return false;
         }
-        for (DpRoomBO r : roomMap.values()) {
+        for (DpRoomBO r : registry.values()) {
             List<String> specs = r.getSpectators();
             if (specs != null && specs.contains(nickname)) {
                 return true;
@@ -1134,7 +1130,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
      * 房间列表摘要：用于大厅展示所有房间（房间号 / 房主 / 在线人数）
      */
     public List<DpRoom> getAllRooms2() {
-        return roomMap.values().stream()
+        return registry.values().stream()
                 .map(room -> {
                     DpRoom dto = new DpRoom();
                     dto.setRoomId(room.getRoomId());
@@ -1160,7 +1156,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     }
 
     public DpRoomBO getAllRooms(String roomId) {
-        DpRoomBO r = roomMap.get(roomId);
+        DpRoomBO r = registry.get(roomId);
         if (r == null)
             return null;
         // 当公共牌不少于 3 张时，为每位有手牌的玩家计算并填充「最大牌型的 5 张牌」，供前端展示
@@ -1485,7 +1481,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         if (roomId == null || nickname == null) {
             return false;
         }
-        DpRoomBO r = roomMap.get(roomId);
+        DpRoomBO r = registry.get(roomId);
         return r != null && nickname.equals(r.getOwner());
     }
 
@@ -1499,20 +1495,18 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         if (DpNpcEngine.isBotNickname(nickname)) {
             return false;
         }
-        DpRoomBO r = roomMap.get(roomId);
+        DpRoomBO r = registry.get(roomId);
         if (r == null) {
             return false;
         }
-        synchronized (r) {
-            List<String> spectators = r.getSpectators();
-            if (spectators != null && spectators.contains(nickname)) {
-                return true;
-            }
-            if (r.getPlayers() != null) {
-                for (DpPlayer p : r.getPlayers()) {
-                    if (p != null && nickname.equals(p.getNickname())) {
-                        return !p.isLeftThisHand() && !DpNpcEngine.isBotPlayer(p);
-                    }
+        List<String> spectators = r.getSpectators();
+        if (spectators != null && spectators.contains(nickname)) {
+            return true;
+        }
+        if (r.getPlayers() != null) {
+            for (DpPlayer p : r.getPlayers()) {
+                if (p != null && nickname.equals(p.getNickname())) {
+                    return !p.isLeftThisHand() && !DpNpcEngine.isBotPlayer(p);
                 }
             }
         }
@@ -1525,20 +1519,19 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
      */
     public String joinRoomInviteAsSpectator(String roomId, String nickname, Integer userId) {
         quickMatchBridge.cancelDefaultQuickMatchWait(nickname);
-        DpRoomBO r = roomMap.get(roomId);
-        if (r == null) {
-            return "房间不存在";
-        }
-        final String outcome;
-        boolean waitRemoved = false;
-        synchronized (r) {
-            if (roomMap.get(roomId) != r) {
-                return "房间不存在";
+        final String[] outcomeHolder = new String[1];
+        final boolean[] waitRemovedHolder = { false };
+        DpRoomBO[] roomHolder = new DpRoomBO[1];
+        registry.runExclusiveVoid(roomId, r -> {
+            if (r == null) {
+                outcomeHolder[0] = "房间不存在";
+                return;
             }
+            roomHolder[0] = r;
             Integer uid = resolveAndValidateUserId(userId, nickname);
             List<String> waiters = r.getWaitNextHand();
             if (waiters != null) {
-                waitRemoved = waiters.remove(nickname);
+                waitRemovedHolder[0] = waiters.remove(nickname);
             }
             if (r.isPlaying()) {
                 List<String> spectators = r.getSpectators();
@@ -1555,7 +1548,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
                 if (uid != null) {
                     r.putRegisteredDpUserId(nickname, uid);
                 }
-                outcome = "游戏已开始";
+                outcomeHolder[0] = "游戏已开始";
             } else {
                 boolean alreadySeatedOk = false;
                 if (r.getPlayers() != null) {
@@ -1570,7 +1563,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
                     }
                 }
                 if (alreadySeatedOk) {
-                    outcome = "ok";
+                    outcomeHolder[0] = "ok";
                 } else {
                     List<String> spectators = r.getSpectators();
                     if (spectators == null) {
@@ -1586,14 +1579,18 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
                     if (uid != null) {
                         r.putRegisteredDpUserId(nickname, uid);
                     }
-                    outcome = "ok";
+                    outcomeHolder[0] = "ok";
                 }
             }
+        });
+        String outcome = outcomeHolder[0];
+        if (outcome == null) {
+            return "房间不存在";
         }
         if ("ok".equals(outcome) || "游戏已开始".equals(outcome)) {
-            presenceMarkInGameHuman(r, nickname, userId, "join_room_invite_spectator");
+            presenceMarkInGameHuman(roomHolder[0], nickname, userId, "join_room_invite_spectator");
         }
-        if (waitRemoved) {
+        if (waitRemovedHolder[0]) {
             lobbySync.afterRoomMutation(roomId, DpRoomMutationEffect.INDEX);
         }
         return outcome;
@@ -1632,59 +1629,71 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     }
 
     public boolean readyNextHand(String roomId, String nickname, Integer userId) {
-        DpRoomBO r = roomMap.get(roomId);
-        if (r == null)
-            return false;
-        synchronized (r) {
+        Boolean alreadySeated = registry.runExclusive(roomId, r -> {
+            if (r == null) {
+                return null;
+            }
             String actor = resolveRoomActorNickname(r, nickname, userId);
             if (actor == null) {
-                return false;
+                return null;
             }
             for (DpPlayer p : r.getPlayers()) {
                 if (p != null && !p.isLeftThisHand() && actor.equals(p.getNickname())) {
                     return true;
                 }
             }
+            return false;
+        });
+        if (alreadySeated == null) {
+            return false;
         }
-        boolean ok;
-        synchronized (r) {
+        if (alreadySeated) {
+            return true;
+        }
+        Boolean ok = registry.runExclusive(roomId, r -> {
+            if (r == null) {
+                return false;
+            }
             String actor = resolveRoomActorNickname(r, nickname, userId);
             if (actor == null) {
                 return false;
             }
-            ok = applyReadyNextHandWhileLocked(r, actor, userId);
-        }
-        if (ok) {
-            // 仅更新房间索引，不更新大厅索引，因为大厅索引显示的是正在游戏的人数，不是算上等待者一起的人数
+            return applyReadyNextHandWhileLocked(r, actor, userId);
+        });
+        if (Boolean.TRUE.equals(ok)) {
             refreshJoinableQuickMatchIndexRoom(roomId, System.currentTimeMillis());
         }
-        return ok;
+        return Boolean.TRUE.equals(ok);
     }
 
     /**
      * 取消“下一局加入”：从 {@link DpRoomBO#getWaitNextHand()} 移除昵称。
      */
     public boolean cancelReadyNextHand(String roomId, String nickname, Integer userId) {
-        DpRoomBO r = roomMap.get(roomId);
-        if (r == null)
-            return false;
-        boolean changed;
-        synchronized (r) {
+        boolean[] roomFound = { false };
+        Boolean changed = registry.runExclusive(roomId, r -> {
+            if (r == null) {
+                return null;
+            }
+            roomFound[0] = true;
             Integer uid = resolveAndValidateUserId(userId, nickname);
             if (uid != null) {
                 r.putRegisteredDpUserId(nickname, uid);
             }
             List<String> waiters = r.getWaitNextHand();
             if (waiters == null || waiters.isEmpty()) {
-                changed = false;
-            } else {
-                changed = waiters.remove(nickname);
+                return false;
             }
-            if (changed && DpNpcEngine.isCustomBotNickname(nickname)) {
+            boolean removed = waiters.remove(nickname);
+            if (removed && DpNpcEngine.isCustomBotNickname(nickname)) {
                 r.getPendingCustomNpcProfiles().remove(nickname);
             }
+            return removed;
+        });
+        if (!roomFound[0]) {
+            return false;
         }
-        if (changed) {
+        if (Boolean.TRUE.equals(changed)) {
             refreshJoinableQuickMatchIndexRoom(roomId, System.currentTimeMillis());
         }
         return true;
@@ -1740,7 +1749,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         if (nickname == null) {
             return null;
         }
-        for (DpRoomBO r : roomMap.values()) {
+        for (DpRoomBO r : registry.values()) {
             List<String> specs = r.getSpectators();
             if (specs != null && specs.contains(nickname)) {
                 return r;
@@ -1896,18 +1905,17 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     }
 
     public boolean toggleReady(String roomId, String nickname, Integer userId) {
-        DpRoomBO r = roomMap.get(roomId);
-        if (r == null)
-            return false;
-        boolean ok;
-        synchronized (r) {
+        Boolean ok = registry.runExclusive(roomId, r -> {
+            if (r == null) {
+                return false;
+            }
             String actor = resolveRoomActorNickname(r, nickname, userId);
             if (actor == null) {
                 return false;
             }
-            ok = toggleReadyAssumeLocked(r, actor);
-        }
-        return ok;
+            return toggleReadyAssumeLocked(r, actor);
+        });
+        return Boolean.TRUE.equals(ok);
     }
 
     /** 前提：已持有 {@code synchronized(r)} */
@@ -1981,7 +1989,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
             if (humanCap > 0) {
                 int humanReady = settleReadyLiveHumansCountAndWaitRebuy(r);
                 if (humanReady == humanCap) {
-                    return newHandWithoutLobbyUpsert(r.getRoomId());
+                    return newHandWithoutLobbyUpsert(r);
                 }
                 return false;
             }
@@ -1996,15 +2004,15 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
 
         if (humanCap > 0) {
             if (humanReady == humanCap) {
-                return newHandWithoutLobbyUpsert(r.getRoomId());
+                return newHandWithoutLobbyUpsert(r);
             }
             return false;
         }
         if (w >= 1) {
-            return newHandWithoutLobbyUpsert(r.getRoomId());
+            return newHandWithoutLobbyUpsert(r);
         }
         if (allSeatedCapableBotsReady(r)) {
-            return newHandWithoutLobbyUpsert(r.getRoomId());
+            return newHandWithoutLobbyUpsert(r);
         }
         return false;
     }
@@ -2127,25 +2135,36 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     }
 
     public boolean exitRoom(String roomId, String nickname) {
-        DpRoomBO r = roomMap.get(roomId);
-        if (r == null)
+        DpRoomBO[] corpseHolder = new DpRoomBO[1];
+        DpRoomBO[] roomHintHolder = new DpRoomBO[1];
+        Boolean[] wasPublicHolder = { null };
+        ExitRoomSynchronizedOutcome snap = registry.runExclusive(roomId, r -> {
+            if (r == null) {
+                return null;
+            }
+            roomHintHolder[0] = r;
+            wasPublicHolder[0] = !r.isPasswordProtected();
+            ExitRoomSynchronizedOutcome outcome = exitRoomApplyMutationWhileHoldingRoomLock(roomId, nickname, r);
+            if (outcome != null && outcome.droppedEmpty) {
+                corpseHolder[0] = r;
+            }
+            return outcome;
+        });
+        if (snap == null) {
             return false;
-        boolean wasPublic = !r.isPasswordProtected();
-        ExitRoomSynchronizedOutcome snap = exitRoomApplyMutationWhileHoldingRoomLock(roomId, nickname, r);
+        }
+        boolean wasPublic = Boolean.TRUE.equals(wasPublicHolder[0]);
         System.out.println("snap.droppedEmpty: " + snap.droppedEmpty);
         if (snap.droppedEmpty) {
-            finalizeHallAfterRoomRemovedWithPresenceSnapshot(roomId, r);
+            finalizeHallAfterRoomRemovedWithPresenceSnapshot(roomId, corpseHolder[0]);
+            presenceTryMarkIdleFullyLeft(nickname, snap.presenceHintUid, corpseHolder[0], "exit_room");
         } else {
-            // 如果不影响房间解散，意味有可能腾出空位，刷新快匹房间索引，再异步更新房间数据库
             refreshJoinableQuickMatchIndexRoom(roomId, System.currentTimeMillis());
             if (snap.lobbyTouch || snap.giveAgg.ownerFieldChanged) {
                 syncLobbyForRoomId(roomId);
             }
-        }
-        if (!snap.droppedEmpty) {
             System.out.println("进入presenceTryMarkIdleFullyLeft");
-            // 给人设置成空闲状态
-            presenceTryMarkIdleFullyLeft(nickname, snap.presenceHintUid, r, "exit_room");
+            presenceTryMarkIdleFullyLeft(nickname, snap.presenceHintUid, roomHintHolder[0], "exit_room");
         }
         if (wasPublic && snap.result) {
             attemptQuickMatchPairing();
@@ -2163,80 +2182,72 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         boolean droppedEmpty = false;
         boolean result;
         Integer presenceHintUid;
-        synchronized (r) {
-            presenceHintUid = resolvePresenceHintBeforeExitMutationLocked(r, nickname);
-            List<String> spectators = r.getSpectators();
-            List<String> waiters = r.getWaitNextHand();
-            if (spectators != null) {
-                System.out.println("spectators: " + spectators + "已经被移除");
-                spectators.remove(nickname);
-            }
-            r.removeSpectatorPresence(nickname);
-            if (waiters != null) {
-                waiters.remove(nickname);
-            }
+        presenceHintUid = resolvePresenceHintBeforeExitMutationLocked(r, nickname);
+        List<String> spectators = r.getSpectators();
+        List<String> waiters = r.getWaitNextHand();
+        if (spectators != null) {
+            System.out.println("spectators: " + spectators + "已经被移除");
+            spectators.remove(nickname);
+        }
+        r.removeSpectatorPresence(nickname);
+        if (waiters != null) {
+            waiters.remove(nickname);
+        }
 
-            if (!r.isPlaying()) {
-                if (Objects.equals(r.getOwner(), nickname)) {
-                    giveAgg = giveAgg.mergedWith(applyGiveOwnerWhileRoomLocked(r, nickname));
-                }
-                settleCarryInOnExitRoomLocked(r, nickname);
-                if (roomMap.get(roomId) != r) {
-                    droppedEmpty = true;
-                    result = true;
-                } else {
-                    boolean removed = r.getPlayers().removeIf(p -> p.getNickname().equals(nickname));
-                    if (tryUnregisterEmptyRoomAssumeLocked(r, roomId)) {
-                        droppedEmpty = true;
-                        result = true;
-                    } else {
-                        lobbyTouch = true;
-                        result = removed;
-                    }
-                }
+        if (!r.isPlaying()) {
+            if (Objects.equals(r.getOwner(), nickname)) {
+                giveAgg = giveAgg.mergedWith(applyGiveOwnerWhileRoomLocked(r, nickname));
+            }
+            settleCarryInOnExitRoomLocked(r, nickname);
+            if (!registry.contains(roomId)) {
+                droppedEmpty = true;
+                result = true;
             } else {
-                // 进行中：离开者可能只在观众席，也可能仍在 players 里（含 leftThisHand 占位「僵尸位」仅按昵称匹配）。
-                // 摘房口径与定时器 {@link #removeDesertedRoomInGlobalTickIfNoLiveHumans}
-                // 一致，须在处置完本方法内的变更后统一尝试，
-                // 不能只在 target==null 时摘房（否则桌上只剩僵尸位时 liveHumanTableCount 已为 0，但 exit 仍进 target
-                // 分支则不摘）。
-                if (Objects.equals(r.getOwner(), nickname)) {
-                    giveAgg = giveAgg.mergedWith(applyGiveOwnerWhileRoomLocked(r, nickname));
-                }
-                DpPlayer target = null;
-                int idx = -1;
-                List<DpPlayer> ps = r.getPlayers();
-                for (int i = 0; i < ps.size(); i++) {
-                    DpPlayer p = ps.get(i);
-                    if (p.getNickname().equals(nickname)) {
-                        target = p;
-                        idx = i;
-                        break;
-                    }
-                }
-                if (target == null) {
+                boolean removed = r.getPlayers().removeIf(p -> p.getNickname().equals(nickname));
+                if (tryUnregisterEmptyRoomAssumeLocked(r, roomId)) {
+                    droppedEmpty = true;
                     result = true;
                 } else {
-                    target.setLeftThisHand(true);
-                    target.setHoleCards(new ArrayList<>());
-                    if (r.getCurrentActorIndex() == idx) {
-                        fold(roomId, nickname);
-                    } else {
-                        if (!target.isFold()) {
-                            target.setFold(true);
-                        }
-                    }
-                    settleAndClearCarryInOnLeaveSeatLocked(r, nickname, target);
-                    result = true;
+                    lobbyTouch = true;
+                    result = removed;
                 }
-                if (roomMap.get(roomId) != r) {
-                    droppedEmpty = true;
-                } else if (tryUnregisterEmptyRoomAssumeLocked(r, roomId)) {
-                    droppedEmpty = true;
+            }
+        } else {
+            if (Objects.equals(r.getOwner(), nickname)) {
+                giveAgg = giveAgg.mergedWith(applyGiveOwnerWhileRoomLocked(r, nickname));
+            }
+            DpPlayer target = null;
+            int idx = -1;
+            List<DpPlayer> ps = r.getPlayers();
+            for (int i = 0; i < ps.size(); i++) {
+                DpPlayer p = ps.get(i);
+                if (p.getNickname().equals(nickname)) {
+                    target = p;
+                    idx = i;
+                    break;
+                }
+            }
+            if (target == null) {
+                result = true;
+            } else {
+                target.setLeftThisHand(true);
+                target.setHoleCards(new ArrayList<>());
+                if (r.getCurrentActorIndex() == idx) {
+                    foldAssumeLocked(r, nickname);
                 } else {
-                    // 仅观众退出：大厅 player_count 不含观众，无需 upsert（P0-3）
-                    lobbyTouch = target != null;
+                    if (!target.isFold()) {
+                        target.setFold(true);
+                    }
                 }
+                settleAndClearCarryInOnLeaveSeatLocked(r, nickname, target);
+                result = true;
+            }
+            if (!registry.contains(roomId)) {
+                droppedEmpty = true;
+            } else if (tryUnregisterEmptyRoomAssumeLocked(r, roomId)) {
+                droppedEmpty = true;
+            } else {
+                lobbyTouch = target != null;
             }
         }
         return new ExitRoomSynchronizedOutcome(result, droppedEmpty, lobbyTouch, giveAgg, presenceHintUid);
@@ -2325,7 +2336,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
             r.setSettledAtMs(0L);
             r.setReadyDeadline(0L);
             r.getPlayers().get(0).setDealer(true);
-            return newHandWithoutLobbyUpsert(roomId);
+            return newHandWithoutLobbyUpsert(r);
         });
         if (Boolean.TRUE.equals(nhOk)) {
             refreshJoinableQmIndexThenSyncLobby(roomId);
@@ -2338,8 +2349,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
      * 开始新一手：不 upsert 大厅；调用方在合适的锁序下再
      * {@link #refreshJoinableQmIndexThenSyncLobby(String)}。
      */
-    private boolean newHandWithoutLobbyUpsert(String roomId) {
-        DpRoomBO r = roomMap.get(roomId);
+    private boolean newHandWithoutLobbyUpsert(DpRoomBO r) {
         if (r == null || !r.isPlaying())
             return false;
         r.setLastHandHoleCardsPublic(false);
@@ -2365,6 +2375,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         }
 
         // 为本手牌生成一个稳定的随机种子
+        String roomId = r.getRoomId();
         long seedBase = System.currentTimeMillis();
         if (roomId != null) {
             seedBase ^= roomId.hashCode();
@@ -2464,9 +2475,11 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
 
     /** 未持单房监视器嵌套时安全：内部 {@link #newHandWithoutLobbyUpsert} 后刷新索引并 upsert 大厅。 */
     public boolean newHand(String roomId) {
-        boolean b = newHandWithoutLobbyUpsert(roomId);
-        refreshJoinableQmIndexThenSyncLobby(roomId);
-        return b;
+        Boolean b = registry.runExclusive(roomId, this::newHandWithoutLobbyUpsert);
+        if (Boolean.TRUE.equals(b)) {
+            refreshJoinableQmIndexThenSyncLobby(roomId);
+        }
+        return Boolean.TRUE.equals(b);
     }
 
     public List<DpPlayer> getAllCanPlayer(DpRoomBO r) {
@@ -3569,7 +3582,11 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
      * 结算后筹码不足大盲（10）的玩家补码到初始筹码。
      */
     public boolean rebuy(String roomId, String nickname) {
-        DpRoomBO r = roomMap.get(roomId);
+        Boolean ok = registry.runExclusive(roomId, r -> rebuyAssumeLocked(r, nickname));
+        return Boolean.TRUE.equals(ok);
+    }
+
+    private boolean rebuyAssumeLocked(DpRoomBO r, String nickname) {
         if (r == null || !r.isPlaying())
             return false;
         if (!"settled".equals(r.getCurrentStage()))
@@ -3577,7 +3594,6 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         for (DpPlayer p : r.getPlayers()) {
 
             if (p.getNickname().equals(nickname)) {
-                // 机器人补码，不挂买入map
                 if (DpNpcEngine.isBotPlayer(p)) {
                     if (p.getChips() >= r.getBigBlindChips()) {
                         return false;
@@ -3585,7 +3601,6 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
                     p.setChips(r.getStartingChips());
                     return true;
                 }
-                // 筹码充足（>=10）则不允许补码
                 if (p.getChips() >= r.getBigBlindChips()) {
                     return false;
                 }
@@ -3604,10 +3619,10 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     }
 
     public void heartbeat(String roomId, String nickname, Integer userId) {
-        DpRoomBO r = roomMap.get(roomId);
-        if (r == null)
-            return;
-        synchronized (r) {
+        registry.runExclusiveVoid(roomId, r -> {
+            if (r == null) {
+                return;
+            }
             String actor = resolveRoomActorNickname(r, nickname, userId);
             if (actor == null) {
                 return;
@@ -3622,6 +3637,6 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
             if (specs != null && specs.contains(actor)) {
                 r.touchSpectatorPresence(actor, now);
             }
-        }
+        });
     }
 }

@@ -463,6 +463,7 @@ public class DpRoomController {
     @GetMapping("/publicRooms")
     public Map<String, Object> publicRooms(@RequestParam(defaultValue = "1") int page,
                                            @RequestParam(defaultValue = "10") int pageSize) {
+        System.out.println(currentUserSupport.requireNickname()+"发起了查询请求");
         Map<String, Object> out = new HashMap<>();
         var payload = dpRoomHallService.getPublicRoomsPage(page, pageSize);
         out.put("list", payload.getList());

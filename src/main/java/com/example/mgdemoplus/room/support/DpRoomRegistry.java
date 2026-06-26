@@ -48,4 +48,9 @@ public interface DpRoomRegistry {
     void saveAfterMutation(String roomId, DpRoomBO room, String reason);
 
     long revision(String roomId);
+
+    /** Redis index may list room ids whose state key was removed; leader tick prunes these. */
+    default void pruneOrphanIndexEntries() {
+        // no-op in memory mode
+    }
 }

@@ -10,6 +10,7 @@ import com.example.mgdemoplus.history.DpHandHistoryObservedService;
 import com.example.mgdemoplus.history.DpHandHistoryPersistService;
 import com.example.mgdemoplus.room.support.DpSettlePersistenceDispatcher;
 import com.example.mgdemoplus.roomchat.buffer.RoomChatBuffer;
+import com.example.mgdemoplus.room.support.DpRoomRegistry;
 import com.example.mgdemoplus.room.support.DpRoomTestSupport;
 import com.example.mgdemoplus.roomchat.DpRoomChatPersistenceService;
 import com.example.mgdemoplus.npc.llm.DpLlmNpcDecisionService;
@@ -43,12 +44,14 @@ import static org.mockito.Mockito.mock;
 class DpRoomDesertedRoomCleanupTest {
 
     private DpRoomServiceImpl svc;
+    private DpRoomRegistry registry;
 
     @BeforeEach
     void setUp() {
         DpRoomServiceImpl.suppressGlobalRoomTimerForTests = true;
+        registry = DpRoomTestSupport.memoryRegistry();
         svc = new DpRoomServiceImpl(
-                DpRoomTestSupport.memoryRegistry(),
+                registry,
                 mock(DpHandHistoryPersistService.class),
                 mock(DpSettlePersistenceDispatcher.class),
                 mock(DpLlmNpcDecisionService.class),
@@ -79,10 +82,8 @@ class DpRoomDesertedRoomCleanupTest {
     }
 
     @SuppressWarnings("unchecked")
-    private static Map<String, DpRoomBO> roomMap(DpRoomServiceImpl s) throws Exception {
-        Field f = DpRoomServiceImpl.class.getDeclaredField("roomMap");
-        f.setAccessible(true);
-        return (Map<String, DpRoomBO>) f.get(s);
+    private Map<String, DpRoomBO> roomMap() {
+        return (Map<String, DpRoomBO>) registry.roomMap();
     }
 
     /** 与定时器内 {@code removeDesertedRoomInGlobalTickIfNoLiveHumans(room)} 相同。 */
@@ -116,7 +117,7 @@ class DpRoomDesertedRoomCleanupTest {
     /** 仅行上一名真人「离座」、无观众：定时器口径应立即摘房。 */
     @Test
     void timerRemovesRoomWhenOnlyZombieSeatAndNoSpectators() throws Exception {
-        Map<String, DpRoomBO> map = roomMap(svc);
+        Map<String, DpRoomBO> map = roomMap();
         DpRoomBO r = passwordRoom("rid-z", "zombieNick");
         r.getPlayers().add(humanOnRoom(r, "zombieNick", true));
         map.put(r.getRoomId(), r);
@@ -128,7 +129,7 @@ class DpRoomDesertedRoomCleanupTest {
     /** 僵尸 + 观众；观众 exit 后应无房（exit 内 tryUnregister 或随后定时器一步）。 */
     @Test
     void spectatorExitAfterZombieLeavesRoomRemoved() throws Exception {
-        Map<String, DpRoomBO> map = roomMap(svc);
+        Map<String, DpRoomBO> map = roomMap();
         DpRoomBO r = passwordRoom("rid-s", "zombieNick");
         r.getPlayers().add(humanOnRoom(r, "zombieNick", true));
         r.getSpectators().add("bob");
@@ -142,7 +143,7 @@ class DpRoomDesertedRoomCleanupTest {
     /** 一名上桌真人直接退座：应摘房。 */
     @Test
     void seatedPlayerExitRemovesRoom() throws Exception {
-        Map<String, DpRoomBO> map = roomMap(svc);
+        Map<String, DpRoomBO> map = roomMap();
         DpRoomBO r = passwordRoom("rid-p", "alice");
         DpPlayer alice = humanOnRoom(r, "alice", false);
         r.getPlayers().add(alice);
@@ -159,7 +160,7 @@ class DpRoomDesertedRoomCleanupTest {
      */
     @Test
     void kickToSpectatorThenExitRemovesRoom() throws Exception {
-        Map<String, DpRoomBO> map = roomMap(svc);
+        Map<String, DpRoomBO> map = roomMap();
         DpRoomBO r = passwordRoom("rid-k", "alice");
         r.getPlayers().add(humanOnRoom(r, "alice", false));
         r.setCurrentActorIndex(-1);

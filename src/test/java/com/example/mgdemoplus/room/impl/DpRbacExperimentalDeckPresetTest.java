@@ -26,9 +26,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Field;
 import java.util.List;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -99,10 +97,6 @@ class DpRbacExperimentalDeckPresetTest {
         DpRoomBO room = new DpRoomBO();
         room.setRoomId(roomId);
         room.setOwner(owner);
-        Field f = DpRoomServiceImpl.class.getDeclaredField("roomMap");
-        f.setAccessible(true);
-        @SuppressWarnings("unchecked")
-        Map<String, DpRoomBO> roomMap = (Map<String, DpRoomBO>) f.get(svc);
-        roomMap.put(roomId, room);
+        DpRoomTestSupport.putRoom(svc, roomId, room);
     }
 }

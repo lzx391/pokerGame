@@ -48,6 +48,9 @@ public final class DpRoomHeartbeatScheduler {
                     if (schedulerLeaderLock != null && !schedulerLeaderLock.tryBecomeOrRenewLeader()) {
                         return;
                     }
+                    if (registry.isRedisBacked()) {
+                        registry.pruneOrphanIndexEntries();
+                    }
                     for (String roomId : registry.roomIds()) {
                         if (registry.isRedisBacked()) {
                             try {
@@ -124,6 +127,7 @@ public final class DpRoomHeartbeatScheduler {
                 String hbNick = p.getNickname();
                 Integer hbUid = p.getDpUserId();
                 it.remove();
+                gameRoomPushService.shutdownSubscriptionsForNicknameInRoom(room.getRoomId(), hbNick);
                 if (hbUid != null && hbUid > 0) {
                     callbacks.presenceMarkIdleHuman(hbUid, "heartbeat_evict_player");
                 }

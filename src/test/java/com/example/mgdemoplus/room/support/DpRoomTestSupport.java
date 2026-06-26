@@ -106,4 +106,23 @@ public final class DpRoomTestSupport {
         p.setInstanceId("test");
         return p;
     }
+
+    /** Resolve the registry wired into a manually constructed {@link com.example.mgdemoplus.room.impl.DpRoomServiceImpl}. */
+    public static DpRoomRegistry registryFrom(com.example.mgdemoplus.room.impl.DpRoomServiceImpl svc)
+            throws Exception {
+        java.lang.reflect.Field f = com.example.mgdemoplus.room.impl.DpRoomServiceImpl.class
+                .getDeclaredField("registry");
+        f.setAccessible(true);
+        return (DpRoomRegistry) f.get(svc);
+    }
+
+    public static void putRoom(com.example.mgdemoplus.room.impl.DpRoomServiceImpl svc, String roomId, DpRoomBO room)
+            throws Exception {
+        registryFrom(svc).put(roomId, room);
+    }
+
+    public static DpRoomBO getRoom(com.example.mgdemoplus.room.impl.DpRoomServiceImpl svc, String roomId)
+            throws Exception {
+        return registryFrom(svc).get(roomId);
+    }
 }

@@ -13,6 +13,7 @@ import com.example.mgdemoplus.npc.llm.LlmNpcGlobalHandConversationStore;
 import com.example.mgdemoplus.presence.DpFriendPresenceService;
 import com.example.mgdemoplus.presence.DpFriendPresenceState;
 import com.example.mgdemoplus.room.support.DpRoomHeartbeatScheduler;
+import com.example.mgdemoplus.room.support.DpRoomRegistry;
 import com.example.mgdemoplus.room.support.DpRoomTestSupport;
 import com.example.mgdemoplus.roomchat.DpRoomChatPersistenceService;
 import com.example.mgdemoplus.roomchat.buffer.RoomChatBuffer;
@@ -47,13 +48,15 @@ class DpRoomExitPresenceMarkIdleTest {
 
     private DpFriendPresenceService friendPresence;
     private DpRoomServiceImpl svc;
+    private DpRoomRegistry registry;
 
     @BeforeEach
     void setUp() {
         DpRoomServiceImpl.suppressGlobalRoomTimerForTests = true;
         friendPresence = new DpFriendPresenceService();
+        registry = DpRoomTestSupport.memoryRegistry();
         svc = new DpRoomServiceImpl(
-                DpRoomTestSupport.memoryRegistry(),
+                registry,
                 mock(DpHandHistoryPersistService.class),
                 mock(com.example.mgdemoplus.room.support.DpSettlePersistenceDispatcher.class),
                 mock(DpLlmNpcDecisionService.class),
@@ -84,10 +87,8 @@ class DpRoomExitPresenceMarkIdleTest {
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, DpRoomBO> roomMap() throws Exception {
-        Field f = DpRoomServiceImpl.class.getDeclaredField("roomMap");
-        f.setAccessible(true);
-        return (Map<String, DpRoomBO>) f.get(svc);
+    private Map<String, DpRoomBO> roomMap() {
+        return (Map<String, DpRoomBO>) registry.roomMap();
     }
 
     private static DpRoomBO idleLobbyRoom(String roomId, String ownerNick) {
