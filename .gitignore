@@ -42,5 +42,6 @@ docker-data/uploads/
 
 ### 日志
 logs/
-
 java老师提示词.md
+**/video/
+.agents/skills/**
