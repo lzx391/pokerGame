@@ -1,44 +1,40 @@
-# Nginx 反向代理：`/`→应用、`/ws/`→同源 WebSocket（Docker Compose）
+# Nginx 反向代理：本地多实例（HTTP only）
 
-本仓库在 **Docker Compose** 里增加了 **Nginx** 服务：对外只暴露 **80** 端口，把 HTTP 与 **WebSocket** 转发到同一网络内的 **`app:8088`**（Spring Boot 仍负责 API、静态资源、对局 WS）。
+本仓库 **本地开发**：Nginx 对外 **8880**（映射容器 80），**直接托管** `front/dp_game/dist`；仅后端路径轮询转发到宿主机 **`host.docker.internal:8088`** 与 **`:8089`**（本机 `mvn spring-boot:run` 双实例）。构建前端见 [docs/DOCKER.md](DOCKER.md)。
 
-## 1. 做了什么
+## 1. 配置文件
 
-| 文件 | 作用 |
+| 文件 | 用途 |
 |------|------|
-| `docker/nginx/default.conf` | Nginx 站点配置：`/` → 应用；`/dp/social/stream` → SSE；`/ws/` → WebSocket |
-| `docker-compose.yml` 中的 `nginx` 服务 | 镜像 `nginx:alpine`，映射宿主机 **80:80**，挂载上述配置 |
+| `docker/nginx/default.conf` | 唯一 Nginx 配置：纯 HTTP、双 JVM 轮询；compose 挂载此文件 |
 
-浏览器访问 **`http://localhost`**（无需 `:8088`）即可打开站点；对局页 WebSocket 仍为 **`/ws/dp-game`**，经 Nginx 时自动升级为 `ws://localhost/ws/dp-game?...`（与页面同主机、同端口）。
+浏览器访问 **`http://localhost:8880`**；对局 WebSocket 为 **`/ws/dp-game`**（与页面同主机、同端口）。
 
 ## 2. 启动步骤
 
-在仓库根目录：
-
-```bash
-docker compose up --build
+```powershell
+cd front/dp_game && npm install && npm run build && cd ../..
+docker compose up -d          # Nginx + MinIO
+# 宿主机另起 8088 / 8089 两个 JVM（见 docs/DOCKER.md）
 ```
 
-- **经 Nginx**：浏览器打开 `http://localhost`（hash 路由如 `/#/login`）。
-- **直连 Spring Boot**（可选）：仍可用 `http://localhost:8088`（compose 里保留了端口映射，便于调试）。
+- **经 Nginx（推荐）**：`http://localhost:8880`（hash 路由如 `/#/login`）。
+- **直连 Spring Boot（调试）**：`http://localhost:8088`、`http://localhost:8089`。
 
-若本机 **80 端口已被占用**（如本机 IIS、其它 Nginx），请改 `docker-compose.yml` 里 nginx 的端口映射，例如 `"8080:80"`，然后访问 `http://localhost:8080`。
+若 **8880** 被占用，改 `docker-compose.yml` 中 nginx 的 `"8880:80"` 为其它端口。
 
-## 3. 配置要点（你改参数时看这里）
+## 3. 配置要点
 
-- **上游地址**：`proxy_pass http://app:8088;` — `app` 是 compose 里 Spring 服务名，**不要**写 `127.0.0.1`（那是容器自己，不是应用容器）。
-- **WebSocket**：`location /ws/` 中必须包含 `Upgrade`、`Connection`（本配置用 `map $http_upgrade $connection_upgrade`），并建议拉长 `proxy_read_timeout`，避免长连接被过早断开。
-- **SSE（大厅）**：`location = /dp/social/stream` 须 **`proxy_buffering off`**、`gzip off`、`proxy_read_timeout` 拉长（与本地 dev 的 `vue.config.js` 里 stream 代理同理）；否则后端已 `broadcast` 但浏览器收不到 `event: notify`。
-- **上传**：已设 `client_max_body_size 50m`，与常见 multipart 上传一致；若不够可再调大。
-- **HTTPS**：若以后要 **443**，需在 Nginx 上配置 `ssl_certificate` / `listen 443 ssl`，或前面再加一层云负载均衡终止 TLS；本仓库默认只提供 **HTTP 80** 示例。
+- **静态**：`root /usr/share/nginx/html` ← compose 挂载 `./front/dp_game/dist`。
+- **上游**：`upstream mgdemo_backend` 含 `host.docker.internal:8088`、`host.docker.internal:8089` — compose 为 nginx 配置 `extra_hosts`。
+- **反代前缀**：`/dp/`、`/dpRoom/`、`/dpUser/`、`/dpHandHistory/`、`/dpMusic/`、`/dpDownload/`、`/oauth/`、`/images/`、`/music/`、`/files/`、`/ws/` 等（见 `default.conf`）。
+- **WebSocket**：`location /ws/` 须含 `Upgrade`、`Connection`（`map $http_upgrade $connection_upgrade`），并拉长 `proxy_read_timeout`。
+- **SSE（大厅）**：`location = /dp/social/stream` 须 **`proxy_buffering off`**、`gzip off`、长 `proxy_read_timeout`。
+- **上传**：`client_max_body_size 50m`；可按需调大。
 
-## 4. 仅本机开发、不用 Docker 时
+## 4. 重载 Nginx
 
-可以在 Windows 上单独装 Nginx，把 `proxy_pass` 指到 **`http://127.0.0.1:8088`**，逻辑与上面相同；或继续只用 Spring Boot 的 8088，不必强制上 Nginx。
-
-## 5. 上线后重载 Nginx
-
-改 `docker/nginx/default.conf` 后（Compose 挂载或 `Dockerfile.nginx` 重建镜像）：
+改 `default.conf` 后：
 
 ```bash
 docker compose exec nginx nginx -t && docker compose exec nginx nginx -s reload
@@ -46,6 +42,6 @@ docker compose exec nginx nginx -t && docker compose exec nginx nginx -s reload
 
 或 `docker compose up -d --force-recreate nginx`。
 
-## 6. 关闭对外 8088（可选）
+## 5. 关闭对外 8088/8089（可选）
 
-若希望 **公网只暴露 80**，不暴露应用端口：在 `docker-compose.yml` 里删除或注释 `app` 下的 `ports: - "8088:8088"`，仅保留内部网络访问 `app`。本机调试时再临时加回端口映射。
+若只希望经 Nginx 访问，本机 JVM 可只监听 `127.0.0.1`（Spring Boot `server.address`），不对外暴露端口。

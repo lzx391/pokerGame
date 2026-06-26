@@ -7,14 +7,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
- * MinIO 启用时确保 bucket 存在。
+ * MinIO 启动时确保 bucket 存在。
  */
 @Component
-@ConditionalOnProperty(name = "mgdemoplus.minio.enabled", havingValue = "true")
 public class DpMinioBucketInitRunner implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DpMinioBucketInitRunner.class);

@@ -14,6 +14,7 @@ import java.util.TimerTask;
 
 /**
  * Global 1s room tick: heartbeat eviction, deserted-room cleanup, NPC/human action timeouts, settled auto-ready.
+ * Redis multi-instance: only the scheduler leader runs ticks against the shared room index.
  */
 public final class DpRoomHeartbeatScheduler {
 
@@ -22,27 +23,45 @@ public final class DpRoomHeartbeatScheduler {
     private final DpGameRoomPushService gameRoomPushService;
     private final DpRoomLobbySync lobbySync;
     private final DpRoomServiceCallbacks callbacks;
+    private final DpSchedulerLeaderLock schedulerLeaderLock;
 
     public DpRoomHeartbeatScheduler(
             DpRoomRegistry registry,
             DpLlmNpcDecisionService llmNpcDecisionService,
             DpGameRoomPushService gameRoomPushService,
             DpRoomLobbySync lobbySync,
-            DpRoomServiceCallbacks callbacks) {
+            DpRoomServiceCallbacks callbacks,
+            DpSchedulerLeaderLock schedulerLeaderLock) {
         this.registry = registry;
         this.llmNpcDecisionService = llmNpcDecisionService;
         this.gameRoomPushService = gameRoomPushService;
         this.lobbySync = lobbySync;
         this.callbacks = callbacks;
+        this.schedulerLeaderLock = schedulerLeaderLock;
     }
 
     public void startGlobalTimerUnlessSuppressed(boolean suppressForTests) {
         if (!suppressForTests) {
-            new Timer().scheduleAtFixedRate(new TimerTask() {
+            new Timer("dp-room-heartbeat", true).scheduleAtFixedRate(new TimerTask() {
                 @Override
                 public void run() {
-                    for (DpRoomBO room : registry.values()) {
-                        runGlobalSecondTickForSingleRoom(room);
+                    if (schedulerLeaderLock != null && !schedulerLeaderLock.tryBecomeOrRenewLeader()) {
+                        return;
+                    }
+                    for (String roomId : registry.roomIds()) {
+                        if (registry.isRedisBacked()) {
+                            try {
+                                registry.runExclusiveVoid(roomId,
+                                        room -> runGlobalSecondTickForSingleRoom(room, true));
+                            } catch (Exception ignored) {
+                                // lock contention or room removed mid-tick
+                            }
+                        } else {
+                            DpRoomBO room = registry.get(roomId);
+                            if (room != null) {
+                                runGlobalSecondTickForSingleRoom(room, false);
+                            }
+                        }
                     }
                 }
             }, 0, 1000);
@@ -50,6 +69,10 @@ public final class DpRoomHeartbeatScheduler {
     }
 
     public void runGlobalSecondTickForSingleRoom(DpRoomBO room) {
+        runGlobalSecondTickForSingleRoom(room, registry.isRedisBacked());
+    }
+
+    private void runGlobalSecondTickForSingleRoom(DpRoomBO room, boolean redisBacked) {
         boolean lobbyDirty = tickEvictStaleSeatedPlayersOnHeartbeat(room);
         if (tickEvictStaleSpectatorsOnHeartbeat(room)) {
             lobbyDirty = true;
@@ -64,13 +87,9 @@ public final class DpRoomHeartbeatScheduler {
             return;
         }
         maybeInvokeReadyTimeoutWhenDeadlinePassed(room);
-        broadcastRoomAndMaybeRefreshLobbyAfterHeartbeatTick(room, lobbyDirty);
+        broadcastRoomAndMaybeRefreshLobbyAfterHeartbeatTick(room, lobbyDirty, redisBacked);
     }
-/**
- * 清理无人房间
- * @param room
- * @return
- */
+
     public boolean removeDesertedRoomInGlobalTickIfNoLiveHumans(DpRoomBO room) {
         int size = DpRoomHumanCounts.liveHumanTableCount(room);
         if (size == 0 && room.getSpectators().isEmpty()) {
@@ -81,9 +100,7 @@ public final class DpRoomHeartbeatScheduler {
         }
         return false;
     }
-/**
- * 清理掉没有心跳的真人玩家，则移出房间
- */
+
     private boolean tickEvictStaleSeatedPlayersOnHeartbeat(DpRoomBO room) {
         boolean lobbyDirty = false;
         Iterator<DpPlayer> it = room.getPlayers().iterator();
@@ -107,7 +124,6 @@ public final class DpRoomHeartbeatScheduler {
                 String hbNick = p.getNickname();
                 Integer hbUid = p.getDpUserId();
                 it.remove();
-                // 心跳踢人已从 players 摘除：优先按已知 userId 直写 IDLE，避免仅依赖 tryMarkIdle 的昵称解析
                 if (hbUid != null && hbUid > 0) {
                     callbacks.presenceMarkIdleHuman(hbUid, "heartbeat_evict_player");
                 }
@@ -117,9 +133,7 @@ public final class DpRoomHeartbeatScheduler {
         }
         return lobbyDirty;
     }
-/**
- * 清理掉没有心跳的观众玩家，移出房间
- */
+
     private boolean tickEvictStaleSpectatorsOnHeartbeat(DpRoomBO room) {
         List<String> specList = room.getSpectators();
         if (specList == null || specList.isEmpty()) {
@@ -145,9 +159,7 @@ public final class DpRoomHeartbeatScheduler {
         }
         return lobbyDirty;
     }
-/**
- * 机器人决策与玩家行动超时判定
- */
+
     private void tickNpcTurnOrHumanActionTimeout(DpRoomBO room) {
         if (room.isPlaying()
                 && room.getCurrentActorIndex() >= 0
@@ -174,10 +186,7 @@ public final class DpRoomHeartbeatScheduler {
             }
         }
     }
-/**
- * 机器人补码与自动准备
- * @param room
- */
+
     private void tickSettledBotsAutoReady(DpRoomBO room) {
         if (room.isPlaying() && "settled".equals(room.getCurrentStage())) {
             for (DpPlayer p : room.getPlayers()) {
@@ -195,11 +204,6 @@ public final class DpRoomHeartbeatScheduler {
         }
     }
 
-    /**
-     * 判断是否可以开新局
-     * settled 阶段每秒重判：补码窗口（0~10s）→筹码筛选（10s~30s）的时间边界由心跳驱动，
-     * 避免 10s 时刻判定标准切换后无人触发 {@code checkAndStartNextHandAfterSettleReturning}。
-     */
     private void tickSettledCheckAndStartIfReady(DpRoomBO room) {
         if (room.isPlaying() && "settled".equals(room.getCurrentStage())) {
             if (callbacks.checkAndStartNextHandAfterSettleReturning(room)) {
@@ -216,9 +220,7 @@ public final class DpRoomHeartbeatScheduler {
                 && room.getPlayers().size() == 1
                 && room.getWaitNextHand().isEmpty();
     }
- /**
-  * 处理准备超时玩家
-  */
+
     private void maybeInvokeReadyTimeoutWhenDeadlinePassed(DpRoomBO room) {
         if (room.isPlaying()
                 && "settled".equals(room.getCurrentStage())
@@ -227,13 +229,12 @@ public final class DpRoomHeartbeatScheduler {
             callbacks.handleReadyTimeout(room);
         }
     }
-/**
- * 定时推送房间信息到前端
- * @param room
- * @param lobbyDirty
- */
-    private void broadcastRoomAndMaybeRefreshLobbyAfterHeartbeatTick(DpRoomBO room, boolean lobbyDirty) {
-        gameRoomPushService.broadcastIfSubscribed(room.getRoomId());
+
+    private void broadcastRoomAndMaybeRefreshLobbyAfterHeartbeatTick(
+            DpRoomBO room, boolean lobbyDirty, boolean redisBacked) {
+        if (!redisBacked) {
+            gameRoomPushService.broadcastIfSubscribed(room.getRoomId());
+        }
         if (lobbyDirty) {
             lobbySync.refreshJoinableQmIndexThenSyncLobby(room.getRoomId());
         }

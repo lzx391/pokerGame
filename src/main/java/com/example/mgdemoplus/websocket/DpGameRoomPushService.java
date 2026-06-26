@@ -1,6 +1,7 @@
 package com.example.mgdemoplus.websocket;
 
 import com.example.mgdemoplus.common.bo.DpRoomBO;
+import com.example.mgdemoplus.config.DpInstanceProperties;
 import com.example.mgdemoplus.moderation.DpSensitiveWordService;
 import com.example.mgdemoplus.roomchat.buffer.RoomChatBuffer;
 import com.example.mgdemoplus.roomchat.buffer.RoomChatEntry;
@@ -47,6 +48,7 @@ public class DpGameRoomPushService {
     private final DpRoomService roomService;
     private final RoomChatBuffer roomChatBuffer;
     private final DpSensitiveWordService sensitiveWordService;
+    private final DpInstanceProperties instanceProperties;
 
 //Map<String, Set<WebSocketSession>> roomSessions = new ConcurrentHashMap<>(); 的作用是：存储房间ID和订阅者的映射关系，每个房间ID对应一个订阅者集合，集合中存储的是WebSocketSession对象，用于标识每个订阅者的连接会话。
     private final Map<String, Set<WebSocketSession>> roomSessions = new ConcurrentHashMap<>();
@@ -60,11 +62,13 @@ public class DpGameRoomPushService {
             ObjectMapper objectMapper,
             @Lazy DpRoomService roomService,
             RoomChatBuffer roomChatBuffer,
-            DpSensitiveWordService sensitiveWordService) {
+            DpSensitiveWordService sensitiveWordService,
+            DpInstanceProperties instanceProperties) {
         this.objectMapper = objectMapper;
         this.roomService = roomService;
         this.roomChatBuffer = roomChatBuffer;
         this.sensitiveWordService = sensitiveWordService;
+        this.instanceProperties = instanceProperties;
     }
 
     // ====== 房间会话注册与注销相关 ======
@@ -74,6 +78,12 @@ public class DpGameRoomPushService {
      */
     public void register(String roomId, WebSocketSession session) {
         roomSessions.computeIfAbsent(roomId, k -> ConcurrentHashMap.newKeySet()).add(session);
+        String nick = (String) session.getAttributes().get("viewerNickname");
+        String instanceId = instanceProperties != null ? instanceProperties.getInstanceId() : "single";
+        System.out.println("[WS-REGISTER] instance=" + instanceId
+                + " roomId=" + roomId
+                + " nickname=" + (nick != null ? nick : "(anonymous)")
+                + " sessionId=" + session.getId());
     }
 
     /**

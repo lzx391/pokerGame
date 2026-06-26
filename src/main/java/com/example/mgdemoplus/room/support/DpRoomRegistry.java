@@ -5,54 +5,47 @@ import com.example.mgdemoplus.common.bo.DpRoomBO;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 /**
- * In-memory {@code roomId → DpRoomBO} registry for the single-node room runtime.
+ * Room hot-state store in Redis (multi-instance).
  */
-public final class DpRoomRegistry {
+public interface DpRoomRegistry {
 
-    private final Map<String, DpRoomBO> roomMap = new ConcurrentHashMap<>();
+    Map<String, DpRoomBO> roomMap();
 
-    public Map<String, DpRoomBO> roomMap() {
-        return roomMap;
-    }
+    DpRoomBO get(String roomId);
 
-    public DpRoomBO get(String roomId) {
-        return roomMap.get(roomId);
-    }
+    void put(String roomId, DpRoomBO room);
 
-    public void put(String roomId, DpRoomBO room) {
-        roomMap.put(roomId, room);
-    }
+    Collection<DpRoomBO> values();
 
-    public Collection<DpRoomBO> values() {
-        return roomMap.values();
-    }
+    Set<String> roomIds();
 
-    public Set<String> roomIds() {
-        return Set.copyOf(roomMap.keySet());
-    }
-
-    public boolean contains(String roomId) {
-        return roomMap.containsKey(roomId);
-    }
+    boolean contains(String roomId);
 
     /**
-     * 空房且无观众时摘除条目。必须在已持有 {@code synchronized(r)} 下调用。
+     * 空房且无观众时摘除条目。必须在已持有同房互斥锁下调用。
      */
-    public boolean tryUnregisterEmptyRoomAssumeLocked(
-            DpRoomBO r, String roomId, int liveHumanTableCount, int spectatorCount) {
-        if (r == null || roomId == null || roomId.isEmpty()) {
-            return false;
-        }
-        if (roomMap.get(roomId) != r) {
-            return false;
-        }
-        if (liveHumanTableCount > 0 || spectatorCount > 0) {
-            return false;
-        }
-        roomMap.remove(roomId);
-        return true;
+    boolean tryUnregisterEmptyRoomAssumeLocked(
+            DpRoomBO r, String roomId, int liveHumanTableCount, int spectatorCount);
+
+    /**
+     * 同房互斥：内存模式 {@code synchronized(room)}；Redis 模式分布式锁 + 写回 + 发布变更。
+     */
+    <T> T runExclusive(String roomId, Function<DpRoomBO, T> action);
+
+    default void runExclusiveVoid(String roomId, java.util.function.Consumer<DpRoomBO> action) {
+        runExclusive(roomId, r -> {
+            action.accept(r);
+            return null;
+        });
     }
+
+    boolean isRedisBacked();
+
+    /** After mutation in Redis mode: persist + bump rev + publish. No-op in memory mode if already same ref. */
+    void saveAfterMutation(String roomId, DpRoomBO room, String reason);
+
+    long revision(String roomId);
 }

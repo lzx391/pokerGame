@@ -10,6 +10,7 @@ import com.example.mgdemoplus.history.DpHandHistoryObservedService;
 import com.example.mgdemoplus.history.DpHandHistoryPersistService;
 import com.example.mgdemoplus.room.support.DpSettlePersistenceDispatcher;
 import com.example.mgdemoplus.roomchat.buffer.RoomChatBuffer;
+import com.example.mgdemoplus.room.support.DpRoomTestSupport;
 import com.example.mgdemoplus.roomchat.DpRoomChatPersistenceService;
 import com.example.mgdemoplus.npc.llm.DpLlmNpcDecisionService;
 import com.example.mgdemoplus.npc.tabletalk.DpNpcTableTalkService;
@@ -47,6 +48,7 @@ class DpRoomDesertedRoomCleanupTest {
     void setUp() {
         DpRoomServiceImpl.suppressGlobalRoomTimerForTests = true;
         svc = new DpRoomServiceImpl(
+                DpRoomTestSupport.memoryRegistry(),
                 mock(DpHandHistoryPersistService.class),
                 mock(DpSettlePersistenceDispatcher.class),
                 mock(DpLlmNpcDecisionService.class),
@@ -66,7 +68,9 @@ class DpRoomDesertedRoomCleanupTest {
                 mock(DpRoomChatPersistenceService.class),
                 mock(com.example.mgdemoplus.moderation.DpSensitiveWordService.class), null,
                 mock(com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTracePushService.class),
-                mock(com.example.mgdemoplus.rbac.DpPermissionService.class));
+                mock(com.example.mgdemoplus.rbac.DpPermissionService.class),
+                DpRoomTestSupport.defaultInstanceProperties(),
+                null);
     }
 
     @AfterEach

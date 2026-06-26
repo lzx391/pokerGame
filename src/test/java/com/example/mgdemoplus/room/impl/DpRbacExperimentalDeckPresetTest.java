@@ -11,6 +11,7 @@ import com.example.mgdemoplus.npc.tabletalk.DpNpcTableTalkService;
 import com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTracePushService;
 import com.example.mgdemoplus.presence.DpFriendPresenceService;
 import com.example.mgdemoplus.rbac.DpPermissionService;
+import com.example.mgdemoplus.room.support.DpRoomTestSupport;
 import com.example.mgdemoplus.room.support.DpExperimentalDeckPresetPasswordGuard;
 import com.example.mgdemoplus.room.support.DpSettlePersistenceDispatcher;
 import com.example.mgdemoplus.roomchat.DpRoomChatPersistenceService;
@@ -40,6 +41,7 @@ class DpRbacExperimentalDeckPresetTest {
     void setUp() throws Exception {
         DpRoomServiceImpl.suppressGlobalRoomTimerForTests = true;
         svc = new DpRoomServiceImpl(
+                DpRoomTestSupport.memoryRegistry(),
                 mock(DpHandHistoryPersistService.class),
                 mock(DpSettlePersistenceDispatcher.class),
                 mock(DpLlmNpcDecisionService.class),
@@ -60,7 +62,9 @@ class DpRbacExperimentalDeckPresetTest {
                 mock(com.example.mgdemoplus.moderation.DpSensitiveWordService.class),
                 new DpExperimentalDeckPresetPasswordGuard("secret"),
                 mock(DpNpcTagDecisionTracePushService.class),
-                mock(DpPermissionService.class));
+                mock(DpPermissionService.class),
+                DpRoomTestSupport.defaultInstanceProperties(),
+                null);
         putRoom("room-1", "owner");
     }
 

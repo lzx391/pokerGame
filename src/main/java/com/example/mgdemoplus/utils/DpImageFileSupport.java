@@ -6,7 +6,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * 头像等图片磁盘路径与 {@link com.example.mgdemoplus.config.WebConfig} {@code /images/**} 映射一致。
+ * 头像等图片 web 路径工具（上传与读取均经 MinIO / {@code DpStaticFileController}）。
  */
 public final class DpImageFileSupport {
 

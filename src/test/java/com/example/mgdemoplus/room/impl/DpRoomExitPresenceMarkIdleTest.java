@@ -13,6 +13,7 @@ import com.example.mgdemoplus.npc.llm.LlmNpcGlobalHandConversationStore;
 import com.example.mgdemoplus.presence.DpFriendPresenceService;
 import com.example.mgdemoplus.presence.DpFriendPresenceState;
 import com.example.mgdemoplus.room.support.DpRoomHeartbeatScheduler;
+import com.example.mgdemoplus.room.support.DpRoomTestSupport;
 import com.example.mgdemoplus.roomchat.DpRoomChatPersistenceService;
 import com.example.mgdemoplus.roomchat.buffer.RoomChatBuffer;
 import com.example.mgdemoplus.user.mapper.DpUserStatsMapper;
@@ -52,6 +53,7 @@ class DpRoomExitPresenceMarkIdleTest {
         DpRoomServiceImpl.suppressGlobalRoomTimerForTests = true;
         friendPresence = new DpFriendPresenceService();
         svc = new DpRoomServiceImpl(
+                DpRoomTestSupport.memoryRegistry(),
                 mock(DpHandHistoryPersistService.class),
                 mock(com.example.mgdemoplus.room.support.DpSettlePersistenceDispatcher.class),
                 mock(DpLlmNpcDecisionService.class),
@@ -71,7 +73,9 @@ class DpRoomExitPresenceMarkIdleTest {
                 mock(DpRoomChatPersistenceService.class),
                 mock(com.example.mgdemoplus.moderation.DpSensitiveWordService.class), null,
                 mock(com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTracePushService.class),
-                mock(com.example.mgdemoplus.rbac.DpPermissionService.class));
+                mock(com.example.mgdemoplus.rbac.DpPermissionService.class),
+                DpRoomTestSupport.defaultInstanceProperties(),
+                null);
     }
 
     @AfterEach

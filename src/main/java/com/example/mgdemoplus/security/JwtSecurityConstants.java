@@ -35,6 +35,7 @@ public final class JwtSecurityConstants {
             "/dpDownload/list",
             "/dp/leaderboard/weekly/hand",
             "/dp/leaderboard/weekly/room",
+            "/dp/dev/**",
             // Redis 本地实验接口（仅学习用；上线前可删或改需登录）
     };
 }

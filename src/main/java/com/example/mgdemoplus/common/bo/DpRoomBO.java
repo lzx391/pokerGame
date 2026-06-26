@@ -186,12 +186,16 @@ public class DpRoomBO {
         return null;
     }
 
+    /** Optimistic revision for Redis multi-instance persistence; not sent to clients. */
+    @JsonIgnore
+    private long storageVersion = 0L;
+
     /**
      * 本桌机器人昵称共用递增序号（各档位与大模型 BOT 占位均占用）；房间内唯一，重启房间后归零。
      * 初始 0，首次分配从 1 起。
      */
     @JsonIgnore
-    private final AtomicInteger botNicknameSeq = new AtomicInteger(0);
+    private AtomicInteger botNicknameSeq = new AtomicInteger(0);
 
     /**
      * 连续占用 {@code count} 个序号。
@@ -327,6 +331,7 @@ public class DpRoomBO {
         this.startingStackBb = startingStackBb;
     }
 
+    @JsonIgnore
     public boolean isPasswordProtected() {
         return roomPassword != null && !roomPassword.isEmpty();
     }
@@ -440,5 +445,13 @@ public class DpRoomBO {
 
     public void setMyCarryInChips(int myCarryInChips) {
         this.myCarryInChips = Math.max(0, myCarryInChips);
+    }
+
+    public long getStorageVersion() {
+        return storageVersion;
+    }
+
+    public void setStorageVersion(long storageVersion) {
+        this.storageVersion = Math.max(0L, storageVersion);
     }
 }

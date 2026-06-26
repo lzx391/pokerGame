@@ -4,7 +4,8 @@ import io.github.cdimascio.dotenv.Dotenv;
 
 /**
  * 在 {@link com.example.mgdemoplus.MgDemoPlusApplication#main} 里、Spring 启动前读取仓库根目录 {@code .env}，
- * 写入 {@link System#setProperty}（仅当 {@link System#getenv(String)} 尚未设置同名变量时）。
+ * 写入 {@link System#setProperty}（仅当 {@link System#getenv(String)} 尚未设置同名变量时；
+ * {@code .env} 中值为空白的键会跳过，以免覆盖 {@code application.yml} 的 {@code ${KEY:default}} 默认段）。
  * Spring 解析 {@code application.properties} 与 {@code @Value} 时会用到这些属性。
  * <p>
  * Docker：由 {@code docker compose} 读宿主机的 {@code .env} 并注入容器环境，一般不在容器内执行本类。
@@ -24,7 +25,8 @@ public final class LocalDotenvLoader {
                 if (key == null || key.isBlank()) {
                     return;
                 }
-                if (val == null) {
+                // Skip blank values: KEY= in .env must not override application.yml ${KEY:default}.
+                if (val == null || val.isBlank()) {
                     return;
                 }
                 String existing = System.getenv(key);

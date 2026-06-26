@@ -1,5 +1,6 @@
 package com.example.mgdemoplus.room.impl;
 
+import com.example.mgdemoplus.config.DpInstanceProperties;
 import com.example.mgdemoplus.room.DpRoomService;
 import com.example.mgdemoplus.room.KickPlayersBatchResult;
 import com.example.mgdemoplus.room.support.DpExperimentalDeckPresetPasswordGuard;
@@ -15,6 +16,7 @@ import com.example.mgdemoplus.room.support.DpSettleStatsIncrement;
 import com.example.mgdemoplus.room.support.DpPotCalculator;
 import com.example.mgdemoplus.room.support.DpRoomRegistry;
 import com.example.mgdemoplus.room.support.DpRoomServiceCallbacks;
+import com.example.mgdemoplus.room.support.DpSchedulerLeaderLock;
 import com.example.mgdemoplus.room.support.DpRoomSnapshotSupport;
 import com.example.mgdemoplus.rbac.DpPermissionService;
 
@@ -56,6 +58,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -71,9 +74,9 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     /** settled 补码窗口：10 秒内不区分码量，给真人留 rebuy 时间。 */
     private static final long REBUY_DEADLINE_MS = 10_000L;
 
-    private final DpRoomRegistry registry = new DpRoomRegistry();
+    private final DpRoomRegistry registry;
     /** Retained for tests that reflect {@code roomMap} on this class. */
-    private final Map<String, DpRoomBO> roomMap = registry.roomMap();
+    private final Map<String, DpRoomBO> roomMap;
     private final JoinableQuickMatchRoomIndex joinableQuickMatchRoomIndex = new JoinableQuickMatchRoomIndex();
     private final DpRoomLobbySync lobbySync;
     private final DpRoomQuickMatchBridge quickMatchBridge;
@@ -99,6 +102,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     private final DpExperimentalDeckPresetPasswordGuard experimentalDeckPresetPasswordGuard;
     private final DpNpcTagDecisionTracePushService npcDecisionTracePushService;
     private final DpPermissionService dpPermissionService;
+    private final DpInstanceProperties instanceProperties;
 
     // 统一从 NPC 引擎中获取机器人昵称，避免散落魔法字符串
     public boolean addDemoBotToNextHand(String roomId) {
@@ -290,6 +294,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
 
     // 轮询入口
     public DpRoomServiceImpl(
+            DpRoomRegistry registry,
             // 注入服务
             DpHandHistoryPersistService observedHandPersistService,
             DpSettlePersistenceDispatcher settlePersistenceDispatcher,
@@ -311,7 +316,12 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
             com.example.mgdemoplus.moderation.DpSensitiveWordService sensitiveWordService,
             DpExperimentalDeckPresetPasswordGuard experimentalDeckPresetPasswordGuard,
             DpNpcTagDecisionTracePushService npcDecisionTracePushService,
-            DpPermissionService dpPermissionService) {
+            DpPermissionService dpPermissionService,
+            DpInstanceProperties instanceProperties,
+            @Autowired(required = false) DpSchedulerLeaderLock schedulerLeaderLock) {
+        this.registry = registry;
+        this.roomMap = registry.roomMap();
+        this.instanceProperties = instanceProperties;
         this.observedHandPersistService = observedHandPersistService;
         this.settlePersistenceDispatcher = settlePersistenceDispatcher;
         this.llmNpcDecisionService = llmNpcDecisionService;
@@ -342,12 +352,21 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         this.snapshotSupport = new DpRoomSnapshotSupport(registry, roomChatBuffer, objectMapper, this,
                 sensitiveWordService, dpPermissionService);
         this.heartbeatScheduler = new DpRoomHeartbeatScheduler(
-                registry, llmNpcDecisionService, gameRoomPushService, lobbySync, this);
+                registry, llmNpcDecisionService, gameRoomPushService, lobbySync, this, schedulerLeaderLock);
         heartbeatScheduler.startGlobalTimerUnlessSuppressed(suppressGlobalRoomTimerForTests);
     }
 
     private void attemptQuickMatchPairing() {
-        quickMatchBridge.attemptQuickMatchPairing();
+        if (instanceProperties.isDpQuickMatchEnabled()) {
+            quickMatchBridge.attemptQuickMatchPairing();
+        }
+    }
+
+    /** Memory mode: push WS locally; Redis mode: {@link DpRoomRegistry#runExclusive} already publishes. */
+    private void pushRoomIfNeeded(String roomId) {
+        if (roomId != null && !registry.isRedisBacked()) {
+            gameRoomPushService.broadcastIfSubscribed(roomId);
+        }
     }
 
     /**
@@ -458,19 +477,22 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         if (roomId == null || roomId.isEmpty()) {
             return;
         }
-        DpRoomBO r = roomMap.get(roomId);
-        if (r == null) {
+        DpRoomBO snapshot = registry.get(roomId);
+        if (snapshot == null) {
             return;
         }
-        boolean dropped;
-        synchronized (r) {
-            dropped = tryUnregisterEmptyRoomAssumeLocked(r, roomId);
-            System.out.println("dropped: " + dropped);
-        }
-        if (dropped) {
+        Boolean dropped = registry.runExclusive(roomId, r -> {
+            boolean d = tryUnregisterEmptyRoomAssumeLocked(r, roomId);
+            System.out.println("dropped: " + d);
+            return d;
+        });
+        if (Boolean.TRUE.equals(dropped)) {
             llmNpcGlobalHandConversationStore.removeRoom(roomId);
             DpNpcTagDecisionTraceStore.removeRoom(roomId);
-            finalizeHallAfterRoomRemovedWithPresenceSnapshot(roomId, r);
+            finalizeHallAfterRoomRemovedWithPresenceSnapshot(roomId, snapshot);
+            if (registry.isRedisBacked()) {
+                gameRoomPushService.shutdownSubscriptionsForRoom(roomId);
+            }
         }
     }
 
@@ -478,10 +500,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
      * 房主主动移交房主给房间内另一位玩家
      */
     public boolean transferOwner(String roomId, String fromNickname, String toNickname) {
-        DpRoomBO r = roomMap.get(roomId);
-        if (r == null)
-            return false;
-        synchronized (r) {
+        Boolean ok = registry.runExclusive(roomId, r -> {
             // 只有当前房主可以发起移交
             if (!fromNickname.equals(r.getOwner()))
                 return false;
@@ -509,9 +528,13 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
 
             r.setOwner(toNickname);
             System.out.println("房间 " + r.getRoomId() + " 房主由 " + fromNickname + " 移交给: " + toNickname);
+            return true;
+        });
+        if (Boolean.TRUE.equals(ok)) {
+            refreshJoinableQmIndexThenSyncLobby(roomId);
+            pushRoomIfNeeded(roomId);
         }
-        refreshJoinableQmIndexThenSyncLobby(roomId);
-        return true;
+        return Boolean.TRUE.equals(ok);
     }
 
     @Override
@@ -918,7 +941,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
             r.putRegisteredDpUserId(ownerNickname, uid);
         }
         r.getPlayers().add(p);
-        roomMap.put(id, r);
+        registry.put(id, r);
         lobbySync.afterRoomMutation(id, DpRoomMutationEffect.BOTH);
         if (roomPassword == null) {
             attemptQuickMatchPairing();
@@ -1440,23 +1463,21 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
 
     public String joinRoom(String roomId, String nickname, Integer userId, String roomPassword) {
         quickMatchBridge.cancelDefaultQuickMatchWait(nickname);
-        DpRoomBO r = roomMap.get(roomId);
-        if (r == null)
-            return "房间不存在";
-        String outcome;
-        synchronized (r) {
-            if (roomMap.get(roomId) != r) {
+        String outcome = registry.runExclusive(roomId, r -> {
+            if (r == null) {
                 return "房间不存在";
             }
-            outcome = joinRoomMutateAssumeLocked(roomId, nickname, userId, roomPassword, r);
+            return joinRoomMutateAssumeLocked(roomId, nickname, userId, roomPassword, r);
+        });
+        if (outcome == null) {
+            return "房间不存在";
         }
-        // 观众进去又不占位置，房间大厅又不显示观众人数，刷新个蛋
-        // refreshQmIndexAfterJoinOutcomeOutsideRoomLock(roomId, outcome);
+        pushRoomIfNeeded(roomId);
         return outcome;
     }
 
     public boolean dpRoomExistsInMemory(String roomId) {
-        return roomId != null && roomMap.containsKey(roomId);
+        return roomId != null && registry.contains(roomId);
     }
 
     /** 指定昵称是否为该房房主。 */
@@ -2291,12 +2312,8 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     }
 
     public boolean startGame(String roomId, String ownerNickname) {
-        DpRoomBO r = roomMap.get(roomId);
-        if (r == null || !r.getOwner().equals(ownerNickname))
-            return false;
-        boolean nhOk;
-        synchronized (r) {
-            if (!r.getOwner().equals(ownerNickname)) {
+        Boolean nhOk = registry.runExclusive(roomId, r -> {
+            if (r == null || !r.getOwner().equals(ownerNickname)) {
                 return false;
             }
             r.setPlaying(true);
@@ -2307,22 +2324,14 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
             r.setCurrentBetToCall(0);
             r.setSettledAtMs(0L);
             r.setReadyDeadline(0L);
-            // for (DpPlayer p : r.getPlayers()) {
-            // p.setChips(r.getStartingChips());
-            // p.setFold(false);
-            // p.setBet(0);
-            // p.setTotalBet(0);
-            // p.setAllIn(false);
-            // p.setActed(false);
-            // p.setHoleCards(new ArrayList<>());
-            // p.setDealer(false);
-            // p.setBlind(0);
-            // }
             r.getPlayers().get(0).setDealer(true);
-            nhOk = newHandWithoutLobbyUpsert(roomId);
+            return newHandWithoutLobbyUpsert(roomId);
+        });
+        if (Boolean.TRUE.equals(nhOk)) {
+            refreshJoinableQmIndexThenSyncLobby(roomId);
+            pushRoomIfNeeded(roomId);
         }
-        refreshJoinableQmIndexThenSyncLobby(roomId);
-        return nhOk;
+        return Boolean.TRUE.equals(nhOk);
     }
 
     /**
@@ -2594,7 +2603,14 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     }
 
     public boolean bet(String roomId, String nickname, int amount) {
-        DpRoomBO r = roomMap.get(roomId);
+        Boolean ok = registry.runExclusive(roomId, r -> betAssumeLocked(r, nickname, amount));
+        if (Boolean.TRUE.equals(ok)) {
+            pushRoomIfNeeded(roomId);
+        }
+        return Boolean.TRUE.equals(ok);
+    }
+
+    private boolean betAssumeLocked(DpRoomBO r, String nickname, int amount) {
         if (r == null || !r.isPlaying())
             return false;
 
@@ -2634,7 +2650,6 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         }
 
         if (totalBet > prevBetToCall) {
-            // 出现了更高的一档下注：如果之前没有有效下注，则视为 open，否则视为一次 re-raise
             int currentLevel = r.getRaiseLevel();
             if (prevBetToCall <= 0) {
                 currentLevel = 1;
@@ -2645,12 +2660,10 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
             r.setCurrentBetToCall(totalBet);
             int increment = totalBet - prevBetToCall;
             int minTotalLegacy = prevBetToCall + Math.max(r.getLastRaiseIncrement(), r.getBigBlindChips());
-            // 短全下（按原 NL 规则够不着最小总注）仍不刷新增量；其余抬升一律按实际增量写入，避免关闭校验后增量与局面脱节
             boolean shortAllInBelowLegacyMin = becameAllIn && totalBet < minTotalLegacy;
             if (!shortAllInBelowLegacyMin) {
-                r.setLastRaiseIncrement(increment);// 不是就设置新的增量，是的话按旧的来
-            } // 所谓短全下就是比如最小加注是40，但是用户all
-              // in了也够不到这个完整的mini-raise,比如它的增量只是20，那么后面的人继续按最小加注是40来算，忽略这个all in者的增量
+                r.setLastRaiseIncrement(increment);
+            }
         }
 
         boolean isRaise = totalBet > betToCallBefore;
@@ -2672,7 +2685,14 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     }
 
     public boolean fold(String roomId, String nickname) {
-        DpRoomBO r = roomMap.get(roomId);
+        Boolean ok = registry.runExclusive(roomId, r -> foldAssumeLocked(r, nickname));
+        if (Boolean.TRUE.equals(ok)) {
+            pushRoomIfNeeded(roomId);
+        }
+        return Boolean.TRUE.equals(ok);
+    }
+
+    private boolean foldAssumeLocked(DpRoomBO r, String nickname) {
         if (r == null || !r.isPlaying() || r.getCurrentActorIndex() < 0)
             return false;
 
@@ -2680,10 +2700,10 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         if (!p.getNickname().equals(nickname) || p.isFold())
             return false;
 
-        p.setFold(true);// 弃牌的人没设置行动状态，只有bet的人才设置
+        p.setFold(true);
         DpNpcStreetActionLog.recordFold(r, p, r.getPot());
         observedHandService.recordFold(r, p, r.getPot());
-        moveToNextValidActor(r); // 统一用新方法，不再用旧的 nextActor
+        moveToNextValidActor(r);
         autoAdvanceIfRoundFinished(r);
         return true;
     }

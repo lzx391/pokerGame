@@ -80,7 +80,8 @@ class DpRoomThinkTimeTimeoutTest {
                 mock(DpLlmNpcDecisionService.class),
                 mock(DpGameRoomPushService.class),
                 mock(DpRoomLobbySync.class),
-                mock(DpRoomServiceCallbacks.class));
+                mock(DpRoomServiceCallbacks.class),
+                null);
         scheduler.runGlobalSecondTickForSingleRoom(room);
     }
 }

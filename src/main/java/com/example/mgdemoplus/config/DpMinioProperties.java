@@ -3,13 +3,12 @@ package com.example.mgdemoplus.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * MinIO 对象存储配置（前缀 {@code mgdemoplus.minio}）。
- * {@code enabled=false}（默认）时不创建 MinioClient，文件仍走本地磁盘。
+ * MinIO 对象存储配置（前缀 {@code mgdemoplus.minio}）。MinIO 为必需组件。
  */
 @ConfigurationProperties(prefix = "mgdemoplus.minio")
 public class DpMinioProperties {
 
-    private boolean enabled = false;
+    private boolean enabled = true;
     private String endpoint = "http://127.0.0.1:9000";
     private String accessKey = "";
     private String secretKey = "";

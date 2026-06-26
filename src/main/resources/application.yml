@@ -106,32 +106,28 @@ mgdemoplus:
 
   # --- A/C: OAuth 登录（GitHub/Gitee 凭证见 spring.security.oauth2.client.registration；钉钉同键名但走 JustAuth）---
   oauth:
-    frontend-base-url: ${FRONTEND_BASE_URL:}  # [C] 授权成功后 302 跳转至前端（dev 默认 http://localhost:8080）
+    frontend-base-url: ${FRONTEND_BASE_URL:}  # [C] 授权成功后 302 跳转至前端（Docker 本地默认 http://localhost:8880）
   # --- B: Redis 缓存 TTL ---
   cache:
     music-list-ttl-seconds: ${MGDEMOPLUS_CACHE_MUSIC_LIST_TTL_SECONDS:300}  # [B] env: MGDEMOPLUS_CACHE_MUSIC_LIST_TTL_SECONDS
     dp-room-public-rooms-ttl-seconds: ${MGDEMOPLUS_CACHE_DP_ROOM_PUBLIC_ROOMS_TTL_SECONDS:120}  # [B] env: MGDEMOPLUS_CACHE_DP_ROOM_PUBLIC_ROOMS_TTL_SECONDS
 
-  # --- B: 大厅 / 快匹 / 站点在线 ---
-  dp-lobby-reconcile-enabled: ${MGDEMOPLUS_DP_LOBBY_RECONCILE_ENABLED:true}  # [B] env: MGDEMOPLUS_DP_LOBBY_RECONCILE_ENABLED；多实例请 false
+  # --- B: 大厅 / 快匹 / 站点在线（多实例默认关闭 reconcile / 快匹）---
+  dp-lobby-reconcile-enabled: ${MGDEMOPLUS_DP_LOBBY_RECONCILE_ENABLED:false}  # [B] env: MGDEMOPLUS_DP_LOBBY_RECONCILE_ENABLED
   dp-lobby-reconcile-ms: ${MGDEMOPLUS_DP_LOBBY_RECONCILE_MS:60000}  # [B] env: MGDEMOPLUS_DP_LOBBY_RECONCILE_MS
+  dp-quick-match-enabled: ${MGDEMOPLUS_DP_QUICK_MATCH_ENABLED:false}  # [B] env: MGDEMOPLUS_DP_QUICK_MATCH_ENABLED
   dp-quick-match-prune-ms: ${MGDEMOPLUS_DP_QUICK_MATCH_PRUNE_MS:30000}  # [B] env: MGDEMOPLUS_DP_QUICK_MATCH_PRUNE_MS
   dp-site-presence-ttl-ms: ${MGDEMOPLUS_DP_SITE_PRESENCE_TTL_MS:90000}  # [B] env: MGDEMOPLUS_DP_SITE_PRESENCE_TTL_MS
 
-  # --- C: 上传路径 ---
-  images:
-    file-location: ${MGDEMOPLUS_IMAGES_FILE_LOCATION:file:P:/javaworkspace/DPGameFiles/images/}  # [C] env: MGDEMOPLUS_IMAGES_FILE_LOCATION
-  music:
-    file-location: ${MGDEMOPLUS_MUSIC_FILE_LOCATION:file:P:/javaworkspace/DPGameFiles/music/}  # [C] env: MGDEMOPLUS_MUSIC_FILE_LOCATION
-  files:
-    file-location: ${MGDEMOPLUS_FILES_FILE_LOCATION:file:P:/javaworkspace/DPGameFiles/other/}  # [C] env: MGDEMOPLUS_FILES_FILE_LOCATION
+  # --- B: 多实例（房间状态始终 Redis；启动时显式指定端口与 instance-id，如 8088）---
+  instance-id: ${MGDEMOPLUS_INSTANCE_ID:8088}  # [B] env: MGDEMOPLUS_INSTANCE_ID；建议与 server.port 一致
 
-  # --- C: MinIO 对象存储（默认 false，行为与现网磁盘模式一致）---
+  # --- C: MinIO 对象存储（必需；上传与 /images|music|files/** 读请求均走 MinIO）---
   minio:
-    enabled: ${MGDEMOPLUS_MINIO_ENABLED:false}  # [C] env: MGDEMOPLUS_MINIO_ENABLED
+    enabled: ${MGDEMOPLUS_MINIO_ENABLED:true}  # [C] env: MGDEMOPLUS_MINIO_ENABLED
     endpoint: ${MGDEMOPLUS_MINIO_ENDPOINT:http://127.0.0.1:9000}  # [C] env: MGDEMOPLUS_MINIO_ENDPOINT
-    access-key: ${MGDEMOPLUS_MINIO_ACCESS_KEY:}  # [A] env: MGDEMOPLUS_MINIO_ACCESS_KEY
-    secret-key: ${MGDEMOPLUS_MINIO_SECRET_KEY:}  # [A] env: MGDEMOPLUS_MINIO_SECRET_KEY
+    access-key: ${MGDEMOPLUS_MINIO_ACCESS_KEY:minioadmin}  # [A] env: MGDEMOPLUS_MINIO_ACCESS_KEY
+    secret-key: ${MGDEMOPLUS_MINIO_SECRET_KEY:minioadmin}  # [A] env: MGDEMOPLUS_MINIO_SECRET_KEY
     bucket: ${MGDEMOPLUS_MINIO_BUCKET:mgdemo}  # [C] env: MGDEMOPLUS_MINIO_BUCKET
 
   # --- B: 排行榜 Redis 同步 ---

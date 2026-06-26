@@ -1,42 +1,15 @@
-# 云服务器部署：从 Docker Hub 拉镜像（由 GitHub Actions 构建推送，见 .github/workflows/docker-publish.yml）
+# 本地开发：Docker 仅提供 Nginx（HTTP 入口）+ MinIO（对象存储）
+# MySQL、Redis、JVM 后端在宿主机运行（mvn spring-boot:run）
 #
-# 准备（与本文件同目录）：
-#   · .env — 仅填写方舟大模型五项（见 .env.example），勿提交 Git
-#   · docker/nginx/certs/fullchain.pem、privkey.pem
+# 前端：须先构建 Vue 再 up（否则 8880 无 index.html）
+#   cd front/dp_game && npm install && npm run build
 #
 # 使用：
-#   docker compose pull
 #   docker compose up -d
-#
-# 访问：https://服务器IP/（自签证书会告警）或 http://服务器IP:8088/ 直连应用
-# 表结构：MySQL 空库 school_db，由应用 Flyway 迁移；勿改 SPRING_DATASOURCE_URL 中的 mysql/redis 主机名
-# 当在线上环境跑的时候，需要把app 换成image:XXX ,把nginx注释关掉。
-# 本地测试的时候，需要把app 换成build: . ,把nginx注释打开。因为本地不配置SSL证书，只需要build app即可
-#
-#
-#
-services:
-  mysql:
-    image: mysql:8.0
-    mem_limit: 450m
-    cpus: "0.5"
-    # 与 app TZ / JDBC serverTimezone 对齐，避免 NOW()、TIMESTAMP 与业务时区不一致
-    environment:
-      MYSQL_ROOT_PASSWORD: mgdemo_root
-      MYSQL_DATABASE: school_db
-      TZ: Asia/Shanghai
-    command: --default-time-zone='+08:00'
-    ports:
-      - "3307:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -pmgdemo_root || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 30
-      start_period: 20s
+#   本机起双实例：scripts/run-multi-instance.ps1 -DepsOnly 后另开终端跑 JVM
+#   浏览器：http://localhost:8880/
 
+services:
   minio:
     image: minio/minio:latest
     mem_limit: 256m
@@ -51,133 +24,19 @@ services:
     volumes:
       - minio_data:/data
 
-  redis:
-    image: redis:7-alpine
+  nginx:
+    image: nginx:alpine
     mem_limit: 64m
-    cpus: "0.2"
-    command: redis-server --appendonly yes --requirepass mgdemo_redis
-    ports:
-      - "6380:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "mgdemo_redis", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-      start_period: 5s
-
-  # 本地测试：无 SSL 证书，先注掉 nginx，直接连 app:8088。云服务器部署时取消注释。
-  # nginx:
-  #   image: 1933886418/dpgame-nginx:v1.0.1
-  #   mem_limit: 64m
-  #   cpus: "0.1"
-  #   ports:
-  #     - "80:80"
-  #     - "443:443"
-  #   volumes:
-  #     - ./docker/nginx/certs:/etc/nginx/certs:ro
-  #   depends_on:
-  #     - app
-
-  app:
-    build: .                          # 本地构建。推送前改回 image: 1933886418/dpgame:v1.0.1
-    # image: 1933886418/dpgame:v1.0.1
-    mem_limit: 1200m
-    cpus: "1.2"
-    ports:
-      - "8088:8088"
-    environment:
-      # --- C: JVM / 时区 ---
-      JAVA_OPTS: "-Xms256m -Xmx800m"
-      TZ: Asia/Shanghai
-
-      # --- C: 容器内上传路径（配合 volumes mgdemo_uploads:/data/mgdemo-files）---
-      MGDEMOPLUS_IMAGES_FILE_LOCATION: file:/data/mgdemo-files/
-      MGDEMOPLUS_MUSIC_FILE_LOCATION: file:/data/mgdemo-files/music/
-      MGDEMOPLUS_TIME_ZONE: Asia/Shanghai
-
-      # --- C: Docker 网络内 JDBC / Redis（主机名 mysql / redis）---
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/school_db?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: mgdemo_root  # A：生产应换强口令
-      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: "6379"
-      SPRING_DATA_REDIS_PASSWORD: mgdemo_redis  # A
-
-      # --- B: 运维可调（不填则用 application.yml 默认；按需取消注释）---
-      MGDEMOPLUS_CACHE_MUSIC_LIST_TTL_SECONDS: "300"
-      # MGDEMOPLUS_DP_LOBBY_RECONCILE_ENABLED: "true"
-      # MGDEMOPLUS_DP_LOBBY_RECONCILE_MS: "60000"
-      # DP_NPC_TABLE_TALK_ENABLED: "true"
-      # DP_NPC_RULE_THINK_ENABLED: "true"
-
-      # --- A: 方舟 LLM（宿主机 .env 代入）---
-      ARK_API_KEY: ${ARK_API_KEY:-}
-      ARK_ENDPOINT_ID: ${ARK_ENDPOINT_ID:-}
-      ARK_BASE_URL: ${ARK_BASE_URL:-}
-      ARK_REASONING_EFFORT: ${ARK_REASONING_EFFORT:-}
-      ARK_THINKING_TYPE: ${ARK_THINKING_TYPE:-}
-      ARK_RESPONSE_JSON_OBJECT: ${ARK_RESPONSE_JSON_OBJECT:-true}
-
-      # --- A: JWT（本地开发可省略；生产公网强烈建议显式设置）---
-      # JWT_SECRET: ${JWT_SECRET:-}
-    volumes:
-      - mgdemo_uploads:/data/mgdemo-files
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
-    mem_limit: 96m
     cpus: "0.1"
     ports:
-      - "8080:8080"
+      - "8880:80"
     volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-    privileged: true
-
-  prometheus:
-    image: prom/prometheus:v2.55.1
-    mem_limit: 128m
-    cpus: "0.2"
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    command:
-      - --config.file=/etc/prometheus/prometheus.yml
-      - --storage.tsdb.path=/prometheus
-      - --web.enable-lifecycle
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./front/dp_game/dist:/usr/share/nginx/html:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
-      - cadvisor
-
-  grafana:
-    image: grafana/grafana:11.4.0
-    mem_limit: 128m
-    cpus: "0.2"
-    ports:
-      - "3000:3000"
-    environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
-      GF_USERS_ALLOW_SIGN_UP: "false"
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
-    depends_on:
-      - prometheus
+      - minio
 
 volumes:
-  mysql_data:
-  redis_data:
   minio_data:
-  mgdemo_uploads:
-  grafana_data:

@@ -3,7 +3,6 @@ package com.example.mgdemoplus.controller;
 import com.example.mgdemoplus.storage.DpObjectStorage;
 import com.example.mgdemoplus.storage.DpWebPathSupport;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -14,10 +13,9 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Optional;
 
 /**
- * MinIO 启用时由后端代理 {@code /images/**}、{@code /music/**}、{@code /files/**} 读请求。
+ * 由后端代理 {@code /images/**}、{@code /music/**}、{@code /files/**} 读请求（MinIO）。
  */
 @RestController
-@ConditionalOnProperty(name = "mgdemoplus.minio.enabled", havingValue = "true")
 public class DpStaticFileController {
 
     private static final int IMAGES_CACHE_SECONDS = 31536000;
