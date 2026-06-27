@@ -26,7 +26,9 @@ public class SocialEventSubscriber implements MessageListener {
         this.summaryService = summaryService;
         this.objectMapper = objectMapper;
     }
-
+/**
+ * 收到redis消息后的处理逻辑
+ */
     @Override
     public void onMessage(Message message, byte[] pattern) {
         try {
@@ -36,6 +38,7 @@ public class SocialEventSubscriber implements MessageListener {
             if (evt == null || evt.userId() <= 0 || evt.kind() == null || evt.kind().isEmpty()) {
                 return;
             }
+            //如果本机没有订阅者，则跳过
             if (!socialSseHub.hasLocalSubscribers(evt.userId())) {
                 log.debug("[social-sse] pub/sub skip no local SSE userId={} kind={}", evt.userId(), evt.kind());
                 return;

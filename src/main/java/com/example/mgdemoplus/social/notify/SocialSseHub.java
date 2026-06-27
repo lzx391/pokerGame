@@ -261,7 +261,13 @@ public class SocialSseHub {
                     onlineUserIdsSnapshot());
         }
     }
-
+/**
+ * 推送行为
+ * @param emitter
+ * @param payload
+ * @param phase
+ * @throws IOException
+ */
     private void sendNotifyEvent(SseEmitter emitter, SocialNotifyPayload payload, String phase)
             throws IOException {
         String json = objectMapper.writeValueAsString(payload.toDataMap());

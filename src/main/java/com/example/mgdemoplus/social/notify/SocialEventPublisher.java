@@ -44,6 +44,7 @@ public class SocialEventPublisher {
     private void send(SocialEventMessage message) {
         try {
             String payload = objectMapper.writeValueAsString(message);
+            //发送redis消息，剩下的交给框架就完事了，redis会自动把消息广播到所有订阅者
             stringRedisTemplate.convertAndSend(SocialRedisKeys.EVENTS_CHANNEL, payload);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("social event publish failed userId=" + message.userId(), e);
