@@ -14,16 +14,13 @@ public class SocialNotifyPublisher {
 
     private static final Logger log = LoggerFactory.getLogger(SocialNotifyPublisher.class);
 
-    private final SocialNotifySummaryService summaryService;
-    private final SocialSseHub sseHub;
+    private final SocialEventPublisher socialEventPublisher;
     private final DpFriendSocialService dpFriendSocialService;
 
     public SocialNotifyPublisher(
-            SocialNotifySummaryService summaryService,
-            SocialSseHub sseHub,
+            SocialEventPublisher socialEventPublisher,
             @Lazy DpFriendSocialService dpFriendSocialService) {
-        this.summaryService = summaryService;
-        this.sseHub = sseHub;
+        this.socialEventPublisher = socialEventPublisher;
         this.dpFriendSocialService = dpFriendSocialService;
     }
 
@@ -32,14 +29,8 @@ public class SocialNotifyPublisher {
             log.warn("[social-sse] notifyUser skipped invalid userId={}", userId);
             return;
         }
-        SocialNotifyPayload payload = summaryService.buildForUser(userId);
-        log.info(
-                "[social-sse] notifyUser userId={} mailboxUnread={} friendChatUnreadTotal={} perFriendKeys={}",
-                userId,
-                payload.getMailboxUnread(),
-                payload.getFriendChatUnreadTotal(),
-                payload.getFriendChatUnreadByFriendUserId().keySet());
-        sseHub.broadcastNotify(userId, payload);
+        log.info("[social-sse] notifyUser publish userId={}", userId);
+        socialEventPublisher.publish(userId, "notify");
     }
 
     /**
@@ -53,9 +44,12 @@ public class SocialNotifyPublisher {
                     friendUserId);
             return;
         }
-        FriendPresenceNotifyPayload payload =
-                new FriendPresenceNotifyPayload(friendUserId, displayPresence, reason);
-        sseHub.broadcastFriendPresence(watcherUserId, payload);
+        log.info(
+                "[social-sse] notifyFriendPresence publish watcherUserId={} friendUserId={} presence={}",
+                watcherUserId,
+                friendUserId,
+                displayPresence);
+        socialEventPublisher.publishPresence(watcherUserId, friendUserId, displayPresence, reason);
     }
 
     /** 由 SSE 心跳周期调用：过期进房邀请并通知被邀请人。 */

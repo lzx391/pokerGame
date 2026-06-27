@@ -19,7 +19,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 进程内 {@code userId -> SseEmitter} 注册表；P0 无跨实例扇出。
+ * 进程内 {@code userId -> SseEmitter} 注册表；Redis pub/sub fanout for multi-instance.
  */
 @Component
 public class SocialSseHub {
@@ -82,6 +82,12 @@ public class SocialSseHub {
             emitter.completeWithError(e);
         }
         return emitter;
+    }
+
+    /** Whether this JVM has active SSE connections for {@code userId}. */
+    public boolean hasLocalSubscribers(int userId) {
+        Set<SseEmitter> set = emittersByUser.get(userId);
+        return set != null && !set.isEmpty();
     }
 
     public void broadcastNotify(int userId, SocialNotifyPayload payload) {

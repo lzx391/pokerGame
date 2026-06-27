@@ -1,8 +1,7 @@
 package com.example.mgdemoplus.achievement.notify;
 
 import com.example.mgdemoplus.achievement.entity.DpAchievement;
-import com.example.mgdemoplus.social.notify.AchievementUnlockNotifyPayload;
-import com.example.mgdemoplus.social.notify.SocialSseHub;
+import com.example.mgdemoplus.social.notify.SocialEventPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -15,24 +14,22 @@ public class AchievementNotifyPublisher {
 
     private static final Logger log = LoggerFactory.getLogger(AchievementNotifyPublisher.class);
 
-    private final SocialSseHub sseHub;
+    private final SocialEventPublisher socialEventPublisher;
 
-    public AchievementNotifyPublisher(SocialSseHub sseHub) {
-        this.sseHub = sseHub;
+    public AchievementNotifyPublisher(SocialEventPublisher socialEventPublisher) {
+        this.socialEventPublisher = socialEventPublisher;
     }
 
     public void notifyUnlocked(int userId, DpAchievement achievement) {
         if (userId <= 0 || achievement == null) {
             return;
         }
-        AchievementUnlockNotifyPayload payload =
-                new AchievementUnlockNotifyPayload(
-                        achievement.getCode(), achievement.getTitle(), achievement.getDescription());
         log.info(
-                "[achievement-sse] notifyUnlocked userId={} code={} title={}",
+                "[achievement-sse] notifyUnlocked publish userId={} code={} title={}",
                 userId,
-                payload.getCode(),
-                payload.getTitle());
-        sseHub.broadcastAchievementUnlocked(userId, payload);
+                achievement.getCode(),
+                achievement.getTitle());
+        socialEventPublisher.publishAchievement(
+                userId, achievement.getCode(), achievement.getTitle(), achievement.getDescription());
     }
 }
