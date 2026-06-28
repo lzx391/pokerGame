@@ -22,8 +22,11 @@ import com.example.mgdemoplus.rbac.DpPermissionService;
 
 import com.example.mgdemoplus.history.bo.DpObservedHandRecordBO;
 import com.example.mgdemoplus.common.bo.DpRoomBO;
+import com.example.mgdemoplus.quickmatch.DpQuickMatchPairingLock;
 import com.example.mgdemoplus.quickmatch.DpQuickMatchRoomSemantics;
+import com.example.mgdemoplus.quickmatch.DpQuickMatchWaitQueue;
 import com.example.mgdemoplus.quickmatch.JoinableQuickMatchRoomIndex;
+import com.example.mgdemoplus.quickmatch.notify.QuickMatchEventPublisher;
 import com.example.mgdemoplus.common.entity.DpPlayer;
 import com.example.mgdemoplus.common.entity.DpPot;
 import com.example.mgdemoplus.common.entity.DpRoom;
@@ -75,7 +78,7 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     private static final long REBUY_DEADLINE_MS = 10_000L;
 
     private final DpRoomRegistry registry;
-    private final JoinableQuickMatchRoomIndex joinableQuickMatchRoomIndex = new JoinableQuickMatchRoomIndex();
+    private final JoinableQuickMatchRoomIndex joinableQuickMatchRoomIndex;
     private final DpRoomLobbySync lobbySync;
     private final DpRoomQuickMatchBridge quickMatchBridge;
     private final DpRoomHeartbeatScheduler heartbeatScheduler;
@@ -314,8 +317,13 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
             DpNpcTagDecisionTracePushService npcDecisionTracePushService,
             DpPermissionService dpPermissionService,
             DpInstanceProperties instanceProperties,
+            JoinableQuickMatchRoomIndex joinableQuickMatchRoomIndex,
+            DpQuickMatchWaitQueue quickMatchWaitQueue,
+            DpQuickMatchPairingLock quickMatchPairingLock,
+            QuickMatchEventPublisher quickMatchEventPublisher,
             @Autowired(required = false) DpSchedulerLeaderLock schedulerLeaderLock) {
         this.registry = registry;
+        this.joinableQuickMatchRoomIndex = joinableQuickMatchRoomIndex;
         this.instanceProperties = instanceProperties;
         this.observedHandPersistService = observedHandPersistService;
         this.settlePersistenceDispatcher = settlePersistenceDispatcher;
@@ -343,7 +351,13 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
                 dpRoomHallService,
                 gameRoomPushService,
                 roomChatPersistenceService);
-        this.quickMatchBridge = new DpRoomQuickMatchBridge(registry, lobbySync, quickMatchPush, this);
+        this.quickMatchBridge = new DpRoomQuickMatchBridge(
+                registry,
+                lobbySync,
+                quickMatchEventPublisher,
+                quickMatchWaitQueue,
+                quickMatchPairingLock,
+                this);
         this.snapshotSupport = new DpRoomSnapshotSupport(registry, roomChatBuffer, objectMapper, this,
                 sensitiveWordService, dpPermissionService);
         this.heartbeatScheduler = new DpRoomHeartbeatScheduler(
@@ -351,10 +365,9 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
         heartbeatScheduler.startGlobalTimerUnlessSuppressed(suppressGlobalRoomTimerForTests);
     }
 
+    /** Room lifecycle (create/exit): must pair reliably; same rules as queue join. */
     private void attemptQuickMatchPairing() {
-        if (instanceProperties.isDpQuickMatchEnabled()) {
-            quickMatchBridge.attemptQuickMatchPairing();
-        }
+        quickMatchBridge.attemptQuickMatchPairingBlocking();
     }
 
     /** Memory mode: push WS locally; Redis mode: {@link DpRoomRegistry#runExclusive} already publishes. */
@@ -401,7 +414,10 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
     }
 
     private boolean tryUnregisterEmptyRoomAssumeLocked(DpRoomBO r, String roomId) {
-        int specCount = r.getSpectators() != null ? r.getSpectators().size() : 0;
+        if (DpRoomHumanCounts.seatedBotCount(r) > 0) {
+            return false;
+        }
+        int specCount = DpRoomHumanCounts.liveHumanSpectatorCount(r);
         return registry.tryUnregisterEmptyRoomAssumeLocked(
                 r, roomId, DpRoomHumanCounts.liveHumanTableCount(r), specCount);
     }
@@ -1150,9 +1166,15 @@ public class DpRoomServiceImpl implements DpRoomService, DpRoomServiceCallbacks 
                 .collect(Collectors.toList());
     }
 
-    /** 当前进程内存中的房间 ID（与 dp_room_lobby 对齐任务使用） */
+    /** 运行时仍存在的房间 ID（与 dp_room_lobby 对齐任务使用；Redis 模式下排除 INDEX 孤儿条目）。 */
     public Set<String> getRoomIdsInMemory() {
-        return registry.roomIds();
+        Set<String> ids = registry.roomIds();
+        if (ids.isEmpty()) {
+            return Set.of();
+        }
+        return ids.stream()
+                .filter(id -> id != null && !id.isEmpty() && registry.contains(id))
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     public DpRoomBO getAllRooms(String roomId) {

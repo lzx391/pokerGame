@@ -2,25 +2,25 @@ package com.example.mgdemoplus.room.support;
 
 import com.example.mgdemoplus.common.bo.DpRoomBO;
 import com.example.mgdemoplus.common.entity.DpPlayer;
+import com.example.mgdemoplus.quickmatch.DpQuickMatchPairingLock;
 import com.example.mgdemoplus.quickmatch.DpQuickMatchRoomSemantics;
+import com.example.mgdemoplus.quickmatch.DpQuickMatchWaitQueue;
 import com.example.mgdemoplus.quickmatch.JoinableQuickMatchRoomIndex;
+import com.example.mgdemoplus.quickmatch.notify.QuickMatchEventPublisher;
 import com.example.mgdemoplus.quickmatch.pairing.DpQuickMatchPairingCoordinator;
 import com.example.mgdemoplus.quickmatch.pairing.DpQuickMatchWaitEntry;
 import com.example.mgdemoplus.utils.ResultUtil;
-import com.example.mgdemoplus.websocket.DpQuickMatchPushService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * Default quick-match FIFO queue, join-and-ready scan, and pairing coordinator wiring.
+ * Redis-backed quick-match FIFO queue, join-and-ready scan, and pairing coordinator wiring.
  */
 public final class DpRoomQuickMatchBridge {
 
@@ -37,22 +37,27 @@ public final class DpRoomQuickMatchBridge {
 
     private final DpRoomRegistry registry;
     private final DpRoomLobbySync lobbySync;
-    private final DpQuickMatchPushService quickMatchPush;
+    private final QuickMatchEventPublisher quickMatchEvents;
     private final DpRoomServiceCallbacks callbacks;
-
-    private final Object defaultQmLock = new Object();
-    private final ArrayDeque<DpQuickMatchWaitEntry> defaultQmWaiters = new ArrayDeque<>();
-    private final ReentrantLock dpQuickMatchAssignmentLock = new ReentrantLock();
+    private final DpQuickMatchWaitQueue waitQueue;
+    private final DpQuickMatchPairingLock pairingLock;
     private final DpQuickMatchPairingCoordinator qmPairingCoordinator;
+
+    private static final ThreadLocal<Integer> PAIRING_LOCK_DEPTH = ThreadLocal.withInitial(() -> 0);
+    private static final ThreadLocal<String> PAIRING_LOCK_TOKEN = new ThreadLocal<>();
 
     public DpRoomQuickMatchBridge(
             DpRoomRegistry registry,
             DpRoomLobbySync lobbySync,
-            DpQuickMatchPushService quickMatchPush,
+            QuickMatchEventPublisher quickMatchEvents,
+            DpQuickMatchWaitQueue waitQueue,
+            DpQuickMatchPairingLock pairingLock,
             DpRoomServiceCallbacks callbacks) {
         this.registry = registry;
         this.lobbySync = lobbySync;
-        this.quickMatchPush = quickMatchPush;
+        this.quickMatchEvents = quickMatchEvents;
+        this.waitQueue = waitQueue;
+        this.pairingLock = pairingLock;
         this.callbacks = callbacks;
         this.qmPairingCoordinator = new DpQuickMatchPairingCoordinator(new DpRoomQuickMatchPairingHost(this));
     }
@@ -69,22 +74,39 @@ public final class DpRoomQuickMatchBridge {
         return callbacks;
     }
 
-    public DpQuickMatchPushService quickMatchPush() {
-        return quickMatchPush;
+    public QuickMatchEventPublisher quickMatchEvents() {
+        return quickMatchEvents;
     }
 
-    public Object defaultQmLock() {
-        return defaultQmLock;
+    public DpQuickMatchWaitQueue waitQueue() {
+        return waitQueue;
     }
 
+    public DpQuickMatchPairingLock pairingLock() {
+        return pairingLock;
+    }
+
+    /** Best-effort pairing (e.g. after REST enqueue); skips if global lock is held elsewhere. */
     public void attemptQuickMatchPairing() {
-        if (!dpQuickMatchAssignmentLock.tryLock()) {
+        if (!enterPairingLockTry()) {
             return;
         }
         try {
             qmPairingCoordinator.attemptPairing();
         } finally {
-            dpQuickMatchAssignmentLock.unlock();
+            exitPairingLock();
+        }
+    }
+
+    /** Room create/exit: wait briefly for global lock so queued waiters are not left behind. */
+    public void attemptQuickMatchPairingBlocking() {
+        if (!enterPairingLockBlocking()) {
+            return;
+        }
+        try {
+            qmPairingCoordinator.attemptPairing();
+        } finally {
+            exitPairingLock();
         }
     }
 
@@ -92,8 +114,13 @@ public final class DpRoomQuickMatchBridge {
         if (ownerNickname == null || ownerNickname.isBlank()) {
             return;
         }
-        synchronized (defaultQmLock) {
-            defaultQmWaiters.removeIf(e -> ownerNickname.equals(e.nickname()));
+        if (!enterPairingLockTry()) {
+            return;
+        }
+        try {
+            waitQueue.removeByNicknameWhileLocked(ownerNickname);
+        } finally {
+            exitPairingLock();
         }
     }
 
@@ -101,18 +128,32 @@ public final class DpRoomQuickMatchBridge {
         if (nickname == null || nickname.isBlank()) {
             return ResultUtil.error().data("message", "昵称无效");
         }
-        dpQuickMatchAssignmentLock.lock();
+        if (!enterPairingLockBlocking()) {
+            return ResultUtil.error().data("message", "匹配服务繁忙，请稍后重试");
+        }
         try {
+            return quickMatchJoinAndReadyWhilePairingLocked(nickname, userId);
+        } finally {
+            exitPairingLock();
+        }
+    }
+
+    private ResultUtil quickMatchJoinAndReadyWhilePairingLocked(String nickname, Integer userId) {
             DpRoomBO existing = callbacks.findRoomContainingNickname(nickname);
             if (existing != null) {
-                String err;
-                synchronized (existing) {
-                    err = finishQuickMatchForExistingPresence(existing, nickname, userId);
-                }
+                String err = registry.runExclusive(existing.getRoomId(), r -> {
+                    if (r == null) {
+                        return "房间不存在";
+                    }
+                    return finishQuickMatchForExistingPresence(r, nickname, userId);
+                });
                 if (err != null) {
                     return ResultUtil.error().data("message", err);
                 }
-                callbacks.presenceMarkInGameHuman(existing, nickname, userId, "quick_match_already_in_room");
+                DpRoomBO live = registry.get(existing.getRoomId());
+                if (live != null) {
+                    callbacks.presenceMarkInGameHuman(live, nickname, userId, "quick_match_already_in_room");
+                }
                 lobbySync.refreshJoinableQmIndexThenSyncLobby(existing.getRoomId());
                 return ResultUtil.ok()
                         .data("roomId", existing.getRoomId())
@@ -122,116 +163,76 @@ public final class DpRoomQuickMatchBridge {
             long sortTime = System.currentTimeMillis();
             List<DpRoomBO> candidates = orderedQuickMatchJoinCandidates(sortTime);
 
-            candLoop:
-            for (DpRoomBO r : candidates) {
-                boolean progressedInRoom = false;
-                String join = "";
-                boolean wasPresent = false;
-                boolean readyOk = true;
-                synchronized (r) {
-                    if (registry.get(r.getRoomId()) != r) {
-                        continue candLoop;
-                    }
-                    long now = System.currentTimeMillis();
-                    if (r.isPasswordProtected()
-                            || DpQuickMatchRoomSemantics.rawVacancyForQuickMatch(r, now) <= 0) {
-                        continue candLoop;
-                    }
-                    wasPresent = nicknamePresentInRoom(r, nickname);
-                    join = callbacks.joinRoomMutateAssumeLocked(r.getRoomId(), nickname, userId, null, r);
-                    if (!"ok".equals(join) && !"游戏已开始".equals(join)) {
-                        continue candLoop;
-                    }
-                    if (r.isPlaying()) {
-                        if (!callbacks.applyReadyNextHandWhileLocked(r, nickname, userId)) {
-                            readyOk = false;
-                        }
-                    } else {
-                        if (!callbacks.ensureLobbyReady(r, nickname)) {
-                            readyOk = false;
-                        }
-                    }
-                    progressedInRoom = true;
+            for (DpRoomBO candidate : candidates) {
+                String roomId = candidate.getRoomId();
+                JoinOutcome outcome = registry.runExclusive(roomId, r -> tryJoinCandidateRoom(r, nickname, userId, sortTime));
+                if (outcome == null || !outcome.progressed()) {
+                    continue;
                 }
-                if (!progressedInRoom) {
-                    continue candLoop;
-                }
-                if (!readyOk) {
-                    if (!wasPresent) {
-                        callbacks.exitRoom(r.getRoomId(), nickname);
+                if (!outcome.readyOk()) {
+                    if (!outcome.wasPresent()) {
+                        callbacks.exitRoom(roomId, nickname);
                     }
-                    continue candLoop;
+                    continue;
                 }
-                callbacks.refreshQmIndexAfterJoinOutcomeOutsideRoomLock(r.getRoomId(), join);
-                return ResultUtil.ok().data("roomId", r.getRoomId()).data("message", "ok");
+                callbacks.refreshQmIndexAfterJoinOutcomeOutsideRoomLock(roomId, outcome.joinMsg());
+                return ResultUtil.ok().data("roomId", roomId).data("message", "ok");
             }
             return ResultUtil.error().data("message", MSG_NO_PUBLIC_ROOM);
-        } finally {
-            dpQuickMatchAssignmentLock.unlock();
-        }
     }
 
     public void pushQuickMatchLobbySnapshot(String nickname) {
         if (nickname == null || nickname.isBlank()) {
             return;
         }
-        List<String> qmTimedOut;
-        int queuePos = 0;
-        synchronized (defaultQmLock) {
-            qmTimedOut = pruneDefaultQuickMatchQueueLockedWithoutReentry();
-            int i = 1;
-            for (DpQuickMatchWaitEntry e : defaultQmWaiters) {
-                if (nickname.equals(e.nickname())) {
-                    queuePos = i;
-                    break;
-                }
-                i++;
-            }
-        }
-        notifyQuickMatchTimedOut(qmTimedOut);
-        if (queuePos > 0) {
-            quickMatchPush.notifyWaiting(nickname, queuePos);
+        if (!enterPairingLockTry()) {
             return;
+        }
+        try {
+            List<String> qmTimedOut = pruneDefaultQuickMatchQueueLockedWithoutReentry();
+            int queuePos = waitQueue.queuePositionWhileLocked(nickname);
+            notifyQuickMatchTimedOut(qmTimedOut);
+            if (queuePos > 0) {
+                quickMatchEvents.publishWaiting(nickname, queuePos);
+                return;
+            }
+        } finally {
+            exitPairingLock();
         }
         DpRoomBO inRoom = callbacks.findRoomContainingNickname(nickname);
         if (inRoom != null) {
-            quickMatchPush.notifyMatched(nickname, inRoom.getRoomId());
+            quickMatchEvents.publishMatched(nickname, inRoom.getRoomId());
         }
     }
 
     public ResultUtil quickMatchJoinQueueOrImmediate(String nickname, Integer userId) {
         long now = System.currentTimeMillis();
-        List<String> qmTimedOut;
-        synchronized (defaultQmLock) {
-            qmTimedOut = pruneDefaultQuickMatchQueueLockedWithoutReentry();
-            boolean already = false;
-            for (DpQuickMatchWaitEntry e : defaultQmWaiters) {
-                if (nickname.equals(e.nickname())) {
-                    already = true;
-                    break;
-                }
+        if (!enterPairingLockBlocking()) {
+            return ResultUtil.error().data("message", "匹配服务繁忙，请稍后重试");
+        }
+        try {
+            List<String> qmTimedOut = pruneDefaultQuickMatchQueueLockedWithoutReentry();
+            waitQueue.enqueueTailIfAbsentWhileLocked(new DpQuickMatchWaitEntry(nickname, userId, now));
+            int queuePos = waitQueue.queuePositionWhileLocked(nickname);
+            notifyQuickMatchTimedOut(qmTimedOut);
+            if (queuePos > 0) {
+                quickMatchEvents.publishWaiting(nickname, queuePos);
             }
-            if (!already) {
-                defaultQmWaiters.addLast(new DpQuickMatchWaitEntry(nickname, userId, now));
-            }
+        } finally {
+            exitPairingLock();
         }
 
-        notifyQuickMatchTimedOut(qmTimedOut);
         attemptQuickMatchPairing();
 
-        int queuePos = 0;
-        synchronized (defaultQmLock) {
-            int i = 1;
-            for (DpQuickMatchWaitEntry e : defaultQmWaiters) {
-                if (nickname.equals(e.nickname())) {
-                    queuePos = i;
-                    break;
+        if (enterPairingLockTry()) {
+            try {
+                int queuePos = waitQueue.queuePositionWhileLocked(nickname);
+                if (queuePos > 0) {
+                    quickMatchEvents.publishWaiting(nickname, queuePos);
                 }
-                i++;
+            } finally {
+                exitPairingLock();
             }
-        }
-        if (queuePos > 0) {
-            quickMatchPush.notifyWaiting(nickname, queuePos);
         }
         return ResultUtil.ok()
                 .data("queued", true)
@@ -243,40 +244,40 @@ public final class DpRoomQuickMatchBridge {
         if (nickname == null || nickname.isBlank()) {
             return false;
         }
+        if (!enterPairingLockTry()) {
+            return false;
+        }
         boolean removed;
-        synchronized (defaultQmLock) {
-            removed = defaultQmWaiters.removeIf(e -> nickname.equals(e.nickname()));
+        try {
+            removed = waitQueue.removeByNicknameWhileLocked(nickname);
+        } finally {
+            exitPairingLock();
         }
         if (removed) {
-            quickMatchPush.notifyIdle(nickname, "已取消匹配");
+            quickMatchEvents.publishIdle(nickname, "已取消匹配");
         }
         return removed;
     }
 
     public List<String> scheduledPruneDefaultQuickMatchQueue() {
+        if (!enterPairingLockTry()) {
+            return List.of();
+        }
         List<String> timedOut;
-        synchronized (defaultQmLock) {
+        try {
             timedOut = pruneDefaultQuickMatchQueueLockedWithoutReentry();
+        } finally {
+            exitPairingLock();
         }
         notifyQuickMatchTimedOut(timedOut);
         return timedOut;
     }
 
     List<String> pruneDefaultQuickMatchQueueLockedWithoutReentry() {
-        long now = System.currentTimeMillis();
-        List<String> timedOut = new ArrayList<>();
-        defaultQmWaiters.removeIf(e -> {
-            boolean tooLong = now - e.enqueuedMs() > DEFAULT_QM_WAIT_MS;
-            boolean inRoom = callbacks.findRoomContainingNickname(e.nickname()) != null;
-            if (tooLong || inRoom) {
-                if (tooLong) {
-                    timedOut.add(e.nickname());
-                }
-                return true;
-            }
-            return false;
-        });
-        return timedOut;
+        return waitQueue.pruneWhileLocked(
+                System.currentTimeMillis(),
+                DEFAULT_QM_WAIT_MS,
+                nick -> callbacks.findRoomContainingNickname(nick) != null);
     }
 
     void notifyQuickMatchTimedOut(List<String> nicknames) {
@@ -284,53 +285,32 @@ public final class DpRoomQuickMatchBridge {
             return;
         }
         for (String n : nicknames) {
-            quickMatchPush.notifyIdle(n, "匹配等待超时");
+            quickMatchEvents.publishIdle(n, "匹配等待超时");
         }
     }
 
     int defaultQueueSizeWhileLocked() {
-        return defaultQmWaiters.size();
+        return waitQueue.sizeWhileLocked();
     }
 
     List<DpQuickMatchWaitEntry> pollHeadWhileLocked(int maxTake) {
-        if (maxTake <= 0 || defaultQmWaiters.isEmpty()) {
-            return List.of();
-        }
-        int n = Math.min(maxTake, defaultQmWaiters.size());
-        List<DpQuickMatchWaitEntry> out = new ArrayList<>(n);
-        for (int i = 0; i < n; i++) {
-            DpQuickMatchWaitEntry e = defaultQmWaiters.pollFirst();
-            if (e != null) {
-                out.add(e);
-            }
-        }
-        return out;
+        return waitQueue.pollHeadWhileLocked(maxTake);
     }
 
     void unshiftHeadWhileLocked(List<DpQuickMatchWaitEntry> entries) {
-        if (entries == null || entries.isEmpty()) {
-            return;
-        }
-        for (int i = entries.size() - 1; i >= 0; i--) {
-            defaultQmWaiters.addFirst(entries.get(i));
-        }
+        waitQueue.unshiftHeadWhileLocked(entries);
     }
 
     void addTailWhileLocked(List<DpQuickMatchWaitEntry> entries) {
-        if (entries == null || entries.isEmpty()) {
-            return;
-        }
-        for (DpQuickMatchWaitEntry e : entries) {
-            defaultQmWaiters.addLast(e);
-        }
+        waitQueue.addTailWhileLocked(entries);
     }
 
     List<DpQuickMatchWaitEntry> defaultQmWaitersSnapshotWhileLocked() {
-        return new ArrayList<>(defaultQmWaiters);
+        return waitQueue.snapshotWhileLocked();
     }
 
     void removeWaiterWhileLocked(String nickname) {
-        defaultQmWaiters.removeIf(x -> nickname.equals(x.nickname()));
+        waitQueue.removeByNicknameWhileLocked(nickname);
     }
 
     static String quickMatchResultRoomId(ResultUtil res) {
@@ -342,6 +322,34 @@ public final class DpRoomQuickMatchBridge {
             return null;
         }
         return String.valueOf(d.get("roomId"));
+    }
+
+    private JoinOutcome tryJoinCandidateRoom(DpRoomBO r, String nickname, Integer userId, long sortTimeMs) {
+        if (r == null) {
+            return JoinOutcome.none();
+        }
+        long now = System.currentTimeMillis();
+        if (r.isPasswordProtected() || DpQuickMatchRoomSemantics.rawVacancyForQuickMatch(r, now) <= 0) {
+            return JoinOutcome.none();
+        }
+        boolean wasPresent = nicknamePresentInRoom(r, nickname);
+        String join = callbacks.joinRoomMutateAssumeLocked(r.getRoomId(), nickname, userId, null, r);
+        if (!"ok".equals(join) && !"游戏已开始".equals(join)) {
+            return JoinOutcome.none();
+        }
+        boolean readyOk;
+        if (r.isPlaying()) {
+            readyOk = callbacks.applyReadyNextHandWhileLocked(r, nickname, userId);
+        } else {
+            readyOk = callbacks.ensureLobbyReady(r, nickname);
+        }
+        return new JoinOutcome(true, wasPresent, readyOk, join);
+    }
+
+    private record JoinOutcome(boolean progressed, boolean wasPresent, boolean readyOk, String joinMsg) {
+        static JoinOutcome none() {
+            return new JoinOutcome(false, false, false, null);
+        }
     }
 
     private List<DpRoomBO> orderedQuickMatchJoinCandidates(long sortTimeMs) {
@@ -444,5 +452,45 @@ public final class DpRoomQuickMatchBridge {
                     : "候补已满，请稍后再试";
         }
         return ensureLobbyReady(r, nickname) ? null : "准备失败";
+    }
+
+    private boolean enterPairingLockTry() {
+        int depth = PAIRING_LOCK_DEPTH.get();
+        if (depth == 0) {
+            String token = pairingLock.tryAcquire();
+            if (token == null) {
+                return false;
+            }
+            PAIRING_LOCK_TOKEN.set(token);
+        }
+        PAIRING_LOCK_DEPTH.set(depth + 1);
+        return true;
+    }
+
+    private boolean enterPairingLockBlocking() {
+        int depth = PAIRING_LOCK_DEPTH.get();
+        if (depth == 0) {
+            String token = pairingLock.acquireWithRetry();
+            if (token == null) {
+                return false;
+            }
+            PAIRING_LOCK_TOKEN.set(token);
+        }
+        PAIRING_LOCK_DEPTH.set(depth + 1);
+        return true;
+    }
+
+    private void exitPairingLock() {
+        int depth = PAIRING_LOCK_DEPTH.get() - 1;
+        if (depth <= 0) {
+            PAIRING_LOCK_DEPTH.remove();
+            String token = PAIRING_LOCK_TOKEN.get();
+            PAIRING_LOCK_TOKEN.remove();
+            if (token != null) {
+                pairingLock.release(token);
+            }
+        } else {
+            PAIRING_LOCK_DEPTH.set(depth);
+        }
     }
 }

@@ -2,6 +2,7 @@ package com.example.mgdemoplus.quickmatch.pairing;
 
 import com.example.mgdemoplus.common.bo.DpRoomBO;
 import com.example.mgdemoplus.quickmatch.JoinableQuickMatchRoomIndex;
+import com.example.mgdemoplus.common.entity.DpPlayer;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayDeque;
@@ -10,11 +11,15 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 鍗犱綅缂栬瘧 + 鐑熼浘锛氱┖闃熷垪涓?{@link DpQuickMatchPairingCoordinator#attemptPairing()} 搴旇繀閫熻繑鍥炪€? * Agent C 鎺ュ叆鐪熷疄 Host 鍚庡簲琛ュ厖涓氬姟鍚戞祴璇曘€? */
+ * Smoke tests for {@link DpQuickMatchPairingCoordinator}; business paths covered with Redis queue tests.
+ */
 class DpQuickMatchPairingCoordinatorTest {
 
     @Test
@@ -24,16 +29,39 @@ class DpQuickMatchPairingCoordinatorTest {
         assertDoesNotThrow(coordinator::attemptPairing);
     }
 
+    @Test
+    void attemptPairing_joinableRoomWithWaiter_pullsHeadIntoRoom() {
+        StubHost host = new StubHost();
+        long now = System.currentTimeMillis();
+        DpRoomBO room = host.newPublicRoom("room-a", "bob", now);
+        host.roomMap.put(room.getRoomId(), room);
+        host.index.addOrRefresh(room.getRoomId(), room, now);
+        host.waiters.addLast(new DpQuickMatchWaitEntry("alice", 1, now));
+
+        new DpQuickMatchPairingCoordinator(host).attemptPairing();
+
+        assertTrue(host.joinedNicknames.contains("alice"), "waiter should join indexed public room");
+        assertEquals(0, host.waiters.size(), "waiter should leave queue after pairing");
+    }
+
     private static final class StubHost implements DpQuickMatchPairingHost {
 
-        private final Object qLock = new Object();
         private final Map<String, DpRoomBO> roomMap = new ConcurrentHashMap<>();
         private final JoinableQuickMatchRoomIndex index = new JoinableQuickMatchRoomIndex();
         private final ArrayDeque<DpQuickMatchWaitEntry> waiters = new ArrayDeque<>();
+        private final List<String> joinedNicknames = new ArrayList<>();
 
-        @Override
-        public Object defaultQmLock() {
-            return qLock;
+        DpRoomBO newPublicRoom(String roomId, String owner, long nowMs) {
+            DpRoomBO r = new DpRoomBO();
+            r.setRoomId(roomId);
+            r.setOwner(owner);
+            r.setMaxSeatCount(DpRoomBO.MAX_SEAT_COUNT);
+            DpPlayer ownerPlayer = new DpPlayer();
+            ownerPlayer.setNickname(owner);
+            ownerPlayer.setReady(true);
+            ownerPlayer.setLastHeartBeat(nowMs);
+            r.getPlayers().add(ownerPlayer);
+            return r;
         }
 
         @Override
@@ -44,6 +72,22 @@ class DpQuickMatchPairingCoordinatorTest {
         @Override
         public JoinableQuickMatchRoomIndex joinableQuickMatchRoomIndex() {
             return index;
+        }
+
+        @Override
+        public DpRoomBO getRoom(String roomId) {
+            return roomMap.get(roomId);
+        }
+
+        @Override
+        public <T> T runExclusiveRoom(String roomId, Function<DpRoomBO, T> action) {
+            DpRoomBO r = roomMap.get(roomId);
+            if (r == null) {
+                return null;
+            }
+            synchronized (r) {
+                return action.apply(r);
+            }
         }
 
         @Override
@@ -99,7 +143,12 @@ class DpQuickMatchPairingCoordinatorTest {
 
         @Override
         public void joinAndReadyWhileRoomLocked(DpRoomBO room, DpQuickMatchWaitEntry entry) {
-            // stub
+            joinedNicknames.add(entry.nickname());
+            DpPlayer p = new DpPlayer();
+            p.setNickname(entry.nickname());
+            p.setReady(true);
+            p.setDpUserId(entry.userId());
+            room.getPlayers().add(p);
         }
 
         @Override

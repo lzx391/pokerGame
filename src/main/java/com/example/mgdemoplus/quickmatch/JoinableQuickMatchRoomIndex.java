@@ -1,16 +1,16 @@
 package com.example.mgdemoplus.quickmatch;
 
 import com.example.mgdemoplus.common.bo.DpRoomBO;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.NavigableSet;
 import java.util.Optional;
-import java.util.TreeMap;
-import java.util.TreeSet;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -18,77 +18,98 @@ import java.util.function.Predicate;
  * 大厅快速匹配：对「无密码、符合快匹空位规则、且尚有快匹可读空位」的公开房，按<b>缺人数</b>建桶，
  * 供 Agent 2 以 O(logN) 选取「越满越优先」的候选桌，避免全表扫描 {@code roomMap}。
  *
+ * <p>P2：生产环境以 Redis 为全集群共享索引（{@link QuickMatchRedisKeys}）；单元测试使用无参构造的内存实现。
+ *
  * <h2>不变量</h2>
  * <ul>
- *   <li>主索引：{@code TreeMap<Integer, NavigableSet<String>>}，键为<b>缺几人</b>（∈[1,maxSeatCount]），
- *       值为该缺额下房间 id 集合（同键<b>多房间</b>，禁止单值 Map 覆盖）。</li>
- *   <li>反向表：{@code roomId → 当前桶键}，保证 {@link #addOrRefresh} 幂等迁移、{@link #remove} O(1) 定位。</li>
- *   <li>桶内 {@link NavigableSet} 按 {@code roomId} 字典序，与产品「同缺额下稳定、可再现」一致；缺人数更小 = 更满，
- *       {@link TreeMap} 升序遍历天然「越满越先」。</li>
- *   <li>语义与收录条件与 {@link DpQuickMatchRoomSemantics} / 现有快匹一致：密码房、已满、超员异常房均<b>不在</b>索引内。</li>
+ *   <li>主索引：{@code dp:qm:join:bucket:{shortage}} ZSET + {@code dp:qm:join:active_buckets}，键为<b>缺几人</b>。</li>
+ *   <li>反向表：{@code dp:qm:join:room2bucket} HASH，保证 {@link #addOrRefresh} 幂等迁移、{@link #remove} O(1) 定位。</li>
+ *   <li>桶内按 {@code roomId} 字典序（ZSET score=0）；缺人数更小 = 更满。</li>
+ *   <li>语义与 {@link DpQuickMatchRoomSemantics} 一致：密码房、已满、超员异常房均<b>不在</b>索引内。</li>
  * </ul>
  *
- * <h2>何时 insert / remove</h2>
- * <p>在房间「可能影响快匹空位」的事件后调用 {@link #addOrRefresh}：进退房、候补、心跳导致的离线、
- * {@code waitNextHand} 变更、改密、{@code maxSeatCount} 变更等。房间销毁或不再符合条件时 {@link #remove}。
+ * <h2>写路径</h2>
+ * <p>Redis 房态在 {@link com.example.mgdemoplus.room.support.DpRedisRoomRegistry#saveAfterMutation} 持房间锁后同步更新本索引；
+ * 不再依赖 {@code dp:room:events} 订阅方刷新。
  *
- * <h2>与 {@code roomMap} 漂移时</h2>
- * <p>若漏调维护或并发异常导致索引与内存房态不一致，应 Stop-the-world 式
- * {@link #rebuildAll(Map, long)}（由业务在持分配锁下调用）。全量遍历 {@code roomMap}，清空本索引后仅对符合条件的房间重新 {@link #addOrRefresh}。
- *
- * <h2>锁与顺序（避免与 {@code DpRoomBO}、{@code dpQuickMatchAssignmentLock} 死锁）</h2>
- * <ul>
- *   <li>本类以 {@link #indexLock} 保护全部读写；<b>不要</b>在持 <b>单房</b> {@code synchronized(房间)} 时再去抢本锁。</li>
- *   <li>推荐调用序：{@code synchronized(dpQuickMatchAssignmentLock)} → 本索引 mutate →（再对候选房 {@code synchronized(r)}），
- *       与 {@code DpRoomServiceImpl#quickMatchJoinAndReady} 一致。</li>
- *   <li>若索引方法与房锁交叉：全局固定为 <b>分配锁 → 本索引锁 → 房间锁</b>；禁止「房锁 → 索引锁」。</li>
- *   <li><b>新快匹配对协调器</b>（{@code dp.quickmatch.pairing.DpQuickMatchPairingCoordinator}）约定：凡<strong>同一路径</strong>既要
- *       {@code synchronized(DpRoomBO)} 又要 {@code defaultQmLock}，必须 <b>先房锁、再队列锁</b>。本索引的 {@code indexLock}
- *       仍<strong>不要</strong>在持房锁时获取；与队列锁的层级无关。</li>
- * </ul>
+ * <h2>读路径（配对）</h2>
+ * <p>{@link #pollBestCandidate} 等变更型读方法约定：调用方已持有 {@link DpQuickMatchPairingLock}。
  *
  * @see DpQuickMatchRoomSemantics
  */
+@Component
 public class JoinableQuickMatchRoomIndex {
 
-    private final Object indexLock = new Object();
+    /**
+     * Atomically migrate roomId from old bucket to new shortage (0 = remove only).
+     * KEYS[1]=room2bucket, KEYS[2]=active_buckets; ARGV[1]=roomId, ARGV[2]=newShortage, ARGV[3]=bucketPrefix.
+     */
+    private static final String JOIN_INDEX_UPSERT_LUA = ""
+            + "local roomId = ARGV[1]\n"
+            + "local newShortage = tonumber(ARGV[2])\n"
+            + "local bucketPrefix = ARGV[3]\n"
+            + "local oldS = redis.call('HGET', KEYS[1], roomId)\n"
+            + "if oldS then\n"
+            + "  local oldBucket = bucketPrefix .. oldS\n"
+            + "  redis.call('ZREM', oldBucket, roomId)\n"
+            + "  if redis.call('ZCARD', oldBucket) == 0 then\n"
+            + "    redis.call('ZREM', KEYS[2], oldS)\n"
+            + "  end\n"
+            + "  redis.call('HDEL', KEYS[1], roomId)\n"
+            + "end\n"
+            + "if newShortage and newShortage > 0 then\n"
+            + "  redis.call('HSET', KEYS[1], roomId, tostring(newShortage))\n"
+            + "  local newBucket = bucketPrefix .. tostring(newShortage)\n"
+            + "  redis.call('ZADD', newBucket, 0, roomId)\n"
+            + "  redis.call('ZADD', KEYS[2], newShortage, tostring(newShortage))\n"
+            + "end\n"
+            + "return 1\n";
 
-    /** 缺人数（升序） → 该缺额下可快匹加入的房间 id（字典序）。 */
-    private final TreeMap<Integer, NavigableSet<String>> byShortage = new TreeMap<>();
-//空间换时间，有了这个可以高效的通过房间获取缺人数，而不用去treeMap里遍历找
-    private final Map<String, Integer> roomIdToShortage = new HashMap<>();
-/**
- * 这个方法负责检查更新索引房
- */
+    private static final DefaultRedisScript<Long> JOIN_INDEX_UPSERT_SCRIPT =
+            new DefaultRedisScript<>(JOIN_INDEX_UPSERT_LUA, Long.class);
+
+    private final StringRedisTemplate stringRedisTemplate;
+    private final InMemoryJoinableQuickMatchRoomIndex inMemory;
+
+    @Autowired
+    public JoinableQuickMatchRoomIndex(StringRedisTemplate stringRedisTemplate) {
+        this.stringRedisTemplate = stringRedisTemplate;
+        this.inMemory = null;
+    }
+
+    /** Unit tests without Redis — same semantics as production index. */
+    public JoinableQuickMatchRoomIndex() {
+        this.stringRedisTemplate = null;
+        this.inMemory = new InMemoryJoinableQuickMatchRoomIndex();
+    }
+
     public void addOrRefresh(String roomId, DpRoomBO room, long nowMs) {
         if (roomId == null) {
             return;
         }
-        //更改房间索引要加锁，防止并发异常
-        synchronized (indexLock) {
-            removeUnderLock(roomId);
-            if (!DpQuickMatchRoomSemantics.shouldIndexPublicQuickMatchRoom(room, nowMs)) {
-                return;
-            }
-            //看房间权威剩余人数的
-            int key = DpQuickMatchRoomSemantics.vacancyBucketKeyForIndex(room, nowMs);
-            if (key <= 0) {
-                return;
-            }
-            //缺人房放进红黑树，key为缺人数，value为房间id集合
-            byShortage.computeIfAbsent(key, k -> new TreeSet<>()).add(roomId);
-            //放房间和缺人数的
-            roomIdToShortage.put(roomId, key);
+        if (inMemory != null) {
+            inMemory.addOrRefresh(roomId, room, nowMs);
+            return;
         }
+        int shortage = 0;
+        if (DpQuickMatchRoomSemantics.shouldIndexPublicQuickMatchRoom(room, nowMs)) {
+            shortage = DpQuickMatchRoomSemantics.vacancyBucketKeyForIndex(room, nowMs);
+            if (shortage <= 0) {
+                shortage = 0;
+            }
+        }
+        upsertRedis(roomId, shortage);
     }
 
     public void remove(String roomId) {
         if (roomId == null) {
             return;
         }
-        synchronized (indexLock) {
-            removeUnderLock(roomId);
+        if (inMemory != null) {
+            inMemory.remove(roomId);
+            return;
         }
+        upsertRedis(roomId, 0);
     }
 
     /**
@@ -99,99 +120,113 @@ public class JoinableQuickMatchRoomIndex {
         if (roomById == null || rule == null) {
             return Optional.empty();
         }
-        synchronized (indexLock) {
-            Iterator<Map.Entry<Integer, NavigableSet<String>>> it = byShortage.entrySet().iterator();
-            while (it.hasNext()) {
-                Map.Entry<Integer, NavigableSet<String>> e = it.next();
-                NavigableSet<String> set = e.getValue();
-                if (set == null || set.isEmpty()) {
-                    it.remove();
+        if (inMemory != null) {
+            return inMemory.pollBestCandidate(roomById, rule);
+        }
+        List<Integer> buckets = activeShortageBucketsAscending();
+        for (int shortage : buckets) {
+            List<String> roomIds = roomIdsInBucket(shortage);
+            for (String rid : roomIds) {
+                DpRoomBO r = roomById.apply(rid);
+                if (r == null) {
+                    remove(rid);
                     continue;
                 }
-                List<String> snapshot = new ArrayList<>(set);
-                for (String rid : snapshot) {
-                    DpRoomBO r = roomById.apply(rid);
-                    if (r == null) {
-                        removeUnderLock(rid);
-                        continue;
-                    }
-                    if (rule.test(r)) {
-                        removeUnderLock(rid);
-                        return Optional.of(rid);
-                    }
+                if (rule.test(r)) {
+                    remove(rid);
+                    return Optional.of(rid);
                 }
             }
-            return Optional.empty();
         }
+        return Optional.empty();
     }
 
     /** 当前仍缺人的最小缺额桶键；若无则 empty。 */
     public Optional<Integer> firstVacancyBucket() {
-        synchronized (indexLock) {
-            if (byShortage.isEmpty()) {
-                return Optional.empty();
-            }
-            return Optional.of(byShortage.firstKey());
+        if (inMemory != null) {
+            return inMemory.firstVacancyBucket();
         }
+        List<Integer> buckets = activeShortageBucketsAscending();
+        if (buckets.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(buckets.get(0));
     }
 
-    /**
-     * 只读快照：某缺人数桶内的 roomId（字典序拷贝）。
-     */
+    /** 只读快照：某缺人数桶内的 roomId（字典序拷贝）。 */
     public List<String> roomIdsInBucket(int shortage) {
-        synchronized (indexLock) {
-            NavigableSet<String> set = byShortage.get(shortage);
-            if (set == null || set.isEmpty()) {
-                return List.of();
-            }
-            return new ArrayList<>(set);
+        if (inMemory != null) {
+            return inMemory.roomIdsInBucket(shortage);
         }
+        Set<String> members = stringRedisTemplate.opsForZSet()
+                .range(QuickMatchRedisKeys.joinBucketKey(shortage), 0, -1);
+        if (members == null || members.isEmpty()) {
+            return List.of();
+        }
+        return new ArrayList<>(members);
     }
 
     public int indexedRoomCount() {
-        synchronized (indexLock) {
-            return roomIdToShortage.size();
+        if (inMemory != null) {
+            return inMemory.indexedRoomCount();
         }
+        Long len = stringRedisTemplate.opsForHash().size(QuickMatchRedisKeys.JOIN_ROOM2BUCKET);
+        return len != null ? len.intValue() : 0;
     }
 
     public void rebuildAll(Map<String, DpRoomBO> roomMap, long nowMs) {
-        synchronized (indexLock) {
-            byShortage.clear();
-            roomIdToShortage.clear();
-            if (roomMap == null || roomMap.isEmpty()) {
-                return;
-            }
-            for (Map.Entry<String, DpRoomBO> e : roomMap.entrySet()) {
-                addOrRefreshUnderLock(e.getKey(), e.getValue(), nowMs);
-            }
+        if (inMemory != null) {
+            inMemory.rebuildAll(roomMap, nowMs);
+            return;
+        }
+        clearAllJoinKeys();
+        if (roomMap == null || roomMap.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<String, DpRoomBO> e : roomMap.entrySet()) {
+            addOrRefresh(e.getKey(), e.getValue(), nowMs);
         }
     }
 
-    private void addOrRefreshUnderLock(String roomId, DpRoomBO room, long nowMs) {
-        removeUnderLock(roomId);
-        if (!DpQuickMatchRoomSemantics.shouldIndexPublicQuickMatchRoom(room, nowMs)) {
-            return;
-        }
-        int key = DpQuickMatchRoomSemantics.vacancyBucketKeyForIndex(room, nowMs);
-        if (key <= 0) {
-            return;
-        }
-        byShortage.computeIfAbsent(key, k -> new TreeSet<>()).add(roomId);
-        roomIdToShortage.put(roomId, key);
+    private void upsertRedis(String roomId, int shortage) {
+        stringRedisTemplate.execute(
+                JOIN_INDEX_UPSERT_SCRIPT,
+                List.of(QuickMatchRedisKeys.JOIN_ROOM2BUCKET, QuickMatchRedisKeys.JOIN_ACTIVE_BUCKETS),
+                roomId,
+                String.valueOf(shortage),
+                QuickMatchRedisKeys.JOIN_BUCKET_PREFIX);
     }
 
-    private void removeUnderLock(String roomId) {
-        Integer k = roomIdToShortage.remove(roomId);
-        if (k == null) {
-            return;
+    private List<Integer> activeShortageBucketsAscending() {
+        Set<String> members = stringRedisTemplate.opsForZSet()
+                .range(QuickMatchRedisKeys.JOIN_ACTIVE_BUCKETS, 0, -1);
+        if (members == null || members.isEmpty()) {
+            return List.of();
         }
-        NavigableSet<String> set = byShortage.get(k);
-        if (set == null) {
-            return;
+        List<Integer> out = new ArrayList<>(members.size());
+        for (String shortage : members) {
+            if (shortage != null && !shortage.isEmpty()) {
+                try {
+                    out.add(Integer.parseInt(shortage));
+                } catch (NumberFormatException ignored) {
+                    // skip corrupt member
+                }
+            }
         }
-        set.remove(roomId);
-        if (set.isEmpty()) {
-            byShortage.remove(k);
+        return out;
+    }
+
+    private void clearAllJoinKeys() {
+        Set<String> bucketMembers = stringRedisTemplate.opsForZSet()
+                .range(QuickMatchRedisKeys.JOIN_ACTIVE_BUCKETS, 0, -1);
+        if (bucketMembers != null) {
+            for (String shortage : bucketMembers) {
+                if (shortage != null && !shortage.isEmpty()) {
+                    stringRedisTemplate.delete(QuickMatchRedisKeys.joinBucketKey(Integer.parseInt(shortage)));
+                }
+            }
         }
+        stringRedisTemplate.delete(QuickMatchRedisKeys.JOIN_ROOM2BUCKET);
+        stringRedisTemplate.delete(QuickMatchRedisKeys.JOIN_ACTIVE_BUCKETS);
     }
 }

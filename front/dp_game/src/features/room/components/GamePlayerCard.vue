@@ -349,7 +349,7 @@ import { dealStaggerMsForTheme } from '../constants/dpGameDealTiming'
 import { getDealerAnchorViewportPoint } from '../utils/dpGameDealerAnchor'
 import { CAT_COPY } from '@shared/constants/dpCatThemeCopy'
 import { displayHandRankName, displayHandRankDetail } from '@features/room/utils/dpHandRankDisplay'
-import { shouldRevealHoleCardsAtShowdown } from '@features/room/utils/dpRetroShowdownReveal'
+import { shouldRevealHoleCardsAtShowdown, isRetroRevealStage } from '@features/room/utils/dpRetroShowdownReveal'
 
 export default {
   name: 'GamePlayerCard',
@@ -436,13 +436,16 @@ export default {
       foldMuckEndsPending: 0,
       _foldMuckFallbackTimer: null,
       /** 他人紧凑位底牌已隐藏时：临时渲染两张背面用于盖牌飞入盖牌区 */
-      foldGhostFly: false
+      foldGhostFly: false,
+      /** 本手摊牌亮牌已解锁：TV 结束后保持，避免 tvPending/过期快照导致亮牌闪灭 */
+      showdownHoleRevealLatched: false
     }
   },
   watch: {
     handDealKey: {
       immediate: true,
       handler() {
+        this.showdownHoleRevealLatched = false
         this.resetHoleDealFlyState()
         var self = this
         function kick() {
@@ -487,6 +490,12 @@ export default {
         this.foldMuckEndsPending = 0
         this.foldGhostFly = false
       }
+    },
+    resolvedActualStage: function (val) {
+      this.syncShowdownHoleRevealLatch(val, this.retroShowdownTvPending)
+    },
+    retroShowdownTvPending: function (val) {
+      this.syncShowdownHoleRevealLatch(this.resolvedActualStage, val)
     }
   },
   beforeDestroy() {
@@ -581,8 +590,14 @@ export default {
     resolvedActualStage() {
       return this.actualStage || this.stage
     },
-    /** 摊牌亮牌门闸：actualStage 已到 showdown/settled 且 TV 已结束 */
+    /** 摊牌亮牌门闸：actualStage 已到 showdown/settled 且 TV 已结束（ latch 防止闪灭） */
     isShowdownRevealActive() {
+      if (
+        this.showdownHoleRevealLatched
+        && isRetroRevealStage(this.resolvedActualStage)
+      ) {
+        return true
+      }
       return shouldRevealHoleCardsAtShowdown(this.resolvedActualStage, this.retroShowdownTvPending)
     },
     /** 是否展示真实手牌（本人 / 房主看穿 / 摊牌后） */
@@ -680,6 +695,11 @@ export default {
   methods: {
     getCardClass,
     getCardDisplay,
+    syncShowdownHoleRevealLatch(actualStage, tvPending) {
+      if (shouldRevealHoleCardsAtShowdown(actualStage, tvPending)) {
+        this.showdownHoleRevealLatched = true
+      }
+    },
     prefersReducedMotion() {
       if (this.dpGameView && this.dpGameView.ecoMode) return true
       if (typeof window === 'undefined' || !window.matchMedia) return false

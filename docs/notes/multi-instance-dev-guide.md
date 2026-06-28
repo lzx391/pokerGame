@@ -207,6 +207,7 @@ SSE、WebSocket 在 Nginx 里配了 **长连接、关缓冲**，避免消息卡�
 
 - `dp:room:state:{房间id}` — 房间 JSON  
 - `dp:room:index` — 当前有哪些房间 id  
+- `dp:qm:join:room2bucket` / `dp:qm:join:bucket:{缺几人}` — 快匹可加入公开房索引（P2，全实例共享）
 
 谁改房间（下注、准备、开局），都要 **先拿锁、改 Redis、再广播**。
 
@@ -298,6 +299,10 @@ curl -s http://localhost:8880/dp/dev/ping
 
 # Redis 里还有哪些房间（需密码）
 redis-cli -h 127.0.0.1 -p 6379 -a 你的密码 SMEMBERS dp:room:index
+
+# 快匹可加入房索引（P2）
+redis-cli -h 127.0.0.1 -p 6379 -a 你的密码 HLEN dp:qm:join:room2bucket
+redis-cli -h 127.0.0.1 -p 6379 -a 你的密码 ZRANGE dp:qm:join:bucket:1 0 -1
 
 # Nginx 日志
 docker compose logs -f nginx

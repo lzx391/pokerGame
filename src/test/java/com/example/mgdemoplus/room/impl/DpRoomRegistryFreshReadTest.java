@@ -72,6 +72,10 @@ class DpRoomRegistryFreshReadTest {
                 mock(com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTracePushService.class),
                 mock(com.example.mgdemoplus.rbac.DpPermissionService.class),
                 DpRoomTestSupport.defaultInstanceProperties(),
+                DpRoomTestSupport.joinableQuickMatchRoomIndex(),
+                DpRoomTestSupport.mockQuickMatchWaitQueue(),
+                DpRoomTestSupport.mockQuickMatchPairingLock(),
+                DpRoomTestSupport.mockQuickMatchEventPublisher(),
                 null);
     }
 

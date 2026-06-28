@@ -53,6 +53,10 @@ public final class DpRoomLobbySync {
         if (roomId == null || roomId.isEmpty()) {
             return;
         }
+        // Redis SSOT: join index updated in DpRedisRoomRegistry.saveAfterMutation (P2).
+        if (registry.isRedisBacked()) {
+            return;
+        }
         DpRoomBO live = registry.get(roomId);
         if (live == null) {
             joinableQuickMatchRoomIndex.remove(roomId);

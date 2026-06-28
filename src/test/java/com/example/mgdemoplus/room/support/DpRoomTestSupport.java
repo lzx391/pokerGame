@@ -2,6 +2,10 @@ package com.example.mgdemoplus.room.support;
 
 import com.example.mgdemoplus.common.bo.DpRoomBO;
 import com.example.mgdemoplus.config.DpInstanceProperties;
+import com.example.mgdemoplus.quickmatch.DpQuickMatchPairingLock;
+import com.example.mgdemoplus.quickmatch.DpQuickMatchWaitQueue;
+import com.example.mgdemoplus.quickmatch.JoinableQuickMatchRoomIndex;
+import com.example.mgdemoplus.quickmatch.notify.QuickMatchEventPublisher;
 
 import java.util.Collection;
 import java.util.Map;
@@ -105,6 +109,22 @@ public final class DpRoomTestSupport {
         DpInstanceProperties p = new DpInstanceProperties();
         p.setInstanceId("test");
         return p;
+    }
+
+    public static JoinableQuickMatchRoomIndex joinableQuickMatchRoomIndex() {
+        return new JoinableQuickMatchRoomIndex();
+    }
+
+    public static DpQuickMatchWaitQueue mockQuickMatchWaitQueue() {
+        return org.mockito.Mockito.mock(DpQuickMatchWaitQueue.class);
+    }
+
+    public static DpQuickMatchPairingLock mockQuickMatchPairingLock() {
+        return org.mockito.Mockito.mock(DpQuickMatchPairingLock.class);
+    }
+
+    public static QuickMatchEventPublisher mockQuickMatchEventPublisher() {
+        return org.mockito.Mockito.mock(QuickMatchEventPublisher.class);
     }
 
     /** Resolve the registry wired into a manually constructed {@link com.example.mgdemoplus.room.impl.DpRoomServiceImpl}. */

@@ -13,8 +13,6 @@ public class DpInstanceProperties {
     /** Console / log marker; should match {@code server.port} per JVM. */
     private String instanceId = "8088";
 
-    private boolean dpQuickMatchEnabled = false;
-
     public String getInstanceId() {
         return instanceId;
     }
@@ -25,13 +23,5 @@ public class DpInstanceProperties {
 
     public boolean isRedisRoomStorage() {
         return true;
-    }
-
-    public boolean isDpQuickMatchEnabled() {
-        return dpQuickMatchEnabled;
-    }
-
-    public void setDpQuickMatchEnabled(boolean dpQuickMatchEnabled) {
-        this.dpQuickMatchEnabled = dpQuickMatchEnabled;
     }
 }

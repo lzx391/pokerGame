@@ -26,6 +26,14 @@ public class DpQuickMatchPushService {
         this.objectMapper = objectMapper;
     }
 
+    public boolean hasLocalSession(String nickname) {
+        if (nickname == null || nickname.isBlank()) {
+            return false;
+        }
+        Set<WebSocketSession> set = nicknameSessions.get(nickname);
+        return set != null && !set.isEmpty();
+    }
+
     public void register(String nickname, WebSocketSession session) {
         if (nickname == null || nickname.isBlank() || session == null) {
             return;

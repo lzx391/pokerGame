@@ -92,10 +92,14 @@ public final class DpRoomHeartbeatScheduler {
         maybeInvokeReadyTimeoutWhenDeadlinePassed(room);
         broadcastRoomAndMaybeRefreshLobbyAfterHeartbeatTick(room, lobbyDirty, redisBacked);
     }
-
+/**
+ * 摘房的
+ */
     public boolean removeDesertedRoomInGlobalTickIfNoLiveHumans(DpRoomBO room) {
         int size = DpRoomHumanCounts.liveHumanTableCount(room);
-        if (size == 0 && room.getSpectators().isEmpty()) {
+        if (size == 0
+                && DpRoomHumanCounts.liveHumanSpectatorCount(room) == 0
+                && DpRoomHumanCounts.seatedBotCount(room) == 0) {
             System.out.println("定时器检测：房间：" + room.getRoomId() + "没活人了");
             System.out.println("房间Id" + room.getRoomId());
             callbacks.removeRoom(room.getRoomId());
@@ -137,7 +141,11 @@ public final class DpRoomHeartbeatScheduler {
         }
         return lobbyDirty;
     }
-
+/**
+ * 观众心跳超时踢人
+ * @param room
+ * @return
+ */
     private boolean tickEvictStaleSpectatorsOnHeartbeat(DpRoomBO room) {
         List<String> specList = room.getSpectators();
         if (specList == null || specList.isEmpty()) {
@@ -163,7 +171,10 @@ public final class DpRoomHeartbeatScheduler {
         }
         return lobbyDirty;
     }
-
+/**
+ * npc决策或玩家行动超时处理
+ * @param room
+ */
     private void tickNpcTurnOrHumanActionTimeout(DpRoomBO room) {
         if (room.isPlaying()
                 && room.getCurrentActorIndex() >= 0
@@ -207,7 +218,10 @@ public final class DpRoomHeartbeatScheduler {
             }
         }
     }
-
+/**
+ * 检查并开始下一手
+ * @param room
+ */
     private void tickSettledCheckAndStartIfReady(DpRoomBO room) {
         if (room.isPlaying() && "settled".equals(room.getCurrentStage())) {
             if (callbacks.checkAndStartNextHandAfterSettleReturning(room)) {
@@ -224,7 +238,10 @@ public final class DpRoomHeartbeatScheduler {
                 && room.getPlayers().size() == 1
                 && room.getWaitNextHand().isEmpty();
     }
-
+/**
+ * 处理准备超时
+ * @param room
+ */
     private void maybeInvokeReadyTimeoutWhenDeadlinePassed(DpRoomBO room) {
         if (room.isPlaying()
                 && "settled".equals(room.getCurrentStage())

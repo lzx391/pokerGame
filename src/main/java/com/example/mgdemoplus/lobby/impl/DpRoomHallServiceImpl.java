@@ -336,11 +336,14 @@ public class DpRoomHallServiceImpl implements DpRoomHallService {
             // 状态变更后直接 INCR rev，后续读请求会拼接新 rev 的分页缓存键。
             stringRedisTemplate.opsForValue().increment(REV_KEY, 1L);
         } catch (Exception e) {
-            log.warn("bump public rooms revision failed, skip cache cleanup: {}", e.toString());
-            return;
+            // rev 递增失败时仍须清理 data 键，否则 room_status=1 后旧分页缓存会继续展示幽灵房。
+            log.warn("bump public rooms revision failed, still cleaning cache: {}", e.toString());
         }
+        cleanupPublicRoomsCacheKeys();
+    }
 
-        // 按约定删除所有旧 data 页缓存；失败仅日志，不阻断业务。
+    /** 删除 publicRooms / lobbyQuery 分页缓存（与 rev 递增解耦，软删后必须执行）。 */
+    private void cleanupPublicRoomsCacheKeys() {
         try {
             List<String> keys = new ArrayList<>();
             keys.addAll(scanKeysWithPrefix(DATA_PREFIX));

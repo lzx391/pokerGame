@@ -62,6 +62,10 @@ class DpRbacExperimentalDeckPresetTest {
                 mock(DpNpcTagDecisionTracePushService.class),
                 mock(DpPermissionService.class),
                 DpRoomTestSupport.defaultInstanceProperties(),
+                DpRoomTestSupport.joinableQuickMatchRoomIndex(),
+                DpRoomTestSupport.mockQuickMatchWaitQueue(),
+                DpRoomTestSupport.mockQuickMatchPairingLock(),
+                DpRoomTestSupport.mockQuickMatchEventPublisher(),
                 null);
         putRoom("room-1", "owner");
     }

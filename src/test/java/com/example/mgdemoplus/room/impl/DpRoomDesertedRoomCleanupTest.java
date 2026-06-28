@@ -73,6 +73,10 @@ class DpRoomDesertedRoomCleanupTest {
                 mock(com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTracePushService.class),
                 mock(com.example.mgdemoplus.rbac.DpPermissionService.class),
                 DpRoomTestSupport.defaultInstanceProperties(),
+                DpRoomTestSupport.joinableQuickMatchRoomIndex(),
+                DpRoomTestSupport.mockQuickMatchWaitQueue(),
+                DpRoomTestSupport.mockQuickMatchPairingLock(),
+                DpRoomTestSupport.mockQuickMatchEventPublisher(),
                 null);
     }
 
@@ -173,6 +177,19 @@ class DpRoomDesertedRoomCleanupTest {
         assertTrue(afterKick.getSpectators().contains("alice"));
 
         assertTrue(svc.exitRoom(r.getRoomId(), "alice"));
+        assertNull(map.get(r.getRoomId()));
+    }
+
+    /** 无真人、仅 NPC 在观众席：定时器口径应摘房（bot 观众不阻塞 deserted 清理）。 */
+    @Test
+    void timerRemovesRoomWhenOnlyBotSpectatorsRemain() throws Exception {
+        Map<String, DpRoomBO> map = roomMap();
+        DpRoomBO r = passwordRoom("rid-bot-spec", "zombieNick");
+        r.getPlayers().clear();
+        r.getSpectators().add("BOT_FISH_1");
+        map.put(r.getRoomId(), r);
+
+        assertTrue(invokeRemoveDeserted(svc, r));
         assertNull(map.get(r.getRoomId()));
     }
 }

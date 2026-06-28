@@ -1,6 +1,7 @@
 package com.example.mgdemoplus.room.support;
 
 import com.example.mgdemoplus.common.bo.DpRoomBO;
+import com.example.mgdemoplus.quickmatch.JoinableQuickMatchRoomIndex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -34,10 +35,13 @@ public class DpRedisRoomRegistry implements DpRoomRegistry {
 
     private static final class Holder {
         final String token;
+        /** Same in-memory room for nested callbacks (heartbeat → rebuy/exitRoom). */
+        final DpRoomBO room;
         int depth;
 
-        Holder(String token) {
+        Holder(String token, DpRoomBO room) {
             this.token = token;
+            this.room = room;
             this.depth = 1;
         }
     }
@@ -46,16 +50,19 @@ public class DpRedisRoomRegistry implements DpRoomRegistry {
     private final DpRoomRedisCodec codec;
     private final DpRoomDistributedLock distributedLock;
     private final DpRoomEventPublisher eventPublisher;
+    private final JoinableQuickMatchRoomIndex joinableQuickMatchRoomIndex;
 
     public DpRedisRoomRegistry(
             StringRedisTemplate stringRedisTemplate,
             DpRoomRedisCodec codec,
             DpRoomDistributedLock distributedLock,
-            DpRoomEventPublisher eventPublisher) {
+            DpRoomEventPublisher eventPublisher,
+            JoinableQuickMatchRoomIndex joinableQuickMatchRoomIndex) {
         this.stringRedisTemplate = stringRedisTemplate;
         this.codec = codec;
         this.distributedLock = distributedLock;
         this.eventPublisher = eventPublisher;
+        this.joinableQuickMatchRoomIndex = joinableQuickMatchRoomIndex;
     }
 
     @Override
@@ -140,6 +147,7 @@ public class DpRedisRoomRegistry implements DpRoomRegistry {
         stringRedisTemplate.delete(DpRoomRedisKeys.stateKey(roomId));
         stringRedisTemplate.delete(DpRoomRedisKeys.revKey(roomId));
         stringRedisTemplate.opsForSet().remove(DpRoomRedisKeys.INDEX, roomId);
+        joinableQuickMatchRoomIndex.remove(roomId);
         eventPublisher.publish(roomId, 0L, "roomRemoved");
         return true;
     }
@@ -152,22 +160,27 @@ public class DpRedisRoomRegistry implements DpRoomRegistry {
         Map<String, Holder> holders = EXCLUSIVE_HOLDER.get();
         Holder existing = holders.get(roomId);
         boolean nested = existing != null;
-        String token = nested ? existing.token : acquireWithRetry(roomId);
-        if (token == null) {
-            throw new IllegalStateException("room lock timeout roomId=" + roomId);
-        }
+        String token;
+        DpRoomBO r;
         if (nested) {
+            token = existing.token;
             existing.depth++;
+            r = existing.room;
         } else {
+            token = acquireWithRetry(roomId);
+            if (token == null) {
+                throw new IllegalStateException("room lock timeout roomId=" + roomId);
+            }
+            r = get(roomId);
+            if (r == null) {
+                distributedLock.release(roomId, token);
+                return null;
+            }
             Map<String, Holder> next = new HashMap<>(holders);
-            next.put(roomId, new Holder(token));
+            next.put(roomId, new Holder(token, r));
             EXCLUSIVE_HOLDER.set(next);
         }
         try {
-            DpRoomBO r = get(roomId);
-            if (r == null) {
-                return null;
-            }
             T result = action.apply(r);
             if (contains(roomId)) {
                 saveAfterMutation(roomId, r, "mutation");
@@ -222,6 +235,7 @@ public class DpRedisRoomRegistry implements DpRoomRegistry {
             stringRedisTemplate.opsForSet().add(DpRoomRedisKeys.INDEX, roomId);
             Long rev = stringRedisTemplate.opsForValue().increment(DpRoomRedisKeys.revKey(roomId));
             long revision = rev != null ? rev : 0L;
+            joinableQuickMatchRoomIndex.addOrRefresh(roomId, room, System.currentTimeMillis());
             eventPublisher.publish(roomId, revision, reason != null ? reason : "mutation");
         } catch (Exception e) {
             throw new IllegalStateException("save room to redis failed roomId=" + roomId, e);

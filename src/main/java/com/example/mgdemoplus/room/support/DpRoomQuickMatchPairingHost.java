@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * {@link DpQuickMatchPairingHost} adapter delegating room mutations to {@link DpRoomQuickMatchBridge}.
@@ -25,11 +26,6 @@ public final class DpRoomQuickMatchPairingHost implements DpQuickMatchPairingHos
     }
 
     @Override
-    public Object defaultQmLock() {
-        return bridge.defaultQmLock();
-    }
-
-    @Override
     public Map<String, DpRoomBO> roomMap() {
         return bridge.registry().roomMap();
     }
@@ -37,6 +33,16 @@ public final class DpRoomQuickMatchPairingHost implements DpQuickMatchPairingHos
     @Override
     public com.example.mgdemoplus.quickmatch.JoinableQuickMatchRoomIndex joinableQuickMatchRoomIndex() {
         return bridge.joinableQuickMatchRoomIndex();
+    }
+
+    @Override
+    public DpRoomBO getRoom(String roomId) {
+        return bridge.registry().get(roomId);
+    }
+
+    @Override
+    public <T> T runExclusiveRoom(String roomId, Function<DpRoomBO, T> action) {
+        return bridge.registry().runExclusive(roomId, action);
     }
 
     @Override
@@ -116,7 +122,7 @@ public final class DpRoomQuickMatchPairingHost implements DpQuickMatchPairingHos
 
     @Override
     public void notifyQuickMatchMatched(String nickname, String roomId) {
-        bridge.quickMatchPush().notifyMatched(nickname, roomId);
+        bridge.quickMatchEvents().publishMatched(nickname, roomId);
     }
 
     @Override
@@ -129,26 +135,16 @@ public final class DpRoomQuickMatchPairingHost implements DpQuickMatchPairingHos
         while (true) {
             List<String> qmTimedOut;
             List<DpQuickMatchWaitEntry> snapshot;
-            synchronized (bridge.defaultQmLock()) {
-                qmTimedOut = bridge.pruneDefaultQuickMatchQueueLockedWithoutReentry();
-                snapshot = new ArrayList<>(bridge.defaultQmWaitersSnapshotWhileLocked());
-            }
+            qmTimedOut = bridge.pruneDefaultQuickMatchQueueLockedWithoutReentry();
+            snapshot = new ArrayList<>(bridge.defaultQmWaitersSnapshotWhileLocked());
             bridge.notifyQuickMatchTimedOut(qmTimedOut);
             if (snapshot.isEmpty()) {
                 return;
             }
             int roundSuccesses = 0;
             for (DpQuickMatchWaitEntry e : snapshot) {
-                boolean stillInQueue;
-                synchronized (bridge.defaultQmLock()) {
-                    stillInQueue = false;
-                    for (DpQuickMatchWaitEntry x : bridge.defaultQmWaitersSnapshotWhileLocked()) {
-                        if (e.nickname().equals(x.nickname())) {
-                            stillInQueue = true;
-                            break;
-                        }
-                    }
-                }
+                boolean stillInQueue = bridge.defaultQmWaitersSnapshotWhileLocked().stream()
+                        .anyMatch(x -> e.nickname().equals(x.nickname()));
                 if (!stillInQueue) {
                     continue;
                 }
@@ -156,12 +152,10 @@ public final class DpRoomQuickMatchPairingHost implements DpQuickMatchPairingHos
                 if (!Boolean.TRUE.equals(res.getSuccess())) {
                     continue;
                 }
-                synchronized (bridge.defaultQmLock()) {
-                    bridge.removeWaiterWhileLocked(e.nickname());
-                }
+                bridge.removeWaiterWhileLocked(e.nickname());
                 String rid = DpRoomQuickMatchBridge.quickMatchResultRoomId(res);
                 if (rid != null) {
-                    bridge.quickMatchPush().notifyMatched(e.nickname(), rid);
+                    bridge.quickMatchEvents().publishMatched(e.nickname(), rid);
                 }
                 roundSuccesses++;
             }

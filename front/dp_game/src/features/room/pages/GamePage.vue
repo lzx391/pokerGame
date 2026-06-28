@@ -259,7 +259,7 @@ import {
 import { dpRoomApi } from '../api/roomApi'
 import { mapState, mapGetters } from 'vuex'
 import { dpSocialDisplayNickname } from '@features/social/utils/dpSocialDisplayName'
-import { encodeRoomApplyFingerprint } from '../utils/dpGameRoomFingerprint'
+import { encodeRoomApplyFingerprint, isRoomSnapshotStale } from '../utils/dpGameRoomFingerprint'
 import { CAT_COPY, dpPotDisplayLabel } from '@shared/constants/dpCatThemeCopy'
 import { DP_CUSTOM_NPC_UI_ENABLED } from '@features/npc/constants/dpCustomNpcUi'
 import { dpHandHologramDevLog } from '@features/room/utils/dpHandHologramDevLog'
@@ -308,6 +308,8 @@ export default {
       communityCardsFlipCompleteTimer: null,
       /** WS/HTTP 房间快照指纹；与 {@link encodeRoomApplyFingerprint} 一致，未变则跳过 APPLY_ROOM */
       _lastRoomApplyFingerprint: '',
+      /** 首帧 room 快照是否已写入；用于区分「进房即摊牌」与「下注街→摊牌」TV 门闸 */
+      _roomSnapshotHydrated: false,
       gameWs: null,
       gameWsConnected: false,
       /** 每开一条新连接前自增，用于丢弃旧 socket 的 onclose/onopen，避免顶替连接时误触重连 */
@@ -980,11 +982,45 @@ export default {
       this.retroShowdownFromStage = null
       this.retroBettingEconomySnapshot = null
     },
+    /**
+     * retro8bit：在 room 快照写入 Vuex 前同步 TV 门闸，避免 showdown 亮牌抢跑一帧。
+     * @see applyRoomFromServer
+     */
+    preSyncRetroShowdownTvGate: function (oldVal, newVal) {
+      if (this.gameUiTheme !== 'retro8bit') {
+        if (!this.retroStageNavReady) this.retroStageNavReady = true
+        return
+      }
+      if (!this.retroStageNavReady) {
+        this.retroStageNavReady = true
+      }
+      // 进房首帧若已在摊牌/结算，不挂 TV（避免进房误播）； live 下注→摊牌仍须同步门闸。
+      if (!this._roomSnapshotHydrated) {
+        this._roomSnapshotHydrated = true
+        if (isRetroRevealStage(newVal)) {
+          return
+        }
+      }
+      if (newVal === 'preflop') {
+        this.clearRetroShowdownTvPending()
+        this._deferredSeatChats = []
+        return
+      }
+      if (
+        !this.retroShowdownTvPending
+        && shouldRetroShowdownTvSequence(oldVal, newVal, true)
+      ) {
+        this.retroShowdownFromStage = oldVal
+        this.retroShowdownTvPending = true
+      }
+    },
     /** retro8bit：下注街→摊牌时播放 TV 弹窗（纯 overlay，不改牌桌状态） */
     beginRetroShowdownTvSequence: function () {
       if (this.gameUiTheme !== 'retro8bit') return
-      if (this.retroShowdownTvPending) return
-      this.retroShowdownTvPending = true
+      if (this._retroShowdownTvFallbackTimer) return
+      if (!this.retroShowdownTvPending) {
+        this.retroShowdownTvPending = true
+      }
       var self = this
       var finished = false
       function finishRetroShowdownTv() {
@@ -1028,10 +1064,10 @@ export default {
         return
       }
       if (
-        !this.retroShowdownTvPending
-        && shouldRetroShowdownTvSequence(oldVal, newVal, this.retroStageNavReady)
+        this.retroShowdownTvPending
+        && shouldRetroShowdownTvSequence(oldVal, newVal, true)
+        && !this._retroShowdownTvFallbackTimer
       ) {
-        this.retroShowdownFromStage = oldVal
         this.beginRetroShowdownTvSequence()
       }
     },
@@ -1627,6 +1663,8 @@ export default {
       this._seatEnterNickSeeded = false
       this._seatEnterNickSnapshot = new Set()
       this.joinRevealNicks = {}
+      this._roomSnapshotHydrated = false
+      this._lastRoomApplyFingerprint = ''
       dpSeatEnterDevLog('reset')
     },
 
@@ -1798,6 +1836,16 @@ export default {
     },
 
     applyRoomFromServer(room) {
+      if (
+        room
+        && isRoomSnapshotStale(room, {
+          currentHandSeed: this.currentHandSeed,
+          stage: this.stage,
+          lastActionTime: this.$store.state.dpGame.lastActionTime
+        })
+      ) {
+        return
+      }
       this.syncSeatEnterRevealFromRoom(room)
       if (room) {
         this.$store.commit('dpGame/SYNC_ACTION_COUNTDOWN_FIELDS', room)
@@ -1815,6 +1863,11 @@ export default {
         }.bind(this))
         return
       }
+      var prevStage = this.stage
+      var nextStage = room && room.currentStage ? room.currentStage : prevStage
+      // retro8bit：须在 APPLY_ROOM 触发表格重绘前挂上 TV 门闸，否则 actualStage 已到 showdown
+      // 而 retroShowdownTvPending 仍为 false，GamePlayerCard 会亮他人底牌一帧再被 TV 遮回（看穿底牌权限用户尤明显）。
+      this.preSyncRetroShowdownTvGate(prevStage, nextStage)
       this._lastRoomApplyFingerprint = fp
       this.$store.commit('dpGame/APPLY_ROOM', room)
       this.syncCommunityCardsFlipState(room.communityCards || [])

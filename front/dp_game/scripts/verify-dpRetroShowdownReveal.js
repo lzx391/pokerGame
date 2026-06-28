@@ -96,4 +96,43 @@ assert.strictEqual(shouldDeferRetroNpcSeatChat({
   playing: true, actionCountdownActive: false, actingNickname: null, chatNickname: 'Alice'
 }), false)
 
+function isRoomStageRegressionWithinHand(prevStage, nextStage, prevHandSeed, nextHandSeed) {
+  if (Number(prevHandSeed) !== Number(nextHandSeed)) return false
+  var order = { preflop: 0, flop: 1, turn: 2, river: 3, showdown: 4, settled: 5 }
+  var prev = order[prevStage]
+  var next = order[nextStage]
+  if (prev == null || next == null) return false
+  return next < prev
+}
+
+function isRoomSnapshotStale(incoming, applied) {
+  if (!incoming || !applied) return false
+  var inHand = Number(incoming.currentHandSeed) || 0
+  var apHand = Number(applied.currentHandSeed) || 0
+  if (inHand < apHand) return true
+  if (inHand > apHand) return false
+  var inTime = Number(incoming.lastActionTime) || 0
+  var apTime = Number(applied.lastActionTime) || 0
+  if (apTime > 0 && inTime > 0 && inTime < apTime) return true
+  return isRoomStageRegressionWithinHand(
+    applied.stage || '',
+    incoming.currentStage || '',
+    apHand,
+    inHand
+  )
+}
+
+assert.strictEqual(isRoomSnapshotStale(
+  { currentHandSeed: 3, currentStage: 'river', lastActionTime: 100 },
+  { currentHandSeed: 3, stage: 'showdown', lastActionTime: 200 }
+), true)
+assert.strictEqual(isRoomSnapshotStale(
+  { currentHandSeed: 3, currentStage: 'showdown', lastActionTime: 250 },
+  { currentHandSeed: 3, stage: 'showdown', lastActionTime: 200 }
+), false)
+assert.strictEqual(isRoomSnapshotStale(
+  { currentHandSeed: 2, currentStage: 'settled', lastActionTime: 50 },
+  { currentHandSeed: 3, stage: 'preflop', lastActionTime: 10 }
+), true)
+
 console.log('verify-dpRetroShowdownReveal: ok')

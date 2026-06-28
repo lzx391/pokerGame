@@ -115,7 +115,6 @@ mgdemoplus:
   # --- B: 大厅 / 快匹 / 站点在线（多实例默认关闭 reconcile / 快匹）---
   dp-lobby-reconcile-enabled: ${MGDEMOPLUS_DP_LOBBY_RECONCILE_ENABLED:false}  # [B] env: MGDEMOPLUS_DP_LOBBY_RECONCILE_ENABLED
   dp-lobby-reconcile-ms: ${MGDEMOPLUS_DP_LOBBY_RECONCILE_MS:60000}  # [B] env: MGDEMOPLUS_DP_LOBBY_RECONCILE_MS
-  dp-quick-match-enabled: ${MGDEMOPLUS_DP_QUICK_MATCH_ENABLED:false}  # [B] env: MGDEMOPLUS_DP_QUICK_MATCH_ENABLED
   dp-quick-match-prune-ms: ${MGDEMOPLUS_DP_QUICK_MATCH_PRUNE_MS:30000}  # [B] env: MGDEMOPLUS_DP_QUICK_MATCH_PRUNE_MS
   dp-site-presence-ttl-ms: ${MGDEMOPLUS_DP_SITE_PRESENCE_TTL_MS:90000}  # [B] env: MGDEMOPLUS_DP_SITE_PRESENCE_TTL_MS
 

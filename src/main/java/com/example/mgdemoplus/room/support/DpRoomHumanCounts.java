@@ -22,4 +22,32 @@ public final class DpRoomHumanCounts {
         }
         return n;
     }
+
+    /** Bot spectators do not block deserted-room teardown (NPC rebuy failure fallout). */
+    public static int liveHumanSpectatorCount(DpRoomBO room) {
+        if (room == null || room.getSpectators() == null) {
+            return 0;
+        }
+        int n = 0;
+        for (String nick : room.getSpectators()) {
+            if (nick != null && !DpNpcEngine.isBotNickname(nick)) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    /** Seated bots (incl. settled/rebuy window) keep NPC-only rooms alive until they leave the table. */
+    public static int seatedBotCount(DpRoomBO room) {
+        if (room == null || room.getPlayers() == null) {
+            return 0;
+        }
+        int n = 0;
+        for (DpPlayer p : room.getPlayers()) {
+            if (p != null && !p.isLeftThisHand() && DpNpcEngine.isBotPlayer(p)) {
+                n++;
+            }
+        }
+        return n;
+    }
 }
