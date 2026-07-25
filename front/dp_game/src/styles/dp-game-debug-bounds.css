@@ -1,0 +1,29 @@
+/**
+ * 对局页布局边界调试描边（game.vue 挂 .dp-game-root--debug-bounds + body.dp-debug-bounds-active）
+ * 开启：URL ?dpDebugBounds=1 或 localStorage.setItem('dpDebugBounds', '1')
+ */
+
+body.dp-debug-bounds-active #app.app--dp-game {
+  outline: 2px solid #00e5ff;
+  outline-offset: -2px;
+}
+
+body.dp-debug-bounds-active .full-page--dp-game {
+  outline: 2px dashed #00e5ff;
+  outline-offset: -4px;
+}
+
+.dp-game-root--debug-bounds {
+  outline: 2px solid #ff00ff;
+  outline-offset: -2px;
+}
+
+.dp-game-root--debug-bounds > .dp-game-body-row {
+  outline: 2px solid #ff3333;
+  outline-offset: -2px;
+}
+
+.dp-game-root--debug-bounds .dp-trace-dock-split {
+  outline: 2px solid #ff8800;
+  outline-offset: -2px;
+}

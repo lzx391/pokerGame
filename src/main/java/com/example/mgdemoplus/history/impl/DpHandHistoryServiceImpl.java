@@ -43,8 +43,9 @@ public class DpHandHistoryServiceImpl implements DpHandHistoryService {
         this.objectMapper = objectMapper;
     }
 
-    /**
-     * 涓や汉鍏卞悓鍙備笌杩囩殑瀵瑰眬锛氬悓涓€鎵嬬墝涓婁袱鏉″弬涓庤€咃紙鍧囨寜 user_id锛夛紱鍒嗛〉鐢?PageHelper + PageInfo銆?     */
+/**
+ * 检查用户和另一个玩家的手牌历史列表
+ */
     public DpHandHistoryPageVO checkUserAndOtherPlayerHandHistoryList(
             Integer userId,
             Integer otherUserId,
@@ -80,7 +81,8 @@ public class DpHandHistoryServiceImpl implements DpHandHistoryService {
     }
 
     /**
-     * 褰撳墠鐧诲綍鐢ㄦ埛锛堜粎鎸?dp_user.id锛屽弬涓庤€呰〃椤诲惈瀵瑰簲 user_id锛夈€?     */
+     * 查看用户的手牌历史列表
+     */
     public DpHandHistoryPageVO listMyHandsPage(Integer userId, int page, int pageSize) {
         DpHandHistoryPageVO out = new DpHandHistoryPageVO();
         out.setPage(Math.max(page, 1));

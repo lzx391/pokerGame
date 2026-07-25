@@ -9,6 +9,7 @@ import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Mapper
 public interface DpUserMapper {
@@ -33,4 +34,17 @@ public interface DpUserMapper {
             @Param("id") int id,
             @Param("avatarUrl") String avatarUrl,
             @Param("avatarUpdatedAt") LocalDateTime avatarUpdatedAt);
+
+    @Select("""
+            <script>
+            SELECT id, nickname FROM dp_user
+            <where>
+              <if test="keyword != null and keyword != ''">
+                nickname LIKE CONCAT('%', #{keyword}, '%')
+              </if>
+            </where>
+            ORDER BY id ASC
+            </script>
+            """)
+    List<DpUser> selectUsersForAdmin(@Param("keyword") String keyword);
 }

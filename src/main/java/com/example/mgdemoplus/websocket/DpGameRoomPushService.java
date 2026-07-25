@@ -447,8 +447,10 @@ public class DpGameRoomPushService {
                     DpRoomBO view = roomService.snapshotForViewerFromLive(live, nick);
                     json = objectMapper.writeValueAsString(view);
                 }
+                //去重检测
                 String prev = lastBroadcastPayloadBySession.get(s);
                 if (json.equals(prev)) {
+                    // System.out.println("重复");
                     log.debug("WS broadcast skip (payload unchanged) roomId={}", roomId);
                     continue;
                 }
@@ -489,6 +491,42 @@ public class DpGameRoomPushService {
             }
         } catch (Exception e) {
             log.warn("WebSocket broadcast failed roomId={}", roomId, e);
+        }
+    }
+
+    /**
+     * 向房间内 {@code viewerNickname} 与 {@code ownerNickname} 匹配的 open 会话发送（可多开标签页各收一份）。
+     */
+    public void sendRawJsonToRoomOwner(String roomId, String ownerNickname, String json) {
+        if (roomId == null || roomId.isEmpty() || ownerNickname == null || ownerNickname.isEmpty() || json == null) {
+            return;
+        }
+        Set<WebSocketSession> set = roomSessions.get(roomId);
+        if (set == null || set.isEmpty()) {
+            return;
+        }
+        for (WebSocketSession s : new ArrayList<>(set)) {
+            if (!s.isOpen()) {
+                removeSessionFromRoom(roomId, s);
+                continue;
+            }
+            Object vn = s.getAttributes().get("viewerNickname");
+            if (!(vn instanceof String) || !ownerNickname.equals(vn)) {
+                continue;
+            }
+            try {
+                synchronized (s) {
+                    s.sendMessage(new TextMessage(json));
+                }
+            } catch (IOException e) {
+                log.debug("WebSocket owner send failed, closing session", e);
+                removeSessionFromRoom(roomId, s);
+                try {
+                    s.close();
+                } catch (IOException ignored) {
+                    // ignore
+                }
+            }
         }
     }
 

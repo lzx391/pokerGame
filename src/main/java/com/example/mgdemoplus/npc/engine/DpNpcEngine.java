@@ -28,6 +28,7 @@ import static com.example.mgdemoplus.utils.DpUtilHandEvaluator.CARD_RANK_MAP;
 import static com.example.mgdemoplus.utils.DpUtilHandEvaluator.evaluateBestHand;
 
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.slf4j.LoggerFactory;
 
@@ -220,8 +221,6 @@ public class DpNpcEngine {
         public static final double CBET_BASE_WEAK = P.cbetBaseWeak;
         public static final double CBET_BASE_MEDIUM = P.cbetBaseMedium;
         public static final double CBET_BASE_STRONG = P.cbetBaseStrong;
-        static final double CBET_RANDOM_MIN = P.cbetRandomMin;
-        static final double CBET_RANDOM_MAX = P.cbetRandomMax;
         /** Wave 2b：L1 硬约束总开关；{@code false} 时回滚坚果/免费看牌/playingTheBoard 守卫 */
         public static final boolean HARD_CONSTRAINTS_ENABLED = true;
     }
@@ -255,15 +254,6 @@ public class DpNpcEngine {
 
     /** 与 {@link #PREFIX_BOT_LLM} 一致，供文档与精确匹配旧逻辑引用。 */
     public static final String LLM_BOT_NICKNAME = PREFIX_BOT_LLM;
-
-    /**
-     * 为 true：机器人 fold/call/raise 等抽样使用 {@code currentHandSeed ^ 座位} 固定种子，便于同一手牌复现决策序列。
-     * 为 false：每次决策 {@code new Random()}，与 handSeed 无关。
-     * <p>
-     * 当前工程默认值见字段字面量（勿依赖本注释中的「默认」字样与实际不符）。
-     * </p>
-     */
-    public static final boolean NPC_HAND_SEED_FOR_DECISIONS = true;
 
     /**
      * 机器人类型：与 {@link NpcStyle} 一一对应，决策参数取自 {@link #STYLE_PROFILE_MAP}，
@@ -1086,6 +1076,18 @@ public class DpNpcEngine {
         return isBotNickname(p.getNickname());
     }
 
+    /** 规则 NPC（含 {@code BOT_CUSTOM_*}，不含 LLM）；与 mood 结算、桌边话分桶口径一致。 */
+    public static boolean isRuleBotNickname(String name) {
+        return isBotNickname(name) && !isLlmBotNickname(name);
+    }
+
+    public static boolean isRuleBotPlayer(DpPlayer p) {
+        if (p == null) {
+            return false;
+        }
+        return isRuleBotNickname(p.getNickname());
+    }
+
     public static BotType getBotTypeByNickname(String nickname) {
         if (nickname == null || isLlmBotNickname(nickname) || isCustomBotNickname(nickname)) {
             return null;
@@ -1641,8 +1643,7 @@ public class DpNpcEngine {
 
         if (deadline <= 0) {
             //独立于决策的思考延时
-            long delay = DpNpcRuleThinkSampler.sampleDelayMs(
-                    buildHandRandomForRuleThink(room, bot));
+            long delay = DpNpcRuleThinkSampler.sampleDelayMs(ThreadLocalRandom.current());
             if (delay > 0) {
                 bot.setNextBotActionTime(now + delay);
                 return null;
@@ -1663,60 +1664,23 @@ public class DpNpcEngine {
             action = decideBotAction(room, bot, type);
         }
         bot.setNextBotActionTime(0L);
-        return action;
-    }
-
-    /**
-     * 规则 NPC 决策用的 {@link Random}（仅用于概率抽样，不参与洗牌发牌）。
-     *
-     * @see #NPC_HAND_SEED_FOR_DECISIONS
-     */
-    private static Random buildHandRandom(DpRoomBO room, DpPlayer bot) {
-        if (!NPC_HAND_SEED_FOR_DECISIONS) {
-            return new Random();
+        try {
+            if (action != null && com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTraceStore.ENABLED) {
+                BotType traceType = getBotTypeByNickname(bot.getNickname());
+                String traceStage = room.getCurrentStage() != null ? room.getCurrentStage() : "";
+                if (com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTraceSupport
+                        .isTraceEligibleRuleBot(traceType, traceStage)) {
+                    com.example.mgdemoplus.npc.trace.model.DpNpcActionTrace trace =
+                            com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTraceCollector.build(action);
+                    if (trace != null) {
+                        com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTraceStore.appendAction(room, bot, action, trace);
+                    }
+                }
+            }
+            return action;
+        } finally {
+            com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTraceCollector.clear();
         }
-        long seed = room != null ? room.getCurrentHandSeed() : System.currentTimeMillis();
-        int seatIndex = -1;
-        if (room != null && room.getPlayers() != null) {
-            seatIndex = room.getPlayers().indexOf(bot);
-        }
-        if (seatIndex < 0) {
-            seatIndex = 0;
-        }
-        seed ^= (long) (31 * seatIndex + 17);
-        return new Random(seed);
-    }
-
-    /**
-     * 规则 NPC 思考延时抽样 RNG：与决策 RNG 同源但 salt 区分，避免与牌力决策共用同一 {@code nextDouble()} 序列。
-     */
-    public static Random buildHandRandomForRuleThink(DpRoomBO room, DpPlayer bot) {
-        return buildHandRandomForTableTalk(room, bot, 0x5448494E4B5F4E50L); // "THINK_NP"
-    }
-
-    /**
-     * 桌边话术抽样：与决策 RNG 同源但混入 {@code rollSalt}，避免每手牌每次行动都抽到相同的第一个 {@code nextDouble()}。
-     */
-    public static Random buildHandRandomForTableTalk(DpRoomBO room, DpPlayer bot, long rollSalt) {
-        if (!NPC_HAND_SEED_FOR_DECISIONS) {
-            return new Random(rollSalt ^ System.nanoTime());
-        }
-        long seed = room != null ? room.getCurrentHandSeed() : System.currentTimeMillis();
-        int seatIndex = -1;
-        if (room != null && room.getPlayers() != null) {
-            seatIndex = room.getPlayers().indexOf(bot);
-        }
-        if (seatIndex < 0) {
-            seatIndex = 0;
-        }
-        seed ^= (long) (31 * seatIndex + 17);
-        seed ^= 0x54414C4B5F4E5043L; // "TALK_NPC" — 与决策 RNG 区分
-        seed ^= rollSalt;
-        if (room != null) {
-            seed ^= room.getLastActionTime();
-            seed ^= (long) room.getCurrentActorIndex() * 997L;
-        }
-        return new Random(seed);
     }
 
     /**
@@ -1944,7 +1908,7 @@ public class DpNpcEngine {
         int callAmount = Math.max(0, room.getCurrentBetToCall() - bot.getBet());
         DpNpcHandSnapshot handSnapshot = estimateCurrentHandSnapshot(room, bot);
         TablePosition position = getTablePosition(room, bot);
-        Random random = buildHandRandom(room, bot);
+        Random random = ThreadLocalRandom.current();
         DpUtilSmartContext ctx = buildSmartContext(room, bot, handSnapshot, stage, callAmount, random);
         return LlmNpcGameContext.map(room, bot, ctx, handSnapshot, stage, callAmount, position);
     }
@@ -1969,7 +1933,7 @@ public class DpNpcEngine {
         double callRatio = chips == 0 || callAmount >= chips ? 1.0 : (callAmount * 1.0 / chips);
         TablePosition position = getTablePosition(room, bot);
         String stageForNpc = room.getCurrentStage() != null ? room.getCurrentStage() : "";
-        Random random = buildHandRandom(room, bot);
+        Random random = ThreadLocalRandom.current();
         BoardDanger boardDanger = evaluateBoardDanger(room.getCommunityCards());
         DpNpcHandSnapshot handSnapshot = estimateCurrentHandSnapshot(room, bot);
         DpNpcRuleDecisionParams ruleParams = new DpNpcRuleDecisionParams(
@@ -2005,6 +1969,12 @@ public class DpNpcEngine {
      * @return
      */
     private static BotAction decideBotAction(DpRoomBO room, DpPlayer bot, BotType type) {
+        String stageForTrace = room.getCurrentStage() != null ? room.getCurrentStage() : "";
+        if (com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTraceStore.ENABLED
+                && com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTraceSupport
+                        .isTraceEligibleRuleBot(type, stageForTrace)) {
+            com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTraceCollector.begin(room, bot);
+        }
         int chips = bot.getChips();
         if (chips <= 0) {
             return new BotAction(BotActionType.FOLD, 0);
@@ -2014,7 +1984,7 @@ public class DpNpcEngine {
         double callRatio = chips == 0 || callAmount >= chips ? 1.0 : (callAmount * 1.0 / chips);// 把要跟的大于自己的部分算作1，因为超出去部分没意义，要跟的已经占百分百了
         TablePosition position = getTablePosition(room, bot);// 看位置方法
         String stageForNpc = room.getCurrentStage() != null ? room.getCurrentStage() : "";
-        Random random = buildHandRandom(room, bot);
+        Random random = ThreadLocalRandom.current();
         // log.info("random: {}", random);
         /// 这里判断牌面危险度、风格配置（翻前范围、凶度、偷盲率、诈唬频率等）
         BoardDanger boardDanger = evaluateBoardDanger(room.getCommunityCards());

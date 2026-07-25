@@ -6,9 +6,12 @@ services:
     image: mysql:8.0
     mem_limit: 450m
     cpus: "0.5"
+    # 与 app TZ / JDBC serverTimezone 对齐，避免 NOW()、TIMESTAMP 与业务时区不一致
     environment:
       MYSQL_ROOT_PASSWORD: mgdemo_root
       MYSQL_DATABASE: school_db
+      TZ: Asia/Shanghai
+    command: --default-time-zone='+08:00'
     ports:
       - "3307:3306"
     volumes:
@@ -19,6 +22,20 @@ services:
       timeout: 5s
       retries: 30
       start_period: 20s
+
+  minio:
+    image: minio/minio:latest
+    mem_limit: 256m
+    cpus: "0.3"
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
 
   redis:
     image: redis:7-alpine
@@ -50,8 +67,8 @@ services:
 
   app: 
     image: 1933886418/dpgame:v1.0.1 
-    mem_limit: 1200m
-    cpus: "1.2"
+    mem_limit: 944m
+    cpus: "0.9"
     ports:
       - "8088:8088"
     environment:
@@ -64,6 +81,13 @@ services:
       MGDEMOPLUS_MUSIC_FILE_LOCATION: file:/data/mgdemo-files/music/
       MGDEMOPLUS_FILES_FILE_LOCATION: file:/data/mgdemo-files/other/
       MGDEMOPLUS_TIME_ZONE: Asia/Shanghai
+
+      # --- MinIO 对象存储（bucket 由 app 启动时自动创建）---
+      MGDEMOPLUS_MINIO_ENABLED: ${MGDEMOPLUS_MINIO_ENABLED:-true}
+      MGDEMOPLUS_MINIO_ENDPOINT: http://minio:9000
+      MGDEMOPLUS_MINIO_ACCESS_KEY: ${MGDEMOPLUS_MINIO_ACCESS_KEY:-minioadmin}
+      MGDEMOPLUS_MINIO_SECRET_KEY: ${MGDEMOPLUS_MINIO_SECRET_KEY:-minioadmin}
+      MGDEMOPLUS_MINIO_BUCKET: ${MGDEMOPLUS_MINIO_BUCKET:-mgdemo}
 
       # --- C: Docker 网络内 JDBC / Redis（主机名 mysql / redis）---
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/school_db?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
@@ -113,9 +137,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      minio:
+        condition: service_started
 
 
 volumes:
   mysql_data:
   redis_data:
+  minio_data:
   mgdemo_uploads:

@@ -13,9 +13,9 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * NPC 行动成功后的桌边话术：规则 bot 走台词池，LLM bot 走模型 {@code table_talk} 字段。
@@ -36,8 +36,6 @@ public class DpNpcTableTalkService {
 
     /** roomId|botNickname → last push epoch ms（仅行动中话术节流） */
     private final Map<String, Long> lastPushMsByRoomBot = new ConcurrentHashMap<>();
-    /** roomId|botNickname → 桌边话独立随机盐 */
-    private final Map<String, Long> talkRollSaltByRoomBot = new ConcurrentHashMap<>();
 
     public DpNpcTableTalkService(
             DpNpcTableTalkProperties properties,
@@ -128,9 +126,7 @@ public class DpNpcTableTalkService {
         double probability = properties.getSpeakProbability() != null
                 ? properties.getSpeakProbability()
                 : pool.getSpeakProbability();
-        Random random = DpNpcEngine.buildHandRandomForTableTalk(
-                room, bot, nextTalkRollSalt(room.getRoomId(), bot.getNickname()));
-        if (random.nextDouble() >= probability) {
+        if (ThreadLocalRandom.current().nextDouble() >= probability) {
             return;
         }
         String poolKey = actionTypeToPoolKey(action.getType());
@@ -138,7 +134,8 @@ public class DpNpcTableTalkService {
         if (lines.isEmpty()) {
             return;
         }
-        tryPublish(room.getRoomId(), bot.getNickname(), lines.get(random.nextInt(lines.size())), "rule", true);
+        tryPublish(room.getRoomId(), bot.getNickname(),
+                lines.get(ThreadLocalRandom.current().nextInt(lines.size())), "rule", true);
     }
 
     private void publishSettleTableTalk(DpRoomBO room, DpPlayer bot, String poolKey) {
@@ -150,9 +147,7 @@ public class DpNpcTableTalkService {
         double probability = properties.getSettleSpeakProbability() != null
                 ? properties.getSettleSpeakProbability()
                 : pool.getSettleSpeakProbability();
-        Random random = DpNpcEngine.buildHandRandomForTableTalk(
-                room, bot, nextTalkRollSalt(room.getRoomId(), bot.getNickname()));
-        if (random.nextDouble() >= probability) {
+        if (ThreadLocalRandom.current().nextDouble() >= probability) {
             log.debug("settle-talk skip: probability bot={} p={} key={}", bot.getNickname(), probability, poolKey);
             return;
         }
@@ -160,7 +155,8 @@ public class DpNpcTableTalkService {
         if (lines.isEmpty()) {
             return;
         }
-        tryPublish(room.getRoomId(), bot.getNickname(), lines.get(random.nextInt(lines.size())), "settle", false);
+        tryPublish(room.getRoomId(), bot.getNickname(),
+                lines.get(ThreadLocalRandom.current().nextInt(lines.size())), "settle", false);
     }
 
     private List<String> linesForPoolKey(NpcLinePool pool, DpPlayer bot, String basePoolKey) {
@@ -189,10 +185,6 @@ public class DpNpcTableTalkService {
             resourceKey = DpNpcLinePoolLoader.resourceKeyForStyle(style);
         }
         return linePoolLoader.loadByResourceKey(resourceKey);
-    }
-
-    private long nextTalkRollSalt(String roomId, String botNickname) {
-        return talkRollSaltByRoomBot.merge(roomId + "|" + botNickname, 1L, Long::sum);
     }
 
     private void tryPublish(String roomId, String botNickname, String text, String source, boolean applyThrottle) {

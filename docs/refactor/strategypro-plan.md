@@ -39,7 +39,7 @@
 - 免费看牌（`callAmount == 0`）**不弃牌**
 - pot odds 明显不利时，非跟注站型 **倾向 fold**
 - 各 archetype **风格可区分**（不是同一公式换系数）
-- 决策可复现（`buildHandRandom` 种子不变）
+- 决策随机为无种子 `ThreadLocalRandom`（与 `currentHandSeed` 无关）
 
 ### 1.2 非目标
 
@@ -385,7 +385,7 @@ DpNpcUnifiedPreflopStrategy
 |----|------|
 | 改动文件 | `strategypro/preflop/DpNpcUnifiedPreflopStrategy`；可选拆分 `DpNpcPreflopMatrix`；`docs/ai/npc-preflop-unified-decision-flow.md` 同步 |
 | 工作内容 | ① 文档化 `rangeLevel` 公式 ② 校验 G1–G8 与 13×13 矩阵一致性 ③ `BotType.rangeLevelBonus` 与性格对齐 ④ spot 切片行为审查（UNOPENED / FACING_OPEN / FACING_3BET / FACING_4BET） |
-| 验收 | ① 六 archetype 翻前 open 率排序：MANIAC > LAG > FISH > CALL > TAG > NIT ② 同手牌 NIT fold / MANIAC open 可复现 ③ 矩阵仍为 0/1（无频率格） |
+| 验收 | ① 六 archetype 翻前 open 率排序：MANIAC > LAG > FISH > CALL > TAG > NIT ② 同手牌 NIT fold / MANIAC open 行为符合矩阵 ③ 矩阵仍为 0/1（无频率格） |
 | 回滚 | 恢复矩阵静态数据快照（类加载时 byte 数组） |
 | 依赖 | Phase 1 |
 

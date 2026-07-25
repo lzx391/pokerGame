@@ -92,7 +92,7 @@ pseudoTablePosition(lateFactor, blind):
 - 3bet 价值概率基值: 0.62
 - 3bet 诈唬概率基值: 0.16
 - pfrAggressionScale: 0.35+0.65×pfr
-- 全局开关: NPC_HAND_SEED_FOR_DECISIONS=true
+- 决策随机: ThreadLocalRandom（无固定种子）
 
 ## Text Labels (in Chinese)
 - 翻前统一决策流水线

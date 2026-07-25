@@ -68,6 +68,14 @@ public class DpPlayer {
     private double mood = 0.0;
 
     /**
+     * 规则 NPC 情绪档位（{@code HIGH} / {@code NEUTRAL} / {@code LOW}），由 {@code getAllRooms} 推送前按
+     * {@link com.example.mgdemoplus.npc.mood.NpcMoodState} 与 {@code dp.npc.mood} 阈值填充；
+     * 真人、LLM bot 为 null（JSON 省略）。
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String moodState;
+
+    /**
      * 机器人下一次允许自动行动的时间戳（毫秒）。
      * 仅 NPC 使用，用于模拟“思考时间”：强牌更爱“长考”、弱牌/诈唬更容易秒出手。
      * 对真人玩家逻辑没有影响。
@@ -174,6 +182,8 @@ public class DpPlayer {
     public void setWinStreak(int winStreak) { this.winStreak = Math.max(0, winStreak); }
     public double getMood() { return mood; }
     public void setMood(double mood) { this.mood = mood; }
+    public String getMoodState() { return moodState; }
+    public void setMoodState(String moodState) { this.moodState = moodState; }
     public long getNextBotActionTime() { return nextBotActionTime; }
     public void setNextBotActionTime(long nextBotActionTime) { this.nextBotActionTime = nextBotActionTime; }
 

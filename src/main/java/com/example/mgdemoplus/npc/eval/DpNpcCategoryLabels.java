@@ -16,10 +16,14 @@ public final class DpNpcCategoryLabels {
     }
 
     public static String madeZh(DpNpcHandSnapshot snap) {
-        if (snap == null || snap.made == null) {
+        return snap == null ? "" : madeZh(snap.made);
+    }
+
+    public static String madeZh(DpNpcMadeHandCategory made) {
+        if (made == null) {
             return "";
         }
-        return switch (snap.made) {
+        return switch (made) {
             case HIGH_CARD -> "高牌";
             case BOTTOM_PAIR -> "底对";
             case MIDDLE_PAIR -> "中对";
@@ -43,10 +47,14 @@ public final class DpNpcCategoryLabels {
     }
 
     public static String drawZh(DpNpcHandSnapshot snap) {
-        if (snap == null || snap.draw == null || snap.draw == DpNpcDrawCategory.NONE) {
+        return snap == null ? "无听牌" : drawZh(snap.draw);
+    }
+
+    public static String drawZh(DpNpcDrawCategory draw) {
+        if (draw == null || draw == DpNpcDrawCategory.NONE) {
             return "无听牌";
         }
-        return switch (snap.draw) {
+        return switch (draw) {
             case GUTSHOT -> "卡顺听";
             case OESD -> "两头顺听";
             case FLUSH_DRAW -> "同花听";

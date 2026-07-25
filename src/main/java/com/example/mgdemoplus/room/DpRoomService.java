@@ -119,6 +119,8 @@ public interface DpRoomService {
 
     ResultUtil getNextHandDeckPrefixStatus(String roomId, String requesterNickname, String experimentalPassword);
 
+    boolean isRoomOwnerNickname(String roomId, String nickname);
+
     List<DpRoom> getAllRooms2();
 
     Set<String> getRoomIdsInMemory();

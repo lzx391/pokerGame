@@ -29,6 +29,20 @@ public final class DpImageFileSupport {
     public static String avatarThumbWebPath(int userId) {
         return "/images/" + avatarThumbFilename(userId);
     }
+
+    /** 画廊预览路径：{@code /images/{uuid}.jpg} → {@code /images/{uuid}_sm.webp} */
+    public static String previewWebPathFromImageWebPath(String imageWebPath) {
+        String filename = filenameFromWebPath(imageWebPath);
+        if (filename == null) {
+            return null;
+        }
+        int dot = filename.lastIndexOf('.');
+        if (dot <= 0) {
+            return null;
+        }
+        String base = filename.substring(0, dot);
+        return "/images/" + base + AVATAR_THUMB_SUFFIX;
+    }
 /**
  * 合法物理路径
  * @param fileLocation

@@ -16,6 +16,7 @@ import com.example.mgdemoplus.utils.ResultUtil;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -405,6 +406,7 @@ public class DpRoomController {
      * 房主验证实验排牌访问密码（前端 session 解锁前调用）。
      */
     @PostMapping("/verifyExperimentalDeckPassword")
+    @PreAuthorize("@dpPermissionService.hasPermi(T(com.example.mgdemoplus.rbac.support.DpPermissionCodes).GAME_EXPERIMENTAL_DECK_PRESET)")
     public ResultUtil verifyExperimentalDeckPassword(@RequestBody VerifyExperimentalDeckPasswordRequest req) {
         DpUser me = currentUserSupport.requireUser();
         if (me == null) {
@@ -423,6 +425,7 @@ public class DpRoomController {
      * 房主预设下一局牌堆前缀（按发牌顺序）；对局进行中也可提交/更新，下一局 newHand 时消费并清空。
      */
     @PostMapping("/setNextHandDeckPrefix")
+    @PreAuthorize("@dpPermissionService.hasPermi(T(com.example.mgdemoplus.rbac.support.DpPermissionCodes).GAME_EXPERIMENTAL_DECK_PRESET)")
     public ResultUtil setNextHandDeckPrefix(@RequestBody SetNextHandDeckPrefixRequest req) {
         DpUser me = currentUserSupport.requireUser();
         if (me == null) {
@@ -442,6 +445,7 @@ public class DpRoomController {
      * 房主查询当前是否已设下局牌序预设（不下发至普通房间快照）。
      */
     @GetMapping("/nextHandDeckPrefixStatus")
+    @PreAuthorize("@dpPermissionService.hasPermi(T(com.example.mgdemoplus.rbac.support.DpPermissionCodes).GAME_EXPERIMENTAL_DECK_PRESET)")
     public ResultUtil nextHandDeckPrefixStatus(@RequestParam String roomId,
                                                @RequestParam String experimentalPassword) {
         DpUser me = currentUserSupport.requireUser();

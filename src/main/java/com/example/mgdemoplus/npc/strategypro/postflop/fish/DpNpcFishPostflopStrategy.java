@@ -17,6 +17,7 @@ import com.example.mgdemoplus.npc.strategypro.l1.DpNpcHardConstraints;
 import com.example.mgdemoplus.npc.strategypro.l4.DpNpcHeroCall;
 import com.example.mgdemoplus.npc.strategypro.l4.DpNpcRaiseEscalation;
 import com.example.mgdemoplus.npc.strategypro.l4.DpNpcRaiseEscalation.EscalationResult;
+import com.example.mgdemoplus.npc.trace.DpNpcPostflopTraceHooks;
 import com.example.mgdemoplus.utils.DpUtilSmartContext;
 
 /**
@@ -51,6 +52,9 @@ public final class DpNpcFishPostflopStrategy {
         DpNpcDrawCategory draw = DpNpcPostflopFormula.drawOrNone(p.handSnapshot);
         DpBoardTexture tex = DpNpcPostflopFormula.textureOrDry(p.handSnapshot);
         HandPlanType plan = DpNpcEngine.getHandPlanType(p.bot);
+
+        DpNpcPostflopTraceHooks.postflopContext(
+                stage, callAmount, plan, made, draw, tex, bd, p, ctx, 0.0, 0.0);
 
         if (callAmount > 0) {
             BotAction foldAction = tryFoldFacingBet(p, stage, callAmount, made, draw, tex, plan, ctx);
@@ -106,7 +110,9 @@ public final class DpNpcFishPostflopStrategy {
 
         if (plan == HandPlanType.GIVE_UP && callAmount > 0
                 && !made.isAtLeast(DpNpcMadeHandCategory.TRIPS)) {
+            double beforeGiveUp = baseFold;
             baseFold = Math.min(1.0, baseFold + 0.11);
+            DpNpcPostflopTraceHooks.giveUpFoldBoost(plan, made, beforeGiveUp, baseFold, 0.11);
         }
 
         // FISH 决策分叉：中对/弱顶对宽跟，但面对大注有基本恐惧（比 CALL 更易弃边缘牌）
@@ -123,6 +129,7 @@ public final class DpNpcFishPostflopStrategy {
         }
 
         if (DpNpcHeroCall.shouldHeroCall(p, stage, callAmount, made, draw, ctx)) {
+            DpNpcPostflopTraceHooks.heroCall();
             return null;
         }
 
@@ -143,8 +150,10 @@ public final class DpNpcFishPostflopStrategy {
                     callAmount >= p.chips)) {
                 return null;
             }
+            DpNpcPostflopTraceHooks.foldRollHit(baseFold, foldProb);
             return new BotAction(BotActionType.FOLD, 0);
         }
+        DpNpcPostflopTraceHooks.foldRollMiss(baseFold, foldProb, plan);
         return null;
     }
 
@@ -179,9 +188,12 @@ public final class DpNpcFishPostflopStrategy {
         raiseProb = Math.min(0.35, Math.max(0.02, raiseProb));
 
         if (p.random.nextDouble() > raiseProb || p.chips <= callAmount) {
+            DpNpcPostflopTraceHooks.raiseRollMiss(raiseProb, aggro, plan, made);
+            DpNpcPostflopTraceHooks.postflopAction("CALL_OR_CHECK", "面对下注跟注");
             return new BotAction(BotActionType.CALL_OR_CHECK, 0);
         }
 
+        DpNpcPostflopTraceHooks.raiseRoll(raiseProb, aggro, plan, made);
         int bb = p.room.getBigBlindChips();
         int extraMin = DpNpcPostflopFormula.raiseExtraMinBb(made);
         int extraMax = DpNpcPostflopFormula.raiseExtraMaxBb(made, stage);
@@ -189,13 +201,17 @@ public final class DpNpcFishPostflopStrategy {
                 p.room, callAmount, p.chips, made, stage, p.type, extraMin, extraMax, p.random);
         int raiseAmount = esc.raiseAmount;
         if (raiseAmount <= callAmount) {
+            DpNpcPostflopTraceHooks.postflopAction("CALL_OR_CHECK", "跟注（raise amount too small）");
             return new BotAction(BotActionType.CALL_OR_CHECK, 0);
         }
         if (DpNpcEngine.shouldSkipAggressiveActionByPlan(p.bot, stage)
                 && !made.isAtLeast(DpNpcMadeHandCategory.TWO_PAIR)) {
+            DpNpcPostflopTraceHooks.skipAggressive(plan, stage, made);
+            DpNpcPostflopTraceHooks.postflopAction("CALL_OR_CHECK", "check/call（plan skip aggressive）");
             return new BotAction(BotActionType.CALL_OR_CHECK, 0);
         }
         DpNpcEngine.consumeOneBarrelIfAny(p.bot, stage);
+        DpNpcPostflopTraceHooks.postflopAction("RAISE", "raise facing bet amount=" + raiseAmount);
         return new BotAction(BotActionType.RAISE, raiseAmount);
     }
 
@@ -221,6 +237,8 @@ public final class DpNpcFishPostflopStrategy {
 
         if (DpNpcEngine.shouldSkipAggressiveActionByPlan(p.bot, stage)) {
             if (!made.isAtLeast(DpNpcMadeHandCategory.TOP_PAIR_TOP_KICKER)) {
+                DpNpcPostflopTraceHooks.skipAggressive(plan, stage, made);
+                DpNpcPostflopTraceHooks.postflopAction("CALL_OR_CHECK", "check（plan skip aggressive）");
                 return new BotAction(BotActionType.CALL_OR_CHECK, 0);
             }
         }
@@ -228,6 +246,7 @@ public final class DpNpcFishPostflopStrategy {
         if (made.ordinal() <= DpNpcMadeHandCategory.TOP_PAIR_WEAK_KICKER.ordinal()
                 && !DpNpcPostflopFormula.hasSemiBluffDraw(draw)) {
             if (plan == HandPlanType.POT_CONTROL || plan == HandPlanType.GIVE_UP) {
+                DpNpcPostflopTraceHooks.postflopAction("CALL_OR_CHECK", "check（pot control / give up）");
                 return new BotAction(BotActionType.CALL_OR_CHECK, 0);
             }
         }
@@ -236,11 +255,17 @@ public final class DpNpcFishPostflopStrategy {
         if (p.random.nextDouble() < valueBetProb) {
             if (DpNpcEngine.shouldSkipAggressiveActionByPlan(p.bot, stage)
                     && !made.isAtLeast(DpNpcMadeHandCategory.TOP_PAIR_TOP_KICKER)) {
+                DpNpcPostflopTraceHooks.skipAggressive(plan, stage, made);
+                DpNpcPostflopTraceHooks.postflopAction("CALL_OR_CHECK", "check（plan skip aggressive）");
                 return new BotAction(BotActionType.CALL_OR_CHECK, 0);
             }
             double factor = DpNpcPostflopFormula.cbetPotFactor(made, tex, stage);
+            DpNpcPostflopTraceHooks.valueBetRoll(valueBetProb, factor);
+            DpNpcPostflopTraceHooks.postflopAction("RAISE", "value bet potFraction=" + String.format("%.2f", factor));
             return raisePotFraction(p, stage, factor);
         }
+        DpNpcPostflopTraceHooks.valueBetRollMiss(valueBetProb);
+        DpNpcPostflopTraceHooks.postflopAction("CALL_OR_CHECK", "check（no bet line）");
         return new BotAction(BotActionType.CALL_OR_CHECK, 0);
     }
 

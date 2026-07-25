@@ -71,14 +71,14 @@
 
 <script>
 import { mapState } from 'vuex'
-import { CAT_COPY } from '@/constants/dpCatThemeCopy'
-import { resolveRouteTransitionName } from '@/utils/dpRouteTransition'
-import { isRouteTransitionEnabled } from '@/utils/dpRouteTransitionFlag'
-import { bindAuthCrtOverlay } from '@/utils/dpAuthEnterLobby'
-import { bindRetroEnterGameCrtOverlay } from '@/utils/dpRetroEnterGameHandoff'
-import DpAuthStage from '@/components/DpAuthStage.vue'
-import DpCrtFullscreenOverlay from '@/components/DpCrtFullscreenOverlay.vue'
-import DpAchievementToastHost from '@/components/DpAchievementToastHost.vue'
+import { CAT_COPY } from '@shared/constants/dpCatThemeCopy'
+import { resolveRouteTransitionName } from '@shared/utils/dpRouteTransition'
+import { isRouteTransitionEnabled } from '@shared/utils/dpRouteTransitionFlag'
+import { bindAuthCrtOverlay } from '@features/user/utils/dpAuthEnterLobby'
+import { bindRetroEnterGameCrtOverlay } from '@shared/utils/dpRetroEnterGameHandoff'
+import DpAuthStage from '@features/user/components/DpAuthStage.vue'
+import DpCrtFullscreenOverlay from '@shared/components/DpCrtFullscreenOverlay.vue'
+import DpAchievementToastHost from '@features/achievement/components/DpAchievementToastHost.vue'
 
 export default {
   name: 'App',
@@ -113,9 +113,12 @@ export default {
         p === '/home' ||
         p === '/create-room' ||
         p.startsWith('/hand-history') ||
+        p.startsWith('/gallery') ||
         p === '/leaderboard' ||
         p === '/music-upload' ||
-        p === '/download-center'
+        p === '/download-center' ||
+        p === '/admin' ||
+        p.startsWith('/admin/')
       )
     },
     /** 对局页：铺满视口、与 .dp-game-root 组成 flex 链，减少底部露灰/白边 */
@@ -272,6 +275,7 @@ body {
 
 /* 对局：#app 与全屏容器拉满动态视口，子级 .dp-game-root flex:1 避免平板/安全区下露浅灰底 */
 #app.app--dp-game {
+  min-height: 100svh;
   min-height: 100dvh;
   min-height: -webkit-fill-available;
   display: flex;
@@ -283,6 +287,7 @@ body {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  min-height: 100svh;
   min-height: 100dvh;
   min-height: -webkit-fill-available;
 }

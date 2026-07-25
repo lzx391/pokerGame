@@ -36,7 +36,7 @@ class DpNpcL4HeroCallTest {
 
     @Test
     void riverHighCardHeroCallProbabilityWithLowCredibility() {
-        DpNpcRuleDecisionParams p = buildRiverHighCardParams(9000L, BotType.LAG);
+        DpNpcRuleDecisionParams p = buildRiverHighCardParams(BotType.LAG, new Random());
         DpUtilSmartContext ctx = buildCtx(0.12, 1, ActionCredibility.LOW, 0.55);
         double prob = DpNpcHeroCall.heroCallProbability(
                 p, "river", p.callAmount,
@@ -47,18 +47,18 @@ class DpNpcL4HeroCallTest {
 
     @Test
     void riverHighCardHeroCallWithLowCredibility() {
-        // handSeed 4096 → Random(4096^17).nextDouble() ≈ 0.099 < prob 0.15
-        DpNpcRuleDecisionParams p = buildRiverHighCardParams(4096L, BotType.LAG);
+        // Random(4096).nextDouble() ≈ 0.099 < prob 0.15
+        DpNpcRuleDecisionParams p = buildRiverHighCardParams(BotType.LAG, new Random(4096L));
         DpUtilSmartContext ctx = buildCtx(0.12, 1, ActionCredibility.LOW, 0.55);
         assertTrue(DpNpcHeroCall.shouldHeroCall(
                 p, "river", p.callAmount,
                 DpNpcMadeHandCategory.HIGH_CARD, DpNpcDrawCategory.NONE, ctx),
-                "fixed seed should hit hero call when roll < probability");
+                "seeded Random should hit hero call when roll < probability");
     }
 
     @Test
     void bigBetExcludesHeroCall() {
-        DpNpcRuleDecisionParams p = buildRiverHighCardParams(9001L, BotType.LAG);
+        DpNpcRuleDecisionParams p = buildRiverHighCardParams(BotType.LAG, new Random());
         p = new DpNpcRuleDecisionParams(
                 bigBetRoom(400, 300),
                 p.bot,
@@ -86,7 +86,7 @@ class DpNpcL4HeroCallTest {
 
     @Test
     void multiwayThreePlusExcludesHeroCall() {
-        DpNpcRuleDecisionParams p = buildRiverHighCardParams(9002L, BotType.TAG);
+        DpNpcRuleDecisionParams p = buildRiverHighCardParams(BotType.TAG, new Random());
         DpUtilSmartContext ctx = buildCtx(0.12, 3, ActionCredibility.LOW, 0.55);
         assertFalse(DpNpcHeroCall.shouldHeroCall(
                 p, "river", p.callAmount,
@@ -96,7 +96,7 @@ class DpNpcL4HeroCallTest {
 
     @Test
     void callTypeNeverHeroCalls() {
-        DpNpcRuleDecisionParams p = buildRiverHighCardParams(9100L, BotType.CALL);
+        DpNpcRuleDecisionParams p = buildRiverHighCardParams(BotType.CALL, new Random());
         DpUtilSmartContext ctx = buildCtx(0.12, 1, ActionCredibility.LOW, 0.55);
         assertFalse(DpNpcHeroCall.shouldHeroCall(
                 p, "river", p.callAmount,
@@ -104,12 +104,10 @@ class DpNpcL4HeroCallTest {
                 "CALL archetype should not use extra hero call");
     }
 
-    private static DpNpcRuleDecisionParams buildRiverHighCardParams(long handSeed, BotType type) {
+    private static DpNpcRuleDecisionParams buildRiverHighCardParams(BotType type, Random random) {
         DpRoomBO room = baseRiverRoom(200, 80);
-        room.setCurrentHandSeed(handSeed);
         DpPlayer bot = seatBot(room, "BOT_TEST", 1000, 0, type);
         bot.setHoleCards(NpcEvalTestSupport.hole("2h_7d"));
-        Random random = handDecisionRandom(room, bot);
         DpNpcHandSnapshot snap = DpNpcHandSnapshot.postflop(
                 DpNpcMadeHandCategory.HIGH_CARD,
                 DpNpcDrawCategory.NONE,
@@ -164,17 +162,6 @@ class DpNpcL4HeroCallTest {
     private static DpRoomBO bigBetRoom(int pot, int betToCall) {
         DpRoomBO room = baseRiverRoom(pot, betToCall);
         return room;
-    }
-
-    /** 与 {@link DpNpcEngine} 内 {@code buildHandRandom} 同源，便于测试种子与生产一致。 */
-    private static Random handDecisionRandom(DpRoomBO room, DpPlayer bot) {
-        long seed = room.getCurrentHandSeed();
-        int seatIndex = room.getPlayers().indexOf(bot);
-        if (seatIndex < 0) {
-            seatIndex = 0;
-        }
-        seed ^= (long) (31 * seatIndex + 17);
-        return new Random(seed);
     }
 
     private static DpPlayer seatBot(DpRoomBO room, String nickname, int chips, int bet, BotType type) {
