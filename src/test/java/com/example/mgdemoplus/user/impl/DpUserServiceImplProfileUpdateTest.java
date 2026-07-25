@@ -5,6 +5,7 @@ import com.example.mgdemoplus.common.mapper.DpUserMapper;
 import com.example.mgdemoplus.moderation.DpSensitiveWordService;
 import com.example.mgdemoplus.user.dto.DpUserProfileUpdateRequest;
 import com.example.mgdemoplus.user.dto.DpUserProfileUpdateResult;
+import com.example.mgdemoplus.rbac.DpRbacService;
 import com.example.mgdemoplus.user.mapper.DpUserStatsMapper;
 import com.example.mgdemoplus.utils.CryptoUtil;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,8 @@ class DpUserServiceImplProfileUpdateTest {
     private DpUserStatsMapper dpUserStatsMapper;
     @Mock
     private DpSensitiveWordService sensitiveWordService;
+    @Mock
+    private DpRbacService dpRbacService;
 
     @InjectMocks
     private DpUserServiceImpl service;

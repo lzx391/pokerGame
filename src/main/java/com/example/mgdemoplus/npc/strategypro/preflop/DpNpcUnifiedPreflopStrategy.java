@@ -8,6 +8,10 @@ import com.example.mgdemoplus.npc.eval.DpNpcPreflopCategory;
 import com.example.mgdemoplus.npc.eval.DpNpcPreflopHandGrouper;
 import com.example.mgdemoplus.npc.eval.DpNpcPreflopHandGrouper.HandGroup;
 import com.example.mgdemoplus.npc.eval.DpNpcPreflopHandGrouper.HoleInfo;
+import com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTraceCollector;
+import com.example.mgdemoplus.npc.trace.DpNpcTagDecisionTraceSupport;
+import com.example.mgdemoplus.npc.trace.model.DpNpcPreflopRaiseMeta;
+import com.example.mgdemoplus.npc.trace.preflop.DpNpcPreflopMatrixExporter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -80,6 +84,8 @@ public final class DpNpcUnifiedPreflopStrategy {
 
     /** ?? 4bet+?????????? G3?? */
     private static final byte[][] facing4BetMidG3Allow = new byte[RANK_DIM][RANK_DIM];
+    /** trace 展示用：G1–G3 累积范围，与 facing4BetJamAllow 的 cumulative 风格一致 */
+    private static final byte[][] facing4BetMidG3TraceAllow = new byte[RANK_DIM][RANK_DIM];
 
     /**
      * ???????????????????{@code rangeLevel}???????????<strong>????</strong>???????
@@ -138,34 +144,279 @@ public final class DpNpcUnifiedPreflopStrategy {
         // ?? + rangeLevel ? ???????????3bet/4bet ????????????????
         int posIdx = position.ordinal();
         int levelIdx = rangeLevel - 1;
-        int defendLevelIdx = defendMatrixLevelIdx(rangeLevel, botType, callAmount, bb);
+        int defendLevelIdx = defendMatrixLevelIdx(rangeLevel, botType, position, callAmount, bb);
 
         HandGroup g = DpNpcPreflopHandGrouper.groupOf(hole);
 
-        // === ?????? 4bet ????? all-in / call / fold ===
+        tracePreflopContext(spot, raiseLevel, callAmount, position, rangeLevel, hole, activePlayers, effStackBB);
+
+        // === 面对 4bet 及以上：all-in / call / fold ===
         if (spot == PreflopSpot.FACING_4BET) {
-            return decideFacing4Bet(hero, bb, sb, callAmount, callRatio, effStackBB, hole, tier, botType, random);
+            byte[][] vs3BetContinueSlice = vs3BetContinueAllow[posIdx][levelIdx];
+            Facing4BetDecision facing4Bet = decideFacing4Bet(
+                    hero, bb, sb, callAmount, callRatio, effStackBB, hole, tier, botType, random,
+                    vs3BetContinueSlice);
+            return tracePreflopReturn(
+                    facing4Bet.action,
+                    "decideFacing4Bet",
+                    facing4Bet.matrixSlice,
+                    facing4Bet.matrixKind,
+                    spot,
+                    position,
+                    rangeLevel,
+                    hole);
         }
 
         // === ?????open / limp-check / fold ===
         if (spot == PreflopSpot.UNOPENED) {
-            return decideUnopened(hero, bb, sb, activePlayers, effStackBB, hole, openAllow[posIdx][levelIdx], random);
+            byte[][] slice = openAllow[posIdx][levelIdx];
+            return tracePreflopReturn(
+                    decideUnopened(hero, bb, sb, callAmount, activePlayers, effStackBB, hole, slice, botType, random),
+                    "decideUnopened", slice, "openAllow", spot, position, rangeLevel, hole);
         }
 
         // === ?? open?call / 3bet / fold ===
         if (spot == PreflopSpot.FACING_OPEN) {
-            return decideFacingOpen(room, hero, bb, sb, callAmount, effStackBB, hole, g,
-                    vsOpenContinueAllow[posIdx][defendLevelIdx], vsOpen3BetValueAllow[posIdx][levelIdx], tier, pfr, random);
+            byte[][] continueSlice = vsOpenContinueAllow[posIdx][defendLevelIdx];
+            byte[][] value3BetSlice = vsOpen3BetValueAllow[posIdx][levelIdx];
+            DpNpcPreflopRaiseMeta raiseMeta = facingOpenRaiseMeta(hole, g, value3BetSlice, tier, pfr);
+            return tracePreflopReturn(
+                    decideFacingOpen(room, hero, bb, sb, callAmount, effStackBB, hole, g,
+                            continueSlice, value3BetSlice, tier, pfr, random),
+                    "decideFacingOpen",
+                    continueSlice,
+                    "vsOpenContinueAllow",
+                    value3BetSlice,
+                    "vsOpen3BetValueAllow",
+                    raiseMeta,
+                    spot,
+                    position,
+                    rangeLevel,
+                    hole);
         }
 
         // === ? open ?? 3bet?call / 4bet / fold ===
         if (spot == PreflopSpot.FACING_3BET) {
-            return decideFacing3Bet(room, hero, bb, sb, callAmount, callRatio, effStackBB, hole, g,
-                    vs3BetContinueAllow[posIdx][levelIdx], vs3Bet4BetValueAllow[posIdx][levelIdx], tier, pfr, random);
+            byte[][] continueSlice = vs3BetContinueAllow[posIdx][levelIdx];
+            byte[][] value4BetSlice = vs3Bet4BetValueAllow[posIdx][levelIdx];
+            DpNpcPreflopRaiseMeta raiseMeta = facing3BetRaiseMeta(hole, g, value4BetSlice, tier, pfr, effStackBB);
+            return tracePreflopReturn(
+                    decideFacing3Bet(room, hero, bb, sb, callAmount, callRatio, effStackBB, hole, g,
+                            continueSlice, value4BetSlice, tier, pfr, random),
+                    "decideFacing3Bet",
+                    continueSlice,
+                    "vs3BetContinueAllow",
+                    value4BetSlice,
+                    "vs3Bet4BetValueAllow",
+                    raiseMeta,
+                    spot,
+                    position,
+                    rangeLevel,
+                    hole);
         }
 
-        // fallback????/?????????
-        return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
+        // fallback：未知 spot / 边界条件
+        return tracePreflopReturn(
+                new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0),
+                "unknownSpotFallback",
+                null,
+                "unknown",
+                spot,
+                position,
+                rangeLevel,
+                hole);
+    }
+
+    private static final class Facing4BetDecision {
+        final DpNpcEngine.BotAction action;
+        final byte[][] matrixSlice;
+        final String matrixKind;
+
+        Facing4BetDecision(DpNpcEngine.BotAction action, byte[][] matrixSlice, String matrixKind) {
+            this.action = action;
+            this.matrixSlice = matrixSlice;
+            this.matrixKind = matrixKind;
+        }
+    }
+
+    /** 翻前决策 matrix 导出结果，供 trace 13×13 网格使用。 */
+    public static final class DecisionMatrixExport {
+        public final byte[][] matrix;
+        public final String matrixKind;
+        public final String spot;
+        public final DpNpcEngine.TablePosition position;
+        public final int rangeLevel;
+        public final HoleInfo hole;
+
+        public DecisionMatrixExport(
+                byte[][] matrix,
+                String matrixKind,
+                String spot,
+                DpNpcEngine.TablePosition position,
+                int rangeLevel,
+                HoleInfo hole) {
+            this.matrix = matrix;
+            this.matrixKind = matrixKind;
+            this.spot = spot;
+            this.position = position;
+            this.rangeLevel = rangeLevel;
+            this.hole = hole;
+        }
+    }
+
+    public static DecisionMatrixExport exportDecisionMatrix(
+            byte[][] matrixSlice,
+            String matrixKind,
+            PreflopSpot spot,
+            DpNpcEngine.TablePosition position,
+            int rangeLevel,
+            HoleInfo hole) {
+        if (matrixSlice == null) {
+            return null;
+        }
+        byte[][] copy = new byte[RANK_DIM][RANK_DIM];
+        for (int i = 0; i < RANK_DIM; i++) {
+            System.arraycopy(matrixSlice[i], 0, copy[i], 0, RANK_DIM);
+        }
+        return new DecisionMatrixExport(copy, matrixKind, spot != null ? spot.name() : "", position, rangeLevel, hole);
+    }
+
+    private static void tracePreflopContext(
+            PreflopSpot spot,
+            int raiseLevel,
+            int callAmount,
+            DpNpcEngine.TablePosition position,
+            int rangeLevel,
+            HoleInfo hole,
+            int activePlayers,
+            double effStackBB) {
+        if (DpNpcTagDecisionTraceCollector.current() == null) {
+            return;
+        }
+        DpNpcTagDecisionTraceCollector.step(
+                "CONTEXT",
+                "PREFLOP_SPOT",
+                "spot=" + spot + " raiseLevel=" + raiseLevel + " callAmount=" + callAmount,
+                DpNpcTagDecisionTraceCollector.dataOf(
+                        "spot", spot != null ? spot.name() : "",
+                        "raiseLevel", raiseLevel,
+                        "callAmount", callAmount,
+                        "position", position != null ? position.name() : "",
+                        "rangeLevel", rangeLevel,
+                        "heroHand", DpNpcTagDecisionTraceSupport.heroHandLabel(hole),
+                        "activePlayers", activePlayers,
+                        "effStackBB", effStackBB));
+    }
+
+    private static DpNpcEngine.BotAction tracePreflopReturn(
+            DpNpcEngine.BotAction action,
+            String branch,
+            byte[][] matrixSlice,
+            String matrixKind,
+            PreflopSpot spot,
+            DpNpcEngine.TablePosition position,
+            int rangeLevel,
+            HoleInfo hole) {
+        return tracePreflopReturn(
+                action,
+                branch,
+                matrixSlice,
+                matrixKind,
+                null,
+                null,
+                null,
+                spot,
+                position,
+                rangeLevel,
+                hole);
+    }
+
+    private static DpNpcEngine.BotAction tracePreflopReturn(
+            DpNpcEngine.BotAction action,
+            String branch,
+            byte[][] matrixSlice,
+            String matrixKind,
+            byte[][] secondaryMatrixSlice,
+            String secondaryMatrixKind,
+            DpNpcPreflopRaiseMeta raiseMeta,
+            PreflopSpot spot,
+            DpNpcEngine.TablePosition position,
+            int rangeLevel,
+            HoleInfo hole) {
+        if (DpNpcTagDecisionTraceCollector.current() != null && matrixSlice != null) {
+            boolean inRange = matrixAllows(matrixSlice, hole);
+            DpNpcTagDecisionTraceCollector.step(
+                    "MATRIX",
+                    "RANGE_CHECK",
+                    "hero " + DpNpcTagDecisionTraceSupport.heroHandLabel(hole) + " in " + matrixKind + " matrix → "
+                            + (inRange ? "continue" : "out"),
+                    null);
+            DecisionMatrixExport exp = exportDecisionMatrix(
+                    traceDisplayMatrix(matrixSlice, matrixKind), matrixKind, spot, position, rangeLevel, hole);
+            DpNpcTagDecisionTraceCollector.attachMatrix(DpNpcPreflopMatrixExporter.fromExport(exp));
+            if (secondaryMatrixSlice != null) {
+                DecisionMatrixExport secondaryExp = exportDecisionMatrix(
+                        secondaryMatrixSlice, secondaryMatrixKind, spot, position, rangeLevel, hole);
+                DpNpcTagDecisionTraceCollector.attachSecondaryMatrix(
+                        DpNpcPreflopMatrixExporter.fromExport(secondaryExp));
+            }
+            if (raiseMeta != null) {
+                DpNpcTagDecisionTraceCollector.attachRaiseMeta(raiseMeta);
+            }
+        } else if (DpNpcTagDecisionTraceCollector.current() != null) {
+            DpNpcTagDecisionTraceCollector.step(
+                    "MATRIX",
+                    "NO_MATRIX",
+                    branch + " spot=" + (spot != null ? spot.name() : "") + " — 无可用 range matrix",
+                    null);
+        }
+        if (DpNpcTagDecisionTraceCollector.current() != null) {
+            DpNpcTagDecisionTraceCollector.step(
+                    "RESULT",
+                    "PREFLOP_BRANCH",
+                    branch + " → " + (action != null ? action.getType() : "null"),
+                    null);
+        }
+        return action;
+    }
+
+    private static DpNpcPreflopRaiseMeta facingOpenRaiseMeta(
+            HoleInfo hole,
+            HandGroup g,
+            byte[][] vsOpen3BetValueSlice,
+            VillainTier tier,
+            double pfr) {
+        boolean valueEligible = matrixAllows(vsOpen3BetValueSlice, hole);
+        boolean bluffEligible = is3BetBluffCandidate(g) && tier == VillainTier.LOOSE_OR_AGGRO;
+        double base = valueEligible ? 0.62 : (bluffEligible ? 0.16 : 0.0);
+        double pfrScale = pfrAggressionScale(pfr);
+        DpNpcPreflopRaiseMeta meta = new DpNpcPreflopRaiseMeta();
+        meta.baseRaiseProb = clamp01(base * pfrScale);
+        meta.matrixKind = "vsOpen3BetValueAllow";
+        meta.valueEligible = valueEligible;
+        meta.bluffEligible = bluffEligible;
+        meta.pfrScale = pfrScale;
+        return meta;
+    }
+
+    private static DpNpcPreflopRaiseMeta facing3BetRaiseMeta(
+            HoleInfo hole,
+            HandGroup g,
+            byte[][] vs3Bet4BetValueSlice,
+            VillainTier tier,
+            double pfr,
+            double effStackBB) {
+        boolean valueEligible = matrixAllows(vs3Bet4BetValueSlice, hole);
+        boolean bluffEligible = is4BetBluffCandidate(g) && tier == VillainTier.LOOSE_OR_AGGRO && effStackBB >= 18;
+        double base = valueEligible ? 0.72 : (bluffEligible ? 0.14 : 0.0);
+        double pfrScale = pfrAggressionScale(pfr);
+        DpNpcPreflopRaiseMeta meta = new DpNpcPreflopRaiseMeta();
+        meta.baseRaiseProb = clamp01(base * pfrScale);
+        meta.matrixKind = "vs3Bet4BetValueAllow";
+        meta.valueEligible = valueEligible;
+        meta.bluffEligible = bluffEligible;
+        meta.pfrScale = pfrScale;
+        return meta;
     }
 
     private static int rangeLevelBonus(DpNpcEngine.BotType t) {
@@ -185,7 +436,7 @@ public final class DpNpcUnifiedPreflopStrategy {
             return 2;
         }
         if (t == DpNpcEngine.BotType.NIT) {
-            return -2;
+            return -1;
         }
         return 0;
     }
@@ -211,8 +462,16 @@ public final class DpNpcUnifiedPreflopStrategy {
         return 0;
     }
 
-    private static int defendMatrixLevelIdx(int rangeLevel, DpNpcEngine.BotType botType, int callAmount, int bb) {
+    private static int defendMatrixLevelIdx(
+            int rangeLevel,
+            DpNpcEngine.BotType botType,
+            DpNpcEngine.TablePosition position,
+            int callAmount,
+            int bb) {
         int defendLevel = clampInt(rangeLevel + defendLevelBonus(botType), 1, 8);
+        if (botType == DpNpcEngine.BotType.NIT && position == DpNpcEngine.TablePosition.BLINDS) {
+            defendLevel = clampInt(defendLevel + 2, 1, 8);
+        }
         if (callAmount > 0 && bb > 0 && callAmount <= 2 * bb) {
             defendLevel = clampInt(defendLevel + 1, 1, 8);
         }
@@ -233,14 +492,15 @@ public final class DpNpcUnifiedPreflopStrategy {
             DpPlayer hero,
             int bb,
             int sb,
+            int callAmount,
             int activePlayers,
             double effStackBB,
             HoleInfo hole,
             byte[][] openSlice,
+            DpNpcEngine.BotType botType,
             Random random) {
         boolean canOpen = matrixAllows(openSlice, hole);
         if (!canOpen) {
-            // ???????????????????
             return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
         }
 
@@ -346,7 +606,7 @@ public final class DpNpcUnifiedPreflopStrategy {
         return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
     }
 
-    private static DpNpcEngine.BotAction decideFacing4Bet(
+    private static Facing4BetDecision decideFacing4Bet(
             DpPlayer hero,
             int bb,
             int sb,
@@ -356,27 +616,42 @@ public final class DpNpcUnifiedPreflopStrategy {
             HoleInfo hole,
             VillainTier tier,
             DpNpcEngine.BotType botType,
-            Random random) {
-        // ???????????????????????? 5bet ????
+            Random random,
+            byte[][] vs3BetContinueSlice) {
+        byte[][] potOddsAllow = intersectMatrix(facing4BetPotOddsCallAllow, vs3BetContinueSlice);
+        byte[][] jamAllow = intersectMatrix(facing4BetJamAllow, vs3BetContinueSlice);
+        byte[][] midAllow = intersectMatrix(facing4BetMidG3Allow, vs3BetContinueSlice);
+        byte[][] midTraceAllow = intersectMatrix(facing4BetMidG3TraceAllow, vs3BetContinueSlice);
+
+        // 面对 4bet+：pot-odds 足够好时按 G4 范围跟注，否则 jam / 中等跟注 / fold
         double potOdds;
-        int denom = hero.getBet() + hero.getChips() + callAmount; // ???? hero ??????????
+        int denom = hero.getBet() + hero.getChips() + callAmount; // 分母含 hero 剩余筹码与需跟注额
         if (callAmount <= 0 || denom <= 0)
             potOdds = 1.0;
         else
             potOdds = callAmount * 1.0 / denom;
         if (callAmount > 0 && potOdds <= 0.18) {
-            if (matrixAllows(facing4BetPotOddsCallAllow, hole)) {
-                return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
+            if (matrixAllows(potOddsAllow, hole)) {
+                return new Facing4BetDecision(
+                        new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0),
+                        potOddsAllow,
+                        "facing4BetPotOddsCallAllow");
             }
             if (random.nextDouble() < 0.40) {
-                return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
+                return new Facing4BetDecision(
+                        new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0),
+                        potOddsAllow,
+                        "facing4BetPotOddsCallAllow");
             }
-            return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.FOLD, 0);
+            return new Facing4BetDecision(
+                    new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.FOLD, 0),
+                    potOddsAllow,
+                    "facing4BetPotOddsCallAllow");
         }
 
-        boolean jamValue = matrixAllows(facing4BetJamAllow, hole);
+        boolean jamValue = matrixAllows(jamAllow, hole);
         if (jamValue) {
-            // ??????????????????????????????
+            // 价值 jam 范围命中：按 villain 类型与有效筹码调整 all-in 概率
             double jamProb = (tier == VillainTier.TIGHT_OR_NIT) ? 0.70 : 0.82;
             if (effStackBB >= 45)
                 jamProb -= 0.12;
@@ -386,24 +661,52 @@ public final class DpNpcUnifiedPreflopStrategy {
                 jamProb += 0.10;
             jamProb = clamp01(jamProb);
             if (random.nextDouble() < jamProb) {
-                return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.ALL_IN, hero.getChips());
+                return new Facing4BetDecision(
+                        new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.ALL_IN, hero.getChips()),
+                        jamAllow,
+                        "facing4BetJamAllow");
             }
-            return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
+            return new Facing4BetDecision(
+                    new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0),
+                    jamAllow,
+                    "facing4BetJamAllow");
         }
 
-        // ????????/??
-        if (matrixAllows(facing4BetMidG3Allow, hole)) {
+        // 中等牌力：G3 精确范围
+        if (matrixAllows(midAllow, hole)) {
             double foldP = 0.35 + 0.25 * Math.min(1.0, callRatio);
             if (tier == VillainTier.TIGHT_OR_NIT)
                 foldP += 0.10;
             foldP = clamp01(foldP);
             if (random.nextDouble() < foldP) {
-                return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.FOLD, 0);
+                return new Facing4BetDecision(
+                        new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.FOLD, 0),
+                        midTraceAllow,
+                        "facing4BetMidG3Allow");
             }
-            return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0);
+            return new Facing4BetDecision(
+                    new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.CALL_OR_CHECK, 0),
+                    midTraceAllow,
+                    "facing4BetMidG3Allow");
         }
 
-        return new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.FOLD, 0);
+        return new Facing4BetDecision(
+                new DpNpcEngine.BotAction(DpNpcEngine.BotActionType.FOLD, 0),
+                midTraceAllow,
+                "facing4BetMidG3Allow");
+    }
+
+    private static byte[][] intersectMatrix(byte[][] a, byte[][] b) {
+        byte[][] out = new byte[RANK_DIM][RANK_DIM];
+        if (a == null || b == null) {
+            return out;
+        }
+        for (int i = 0; i < RANK_DIM; i++) {
+            for (int j = 0; j < RANK_DIM; j++) {
+                out[i][j] = (byte) ((a[i][j] != 0 && b[i][j] != 0) ? 1 : 0);
+            }
+        }
+        return out;
     }
 
     private static int compute3BetAmount(
@@ -544,8 +847,10 @@ public final class DpNpcUnifiedPreflopStrategy {
             return PreflopSpot.FACING_4BET;
         if (raiseLevel == 2)
             return PreflopSpot.FACING_3BET;
-        if (raiseLevel == 1 && callAmount > 0)
+        if (raiseLevel >= 1 && callAmount > 0)
             return PreflopSpot.FACING_OPEN;
+        if (raiseLevel == 0 && callAmount > 0)
+            return PreflopSpot.UNOPENED;
         if (callAmount == 0)
             return PreflopSpot.UNOPENED;
         return PreflopSpot.UNKNOWN;
@@ -822,6 +1127,22 @@ public final class DpNpcUnifiedPreflopStrategy {
         fillRangeSlice(facing4BetPotOddsCallAllow, HandGroup.G4, false);
         fillRangeSlice(facing4BetJamAllow, HandGroup.G2, false);
         fillRangeSlice(facing4BetMidG3Allow, HandGroup.G3, true);
+        fillRangeSlice(facing4BetMidG3TraceAllow, HandGroup.G3, false);
+    }
+
+    /** 测试用：pos×level 下 effective 4bet jam = jam ∩ vs3BetContinue。 */
+    static byte[][] effectiveFacing4BetJamAllow(int posIdx, int levelIdx) {
+        return intersectMatrix(facing4BetJamAllow, vs3BetContinueAllow[posIdx][levelIdx]);
+    }
+
+    /** 测试用：vs3BetContinue 矩阵切片。 */
+    static byte[][] vs3BetContinueMatrix(int posIdx, int levelIdx) {
+        return vs3BetContinueAllow[posIdx][levelIdx];
+    }
+
+    /** 决策 matrix 原样导出。 */
+    private static byte[][] traceDisplayMatrix(byte[][] logicSlice, String matrixKind) {
+        return logicSlice;
     }
 
     private static int countActivePlayers(DpRoomBO room) {

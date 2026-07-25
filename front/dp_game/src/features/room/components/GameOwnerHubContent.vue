@@ -1,0 +1,901 @@
+﻿<template>
+  <div
+      class="dp-owner-hub-content"
+      :class="{
+        'dp-owner-hub-content--inactive': !active,
+        'dp-owner-hub-content--touch': touchMode
+      }"
+  >
+    <!-- root menu -->
+    <div
+        v-if="currentScreen === 'root'"
+        class="dp-owner-hub-content__screen"
+        role="menu"
+        aria-label="房主终端主菜单"
+    >
+      <button
+          v-for="(item, idx) in rootItems"
+          :key="item.id"
+          type="button"
+          class="dp-owner-terminal__row"
+          :class="{ 'dp-owner-terminal__row--active': cursorIndex === idx }"
+          role="menuitem"
+          :aria-selected="cursorIndex === idx ? 'true' : 'false'"
+          @click="onRootClick(idx)"
+      >
+        <span class="dp-owner-terminal__row-cursor" aria-hidden="true">{{ cursorIndex === idx ? '›' : ' ' }}</span>
+        <span class="dp-owner-terminal__row-label">{{ item.label }}</span>
+      </button>
+    </div>
+
+    <!-- NPC pick -->
+    <div
+        v-else-if="currentScreen === 'npc-pick'"
+        class="dp-owner-hub-content__screen"
+        role="listbox"
+        aria-label="选择 NPC 类型"
+    >
+      <template v-if="touchMode">
+        <dp-owner-npc-console
+            :rows="allNpcRows"
+            :counts="npcCounts"
+            :selected-index="cursorIndex"
+            :count-max="npcCountMax"
+            :disabled="submitting"
+            :tip="npcTouchTip"
+            @select="onNpcRowClick"
+            @adjust-count="onNpcCountAdjust"
+        />
+      </template>
+
+      <template v-else>
+        <p class="dp-owner-hub-content__hint">↑↓ 选择 · ←→ 数量 · Enter 确认</p>
+        <button
+            v-for="(row, idx) in allNpcRows"
+            :key="row.id"
+            type="button"
+            class="dp-owner-terminal__row dp-owner-terminal__row--npc"
+            :class="{ 'dp-owner-terminal__row--active': cursorIndex === idx }"
+            role="option"
+            :aria-selected="cursorIndex === idx ? 'true' : 'false'"
+            @click="onNpcRowClick(idx)"
+        >
+          <span class="dp-owner-terminal__row-cursor" aria-hidden="true">{{ cursorIndex === idx ? '›' : ' ' }}</span>
+          <span class="dp-owner-terminal__row-label" :style="{ color: row.labelColor }">{{ row.label }}</span>
+          <span v-if="cursorIndex === idx" class="dp-owner-hub-content__count">× {{ npcCounts[row.id] }}</span>
+          <span v-if="row.adding" class="dp-owner-hub-content__status">提交中…</span>
+        </button>
+      </template>
+    </div>
+
+    <!-- NPC custom profile (retro8bit touch) -->
+    <div
+        v-else-if="customNpcUiEnabled && currentScreen === 'npc-custom-profile'"
+        class="dp-owner-hub-content__screen"
+        aria-label="自定义 NPC 参数"
+    >
+      <dp-custom-npc-console
+          ref="customNpcConsole"
+          :profile="pendingCustomProfile"
+          :pending-count="npcCounts.custom"
+          :disabled="submitting"
+          @update:profile="pendingCustomProfile = $event"
+      />
+    </div>
+
+    <!-- NPC batch confirm (retro8bit touch) -->
+    <div
+        v-else-if="currentScreen === 'npc-batch-confirm'"
+        class="dp-owner-hub-content__screen dp-owner-hub-content__screen--confirm"
+    >
+      <p class="dp-owner-hub-content__confirm-title">批量添加</p>
+      <p class="dp-owner-hub-content__confirm-body">
+        {{ npcBatchSummary }}
+      </p>
+      <p class="dp-owner-hub-content__confirm-detail">下一局生效 · 受空位限制</p>
+    </div>
+
+    <!-- NPC confirm (keyboard terminal) -->
+    <div
+        v-else-if="currentScreen === 'npc-confirm'"
+        class="dp-owner-hub-content__screen dp-owner-hub-content__screen--confirm"
+    >
+      <p class="dp-owner-hub-content__confirm-title">确认添加</p>
+      <p class="dp-owner-hub-content__confirm-body">
+        {{ npcConfirmLabel }}
+      </p>
+      <p v-if="!touchMode" class="dp-owner-hub-content__hint">Enter 确认 · Esc 返回</p>
+    </div>
+
+    <!-- transfer pick -->
+    <div
+        v-else-if="currentScreen === 'transfer-pick'"
+        class="dp-owner-hub-content__screen"
+        role="listbox"
+        aria-label="选择移交对象"
+    >
+      <p v-if="!touchMode" class="dp-owner-hub-content__hint">选择新房主 · Enter 确认</p>
+      <p v-if="transferPlayers.length === 0" class="dp-owner-hub-content__empty">当前没有可移交的玩家。</p>
+      <button
+          v-for="(p, idx) in transferPlayers"
+          :key="'transfer-' + p.nickname"
+          type="button"
+          class="dp-owner-terminal__row"
+          :class="{ 'dp-owner-terminal__row--active': cursorIndex === idx }"
+          role="option"
+          :aria-selected="cursorIndex === idx ? 'true' : 'false'"
+          @click="onTransferRowClick(idx)"
+      >
+        <span class="dp-owner-terminal__row-cursor" aria-hidden="true">{{ cursorIndex === idx ? '›' : ' ' }}</span>
+        <span class="dp-owner-terminal__row-label">{{ displayNickname(p.nickname) }}</span>
+      </button>
+    </div>
+
+    <!-- transfer confirm -->
+    <div
+        v-else-if="currentScreen === 'transfer-confirm'"
+        class="dp-owner-hub-content__screen dp-owner-hub-content__screen--confirm"
+    >
+      <p class="dp-owner-hub-content__confirm-title">移交房主</p>
+      <p class="dp-owner-hub-content__confirm-body">
+        移交给 <strong>{{ displayNickname(pendingTransferNick) }}</strong> ？
+      </p>
+      <p v-if="!touchMode" class="dp-owner-hub-content__hint">Enter 确认 · Esc 返回</p>
+    </div>
+
+    <!-- kick pick -->
+    <div
+        v-else-if="currentScreen === 'kick-pick'"
+        class="dp-owner-hub-content__screen"
+        role="listbox"
+        aria-label="选择踢出玩家"
+    >
+      <p v-if="!touchMode" class="dp-owner-hub-content__hint">Space 勾选 · Enter 下一步</p>
+      <p v-if="kickPlayers.length === 0" class="dp-owner-hub-content__empty">当前没有可踢出的玩家。</p>
+      <button
+          v-for="(p, idx) in kickPlayers"
+          :key="'kick-' + p.nickname"
+          type="button"
+          class="dp-owner-terminal__row"
+          :class="{
+            'dp-owner-terminal__row--active': cursorIndex === idx,
+            'dp-owner-terminal__row--checked': isKickSelected(p.nickname)
+          }"
+          role="option"
+          :aria-selected="cursorIndex === idx ? 'true' : 'false'"
+          @click="onKickRowClick(idx)"
+      >
+        <span class="dp-owner-terminal__row-cursor" aria-hidden="true">{{ cursorIndex === idx ? '›' : ' ' }}</span>
+        <span class="dp-owner-hub-content__check" aria-hidden="true">{{ isKickSelected(p.nickname) ? '[×]' : '[ ]' }}</span>
+        <span class="dp-owner-terminal__row-label">{{ displayNickname(p.nickname) }}</span>
+      </button>
+      <p class="dp-owner-hub-content__kick-summary">已选 {{ kickSelectionNicknames.length }} 人</p>
+    </div>
+
+    <!-- kick confirm -->
+    <div
+        v-else-if="currentScreen === 'kick-confirm'"
+        class="dp-owner-hub-content__screen dp-owner-hub-content__screen--confirm"
+    >
+      <p class="dp-owner-hub-content__confirm-title dp-owner-hub-content__confirm-title--danger">批量踢出</p>
+      <p class="dp-owner-hub-content__confirm-body">
+        踢出 {{ kickSelectionNicknames.length }} 人至观众席？
+      </p>
+      <p class="dp-owner-hub-content__confirm-detail">{{ kickConfirmPreview }}</p>
+      <p v-if="!touchMode" class="dp-owner-hub-content__hint">Enter 确认 · Esc 返回</p>
+    </div>
+
+    <!-- reveal confirm -->
+    <div
+        v-else-if="currentScreen === 'reveal-confirm'"
+        class="dp-owner-hub-content__screen dp-owner-hub-content__screen--confirm"
+    >
+      <p class="dp-owner-hub-content__confirm-title">看穿底牌</p>
+      <p class="dp-owner-hub-content__confirm-body">
+        当前：<strong>{{ ownerRevealAll ? '开启' : '关闭' }}</strong>
+      </p>
+      <p v-if="!touchMode" class="dp-owner-hub-content__hint">Enter 切换 · Esc 返回</p>
+    </div>
+  </div>
+</template>
+
+<script>
+import { mapGetters } from 'vuex'
+import { dpDisplayNickname } from '@shared/utils/dpDisplayNickname'
+import { dpOwnerTerminalDevLog } from '@features/room/utils/dpOwnerTerminalDevLog'
+import {
+  NPC_STYLE_TAG_PRESET,
+  clampNpcStyleProfile,
+  cloneNpcStyleProfile
+} from '@features/npc/constants/npcStylePresets'
+import { DP_CUSTOM_NPC_UI_ENABLED } from '@features/npc/constants/dpCustomNpcUi'
+import DpOwnerNpcConsole from '@features/npc/components/DpOwnerNpcConsole.vue'
+import DpCustomNpcConsole from '@features/npc/components/DpCustomNpcConsole.vue'
+
+var DEFAULT_NPC_COUNTS = {
+  fish: 0,
+  tag: 0,
+  lag: 0,
+  nit: 0,
+  call: 0,
+  maniac: 0,
+  custom: 0,
+  llm: 0,
+  llmGlobal: 0
+}
+
+export default {
+  name: 'GameOwnerHubContent',
+  components: { DpOwnerNpcConsole, DpCustomNpcConsole },
+  props: {
+    active: { type: Boolean, default: false },
+    terminalFocused: { type: Boolean, default: false },
+    /** 触控面板：更大点击区，看牌直接切换 */
+    touchMode: { type: Boolean, default: false },
+    canToggleReveal: { type: Boolean, default: false },
+    canManageExperimentalDeckPreset: { type: Boolean, default: false },
+    canNpcDecisionTrace: { type: Boolean, default: false },
+    ownerRevealAll: { type: Boolean, default: false },
+    demoBotAdding: { type: Boolean, default: false },
+    demoBotAddedTip: { type: String, default: '' },
+    maniacBotAdding: { type: Boolean, default: false },
+    maniacBotAddedTip: { type: String, default: '' },
+    tagBotAdding: { type: Boolean, default: false },
+    tagBotAddedTip: { type: String, default: '' },
+    lagBotAdding: { type: Boolean, default: false },
+    lagBotAddedTip: { type: String, default: '' },
+    nitBotAdding: { type: Boolean, default: false },
+    nitBotAddedTip: { type: String, default: '' },
+    callBotAdding: { type: Boolean, default: false },
+    callBotAddedTip: { type: String, default: '' },
+    llmBotAdding: { type: Boolean, default: false },
+    llmBotAddedTip: { type: String, default: '' },
+    llmGlobalBotAdding: { type: Boolean, default: false },
+    llmGlobalBotAddedTip: { type: String, default: '' },
+    customBotAdding: { type: Boolean, default: false },
+    customBotAddedTip: { type: String, default: '' },
+    /** 触控 footer BACK：父组件递增序号触发 pop */
+    touchFooterBackSeq: { type: Number, default: 0 },
+    /** 触控 footer 主按钮：{ seq, action } */
+    touchFooterPrimaryCmd: {
+      type: Object,
+      default: function () {
+        return null
+      }
+    },
+    /** retro8bit 专属菜单项（分析决策） */
+    gameUiTheme: { type: String, default: 'default' }
+  },
+  data() {
+    return {
+      customNpcUiEnabled: DP_CUSTOM_NPC_UI_ENABLED,
+      menuStack: ['root'],
+      cursorIndex: 0,
+      npcCounts: Object.assign({}, DEFAULT_NPC_COUNTS),
+      kickSelectionNicknames: [],
+      pendingTransferNick: '',
+      pendingNpcRow: null,
+      pendingCustomProfile: cloneNpcStyleProfile(NPC_STYLE_TAG_PRESET),
+      npcTouchTip: '',
+      submitting: false
+    }
+  },
+  computed: {
+    ...mapGetters('dpGame', ['ownerActionPlayers']),
+    currentScreen() {
+      return this.menuStack[this.menuStack.length - 1] || 'root'
+    },
+    stackDepth() {
+      return this.menuStack.length
+    },
+    rootItems() {
+      var items
+      if (this.touchMode) {
+        items = [
+          { id: 'add-npc', label: '添加 NPC' },
+          { id: 'deck-preset', label: '实验排牌' },
+          { id: 'reveal', label: '看牌' },
+          { id: 'kick', label: '踢人' },
+          { id: 'transfer', label: '转让' }
+        ]
+      } else {
+        items = [
+          { id: 'add-npc', label: '添加NPC' },
+          { id: 'deck-preset', label: '实验玩法/预设下局牌序' },
+          { id: 'transfer', label: '移交房主' },
+          { id: 'kick', label: '踢出玩家' },
+          { id: 'reveal', label: '看穿底牌' }
+        ]
+      }
+      if (this.gameUiTheme === 'retro8bit') {
+        var deckIdx = -1
+        for (var i = 0; i < items.length; i++) {
+          if (items[i].id === 'deck-preset') {
+            deckIdx = i
+            break
+          }
+        }
+        var traceItem = { id: 'decision-trace', label: '分析决策' }
+        if (deckIdx >= 0) {
+          items.splice(deckIdx + 1, 0, traceItem)
+        } else {
+          items.push(traceItem)
+        }
+      } else {
+        var deckIdxDefault = -1
+        for (var j = 0; j < items.length; j++) {
+          if (items[j].id === 'deck-preset') {
+            deckIdxDefault = j
+            break
+          }
+        }
+        var traceItemDefault = { id: 'decision-trace', label: '分析决策' }
+        if (deckIdxDefault >= 0) {
+          items.splice(deckIdxDefault + 1, 0, traceItemDefault)
+        } else {
+          items.push(traceItemDefault)
+        }
+      }
+      if (!this.canToggleReveal) {
+        items = items.filter(function (item) {
+          return item.id !== 'reveal'
+        })
+      }
+      if (!this.canManageExperimentalDeckPreset) {
+        items = items.filter(function (item) {
+          return item.id !== 'deck-preset'
+        })
+      }
+      if (!this.canNpcDecisionTrace) {
+        items = items.filter(function (item) {
+          return item.id !== 'decision-trace'
+        })
+      }
+      return items
+    },
+    ruleNpcRows() {
+      return [
+        { id: 'fish', archetype: 'FISH', label: '新手猫 BOT_FISH', labelColor: '#d46b08', adding: this.demoBotAdding, tip: this.demoBotAddedTip },
+        { id: 'tag', archetype: 'TAG', label: '保守猫 BOT_TAG', labelColor: '#237804', adding: this.tagBotAdding, tip: this.tagBotAddedTip },
+        { id: 'lag', archetype: 'LAG', label: '松凶猫 BOT_LAG', labelColor: '#c41d7f', adding: this.lagBotAdding, tip: this.lagBotAddedTip },
+        { id: 'nit', archetype: 'NIT', label: '胆小猫 BOT_NIT', labelColor: '#434343', adding: this.nitBotAdding, tip: this.nitBotAddedTip },
+        { id: 'call', archetype: 'CALL', label: '头铁猫 BOT_CALL', labelColor: '#10239e', adding: this.callBotAdding, tip: this.callBotAddedTip },
+        { id: 'maniac', archetype: 'MANIAC', label: '激进猫 BOT_MANIAC', labelColor: '#cf1322', adding: this.maniacBotAdding, tip: this.maniacBotAddedTip }
+      ]
+    },
+    llmNpcRows() {
+      var rows = [
+        { id: 'llm', type: 'llm', label: 'BOT_LLM', labelColor: '#08979c', adding: this.llmBotAdding, tip: this.llmBotAddedTip },
+        { id: 'llmGlobal', type: 'llmGlobal', label: 'BOT_LLM_GLOBAL', labelColor: '#006d75', adding: this.llmGlobalBotAdding, tip: this.llmGlobalBotAddedTip }
+      ]
+      if (this.customNpcUiEnabled) {
+        rows.unshift({
+          id: 'custom',
+          type: 'custom',
+          label: 'BOT_CUSTOM',
+          labelColor: '#531dab',
+          adding: this.customBotAdding,
+          tip: this.customBotAddedTip
+        })
+      }
+      return rows
+    },
+    allNpcRows() {
+      return this.ruleNpcRows.concat(this.llmNpcRows)
+    },
+    transferPlayers() {
+      if (this.$store.state.dpGame.ownerToolType !== 'transfer') {
+        return []
+      }
+      return this.ownerActionPlayers
+    },
+    kickPlayers() {
+      if (this.$store.state.dpGame.ownerToolType !== 'kick') {
+        return []
+      }
+      return this.ownerActionPlayers
+    },
+    listLength() {
+      if (this.currentScreen === 'root') return this.rootItems.length
+      if (this.currentScreen === 'npc-pick') return this.allNpcRows.length
+      if (this.currentScreen === 'transfer-pick') return this.transferPlayers.length
+      if (this.currentScreen === 'kick-pick') return this.kickPlayers.length
+      return 0
+    },
+    npcConfirmLabel() {
+      var row = this.pendingNpcRow
+      if (!row) return ''
+      var count = this.clampCount(this.npcCounts[row.id], 9)
+      if (row.type === 'custom' || row.id === 'custom') {
+        return 'BOT_CUSTOM × ' + count
+      }
+      if (row.type === 'llm') return 'BOT_LLM × ' + count
+      if (row.type === 'llmGlobal') return 'BOT_LLM_GLOBAL × ' + count
+      return row.label + ' × ' + count
+    },
+    kickConfirmPreview() {
+      var list = this.kickSelectionNicknames.slice(0, 6).map(this.displayNickname)
+      if (this.kickSelectionNicknames.length > 6) list.push('…')
+      return list.join('、')
+    },
+    npcCountMax() {
+      return 9
+    },
+    selectedNpcCount() {
+      var row = this.allNpcRows[this.cursorIndex]
+      if (!row) return this.touchMode ? 0 : 1
+      return this.clampCount(this.npcCounts[row.id], this.npcCountMax)
+    },
+    npcBatchSummary() {
+      var parts = []
+      for (var i = 0; i < this.allNpcRows.length; i++) {
+        var row = this.allNpcRows[i]
+        var count = this.clampCount(this.npcCounts[row.id], this.npcCountMax)
+        if (count <= 0) continue
+        parts.push(this.npcSummaryLabel(row) + '×' + count)
+      }
+      return parts.length ? parts.join('+') : '—'
+    }
+  },
+  watch: {
+    active(now) {
+      if (!now) {
+        this.resetStack()
+        return
+      }
+      var self = this
+      this.$nextTick(function () {
+        self.emitHubScreenState()
+      })
+    },
+    ownerActionPlayers: {
+      deep: true,
+      handler() {
+        this.pruneKickSelection()
+      }
+    },
+    menuStack: {
+      deep: true,
+      handler(stack) {
+        dpOwnerTerminalDevLog('menu stack', {
+          stack: stack.slice(),
+          stackDepth: stack.length,
+          screen: stack[stack.length - 1]
+        })
+        this.emitHubScreenState()
+      }
+    },
+    kickSelectionNicknames: {
+      deep: true,
+      handler() {
+        this.emitHubScreenState()
+      }
+    },
+    touchFooterBackSeq: function (next, prev) {
+      if (!this.touchMode || next === prev) return
+      this.goBack()
+    },
+    touchFooterPrimaryCmd: {
+      deep: true,
+      handler: function (cmd) {
+        if (!this.touchMode || !cmd || !cmd.action) return
+        this.runTouchFooterAction(cmd.action)
+      }
+    }
+  },
+  methods: {
+    displayNickname: dpDisplayNickname,
+    resetStack() {
+      this.menuStack = ['root']
+      this.cursorIndex = 0
+      this.kickSelectionNicknames = []
+      this.pendingTransferNick = ''
+      this.pendingNpcRow = null
+      this.pendingCustomProfile = cloneNpcStyleProfile(NPC_STYLE_TAG_PRESET)
+      this.npcCounts = Object.assign({}, DEFAULT_NPC_COUNTS)
+      this.npcTouchTip = ''
+      this.submitting = false
+      this.emitHubScreenState()
+    },
+    emitHubScreenState() {
+      this.$emit('screen-change', {
+        screen: this.currentScreen,
+        stackDepth: this.stackDepth,
+        listLength: this.listLength,
+        kickSelectionCount: this.kickSelectionNicknames.length
+      })
+    },
+    pushScreen(screen) {
+      this.menuStack.push(screen)
+      this.cursorIndex = 0
+      dpOwnerTerminalDevLog('menu stack push', { screen: screen, stackDepth: this.menuStack.length })
+      this.emitHubScreenState()
+    },
+    popScreen() {
+      if (this.menuStack.length <= 1) return false
+      this.menuStack.splice(this.menuStack.length - 1, 1)
+      this.cursorIndex = 0
+      dpOwnerTerminalDevLog('menu stack pop', { stackDepth: this.menuStack.length, screen: this.currentScreen })
+      this.emitHubScreenState()
+      return true
+    },
+    goBack() {
+      if (this.menuStack.length > 1) {
+        this.popScreen()
+        return true
+      }
+      return false
+    },
+    runTouchFooterAction(action) {
+      if (action === 'npc-next') {
+        this.onTouchNpcNext()
+      } else if (action === 'npc-custom-ok') {
+        this.onCustomProfileConfirm()
+      } else if (action === 'npc-batch-confirm') {
+        this.emitBatchNpcConfirm()
+      } else if (action === 'npc-confirm') {
+        this.emitNpcConfirm()
+      } else if (action === 'transfer-next') {
+        this.enterTransferConfirm()
+      } else if (action === 'transfer-confirm') {
+        this.emitTransferConfirm()
+      } else if (action === 'kick-next') {
+        if (this.kickSelectionNicknames.length > 0) {
+          this.pushScreen('kick-confirm')
+        }
+      } else if (action === 'kick-confirm') {
+        this.emitKickConfirm()
+      }
+    },
+    clampCount(raw, max) {
+      var n = parseInt(raw, 10)
+      var floor = this.touchMode ? 0 : 1
+      if (isNaN(n)) n = floor
+      return Math.max(floor, Math.min(max, n))
+    },
+    npcSummaryLabel(row) {
+      if (row.archetype) return String(row.archetype)
+      if (row.id === 'custom') return 'CUSTOM'
+      if (row.id === 'llm') return 'LLM'
+      if (row.id === 'llmGlobal') return 'LLM_GLOBAL'
+      return String(row.id || '').toUpperCase()
+    },
+    buildBatchItems() {
+      var items = []
+      for (var i = 0; i < this.allNpcRows.length; i++) {
+        var row = this.allNpcRows[i]
+        var count = this.clampCount(this.npcCounts[row.id], this.npcCountMax)
+        if (count <= 0) continue
+        if (row.type === 'custom' || row.id === 'custom') {
+          items.push({ type: 'custom', count: count })
+        } else if (row.type === 'llm') {
+          items.push({ type: 'llm', count: count })
+        } else if (row.type === 'llmGlobal') {
+          items.push({ type: 'llmGlobal', count: count })
+        } else {
+          items.push({ type: 'rule', archetype: row.archetype, count: count })
+        }
+      }
+      return items
+    },
+    bumpNpcCount(delta) {
+      var row = this.allNpcRows[this.cursorIndex]
+      if (!row) return
+      var next = this.clampCount(
+        this.clampCount(this.npcCounts[row.id], this.npcCountMax) + delta,
+        this.npcCountMax
+      )
+      this.$set(this.npcCounts, row.id, next)
+    },
+    onNpcCountAdjust(payload) {
+      if (!payload || !payload.id) return
+      var idx = -1
+      for (var i = 0; i < this.allNpcRows.length; i++) {
+        if (this.allNpcRows[i].id === payload.id) {
+          idx = i
+          break
+        }
+      }
+      if (idx >= 0) this.cursorIndex = idx
+      var cur = this.clampCount(this.npcCounts[payload.id], this.npcCountMax)
+      var next = this.clampCount(cur + (payload.delta || 0), this.npcCountMax)
+      this.$set(this.npcCounts, payload.id, next)
+      this.npcTouchTip = ''
+    },
+    onTouchNpcNext() {
+      var items = this.buildBatchItems()
+      if (!items.length) {
+        this.npcTouchTip = '请至少选择一种 NPC 并设置数量'
+        return
+      }
+      this.npcTouchTip = ''
+      if (this.customNpcUiEnabled && this.clampCount(this.npcCounts.custom, this.npcCountMax) > 0) {
+        this.pendingCustomProfile = cloneNpcStyleProfile(NPC_STYLE_TAG_PRESET)
+        this.pushScreen('npc-custom-profile')
+        return
+      }
+      this.pushScreen('npc-batch-confirm')
+    },
+    onCustomProfileConfirm() {
+      var ref = this.$refs.customNpcConsole
+      if (ref && typeof ref.getProfile === 'function') {
+        this.pendingCustomProfile = clampNpcStyleProfile(ref.getProfile())
+      } else {
+        this.pendingCustomProfile = clampNpcStyleProfile(this.pendingCustomProfile)
+      }
+      if (this.currentScreen === 'npc-custom-profile') {
+        this.popScreen()
+      }
+      this.pushScreen('npc-batch-confirm')
+    },
+    emitBatchNpcConfirm() {
+      if (this.submitting) return
+      var items = this.buildBatchItems()
+      if (!items.length) return
+      var payload = { items: items }
+      if (this.customNpcUiEnabled && this.clampCount(this.npcCounts.custom, this.npcCountMax) > 0) {
+        payload.customProfile = clampNpcStyleProfile(this.pendingCustomProfile)
+      }
+      this.submitting = true
+      dpOwnerTerminalDevLog('API emit', { action: 'confirm-batch-add-npcs', payload: payload })
+      this.$emit('confirm-batch-add-npcs', payload)
+      this.submitting = false
+      this.resetStack()
+    },
+    isKickSelected(nick) {
+      return this.kickSelectionNicknames.indexOf(nick) >= 0
+    },
+    toggleKickAtIndex(idx) {
+      var p = this.kickPlayers[idx]
+      if (!p) return
+      var nick = p.nickname
+      var i = this.kickSelectionNicknames.indexOf(nick)
+      if (i >= 0) {
+        this.kickSelectionNicknames.splice(i, 1)
+      } else {
+        this.kickSelectionNicknames.push(nick)
+      }
+    },
+    pruneKickSelection() {
+      var allowed = {}
+      for (var i = 0; i < this.kickPlayers.length; i++) {
+        allowed[this.kickPlayers[i].nickname] = true
+      }
+      this.kickSelectionNicknames = this.kickSelectionNicknames.filter(function (n) {
+        return !!allowed[n]
+      })
+    },
+    onRootClick(idx) {
+      this.cursorIndex = idx
+      this.activateRootItem()
+    },
+    onNpcRowClick(idx) {
+      this.cursorIndex = idx
+      if (!this.touchMode) {
+        this.enterNpcConfirm()
+      }
+    },
+    onTransferRowClick(idx) {
+      this.cursorIndex = idx
+      this.enterTransferConfirm()
+    },
+    onKickRowClick(idx) {
+      this.cursorIndex = idx
+      this.toggleKickAtIndex(idx)
+    },
+    activateRootItem() {
+      var item = this.rootItems[this.cursorIndex]
+      if (!item) return
+      if (item.id === 'add-npc') {
+        this.npcCounts = Object.assign({}, DEFAULT_NPC_COUNTS)
+        this.npcTouchTip = ''
+        this.pushScreen('npc-pick')
+        return
+      }
+      if (item.id === 'deck-preset') {
+        dpOwnerTerminalDevLog('API emit', { action: 'open-deck-preset' })
+        this.$emit('open-deck-preset')
+        return
+      }
+      if (item.id === 'decision-trace') {
+        dpOwnerTerminalDevLog('API emit', { action: 'open-decision-trace' })
+        this.$emit('open-decision-trace')
+        return
+      }
+      if (item.id === 'transfer') {
+        this.$store.commit('dpGame/SET_OWNER_TOOL', { ownerToolType: 'transfer', ownerActionTarget: '' })
+        this.pushScreen('transfer-pick')
+        return
+      }
+      if (item.id === 'kick') {
+        this.$store.commit('dpGame/SET_OWNER_TOOL', { ownerToolType: 'kick' })
+        this.kickSelectionNicknames = []
+        this.pushScreen('kick-pick')
+        return
+      }
+      if (item.id === 'reveal') {
+        if (this.touchMode) {
+          this.$emit('toggle-reveal')
+          return
+        }
+        this.pushScreen('reveal-confirm')
+      }
+    },
+    enterNpcConfirm() {
+      var row = this.allNpcRows[this.cursorIndex]
+      if (!row || row.adding) return
+      this.pendingNpcRow = row
+      this.pushScreen('npc-confirm')
+    },
+    enterTransferConfirm() {
+      var p = this.transferPlayers[this.cursorIndex]
+      if (!p) return
+      this.pendingTransferNick = p.nickname
+      this.$store.commit('dpGame/SET_OWNER_TOOL', { ownerActionTarget: p.nickname })
+      this.pushScreen('transfer-confirm')
+    },
+    emitNpcConfirm() {
+      var row = this.pendingNpcRow
+      if (!row || this.submitting) return
+      var count = this.clampCount(this.npcCounts[row.id], 9)
+      this.submitting = true
+      if (row.type === 'custom' || row.id === 'custom') {
+        dpOwnerTerminalDevLog('API emit', { action: 'confirm-add-npcs', type: 'custom', count: count })
+        this.$emit('confirm-add-npcs', { type: 'custom', count: count })
+      } else if (row.type === 'llm') {
+        dpOwnerTerminalDevLog('API emit', { action: 'confirm-add-npcs', type: 'llm', count: count })
+        this.$emit('confirm-add-npcs', { type: 'llm', count: count })
+      } else if (row.type === 'llmGlobal') {
+        dpOwnerTerminalDevLog('API emit', { action: 'confirm-add-npcs', type: 'llmGlobal', count: count })
+        this.$emit('confirm-add-npcs', { type: 'llmGlobal', count: count })
+      } else {
+        dpOwnerTerminalDevLog('API emit', { action: 'confirm-add-npcs', type: 'rule', archetype: row.archetype, count: count })
+        this.$emit('confirm-add-npcs', { type: 'rule', archetype: row.archetype, count: count })
+      }
+      this.submitting = false
+      this.resetStack()
+    },
+    emitTransferConfirm() {
+      if (this.submitting || !this.pendingTransferNick) return
+      this.submitting = true
+      dpOwnerTerminalDevLog('API emit', { action: 'transfer-owner', target: this.pendingTransferNick })
+      this.$emit('transfer-owner')
+      this.submitting = false
+      this.resetStack()
+    },
+    emitKickConfirm() {
+      if (this.submitting || !this.kickSelectionNicknames.length) return
+      this.submitting = true
+      dpOwnerTerminalDevLog('API emit', { action: 'kick-players', count: this.kickSelectionNicknames.length })
+      this.$emit('kick-players', this.kickSelectionNicknames.slice())
+      this.submitting = false
+      this.resetStack()
+    },
+    emitRevealToggle() {
+      if (this.submitting) return
+      this.submitting = true
+      dpOwnerTerminalDevLog('API emit', { action: 'toggle-reveal', next: !this.ownerRevealAll })
+      this.$emit('toggle-reveal')
+      this.submitting = false
+      this.popScreen()
+    },
+    handleKeydown(event) {
+      if (!this.active || !this.terminalFocused || this.submitting) return false
+      var key = event.key
+      var code = event.code
+      var isUp = key === 'w' || key === 'W' || key === 'ArrowUp'
+      var isDown = key === 's' || key === 'S' || key === 'ArrowDown'
+      var isLeft = key === 'a' || key === 'A' || key === 'ArrowLeft'
+      var isRight = key === 'd' || key === 'D' || key === 'ArrowRight'
+      var isEnter = key === 'Enter'
+      var isEsc = key === 'Escape'
+      var isSpace = key === ' ' || code === 'Space'
+
+      dpOwnerTerminalDevLog('keyboard', {
+        key: key,
+        focused: this.terminalFocused,
+        cursorIndex: this.cursorIndex,
+        screen: this.currentScreen
+      })
+
+      if (isEsc) {
+        event.preventDefault()
+        if (this.menuStack.length > 1) {
+          this.popScreen()
+          return true
+        }
+        this.$emit('request-close')
+        return true
+      }
+
+      if (this.currentScreen === 'npc-confirm') {
+        if (isEnter) {
+          event.preventDefault()
+          this.emitNpcConfirm()
+          return true
+        }
+        return false
+      }
+      if (this.currentScreen === 'transfer-confirm') {
+        if (isEnter) {
+          event.preventDefault()
+          this.emitTransferConfirm()
+          return true
+        }
+        return false
+      }
+      if (this.currentScreen === 'kick-confirm') {
+        if (isEnter) {
+          event.preventDefault()
+          this.emitKickConfirm()
+          return true
+        }
+        return false
+      }
+      if (this.currentScreen === 'reveal-confirm') {
+        if (isEnter) {
+          event.preventDefault()
+          this.emitRevealToggle()
+          return true
+        }
+        return false
+      }
+
+      if (this.currentScreen === 'npc-pick') {
+        if (isLeft) {
+          event.preventDefault()
+          this.bumpNpcCount(-1)
+          return true
+        }
+        if (isRight) {
+          event.preventDefault()
+          this.bumpNpcCount(1)
+          return true
+        }
+      }
+
+      if (this.currentScreen === 'kick-pick' && isSpace) {
+        event.preventDefault()
+        this.toggleKickAtIndex(this.cursorIndex)
+        return true
+      }
+
+      if (isUp && this.listLength > 0) {
+        event.preventDefault()
+        this.cursorIndex = (this.cursorIndex - 1 + this.listLength) % this.listLength
+        return true
+      }
+      if (isDown && this.listLength > 0) {
+        event.preventDefault()
+        this.cursorIndex = (this.cursorIndex + 1) % this.listLength
+        return true
+      }
+
+      if (isEnter) {
+        event.preventDefault()
+        if (this.currentScreen === 'root') {
+          this.activateRootItem()
+        } else if (this.currentScreen === 'npc-pick') {
+          this.enterNpcConfirm()
+        } else if (this.currentScreen === 'transfer-pick') {
+          this.enterTransferConfirm()
+        } else if (this.currentScreen === 'kick-pick') {
+          if (this.kickSelectionNicknames.length > 0) {
+            this.pushScreen('kick-confirm')
+          }
+        }
+        return true
+      }
+
+      return false
+    },
+    handleRootEsc() {
+      if (this.menuStack.length > 1) {
+        this.popScreen()
+        return true
+      }
+      return false
+    }
+  }
+}
+</script>

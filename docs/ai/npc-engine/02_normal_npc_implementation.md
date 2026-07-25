@@ -72,6 +72,6 @@
 
 1. **免费看牌（`callAmount == 0`）不弃牌**：避免河牌面对方 check 仍 fold 的违和行为。
 2. **`BotAction` 只描述意图**：实际扣筹码、更新底池在 **`DpRoomServiceImpl`**。
-3. **随机性**：同一手牌用 `buildHandRandom(room, bot)` 固定种子，保证 **同一手内** 决策可复现、不同手之间有变化。
+3. **随机性**：决策、思考延时、桌边话术使用无种子纯随机，同一手内不可复现；`currentHandSeed` 仅用于前端/牌谱等非决策用途。
 
 下一篇：[03_normal_npc_modules.md](03_normal_npc_modules.md)。

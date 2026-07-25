@@ -17,6 +17,7 @@ import com.example.mgdemoplus.npc.strategypro.l1.DpNpcHardConstraints;
 import com.example.mgdemoplus.npc.strategypro.l4.DpNpcHeroCall;
 import com.example.mgdemoplus.npc.strategypro.l4.DpNpcRaiseEscalation;
 import com.example.mgdemoplus.npc.strategypro.l4.DpNpcRaiseEscalation.EscalationResult;
+import com.example.mgdemoplus.npc.trace.DpNpcPostflopTraceHooks;
 import com.example.mgdemoplus.utils.DpUtilSmartContext;
 
 /**
@@ -52,6 +53,9 @@ public final class DpNpcNitPostflopStrategy {
 
         double commitFactor = nitCommitFactor(made, draw, tex, bd, p, ctx);
         final double commitThreshold = (p.bot.getBet() + p.bot.getChips()) * commitFactor;
+
+        DpNpcPostflopTraceHooks.postflopContext(
+                stage, callAmount, plan, made, draw, tex, bd, p, ctx, commitFactor, commitThreshold);
 
         if (callAmount > 0) {
             BotAction foldAction = tryFoldFacingBet(p, stage, callAmount, made, draw, tex, plan, ctx);
@@ -139,7 +143,9 @@ public final class DpNpcNitPostflopStrategy {
 
         if (plan == HandPlanType.GIVE_UP && callAmount > 0
                 && !made.isAtLeast(DpNpcMadeHandCategory.TRIPS)) {
+            double beforeGiveUp = baseFold;
             baseFold = Math.min(1.0, baseFold + 0.22);
+            DpNpcPostflopTraceHooks.giveUpFoldBoost(plan, made, beforeGiveUp, baseFold, 0.22);
         }
         if (plan == HandPlanType.POT_CONTROL && callAmount > 0
                 && made.ordinal() <= DpNpcMadeHandCategory.TOP_PAIR_TOP_KICKER.ordinal()) {
@@ -181,6 +187,7 @@ public final class DpNpcNitPostflopStrategy {
         }
 
         if (DpNpcHeroCall.shouldHeroCall(p, stage, callAmount, made, draw, ctx)) {
+            DpNpcPostflopTraceHooks.heroCall();
             return null;
         }
 
@@ -201,8 +208,10 @@ public final class DpNpcNitPostflopStrategy {
                     callAmount >= p.chips)) {
                 return null;
             }
+            DpNpcPostflopTraceHooks.foldRollHit(baseFold, foldProb);
             return new BotAction(BotActionType.FOLD, 0);
         }
+        DpNpcPostflopTraceHooks.foldRollMiss(baseFold, foldProb, plan);
         return null;
     }
 
@@ -247,8 +256,10 @@ public final class DpNpcNitPostflopStrategy {
                     callAmount >= p.chips)) {
                 return null;
             }
+            DpNpcPostflopTraceHooks.foldRollHit(foldProb, foldProb);
             return new BotAction(BotActionType.FOLD, 0);
         }
+        DpNpcPostflopTraceHooks.foldRollMiss(foldProb, foldProb, DpNpcEngine.getHandPlanType(p.bot));
         return null;
     }
 
@@ -262,6 +273,8 @@ public final class DpNpcNitPostflopStrategy {
             DpUtilSmartContext ctx) {
         if (DpNpcEngine.shouldSkipAggressiveActionByPlan(p.bot, stage)) {
             if (!made.isAtLeast(DpNpcMadeHandCategory.TWO_PAIR)) {
+                DpNpcPostflopTraceHooks.skipAggressive(plan, stage, made);
+                DpNpcPostflopTraceHooks.postflopAction("CALL_OR_CHECK", "check（plan skip aggressive）");
                 return new BotAction(BotActionType.CALL_OR_CHECK, 0);
             }
         }
@@ -272,18 +285,25 @@ public final class DpNpcNitPostflopStrategy {
 
         if (made.ordinal() <= DpNpcMadeHandCategory.TOP_PAIR_WEAK_KICKER.ordinal()
                 && !DpNpcPostflopFormula.hasSemiBluffDraw(draw)) {
+            DpNpcPostflopTraceHooks.postflopAction("CALL_OR_CHECK", "check（弱牌无听牌）");
             return new BotAction(BotActionType.CALL_OR_CHECK, 0);
         }
 
         if (made == DpNpcMadeHandCategory.TOP_PAIR_TOP_KICKER
                 && (tex.wet || tex.dangerousForTopPair())) {
             if (plan == HandPlanType.POT_CONTROL || plan == HandPlanType.GIVE_UP) {
+                DpNpcPostflopTraceHooks.postflopAction("CALL_OR_CHECK", "check（pot control / give up）");
                 return new BotAction(BotActionType.CALL_OR_CHECK, 0);
             }
             double wetTptk = NIT_CBET_FREQ * 0.35;
             if (p.random.nextDouble() < wetTptk) {
-                return raisePotFraction(p, stage, DpNpcPostflopFormula.cbetPotFactor(made, tex, stage) * 0.65);
+                double factor = DpNpcPostflopFormula.cbetPotFactor(made, tex, stage) * 0.65;
+                DpNpcPostflopTraceHooks.valueBetRoll(wetTptk, factor);
+                DpNpcPostflopTraceHooks.postflopAction("RAISE", "wet TPTK value bet");
+                return raisePotFraction(p, stage, factor);
             }
+            DpNpcPostflopTraceHooks.valueBetRollMiss(wetTptk);
+            DpNpcPostflopTraceHooks.postflopAction("CALL_OR_CHECK", "check（wet TPTK miss）");
             return new BotAction(BotActionType.CALL_OR_CHECK, 0);
         }
 
@@ -291,11 +311,17 @@ public final class DpNpcNitPostflopStrategy {
         if (p.random.nextDouble() < valueBetProb) {
             if (DpNpcEngine.shouldSkipAggressiveActionByPlan(p.bot, stage)
                     && !made.isAtLeast(DpNpcMadeHandCategory.TWO_PAIR)) {
+                DpNpcPostflopTraceHooks.skipAggressive(plan, stage, made);
+                DpNpcPostflopTraceHooks.postflopAction("CALL_OR_CHECK", "check（plan skip aggressive）");
                 return new BotAction(BotActionType.CALL_OR_CHECK, 0);
             }
             double factor = DpNpcPostflopFormula.cbetPotFactor(made, tex, stage);
+            DpNpcPostflopTraceHooks.valueBetRoll(valueBetProb, factor);
+            DpNpcPostflopTraceHooks.postflopAction("RAISE", "value bet potFraction=" + String.format("%.2f", factor));
             return raisePotFraction(p, stage, factor);
         }
+        DpNpcPostflopTraceHooks.valueBetRollMiss(valueBetProb);
+        DpNpcPostflopTraceHooks.postflopAction("CALL_OR_CHECK", "check（no bet line）");
         return new BotAction(BotActionType.CALL_OR_CHECK, 0);
     }
 
@@ -413,30 +439,38 @@ public final class DpNpcNitPostflopStrategy {
         raiseProb = Math.min(0.55, Math.max(0.02, raiseProb));
 
         if (p.random.nextDouble() > raiseProb || p.chips <= callAmount) {
+            DpNpcPostflopTraceHooks.raiseRollMiss(raiseProb, aggro, plan, made);
+            DpNpcPostflopTraceHooks.postflopAction("CALL_OR_CHECK", "面对下注跟注");
             return new BotAction(BotActionType.CALL_OR_CHECK, 0);
         }
 
+        DpNpcPostflopTraceHooks.raiseRoll(raiseProb, aggro, plan, made);
         int bb = p.room.getBigBlindChips();
         int extraMin = DpNpcPostflopFormula.raiseExtraMinBb(made);
         int extraMax = DpNpcPostflopFormula.raiseExtraMaxBb(made, stage);
         EscalationResult esc = DpNpcRaiseEscalation.computeFacingBetRaise(
                 p.room, callAmount, p.chips, made, stage, p.type, extraMin, extraMax, p.random);
         if (esc.suggestJam && p.random.nextDouble() < 0.45) {
+            DpNpcPostflopTraceHooks.postflopAction("ALL_IN", "all-in facing bet（escalation jam）");
             return new BotAction(BotActionType.ALL_IN, p.chips);
         }
         int raiseAmount = esc.raiseAmount;
         if (raiseAmount <= callAmount) {
+            DpNpcPostflopTraceHooks.postflopAction("CALL_OR_CHECK", "跟注（raise amount too small）");
             return new BotAction(BotActionType.CALL_OR_CHECK, 0);
         }
         int heroInvestAfter = p.bot.getBet() + raiseAmount;
         if (heroInvestAfter > commitThreshold) {
-            return commitThresholdAction(p, ctx, callAmount, made);
+            return commitThresholdAction(p, ctx, callAmount, made, commitThreshold, heroInvestAfter);
         }
         if (DpNpcEngine.shouldSkipAggressiveActionByPlan(p.bot, stage)
                 && !made.isAtLeast(DpNpcMadeHandCategory.TWO_PAIR)) {
+            DpNpcPostflopTraceHooks.skipAggressive(plan, stage, made);
+            DpNpcPostflopTraceHooks.postflopAction("CALL_OR_CHECK", "check/call（plan skip aggressive）");
             return new BotAction(BotActionType.CALL_OR_CHECK, 0);
         }
         DpNpcEngine.consumeOneBarrelIfAny(p.bot, stage);
+        DpNpcPostflopTraceHooks.postflopAction("RAISE", "raise facing bet amount=" + raiseAmount);
         return new BotAction(BotActionType.RAISE, raiseAmount);
     }
 
@@ -494,19 +528,29 @@ public final class DpNpcNitPostflopStrategy {
             DpNpcRuleDecisionParams p,
             DpUtilSmartContext ctx,
             int callAmount,
-            DpNpcMadeHandCategory made) {
+            DpNpcMadeHandCategory made,
+            double commitThreshold,
+            int heroInvestAfter) {
         double y = p.random.nextDouble();
         if (made.isAtLeast(DpNpcMadeHandCategory.TRIPS)) {
             y = DpNpcEngine.skewCommitThresholdRandom(y, ctx, callAmount, NIT_FOLD_TIGHTNESS, false);
-            return y < 0.75
+            BotAction action = y < 0.75
                     ? new BotAction(BotActionType.CALL_OR_CHECK, 0)
                     : new BotAction(BotActionType.ALL_IN, p.chips);
+            DpNpcPostflopTraceHooks.commitThreshold(
+                    commitThreshold, heroInvestAfter, y < 0.75 ? "call" : "jam", action.getType());
+            DpNpcPostflopTraceHooks.postflopAction(action.getType().name(), "commit threshold → " + action.getType().name());
+            return action;
         }
         if (made.isAtLeast(DpNpcMadeHandCategory.TWO_PAIR)) {
             y = DpNpcEngine.skewCommitThresholdRandom(y, ctx, callAmount, NIT_FOLD_TIGHTNESS, false);
-            return y < 0.82
+            BotAction action = y < 0.82
                     ? new BotAction(BotActionType.CALL_OR_CHECK, 0)
                     : new BotAction(BotActionType.ALL_IN, p.chips);
+            DpNpcPostflopTraceHooks.commitThreshold(
+                    commitThreshold, heroInvestAfter, y < 0.82 ? "call" : "jam", action.getType());
+            DpNpcPostflopTraceHooks.postflopAction(action.getType().name(), "commit threshold → " + action.getType().name());
+            return action;
         }
         if (DpNpcHardConstraints.mustNotFold(
                 made,
@@ -514,6 +558,9 @@ public final class DpNpcNitPostflopStrategy {
                 callAmount,
                 ctx.equityEst,
                 false)) {
+            DpNpcPostflopTraceHooks.commitThreshold(
+                    commitThreshold, heroInvestAfter, "call", BotActionType.CALL_OR_CHECK);
+            DpNpcPostflopTraceHooks.postflopAction("CALL_OR_CHECK", "commit threshold → call（must not fold）");
             return new BotAction(BotActionType.CALL_OR_CHECK, 0);
         }
         if (made.ordinal() >= DpNpcMadeHandCategory.MIDDLE_PAIR.ordinal()
@@ -522,12 +569,18 @@ public final class DpNpcNitPostflopStrategy {
             BotAction marginal = y < 0.55
                     ? new BotAction(BotActionType.CALL_OR_CHECK, 0)
                     : new BotAction(BotActionType.FOLD, 0);
+            DpNpcPostflopTraceHooks.commitThreshold(
+                    commitThreshold, heroInvestAfter, y < 0.55 ? "call" : "fold", marginal.getType());
+            DpNpcPostflopTraceHooks.postflopAction(marginal.getType().name(), "commit threshold → " + marginal.getType().name());
             return guardFold(marginal, p, made, callAmount, ctx);
         }
         y = DpNpcEngine.skewCommitThresholdRandom(y, ctx, callAmount, NIT_FOLD_TIGHTNESS, false);
         BotAction weak = y < 0.78
                 ? new BotAction(BotActionType.FOLD, 0)
                 : new BotAction(BotActionType.CALL_OR_CHECK, 0);
+        DpNpcPostflopTraceHooks.commitThreshold(
+                commitThreshold, heroInvestAfter, y < 0.78 ? "fold" : "call", weak.getType());
+        DpNpcPostflopTraceHooks.postflopAction(weak.getType().name(), "commit threshold → " + weak.getType().name());
         return guardFold(weak, p, made, callAmount, ctx);
     }
 

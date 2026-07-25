@@ -23,6 +23,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DpNpcPreflopDefendTest {
 
+    private static final double NIT_VPIP = 0.11;
+    private static final double NIT_PFR = 0.15;
+    private static final double NIT_CALL_STATION = 0.37;
+    private static final double NIT_FOLD = 0.92;
+
     private static final double FISH_VPIP = 0.52;
     private static final double FISH_PFR = 0.15;
     private static final double FISH_CALL_STATION = 0.74;
@@ -38,6 +43,20 @@ class DpNpcPreflopDefendTest {
         DpNpcRuleThinkProperties props = new DpNpcRuleThinkProperties();
         props.setEnabled(false);
         DpNpcRuleThinkSampler.bind(props);
+    }
+
+    @Test
+    void nitBbFacingMinRaise_defendsKQoAtLeastThirtyPercent() {
+        int continues = countContinueFacingOpenAtBb("hearts_K", "diamonds_Q", DpNpcEngine.BotType.NIT, 100);
+        assertTrue(continues >= 30,
+                "NIT KQo @ BB vs 2BB open should defend >= 30% over 100 seeds, got " + continues);
+    }
+
+    @Test
+    void nitBbFacingMinRaise_defendsAQo() {
+        int continues = countContinueFacingOpenAtBb("hearts_A", "diamonds_Q", DpNpcEngine.BotType.NIT, 100);
+        assertTrue(continues > 0,
+                "NIT AQo @ BB vs 2BB open should defend > 0%, got " + continues);
     }
 
     @Test
@@ -129,6 +148,36 @@ class DpNpcPreflopDefendTest {
                 botType + " should defend " + card1 + card2 + " vs min-raise");
     }
 
+    private static int countContinueFacingOpenAtBb(
+            String card1, String card2, DpNpcEngine.BotType botType, int trials) {
+        int continues = 0;
+        for (int i = 0; i < trials; i++) {
+            DpRoomBO room = buildBbFacingMinRaiseRoom(card1, card2);
+            Random random = new Random(5000L + i);
+            double vpip = botType == DpNpcEngine.BotType.NIT ? NIT_VPIP : FISH_VPIP;
+            double pfr = botType == DpNpcEngine.BotType.NIT ? NIT_PFR : FISH_PFR;
+            double callStation = botType == DpNpcEngine.BotType.NIT ? NIT_CALL_STATION : FISH_CALL_STATION;
+            double fold = botType == DpNpcEngine.BotType.NIT ? NIT_FOLD : FISH_FOLD;
+            DpPlayer hero = room.getPlayers().get(2);
+            int callAmount = room.getCurrentBetToCall() - hero.getBet();
+            BotAction action = DpNpcUnifiedPreflopStrategy.decide(
+                    room,
+                    hero,
+                    callAmount,
+                    0.02,
+                    vpip,
+                    pfr,
+                    callStation,
+                    fold,
+                    random,
+                    botType);
+            if (action.getType() != BotActionType.FOLD) {
+                continues++;
+            }
+        }
+        return continues;
+    }
+
     private static int countContinueFacingOpen(String card1, String card2, DpNpcEngine.BotType botType) {
         int continues = 0;
         for (int i = 0; i < 20; i++) {
@@ -166,6 +215,22 @@ class DpNpcPreflopDefendTest {
             }
         }
         return continues;
+    }
+
+    private static DpRoomBO buildBbFacingMinRaiseRoom(String heroCard1, String heroCard2) {
+        DpRoomBO room = buildSixMaxTable();
+        DpPlayer hero = room.getPlayers().get(2);
+        hero.setHoleCards(List.of(toFullCard(heroCard1), toFullCard(heroCard2)));
+        hero.setChips(4990);
+        hero.setBet(room.getBigBlindChips());
+
+        DpPlayer opener = room.getPlayers().get(3);
+        opener.setBet(room.getBigBlindChips() * 2);
+        opener.setChips(4800);
+
+        room.setRaiseLevel(1);
+        room.setCurrentBetToCall(room.getBigBlindChips() * 2);
+        return room;
     }
 
     private static DpRoomBO buildFacingMinRaiseBtnRoom(String heroCard1, String heroCard2) {

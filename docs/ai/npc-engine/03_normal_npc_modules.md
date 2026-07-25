@@ -17,7 +17,7 @@
 | `buildSmartContext` | TAG / MANIAC 等翻后使用（基于 `handSnapshot` 算 `equityEst`） |
 | `STYLE_PROFILE_MAP` | `NpcStyle` → `StyleProfile` 数值旋钮 |
 
-全局常量：`NPC_MOOD_ENABLED`（默认 **false**）；`NPC_HAND_SEED_FOR_DECISIONS`（默认 **true**）。概率软噪声通路已移除。
+全局常量：`NPC_MOOD_ENABLED`（默认 **false**）。规则 NPC 随机为无种子纯随机，无 `NPC_HAND_SEED_FOR_DECISIONS` 开关。概率软噪声通路已移除。
 
 ---
 

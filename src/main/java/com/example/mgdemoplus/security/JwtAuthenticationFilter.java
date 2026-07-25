@@ -70,7 +70,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 filterChain.doFilter(request, response);
                 return;
             }
-
+//这里是正常解析token并写入的
             String token = resolveToken(request);
             if (token == null) {
                 filterChain.doFilter(request, response);
@@ -120,6 +120,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 || !cachedJti.equals(jti)) {
             return;
         }
+        //这个是构造一个Authentication对象，然后设置到SecurityContextHolder中
         UsernamePasswordAuthenticationToken authentication =
                 new UsernamePasswordAuthenticationToken(subject, null, null);
         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

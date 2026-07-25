@@ -1,18 +1,17 @@
 import Vue from 'vue'
 import App from './App.vue'
-import axios from 'axios'
+import axios, { setupHttpClient } from '@/shared/api/http'
 import router from './router'
 import store from './store'
-import { syncDpBodyGameTheme } from './utils/dpBodyGameTheme'
-import { syncDpBodyFluidity } from './utils/dpBodyFluidity'
-import { syncDpBodyRouteTransitionFlag } from './utils/dpRouteTransitionFlag'
-import { syncDpSiteHeartbeat } from './utils/dpSiteHeartbeat'
+import { syncDpBodyGameTheme } from '@shared/utils/dpBodyGameTheme'
+import { syncDpBodyFluidity } from '@shared/utils/dpBodyFluidity'
+import { syncDpBodyRouteTransitionFlag } from '@shared/utils/dpRouteTransitionFlag'
+import { syncDpSiteHeartbeat } from '@features/presence/utils/dpSiteHeartbeat'
 import {
   initDpSocialStreamClient,
-  syncDpSocialStreamConnection,
-  disconnectDpSocialStream
-} from './utils/dpSocialStreamClient'
-import DpThemePicker from './components/DpThemePicker.vue'
+  syncDpSocialStreamConnection
+} from '@features/social/sse/dpSocialStreamClient'
+import DpThemePicker from '@shared/components/DpThemePicker.vue'
 
 Vue.component('DpThemePicker', DpThemePicker)
 /* 主题变量需先于 lobby-shell（body 背景用 var(--dp-game-bg)） */
@@ -33,9 +32,12 @@ import './styles/dp-game-responsive-type.css'
 import './styles/dp-game-layout-tiers.css'
 import './styles/dp-game-element-ui.css'
 import './styles/dp-social-lists.css'
+import hasPermi from '@/directives/hasPermi'
 import {
   Badge,
   Button,
+  Checkbox,
+  CheckboxGroup,
   Dialog,
   Drawer,
   Form,
@@ -57,8 +59,12 @@ import 'element-ui/lib/theme-chalk/icon.css'
 
 Vue.config.productionTip = false
 
+Vue.directive('hasPermi', hasPermi)
+
 Vue.use(Badge)
 Vue.use(Button)
+Vue.use(Checkbox)
+Vue.use(CheckboxGroup)
 Vue.use(Dialog)
 Vue.use(Drawer)
 Vue.use(Form)
@@ -76,66 +82,9 @@ Vue.use(Loading.directive)
 Vue.prototype.$message = Message
 Vue.prototype.$confirm = MessageBox.confirm
 Vue.prototype.$alert = MessageBox.alert
-// 开发：走 vue 代理 /dev-api；生产（含 Docker 同域静态资源）：直接请求当前站点根路径
-// Electron 桌面客户端：连到 config.json 配置的服务器地址
-axios.defaults.baseURL =
-  (typeof window !== 'undefined' && window.dpElectron && window.dpElectron.serverUrl)
-    ? window.dpElectron.serverUrl
-    : (process.env.NODE_ENV === 'production' ? '' : '/dev-api')
 
-axios.interceptors.request.use(function (config) {
-  var url = config.url || ''
-  if (url.indexOf('/dpUser/loginProfile') !== -1 || url.indexOf('/dpUser/registerUser') !== -1 || url.indexOf('/oauth/') !== -1) {
-    return config
-  }
-  try {
-    var raw = localStorage.getItem('userInfo')
-    if (raw) {
-      var u = JSON.parse(raw)
-      if (u && u.token) {
-        config.headers = config.headers || {}
-        config.headers.Authorization = 'Bearer ' + u.token
-      }
-    }
-  } catch (e) {
-    /* ignore */
-  }
-  return config
-})
-
-// 与后端 Spring Security 401（JwtAuthenticationEntryPoint / JwtAuthenticationFilter）对齐：全局提示并回登录页
-var handling401 = false
-axios.interceptors.response.use(
-  function (response) {
-    return response
-  },
-  function (error) {
-    var status = error.response && error.response.status
-    if (status === 401) {
-      if (!handling401) {
-        handling401 = true
-        try {
-          localStorage.removeItem('userInfo')
-        } catch (e) {
-          /* ignore */
-        }
-        disconnectDpSocialStream()
-        var data = error.response && error.response.data
-        var msg = (data && (data.message || data.msg)) || '未登录或登录已失效，请重新登录'
-        Message.error(msg)
-        if (router.currentRoute.path !== '/login') {
-          router.replace('/login')
-        }
-        setTimeout(function () {
-          handling401 = false
-        }, 800)
-      }
-    }
-    return Promise.reject(error)
-  }
-)
-
-Vue.prototype.$http =axios
+setupHttpClient(router)
+Vue.prototype.$http = axios
 
 initDpSocialStreamClient(store, axios)
 

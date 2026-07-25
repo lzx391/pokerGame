@@ -20,9 +20,11 @@
 #app.app--dp-game .full-page--dp-game > .dp-game-root {
   display: flex;
   flex-direction: column;
-  max-height: 100dvh;
+  /* svh 作旧浏览器回退，须写在 dvh 前；反序会让 iPad 等以 svh 封顶，动态视口变大时底部露 #f5f7fa */
   max-height: 100svh;
+  max-height: 100dvh;
   overflow: hidden;
+  min-height: 100svh;
   min-height: 100dvh;
   min-height: -webkit-fill-available;
   --dp-game-main-pad-top: clamp(24px, 3vmin, 120px);
@@ -37,14 +39,27 @@
  * desktop：非全屏与全屏同一套紧凑底栏 + 锁一屏 flex；顶距收紧，避免主区被压扁导致牌桌过小。
  */
 #app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='desktop'] {
-  height: 100dvh;
-  height: 100svh;
   --dp-game-main-pad-top: clamp(8px, 1.2vmin, 40px);
   --dp-game-fs-extra-pad-top: 12px;
-  zoom: 0.9;
+  --dp-zoom-game: 0.9;
+  zoom: var(--dp-zoom-game);
+  height: calc(100svh / var(--dp-zoom-game));
+  height: calc(100dvh / var(--dp-zoom-game));
+  min-height: calc(100svh / var(--dp-zoom-game));
+  min-height: calc(100dvh / var(--dp-zoom-game));
+  max-height: calc(100svh / var(--dp-zoom-game));
+  max-height: calc(100dvh / var(--dp-zoom-game));
 }
 
-#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='desktop'] > .dp-game-layout {
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='desktop'] > .dp-game-body-row,
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='tablet'] > .dp-game-body-row {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='desktop'] > .dp-game-body-row > .dp-game-layout,
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='tablet'] > .dp-game-body-row > .dp-game-layout {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
@@ -53,7 +68,8 @@
   overflow-y: visible;
 }
 
-#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='desktop'] .dp-game-layout__main {
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='desktop'] .dp-game-layout__main,
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='tablet'] .dp-game-layout__main {
   flex: 1 1 auto;
   min-height: 0;
   overflow-x: hidden;
@@ -61,25 +77,33 @@
   -webkit-overflow-scrolling: touch;
 }
 
-#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='desktop'] .dp-game-layout__main.dp-game-layout__main--fit-table {
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='desktop'] .dp-game-layout__main.dp-game-layout__main--fit-table,
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='tablet'] .dp-game-layout__main.dp-game-layout__main--fit-table {
   overflow-x: hidden;
   overflow-y: visible;
 }
 
-#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='desktop'] .dp-game-layout__main.dp-game-layout__main--fit-table.dp-game-layout__main--settlement-scroll {
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='desktop'] .dp-game-layout__main.dp-game-layout__main--fit-table.dp-game-layout__main--settlement-scroll,
+#app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='tablet'] .dp-game-layout__main.dp-game-layout__main--fit-table.dp-game-layout__main--settlement-scroll {
   overflow-x: auto !important;
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch;
 }
 
 #app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='tablet'] {
-  height: 100dvh;
   height: 100svh;
+  height: 100dvh;
+  min-height: 100svh;
+  min-height: 100dvh;
+  max-height: 100svh;
+  max-height: 100dvh;
   --dp-game-main-pad-top: clamp(8px, 1.6vmin, 40px);
   --dp-game-top-title-fs: 16px;
   --dp-game-top-sub-fs: 13px;
   --dp-game-top-btn-fs: 12px;
   --dp-game-table-layout-min-h: clamp(220px, min(72vw, 46dvh), 420px);
+  /* 底缘仅 safe-area，避免与 shell 默认 10px 叠成无意义留白 */
+  padding-bottom: max(0px, env(safe-area-inset-bottom, 0px));
 }
 
 #app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='phone'] {
@@ -102,11 +126,20 @@ html.dp-game-no-scroll,
 body.dp-game-no-scroll {
   overflow: hidden !important;
   overscroll-behavior: none;
+  height: 100%;
+  min-height: 100svh;
+  min-height: 100dvh;
 }
 
 /* 仅对局链路上的根：整体缩放由档位控制（替代原 responsive-type 里多条重复 zoom） */
 #app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='phone'] {
   zoom: var(--dp-zoom-game);
+  height: calc(100svh / var(--dp-zoom-game));
+  height: calc(100dvh / var(--dp-zoom-game));
+  min-height: calc(100svh / var(--dp-zoom-game));
+  min-height: calc(100dvh / var(--dp-zoom-game));
+  max-height: calc(100svh / var(--dp-zoom-game));
+  max-height: calc(100dvh / var(--dp-zoom-game));
 }
 
 #app.app--dp-game .full-page--dp-game > .dp-game-root[data-dp-layout-tier='phone']:fullscreen,
@@ -134,12 +167,13 @@ body.dp-game-no-scroll {
   --dp-game-fs-extra-pad-top: 10px;
   /*
    * zoom 会缩小布局占位（约 92% 视口高），未补偿时 #app 默认浅灰底从底部露出。
-   * 反算高度使缩放后仍铺满一屏。
+   * 反算高度使缩放后仍铺满一屏（svh 回退须写在 dvh 前）。
    */
-  height: calc(100dvh / var(--dp-zoom-game));
   height: calc(100svh / var(--dp-zoom-game));
-  max-height: calc(100dvh / var(--dp-zoom-game));
+  height: calc(100dvh / var(--dp-zoom-game));
   max-height: calc(100svh / var(--dp-zoom-game));
+  max-height: calc(100dvh / var(--dp-zoom-game));
+  min-height: calc(100svh / var(--dp-zoom-game));
   min-height: calc(100dvh / var(--dp-zoom-game));
 }
 

@@ -91,8 +91,7 @@ system prompt含plan_next→输出含推理链+行动
 
 ### Section 5: 全局开关（底部条）
 
-NPC_MOOD_ENABLED = false | NPC_HAND_SEED_FOR_DECISIONS = true
-rule-think.enabled = true | snap-probability = 0.18 | max-ms = 4000
+NPC_MOOD_ENABLED = false | rule-think.enabled = true | snap-probability = 0.18 | max-ms = 4000
 
 ## Text Labels (in Chinese)
 - 翻后策略分派
